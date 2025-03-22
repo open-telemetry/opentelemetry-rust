@@ -1,7 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::trace::error::{TraceError, TraceResult};
 use crate::trace::{SpanData, SpanExporter};
+use crate::InMemoryExporterError;
 use std::sync::{Arc, Mutex};
 
 /// An in-memory span exporter that stores span data in memory.
@@ -16,12 +16,12 @@ use std::sync::{Arc, Mutex};
 ///# use opentelemetry_sdk::propagation::TraceContextPropagator;
 ///# use opentelemetry_sdk::runtime;
 ///# use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
-///# use opentelemetry_sdk::trace::{BatchSpanProcessor, TracerProvider};
+///# use opentelemetry_sdk::trace::{BatchSpanProcessor, SdkTracerProvider};
 ///
 ///# #[tokio::main]
 ///# async fn main() {
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
-///     let provider = TracerProvider::builder()
+///     let provider = SdkTracerProvider::builder()
 ///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build())
 ///         .build();
 ///
@@ -37,11 +37,8 @@ use std::sync::{Arc, Mutex};
 ///     cx.span().add_event("handling this...", Vec::new());
 ///     cx.span().end();
 ///
-///     let results = provider.force_flush();
-///     for result in results {
-///         if let Err(e) = result {
-///             println!("{:?}", e)
-///         }
+///     if let Err(e) = provider.force_flush() {
+///         println!("{:?}", e)
 ///     }
 ///     let spans = exporter.get_finished_spans().unwrap();
 ///     for span in spans {
@@ -107,11 +104,13 @@ impl InMemorySpanExporter {
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
     /// ```
-    pub fn get_finished_spans(&self) -> TraceResult<Vec<SpanData>> {
-        self.spans
+    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, InMemoryExporterError> {
+        let spans = self
+            .spans
             .lock()
             .map(|spans_guard| spans_guard.iter().cloned().collect())
-            .map_err(TraceError::from)
+            .map_err(InMemoryExporterError::from)?;
+        Ok(spans)
     }
 
     /// Clears the internal storage of finished spans.

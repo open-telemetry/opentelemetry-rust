@@ -15,7 +15,7 @@ impl LogExporter for OtlpHttpClient {
 
         let (body, content_type) = self
             .build_logs_export_body(batch)
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
+            .map_err(OTelSdkError::InternalFailure)?;
 
         let mut request = http::Request::builder()
             .method(Method::POST)
@@ -46,7 +46,7 @@ impl LogExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
             OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
         })?;

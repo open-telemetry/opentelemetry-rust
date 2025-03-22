@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
 Fixes [1682](https://github.com/open-telemetry/opentelemetry-rust/issues/1682).
 "spec_unstable_logs_enabled" feature now do not suppress logs for other layers.
 
@@ -30,6 +34,30 @@ simple string, but require format arguments as in the below example.
 ```rust
 error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", "This is an example message with format arguments {} and {}", "foo", "bar");
 ```
+
+Fixes [2658](https://github.com/open-telemetry/opentelemetry-rust/issues/2658)
+InstrumentationScope(Logger) used by the appender now uses an empty ("") named
+Logger. Previously, a Logger with name and version of the crate was used.
+Receivers (processors, exporters) are expected to use `LogRecord.target()` as
+scope name. This is already done in OTLP Exporters, so this change should be
+transparent to most users.
+
+- Passes event name  to the `event_enabled` method on the `Logger`. This allows
+  implementations (SDK, processor, exporters) to leverage this additional
+  information to determine if an event is enabled.
+
+- `u64`, `i128`, `u128` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
+when conversion is feasible. Otherwise stored as
+`opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
+allocation when values can be represented in their original types.
+- Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
+of string.
+- `Error` fields are reported using attribute named "exception.message". For
+  example, the below will now report an attribute named "exception.message",
+  instead of previously reporting the user provided attribute "error".
+  `error!(....error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error...)`
+- perf - small perf improvement by avoiding string allocation of `target`
+- Update `opentelemetry` dependency version to 0.29.
 
 ## 0.28.1
 

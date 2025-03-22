@@ -2,13 +2,22 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency to 0.29.
+- Update `opentelemetry-http` dependency to 0.29.
+- **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
+  for the changes.
+- Removed `async-std` support for `Runtime`, as [`async-std` crate is deprecated](https://crates.io/crates/async-std).
 - Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
-- *Breaking*: Make `force_flush()` in `PushMetricExporter` synchronous
-- **Breaking Change:** Updated the `SpanExporter` trait method signature:
+- **Breaking**: Make `force_flush()` in `PushMetricExporter` synchronous
+- **Breaking**: Updated the `SpanExporter` trait method signature:
 
 ```rust
   fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult>;
@@ -36,10 +45,13 @@
 
 - **Breaking** The SpanExporter::export() method no longer requires a mutable reference to self.
   Before:
+
   ```rust
     async fn export(&mut self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
+
   After:
+  
   ```rust
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
@@ -50,6 +62,28 @@
   when its `shutdown` is invoked.
 
 - Reduced some info level logs to debug
+- **Breaking** for custom LogProcessor/Exporter authors: Changed `name`
+  parameter from `&str` to `Option<&str>` in `event_enabled` method on the
+  `LogProcessor` and `LogExporter` traits. `SdkLogger` no longer passes its
+  `scope` name but instead passes the incoming `name` when invoking
+  `event_enabled` on processors.
+- **Breaking** for custom LogExporter authors: `shutdown()` method in
+ `LogExporter` trait no longer requires a mutable ref to `self`. If the exporter
+ needs to mutate state, it should rely on interior mutability.
+ [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
+- *Breaking (Affects custom Exporter/Processor authors only)* Removed
+ `opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
+ intended to be public. If you are authoring custom processor/exporters, use
+ `opentelemetry_sdk::error::OTelSdkError` and
+ `opentelemetry_sdk::error::OTelSdkResult`.
+  [2790](https://github.com/open-telemetry/opentelemetry-rust/pull/2790)
+- **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
+  to require mutable ref.
+  `fn set_resource(&mut self, _resource: &Resource) {}`
+- **Breaking**: InMemoryExporter's return type change.
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, InMemoryExporterError>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, InMemoryExporterError>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, InMemoryExporterError>`
 
 ## 0.28.0
 

@@ -2,8 +2,37 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+- Update `opentelemetry-http` dependency version to 0.29
+- Update `opentelemetry-proto` dependency version to 0.29
+
 - The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Fixed
+  [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
+  partially to properly handle `shutdown()` when using `http`. (`tonic` still
+  does not do proper shutdown)
+- *Breaking*
+ ExporterBuilder's build() method now Result with `ExporterBuildError` being the
+ Error variant. Previously it returned signal specific errors like `LogError`
+ from the `opentelemetry_sdk`, which are no longer part of the sdk. No changes
+ required if you were using unwrap/expect. If you were matching on the returning
+ Error enum, replace with the enum `ExporterBuildError`. Unlike the previous
+ `Error` which contained many variants unrelated to building an exporter, the
+ new one returns specific variants applicable to building an exporter. Some
+ variants might be applicable only on select features.
+ Also, now unused `Error` enum is removed.
+- **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
+- **Breaking** Export configuration done via code is final. ENV variables cannot be used to override the code config.
+  Do not use code based config, if there is desire to control the settings via ENV variables.
+  List of ENV variables and corresponding setting being affected by this change.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` -> `ExportConfig.endpoint`
+  - `OTEL_EXPORTER_OTLP_TIMEOUT` -> `ExportConfig.timeout`
 
 ## 0.28.0
 

@@ -6,12 +6,13 @@
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::{Error, Protocol};
+use crate::Protocol;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
+use thiserror::Error;
 
 /// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
 /// Learn about the relationship between this constant and metrics/spans/logs at
@@ -67,29 +68,72 @@ pub(crate) mod tonic;
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
 pub struct ExportConfig {
-    /// The address of the OTLP collector. If it's not provided via builder or environment variables.
+    /// The address of the OTLP collector.
     /// Default address will be used based on the protocol.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
 
     /// The timeout to the collector.
-    pub timeout: Duration,
+    /// The default value is 10 seconds.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
+    pub timeout: Option<Duration>,
 }
 
 impl Default for ExportConfig {
     fn default() -> Self {
         let protocol = default_protocol();
 
-        ExportConfig {
+        Self {
             endpoint: None,
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
-            timeout: OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+            timeout: None,
         }
     }
+}
+
+#[derive(Error, Debug)]
+/// Errors that can occur while building an exporter.
+// TODO: Refine and polish this.
+// Non-exhaustive to allow for future expansion without breaking changes.
+// This could be refined after polishing and finalizing the errors.
+#[non_exhaustive]
+pub enum ExporterBuildError {
+    /// Spawning a new thread failed.
+    #[error("Spawning a new thread failed. Unable to create Reqwest-Blocking client.")]
+    ThreadSpawnFailed,
+
+    /// Feature required to use the specified compression algorithm.
+    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
+
+    /// No Http client specified.
+    #[error("no http client specified")]
+    NoHttpClient,
+
+    /// Unsupported compression algorithm.
+    #[error("unsupported compression algorithm '{0}'")]
+    UnsupportedCompressionAlgorithm(String),
+
+    /// Invalid URI.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    #[error("invalid URI {0}. Reason {1}")]
+    InvalidUri(String, String),
+
+    /// Failed due to an internal error.
+    /// The error message is intended for logging purposes only and should not
+    /// be used to make programmatic decisions. It is implementation-specific
+    /// and subject to change without notice. Consumers of this error should not
+    /// rely on its content beyond logging.
+    #[error("Reason: {0}")]
+    InternalFailure(String),
 }
 
 /// The compression algorithm to use when sending data.
@@ -112,13 +156,15 @@ impl Display for Compression {
 }
 
 impl FromStr for Compression {
-    type Err = Error;
+    type Err = ExporterBuildError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gzip" => Ok(Compression::Gzip),
             "zstd" => Ok(Compression::Zstd),
-            _ => Err(Error::UnsupportedCompressionAlgorithm(s.to_string())),
+            _ => Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                s.to_string(),
+            )),
         }
     }
 }
@@ -182,6 +228,8 @@ impl HasExportConfig for HttpExporterBuilder {
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
     ///
@@ -189,11 +237,15 @@ pub trait WithExportConfig {
     /// will use default protocol in this case.
     ///
     /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is an no-op at the moment.
+    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
-    /// Set export config. This will override all previous configuration.
+    /// Set export config. This will override all previous configurations.
+    ///
+    /// Note: Programmatically setting this will override any value set via environment variables.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
 
@@ -209,7 +261,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 
     fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.export_config().timeout = timeout;
+        self.export_config().timeout = Some(timeout);
         self
     }
 
@@ -218,6 +270,28 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
         self
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+fn resolve_timeout(signal_timeout_var: &str, provided_timeout: Option<&Duration>) -> Duration {
+    // programmatic configuration overrides any value set via environment variables
+    if let Some(timeout) = provided_timeout {
+        *timeout
+    } else if let Some(timeout) = std::env::var(signal_timeout_var)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // per signal env var is not modified
+        Duration::from_millis(timeout)
+    } else if let Some(timeout) = std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_TIMEOUT env var is set
+        Duration::from_millis(timeout)
+    } else {
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT
     }
 }
 
@@ -296,6 +370,59 @@ mod tests {
         let exporter_builder = crate::HttpExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
+    }
+
+    #[cfg(feature = "logs")]
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    #[test]
+    fn export_builder_error_invalid_http_endpoint() {
+        use std::time::Duration;
+
+        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+
+        let ex_config = ExportConfig {
+            endpoint: Some("invalid_uri/something".to_string()),
+            protocol: Protocol::HttpBinary,
+            timeout: Some(Duration::from_secs(10)),
+        };
+
+        let exporter_result = LogExporter::builder()
+            .with_http()
+            .with_export_config(ex_config)
+            .build();
+
+        assert!(
+            matches!(
+                exporter_result,
+                Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+            ),
+            "Expected InvalidUri error, but got {:?}",
+            exporter_result
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[tokio::test]
+    async fn export_builder_error_invalid_grpc_endpoint() {
+        use std::time::Duration;
+
+        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+
+        let ex_config = ExportConfig {
+            endpoint: Some("invalid_uri/something".to_string()),
+            protocol: Protocol::Grpc,
+            timeout: Some(Duration::from_secs(10)),
+        };
+
+        let exporter_result = LogExporter::builder()
+            .with_tonic()
+            .with_export_config(ex_config)
+            .build();
+
+        assert!(matches!(
+            exporter_result,
+            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+        ));
     }
 
     #[cfg(feature = "grpc-tonic")]
@@ -403,5 +530,45 @@ mod tests {
                 expected_headers.map(|(k, v)| (k, v.to_string())),
             )
         }
+    }
+
+    #[test]
+    fn test_priority_of_signal_env_over_generic_env_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout =
+                    super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+                assert_eq!(timeout.as_millis(), 3000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout = super::resolve_timeout(
+                    crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                    Some(&std::time::Duration::from_millis(1000)),
+                );
+                assert_eq!(timeout.as_millis(), 1000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_timeout() {
+        run_env_test(vec![], || {
+            let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+            assert_eq!(timeout.as_millis(), 10_000);
+        });
     }
 }

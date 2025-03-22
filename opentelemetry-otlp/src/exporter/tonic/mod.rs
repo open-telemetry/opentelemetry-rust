@@ -1,7 +1,6 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
-use std::time::Duration;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::otel_debug;
@@ -13,10 +12,11 @@ use tonic::transport::Channel;
 use tonic::transport::ClientTlsConfig;
 
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
+use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
 use crate::{
     ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_HEADERS,
 };
 
 #[cfg(feature = "logs")]
@@ -46,21 +46,21 @@ pub struct TonicConfig {
 }
 
 impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
-    type Error = crate::Error;
+    type Error = ExporterBuildError;
 
-    fn try_from(value: Compression) -> Result<Self, Self::Error> {
+    fn try_from(value: Compression) -> Result<Self, ExporterBuildError> {
         match value {
             #[cfg(feature = "gzip-tonic")]
             Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
             #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+            Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
                 "gzip-tonic",
                 Compression::Gzip,
             )),
             #[cfg(feature = "zstd-tonic")]
             Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
             #[cfg(not(feature = "zstd-tonic"))]
-            Compression::Zstd => Err(crate::Error::FeatureRequiredForCompressionAlgorithm(
+            Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
                 "zstd-tonic",
                 Compression::Zstd,
             )),
@@ -151,7 +151,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
-    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
+    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), ExporterBuildError> {
         let compression = self.resolve_compression(signal_compression_var)?;
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
@@ -194,23 +194,15 @@ impl TonicExporterBuilder {
         // Used for logging the endpoint
         let endpoint_clone = endpoint.clone();
 
-        let endpoint = Channel::from_shared(endpoint).map_err(crate::Error::from)?;
-        let timeout = match env::var(signal_timeout_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_TIMEOUT).ok())
-        {
-            Some(val) => match val.parse() {
-                Ok(milli_seconds) => Duration::from_millis(milli_seconds),
-                Err(_) => config.timeout,
-            },
-            None => config.timeout,
-        };
+        let endpoint = Channel::from_shared(endpoint)
+            .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
+        let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
 
         #[cfg(feature = "tls")]
         let channel = match self.tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
-                .map_err(crate::Error::from)?,
+                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
             None => endpoint,
         }
         .timeout(timeout)
@@ -229,21 +221,23 @@ impl TonicExporterBuilder {
         // the path of grpc calls are based on the protobuf service definition
         // so we won't append one for default grpc endpoints
         // If users for some reason want to use a custom path, they can use env var or builder to pass it
-        match env::var(default_endpoint_var)
-            .ok()
-            .or(env::var(OTEL_EXPORTER_OTLP_ENDPOINT).ok())
-        {
-            Some(val) => val,
-            None => {
-                provided_endpoint.unwrap_or(OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string())
-            }
+        //
+        // programmatic configuration overrides any value set via environment variables
+        if let Some(endpoint) = provided_endpoint {
+            endpoint
+        } else if let Ok(endpoint) = env::var(default_endpoint_var) {
+            endpoint
+        } else if let Ok(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
+            endpoint
+        } else {
+            OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
         }
     }
 
     fn resolve_compression(
         &self,
         env_override: &str,
-    ) -> Result<Option<CompressionEncoding>, crate::Error> {
+    ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
         if let Some(compression) = self.tonic_config.compression {
             Ok(Some(compression.try_into()?))
         } else if let Ok(compression) = env::var(env_override) {
@@ -257,9 +251,7 @@ impl TonicExporterBuilder {
 
     /// Build a new tonic log exporter
     #[cfg(feature = "logs")]
-    pub(crate) fn build_log_exporter(
-        self,
-    ) -> Result<crate::logs::LogExporter, opentelemetry_sdk::logs::LogError> {
+    pub(crate) fn build_log_exporter(self) -> Result<crate::logs::LogExporter, ExporterBuildError> {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
         otel_debug!(name: "LogsTonicChannelBuilding");
@@ -281,7 +273,7 @@ impl TonicExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         self,
         temporality: opentelemetry_sdk::metrics::Temporality,
-    ) -> opentelemetry_sdk::metrics::MetricResult<crate::MetricExporter> {
+    ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::MetricExporter;
         use metrics::TonicMetricsClient;
 
@@ -301,9 +293,7 @@ impl TonicExporterBuilder {
 
     /// Build a new tonic span exporter
     #[cfg(feature = "trace")]
-    pub(crate) fn build_span_exporter(
-        self,
-    ) -> Result<crate::SpanExporter, opentelemetry_sdk::trace::TraceError> {
+    pub(crate) fn build_span_exporter(self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::exporter::tonic::trace::TonicTracesClient;
 
         otel_debug!(name: "TracesTonicChannelBuilding");
@@ -458,7 +448,7 @@ mod tests {
     use crate::exporter::tonic::WithTonicConfig;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::{TonicExporterBuilder, WithExportConfig, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use crate::{TonicExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
@@ -525,6 +515,54 @@ mod tests {
     }
 
     #[test]
+    fn test_priority_of_signal_env_over_generic_env_for_compression() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "zstd"),
+                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+            ],
+            || {
+                let builder = TonicExporterBuilder::default();
+
+                let compression = builder
+                    .resolve_compression(crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)
+                    .unwrap();
+                assert_eq!(compression, Some(tonic::codec::CompressionEncoding::Zstd));
+            },
+        );
+    }
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_compression() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "gzip"),
+                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+            ],
+            || {
+                let builder = TonicExporterBuilder::default().with_compression(Compression::Zstd);
+
+                let compression = builder
+                    .resolve_compression(crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)
+                    .unwrap();
+                assert_eq!(compression, Some(tonic::codec::CompressionEncoding::Zstd));
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_compression() {
+        run_env_test(vec![], || {
+            let builder = TonicExporterBuilder::default();
+
+            let compression = builder
+                .resolve_compression(crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION)
+                .unwrap();
+            assert!(compression.is_none());
+        });
+    }
+
+    #[test]
     fn test_parse_headers_from_env() {
         run_env_test(
             vec![
@@ -583,29 +621,45 @@ mod tests {
     }
 
     #[test]
-    fn test_tonic_exporter_endpoint() {
-        // default endpoint for grpc should not add signal path.
+    fn test_priority_of_signal_env_over_generic_env_for_endpoint() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:1234"),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, "http://localhost:2345"),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                );
+                assert_eq!(url, "http://localhost:1234");
+            },
+        );
+    }
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_endpoint() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "http://localhost:1234"),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, "http://localhost:2345"),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    Some("http://localhost:3456".to_string()),
+                );
+                assert_eq!(url, "http://localhost:3456");
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_endpoint() {
         run_env_test(vec![], || {
-            let exporter = TonicExporterBuilder::default();
-
-            let url = TonicExporterBuilder::resolve_endpoint(
-                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-                exporter.exporter_config.endpoint,
-            );
-
+            let url =
+                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None);
             assert_eq!(url, "http://localhost:4317");
-        });
-
-        // if builder endpoint is set, it should not use default.
-        run_env_test(vec![], || {
-            let exporter = TonicExporterBuilder::default().with_endpoint("http://localhost:1234");
-
-            let url = TonicExporterBuilder::resolve_endpoint(
-                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-                exporter.exporter_config.endpoint,
-            );
-
-            assert_eq!(url, "http://localhost:1234");
         });
     }
 }

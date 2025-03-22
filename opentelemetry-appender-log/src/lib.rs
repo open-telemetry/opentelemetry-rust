@@ -12,12 +12,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! let exporter = opentelemetry_stdout::LogExporter::default();
 //!
-//! let logger_provider = LoggerProvider::builder()
-//!     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! let logger_provider = SdkLoggerProvider::builder()
+//!     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //!     .build();
 //! # }
 //! ```
@@ -26,12 +26,12 @@
 //!
 //! ```
 //! # #[tokio::main] async fn main() {
-//! # use opentelemetry_sdk::logs::{BatchLogProcessor, LoggerProvider};
+//! # use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 //! # use opentelemetry_sdk::runtime;
 //! # use opentelemetry_appender_log::OpenTelemetryLogBridge;
 //! # let exporter = opentelemetry_stdout::LogExporter::default();
-//! # let logger_provider = LoggerProvider::builder()
-//! #     .with_log_processor(BatchLogProcessor::builder(exporter, runtime::Tokio).build())
+//! # let logger_provider = SdkLoggerProvider::builder()
+//! #     .with_log_processor(BatchLogProcessor::builder(exporter).build())
 //! #     .build();
 //! let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 //!
@@ -113,7 +113,7 @@
 use log::{Level, Metadata, Record};
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationScope, Key,
+    Key,
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{
@@ -136,9 +136,11 @@ where
 {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         #[cfg(feature = "spec_unstable_logs_enabled")]
-        return self
-            .logger
-            .event_enabled(severity_of_level(_metadata.level()), _metadata.target());
+        return self.logger.event_enabled(
+            severity_of_level(_metadata.level()),
+            _metadata.target(),
+            None,
+        );
         #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         true
     }
@@ -187,12 +189,13 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        let scope = InstrumentationScope::builder("opentelemetry-log-appender")
-            .with_version(env!("CARGO_PKG_VERSION"))
-            .build();
-
-        OpenTelemetryLogBridge {
-            logger: provider.logger_with_scope(scope),
+        Self {
+            // Using empty scope name.
+            // The name/version of this library itself can be added
+            // as a Scope attribute once a semantic convention is
+            // defined for the same.
+            // See https://github.com/open-telemetry/semantic-conventions/issues/1550
+            logger: provider.logger(""),
             _phantom: Default::default(),
         }
     }
@@ -983,9 +986,13 @@ mod tests {
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+
+        let log = logs.first().unwrap();
+        assert_eq!(log.instrumentation.name(), "");
 
         let get = |needle: &str| -> Option<AnyValue> {
-            logs[0].record.attributes_iter().find_map(|(k, v)| {
+            log.record.attributes_iter().find_map(|(k, v)| {
                 if k.as_str() == needle {
                     Some(v.clone())
                 } else {
@@ -1195,9 +1202,13 @@ mod tests {
         );
 
         let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+
+        let log = logs.first().unwrap();
+        assert_eq!(log.instrumentation.name(), "");
 
         let get = |needle: &str| -> Option<AnyValue> {
-            logs[0].record.attributes_iter().find_map(|(k, v)| {
+            log.record.attributes_iter().find_map(|(k, v)| {
                 if k.as_str() == needle {
                     Some(v.clone())
                 } else {

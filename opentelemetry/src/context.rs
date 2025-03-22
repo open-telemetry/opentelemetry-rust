@@ -1,3 +1,15 @@
+//! Execution-scoped context propagation.
+//!
+//! The `context` module provides mechanisms for propagating values across API boundaries and between
+//! logically associated execution units. It enables cross-cutting concerns to access their data in-process
+//! using a shared context object.
+//!
+//! # Main Types
+//!
+//! - [`Context`]: An immutable, execution-scoped collection of values.
+//!
+
+use crate::otel_warn;
 #[cfg(feature = "trace")]
 use crate::trace::context::SynchronizedSpan;
 use std::any::{Any, TypeId};
@@ -8,8 +20,12 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+mod future_ext;
+
+pub use future_ext::FutureExt;
+
 thread_local! {
-    static CURRENT_CONTEXT: RefCell<Context> = RefCell::new(Context::default());
+    static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
 }
 
 /// An execution-scoped collection of values.
@@ -77,9 +93,11 @@ thread_local! {
 #[derive(Clone, Default)]
 pub struct Context {
     #[cfg(feature = "trace")]
-    pub(super) span: Option<Arc<SynchronizedSpan>>,
-    entries: HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>,
+    pub(crate) span: Option<Arc<SynchronizedSpan>>,
+    entries: Option<Arc<EntryMap>>,
 }
+
+type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
 
 impl Context {
     /// Creates an empty `Context`.
@@ -110,7 +128,7 @@ impl Context {
     /// do_work()
     /// ```
     pub fn current() -> Self {
-        Context::map_current(|cx| cx.clone())
+        Self::map_current(|cx| cx.clone())
     }
 
     /// Applies a function to the current context returning its value.
@@ -122,7 +140,7 @@ impl Context {
     /// Note: This function will panic if you attempt to attach another context
     /// while the current one is still borrowed.
     pub fn map_current<T>(f: impl FnOnce(&Context) -> T) -> T {
-        CURRENT_CONTEXT.with(|cx| f(&cx.borrow()))
+        CURRENT_CONTEXT.with(|cx| cx.borrow().map_current_cx(f))
     }
 
     /// Returns a clone of the current thread's context with the given value.
@@ -152,12 +170,7 @@ impl Context {
     /// assert_eq!(all_current_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn current_with_value<T: 'static + Send + Sync>(value: T) -> Self {
-        let mut new_context = Context::current();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        Self::map_current(|cx| cx.with_value(value))
     }
 
     /// Returns a reference to the entry for the corresponding value type.
@@ -183,8 +196,9 @@ impl Context {
     /// ```
     pub fn get<T: 'static>(&self) -> Option<&T> {
         self.entries
-            .get(&TypeId::of::<T>())
-            .and_then(|rc| rc.downcast_ref())
+            .as_ref()?
+            .get(&TypeId::of::<T>())?
+            .downcast_ref()
     }
 
     /// Returns a copy of the context with the new value included.
@@ -215,12 +229,20 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let mut new_context = self.clone();
-        new_context
-            .entries
-            .insert(TypeId::of::<T>(), Arc::new(value));
-
-        new_context
+        let entries = if let Some(current_entries) = &self.entries {
+            let mut inner_entries = (**current_entries).clone();
+            inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(inner_entries))
+        } else {
+            let mut entries = EntryMap::default();
+            entries.insert(TypeId::of::<T>(), Arc::new(value));
+            Some(Arc::new(entries))
+        };
+        Context {
+            entries,
+            #[cfg(feature = "trace")]
+            span: self.span.clone(),
+        }
     }
 
     /// Replaces the current context on this thread with this context.
@@ -298,18 +320,16 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let previous_cx = CURRENT_CONTEXT
-            .try_with(|current| current.replace(self))
-            .ok();
+        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self));
 
         ContextGuard {
-            previous_cx,
+            cx_pos: cx_id,
             _marker: PhantomData,
         }
     }
 
     #[cfg(feature = "trace")]
-    pub(super) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
+    pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
         Context {
             span: Some(Arc::new(value)),
             entries: Context::map_current(|cx| cx.entries.clone()),
@@ -317,7 +337,7 @@ impl Context {
     }
 
     #[cfg(feature = "trace")]
-    pub(super) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
+    pub(crate) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
         Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
@@ -328,7 +348,7 @@ impl Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut dbg = f.debug_struct("Context");
-        let mut entries = self.entries.len();
+        let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
         #[cfg(feature = "trace")]
         {
             if let Some(span) = &self.span {
@@ -339,22 +359,24 @@ impl fmt::Debug for Context {
             }
         }
 
-        dbg.field("entries", &entries).finish()
+        dbg.field("entries count", &entries).finish()
     }
 }
 
 /// A guard that resets the current context to the prior context when dropped.
-#[allow(missing_debug_implementations)]
+#[derive(Debug)]
 pub struct ContextGuard {
-    previous_cx: Option<Context>,
-    // ensure this type is !Send as it relies on thread locals
+    // The position of the context in the stack. This is used to pop the context.
+    cx_pos: u16,
+    // Ensure this type is !Send as it relies on thread locals
     _marker: PhantomData<*const ()>,
 }
 
 impl Drop for ContextGuard {
     fn drop(&mut self) {
-        if let Some(previous_cx) = self.previous_cx.take() {
-            let _ = CURRENT_CONTEXT.try_with(|current| current.replace(previous_cx));
+        let id = self.cx_pos;
+        if id > ContextStack::BASE_POS && id < ContextStack::MAX_POS {
+            CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
         }
     }
 }
@@ -381,32 +403,181 @@ impl Hasher for IdHasher {
     }
 }
 
+/// A stack for keeping track of the [`Context`] instances that have been attached
+/// to a thread.
+///
+/// The stack allows for popping of contexts by position, which is used to do out
+/// of order dropping of [`ContextGuard`] instances. Only when the top of the
+/// stack is popped, the topmost [`Context`] is actually restored.
+///
+/// The stack relies on the fact that it is thread local and that the
+/// [`ContextGuard`] instances that are constructed using ids from it can't be
+/// moved to other threads. That means that the ids are always valid and that
+/// they are always within the bounds of the stack.
+struct ContextStack {
+    /// This is the current [`Context`] that is active on this thread, and the top
+    /// of the [`ContextStack`]. It is always present, and if the `stack` is empty
+    /// it's an empty [`Context`].
+    ///
+    /// Having this here allows for fast access to the current [`Context`].
+    current_cx: Context,
+    /// A `stack` of the other contexts that have been attached to the thread.
+    stack: Vec<Option<Context>>,
+    /// Ensure this type is !Send as it relies on thread locals
+    _marker: PhantomData<*const ()>,
+}
+
+impl ContextStack {
+    const BASE_POS: u16 = 0;
+    const MAX_POS: u16 = u16::MAX;
+    const INITIAL_CAPACITY: usize = 8;
+
+    #[inline(always)]
+    fn push(&mut self, cx: Context) -> u16 {
+        // The next id is the length of the `stack`, plus one since we have the
+        // top of the [`ContextStack`] as the `current_cx`.
+        let next_id = self.stack.len() + 1;
+        if next_id < ContextStack::MAX_POS.into() {
+            let current_cx = std::mem::replace(&mut self.current_cx, cx);
+            self.stack.push(Some(current_cx));
+            next_id as u16
+        } else {
+            // This is an overflow, log it and ignore it.
+            otel_warn!(
+                name: "Context.AttachFailed",
+                message = format!("Too many contexts. Max limit is {}. \
+                  Context::current() remains unchanged as this attach failed. \
+                  Dropping the returned ContextGuard will have no impact on Context::current().",
+                  ContextStack::MAX_POS)
+            );
+            ContextStack::MAX_POS
+        }
+    }
+
+    #[inline(always)]
+    fn pop_id(&mut self, pos: u16) {
+        if pos == ContextStack::BASE_POS || pos == ContextStack::MAX_POS {
+            // The empty context is always at the bottom of the [`ContextStack`]
+            // and cannot be popped, and the overflow position is invalid, so do
+            // nothing.
+            otel_warn!(
+                name: "Context.OutOfOrderDrop",
+                position = pos,
+                message = if pos == ContextStack::BASE_POS {
+                    "Attempted to pop the base context which is not allowed"
+                } else {
+                    "Attempted to pop the overflow position which is not allowed"
+                }
+            );
+            return;
+        }
+        let len: u16 = self.stack.len() as u16;
+        // Are we at the top of the [`ContextStack`]?
+        if pos == len {
+            // Shrink the stack if possible to clear out any out of order pops.
+            while let Some(None) = self.stack.last() {
+                _ = self.stack.pop();
+            }
+            // Restore the previous context. This will always happen since the
+            // empty context is always at the bottom of the stack if the
+            // [`ContextStack`] is not empty.
+            if let Some(Some(next_cx)) = self.stack.pop() {
+                self.current_cx = next_cx;
+            }
+        } else {
+            // This is an out of order pop.
+            if pos >= len {
+                // This is an invalid id, ignore it.
+                otel_warn!(
+                    name: "Context.PopOutOfBounds",
+                    position = pos,
+                    stack_length = len,
+                    message = "Attempted to pop beyond the end of the context stack"
+                );
+                return;
+            }
+            // Clear out the entry at the given id.
+            _ = self.stack[pos as usize].take();
+        }
+    }
+
+    #[inline(always)]
+    fn map_current_cx<T>(&self, f: impl FnOnce(&Context) -> T) -> T {
+        f(&self.current_cx)
+    }
+}
+
+impl Default for ContextStack {
+    fn default() -> Self {
+        ContextStack {
+            current_cx: Context::default(),
+            stack: Vec::with_capacity(ContextStack::INITIAL_CAPACITY),
+            _marker: PhantomData,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    #[derive(Debug, PartialEq)]
+    struct ValueA(u64);
+    #[derive(Debug, PartialEq)]
+    struct ValueB(u64);
+
+    #[test]
+    fn context_immutable() {
+        // start with Current, which should be an empty context
+        let cx = Context::current();
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+
+        // with_value should return a new context,
+        // leaving the original context unchanged
+        let cx_new = cx.with_value(ValueA(1));
+
+        // cx should be unchanged
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+
+        // cx_new should contain the new value
+        assert_eq!(cx_new.get::<ValueA>(), Some(&ValueA(1)));
+
+        // cx_new should be unchanged
+        let cx_newer = cx_new.with_value(ValueB(1));
+
+        // Cx and cx_new are unchanged
+        assert_eq!(cx.get::<ValueA>(), None);
+        assert_eq!(cx.get::<ValueB>(), None);
+        assert_eq!(cx_new.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(cx_new.get::<ValueB>(), None);
+
+        // cx_newer should contain both values
+        assert_eq!(cx_newer.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(cx_newer.get::<ValueB>(), Some(&ValueB(1)));
+    }
 
     #[test]
     fn nested_contexts() {
-        #[derive(Debug, PartialEq)]
-        struct ValueA(&'static str);
-        #[derive(Debug, PartialEq)]
-        struct ValueB(u64);
-        let _outer_guard = Context::new().with_value(ValueA("a")).attach();
+        let _outer_guard = Context::new().with_value(ValueA(1)).attach();
 
         // Only value `a` is set
         let current = Context::current();
-        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueA(1)));
         assert_eq!(current.get::<ValueB>(), None);
 
         {
             let _inner_guard = Context::current_with_value(ValueB(42)).attach();
             // Both values are set in inner context
             let current = Context::current();
-            assert_eq!(current.get(), Some(&ValueA("a")));
+            assert_eq!(current.get(), Some(&ValueA(1)));
             assert_eq!(current.get(), Some(&ValueB(42)));
 
             assert!(Context::map_current(|cx| {
-                assert_eq!(cx.get(), Some(&ValueA("a")));
+                assert_eq!(cx.get(), Some(&ValueA(1)));
                 assert_eq!(cx.get(), Some(&ValueB(42)));
                 true
             }));
@@ -414,13 +585,316 @@ mod tests {
 
         // Resets to only value `a` when inner guard is dropped
         let current = Context::current();
-        assert_eq!(current.get(), Some(&ValueA("a")));
+        assert_eq!(current.get(), Some(&ValueA(1)));
         assert_eq!(current.get::<ValueB>(), None);
 
         assert!(Context::map_current(|cx| {
-            assert_eq!(cx.get(), Some(&ValueA("a")));
+            assert_eq!(cx.get(), Some(&ValueA(1)));
             assert_eq!(cx.get::<ValueB>(), None);
             true
         }));
+    }
+
+    #[test]
+    fn overlapping_contexts() {
+        let outer_guard = Context::new().with_value(ValueA(1)).attach();
+
+        // Only value `a` is set
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA(1)));
+        assert_eq!(current.get::<ValueB>(), None);
+
+        let inner_guard = Context::current_with_value(ValueB(42)).attach();
+        // Both values are set in inner context
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA(1)));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        assert!(Context::map_current(|cx| {
+            assert_eq!(cx.get(), Some(&ValueA(1)));
+            assert_eq!(cx.get(), Some(&ValueB(42)));
+            true
+        }));
+
+        drop(outer_guard);
+
+        // `inner_guard` is still alive so both `ValueA` and `ValueB` should still be accessible
+        let current = Context::current();
+        assert_eq!(current.get(), Some(&ValueA(1)));
+        assert_eq!(current.get(), Some(&ValueB(42)));
+
+        drop(inner_guard);
+
+        // Both guards are dropped and neither value should be accessible.
+        let current = Context::current();
+        assert_eq!(current.get::<ValueA>(), None);
+        assert_eq!(current.get::<ValueB>(), None);
+    }
+
+    #[test]
+    fn too_many_contexts() {
+        let mut guards: Vec<ContextGuard> = Vec::with_capacity(ContextStack::MAX_POS as usize);
+        let stack_max_pos = ContextStack::MAX_POS as u64;
+        // Fill the stack up until the last position
+        for i in 1..stack_max_pos {
+            let cx_guard = Context::current().with_value(ValueB(i)).attach();
+            assert_eq!(Context::current().get(), Some(&ValueB(i)));
+            assert_eq!(cx_guard.cx_pos, i as u16);
+            guards.push(cx_guard);
+        }
+        // Let's overflow the stack a couple of times
+        for _ in 0..16 {
+            let cx_guard = Context::current().with_value(ValueA(1)).attach();
+            assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS);
+            assert_eq!(Context::current().get::<ValueA>(), None);
+            assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 1)));
+            guards.push(cx_guard);
+        }
+        // Drop the overflow contexts
+        for _ in 0..16 {
+            guards.pop();
+            assert_eq!(Context::current().get::<ValueA>(), None);
+            assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 1)));
+        }
+        // Drop one more so we can add a new one
+        guards.pop();
+        assert_eq!(Context::current().get::<ValueA>(), None);
+        assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
+        // Push a new context and see that it works
+        let cx_guard = Context::current().with_value(ValueA(2)).attach();
+        assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS - 1);
+        assert_eq!(Context::current().get(), Some(&ValueA(2)));
+        assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
+        guards.push(cx_guard);
+        // Let's overflow the stack a couple of times again
+        for _ in 0..16 {
+            let cx_guard = Context::current().with_value(ValueA(1)).attach();
+            assert_eq!(cx_guard.cx_pos, ContextStack::MAX_POS);
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(2)));
+            assert_eq!(Context::current().get(), Some(&ValueB(stack_max_pos - 2)));
+            guards.push(cx_guard);
+        }
+    }
+
+    /// Tests that a new ContextStack is created with the correct initial capacity.
+    #[test]
+    fn test_initial_capacity() {
+        let stack = ContextStack::default();
+        assert_eq!(stack.stack.capacity(), ContextStack::INITIAL_CAPACITY);
+    }
+
+    /// Tests that map_current_cx correctly accesses the current context.
+    #[test]
+    fn test_map_current_cx() {
+        let mut stack = ContextStack::default();
+        let test_value = ValueA(42);
+        stack.current_cx = Context::new().with_value(test_value);
+
+        let result = stack.map_current_cx(|cx| {
+            assert_eq!(cx.get::<ValueA>(), Some(&ValueA(42)));
+            true
+        });
+        assert!(result);
+    }
+
+    /// Tests popping contexts in non-sequential order.
+    #[test]
+    fn test_pop_id_out_of_order() {
+        let mut stack = ContextStack::default();
+
+        // Push three contexts
+        let cx1 = Context::new().with_value(ValueA(1));
+        let cx2 = Context::new().with_value(ValueA(2));
+        let cx3 = Context::new().with_value(ValueA(3));
+
+        let id1 = stack.push(cx1);
+        let id2 = stack.push(cx2);
+        let id3 = stack.push(cx3);
+
+        // Pop middle context first - should not affect current context
+        stack.pop_id(id2);
+        assert_eq!(stack.current_cx.get::<ValueA>(), Some(&ValueA(3)));
+        assert_eq!(stack.stack.len(), 3); // Length unchanged for middle pops
+
+        // Pop last context - should restore previous valid context
+        stack.pop_id(id3);
+        assert_eq!(stack.current_cx.get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(stack.stack.len(), 1);
+
+        // Pop first context - should restore to empty state
+        stack.pop_id(id1);
+        assert_eq!(stack.current_cx.get::<ValueA>(), None);
+        assert_eq!(stack.stack.len(), 0);
+    }
+
+    /// Tests edge cases in context stack operations. IRL these should log
+    /// warnings, and definitely not panic.
+    #[test]
+    fn test_pop_id_edge_cases() {
+        let mut stack = ContextStack::default();
+
+        // Test popping BASE_POS - should be no-op
+        stack.pop_id(ContextStack::BASE_POS);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping MAX_POS - should be no-op
+        stack.pop_id(ContextStack::MAX_POS);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping invalid position - should be no-op
+        stack.pop_id(1000);
+        assert_eq!(stack.stack.len(), 0);
+
+        // Test popping from empty stack - should be safe
+        stack.pop_id(1);
+        assert_eq!(stack.stack.len(), 0);
+    }
+
+    /// Tests stack behavior when reaching maximum capacity.
+    /// Once we push beyond this point, we should end up with a context
+    /// that points _somewhere_, but mutating it should not affect the current
+    /// active context.
+    #[test]
+    fn test_push_overflow() {
+        let mut stack = ContextStack::default();
+        let max_pos = ContextStack::MAX_POS as usize;
+
+        // Fill stack up to max position
+        for i in 0..max_pos {
+            let cx = Context::new().with_value(ValueA(i as u64));
+            let id = stack.push(cx);
+            assert_eq!(id, (i + 1) as u16);
+        }
+
+        // Try to push beyond capacity
+        let cx = Context::new().with_value(ValueA(max_pos as u64));
+        let id = stack.push(cx);
+        assert_eq!(id, ContextStack::MAX_POS);
+
+        // Verify current context remains unchanged after overflow
+        assert_eq!(
+            stack.current_cx.get::<ValueA>(),
+            Some(&ValueA((max_pos - 2) as u64))
+        );
+    }
+
+    /// Tests that:
+    /// 1. Parent context values are properly propagated to async operations
+    /// 2. Values added during async operations do not affect parent context
+    #[tokio::test]
+    async fn test_async_context_propagation() {
+        // A nested async operation we'll use to test propagation
+        async fn nested_operation() {
+            // Verify we can see the parent context's value
+            assert_eq!(
+                Context::current().get::<ValueA>(),
+                Some(&ValueA(42)),
+                "Parent context value should be available in async operation"
+            );
+
+            // Create new context
+            let cx_with_both = Context::current()
+                .with_value(ValueA(43)) // override ValueA
+                .with_value(ValueB(24)); // Add new ValueB
+
+            // Run nested async operation with both values
+            async {
+                // Verify both values are available
+                assert_eq!(
+                    Context::current().get::<ValueA>(),
+                    Some(&ValueA(43)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "New value should be available in async operation"
+                );
+
+                // Do some async work to simulate real-world scenario
+                sleep(Duration::from_millis(10)).await;
+
+                // Values should still be available after async work
+                assert_eq!(
+                    Context::current().get::<ValueA>(),
+                    Some(&ValueA(43)),
+                    "Parent value should persist across await points"
+                );
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "New value should persist across await points"
+                );
+            }
+            .with_context(cx_with_both)
+            .await;
+        }
+
+        // Set up initial context with ValueA
+        let parent_cx = Context::new().with_value(ValueA(42));
+
+        // Create and run async operation with the parent context explicitly propagated
+        nested_operation().with_context(parent_cx.clone()).await;
+
+        // After async operation completes:
+        // 1. Parent context should be unchanged
+        assert_eq!(
+            parent_cx.get::<ValueA>(),
+            Some(&ValueA(42)),
+            "Parent context should be unchanged"
+        );
+        assert_eq!(
+            parent_cx.get::<ValueB>(),
+            None,
+            "Parent context should not see values added in async operation"
+        );
+
+        // 2. Current context should be back to default
+        assert_eq!(
+            Context::current().get::<ValueA>(),
+            None,
+            "Current context should be back to default"
+        );
+        assert_eq!(
+            Context::current().get::<ValueB>(),
+            None,
+            "Current context should not have async operation's values"
+        );
+    }
+
+    ///
+    /// Tests that unnatural parent->child relationships in nested async
+    /// operations behave properly.
+    ///
+    #[tokio::test]
+    async fn test_out_of_order_context_detachment_futures() {
+        // This function returns a future, but doesn't await it
+        // It will complete before the future that it creates.
+        async fn create_a_future() -> impl std::future::Future<Output = ()> {
+            // Create a future that will do some work, referencing our current
+            // context, but don't await it.
+            async {
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+                // Longer work
+                sleep(Duration::from_millis(50)).await;
+            }
+            .with_context(Context::current())
+        }
+
+        // Create our base context
+        let parent_cx = Context::new().with_value(ValueA(42));
+
+        // await our nested function, which will create and detach a context
+        let future = create_a_future().with_context(parent_cx).await;
+
+        // Execute the future. The future that created it is long gone, but this shouldn't
+        // cause issues.
+        let _a = future.await;
+
+        // Nothing terrible (e.g., panics!) should happen, and we should definitely not have any
+        // values attached to our current context that were set in the nested operations.
+        assert_eq!(Context::current().get::<ValueA>(), None);
+        assert_eq!(Context::current().get::<ValueB>(), None);
     }
 }

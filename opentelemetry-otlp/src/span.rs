@@ -5,8 +5,9 @@
 use std::fmt::Debug;
 
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::trace::{SpanData, TraceError};
+use opentelemetry_sdk::trace::SpanData;
 
+use crate::ExporterBuildError;
 #[cfg(feature = "grpc-tonic")]
 use crate::{
     exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
@@ -62,7 +63,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl SpanExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, TraceError> {
+    pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         opentelemetry::otel_debug!(name: "SpanExporterBuilt");
         Ok(span_exporter)
@@ -71,7 +72,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl SpanExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> Result<SpanExporter, TraceError> {
+    pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         Ok(span_exporter)
     }

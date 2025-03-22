@@ -39,8 +39,8 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 /// use opentelemetry_sdk::trace::SdkTracerProvider;
 /// use opentelemetry::trace::Tracer;
 ///
-/// fn init_tracing() -> TracerProvider {
-///     let provider = TracerProvider::default();
+/// fn init_tracing() -> SdkTracerProvider {
+///     let provider = SdkTracerProvider::default();
 ///
 ///     // Set the provider to be used globally
 ///     let _ = global::set_tracer_provider(provider.clone());
@@ -198,8 +198,8 @@ impl SdkTracerProvider {
     /// use opentelemetry::global;
     /// use opentelemetry_sdk::trace::SdkTracerProvider;
     ///
-    /// fn init_tracing() -> TracerProvider {
-    ///     let provider = TracerProvider::default();
+    /// fn init_tracing() -> SdkTracerProvider {
+    ///     let provider = SdkTracerProvider::default();
     ///
     ///     // Set provider to be used as global tracer provider
     ///     let _ = global::set_tracer_provider(provider.clone());
@@ -213,10 +213,8 @@ impl SdkTracerProvider {
     ///     // create spans..
     ///
     ///     // force all spans to flush
-    ///     for result in provider.force_flush() {
-    ///         if let Err(err) = result {
-    ///             // .. handle flush error
-    ///         }
+    ///     if let Err(err) = provider.force_flush() {
+    ///         // .. handle flush error
     ///     }
     ///
     ///     // create more spans..
@@ -347,15 +345,6 @@ impl TracerProviderBuilder {
         TracerProviderBuilder { processors, ..self }
     }
 
-    /// The sdk [`crate::trace::Config`] that this provider will use.
-    #[deprecated(
-        since = "0.27.1",
-        note = "Config is becoming a private type. Use Builder::with_{config_name}(resource) instead. ex: Builder::with_resource(resource)"
-    )]
-    pub fn with_config(self, config: crate::trace::Config) -> Self {
-        TracerProviderBuilder { config, ..self }
-    }
-
     /// Specify the sampler to be used.
     pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
         self.config.sampler = Box::new(sampler);
@@ -430,7 +419,7 @@ impl TracerProviderBuilder {
 
         // Now, we can update the config with the resource.
         if let Some(resource) = self.resource {
-            config = config.with_resource(resource);
+            config.resource = Cow::Owned(resource);
         };
 
         // Standard config will contain an owned [`Resource`] (either sdk default or use supplied)

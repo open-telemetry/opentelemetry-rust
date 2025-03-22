@@ -134,7 +134,7 @@ impl TraceState {
             return Err(TraceStateError::Value(value));
         }
 
-        let mut trace_state = self.delete_from_deque(key.clone());
+        let mut trace_state = self.delete_from_deque(&key);
         let kvs = trace_state.0.get_or_insert(VecDeque::with_capacity(1));
 
         kvs.push_front((key, value));
@@ -155,14 +155,14 @@ impl TraceState {
             return Err(TraceStateError::Key(key));
         }
 
-        Ok(self.delete_from_deque(key))
+        Ok(self.delete_from_deque(&key))
     }
 
     /// Delete key from trace state's deque. The key MUST be valid
-    fn delete_from_deque(&self, key: String) -> TraceState {
+    fn delete_from_deque(&self, key: &str) -> TraceState {
         let mut owned = self.clone();
         if let Some(kvs) = owned.0.as_mut() {
-            if let Some(index) = kvs.iter().position(|x| *x.0 == *key) {
+            if let Some(index) = kvs.iter().position(|x| x.0 == key) {
                 kvs.remove(index);
             }
         }
@@ -400,7 +400,7 @@ mod tests {
         let cx = Context::current();
         assert_eq!(
             format!("{:?}", cx),
-            "Context { span: \"None\", entries: 0 }"
+            "Context { span: \"None\", entries count: 0 }"
         );
         let cx = Context::current().with_remote_span_context(SpanContext::NONE);
         assert_eq!(
@@ -413,7 +413,7 @@ mod tests {
                        is_remote: false, \
                        trace_state: TraceState(None) \
                      }, \
-               entries: 1 \
+               entries count: 1 \
              }"
         );
     }

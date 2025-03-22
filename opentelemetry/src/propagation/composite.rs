@@ -77,9 +77,7 @@ impl TextMapCompositePropagator {
     pub fn new(propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>>) -> Self {
         let mut fields = HashSet::new();
         for propagator in &propagators {
-            for field in propagator.fields() {
-                fields.insert(field.to_string());
-            }
+            fields.extend(propagator.fields().map(ToString::to_string));
         }
 
         TextMapCompositePropagator {

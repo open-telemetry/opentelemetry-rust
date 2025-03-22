@@ -30,10 +30,13 @@ documentation.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
+| Context               | Beta               |
+| Baggage               | RC                 |
+| Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | RC                 |
+| Logs-SDK              | Stable              |
 | Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | RC                 |
+| Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
 | Metrics-SDK           | RC                 |
 | Metrics-OTLP Exporter | RC                 |
@@ -178,7 +181,6 @@ you're more than welcome to participate!
 
 * [Cijo Thomas](https://github.com/cijothomas)
 * [Harold Dost](https://github.com/hdost)
-* [Julian Tescher](https://github.com/jtescher)
 * [Lalit Kumar Bhasin](https://github.com/lalitb)
 * [Utkarsh Umesan Pillai](https://github.com/utpilla)
 * [Zhongyang Wu](https://github.com/TommyCpp)
@@ -192,6 +194,7 @@ you're more than welcome to participate!
 
 * [Dirkjan Ochtman](https://github.com/djc)
 * [Jan Kühle](https://github.com/frigus02)
+* [Julian Tescher](https://github.com/jtescher)
 * [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Mike Goldsmith](https://github.com/MikeGoldsmith)
 

@@ -30,7 +30,7 @@ fn baggage_fields() -> &'static [String; 1] {
 /// # Examples
 ///
 /// ```
-/// use opentelemetry::{baggage::BaggageExt, KeyValue, propagation::TextMapPropagator};
+/// use opentelemetry::{baggage::{Baggage, BaggageExt}, propagation::TextMapPropagator};
 /// use opentelemetry_sdk::propagation::BaggagePropagator;
 /// use std::collections::HashMap;
 ///
@@ -48,14 +48,17 @@ fn baggage_fields() -> &'static [String; 1] {
 /// }
 ///
 /// // Add new baggage
-/// let cx_with_additions = cx.with_baggage(vec![KeyValue::new("server_id", 42)]);
+/// let mut baggage = Baggage::new();
+/// let _ = baggage.insert("server_id", "42");
+///
+/// let cx_with_additions = cx.with_baggage(baggage);
 ///
 /// // Inject baggage into http request
 /// propagator.inject_context(&cx_with_additions, &mut headers);
 ///
 /// let header_value = headers.get("baggage").expect("header is injected");
-/// assert!(header_value.contains("user_id=1"), "still contains previous name-value");
-/// assert!(header_value.contains("server_id=42"), "contains new name-value pair");
+/// assert!(!header_value.contains("user_id=1"), "still contains previous name-value");
+/// assert!(header_value.contains("server_id=42"), "does not contain new name-value pair");
 /// ```
 ///
 /// [W3C Baggage]: https://w3c.github.io/baggage
@@ -98,7 +101,7 @@ impl TextMapPropagator for BaggagePropagator {
     /// Extracts a `Context` with baggage values from a `Extractor`.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         if let Some(header_value) = extractor.get(BAGGAGE_HEADER) {
-            let baggage = header_value.split(',').flat_map(|context_value| {
+            let baggage = header_value.split(',').filter_map(|context_value| {
                 if let Some((name_and_value, props)) = context_value
                     .split(';')
                     .collect::<Vec<&str>>()
@@ -166,34 +169,34 @@ mod tests {
     use std::collections::HashMap;
 
     #[rustfmt::skip]
-    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, Value>)> {
+    fn valid_extract_data() -> Vec<(&'static str, HashMap<Key, StringValue>)> {
         vec![
             // "valid w3cHeader"
-            ("key1=val1,key2=val2", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=val1,key2=val2", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid w3cHeader with spaces"
-            ("key1 =   val1,  key2 =val2   ", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1 =   val1,  key2 =val2   ", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid header with url-escaped comma"
-            ("key1=val1,key2=val2%2Cval3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2,val3"))].into_iter().collect()),
+            ("key1=val1,key2=val2%2Cval3", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2,val3"))].into_iter().collect()),
             // "valid header with an invalid header"
-            ("key1=val1,key2=val2,a,val3", vec![(Key::new("key1"), Value::from("val1")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=val1,key2=val2,a,val3", vec![(Key::new("key1"), StringValue::from("val1")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
             // "valid header with no value"
-            ("key1=,key2=val2", vec![(Key::new("key1"), Value::from("")), (Key::new("key2"), Value::from("val2"))].into_iter().collect()),
+            ("key1=,key2=val2", vec![(Key::new("key1"), StringValue::from("")), (Key::new("key2"), StringValue::from("val2"))].into_iter().collect()),
         ]
     }
 
     #[rustfmt::skip]
     #[allow(clippy::type_complexity)]
-    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (Value, BaggageMetadata)>)> {
+    fn valid_extract_data_with_metadata() -> Vec<(&'static str, HashMap<Key, (StringValue, BaggageMetadata)>)> {
         vec![
             // "valid w3cHeader with properties"
-            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop=1", vec![(Key::new("key1"), (StringValue::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (StringValue::from("val2"), BaggageMetadata::from("prop=1")))].into_iter().collect()),
             // prop can don't need to be key value pair
-            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (Value::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (Value::from("val2"), BaggageMetadata::from("prop1")))].into_iter().collect()),
+            ("key1=val1,key2=val2;prop1", vec![(Key::new("key1"), (StringValue::from("val1"), BaggageMetadata::default())), (Key::new("key2"), (StringValue::from("val2"), BaggageMetadata::from("prop1")))].into_iter().collect()),
             ("key1=value1;property1;property2, key2 = value2, key3=value3; propertyKey=propertyValue",
              vec![
-                 (Key::new("key1"), (Value::from("value1"), BaggageMetadata::from("property1;property2"))),
-                 (Key::new("key2"), (Value::from("value2"), BaggageMetadata::default())),
-                 (Key::new("key3"), (Value::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
+                 (Key::new("key1"), (StringValue::from("value1"), BaggageMetadata::from("property1;property2"))),
+                 (Key::new("key2"), (StringValue::from("value2"), BaggageMetadata::default())),
+                 (Key::new("key3"), (StringValue::from("value3"), BaggageMetadata::from("propertyKey=propertyValue"))),
              ].into_iter().collect()),
         ]
     }

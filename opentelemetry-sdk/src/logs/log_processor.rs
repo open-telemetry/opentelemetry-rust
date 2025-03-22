@@ -59,13 +59,13 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn shutdown(&self) -> OTelSdkResult;
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logging is enabled
-    fn event_enabled(&self, _level: Severity, _target: &str, _name: &str) -> bool {
+    fn event_enabled(&self, _level: Severity, _target: &str, _name: Option<&str>) -> bool {
         // By default, all logs are enabled
         true
     }
 
     /// Set the resource for the log processor.
-    fn set_resource(&self, _resource: &Resource) {}
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
@@ -92,7 +92,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 

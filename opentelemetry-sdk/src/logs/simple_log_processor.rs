@@ -47,12 +47,12 @@ use std::sync::Mutex;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
-/// use opentelemetry_sdk::logs::{SimpleLogProcessor, LoggerProvider, LogExporter};
+/// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
-/// let provider = LoggerProvider::builder()
+/// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
 ///
@@ -65,7 +65,8 @@ pub struct SimpleLogProcessor<T: LogExporter> {
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
-    pub(crate) fn new(exporter: T) -> Self {
+    /// Creates a new instance of `SimpleLogProcessor`.
+    pub fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -117,7 +118,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown()
         } else {
             Err(OTelSdkError::InternalFailure(
@@ -126,9 +127,24 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&mut self, resource: &Resource) {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
+        }
+    }
+
+    #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
+    fn event_enabled(
+        &self,
+        level: opentelemetry::logs::Severity,
+        target: &str,
+        name: Option<&str>,
+    ) -> bool {
+        if let Ok(exporter) = self.exporter.lock() {
+            exporter.event_enabled(level, target, name)
+        } else {
+            true
         }
     }
 }
