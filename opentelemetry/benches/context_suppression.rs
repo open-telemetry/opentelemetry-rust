@@ -10,18 +10,18 @@ use opentelemetry::Context;
 // Total Number of Cores:   14 (10 performance and 4 efficiency)
 // | Benchmark                  | Time      |
 // |----------------------------|-----------|
-// | enter_suppressed           | 9.0 ns    |
+// | enter_telemetry_suppressed_scope           | 9.0 ns    |
 // | normal_attach              | 9.0 ns    |
-// | is_current_suppressed_false| 750 ps    |
-// | is_current_suppressed_true | 750 ps    |
+// | is_current_telemetry_suppressed_false| 750 ps    |
+// | is_current_telemetry_suppressed_true | 750 ps    |
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("telemetry_suppression");
 
     // Benchmark the cost of entering a suppressed scope
-    group.bench_function("enter_suppressed", |b| {
+    group.bench_function("enter_telemetry_suppressed_scope", |b| {
         b.iter(|| {
-            let _guard = black_box(Context::enter_suppressed());
+            let _guard = black_box(Context::enter_telemetry_suppressed_scope());
             let _ = black_box(dummy_work());
         });
     });
@@ -35,21 +35,21 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     // Benchmark checking if current is suppressed (when not suppressed)
-    group.bench_function("is_current_suppressed_false", |b| {
+    group.bench_function("is_current_telemetry_suppressed_false", |b| {
         // Make sure we're in a non-suppressed context
         let _restore_ctx = Context::current().attach();
         b.iter(|| {
-            let is_suppressed = black_box(Context::is_current_suppressed());
+            let is_suppressed = black_box(Context::is_current_telemetry_suppressed());
             black_box(is_suppressed);
         });
     });
 
     // Benchmark checking if current is suppressed (when suppressed)
-    group.bench_function("is_current_suppressed_true", |b| {
+    group.bench_function("is_current_telemetry_suppressed_true", |b| {
         // Enter suppressed context for the duration of the benchmark
-        let _suppressed_guard = Context::enter_suppressed();
+        let _suppressed_guard = Context::enter_telemetry_suppressed_scope();
         b.iter(|| {
-            let is_suppressed = black_box(Context::is_current_suppressed());
+            let is_suppressed = black_box(Context::is_current_telemetry_suppressed());
             black_box(is_suppressed);
         });
     });
