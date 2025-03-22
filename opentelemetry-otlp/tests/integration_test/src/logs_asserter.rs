@@ -1,4 +1,6 @@
 use anyhow::Result;
+#[cfg(feature = "experimental_metadata_attributes")]
+use opentelemetry_proto::tonic::common::v1::KeyValue;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
 
@@ -79,14 +81,14 @@ impl PartialEq for LogRecordWrapper {
         #[cfg(feature = "experimental_metadata_attributes")]
         let a_attrs: Vec<_> = a_attrs
             .into_iter()
-            .filter(|opentelemetry::KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
             .collect();
 
         let b_attrs = b.attributes.clone();
         #[cfg(feature = "experimental_metadata_attributes")]
         let b_attrs: Vec<_> = b_attrs
             .into_iter()
-            .filter(|opentelemetry::KeyValue { key, .. }| !key.as_str().starts_with("code."))
+            .filter(|KeyValue { key, .. }| !key.as_str().starts_with("code."))
             .collect();
 
         assert_eq!(a.body, b.body, "body does not match");
