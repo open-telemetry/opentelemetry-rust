@@ -62,10 +62,8 @@ jobs:
     - uses: arduino/setup-protoc@v3
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --all -- --check
+    - name: Format
+      run: cargo fmt --all -- --check
     - name: Lint
       run: bash ./scripts/lint.sh
   external-types:

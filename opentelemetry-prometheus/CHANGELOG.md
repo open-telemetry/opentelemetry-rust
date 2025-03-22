@@ -2,6 +2,12 @@
 
 ## vNext
 
+## v0.29.0
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+- Update `opentelemetry-semantic-conventions` dependency version to 0.29
+
 ## v0.28.0
 
 - Update `opentelemetry` dependency version to 0.28

@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
 Fixes [1682](https://github.com/open-telemetry/opentelemetry-rust/issues/1682).
 "spec_unstable_logs_enabled" feature now do not suppress logs for other layers.
 
@@ -42,13 +46,18 @@ transparent to most users.
   implementations (SDK, processor, exporters) to leverage this additional
   information to determine if an event is enabled.
 
-- `u64` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
+- `u64`, `i128`, `u128` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
 when conversion is feasible. Otherwise stored as
 `opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
 allocation when values can be represented in their original types.
 - Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
 of string.
+- `Error` fields are reported using attribute named "exception.message". For
+  example, the below will now report an attribute named "exception.message",
+  instead of previously reporting the user provided attribute "error".
+  `error!(....error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error...)`
 - perf - small perf improvement by avoiding string allocation of `target`
+- Update `opentelemetry` dependency version to 0.29.
 
 ## 0.28.1
 
