@@ -1,5 +1,7 @@
 //! Interfaces for exporting metrics
+
 use crate::error::OTelSdkResult;
+use std::time::Duration;
 
 use crate::metrics::data::ResourceMetrics;
 
@@ -26,6 +28,9 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     ///
     /// After Shutdown is called, calls to Export will perform no operation and
     /// instead will return an error indicating the shutdown state.
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult;
+
+    /// Shutdown with the default timeout of 5 seconds.
     fn shutdown(&self) -> OTelSdkResult;
 
     /// Access the [Temporality] of the MetricExporter.

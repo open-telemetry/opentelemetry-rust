@@ -13,6 +13,7 @@ use opentelemetry_sdk::{
 };
 use std::fmt::Debug;
 use std::sync::atomic;
+use std::time::Duration;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricExporter {
@@ -64,6 +65,10 @@ impl PushMetricExporter for MetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }

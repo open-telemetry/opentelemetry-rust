@@ -7,6 +7,7 @@ use crate::InMemoryExporterError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -278,6 +279,10 @@ impl PushMetricExporter for InMemoryMetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 
