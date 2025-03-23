@@ -3,9 +3,9 @@
     criterion = "0.5.1"
     Hardware: Apple M4 Pro
     Total Number of Cores:   14 (10 performance and 4 efficiency)
-    | Test                                         | Average time|
+    | Test                                        | Average time|
     |---------------------------------------------|-------------|
-    | exporter_disabled_concurrent_processor      |  980 ps     |
+    | exporter_disabled_concurrent_processor      |  1.1 ns     |
     | exporter_disabled_simple_processor          |  4.3 ns     |
 */
 
@@ -57,7 +57,11 @@ where
 
     c.bench_function(name, |b| {
         b.iter(|| {
-            logger.event_enabled(opentelemetry::logs::Severity::Debug, "target", Some("name"));
+            criterion::black_box(logger.event_enabled(
+                opentelemetry::logs::Severity::Debug,
+                "target",
+                Some("name"),
+            ));
         });
     });
 }
