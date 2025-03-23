@@ -8,12 +8,12 @@ use opentelemetry::Context;
 // criterion = "0.5.1"
 // Hardware: Apple M4 Pro
 // Total Number of Cores:   14 (10 performance and 4 efficiency)
-// | Benchmark                  | Time      |
-// |----------------------------|-----------|
-// | enter_telemetry_suppressed_scope           | 9.0 ns    |
-// | normal_attach              | 9.0 ns    |
-// | is_current_telemetry_suppressed_false| 750 ps    |
-// | is_current_telemetry_suppressed_true | 750 ps    |
+// | Benchmark                             | Time   |
+// |---------------------------------------|--------|
+// | enter_telemetry_suppressed_scope      | 9.0 ns |
+// | normal_attach                         | 9.0 ns |
+// | is_current_telemetry_suppressed_false | 750 ps |
+// | is_current_telemetry_suppressed_true  | 750 ps |
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("telemetry_suppression");

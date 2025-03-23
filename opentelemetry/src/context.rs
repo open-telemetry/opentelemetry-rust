@@ -331,6 +331,7 @@ impl Context {
     }
 
     /// Returns whether telemetry is suppressed in this context.
+    #[inline]
     pub fn is_telemetry_suppressed(&self) -> bool {
         self.suppress_telemetry
     }
