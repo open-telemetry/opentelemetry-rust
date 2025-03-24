@@ -514,6 +514,7 @@ mod tests {
         assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_err());
     }
 
+    #[cfg(feature = "zstd-tonic")]
     #[test]
     fn test_priority_of_signal_env_over_generic_env_for_compression() {
         run_env_test(
@@ -532,6 +533,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "zstd-tonic")]
     #[test]
     fn test_priority_of_code_based_config_over_envs_for_compression() {
         run_env_test(
