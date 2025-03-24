@@ -41,7 +41,7 @@ async fn handle_health_check(
     _req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = get_tracer();
-    let _span = tracer
+    let _ = tracer
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
         .start(tracer);
@@ -61,7 +61,7 @@ async fn handle_echo(
     req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = get_tracer();
-    let _span = tracer
+    let _ = tracer
         .span_builder("echo")
         .with_kind(SpanKind::Internal)
         .start(tracer);
@@ -77,9 +77,6 @@ async fn router(
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     // Extract the context from the incoming request headers
     let parent_cx = extract_context_from_request(&req);
-    for bag in parent_cx.baggage() {
-        println!("Baggage: {:?} = {:?}", bag.0, bag.1);
-    }
     let response = {
         // Create a span parenting the remote client span.
         let tracer = get_tracer();
@@ -107,6 +104,8 @@ async fn router(
     response
 }
 
+/// A custom log processor that enriches LogRecords with baggage attributes.
+/// Baggage information is not added automatically without this processor.
 #[derive(Debug)]
 struct EnrichWithBaggageLogProcessor;
 impl LogProcessor for EnrichWithBaggageLogProcessor {
@@ -127,6 +126,8 @@ impl LogProcessor for EnrichWithBaggageLogProcessor {
     }
 }
 
+/// A custom span processor that enriches spans with baggage attributes. Baggage
+/// information is not added automatically without this processor.
 #[derive(Debug)]
 struct EnrichWithBaggageSpanProcessor;
 impl SpanProcessor for EnrichWithBaggageSpanProcessor {
