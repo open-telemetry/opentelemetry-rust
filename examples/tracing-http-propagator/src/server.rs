@@ -41,7 +41,7 @@ async fn handle_health_check(
     _req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = get_tracer();
-    let _ = tracer
+    let _span = tracer
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
         .start(tracer);
@@ -61,7 +61,7 @@ async fn handle_echo(
     req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     let tracer = get_tracer();
-    let _ = tracer
+    let _span = tracer
         .span_builder("echo")
         .with_kind(SpanKind::Internal)
         .start(tracer);
