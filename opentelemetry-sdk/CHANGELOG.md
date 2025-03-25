@@ -2,6 +2,10 @@
 
 ## vNext
 
+- **Breaking**: [#2779](https://github.com/open-telemetry/opentelemetry-rust/issues/2779) handle
+shutdown for span exporter for `http` exporters, shutdown for `grpc` would be added
+separately.
+
 ## 0.29.0
 
 Released 2025-Mar-21
