@@ -10,8 +10,8 @@ use opentelemetry::Context;
 // Total Number of Cores:   14 (10 performance and 4 efficiency)
 // | Benchmark                             | Time   |
 // |---------------------------------------|--------|
-// | enter_telemetry_suppressed_scope      | 9.0 ns |
-// | normal_attach                         | 9.0 ns |
+// | enter_telemetry_suppressed_scope      | 8.3 ns |
+// | normal_attach                         | 9.1 ns |
 // | is_current_telemetry_suppressed_false | 750 ps |
 // | is_current_telemetry_suppressed_true  | 750 ps |
 
@@ -22,7 +22,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.bench_function("enter_telemetry_suppressed_scope", |b| {
         b.iter(|| {
             let _guard = black_box(Context::enter_telemetry_suppressed_scope());
-            let _ = black_box(dummy_work());
         });
     });
 
@@ -30,7 +29,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.bench_function("normal_attach", |b| {
         b.iter(|| {
             let _guard = black_box(Context::current().attach());
-            let _ = black_box(dummy_work());
         });
     });
 
@@ -55,11 +53,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     group.finish();
-}
-
-#[inline(never)]
-fn dummy_work() -> i32 {
-    black_box(1 + 1)
 }
 
 criterion_group!(benches, criterion_benchmark);
