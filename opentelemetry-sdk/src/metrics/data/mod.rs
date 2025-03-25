@@ -9,7 +9,7 @@ use crate::Resource;
 use super::Temporality;
 
 /// A collection of [ScopeMetrics] and the associated [Resource] that created them.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ResourceMetrics {
     /// The entity that collected the metrics.
     pub resource: Resource,
@@ -18,7 +18,7 @@ pub struct ResourceMetrics {
 }
 
 /// A collection of metrics produced by a meter.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct ScopeMetrics {
     /// The [InstrumentationScope] that the meter was created with.
     pub scope: InstrumentationScope,
@@ -29,7 +29,7 @@ pub struct ScopeMetrics {
 /// A collection of one or more aggregated time series from an [Instrument].
 ///
 /// [Instrument]: crate::metrics::Instrument
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Metric {
     /// The name of the instrument that created this data.
     pub name: Cow<'static, str>,
@@ -42,7 +42,7 @@ pub struct Metric {
 }
 
 /// Aggregated metrics data from an instrument
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum AggregatedMetrics {
     /// All metric data with `f64` value type
     F64(MetricData<f64>),
@@ -53,7 +53,7 @@ pub enum AggregatedMetrics {
 }
 
 /// Metric data for all types
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum MetricData<T> {
     /// Metric data for Gauge
     Gauge(Gauge<T>),
