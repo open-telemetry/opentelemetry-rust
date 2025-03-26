@@ -2,6 +2,8 @@
 
 ## vNext
 
+- re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
+
 ## 0.29.0
 
 Released 2025-Mar-21

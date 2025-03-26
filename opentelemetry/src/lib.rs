@@ -299,3 +299,6 @@ pub mod time {
         SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
     }
 }
+
+#[cfg(feature = "internal-logs")]
+pub use tracing::{debug, error, info, warn}; // re-export

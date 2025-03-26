@@ -44,7 +44,7 @@ zpages = ["trace"]
 testing = ["opentelemetry/testing"]
 
 # add ons
-internal-logs = ["tracing"]
+internal-logs = []
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex", "base64"]
 
@@ -56,7 +56,6 @@ opentelemetry_sdk = { version = "0.29", default-features = false, path = "../ope
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 base64 = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -65,11 +64,6 @@ tonic-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
-
-[package.metadata.cargo-machete]
-ignored = [
-    "tracing" # needed for `internal-logs`
-]
 
 [lints]
 workspace = true
