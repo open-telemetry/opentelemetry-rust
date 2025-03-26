@@ -23,5 +23,8 @@ tokio = { workspace = true, features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
 opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
 opentelemetry-http = { path = "../../opentelemetry-http" }
-opentelemetry-stdout = { workspace = true, features = ["trace"] }
+opentelemetry-stdout = { workspace = true, features = ["trace", "logs"] }
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }
+opentelemetry-appender-tracing = { workspace = true }
+tracing = { workspace = true, features = ["std"]}
+tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
