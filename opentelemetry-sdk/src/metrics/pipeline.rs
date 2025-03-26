@@ -135,7 +135,7 @@ impl SdkProducer for Pipeline {
             let mut j = 0;
             for inst in instruments {
                 let mut m = sm.metrics.get_mut(j);
-                match (inst.comp_agg.call(m.as_mut().map(|m| m.data.as_mut())), m) {
+                match (inst.comp_agg.call(m.as_mut().map(|m| &mut m.data)), m) {
                     // No metric to re-use, expect agg to create new metric data
                     ((len, Some(initial_agg)), None) if len > 0 => sm.metrics.push(Metric {
                         name: inst.name.clone(),

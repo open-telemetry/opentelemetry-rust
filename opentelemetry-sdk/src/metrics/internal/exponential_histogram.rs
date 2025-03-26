@@ -4,7 +4,7 @@ use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
 
 use crate::metrics::{
-    data::{self, Aggregation, ExponentialHistogram},
+    data::{self, AggregatedMetrics, MetricData},
     Temporality,
 };
 
@@ -383,10 +383,16 @@ impl<T: Number> ExpoHistogram<T> {
         }
     }
 
-    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+    fn delta(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| {
+            if let MetricData::ExponentialHistogram(hist) = d {
+                Some(hist)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -434,16 +440,19 @@ impl<T: Number> ExpoHistogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(Into::into))
     }
 
-    fn cumulative(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+    fn cumulative(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.cumulative();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<ExponentialHistogram<T>>());
+        let h = dest.and_then(|d| {
+            if let MetricData::ExponentialHistogram(hist) = d {
+                Some(hist)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if h.is_none() {
             Some(data::ExponentialHistogram {
                 data_points: vec![],
@@ -491,7 +500,7 @@ impl<T: Number> ExpoHistogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(Into::into))
     }
 }
 
@@ -517,18 +526,20 @@ impl<T> ComputeAggregation for ExpoHistogram<T>
 where
     T: Number,
 {
-    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
-        match self.temporality {
-            Temporality::Delta => self.delta(dest),
-            _ => self.cumulative(dest),
-        }
+    fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
+        let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
+        let (len, new) = match self.temporality {
+            Temporality::Delta => self.delta(data),
+            _ => self.cumulative(data),
+        };
+        (len, new.map(T::make_aggregated_metrics))
     }
 }
+
 #[cfg(test)]
 mod tests {
-    use data::{ExponentialHistogram, Gauge, Histogram, Sum};
     use opentelemetry::time::now;
-    use std::ops::Neg;
+    use std::{any::Any, ops::Neg};
     use tests::internal::AggregateFns;
 
     use crate::metrics::internal::{self, AggregateBuilder};
@@ -1438,111 +1449,114 @@ mod tests {
         for test in test_cases {
             let AggregateFns { measure, collect } = (test.build)();
 
-            let mut got: Box<dyn data::Aggregation> = Box::new(data::ExponentialHistogram::<T> {
-                data_points: vec![],
-                start_time: now(),
-                time: now(),
-                temporality: Temporality::Delta,
-            });
+            let mut got = T::make_aggregated_metrics(MetricData::ExponentialHistogram(
+                data::ExponentialHistogram::<T> {
+                    data_points: vec![],
+                    start_time: now(),
+                    time: now(),
+                    temporality: Temporality::Delta,
+                },
+            ));
             let mut count = 0;
             for n in test.input {
                 for v in n {
                     measure.call(v, &[])
                 }
-                count = collect.call(Some(got.as_mut())).0
+                count = collect.call(Some(&mut got)).0
             }
 
-            assert_aggregation_eq::<T>(Box::new(test.want), got, test.name);
+            assert_aggregation_eq(
+                &MetricData::ExponentialHistogram(test.want),
+                T::extract_metrics_data_ref(&got).unwrap(),
+                test.name,
+            );
             assert_eq!(test.want_count, count, "{}", test.name);
         }
     }
 
     fn assert_aggregation_eq<T: Number + PartialEq>(
-        a: Box<dyn Aggregation>,
-        b: Box<dyn Aggregation>,
+        a: &MetricData<T>,
+        b: &MetricData<T>,
         test_name: &'static str,
     ) {
-        assert_eq!(
-            a.as_any().type_id(),
-            b.as_any().type_id(),
-            "{} Aggregation types not equal",
-            test_name
-        );
-
-        if let Some(a) = a.as_any().downcast_ref::<Gauge<T>>() {
-            let b = b.as_any().downcast_ref::<Gauge<T>>().unwrap();
-            assert_eq!(
-                a.data_points.len(),
-                b.data_points.len(),
-                "{} gauge counts",
-                test_name
-            );
-            for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
+        match (a, b) {
+            (MetricData::Gauge(a), MetricData::Gauge(b)) => {
+                assert_eq!(
+                    a.data_points.len(),
+                    b.data_points.len(),
+                    "{} gauge counts",
+                    test_name
+                );
+                for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
+                    assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
+                }
             }
-        } else if let Some(a) = a.as_any().downcast_ref::<Sum<T>>() {
-            let b = b.as_any().downcast_ref::<Sum<T>>().unwrap();
-            assert_eq!(
-                a.temporality, b.temporality,
-                "{} mismatching sum temporality",
-                test_name
-            );
-            assert_eq!(
-                a.is_monotonic, b.is_monotonic,
-                "{} mismatching sum monotonicity",
-                test_name,
-            );
-            assert_eq!(
-                a.data_points.len(),
-                b.data_points.len(),
-                "{} sum counts",
-                test_name
-            );
-            for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
-            }
-        } else if let Some(a) = a.as_any().downcast_ref::<Histogram<T>>() {
-            let b = b.as_any().downcast_ref::<Histogram<T>>().unwrap();
-            assert_eq!(
-                a.temporality, b.temporality,
-                "{}: mismatching hist temporality",
-                test_name
-            );
-            assert_eq!(
-                a.data_points.len(),
-                b.data_points.len(),
-                "{} hist counts",
-                test_name
-            );
-            for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
-            }
-        } else if let Some(a) = a.as_any().downcast_ref::<ExponentialHistogram<T>>() {
-            let b = b
-                .as_any()
-                .downcast_ref::<ExponentialHistogram<T>>()
-                .unwrap();
-            assert_eq!(
-                a.temporality, b.temporality,
-                "{} mismatching hist temporality",
-                test_name
-            );
-            assert_eq!(
-                a.data_points.len(),
-                b.data_points.len(),
-                "{} hist counts",
-                test_name
-            );
-            for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
-                assert_exponential_hist_data_points_eq(
-                    a,
-                    b,
-                    "mismatching hist data points",
+            (MetricData::Sum(a), MetricData::Sum(b)) => {
+                assert_eq!(
+                    a.temporality, b.temporality,
+                    "{} mismatching sum temporality",
+                    test_name
+                );
+                assert_eq!(
+                    a.is_monotonic, b.is_monotonic,
+                    "{} mismatching sum monotonicity",
                     test_name,
                 );
+                assert_eq!(
+                    a.data_points.len(),
+                    b.data_points.len(),
+                    "{} sum counts",
+                    test_name
+                );
+                for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
+                    assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
+                }
             }
-        } else {
-            panic!("Aggregation of unknown types")
+            (MetricData::Histogram(a), MetricData::Histogram(b)) => {
+                assert_eq!(
+                    a.temporality, b.temporality,
+                    "{}: mismatching hist temporality",
+                    test_name
+                );
+                assert_eq!(
+                    a.data_points.len(),
+                    b.data_points.len(),
+                    "{} hist counts",
+                    test_name
+                );
+                for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
+                    assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
+                }
+            }
+            (MetricData::ExponentialHistogram(a), MetricData::ExponentialHistogram(b)) => {
+                assert_eq!(
+                    a.temporality, b.temporality,
+                    "{} mismatching hist temporality",
+                    test_name
+                );
+                assert_eq!(
+                    a.data_points.len(),
+                    b.data_points.len(),
+                    "{} hist counts",
+                    test_name
+                );
+                for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
+                    assert_exponential_hist_data_points_eq(
+                        a,
+                        b,
+                        "mismatching hist data points",
+                        test_name,
+                    );
+                }
+            }
+            _ => {
+                assert_eq!(
+                    a.type_id(),
+                    b.type_id(),
+                    "{} Aggregation types not equal",
+                    test_name
+                );
+            }
         }
     }
 
