@@ -73,30 +73,30 @@ pub trait SpanExporter: Send + Sync + Debug {
 /// `SpanData` contains all the information collected by a `Span` and can be used
 /// by exporters as a standard input.
 #[derive(Clone, Debug, PartialEq)]
-pub struct SpanData {
+pub struct SpanData<'a> {
     /// Exportable `SpanContext`
     pub span_context: SpanContext,
     /// Span parent id
     pub parent_span_id: SpanId,
     /// Span kind
-    pub span_kind: SpanKind,
+    pub span_kind: &'a SpanKind,
     /// Span name
-    pub name: Cow<'static, str>,
+    pub name: &'a Cow<'static, str>,
     /// Span start time
     pub start_time: SystemTime,
     /// Span end time
     pub end_time: SystemTime,
     /// Span attributes
-    pub attributes: Vec<KeyValue>,
+    pub attributes: &'a Vec<KeyValue>,
     /// The number of attributes that were above the configured limit, and thus
     /// dropped.
     pub dropped_attributes_count: u32,
     /// Span events
-    pub events: crate::trace::SpanEvents,
+    pub events: &'a crate::trace::SpanEvents,
     /// Span Links
-    pub links: crate::trace::SpanLinks,
+    pub links: &'a crate::trace::SpanLinks,
     /// Span status
-    pub status: Status,
+    pub status: &'a Status,
     /// Instrumentation scope that produced this span
     pub instrumentation_scope: InstrumentationScope,
 }
