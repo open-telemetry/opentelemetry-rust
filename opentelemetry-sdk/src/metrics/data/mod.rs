@@ -1,6 +1,6 @@
 //! Types for delivery of pre-aggregated metric time series data.
 
-use std::{any, borrow::Cow, fmt, time::SystemTime};
+use std::{borrow::Cow, time::SystemTime};
 
 use opentelemetry::{InstrumentationScope, KeyValue};
 
@@ -38,23 +38,77 @@ pub struct Metric {
     /// The unit in which the instrument reports.
     pub unit: Cow<'static, str>,
     /// The aggregated data from an instrument.
-    pub data: Box<dyn Aggregation>,
+    pub data: AggregatedMetrics,
 }
 
-/// The store of data reported by an [Instrument].
-///
-/// It will be one of: [Gauge], [Sum], or [Histogram].
-///
-/// [Instrument]: crate::metrics::Instrument
-pub trait Aggregation: fmt::Debug + any::Any + Send + Sync {
-    /// Support downcasting
-    fn as_any(&self) -> &dyn any::Any;
-    /// Support downcasting during aggregation
-    fn as_mut(&mut self) -> &mut dyn any::Any;
+/// Aggregated metrics data from an instrument
+#[derive(Debug)]
+pub enum AggregatedMetrics {
+    /// All metric data with `f64` value type
+    F64(MetricData<f64>),
+    /// All metric data with `u64` value type
+    U64(MetricData<u64>),
+    /// All metric data with `i64` value type
+    I64(MetricData<i64>),
+}
+
+/// Metric data for all types
+#[derive(Debug)]
+pub enum MetricData<T> {
+    /// Metric data for Gauge
+    Gauge(Gauge<T>),
+    /// Metric data for Sum
+    Sum(Sum<T>),
+    /// Metric data for Histogram
+    Histogram(Histogram<T>),
+    /// Metric data for ExponentialHistogram
+    ExponentialHistogram(ExponentialHistogram<T>),
+}
+
+impl From<MetricData<f64>> for AggregatedMetrics {
+    fn from(value: MetricData<f64>) -> Self {
+        AggregatedMetrics::F64(value)
+    }
+}
+
+impl From<MetricData<i64>> for AggregatedMetrics {
+    fn from(value: MetricData<i64>) -> Self {
+        AggregatedMetrics::I64(value)
+    }
+}
+
+impl From<MetricData<u64>> for AggregatedMetrics {
+    fn from(value: MetricData<u64>) -> Self {
+        AggregatedMetrics::U64(value)
+    }
+}
+
+impl<T> From<Gauge<T>> for MetricData<T> {
+    fn from(value: Gauge<T>) -> Self {
+        MetricData::Gauge(value)
+    }
+}
+
+impl<T> From<Sum<T>> for MetricData<T> {
+    fn from(value: Sum<T>) -> Self {
+        MetricData::Sum(value)
+    }
+}
+
+impl<T> From<Histogram<T>> for MetricData<T> {
+    fn from(value: Histogram<T>) -> Self {
+        MetricData::Histogram(value)
+    }
+}
+
+impl<T> From<ExponentialHistogram<T>> for MetricData<T> {
+    fn from(value: ExponentialHistogram<T>) -> Self {
+        MetricData::ExponentialHistogram(value)
+    }
 }
 
 /// DataPoint is a single data point in a time series.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GaugeDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
@@ -65,18 +119,8 @@ pub struct GaugeDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
-impl<T: Copy> Clone for GaugeDataPoint<T> {
-    fn clone(&self) -> Self {
-        Self {
-            attributes: self.attributes.clone(),
-            value: self.value,
-            exemplars: self.exemplars.clone(),
-        }
-    }
-}
-
 /// A measurement of the current value of an instrument.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<GaugeDataPoint<T>>,
@@ -86,17 +130,8 @@ pub struct Gauge<T> {
     pub time: SystemTime,
 }
 
-impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Gauge<T> {
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
-    fn as_mut(&mut self) -> &mut dyn any::Any {
-        self
-    }
-}
-
 /// DataPoint is a single data point in a time series.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SumDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
@@ -107,18 +142,8 @@ pub struct SumDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
-impl<T: Copy> Clone for SumDataPoint<T> {
-    fn clone(&self) -> Self {
-        Self {
-            attributes: self.attributes.clone(),
-            value: self.value,
-            exemplars: self.exemplars.clone(),
-        }
-    }
-}
-
 /// Represents the sum of all measurements of values from an instrument.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub data_points: Vec<SumDataPoint<T>>,
@@ -133,17 +158,8 @@ pub struct Sum<T> {
     pub is_monotonic: bool,
 }
 
-impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Sum<T> {
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
-    fn as_mut(&mut self) -> &mut dyn any::Any {
-        self
-    }
-}
-
 /// Represents the histogram of all measurements of values from an instrument.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Histogram<T> {
     /// Individual aggregated measurements with unique attributes.
     pub data_points: Vec<HistogramDataPoint<T>>,
@@ -156,17 +172,8 @@ pub struct Histogram<T> {
     pub temporality: Temporality,
 }
 
-impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for Histogram<T> {
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
-    fn as_mut(&mut self) -> &mut dyn any::Any {
-        self
-    }
-}
-
 /// A single histogram data point in a time series.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
@@ -190,23 +197,8 @@ pub struct HistogramDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
-impl<T: Copy> Clone for HistogramDataPoint<T> {
-    fn clone(&self) -> Self {
-        Self {
-            attributes: self.attributes.clone(),
-            count: self.count,
-            bounds: self.bounds.clone(),
-            bucket_counts: self.bucket_counts.clone(),
-            min: self.min,
-            max: self.max,
-            sum: self.sum,
-            exemplars: self.exemplars.clone(),
-        }
-    }
-}
-
 /// The histogram of all measurements of values from an instrument.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExponentialHistogram<T> {
     /// The individual aggregated measurements with unique attributes.
     pub data_points: Vec<ExponentialHistogramDataPoint<T>>,
@@ -219,17 +211,8 @@ pub struct ExponentialHistogram<T> {
     pub temporality: Temporality,
 }
 
-impl<T: fmt::Debug + Send + Sync + 'static> Aggregation for ExponentialHistogram<T> {
-    fn as_any(&self) -> &dyn any::Any {
-        self
-    }
-    fn as_mut(&mut self) -> &mut dyn any::Any {
-        self
-    }
-}
-
 /// A single exponential histogram data point in a time series.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub attributes: Vec<KeyValue>,
@@ -273,26 +256,8 @@ pub struct ExponentialHistogramDataPoint<T> {
     pub exemplars: Vec<Exemplar<T>>,
 }
 
-impl<T: Copy> Clone for ExponentialHistogramDataPoint<T> {
-    fn clone(&self) -> Self {
-        Self {
-            attributes: self.attributes.clone(),
-            count: self.count,
-            min: self.min,
-            max: self.max,
-            sum: self.sum,
-            scale: self.scale,
-            zero_count: self.zero_count,
-            positive_bucket: self.positive_bucket.clone(),
-            negative_bucket: self.negative_bucket.clone(),
-            zero_threshold: self.zero_threshold,
-            exemplars: self.exemplars.clone(),
-        }
-    }
-}
-
 /// A set of bucket counts, encoded in a contiguous array of counts.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExponentialBucket {
     /// The bucket index of the first entry in the `counts` vec.
     pub offset: i32,
@@ -304,17 +269,8 @@ pub struct ExponentialBucket {
     pub counts: Vec<u64>,
 }
 
-impl Clone for ExponentialBucket {
-    fn clone(&self) -> Self {
-        Self {
-            offset: self.offset,
-            counts: self.counts.clone(),
-        }
-    }
-}
-
 /// A measurement sampled from a time series providing a typical example.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Exemplar<T> {
     /// The attributes recorded with the measurement but filtered out of the
     /// time series' aggregated data.
@@ -331,18 +287,6 @@ pub struct Exemplar<T> {
     ///
     /// If no span was active or the span was not sampled this will be empty.
     pub trace_id: [u8; 16],
-}
-
-impl<T: Copy> Clone for Exemplar<T> {
-    fn clone(&self) -> Self {
-        Self {
-            filtered_attributes: self.filtered_attributes.clone(),
-            time: self.time,
-            value: self.value,
-            span_id: self.span_id,
-            trace_id: self.trace_id,
-        }
-    }
 }
 
 #[cfg(test)]
