@@ -36,7 +36,6 @@ typed-builder = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
-futures-core = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
