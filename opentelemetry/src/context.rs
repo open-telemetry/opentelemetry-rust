@@ -1023,43 +1023,28 @@ mod tests {
         // Default context should not be suppressed
         assert!(!Context::is_current_telemetry_suppressed());
 
+        // Add an entry to the current context
+        let cx_with_value = Context::current().with_value(ValueA(42));
+        let _guard_with_value = cx_with_value.attach();
+
+        // Verify the entry is present and context is not suppressed
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+        assert!(!Context::is_current_telemetry_suppressed());
+
         // Enter a suppressed scope
         {
             let _guard = Context::enter_telemetry_suppressed_scope();
+
+            // Verify suppression is active and the entry is still present
             assert!(Context::is_current_telemetry_suppressed());
             assert!(Context::current().is_telemetry_suppressed());
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
         }
 
-        // After guard is dropped, should be back to unsuppressed
+        // After guard is dropped, should be back to unsuppressed and entry should still be present
         assert!(!Context::is_current_telemetry_suppressed());
         assert!(!Context::current().is_telemetry_suppressed());
-    }
-
-    #[test]
-    fn test_is_current_telemetry_suppressed() {
-        // Ensure we start with a clean context
-        let _reset_guard = Context::new().attach();
-
-        // Default context should not be suppressed
-        assert!(!Context::is_current_telemetry_suppressed());
-
-        // Enter a suppressed scope
-        {
-            let _guard = Context::enter_telemetry_suppressed_scope();
-            assert!(Context::is_current_telemetry_suppressed());
-
-            // Test nested context - should not be suppressed
-            {
-                let _inner_guard = Context::new().attach();
-                assert!(!Context::is_current_telemetry_suppressed());
-            }
-
-            // Back to suppressed after inner guard is dropped
-            assert!(Context::is_current_telemetry_suppressed());
-        }
-
-        // Back to unsuppressed after outer guard is dropped
-        assert!(!Context::is_current_telemetry_suppressed());
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
     }
 
     #[test]
@@ -1081,6 +1066,7 @@ mod tests {
             {
                 let _inner = Context::current().with_value(ValueA(1)).attach();
                 assert!(Context::is_current_telemetry_suppressed());
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(1)));
             }
 
             // Another scenario. This component is unaware of Suppression,
@@ -1089,6 +1075,7 @@ mod tests {
             {
                 let _inner = Context::new().with_value(ValueA(1)).attach();
                 assert!(!Context::is_current_telemetry_suppressed());
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(1)));
             }
 
             // Still suppressed after inner scope
@@ -1099,7 +1086,7 @@ mod tests {
         assert!(!Context::is_current_telemetry_suppressed());
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_async_suppression() {
         async fn nested_operation() {
             assert!(Context::is_current_telemetry_suppressed());
