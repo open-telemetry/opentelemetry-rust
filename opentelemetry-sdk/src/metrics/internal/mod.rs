@@ -17,6 +17,8 @@ pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, M
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
+use super::data::{AggregatedMetrics, MetricData};
+
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
 
@@ -242,6 +244,14 @@ pub(crate) trait AtomicallyUpdate<T> {
     fn new_atomic_tracker(init: T) -> Self::AtomicTracker;
 }
 
+pub(crate) trait AggregatedMetricsAccess: Sized {
+    /// This function is used in tests.
+    #[allow(unused)]
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<Self>>;
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<Self>>;
+    fn make_aggregated_metrics(data: MetricData<Self>) -> AggregatedMetrics;
+}
+
 pub(crate) trait Number:
     Add<Output = Self>
     + AddAssign
@@ -256,6 +266,7 @@ pub(crate) trait Number:
     + Sync
     + 'static
     + AtomicallyUpdate<Self>
+    + AggregatedMetricsAccess
 {
     fn min() -> Self;
     fn max() -> Self;
@@ -302,6 +313,72 @@ impl Number for f64 {
 
     fn into_float(self) -> f64 {
         self
+    }
+}
+
+impl AggregatedMetricsAccess for i64 {
+    fn make_aggregated_metrics(data: MetricData<i64>) -> AggregatedMetrics {
+        AggregatedMetrics::I64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<i64>> {
+        if let AggregatedMetrics::I64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<i64>> {
+        if let AggregatedMetrics::I64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+}
+
+impl AggregatedMetricsAccess for u64 {
+    fn make_aggregated_metrics(data: MetricData<u64>) -> AggregatedMetrics {
+        AggregatedMetrics::U64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<u64>> {
+        if let AggregatedMetrics::U64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<u64>> {
+        if let AggregatedMetrics::U64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+}
+
+impl AggregatedMetricsAccess for f64 {
+    fn make_aggregated_metrics(data: MetricData<f64>) -> AggregatedMetrics {
+        AggregatedMetrics::F64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<f64>> {
+        if let AggregatedMetrics::F64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<f64>> {
+        if let AggregatedMetrics::F64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
     }
 }
 
