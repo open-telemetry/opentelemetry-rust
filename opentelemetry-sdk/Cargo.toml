@@ -58,6 +58,10 @@ experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["trace"]
 experimental_metrics_disable_name_validation = ["metrics"]
 
+[package.metadata.cargo-machete]
+ignored = [
+    "tracing" # needed for `internal-logs`
+]
 
 [[bench]]
 name = "context"
