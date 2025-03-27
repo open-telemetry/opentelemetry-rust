@@ -31,7 +31,9 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult;
 
     /// Shutdown with the default timeout of 5 seconds.
-    fn shutdown(&self) -> OTelSdkResult;
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
 
     /// Access the [Temporality] of the MetricExporter.
     fn temporality(&self) -> Temporality;
