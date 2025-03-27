@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn log_does_not_deadlock_when_suppression_enabled() {
+    fn processor_internal_log_does_not_deadlock_with_suppression_enabled() {
         let processor: ReentrantLogProcessor = ReentrantLogProcessor::new();
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(processor.clone())

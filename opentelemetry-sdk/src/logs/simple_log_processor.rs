@@ -477,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_deadlock_when_exporter_is_rentrant_simple_log_processor() {
+    fn exporter_internal_log_does_not_deadlock_with_simple_processor() {
         // This tests that even when exporter produces logs while
         // exporting, it does not deadlock, as SimpleLogProcessor
         // activates SuppressGuard before calling the exporter.
