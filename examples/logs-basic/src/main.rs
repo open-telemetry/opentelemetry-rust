@@ -27,7 +27,6 @@ fn main() {
     // https://github.com/open-telemetry/opentelemetry-rust/issues/761
     let filter_otel = EnvFilter::new("info")
         .add_directive("hyper=off".parse().unwrap())
-        .add_directive("opentelemetry=off".parse().unwrap())
         .add_directive("tonic=off".parse().unwrap())
         .add_directive("h2=off".parse().unwrap())
         .add_directive("reqwest=off".parse().unwrap());

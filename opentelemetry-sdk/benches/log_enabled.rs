@@ -5,8 +5,8 @@
     Total Number of Cores:   14 (10 performance and 4 efficiency)
     | Test                                        | Average time|
     |---------------------------------------------|-------------|
-    | exporter_disabled_concurrent_processor      |  1.1 ns     |
-    | exporter_disabled_simple_processor          |  4.3 ns     |
+    | exporter_disabled_concurrent_processor      |  2.5 ns     |
+    | exporter_disabled_simple_processor          |  5.3 ns     |
 */
 
 // cargo bench --bench log_enabled --features="spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor"

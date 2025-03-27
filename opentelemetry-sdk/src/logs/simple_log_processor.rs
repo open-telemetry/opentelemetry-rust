@@ -23,7 +23,7 @@ use crate::{
     Resource,
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
@@ -76,6 +76,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown

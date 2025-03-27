@@ -285,8 +285,8 @@ mod tests {
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
-    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry::{Context, InstrumentationScope};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{LogBatch, LogExporter};
@@ -319,7 +319,8 @@ mod tests {
 
     impl LogExporter for ReentrantLogExporter {
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            // This will cause a deadlock as the export itself creates a log
+            let _suppress = Context::enter_telemetry_suppressed_scope();
+            // Without the suppression above, this will cause a deadlock as the export itself creates a log
             // while still within the lock of the SimpleLogProcessor.
             warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
             Ok(())
@@ -327,17 +328,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
+    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests and hence ignored in CI."]
     fn simple_processor_deadlock() {
+        // TODO: This test maybe better suited in the opentelemetry-sdk crate tests
         let exporter: ReentrantLogExporter = ReentrantLogExporter;
         let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
+            .with_simple_exporter(exporter)
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // Setting subscriber as global as that is the only way to test this scenario.
         tracing_subscriber::registry().with(layer).init();
+
         warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
     }
 
