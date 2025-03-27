@@ -2,6 +2,7 @@
 
 ## vNext
 
+[#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
 `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
 enabled, then logs/spans will be ignored. The flag is typically set by OTel
