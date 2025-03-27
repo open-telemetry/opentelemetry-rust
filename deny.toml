@@ -1,14 +1,7 @@
-exclude=[
-    "actix-http",
-    "actix-http-tracing",
-    "actix-udp",
-    "actix-udp-example",
-    "tracing-grpc",
-    "http"
-]
+[graph]
+exclude=[]
 
 [licenses]
-unlicensed = "deny"
 allow = [
     "MIT",
     "Apache-2.0",
@@ -29,5 +22,5 @@ license-files = [
 ]
 
 [advisories]
-unmaintained = "allow"
+unmaintained = "none"
 yanked = "allow"

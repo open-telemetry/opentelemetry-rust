@@ -23,3 +23,8 @@ tonic = { workspace = true, features = ["server", "codegen", "channel", "prost"]
 
 [build-dependencies]
 tonic-build = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = [
+    "prost" # needed for `tonic-build`
+]

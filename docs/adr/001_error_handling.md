@@ -171,3 +171,5 @@ Note that at the time of writing, there is no instance we have identified within
 We will use [thiserror](https://docs.rs/thiserror/latest/thiserror/) by default to implement Rust's [error trait](https://doc.rust-lang.org/core/error/trait.Error.html).
 This keeps our code clean, and as it does not appear in our interface, we can choose to replace any particular usage with a hand-rolled implementation should we need to.
 
+### 6. Don't use `#[non_exhaustive]` by default
+If an `Error` response set is closed - if we can confidently say it is very unlikely to gain new variants in the future - we should not annotate it with `#[non_exhaustive]`. By way of example, the variants of the exporter error types described above are exhaustively documented in the OpenTelemetry Specification, and we can confidently say that we do not expect new variants.
