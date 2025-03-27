@@ -2,6 +2,26 @@
 
 ## vNext
 
+Added the ability to prevent recursive telemetry generation through new
+context-based suppression mechanisms. This feature helps prevent feedback loops
+and excessive telemetry when OpenTelemetry components perform their own
+operations.
+
+New methods added to `Context`:
+
+- `is_telemetry_suppressed()` - Checks if telemetry is suppressed in this
+  context
+- `with_telemetry_suppressed()` - Creates a new context with telemetry
+  suppression enabled
+- `is_current_telemetry_suppressed()` - Efficiently checks if the current thread's context
+  has telemetry suppressed
+- `enter_telemetry_suppressed_scope()` - Convenience method to enter a scope where telemetry is
+  suppressed
+
+These methods allow SDK components, exporters, and processors to temporarily
+disable telemetry generation during their internal operations, ensuring more
+predictable and efficient observability pipelines.
+
 ## 0.29.0
 
 Released 2025-Mar-21
