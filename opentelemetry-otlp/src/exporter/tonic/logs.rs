@@ -6,7 +6,6 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
@@ -118,11 +117,9 @@ impl LogExporter for TonicLogsClient {
         .await
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
-        match self.inner.take() {
-            Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
-            None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
-        }
+    fn shutdown(&self) -> OTelSdkResult {
+        // TODO: We broke this rebasing. fix it!
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
