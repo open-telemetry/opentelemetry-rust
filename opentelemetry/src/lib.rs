@@ -300,5 +300,8 @@ pub mod time {
     }
 }
 
-#[cfg(feature = "internal-logs")]
-pub use tracing::{debug, error, info, warn}; // re-export
+#[doc(hidden)]
+pub mod _private {
+    #[cfg(feature = "internal-logs")]
+    pub use tracing; // re-export
+}
