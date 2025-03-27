@@ -25,6 +25,11 @@ pub(crate) mod metrics;
 #[cfg(feature = "trace")]
 pub(crate) mod trace;
 
+// For now, we are not exposing the retry policy. Only work with grpc-tonic since retry takes a hard dependency on tokio
+// while we sort out an abstraction for the async runtime which can be used by all exporters.
+#[cfg(feature = "grpc-tonic")]
+mod retry;
+
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic

@@ -90,7 +90,7 @@ impl LogExporter for TonicLogsClient {
 
                     let resource_logs = group_logs_by_resource_and_scope(&*batch, resource);
 
-                    otel_debug!(name: "TonicsLogsClient.ExportStarted");
+                    otel_debug!(name: "TonicLogsClient.ExportStarted");
 
                     let result = client
                         .export(Request::from_parts(
@@ -118,7 +118,13 @@ impl LogExporter for TonicLogsClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        // TODO: We broke this rebasing. fix it!
+        // TODO: Implement actual shutdown
+        // Due to the use of tokio::sync::Mutex to guard
+        // the inner client, we need to await the call to lock the mutex
+        // and that requires async runtime.
+        // It is possible to fix this by using
+        // a dedicated thread just to handle shutdown.
+        // But for now, we just return Ok.
         Ok(())
     }
 
