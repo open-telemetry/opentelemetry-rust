@@ -177,6 +177,7 @@ impl ShouldSample for Sampler {
         // Also, it is currently *NOT* possible to check suppression mode or
         // even access current context in the span processor's OnEnd method. See
         // https://github.com/open-telemetry/opentelemetry-rust/issues/2871
+        // TODO: Can we move this even earlier, i.e. in the Tracer itself?
         // TODO: Check and fix: why this methods gets Option<&Context> and not
         // Context?
         if let Some(parent_context) = parent_context {
