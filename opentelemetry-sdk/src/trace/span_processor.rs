@@ -130,7 +130,6 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn on_end(&self, span: SpanData) {
-        let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         if !span.span_context.is_sampled() {
             return;
         }

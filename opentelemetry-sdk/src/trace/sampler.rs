@@ -172,6 +172,24 @@ impl ShouldSample for Sampler {
         attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult {
+        // Checking suppression mode in sampler is more efficient than checking
+        // it in the span processor as this allows earlier short-circuiting.
+        // Also, it is currently *NOT* possible to check suppression mode or
+        // even access current context in the span processor's OnEnd method. See
+        // https://github.com/open-telemetry/opentelemetry-rust/issues/2871
+        // TODO: Check and fix: why this methods gets Option<&Context> and not
+        // Context?
+        if let Some(parent_context) = parent_context {
+            if parent_context.is_telemetry_suppressed() {
+                return SamplingResult {
+                    decision: SamplingDecision::Drop,
+                    // No extra attributes ever set by the SDK samplers.
+                    attributes: Vec::new(),
+                    // all sampler in SDK will not modify trace state.
+                    trace_state: TraceState::default(),
+                };
+            }
+        }
         let decision = match self {
             // Always sample the trace
             Sampler::AlwaysOn => SamplingDecision::RecordAndSample,
