@@ -1,8 +1,5 @@
 use anyhow::Result;
-use opentelemetry_proto::tonic::{
-    common::v1::KeyValue,
-    logs::v1::{LogRecord, LogsData, ResourceLogs},
-};
+use opentelemetry_proto::tonic::logs::v1::{LogRecord, LogsData, ResourceLogs};
 use std::fs::File;
 
 // Given two ResourceLogs, assert that they are equal except for the timestamps
