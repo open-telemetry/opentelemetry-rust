@@ -285,17 +285,15 @@ mod tests {
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
+    use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry::{Context, InstrumentationScope};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
-    use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
-    use tracing::{error, warn};
+    use tracing::error;
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::{EnvFilter, Layer};
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &SdkLogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -313,20 +311,6 @@ mod tests {
     }
 
     // cargo test --features=testing
-
-    #[derive(Clone, Debug, Default)]
-    struct ReentrantLogExporter;
-
-    impl LogExporter for ReentrantLogExporter {
-        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            let _suppress = Context::enter_telemetry_suppressed_scope();
-            // Without the suppression above, this will cause a deadlock as the export itself creates a log
-            // while still within the lock of the SimpleLogProcessor.
-            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-            Ok(())
-        }
-    }
-
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
