@@ -52,7 +52,6 @@ impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
     }
 
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
-        // TODO: Should this check suppression context and return a no-op logger?
         // If the provider is shutdown, new logger will refer a no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             otel_debug!(
