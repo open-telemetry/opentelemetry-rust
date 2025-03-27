@@ -533,4 +533,30 @@ mod tests {
         let tracer2 = tracer_provider.tracer_with_scope(tracer_scope);
         tracer_name_retained_helper(tracer2, tracer_provider, exporter).await;
     }
+
+    #[test]
+    fn trace_suppression() {
+        // Arrange
+        let exporter = InMemorySpanExporter::default();
+        let span_processor = SimpleSpanProcessor::new(exporter.clone());
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_span_processor(span_processor)
+            .build();
+
+        // Act
+        let tracer = tracer_provider.tracer("test");
+        {
+            let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            let span = tracer.span_builder("span_name").start(&tracer);
+            drop(span);
+        }
+
+        // Assert
+        let finished_spans = exporter.get_finished_spans().expect("this should not fail");
+        assert_eq!(
+            finished_spans.len(),
+            0,
+            "There should be a no spans as span emission is done inside a suppressed context"
+        );
+    }
 }

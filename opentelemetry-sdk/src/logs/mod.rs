@@ -212,4 +212,31 @@ mod tests {
             &AnyValue::String("value-from-bag".into())
         ));
     }
+
+    #[test]
+    fn log_suppression() {
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        // Act
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(Severity::Error);
+
+        {
+            let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            logger.emit(log_record);
+        }
+
+        // Assert
+        let exported_logs = exporter.get_emitted_logs().expect("this should not fail.");
+        assert_eq!(
+            exported_logs.len(),
+            0,
+            "There should be a no logs as log emission is done inside a suppressed context"
+        );
+    }
 }
