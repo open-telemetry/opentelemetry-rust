@@ -72,16 +72,19 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // For the OpenTelemetry layer, add a tracing filter to filter events from
-    // OpenTelemetry and its dependent crates (opentelemetry-otlp uses crates
-    // like reqwest/tonic etc.) from being sent back to OTel itself, thus
-    // preventing infinite telemetry generation. The filter levels are set as
-    // follows:
+    // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
+    // logging is properly suppressed. However, logs emitted by external components
+    // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
+    // OpenTelemetry context. Until this issue is addressed
+    // (https://github.com/open-telemetry/opentelemetry-rust/issues/2877),
+    // filtering like this is the best way to suppress such logs.
+    //
+    // The filter levels are set as follows:
     // - Allow `info` level and above by default.
-    // - Restrict `opentelemetry`, `hyper`, `tonic`, and `reqwest` completely.
-    // Note: This will also drop events from crates like `tonic` etc. even when
-    // they are used outside the OTLP Exporter. For more details, see:
-    // https://github.com/open-telemetry/opentelemetry-rust/issues/761
+    // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
+    //
+    // Note: This filtering will also drop logs from these components even when
+    // they are used outside of the OTLP Exporter.
     let filter_otel = EnvFilter::new("info")
         .add_directive("hyper=off".parse().unwrap())
         .add_directive("tonic=off".parse().unwrap())
