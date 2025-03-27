@@ -547,8 +547,7 @@ mod tests {
         let tracer = tracer_provider.tracer("test");
         {
             let _suppressed_context = Context::enter_telemetry_suppressed_scope();
-            let span = tracer.span_builder("span_name").start(&tracer);
-            drop(span);
+            let _span = tracer.span_builder("span_name").start(&tracer);
         }
 
         // Assert

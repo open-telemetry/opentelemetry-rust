@@ -328,56 +328,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests and hence ignored in CI."]
-    fn simple_processor_deadlock() {
-        // TODO: This test maybe better suited in the opentelemetry-sdk crate tests
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter)
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-        tracing_subscriber::registry().with(layer).init();
-
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[test]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    fn simple_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // This filter will prevent the deadlock as the reentrant log will be
-        // ignored.
-        let filter = EnvFilter::new("debug").add_directive("reentrant=error".parse().unwrap());
-        // Setting subscriber as global as that is the only way to test this scenario.
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(layer)
-            .init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    async fn batch_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_batch_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        tracing_subscriber::registry().with(layer).init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[test]
     fn tracing_appender_standalone() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();

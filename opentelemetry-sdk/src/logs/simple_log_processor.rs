@@ -153,12 +153,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use crate::logs::log_processor::tests::MockLogExporter;
-    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLogger};
     use crate::{
         error::OTelSdkResult,
         logs::{InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor},
         Resource,
     };
+    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -438,5 +439,57 @@ mod tests {
         processor.emit(&mut record, &instrumentation);
 
         assert_eq!(exporter.len(), 1);
+    }
+
+    #[derive(Debug, Clone)]
+    struct ReentrantLogExporter {
+        logger: Arc<Mutex<Option<SdkLogger>>>,
+    }
+
+    impl ReentrantLogExporter {
+        fn new() -> Self {
+            Self {
+                logger: Arc::new(Mutex::new(None)),
+            }
+        }
+
+        fn set_logger(&self, logger: SdkLogger) {
+            let mut guard = self.logger.lock().unwrap();
+            *guard = Some(logger);
+        }
+    }
+
+    impl LogExporter for ReentrantLogExporter {
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            let logger = self.logger.lock().unwrap();
+            if let Some(logger) = logger.as_ref() {
+                let mut log_record = logger.create_log_record();
+                log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+                logger.emit(log_record);
+            }
+
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn does_not_deadlock_when_exporter_is_rentrant_simple_log_processor() {
+        // This tests that even when exporter produces logs while
+        // exporting, it does not deadlock, as SimpleLogProcessor
+        // activates SuppressGuard before calling the exporter.
+        let exporter: ReentrantLogExporter = ReentrantLogExporter::new();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        exporter.set_logger(logger_provider.logger("processor-logger"));
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+        logger.emit(log_record);
     }
 }
