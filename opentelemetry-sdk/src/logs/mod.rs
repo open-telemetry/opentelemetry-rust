@@ -225,11 +225,10 @@ mod tests {
 
         // Act
         let logger = logger_provider.logger("test-logger");
-        let mut log_record = logger.create_log_record();
-        log_record.set_severity_number(Severity::Error);
-
+        let log_record = logger.create_log_record();
         {
             let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            // This log emission should be suppressed and not exported.
             logger.emit(log_record);
         }
 

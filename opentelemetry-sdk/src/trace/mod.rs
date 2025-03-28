@@ -547,6 +547,7 @@ mod tests {
         let tracer = tracer_provider.tracer("test");
         {
             let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            // This span should not be emitted as it is created in a suppressed context
             let _span = tracer.span_builder("span_name").start(&tracer);
         }
 
