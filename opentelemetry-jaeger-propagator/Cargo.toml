@@ -14,6 +14,7 @@ keywords = ["opentelemetry", "jaeger", "propagator"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
@@ -33,3 +34,6 @@ internal-logs = ["opentelemetry/internal-logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

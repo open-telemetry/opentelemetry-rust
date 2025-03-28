@@ -8,6 +8,7 @@ keywords = ["opentelemetry", "tracing", "context", "propagation"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [features]
 default = ["internal-logs"]
@@ -29,3 +30,6 @@ tokio = { workspace = true, features = ["time"], optional = true }
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

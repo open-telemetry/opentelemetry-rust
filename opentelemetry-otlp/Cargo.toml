@@ -15,6 +15,7 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
 autotests = false
+autobenches = false
 
 [[test]]
 name = "smoke"
@@ -49,7 +50,7 @@ opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../op
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
-tonic = { workspace = true, features = ["server"] }
+tonic = { workspace = true, features = ["router", "server"] }
 
 [features]
 # telemetry pillars and functions
@@ -67,8 +68,8 @@ default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", 
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
-tls = ["tonic/tls"]
-tls-roots = ["tls", "tonic/tls-roots"]
+tls = ["tonic/tls-ring"]
+tls-roots = ["tls", "tonic/tls-native-roots"]
 tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 
 # http binary
@@ -85,3 +86,6 @@ integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
