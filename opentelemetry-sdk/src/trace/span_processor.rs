@@ -316,6 +316,7 @@ impl BatchSpanProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
             .spawn(move || {
+                let _suppress_guard = Context::enter_telemetry_suppressed_scope();
                 otel_debug!(
                     name: "BatchSpanProcessor.ThreadStarted",
                     interval_in_millisecs = config.scheduled_delay.as_millis(),

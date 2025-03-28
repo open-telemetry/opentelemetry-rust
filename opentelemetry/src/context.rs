@@ -20,8 +20,10 @@ use std::hash::{BuildHasherDefault, Hasher};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+#[cfg(feature = "futures")]
 mod future_ext;
 
+#[cfg(feature = "futures")]
 pub use future_ext::FutureExt;
 
 thread_local! {
@@ -428,6 +430,8 @@ impl Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut dbg = f.debug_struct("Context");
+
+        #[cfg(feature = "trace")]
         let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
         #[cfg(feature = "trace")]
         {
@@ -438,6 +442,8 @@ impl fmt::Debug for Context {
                 dbg.field("span", &"None");
             }
         }
+        #[cfg(not(feature = "trace"))]
+        let entries = self.entries.as_ref().map_or(0, |e| e.len());
 
         dbg.field("entries count", &entries)
             .field("suppress_telemetry", &self.suppress_telemetry)

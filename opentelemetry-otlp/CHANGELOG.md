@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Update `tonic` dependency version to 0.13
+
 ## 0.29.0
 
 Released 2025-Mar-21
