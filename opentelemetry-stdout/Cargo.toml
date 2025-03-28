@@ -14,6 +14,7 @@ keywords = ["opentelemetry", "tracing", "metrics", "logs"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
@@ -41,3 +42,6 @@ once_cell = { workspace = true }
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
