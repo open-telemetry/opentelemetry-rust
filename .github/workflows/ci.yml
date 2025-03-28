@@ -58,7 +58,10 @@ jobs:
         submodules: true
     - uses: dtolnay/rust-toolchain@stable
       with:
-        components: rustfmt
+        components: rustfmt, clippy
+    - uses: taiki-e/install-action@v2
+      with:
+          tool: cargo-hack
     - uses: arduino/setup-protoc@v3
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
