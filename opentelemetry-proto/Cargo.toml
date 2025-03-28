@@ -15,9 +15,11 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
 autotests = false
+autobenches = false
 
 [lib]
 doctest = false
+bench = false
 
 [[test]]
 name = "grpc_build"

@@ -351,5 +351,12 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     })
 }
 
-criterion_group!(benches, counters, histograms);
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
+    targets = counters, histograms
+}
+
 criterion_main!(benches);

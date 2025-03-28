@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["opentelemetry", "log", "logs", "tracing"]
 license = "Apache-2.0"
 rust-version = "1.75.0"
+autobenches = false
 
 [dependencies]
 log = { workspace = true, optional = true }

@@ -92,6 +92,11 @@ thread_local! {
 /// ```
 #[derive(Clone, Default)]
 pub struct Context {
+    pub(super) inner: Option<Arc<InnerContext>>,
+}
+
+#[derive(Clone, Default)]
+pub(super) struct InnerContext {
     #[cfg(feature = "trace")]
     pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
@@ -196,7 +201,9 @@ impl Context {
     /// assert_eq!(cx.get::<MyUser>(), None);
     /// ```
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        self.entries
+        self.inner
+            .as_ref()?
+            .entries
             .as_ref()?
             .get(&TypeId::of::<T>())?
             .downcast_ref()
@@ -230,20 +237,28 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let entries = if let Some(current_entries) = &self.entries {
-            let mut inner_entries = (**current_entries).clone();
-            inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
-            Some(Arc::new(inner_entries))
-        } else {
-            let mut entries = EntryMap::default();
-            entries.insert(TypeId::of::<T>(), Arc::new(value));
-            Some(Arc::new(entries))
-        };
-        Context {
-            entries,
+        let (span, mut entries, suppress_telemetry) = if let Some(inner) = &self.inner {
             #[cfg(feature = "trace")]
-            span: self.span.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+            let span = inner.span.clone();
+            #[cfg(not(feature = "trace"))]
+            let span: Option<()> = None;
+
+            if let Some(entries) = &inner.entries {
+                (span, (**entries).clone(), inner.suppress_telemetry)
+            } else {
+                (span, EntryMap::default(), inner.suppress_telemetry)
+            }
+        } else {
+            (None, EntryMap::default(), false)
+        };
+        entries.insert(TypeId::of::<T>(), Arc::new(value));
+        Context {
+            inner: Some(Arc::new(InnerContext {
+                #[cfg(feature = "trace")]
+                span,
+                entries: Some(Arc::new(entries)),
+                suppress_telemetry,
+            })),
         }
     }
 
@@ -333,16 +348,37 @@ impl Context {
     /// Returns whether telemetry is suppressed in this context.
     #[inline]
     pub fn is_telemetry_suppressed(&self) -> bool {
-        self.suppress_telemetry
+        if let Some(inner) = &self.inner {
+            inner.suppress_telemetry
+        } else {
+            false
+        }
     }
 
     /// Returns a new context with telemetry suppression enabled.
     pub fn with_telemetry_suppressed(&self) -> Self {
-        Context {
-            entries: self.entries.clone(),
+        if self.is_telemetry_suppressed() {
+            return self.clone();
+        }
+        let (span, entries) = if let Some(inner) = &self.inner {
             #[cfg(feature = "trace")]
-            span: self.span.clone(),
-            suppress_telemetry: true,
+            {
+                (inner.span.clone(), inner.entries.clone())
+            }
+            #[cfg(not(feature = "trace"))]
+            {
+                (Option::<()>::None, inner.entries.clone())
+            }
+        } else {
+            (None, None)
+        };
+        Context {
+            inner: Some(Arc::new(InnerContext {
+                #[cfg(feature = "trace")]
+                span,
+                entries,
+                suppress_telemetry: true,
+            })),
         }
     }
 
@@ -408,19 +444,22 @@ impl Context {
 
     #[cfg(feature = "trace")]
     pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Self::map_current(|cx| Context {
-            span: Some(Arc::new(value)),
-            entries: cx.entries.clone(),
-            suppress_telemetry: cx.suppress_telemetry,
-        })
+        Self::map_current(|cx| cx.with_synchronized_span(value))
     }
 
     #[cfg(feature = "trace")]
     pub(crate) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
+        let (entries, suppress_telemetry) = if let Some(inner) = &self.inner {
+            (inner.entries.clone(), inner.suppress_telemetry)
+        } else {
+            (None, false)
+        };
         Context {
-            span: Some(Arc::new(value)),
-            entries: self.entries.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+            inner: Some(Arc::new(InnerContext {
+                span: Some(Arc::new(value)),
+                entries,
+                suppress_telemetry,
+            })),
         }
     }
 }
@@ -428,10 +467,15 @@ impl Context {
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut dbg = f.debug_struct("Context");
-        let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
+        let (mut entries, suppress_telemetry) = self.inner.as_ref().map_or((0, false), |inner| {
+            (
+                inner.entries.as_ref().map_or(0, |e| e.len()),
+                inner.suppress_telemetry,
+            )
+        });
         #[cfg(feature = "trace")]
         {
-            if let Some(span) = &self.span {
+            if let Some(span) = self.inner.as_ref().and_then(|inner| inner.span.as_ref()) {
                 dbg.field("span", &span.span_context());
                 entries += 1;
             } else {
@@ -440,7 +484,7 @@ impl fmt::Debug for Context {
         }
 
         dbg.field("entries count", &entries)
-            .field("suppress_telemetry", &self.suppress_telemetry)
+            .field("suppress_telemetry", &suppress_telemetry)
             .finish()
     }
 }

@@ -3,6 +3,7 @@ name = "integration_test_runner"
 version = "0.1.0"
 edition = "2021"
 publish = false
+autobenches = false
 
 [dependencies]
 opentelemetry = { path = "../../../opentelemetry", features = [] }
@@ -35,3 +36,6 @@ default = ["tonic-client", "internal-logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

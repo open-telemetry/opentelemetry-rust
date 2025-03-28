@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 publish = false
+autobenches = false
+
+[[bin]]
+name = "metrics-basic"
+path = "src/main.rs"
+bench = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }

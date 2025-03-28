@@ -8,6 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [dependencies]
 opentelemetry = { version = "0.29", path = "../opentelemetry/" }
@@ -112,7 +113,7 @@ required-features = ["rt-tokio", "testing"]
 [[bench]]
 name = "metric"
 harness = false
-required-features = ["metrics"]
+required-features = ["metrics", "spec_unstable_metrics_views"]
 
 [[bench]]
 name = "log"
