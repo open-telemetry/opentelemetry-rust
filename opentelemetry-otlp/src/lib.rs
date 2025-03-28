@@ -370,6 +370,8 @@ pub struct NoExporterBuilderSet;
 ///
 /// Allowing access to [TonicExporterBuilder] specific configuration methods.
 #[cfg(feature = "grpc-tonic")]
+// This is for clippy to work with only the grpc-tonic feature enabled
+#[allow(unused)]
 #[derive(Debug, Default)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
