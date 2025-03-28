@@ -3,41 +3,49 @@ name = "stress"
 version = "0.1.0"
 edition = "2021"
 publish = false
+autobenches = false
 
 [[bin]] # Bin to run the metrics stress tests for Counter
 name = "metrics"
 path = "src/metrics_counter.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the metrics stress tests for Gauge
 name = "metrics_gauge"
 path = "src/metrics_gauge.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the metrics stress tests for Histogram
 name = "metrics_histogram"
 path = "src/metrics_histogram.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the metrics overflow stress tests
 name = "metrics_overflow"
 path = "src/metrics_overflow.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the logs stress tests
 name = "logs"
 path = "src/logs.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the traces stress tests
 name = "traces"
 path = "src/traces.rs"
 doc = false
+bench = false
 
 [[bin]] # Bin to run the stress tests to show the cost of random number generation
 name = "random"
 path = "src/random.rs"
 doc = false
+bench = false
 
 [dependencies]
 ctrlc = { workspace = true }
