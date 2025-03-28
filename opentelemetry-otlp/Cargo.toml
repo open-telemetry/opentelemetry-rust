@@ -15,6 +15,7 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
 autotests = false
+autobenches = false
 
 [[test]]
 name = "smoke"
@@ -85,3 +86,6 @@ integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
