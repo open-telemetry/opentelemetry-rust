@@ -31,8 +31,9 @@ tracing = {workspace = true, optional = true} # optional for opentelemetry inter
 js-sys = "0.3.63"
 
 [features]
-default = ["trace", "metrics", "logs", "internal-logs"]
-trace = ["pin-project-lite", "futures-sink", "futures-core", "thiserror"]
+default = ["trace", "metrics", "logs", "internal-logs", "futures"]
+futures = ["futures-core", "futures-sink", "pin-project-lite"]
+trace = ["futures", "thiserror"]
 metrics = []
 testing = ["trace"]
 logs = []

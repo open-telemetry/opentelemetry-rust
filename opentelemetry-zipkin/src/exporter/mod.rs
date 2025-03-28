@@ -41,6 +41,7 @@ pub struct ZipkinExporterBuilder {
 
 impl Default for ZipkinExporterBuilder {
     fn default() -> Self {
+        #[cfg(any(feature = "reqwest-blocking-client", feature = "reqwest-client"))]
         let timeout = env::get_timeout();
 
         ZipkinExporterBuilder {
