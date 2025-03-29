@@ -46,7 +46,7 @@ zpages = ["trace"]
 testing = ["opentelemetry/testing"]
 
 # add ons
-internal-logs = []
+internal-logs = ["opentelemetry/internal-logs"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex", "base64"]
 
