@@ -26,7 +26,6 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -51,18 +50,13 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-
 experimental_async_runtime = []
 rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
-internal-logs = ["tracing"]
+internal-logs = ["opentelemetry/internal-logs"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
-
-[package.metadata.cargo-machete]
-ignored = [
-    "tracing" # needed for `internal-logs`
-]
 
 [[bench]]
 name = "context"
