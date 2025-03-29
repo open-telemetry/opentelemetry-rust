@@ -36,6 +36,7 @@ pub mod log_processor_with_async_runtime;
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
+    use crate::error::OTelSdkResult;
     use crate::Resource;
     use opentelemetry::baggage::BaggageExt;
     use opentelemetry::logs::LogRecord;
@@ -44,6 +45,7 @@ mod tests {
     use opentelemetry::{Context, InstrumentationScope};
     use std::borrow::Borrow;
     use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn logging_sdk_test() {
@@ -211,5 +213,86 @@ mod tests {
             &Key::new("key-from-bag"),
             &AnyValue::String("value-from-bag".into())
         ));
+    }
+
+    #[test]
+    fn log_suppression() {
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        // Act
+        let logger = logger_provider.logger("test-logger");
+        let log_record = logger.create_log_record();
+        {
+            let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            // This log emission should be suppressed and not exported.
+            logger.emit(log_record);
+        }
+
+        // Assert
+        let exported_logs = exporter.get_emitted_logs().expect("this should not fail.");
+        assert_eq!(
+            exported_logs.len(),
+            0,
+            "There should be a no logs as log emission is done inside a suppressed context"
+        );
+    }
+
+    #[derive(Debug, Clone)]
+    struct ReentrantLogProcessor {
+        logger: Arc<Mutex<Option<SdkLogger>>>,
+    }
+
+    impl ReentrantLogProcessor {
+        fn new() -> Self {
+            Self {
+                logger: Arc::new(Mutex::new(None)),
+            }
+        }
+
+        fn set_logger(&self, logger: SdkLogger) {
+            let mut guard = self.logger.lock().unwrap();
+            *guard = Some(logger);
+        }
+    }
+
+    impl LogProcessor for ReentrantLogProcessor {
+        fn emit(&self, _data: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {
+            let _suppress = Context::enter_telemetry_suppressed_scope();
+            // Without the suppression above, the logger.emit(log_record) below will cause a deadlock,
+            // as it emits another log, which will attempt to acquire the same lock that is
+            // already held by itself!
+            let logger = self.logger.lock().unwrap();
+            if let Some(logger) = logger.as_ref() {
+                let mut log_record = logger.create_log_record();
+                log_record.set_severity_number(Severity::Error);
+                logger.emit(log_record);
+            }
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn processor_internal_log_does_not_deadlock_with_suppression_enabled() {
+        let processor: ReentrantLogProcessor = ReentrantLogProcessor::new();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_log_processor(processor.clone())
+            .build();
+        processor.set_logger(logger_provider.logger("processor-logger"));
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(Severity::Error);
+        logger.emit(log_record);
     }
 }

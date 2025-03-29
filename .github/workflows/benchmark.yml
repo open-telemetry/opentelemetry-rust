@@ -56,5 +56,5 @@ jobs:
       - uses: boa-dev/criterion-compare-action@v3
         with:
           cwd: opentelemetry-sdk
-          features: rt-tokio,testing,metrics,logs,spec_unstable_metrics_views
+          features: testing,metrics,logs,spec_unstable_metrics_views,spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor
           branchName: ${{ env.BRANCH_NAME }}

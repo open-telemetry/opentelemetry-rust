@@ -345,7 +345,25 @@ only meant for OTel components itself and anyone writing extensions like custom
 Exporters etc.
 
 // TODO: Document the principles followed when selecting severity for internal
-logs // TODO: Document how this can cause circular loop and plans to address it.
+logs
+
+When OpenTelemetry components generate logs that could potentially feed back
+into OpenTelemetry, this can result in what is known as "telemetry-induced
+telemetry." To address this, OpenTelemetry provides a mechanism to suppress such
+telemetry using the `Context`. Components are expected to mark telemetry as
+suppressed within a specific `Context` by invoking
+`Context::enter_telemetry_suppressed_scope()`. The Logs SDK implementation
+checks this flag in the current `Context` and ignores logs if suppression is
+enabled.
+
+This mechanism relies on proper in-process propagation of the `Context`.
+However, external libraries like `hyper` and `tonic`, which are used by
+OpenTelemetry in its OTLP Exporters, do not propagate OpenTelemetry's `Context`.
+As a result, the suppression mechanism does not work out-of-the-box to suppress
+logs originating from these libraries.
+
+// TODO: Document how OTLP can solve this issue without asking external
+crates to respect and propagate OTel Context.
 
 ## Summary
 

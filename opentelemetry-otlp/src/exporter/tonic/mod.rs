@@ -145,6 +145,8 @@ impl Default for TonicExporterBuilder {
 }
 
 impl TonicExporterBuilder {
+    // This is for clippy to work with only the grpc-tonic feature enabled
+    #[allow(unused)]
     fn build_channel(
         self,
         signal_endpoint_var: &str,

@@ -42,7 +42,7 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
-jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
+jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
 metrics = ["opentelemetry/metrics", "glob"]
@@ -51,11 +51,11 @@ experimental_async_runtime = []
 rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
 internal-logs = ["opentelemetry/internal-logs"]
-experimental_metrics_periodicreader_with_async_runtime = ["metrics"]
+experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
-experimental_logs_batch_log_processor_with_async_runtime = ["logs"]
+experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_logs_concurrent_log_processor = ["logs"]
-experimental_trace_batch_span_processor_with_async_runtime = ["trace"]
+experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
 
 [[bench]]
@@ -102,7 +102,7 @@ harness = false
 [[bench]]
 name = "batch_span_processor"
 harness = false
-required-features = ["rt-tokio", "testing"]
+required-features = ["testing"]
 
 [[bench]]
 name = "metric"
