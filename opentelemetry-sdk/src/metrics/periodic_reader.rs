@@ -566,6 +566,10 @@ mod tests {
             Ok(())
         }
 
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+
         fn temporality(&self) -> Temporality {
             Temporality::Cumulative
         }
@@ -586,6 +590,10 @@ mod tests {
         }
 
         fn shutdown(&self) -> OTelSdkResult {
+            self.shutdown_with_timeout(Duration::from_secs(5))
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             self.is_shutdown.store(true, Ordering::Relaxed);
             Ok(())
         }
