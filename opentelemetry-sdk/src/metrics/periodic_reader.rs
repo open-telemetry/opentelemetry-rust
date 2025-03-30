@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn};
+use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -158,6 +158,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
         let result_thread_creation = thread::Builder::new()
             .name("OpenTelemetry.Metrics.PeriodicReader".to_string())
             .spawn(move || {
+                let _suppress_guard = Context::enter_telemetry_suppressed_scope();
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
                 otel_debug!(

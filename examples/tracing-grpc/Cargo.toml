@@ -4,14 +4,17 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 publish = false
+autobenches = false
 
 [[bin]] # Bin to run the gRPC server
 name = "grpc-server"
 path = "src/server.rs"
+bench = false
 
 [[bin]] # Bin to run the gRPC client
 name = "grpc-client"
 path = "src/client.rs"
+bench = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
@@ -19,7 +22,7 @@ opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["rt-tokio"] 
 opentelemetry-stdout = { workspace = true, features = ["trace"] }
 prost = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tonic = { workspace = true, features = ["server", "codegen", "channel", "prost"] }
+tonic = { workspace = true, features = ["server", "codegen", "channel", "prost", "router"] }
 
 [build-dependencies]
 tonic-build = { workspace = true }

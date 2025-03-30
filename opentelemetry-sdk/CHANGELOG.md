@@ -2,6 +2,16 @@
 
 ## vNext
 
+[#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
+`SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
+`Context`. In other words, if the current context has telemetry suppression
+enabled, then logs/spans will be ignored. The flag is typically set by OTel
+components to prevent telemetry from itself being fed back into OTel.
+`BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
+the suppression flag in their dedicated thread, so that telemetry generated from
+those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
+also modified to suppress telemetry before invoking exporters.
+
 ## 0.29.0
 
 Released 2025-Mar-21

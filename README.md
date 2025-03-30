@@ -187,6 +187,7 @@ you're more than welcome to participate!
 
 ### Approvers
 
+* [Anton Grübel](https://github.com/gruebel), Baz
 * [Shaun Cox](https://github.com/shaun-cox), Microsoft
 * [Scott Gerring](https://github.com/scottgerring), Datadog
 

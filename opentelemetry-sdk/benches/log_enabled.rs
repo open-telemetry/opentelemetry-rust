@@ -5,8 +5,8 @@
     Total Number of Cores:   14 (10 performance and 4 efficiency)
     | Test                                        | Average time|
     |---------------------------------------------|-------------|
-    | exporter_disabled_concurrent_processor      |  1.1 ns     |
-    | exporter_disabled_simple_processor          |  4.3 ns     |
+    | exporter_disabled_concurrent_processor      |  2.5 ns     |
+    | exporter_disabled_simple_processor          |  5.3 ns     |
 */
 
 // cargo bench --bench log_enabled --features="spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor"
@@ -76,13 +76,18 @@ fn criterion_benchmark(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2))
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
 #[cfg(target_os = "windows")]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 criterion_main!(benches);
