@@ -32,8 +32,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 10  # Fetch current commit and its parent
-      - name: "Show change commit"
-        run: git log -1
       - uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -42,19 +40,4 @@ jobs:
           toolchain: stable
       - uses: boa-dev/criterion-compare-action@v3
         with:
-          cwd: opentelemetry
-          branchName: ${{ env.BRANCH_NAME }}
-      - name: "Checkout change commit"
-        run: git checkout $GITHUB_SHA
-      - uses: boa-dev/criterion-compare-action@v3
-        with:
-          cwd: opentelemetry-appender-tracing
-          features: spec_unstable_logs_enabled
-          branchName: ${{ env.BRANCH_NAME }}
-      - name: "Checkout change commit"
-        run: git checkout $GITHUB_SHA
-      - uses: boa-dev/criterion-compare-action@v3
-        with:
-          cwd: opentelemetry-sdk
-          features: testing,metrics,logs,spec_unstable_metrics_views,spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor
           branchName: ${{ env.BRANCH_NAME }}
