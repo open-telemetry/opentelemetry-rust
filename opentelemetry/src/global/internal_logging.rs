@@ -26,7 +26,7 @@ macro_rules! otel_info {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::info!( name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::info!( name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
         }
 
         #[cfg(test)]
@@ -42,7 +42,7 @@ macro_rules! otel_info {
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::info!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
+            $crate::_private::info!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
         }
 
         #[cfg(test)]
@@ -77,7 +77,7 @@ macro_rules! otel_warn {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::warn!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::warn!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
         }
 
         #[cfg(test)]
@@ -93,7 +93,7 @@ macro_rules! otel_warn {
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::warn!(name: $name,
+            $crate::_private::warn!(name: $name,
                             target: env!("CARGO_PKG_NAME"),
                             name = $name,
                             $($key = {
@@ -135,7 +135,7 @@ macro_rules! otel_debug {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
         }
 
         #[cfg(test)]
@@ -151,7 +151,7 @@ macro_rules! otel_debug {
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
+            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
         }
 
         #[cfg(test)]
@@ -186,7 +186,7 @@ macro_rules! otel_error {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::error!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::error!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
         }
 
         #[cfg(test)]
@@ -202,7 +202,7 @@ macro_rules! otel_error {
     (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            tracing::error!(name: $name,
+            $crate::_private::error!(name: $name,
                             target: env!("CARGO_PKG_NAME"),
                             name = $name,
                             $($key = {
