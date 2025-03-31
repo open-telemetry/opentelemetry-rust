@@ -2,10 +2,11 @@
 
 ## vNext
 
-Added the ability to prevent recursive telemetry generation through new
-context-based suppression mechanisms. This feature helps prevent feedback loops
-and excessive telemetry when OpenTelemetry components perform their own
-operations.
+[#2821](https://github.com/open-telemetry/opentelemetry-rust/pull/2821) Context
+based suppression capabilities added: Added the ability to prevent recursive
+telemetry generation through new context-based suppression mechanisms. This
+feature helps prevent feedback loops and excessive telemetry when OpenTelemetry
+components perform their own operations.
 
 New methods added to `Context`:
 
