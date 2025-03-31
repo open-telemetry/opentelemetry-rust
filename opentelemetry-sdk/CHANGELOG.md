@@ -68,7 +68,7 @@ Released 2025-Mar-21
 
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
-- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for a custom MetricExporter.
+- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for custom `MetricExporter` authors.
 - Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
   when its `shutdown` is invoked.
 
