@@ -119,7 +119,7 @@ impl SdkMeterProvider {
 
     /// shutdown with default timeout
     pub fn shutdown(&self) -> OTelSdkResult {
-        self.shutdown_with_timeout(Duration::from_nanos(5))
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -148,7 +148,7 @@ impl SdkMeterProviderInner {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        self.shutdown_with_timeout(Duration::from_nanos(5))
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
