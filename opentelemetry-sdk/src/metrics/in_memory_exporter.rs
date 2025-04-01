@@ -8,6 +8,7 @@ use crate::InMemoryExporterError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 
@@ -250,6 +251,10 @@ impl PushMetricExporter for InMemoryMetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 
