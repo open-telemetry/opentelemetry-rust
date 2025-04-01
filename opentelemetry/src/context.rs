@@ -324,10 +324,11 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self));
+        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self.clone()));
 
         ContextGuard {
             cx_pos: cx_id,
+            context: self,
             _marker: PhantomData,
         }
     }
@@ -456,8 +457,17 @@ impl fmt::Debug for Context {
 pub struct ContextGuard {
     // The position of the context in the stack. This is used to pop the context.
     cx_pos: u16,
+    // The current context.
+    context: Context,
     // Ensure this type is !Send as it relies on thread locals
     _marker: PhantomData<*const ()>,
+}
+
+impl ContextGuard {
+    /// Retrieve the Context
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
 }
 
 impl Drop for ContextGuard {
@@ -995,6 +1005,33 @@ mod tests {
         // With suppression enabled
         let suppressed = cx.with_telemetry_suppressed();
         assert!(suppressed.is_telemetry_suppressed());
+    }
+
+    #[test]
+    fn test_retrieve_context_from_guard() {
+        let outer_guard = Context::new()
+            .with_value(ValueA(1))
+            .with_value(ValueB(2))
+            .attach();
+
+        assert_eq!(outer_guard.context().get::<ValueA>(), Some(&ValueA(1)));
+        assert_eq!(outer_guard.context().get::<ValueB>(), Some(&ValueB(2)));
+
+        {
+            let inner_guard = Context::current_with_value(ValueB(42)).attach();
+            // ValueB is changed in inner guard's context
+            assert_eq!(inner_guard.context().get(), Some(&ValueA(1)));
+            assert_eq!(inner_guard.context().get(), Some(&ValueB(42)));
+
+            assert!(Context::map_current(|cx| {
+                assert_eq!(cx.get(), Some(&ValueA(1)));
+                assert_eq!(cx.get(), Some(&ValueB(42)));
+                true
+            }));
+
+            // Outer guard's context still has original ValueB
+            assert_eq!(outer_guard.context().get::<ValueB>(), Some(&ValueB(2)));
+        }
     }
 
     #[test]
