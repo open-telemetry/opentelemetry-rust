@@ -25,6 +25,13 @@ predictable and efficient observability pipelines.
 
 - re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
 
+## 0.29.1
+
+Release 2025-Apr-01
+
+- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatability
+  - The new path for `WithContext` and `FutureExt` are in  `opentelemetry::context` as they are independent of the trace signal. Users should prefer this path.
+
 ## 0.29.0
 
 Released 2025-Mar-21
