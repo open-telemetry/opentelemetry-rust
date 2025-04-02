@@ -176,7 +176,9 @@ mod tracer;
 mod tracer_provider;
 
 pub use self::{
-    context::{get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt},
+    context::{
+        get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
+    },
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},

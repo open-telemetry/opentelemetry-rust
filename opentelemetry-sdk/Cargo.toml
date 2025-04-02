@@ -8,6 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [dependencies]
 opentelemetry = { version = "0.29", path = "../opentelemetry/" }
@@ -25,7 +26,6 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -42,7 +42,7 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
-jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
+jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
 metrics = ["opentelemetry/metrics", "glob"]
@@ -50,14 +50,13 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-
 experimental_async_runtime = []
 rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
-internal-logs = ["tracing"]
-experimental_metrics_periodicreader_with_async_runtime = ["metrics"]
+internal-logs = ["opentelemetry/internal-logs"]
+experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
-experimental_logs_batch_log_processor_with_async_runtime = ["logs"]
+experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_logs_concurrent_log_processor = ["logs"]
-experimental_trace_batch_span_processor_with_async_runtime = ["trace"]
+experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
-
 
 [[bench]]
 name = "context"
@@ -103,12 +102,12 @@ harness = false
 [[bench]]
 name = "batch_span_processor"
 harness = false
-required-features = ["rt-tokio", "testing"]
+required-features = ["testing"]
 
 [[bench]]
 name = "metric"
 harness = false
-required-features = ["metrics"]
+required-features = ["metrics", "spec_unstable_metrics_views"]
 
 [[bench]]
 name = "log"

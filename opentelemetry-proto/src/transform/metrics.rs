@@ -5,13 +5,13 @@
 #[allow(deprecated)]
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
-    use std::any::Any;
-    use std::fmt;
+    use std::fmt::Debug;
 
     use opentelemetry::{otel_debug, Key, Value};
     use opentelemetry_sdk::metrics::data::{
-        Exemplar as SdkExemplar, ExponentialHistogram as SdkExponentialHistogram,
-        Gauge as SdkGauge, Histogram as SdkHistogram, Metric as SdkMetric, ResourceMetrics,
+        AggregatedMetrics, Exemplar as SdkExemplar,
+        ExponentialHistogram as SdkExponentialHistogram, Gauge as SdkGauge,
+        Histogram as SdkHistogram, Metric as SdkMetric, MetricData, ResourceMetrics,
         ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
     use opentelemetry_sdk::metrics::Temporality;
@@ -152,46 +152,27 @@ pub mod tonic {
                 description: metric.description.to_string(),
                 unit: metric.unit.to_string(),
                 metadata: vec![], // internal and currently unused
-                data: metric.data.as_any().try_into().ok(),
+                data: Some(match &metric.data {
+                    AggregatedMetrics::F64(data) => data.into(),
+                    AggregatedMetrics::U64(data) => data.into(),
+                    AggregatedMetrics::I64(data) => data.into(),
+                }),
             }
         }
     }
 
-    impl TryFrom<&dyn Any> for TonicMetricData {
-        type Error = ();
-
-        fn try_from(data: &dyn Any) -> Result<Self, Self::Error> {
-            if let Some(hist) = data.downcast_ref::<SdkHistogram<i64>>() {
-                Ok(TonicMetricData::Histogram(hist.into()))
-            } else if let Some(hist) = data.downcast_ref::<SdkHistogram<u64>>() {
-                Ok(TonicMetricData::Histogram(hist.into()))
-            } else if let Some(hist) = data.downcast_ref::<SdkHistogram<f64>>() {
-                Ok(TonicMetricData::Histogram(hist.into()))
-            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<i64>>() {
-                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
-            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<u64>>() {
-                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
-            } else if let Some(hist) = data.downcast_ref::<SdkExponentialHistogram<f64>>() {
-                Ok(TonicMetricData::ExponentialHistogram(hist.into()))
-            } else if let Some(sum) = data.downcast_ref::<SdkSum<u64>>() {
-                Ok(TonicMetricData::Sum(sum.into()))
-            } else if let Some(sum) = data.downcast_ref::<SdkSum<i64>>() {
-                Ok(TonicMetricData::Sum(sum.into()))
-            } else if let Some(sum) = data.downcast_ref::<SdkSum<f64>>() {
-                Ok(TonicMetricData::Sum(sum.into()))
-            } else if let Some(gauge) = data.downcast_ref::<SdkGauge<u64>>() {
-                Ok(TonicMetricData::Gauge(gauge.into()))
-            } else if let Some(gauge) = data.downcast_ref::<SdkGauge<i64>>() {
-                Ok(TonicMetricData::Gauge(gauge.into()))
-            } else if let Some(gauge) = data.downcast_ref::<SdkGauge<f64>>() {
-                Ok(TonicMetricData::Gauge(gauge.into()))
-            } else {
-                otel_debug!(
-                    name: "TonicMetricData::UnknownAggregator",
-                    message= "Unknown aggregator type",
-                    unknown_type= format!("{:?}", data),
-                );
-                Err(())
+    impl<T> From<&MetricData<T>> for TonicMetricData
+    where
+        T: Numeric + Debug,
+    {
+        fn from(data: &MetricData<T>) -> Self {
+            match data {
+                MetricData::Gauge(gauge) => TonicMetricData::Gauge(gauge.into()),
+                MetricData::Sum(sum) => TonicMetricData::Sum(sum.into()),
+                MetricData::Histogram(hist) => TonicMetricData::Histogram(hist.into()),
+                MetricData::ExponentialHistogram(hist) => {
+                    TonicMetricData::ExponentialHistogram(hist.into())
+                }
             }
         }
     }
@@ -286,7 +267,7 @@ pub mod tonic {
 
     impl<T> From<&SdkSum<T>> for TonicSum
     where
-        T: fmt::Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
+        T: Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
     {
         fn from(sum: &SdkSum<T>) -> Self {
             TonicSum {
@@ -310,7 +291,7 @@ pub mod tonic {
 
     impl<T> From<&SdkGauge<T>> for TonicGauge
     where
-        T: fmt::Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
+        T: Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
     {
         fn from(gauge: &SdkGauge<T>) -> Self {
             TonicGauge {

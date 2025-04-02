@@ -19,7 +19,6 @@ exclude = ["opentelemetry-prometheus"]
 debug = 1
 
 [workspace.dependencies]
-async-std = "1.13"
 async-trait = "0.1"
 bytes = "1"
 criterion = "0.5"
@@ -42,8 +41,8 @@ serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
 temp-env = "0.3.6"
 thiserror = { version = "2", default-features = false }
-tonic = { version = "0.12.3", default-features = false }
-tonic-build = "0.12"
+tonic = { version = "0.13", default-features = false }
+tonic-build = "0.13"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
 # Using `tracing 0.1.40` because 0.1.39 (which is yanked) introduces the ability to set event names in macros, 
@@ -75,7 +74,7 @@ sysinfo = "0.32"
 tempfile = "3.3.0"
 testcontainers = "0.23.1"
 tracing-log = "0.2"
-tracing-opentelemetry = "0.29"
+tracing-opentelemetry = "0.30"
 typed-builder = "0.20"
 uuid = "1.3"
 

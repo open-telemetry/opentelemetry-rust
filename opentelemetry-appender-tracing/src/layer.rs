@@ -244,25 +244,25 @@ where
         // Visit fields.
         event.record(&mut visitor);
 
-        // #[cfg(feature = "experimental_use_tracing_span_context")]
-        // if let Some(span) = _ctx.event_span(event) {
-        //     use tracing_opentelemetry::OtelData;
-        //     let opt_span_id = span
-        //         .extensions()
-        //         .get::<OtelData>()
-        //         .and_then(|otd| otd.builder.span_id);
+        #[cfg(feature = "experimental_use_tracing_span_context")]
+        if let Some(span) = _ctx.event_span(event) {
+            use tracing_opentelemetry::OtelData;
+            let opt_span_id = span
+                .extensions()
+                .get::<OtelData>()
+                .and_then(|otd| otd.builder.span_id);
 
-        //     let opt_trace_id = span.scope().last().and_then(|root_span| {
-        //         root_span
-        //             .extensions()
-        //             .get::<OtelData>()
-        //             .and_then(|otd| otd.builder.trace_id)
-        //     });
+            let opt_trace_id = span.scope().last().and_then(|root_span| {
+                root_span
+                    .extensions()
+                    .get::<OtelData>()
+                    .and_then(|otd| otd.builder.trace_id)
+            });
 
-        //     if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
-        //         log_record.set_trace_context(trace_id, span_id, None);
-        //     }
-        // }
+            if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
+                log_record.set_trace_context(trace_id, span_id, None);
+            }
+        }
 
         //emit record
         self.logger.emit(log_record);
@@ -289,13 +289,11 @@ mod tests {
     use opentelemetry::{logs::AnyValue, Key};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
-    use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
-    use tracing::{error, warn};
+    use tracing::error;
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::{EnvFilter, Layer};
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &SdkLogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -313,69 +311,6 @@ mod tests {
     }
 
     // cargo test --features=testing
-
-    #[derive(Clone, Debug, Default)]
-    struct ReentrantLogExporter;
-
-    impl LogExporter for ReentrantLogExporter {
-        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            // This will cause a deadlock as the export itself creates a log
-            // while still within the lock of the SimpleLogProcessor.
-            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-            Ok(())
-        }
-    }
-
-    #[test]
-    #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
-    fn simple_processor_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // Setting subscriber as global as that is the only way to test this scenario.
-        tracing_subscriber::registry().with(layer).init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[test]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    fn simple_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // This filter will prevent the deadlock as the reentrant log will be
-        // ignored.
-        let filter = EnvFilter::new("debug").add_directive("reentrant=error".parse().unwrap());
-        // Setting subscriber as global as that is the only way to test this scenario.
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(layer)
-            .init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    async fn batch_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_batch_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        tracing_subscriber::registry().with(layer).init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
@@ -673,66 +608,66 @@ mod tests {
         }
     }
 
-    // #[cfg(feature = "experimental_use_tracing_span_context")]
-    // #[test]
-    // fn tracing_appender_inside_tracing_crate_context() {
-    //     use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
+    #[cfg(feature = "experimental_use_tracing_span_context")]
+    #[test]
+    fn tracing_appender_inside_tracing_crate_context() {
+        use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
 
-    //     // Arrange
-    //     let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-    //     let logger_provider = SdkLoggerProvider::builder()
-    //         .with_simple_exporter(exporter.clone())
-    //         .build();
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
 
-    //     // setup tracing layer to compare trace/span IDs against
-    //     let span_exporter = InMemorySpanExporterBuilder::new().build();
-    //     let tracer_provider = SdkTracerProvider::builder()
-    //         .with_simple_exporter(span_exporter.clone())
-    //         .build();
-    //     let tracer = tracer_provider.tracer("test-tracer");
+        // setup tracing layer to compare trace/span IDs against
+        let span_exporter = InMemorySpanExporterBuilder::new().build();
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_simple_exporter(span_exporter.clone())
+            .build();
+        let tracer = tracer_provider.tracer("test-tracer");
 
-    //     let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
-    //     let log_layer =
-    //         layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
+        let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
+        let log_layer =
+            layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
 
-    //     let subscriber = tracing_subscriber::registry()
-    //         .with(log_layer)
-    //         .with(tracing_opentelemetry::layer().with_tracer(tracer));
+        let subscriber = tracing_subscriber::registry()
+            .with(log_layer)
+            .with(tracing_opentelemetry::layer().with_tracer(tracer));
 
-    //     // Avoiding global subscriber.init() as that does not play well with unit tests.
-    //     let _guard = tracing::subscriber::set_default(subscriber);
+        // Avoiding global subscriber.init() as that does not play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
 
-    //     // Act
-    //     tracing::error_span!("outer-span").in_scope(|| {
-    //         error!("first-event");
+        // Act
+        tracing::error_span!("outer-span").in_scope(|| {
+            error!("first-event");
 
-    //         tracing::error_span!("inner-span").in_scope(|| {
-    //             error!("second-event");
-    //         });
-    //     });
+            tracing::error_span!("inner-span").in_scope(|| {
+                error!("second-event");
+            });
+        });
 
-    //     assert!(logger_provider.force_flush().is_ok());
+        assert!(logger_provider.force_flush().is_ok());
 
-    //     let logs = exporter.get_emitted_logs().expect("No emitted logs");
-    //     assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
+        let logs = exporter.get_emitted_logs().expect("No emitted logs");
+        assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
 
-    //     let spans = span_exporter.get_finished_spans().unwrap();
-    //     assert_eq!(spans.len(), 2);
+        let spans = span_exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 2);
 
-    //     let trace_id = spans[0].span_context.trace_id();
-    //     assert_eq!(trace_id, spans[1].span_context.trace_id());
-    //     let inner_span_id = spans[0].span_context.span_id();
-    //     let outer_span_id = spans[1].span_context.span_id();
-    //     assert_eq!(outer_span_id, spans[0].parent_span_id);
+        let trace_id = spans[0].span_context.trace_id();
+        assert_eq!(trace_id, spans[1].span_context.trace_id());
+        let inner_span_id = spans[0].span_context.span_id();
+        let outer_span_id = spans[1].span_context.span_id();
+        assert_eq!(outer_span_id, spans[0].parent_span_id);
 
-    //     let trace_ctx0 = logs[0].record.trace_context().unwrap();
-    //     let trace_ctx1 = logs[1].record.trace_context().unwrap();
+        let trace_ctx0 = logs[0].record.trace_context().unwrap();
+        let trace_ctx1 = logs[1].record.trace_context().unwrap();
 
-    //     assert_eq!(trace_ctx0.trace_id, trace_id);
-    //     assert_eq!(trace_ctx1.trace_id, trace_id);
-    //     assert_eq!(trace_ctx0.span_id, outer_span_id);
-    //     assert_eq!(trace_ctx1.span_id, inner_span_id);
-    // }
+        assert_eq!(trace_ctx0.trace_id, trace_id);
+        assert_eq!(trace_ctx1.trace_id, trace_id);
+        assert_eq!(trace_ctx0.span_id, outer_span_id);
+        assert_eq!(trace_ctx1.span_id, inner_span_id);
+    }
 
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {

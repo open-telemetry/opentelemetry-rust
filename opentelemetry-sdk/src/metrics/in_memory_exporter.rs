@@ -1,12 +1,16 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
-use crate::metrics::data::{self, Gauge, Sum};
-use crate::metrics::data::{Histogram, Metric, ResourceMetrics, ScopeMetrics};
+use crate::metrics::data::{
+    ExponentialHistogram, Gauge, Histogram, MetricData, ResourceMetrics, Sum,
+};
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::Temporality;
 use crate::InMemoryExporterError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -183,8 +187,7 @@ impl InMemoryMetricExporter {
                             name: metric.name.clone(),
                             description: metric.description.clone(),
                             unit: metric.unit.clone(),
-                            // we don't expect any unknown data type here
-                            data: Self::clone_data(metric.data.as_ref()).unwrap(),
+                            data: Self::clone_data(&metric.data),
                         })
                         .collect(),
                 })
@@ -192,73 +195,43 @@ impl InMemoryMetricExporter {
         }
     }
 
-    fn clone_data(data: &dyn data::Aggregation) -> Option<Box<dyn data::Aggregation>> {
-        if let Some(hist) = data.as_any().downcast_ref::<Histogram<i64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<f64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(hist) = data.as_any().downcast_ref::<Histogram<u64>>() {
-            Some(Box::new(Histogram {
-                data_points: hist.data_points.clone(),
-                start_time: hist.start_time,
-                time: hist.time,
-                temporality: hist.temporality,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<i64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<f64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(sum) = data.as_any().downcast_ref::<Sum<u64>>() {
-            Some(Box::new(data::Sum {
-                data_points: sum.data_points.clone(),
-                start_time: sum.start_time,
-                time: sum.time,
-                temporality: sum.temporality,
-                is_monotonic: sum.is_monotonic,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<i64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<f64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else if let Some(gauge) = data.as_any().downcast_ref::<Gauge<u64>>() {
-            Some(Box::new(data::Gauge {
-                data_points: gauge.data_points.clone(),
-                start_time: gauge.start_time,
-                time: gauge.time,
-            }))
-        } else {
-            // unknown data type
-            None
+    fn clone_data(data: &AggregatedMetrics) -> AggregatedMetrics {
+        fn clone_inner<T: Clone>(data: &MetricData<T>) -> MetricData<T> {
+            match data {
+                MetricData::Gauge(gauge) => Gauge {
+                    data_points: gauge.data_points.clone(),
+                    start_time: gauge.start_time,
+                    time: gauge.time,
+                }
+                .into(),
+                MetricData::Sum(sum) => Sum {
+                    data_points: sum.data_points.clone(),
+                    start_time: sum.start_time,
+                    time: sum.time,
+                    temporality: sum.temporality,
+                    is_monotonic: sum.is_monotonic,
+                }
+                .into(),
+                MetricData::Histogram(histogram) => Histogram {
+                    data_points: histogram.data_points.clone(),
+                    start_time: histogram.start_time,
+                    time: histogram.time,
+                    temporality: histogram.temporality,
+                }
+                .into(),
+                MetricData::ExponentialHistogram(exponential_histogram) => ExponentialHistogram {
+                    data_points: exponential_histogram.data_points.clone(),
+                    start_time: exponential_histogram.start_time,
+                    time: exponential_histogram.time,
+                    temporality: exponential_histogram.temporality,
+                }
+                .into(),
+            }
+        }
+        match data {
+            AggregatedMetrics::F64(metric_data) => AggregatedMetrics::F64(clone_inner(metric_data)),
+            AggregatedMetrics::U64(metric_data) => AggregatedMetrics::U64(clone_inner(metric_data)),
+            AggregatedMetrics::I64(metric_data) => AggregatedMetrics::I64(clone_inner(metric_data)),
         }
     }
 }
@@ -278,6 +251,10 @@ impl PushMetricExporter for InMemoryMetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

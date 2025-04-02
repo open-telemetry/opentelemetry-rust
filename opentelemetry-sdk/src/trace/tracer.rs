@@ -178,6 +178,15 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
     fn build_with_context(&self, mut builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
+        if parent_cx.is_telemetry_suppressed() {
+            return Span::new(
+                SpanContext::empty_context(),
+                None,
+                self.clone(),
+                SpanLimits::default(),
+            );
+        }
+
         let provider = self.provider();
         // no point start a span if the tracer provider has already being shutdown
         if provider.is_shutdown() {

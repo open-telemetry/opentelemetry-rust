@@ -179,16 +179,17 @@ you're more than welcome to participate!
 
 ### Maintainers
 
-* [Cijo Thomas](https://github.com/cijothomas)
+* [Cijo Thomas](https://github.com/cijothomas), Microsoft
 * [Harold Dost](https://github.com/hdost)
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
+* [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
+* [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-* [Shaun Cox](https://github.com/shaun-cox)
-* [Scott Gerring](https://github.com/scottgerring)
+* [Anton Grübel](https://github.com/gruebel), Baz
+* [Shaun Cox](https://github.com/shaun-cox), Microsoft
+* [Scott Gerring](https://github.com/scottgerring), Datadog
 
 ### Emeritus
 

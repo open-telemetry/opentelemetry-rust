@@ -2,6 +2,16 @@
 
 ## vNext
 
+[#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
+`SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
+`Context`. In other words, if the current context has telemetry suppression
+enabled, then logs/spans will be ignored. The flag is typically set by OTel
+components to prevent telemetry from itself being fed back into OTel.
+`BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
+the suppression flag in their dedicated thread, so that telemetry generated from
+those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
+also modified to suppress telemetry before invoking exporters.
+
 ## 0.29.0
 
 Released 2025-Mar-21
@@ -58,6 +68,7 @@ Released 2025-Mar-21
 
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
+- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for custom `MetricExporter` authors.
 - Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
   when its `shutdown` is invoked.
 

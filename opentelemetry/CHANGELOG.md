@@ -2,6 +2,36 @@
 
 ## vNext
 
+[#2821](https://github.com/open-telemetry/opentelemetry-rust/pull/2821) Context
+based suppression capabilities added: Added the ability to prevent recursive
+telemetry generation through new context-based suppression mechanisms. This
+feature helps prevent feedback loops and excessive telemetry when OpenTelemetry
+components perform their own operations.
+
+New methods added to `Context`:
+
+- `is_telemetry_suppressed()` - Checks if telemetry is suppressed in this
+  context
+- `with_telemetry_suppressed()` - Creates a new context with telemetry
+  suppression enabled
+- `is_current_telemetry_suppressed()` - Efficiently checks if the current thread's context
+  has telemetry suppressed
+- `enter_telemetry_suppressed_scope()` - Convenience method to enter a scope where telemetry is
+  suppressed
+
+These methods allow SDK components, exporters, and processors to temporarily
+disable telemetry generation during their internal operations, ensuring more
+predictable and efficient observability pipelines.
+
+- re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
+
+## 0.29.1
+
+Release 2025-Apr-01
+
+- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatability
+  - The new path for `WithContext` and `FutureExt` are in  `opentelemetry::context` as they are independent of the trace signal. Users should prefer this path.
+
 ## 0.29.0
 
 Released 2025-Mar-21

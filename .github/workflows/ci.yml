@@ -58,7 +58,10 @@ jobs:
         submodules: true
     - uses: dtolnay/rust-toolchain@stable
       with:
-        components: rustfmt
+        components: rustfmt, clippy
+    - uses: taiki-e/install-action@v2
+      with:
+          tool: cargo-hack
     - uses: arduino/setup-protoc@v3
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -106,7 +109,7 @@ jobs:
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories
   docs:
@@ -153,3 +156,18 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           fail_ci_if_error: true
+  cargo-machete:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
+      - name: cargo machete
+        run: cargo machete

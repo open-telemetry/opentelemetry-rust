@@ -145,6 +145,8 @@ impl Default for TonicExporterBuilder {
 }
 
 impl TonicExporterBuilder {
+    // This is for clippy to work with only the grpc-tonic feature enabled
+    #[allow(unused)]
     fn build_channel(
         self,
         signal_endpoint_var: &str,
@@ -514,6 +516,7 @@ mod tests {
         assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_err());
     }
 
+    #[cfg(feature = "zstd-tonic")]
     #[test]
     fn test_priority_of_signal_env_over_generic_env_for_compression() {
         run_env_test(
@@ -532,6 +535,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "zstd-tonic")]
     #[test]
     fn test_priority_of_code_based_config_over_envs_for_compression() {
         run_env_test(

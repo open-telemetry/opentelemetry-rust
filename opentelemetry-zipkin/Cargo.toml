@@ -14,6 +14,7 @@ keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
@@ -36,7 +37,6 @@ typed-builder = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
-futures-core = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
@@ -49,3 +49,6 @@ temp-env = { workspace = true }
 
 [lints]
 workspace = true
+
+[lib]
+bench = false
