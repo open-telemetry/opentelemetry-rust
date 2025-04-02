@@ -74,12 +74,12 @@ impl Span {
     /// Convert information in this span into `exporter::trace::SpanData`.
     /// This function copies all data from the current span, which will create a
     /// overhead.
-    pub fn exported_data<'a>(&'a mut self) -> Option<crate::trace::SpanData<'a>> {
+    pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
 
         self.data
-            .as_mut()
-            .map(|data| build_export_data(data, span_context, tracer))
+            .as_ref()
+            .map(|data| build_export_data(data.clone(), span_context, tracer))
     }
 }
 
@@ -199,8 +199,23 @@ impl opentelemetry::trace::Span for Span {
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
         // skip if data has already been exported
-        let data = &mut match self.data.take() {
-            Some(data) => data,
+        let mut data = match self.data.take() {
+            Some(data) => {
+                crate::trace::SpanData {
+                    span_context: self.span_context.clone(),
+                    parent_span_id: data.parent_span_id,
+                    span_kind: data.span_kind,
+                    name: data.name,
+                    start_time: data.start_time,
+                    end_time: data.end_time,
+                    attributes: data.attributes,
+                    dropped_attributes_count: data.dropped_attributes_count,
+                    events: data.events,
+                    links: data.links,
+                    status: data.status,
+                    instrumentation_scope: self.tracer.instrumentation_scope().clone(),
+                }
+            },
             None => return,
         };
 
@@ -220,11 +235,11 @@ impl Span {
         match provider.span_processors() {
             [] => {}
             [processor] => {
-                processor.on_end();
+                processor.on_end(&mut data)
             }
             processors => {
                 for processor in processors {
-                    processor.on_end();
+                    processor.on_end(&mut data);
                 }
             }
         }
@@ -238,23 +253,23 @@ impl Drop for Span {
     }
 }
 
-fn build_export_data<'a>(
-    data: &'a mut SpanData,
+fn build_export_data(
+    data: SpanData,
     span_context: SpanContext,
-    tracer: &'a crate::trace::SdkTracer,
-) -> crate::trace::SpanData<'a> {
+    tracer: &crate::trace::SdkTracer,
+) -> crate::trace::SpanData {
     crate::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
-        span_kind: &data.span_kind,
-        name: &data.name,
+        span_kind: data.span_kind,
+        name: data.name,
         start_time: data.start_time,
         end_time: data.end_time,
-        attributes: &data.attributes,
+        attributes: data.attributes,
         dropped_attributes_count: data.dropped_attributes_count,
-        events: &data.events,
-        links: &data.links,
-        status: &data.status,
+        events: data.events,
+        links: data.links,
+        status: data.status,
         instrumentation_scope: tracer.instrumentation_scope().clone(),
     }
 }
@@ -713,7 +728,7 @@ mod tests {
         let res = provider.shutdown();
         println!("{:?}", res);
         assert!(res.is_ok());
-        let mut dropped_span = tracer.start("span_with_dropped_provider");
+        let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
     }
