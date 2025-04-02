@@ -107,7 +107,9 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             return;
         }
 
-        let result = self.message_sender.try_send(BatchMessage::ExportSpan(span.clone()));
+        let result = self
+            .message_sender
+            .try_send(BatchMessage::ExportSpan(span.clone()));
 
         // If the queue is full, and we can't buffer a span
         if result.is_err() {

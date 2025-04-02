@@ -16,7 +16,7 @@ use std::time::SystemTime;
 
 /// Single operation within a trace.
 #[derive(Debug)]
-pub struct Span<> {
+pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
     tracer: crate::trace::SdkTracer,
@@ -200,21 +200,19 @@ impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
         // skip if data has already been exported
         let mut data = match self.data.take() {
-            Some(data) => {
-                crate::trace::SpanData {
-                    span_context: self.span_context.clone(),
-                    parent_span_id: data.parent_span_id,
-                    span_kind: data.span_kind,
-                    name: data.name,
-                    start_time: data.start_time,
-                    end_time: data.end_time,
-                    attributes: data.attributes,
-                    dropped_attributes_count: data.dropped_attributes_count,
-                    events: data.events,
-                    links: data.links,
-                    status: data.status,
-                    instrumentation_scope: self.tracer.instrumentation_scope().clone(),
-                }
+            Some(data) => crate::trace::SpanData {
+                span_context: self.span_context.clone(),
+                parent_span_id: data.parent_span_id,
+                span_kind: data.span_kind,
+                name: data.name,
+                start_time: data.start_time,
+                end_time: data.end_time,
+                attributes: data.attributes,
+                dropped_attributes_count: data.dropped_attributes_count,
+                events: data.events,
+                links: data.links,
+                status: data.status,
+                instrumentation_scope: self.tracer.instrumentation_scope().clone(),
             },
             None => return,
         };
@@ -234,9 +232,7 @@ impl Span {
 
         match provider.span_processors() {
             [] => {}
-            [processor] => {
-                processor.on_end(&mut data)
-            }
+            [processor] => processor.on_end(&mut data),
             processors => {
                 for processor in processors {
                     processor.on_end(&mut data);

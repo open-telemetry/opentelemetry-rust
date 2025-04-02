@@ -460,7 +460,7 @@ impl BatchSpanProcessor {
         E: SpanExporter + Send + Sync + 'static,
     {
         // Get upto `max_export_batch_size` amount of spans from the channel and push them to the span vec
-        while let Ok(span)  = spans_receiver.try_recv() {
+        while let Ok(span) = spans_receiver.try_recv() {
             spans.push(span);
             if spans.len() == config.max_export_batch_size {
                 break;
