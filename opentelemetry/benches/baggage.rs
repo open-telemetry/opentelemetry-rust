@@ -11,10 +11,10 @@ const MAX_KEY_VALUE_PAIRS: usize = 64;
 // Apple M4 Pro
 //     Total Number of Cores:	14 (10 performance and 4 efficiency)
 // Results:
-// set_baggage_static_key_value 12 ns
-// set_baggage_static_key 28 ns
-// set_baggage_dynamic 60 ns
-// set_baggage_dynamic_with_metadata 112 ns
+// set_baggage_static_key_value 14 ns
+// set_baggage_static_key 26 ns
+// set_baggage_dynamic 54 ns
+// set_baggage_dynamic_with_metadata 75 ns
 
 fn criterion_benchmark(c: &mut Criterion) {
     set_baggage_static_key_value(c);
@@ -94,6 +94,11 @@ fn set_baggage_dynamic_with_metadata(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
-
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
+    targets = criterion_benchmark
+}
 criterion_main!(benches);

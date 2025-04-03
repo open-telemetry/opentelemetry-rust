@@ -31,12 +31,12 @@ documentation.
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
 | Context               | Beta               |
-| Baggage               | Beta               |
+| Baggage               | RC                 |
 | Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | RC                 |
+| Logs-SDK              | Stable              |
 | Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | RC                 |
+| Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
 | Metrics-SDK           | RC                 |
 | Metrics-OTLP Exporter | RC                 |
@@ -179,22 +179,23 @@ you're more than welcome to participate!
 
 ### Maintainers
 
-* [Cijo Thomas](https://github.com/cijothomas)
+* [Cijo Thomas](https://github.com/cijothomas), Microsoft
 * [Harold Dost](https://github.com/hdost)
-* [Julian Tescher](https://github.com/jtescher)
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
+* [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
+* [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-* [Shaun Cox](https://github.com/shaun-cox)
-* [Scott Gerring](https://github.com/scottgerring)
+* [Anton Grübel](https://github.com/gruebel), Baz
+* [Shaun Cox](https://github.com/shaun-cox), Microsoft
+* [Scott Gerring](https://github.com/scottgerring), Datadog
 
 ### Emeritus
 
 * [Dirkjan Ochtman](https://github.com/djc)
 * [Jan Kühle](https://github.com/frigus02)
+* [Julian Tescher](https://github.com/jtescher)
 * [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Mike Goldsmith](https://github.com/MikeGoldsmith)
 

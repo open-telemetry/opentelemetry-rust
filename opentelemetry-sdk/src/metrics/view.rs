@@ -110,7 +110,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     let contains_wildcard = criteria.name.contains(['*', '?']);
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
-        if mask.name != "" {
+        if !mask.name.is_empty() {
             // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }

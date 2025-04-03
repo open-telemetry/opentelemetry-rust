@@ -2,6 +2,15 @@
 
 ## vNext
 
+- Update `tonic` dependency version to 0.13
+
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+
 ## 0.28.0
 
 Released 2025-Feb-10

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-jaeger-propagator"
-version = "0.28.0"
+version = "0.29.0"
 description = "Jaeger propagator for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger-propagator"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-jaeger-propagator"
@@ -14,23 +14,26 @@ keywords = ["opentelemetry", "jaeger", "propagator"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.28", default-features = false, features = [
+opentelemetry = { version = "0.29", default-features = false, features = [
     "trace",
 ], path = "../opentelemetry" }
-tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 
 [dev-dependencies]
 opentelemetry = { features = ["testing"], path = "../opentelemetry" }
 
 [features]
 default = ["internal-logs"]
-internal-logs = ["tracing"]
+internal-logs = ["opentelemetry/internal-logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

@@ -195,6 +195,13 @@ They get called in the order of registration. Log records are passed to the
 records, enrich them, filter them, and export to destinations by leveraging
 LogRecord Exporters.
 
+Similar to [LoggerProvider](#sdkloggerprovider), methods on the `LogProcessor`
+trait also takes a immutable self (`&self`) only, forcing the need to use
+interior mutability, if any mutation is required. The exception to this is
+`set_resource`, which takes a `&mut self`. This is acceptable as `set_resource`
+is called by the `SdkLoggerProvider` during build() method only, and is not
+required after that.
+
 Following built-in Log processors are provided in the Log SDK:
 
 ##### SimpleLogProcessor
@@ -232,8 +239,13 @@ other words, that many logs can be lost if the app crashes in the middle.
 
 ## LogExporters
 
-LogExporters are responsible for exporting logs to a destination. Some of them
-include:
+LogExporters are responsible for exporting logs to a destination.
+`SdkLoggerProvider` does not have a direct knowledge of the `LogExporter`, as it
+only deals with `LogProcessors`. It is the `LogProcessor`s that invokes
+`LogExporter` methods. Most methods on `LogExporter` trait also only takes
+`&self`, following the same reasoning as [LogProcessors](#logrecord-processors)
+
+Some of the exporters are:
 
 1. **InMemoryExporter** - exports to an in-memory list, primarily for
    unit-testing. This is used extensively in the repo itself, and external users
@@ -333,7 +345,25 @@ only meant for OTel components itself and anyone writing extensions like custom
 Exporters etc.
 
 // TODO: Document the principles followed when selecting severity for internal
-logs // TODO: Document how this can cause circular loop and plans to address it.
+logs
+
+When OpenTelemetry components generate logs that could potentially feed back
+into OpenTelemetry, this can result in what is known as "telemetry-induced
+telemetry." To address this, OpenTelemetry provides a mechanism to suppress such
+telemetry using the `Context`. Components are expected to mark telemetry as
+suppressed within a specific `Context` by invoking
+`Context::enter_telemetry_suppressed_scope()`. The Logs SDK implementation
+checks this flag in the current `Context` and ignores logs if suppression is
+enabled.
+
+This mechanism relies on proper in-process propagation of the `Context`.
+However, external libraries like `hyper` and `tonic`, which are used by
+OpenTelemetry in its OTLP Exporters, do not propagate OpenTelemetry's `Context`.
+As a result, the suppression mechanism does not work out-of-the-box to suppress
+logs originating from these libraries.
+
+// TODO: Document how OTLP can solve this issue without asking external
+crates to respect and propagate OTel Context.
 
 ## Summary
 

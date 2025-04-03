@@ -2,8 +2,25 @@
 
 ## vNext
 
+[#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
+`SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
+`Context`. In other words, if the current context has telemetry suppression
+enabled, then logs/spans will be ignored. The flag is typically set by OTel
+components to prevent telemetry from itself being fed back into OTel.
+`BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
+the suppression flag in their dedicated thread, so that telemetry generated from
+those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
+also modified to suppress telemetry before invoking exporters.
+
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency to 0.29.
+- Update `opentelemetry-http` dependency to 0.29.
 - **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
   for the changes.
+- Removed `async-std` support for `Runtime`, as [`async-std` crate is deprecated](https://crates.io/crates/async-std).
 - Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
@@ -51,6 +68,7 @@
 
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
+- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for custom `MetricExporter` authors.
 - Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
   when its `shutdown` is invoked.
 
@@ -69,11 +87,14 @@
  intended to be public. If you are authoring custom processor/exporters, use
  `opentelemetry_sdk::error::OTelSdkError` and
  `opentelemetry_sdk::error::OTelSdkResult`.
- // PLACEHOLDER to fill in when the similar change is done for traces, metrics.
- // PLACEHOLDER to put all the PR links together.
+  [2790](https://github.com/open-telemetry/opentelemetry-rust/pull/2790)
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
+- **Breaking**: InMemoryExporter's return type change.
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, InMemoryExporterError>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, InMemoryExporterError>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, InMemoryExporterError>`
 
 ## 0.28.0
 

@@ -1,0 +1,46 @@
+# This workflow runs a Criterion benchmark on a PR and compares the results against the base branch.
+# It is triggered on a PR or a push to main.
+#
+# The workflow is gated on the presence of the "performance" label on the PR.
+#
+# The workflow runs on a self-hosted runner pool. We can't use the shared runners for this,
+# because they are only permitted to run on the default branch to preserve resources. 
+#
+# In the future, we might like to consider using bencher.dev or the framework used by otel-golang here. 
+on: 
+  pull_request:
+  push:
+    branches:
+      - main
+name: benchmark pull requests
+jobs:
+  runBenchmark:
+    name: run benchmark
+    permissions:
+      pull-requests: write
+
+    # If we're running on a PR, use ubuntu-latest - a shared runner. We can't use the self-hosted
+    # runners on arbitrary PRs, and we don't want to unleash that load on the pool anyway.     
+    # If we're running on main, use the OTEL self-hosted runner pool. 
+    
+    # TODO - temporarily move main to the shared workers, until we've resolved the instance setup issue
+    # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
+    runs-on: 'ubuntu-latest'
+    if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
+    env:
+      # For PRs, compare against the base branch - e.g., 'main'. 
+      # For pushes to main, compare against the previous commit
+      BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10  # Fetch current commit and its parent
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          branchName: ${{ env.BRANCH_NAME }}

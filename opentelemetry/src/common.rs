@@ -482,9 +482,10 @@ impl PartialEq for InstrumentationScope {
         self.name == other.name
             && self.version == other.version
             && self.schema_url == other.schema_url
+            && self.attributes.len() == other.attributes.len()
             && {
-                let mut self_attrs = self.attributes.clone();
-                let mut other_attrs = other.attributes.clone();
+                let mut self_attrs = Vec::from_iter(&self.attributes);
+                let mut other_attrs = Vec::from_iter(&other.attributes);
                 self_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
                 other_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
                 self_attrs == other_attrs
@@ -499,7 +500,7 @@ impl hash::Hash for InstrumentationScope {
         self.name.hash(state);
         self.version.hash(state);
         self.schema_url.hash(state);
-        let mut sorted_attrs = self.attributes.clone();
+        let mut sorted_attrs = Vec::from_iter(&self.attributes);
         sorted_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         for attribute in sorted_attrs {
             attribute.hash(state);

@@ -29,6 +29,9 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
+        if Context::is_current_telemetry_suppressed() {
+            return;
+        }
         let provider = &self.provider;
         let processors = provider.log_processors();
 
@@ -50,7 +53,11 @@ impl opentelemetry::logs::Logger for SdkLogger {
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+        if Context::is_current_telemetry_suppressed() {
+            return false;
+        }
         self.provider
             .log_processors()
             .iter()
