@@ -407,3 +407,7 @@ pub enum Protocol {
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+#[cfg(feature = "grpc-tonic")]
+#[doc(no_inline)]
+pub use tonic;
