@@ -374,8 +374,8 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
-        counter_aggregation_overflow_helper(Temporality::Delta);
-        counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
+        counter_aggregation_overflow_helper(Temporality::Cumulative);
+        counter_aggregation_overflow_helper_custom_limit(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2550,7 +2550,7 @@ mod tests {
             assert_eq!(data_point.value, 100);
         } else {
             // For cumulative, overflow should still be there, and new points should not be added.
-            assert_eq!(sum.data_points.len(), 2002);
+            assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
             let data_point =
                 find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
                     .expect("overflow point expected");
