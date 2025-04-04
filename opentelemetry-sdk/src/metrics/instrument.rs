@@ -130,10 +130,10 @@ impl Instrument {
 
     /// empty returns if all fields of i are their default-value.
     pub(crate) fn is_empty(&self) -> bool {
-        self.name == ""
-            && self.description == ""
+        self.name.is_empty()
+            && self.description.is_empty()
             && self.kind.is_none()
-            && self.unit == ""
+            && self.unit.is_empty()
             && self.scope == InstrumentationScope::default()
     }
 
