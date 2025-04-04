@@ -75,10 +75,6 @@ impl Pipeline {
     /// unique values.
     fn add_sync(&self, scope: InstrumentationScope, i_sync: InstrumentSync) {
         let _ = self.inner.lock().map(|mut inner| {
-            otel_debug!(
-                name : "InstrumentCreated",
-                instrument_name = i_sync.name.as_ref(),
-            );
             inner.aggregations.entry(scope).or_default().push(i_sync);
         });
     }
@@ -388,17 +384,24 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
+            let cardinality_limit = stream
+                .cardinality_limit
+                .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
             let b = AggregateBuilder::new(
                 self.pipeline.reader.temporality(kind),
                 filter,
-                stream
-                    .cardinality_limit
-                    .unwrap_or(DEFAULT_CARDINALITY_LIMIT),
+                cardinality_limit,
             );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
+
+            otel_debug!(
+                name : "Metrics.InstrumentCreated",
+                instrument_name = stream.name.as_ref(),
+                cardinality_limit = cardinality_limit,
+            );
 
             self.pipeline.add_sync(
                 scope.clone(),
