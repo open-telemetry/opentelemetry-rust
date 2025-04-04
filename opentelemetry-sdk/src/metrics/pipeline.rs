@@ -50,6 +50,8 @@ impl fmt::Debug for Pipeline {
 /// Single or multi-instrument callbacks
 type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
+const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
+
 #[derive(Default)]
 struct PipelineInner {
     aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
@@ -389,7 +391,9 @@ where
             let b = AggregateBuilder::new(
                 self.pipeline.reader.temporality(kind),
                 filter,
-                stream.cardinality_limit.unwrap_or(2000),
+                stream
+                    .cardinality_limit
+                    .unwrap_or(DEFAULT_CARDINALITY_LIMIT),
             );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,

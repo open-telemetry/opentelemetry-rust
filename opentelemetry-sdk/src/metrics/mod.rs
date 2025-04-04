@@ -366,14 +366,12 @@ mod tests {
         assert_eq!(data_point.value, 50, "Unexpected data point value");
     }
 
-    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
     }
 
-    #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
@@ -2416,18 +2414,20 @@ mod tests {
         );
 
         // Phase 2 - for delta temporality, after each collect, data points are cleared
-        if temporality == Temporality::Delta {
-            test_context.reset_metrics();
-            // This should be aggregated normally, and not go into overflow.
-            counter.add(100, &[KeyValue::new("A", "foo")]);
-            counter.add(100, &[KeyValue::new("A", "another")]);
-            counter.add(100, &[KeyValue::new("A", "yet_another")]);
-            test_context.flush_metrics();
+        // but for cumulative, they are not cleared.
+        test_context.reset_metrics();
+        // The following should be aggregated normally for Delta,
+        // and should go into overflow for Cumulative.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
 
-            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
-            else {
-                unreachable!()
-            };
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        if temporality == Temporality::Delta {
             assert_eq!(sum.data_points.len(), 3);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
@@ -2442,19 +2442,35 @@ mod tests {
                 find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
                     .expect("point expected");
             assert_eq!(data_point.value, 100);
+        } else {
+            // For cumulative, overflow should still be there, and new points should not be added.
+            assert_eq!(sum.data_points.len(), 2002);
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                    .expect("overflow point expected");
+            assert_eq!(data_point.value, 600);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another");
+            assert!(data_point.is_none(), "point should not be present");
         }
     }
 
     fn counter_aggregation_overflow_helper_custom_limit(temporality: Temporality) {
         // Arrange
-        let cardinality_limit = Arc::new(2300);
-        let cardinality_limit_clone = cardinality_limit.clone();
+        let cardinality_limit = 2300;
         let view_change_cardinality = move |i: &Instrument| {
             if i.name == "my_counter" {
                 Some(
                     Stream::new()
                         .name("my_counter")
-                        .cardinality_limit(*cardinality_limit_clone),
+                        .cardinality_limit(cardinality_limit),
                 )
             } else {
                 None
@@ -2465,7 +2481,7 @@ mod tests {
 
         // Act
         // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
-        for v in 0..*cardinality_limit {
+        for v in 0..cardinality_limit {
             counter.add(100, &[KeyValue::new("A", v.to_string())]);
         }
 
@@ -2484,7 +2500,7 @@ mod tests {
         };
 
         // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
-        assert_eq!(sum.data_points.len(), *cardinality_limit + 1 + 1);
+        assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
 
         let data_point =
             find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
@@ -2504,18 +2520,20 @@ mod tests {
         );
 
         // Phase 2 - for delta temporality, after each collect, data points are cleared
-        if temporality == Temporality::Delta {
-            test_context.reset_metrics();
-            // This should be aggregated normally, and not go into overflow.
-            counter.add(100, &[KeyValue::new("A", "foo")]);
-            counter.add(100, &[KeyValue::new("A", "another")]);
-            counter.add(100, &[KeyValue::new("A", "yet_another")]);
-            test_context.flush_metrics();
+        // but for cumulative, they are not cleared.
+        test_context.reset_metrics();
+        // The following should be aggregated normally for Delta,
+        // and should go into overflow for Cumulative.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
 
-            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
-            else {
-                unreachable!()
-            };
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        if temporality == Temporality::Delta {
             assert_eq!(sum.data_points.len(), 3);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
@@ -2530,6 +2548,23 @@ mod tests {
                 find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
                     .expect("point expected");
             assert_eq!(data_point.value, 100);
+        } else {
+            // For cumulative, overflow should still be there, and new points should not be added.
+            assert_eq!(sum.data_points.len(), 2002);
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                    .expect("overflow point expected");
+            assert_eq!(data_point.value, 600);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another");
+            assert!(data_point.is_none(), "point should not be present");
         }
     }
 
