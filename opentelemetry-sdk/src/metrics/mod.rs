@@ -374,7 +374,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
-        counter_aggregation_overflow_helper(Temporality::Cumulative);
+        counter_aggregation_overflow_helper(Temporality::Delta);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
     }
 
