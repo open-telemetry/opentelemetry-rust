@@ -369,12 +369,16 @@ impl<T: Number> ExpoHistogram<T> {
         max_scale: i8,
         record_min_max: bool,
         record_sum: bool,
+        cardinality_limit: usize,
     ) -> Self {
         ExpoHistogram {
-            value_map: ValueMap::new(BucketConfig {
-                max_size: max_size as i32,
-                max_scale,
-            }),
+            value_map: ValueMap::new(
+                BucketConfig {
+                    max_size: max_size as i32,
+                    max_scale,
+                },
+                cardinality_limit,
+            ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -546,6 +550,8 @@ mod tests {
 
     use super::*;
 
+    const CARDINALITY_LIMIT_DEFAULT: usize = 2000;
+
     #[test]
     fn test_expo_histogram_data_point_record() {
         run_data_point_record::<f64>();
@@ -710,6 +716,7 @@ mod tests {
                 20,
                 true,
                 true,
+                CARDINALITY_LIMIT_DEFAULT,
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -766,6 +773,7 @@ mod tests {
                 20,
                 true,
                 true,
+                CARDINALITY_LIMIT_DEFAULT,
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -1278,12 +1286,13 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    AggregateBuilder::new(Temporality::Delta, None).exponential_bucket_histogram(
-                        max_size,
-                        max_scale,
-                        record_min_max,
-                        record_sum,
-                    )
+                    AggregateBuilder::new(Temporality::Delta, None, CARDINALITY_LIMIT_DEFAULT)
+                        .exponential_bucket_histogram(
+                            max_size,
+                            max_scale,
+                            record_min_max,
+                            record_sum,
+                        )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1318,13 +1327,17 @@ mod tests {
             TestCase {
                 name: "Cumulative Single",
                 build: Box::new(move || {
-                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    internal::AggregateBuilder::new(
+                        Temporality::Cumulative,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1359,13 +1372,17 @@ mod tests {
             TestCase {
                 name: "Delta Multiple",
                 build: Box::new(move || {
-                    internal::AggregateBuilder::new(Temporality::Delta, None)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    internal::AggregateBuilder::new(
+                        Temporality::Delta,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),
@@ -1403,13 +1420,17 @@ mod tests {
             TestCase {
                 name: "Cumulative Multiple ",
                 build: Box::new(move || {
-                    internal::AggregateBuilder::new(Temporality::Cumulative, None)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    internal::AggregateBuilder::new(
+                        Temporality::Cumulative,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![
                     vec![2, 3, 8].into_iter().map(Into::into).collect(),

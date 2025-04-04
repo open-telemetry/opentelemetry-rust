@@ -161,6 +161,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
                 },
                 aggregation: agg.clone(),
                 allowed_attribute_keys: mask.allowed_attribute_keys.clone(),
+                cardinality_limit: mask.cardinality_limit,
             })
         } else {
             None

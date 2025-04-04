@@ -50,9 +50,13 @@ pub(crate) struct LastValue<T: Number> {
 }
 
 impl<T: Number> LastValue<T> {
-    pub(crate) fn new(temporality: Temporality, filter: AttributeSetFilter) -> Self {
+    pub(crate) fn new(
+        temporality: Temporality,
+        filter: AttributeSetFilter,
+        cardinality_limit: usize,
+    ) -> Self {
         LastValue {
-            value_map: ValueMap::new(()),
+            value_map: ValueMap::new((), cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,

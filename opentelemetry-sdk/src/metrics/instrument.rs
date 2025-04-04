@@ -203,6 +203,9 @@ pub struct Stream {
     /// dropped. If the set is empty, all attributes will be dropped, if `None` all
     /// attributes will be kept.
     pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
+
+    /// Cardinality limit for the stream.
+    pub cardinality_limit: Option<usize>,
 }
 
 #[cfg(feature = "spec_unstable_metrics_views")]
@@ -243,6 +246,12 @@ impl Stream {
     pub fn allowed_attribute_keys(mut self, attribute_keys: impl IntoIterator<Item = Key>) -> Self {
         self.allowed_attribute_keys = Some(Arc::new(attribute_keys.into_iter().collect()));
 
+        self
+    }
+
+    /// Set the stream cardinality limit.
+    pub fn cardinality_limit(mut self, limit: usize) -> Self {
+        self.cardinality_limit = Some(limit);
         self
     }
 }
