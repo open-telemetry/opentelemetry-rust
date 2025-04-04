@@ -303,6 +303,7 @@ where
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
+            cardinality_limit: None,
         };
 
         // Override default histogram boundaries if provided.
@@ -385,7 +386,11 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
-            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
+            let b = AggregateBuilder::new(
+                self.pipeline.reader.temporality(kind),
+                filter,
+                stream.cardinality_limit.unwrap_or(2000),
+            );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error

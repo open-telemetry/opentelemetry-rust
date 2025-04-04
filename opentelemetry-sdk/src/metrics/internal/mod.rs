@@ -12,7 +12,6 @@ use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 
-use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
@@ -71,27 +70,34 @@ where
     no_attribute_tracker: A,
     /// Configuration for an Aggregator
     config: A::InitConfig,
+    cardinality_limit: usize,
 }
 
 impl<A> ValueMap<A>
 where
     A: Aggregator,
 {
-    fn new(config: A::InitConfig) -> Self {
+    fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)),
+            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
             config,
+            cardinality_limit,
         }
     }
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
         self.trackers_for_collect
-            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)))
+            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + self.cardinality_limit)))
+    }
+
+    /// Checks whether aggregator has hit cardinality limit for metric streams
+    fn is_under_cardinality_limit(&self) -> bool {
+        self.count.load(Ordering::SeqCst) < self.cardinality_limit
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
@@ -131,7 +137,7 @@ where
             tracker.update(value);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.update(value);
-        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
+        } else if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(A::create(&self.config));
             new_tracker.update(value);
 

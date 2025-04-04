@@ -370,12 +370,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
+        counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
     }
 
     #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/issues/1065"]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
+        counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2412,6 +2414,123 @@ mod tests {
             empty_attrs_data_point.value, 6,
             "Empty attributes value should be 3+3=6"
         );
+
+        // Phase 2 - for delta temporality, after each collect, data points are cleared
+        if temporality == Temporality::Delta {
+            test_context.reset_metrics();
+            // This should be aggregated normally, and not go into overflow.
+            counter.add(100, &[KeyValue::new("A", "foo")]);
+            counter.add(100, &[KeyValue::new("A", "another")]);
+            counter.add(100, &[KeyValue::new("A", "yet_another")]);
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(sum.data_points.len(), 3);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
+                    .expect("point expected");
+            assert_eq!(data_point.value, 100);
+        }
+    }
+
+    fn counter_aggregation_overflow_helper_custom_limit(temporality: Temporality) {
+        // Arrange
+        let cardinality_limit = Arc::new(2300);
+        let cardinality_limit_clone = cardinality_limit.clone();
+        let view_change_cardinality = move |i: &Instrument| {
+            if i.name == "my_counter" {
+                Some(
+                    Stream::new()
+                        .name("my_counter")
+                        .cardinality_limit(*cardinality_limit_clone),
+                )
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(temporality, view_change_cardinality);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Act
+        // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
+        for v in 0..*cardinality_limit {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // Empty attributes is specially treated and does not count towards the limit.
+        counter.add(3, &[]);
+        counter.add(3, &[]);
+
+        // All of the below will now go into overflow.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
+        assert_eq!(sum.data_points.len(), *cardinality_limit + 1 + 1);
+
+        let data_point =
+            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
+                .expect("overflow point expected");
+        assert_eq!(data_point.value, 300);
+
+        // let empty_attrs_data_point = &sum.data_points[0];
+        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
+            .expect("Empty attributes point expected");
+        assert!(
+            empty_attrs_data_point.attributes.is_empty(),
+            "Non-empty attribute set"
+        );
+        assert_eq!(
+            empty_attrs_data_point.value, 6,
+            "Empty attributes value should be 3+3=6"
+        );
+
+        // Phase 2 - for delta temporality, after each collect, data points are cleared
+        if temporality == Temporality::Delta {
+            test_context.reset_metrics();
+            // This should be aggregated normally, and not go into overflow.
+            counter.add(100, &[KeyValue::new("A", "foo")]);
+            counter.add(100, &[KeyValue::new("A", "another")]);
+            counter.add(100, &[KeyValue::new("A", "yet_another")]);
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(sum.data_points.len(), 3);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
+                    .expect("point expected");
+            assert_eq!(data_point.value, 100);
+        }
     }
 
     fn counter_aggregation_attribute_order_helper(temporality: Temporality, start_sorted: bool) {
@@ -2655,6 +2774,21 @@ mod tests {
             let exporter = exporter.build();
             let meter_provider = SdkMeterProvider::builder()
                 .with_periodic_exporter(exporter.clone())
+                .build();
+
+            TestContext {
+                exporter,
+                meter_provider,
+                resource_metrics: vec![],
+            }
+        }
+
+        fn new_with_view<T: View>(temporality: Temporality, view: T) -> Self {
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
+            let exporter = exporter.build();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(exporter.clone())
+                .with_view(view)
                 .build();
 
             TestContext {
