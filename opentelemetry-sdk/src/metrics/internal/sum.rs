@@ -56,9 +56,10 @@ impl<T: Number> Sum<T> {
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
+        cardinality_limit: usize,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new(()),
+            value_map: ValueMap::new((), cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
