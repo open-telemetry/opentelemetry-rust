@@ -390,7 +390,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let mut inner = self
             .inner
             .lock()
