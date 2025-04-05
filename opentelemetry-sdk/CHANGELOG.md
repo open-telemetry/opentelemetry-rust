@@ -18,7 +18,7 @@ also modified to suppress telemetry before invoking exporters.
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
     the limit.  
-  - TODO/Placeholder: Add ability to configure cardinality limits via Instrument
+  - There is ability to configure cardinality limits via Instrument
     advisory.
 
 ## 0.29.0

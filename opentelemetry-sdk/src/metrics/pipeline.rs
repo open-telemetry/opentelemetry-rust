@@ -251,6 +251,7 @@ where
         &self,
         inst: Instrument,
         boundaries: Option<&[f64]>,
+        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
@@ -310,6 +311,10 @@ where
                 boundaries: boundaries.to_vec(),
                 record_min_max: true,
             });
+        }
+
+        if let Some(cardinality_limit) = cardinality_limit {
+            stream.cardinality_limit = Some(cardinality_limit);
         }
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
@@ -723,11 +728,12 @@ where
         &self,
         id: Instrument,
         boundaries: Option<Vec<f64>>,
+        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
-            match inserter.instrument(id.clone(), boundaries.as_deref()) {
+            match inserter.instrument(id.clone(), boundaries.as_deref(), cardinality_limit) {
                 Ok(ms) => measures.extend(ms),
                 Err(err) => errs.push(err),
             }
