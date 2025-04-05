@@ -24,6 +24,8 @@ disable telemetry generation during their internal operations, ensuring more
 predictable and efficient observability pipelines.
 
 - re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
+- Added ability to configure cardinality limits via Instrument
+  advisory.
 
 ## 0.29.1
 
