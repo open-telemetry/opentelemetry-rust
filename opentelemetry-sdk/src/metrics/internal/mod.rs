@@ -9,7 +9,14 @@ use core::fmt;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
+
+#[cfg(not(target_arch = "xtensa"))]
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
+
+#[cfg(target_arch = "xtensa")]
+use portable_atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize};
+
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
@@ -522,8 +529,8 @@ mod tests {
     #[test]
     fn can_add_and_get_u64_atomic_value() {
         let atomic = u64::new_atomic_tracker(0);
-        atomic.add(15);
-        atomic.add(10);
+        AtomicTracker::add(&atomic, 15);
+        AtomicTracker::add(&atomic, 10);
 
         let value = atomic.get_value();
         assert_eq!(value, 25);
@@ -532,7 +539,7 @@ mod tests {
     #[test]
     fn can_reset_u64_atomic_value() {
         let atomic = u64::new_atomic_tracker(0);
-        atomic.add(15);
+        AtomicTracker::add(&atomic, 15);
 
         let value = atomic.get_and_reset_value();
         let value2 = atomic.get_value();
@@ -561,8 +568,8 @@ mod tests {
     #[test]
     fn can_add_and_get_i64_atomic_value() {
         let atomic = i64::new_atomic_tracker(0);
-        atomic.add(15);
-        atomic.add(-10);
+        AtomicTracker::add(&atomic, 15);
+        AtomicTracker::add(&atomic, -10);
 
         let value = atomic.get_value();
         assert_eq!(value, 5);
@@ -571,7 +578,7 @@ mod tests {
     #[test]
     fn can_reset_i64_atomic_value() {
         let atomic = i64::new_atomic_tracker(0);
-        atomic.add(15);
+        AtomicTracker::add(&atomic, 15);
 
         let value = atomic.get_and_reset_value();
         let value2 = atomic.get_value();
@@ -600,8 +607,8 @@ mod tests {
     #[test]
     fn can_add_and_get_f64_atomic_value() {
         let atomic = f64::new_atomic_tracker(0.0);
-        atomic.add(15.3);
-        atomic.add(10.4);
+        AtomicTracker::add(&atomic, 15.3);
+        AtomicTracker::add(&atomic, 10.4);
 
         let value = atomic.get_value();
 
@@ -611,7 +618,7 @@ mod tests {
     #[test]
     fn can_reset_f64_atomic_value() {
         let atomic = f64::new_atomic_tracker(0.0);
-        atomic.add(15.5);
+        AtomicTracker::add(&atomic, 15.5);
 
         let value = atomic.get_and_reset_value();
         let value2 = atomic.get_value();
