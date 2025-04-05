@@ -136,7 +136,11 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {}
+        fn on_end(&self, _span: SpanData) {
+            // TODO: Accessing Context::current() will panic today and hence commented out.
+            // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
+            // let _c = Context::current();
+        }
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {
             Ok(())
