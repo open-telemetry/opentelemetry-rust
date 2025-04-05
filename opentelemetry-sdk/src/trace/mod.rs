@@ -136,7 +136,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {}
+        fn on_end(&self, _span: &mut SpanData) {}
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {
             Ok(())
