@@ -170,6 +170,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
 }
 
 #[cfg(test)]
+#[cfg(feature = "spec_unstable_metrics_views")]
 mod tests {
     use super::*;
     #[test]

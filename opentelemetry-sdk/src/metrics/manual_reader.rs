@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{MetricError, MetricResult, Temporality},
+    metrics::Temporality,
 };
 
 use super::{
@@ -90,12 +90,16 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        let inner = self.inner.lock()?;
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock pipeline".into()))?;
+
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
-                return Err(MetricError::Other(
+                return Err(OTelSdkError::InternalFailure(
                     "reader is shut down or not registered".into(),
                 ))
             }
