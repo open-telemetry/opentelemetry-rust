@@ -12,6 +12,15 @@ the suppression flag in their dedicated thread, so that telemetry generated from
 those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
 also modified to suppress telemetry before invoking exporters.
 
+- **Feature**: Implemented and enabled cardinality capping for Metrics by
+  default.  
+  - The default cardinality limit is 2000 and can be customized using Views.  
+  - This feature was previously removed in version 0.28 due to the lack of
+    configurability but has now been reintroduced with the ability to configure
+    the limit.  
+  - TODO/Placeholder: Add ability to configure cardinality limits via Instrument
+    advisory.
+
 ## 0.29.0
 
 Released 2025-Mar-21
@@ -68,6 +77,7 @@ Released 2025-Mar-21
 
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
+- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for custom `MetricExporter` authors.
 - Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
   when its `shutdown` is invoked.
 
