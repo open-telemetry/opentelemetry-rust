@@ -302,7 +302,7 @@ where
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
-            cardinality_limit: None,
+            cardinality_limit: cardinality_limit,
         };
 
         // Override default histogram boundaries if provided.
@@ -311,10 +311,6 @@ where
                 boundaries: boundaries.to_vec(),
                 record_min_max: true,
             });
-        }
-
-        if let Some(cardinality_limit) = cardinality_limit {
-            stream.cardinality_limit = Some(cardinality_limit);
         }
 
         match self.cached_aggregator(&inst.scope, kind, stream) {

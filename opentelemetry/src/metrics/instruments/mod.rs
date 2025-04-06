@@ -247,6 +247,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
+            .field("cardinality_limit", &self.cardinality_limit)
             .field("boundaries", &self.boundaries)
             .field(
                 "kind",
@@ -321,7 +322,7 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
         self
     }
 
-    /// Set the cardinality limit for this instrument.
+    /// Set the cardinality limit for this async instrument.
     /// Setting cardinality limit is optional. By default, the limit will be set
     /// to 2000.
     pub fn with_cardinality_limit(mut self, limit: usize) -> Self {
