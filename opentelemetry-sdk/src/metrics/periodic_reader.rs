@@ -493,7 +493,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.inner.shutdown()
     }
 

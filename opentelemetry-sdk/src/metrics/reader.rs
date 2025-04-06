@@ -1,7 +1,8 @@
 //! Interfaces for reading and producing metrics
 use std::{fmt, sync::Weak};
-
 use crate::error::OTelSdkResult;
+use std::time::Duration;
+use std::{fmt, sync::Weak};
 
 use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
@@ -46,7 +47,12 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown(&self) -> OTelSdkResult;
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult;
+
+    /// shutdown with default timeout
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
 
     /// The output temporality, a function of instrument kind.
     /// This SHOULD be obtained from the exporter.

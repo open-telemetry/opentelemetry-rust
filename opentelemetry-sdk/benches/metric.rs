@@ -1,6 +1,3 @@
-use rand::Rng;
-use std::sync::{Arc, Weak};
-
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _},
@@ -15,6 +12,9 @@ use opentelemetry_sdk::{
     },
     Resource,
 };
+use rand::Rng;
+use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 #[derive(Clone, Debug)]
 struct SharedReader(Arc<dyn MetricReader>);
@@ -32,7 +32,7 @@ impl MetricReader for SharedReader {
         self.0.force_flush()
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.0.shutdown()
     }
 

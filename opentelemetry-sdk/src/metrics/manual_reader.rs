@@ -1,9 +1,9 @@
+use opentelemetry::otel_debug;
+use std::time::Duration;
 use std::{
     fmt,
     sync::{Mutex, Weak},
 };
-
-use opentelemetry::otel_debug;
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -114,7 +114,7 @@ impl MetricReader for ManualReader {
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let mut inner = self
             .inner
             .lock()
