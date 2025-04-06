@@ -12,7 +12,10 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{
+        exporter::{PushMetricExporter, ResourceMetricsRef},
+        reader::SdkProducer,
+    },
     Resource,
 };
 
@@ -411,7 +414,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 
         // Relying on futures executor to execute async call.
         // TODO: Pass timeout to exporter
-        futures_executor::block_on(self.exporter.export(&mut rm))
+        futures_executor::block_on(self.exporter.export(ResourceMetricsRef::new(&rm)))
     }
 
     fn force_flush(&self) -> OTelSdkResult {
@@ -516,7 +519,9 @@ mod tests {
     use crate::{
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
+            data::ResourceMetrics,
+            exporter::{PushMetricExporter, ResourceMetricsRef},
+            reader::MetricReader,
             InMemoryMetricExporter, SdkMeterProvider, Temporality,
         },
         Resource,
@@ -553,7 +558,7 @@ mod tests {
     }
 
     impl PushMetricExporter for MetricExporterThatFailsOnlyOnFirst {
-        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
+        async fn export(&self, _metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
             if self.count.fetch_add(1, Ordering::Relaxed) == 0 {
                 Err(OTelSdkError::InternalFailure("export failed".into()))
             } else {
@@ -584,7 +589,7 @@ mod tests {
     }
 
     impl PushMetricExporter for MockMetricExporter {
-        async fn export(&self, _metrics: &mut ResourceMetrics) -> OTelSdkResult {
+        async fn export(&self, _metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
             Ok(())
         }
 

@@ -13,6 +13,7 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
+use crate::metrics::exporter::ResourceMetricsRef;
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -259,7 +260,10 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
             message = "Calling exporter's export method with collected metrics.",
             count = self.rm.scope_metrics.len(),
         );
-        let export = self.reader.exporter.export(&mut self.rm);
+        let export = self
+            .reader
+            .exporter
+            .export(ResourceMetricsRef::new(&self.rm));
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);
         pin_mut!(timeout);

@@ -1,7 +1,5 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
-use crate::metrics::data::{
-    ExponentialHistogram, Gauge, Histogram, MetricData, ResourceMetrics, Sum,
-};
+use crate::metrics::data::{ExponentialHistogram, Gauge, Histogram, MetricData, Sum};
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::Temporality;
 use crate::InMemoryExporterError;
@@ -10,7 +8,8 @@ use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
+use super::data::{AggregatedMetrics, Metric, ResourceMetrics, ScopeMetrics};
+use super::exporter::ResourceMetricsRef;
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -150,7 +149,31 @@ impl InMemoryMetricExporter {
         let metrics = self
             .metrics
             .lock()
-            .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
+            .map(|metrics_guard| {
+                metrics_guard
+                    .iter()
+                    .map(|data| ResourceMetrics {
+                        resource: data.resource.clone(),
+                        scope_metrics: data
+                            .scope_metrics
+                            .iter()
+                            .map(|data| ScopeMetrics {
+                                scope: data.scope.clone(),
+                                metrics: data
+                                    .metrics
+                                    .iter()
+                                    .map(|data| Metric {
+                                        name: data.name.clone(),
+                                        description: data.description.clone(),
+                                        unit: data.unit.clone(),
+                                        data: Self::clone_data(&data.data),
+                                    })
+                                    .collect(),
+                            })
+                            .collect(),
+                    })
+                    .collect()
+            })
             .map_err(InMemoryExporterError::from)?;
         Ok(metrics)
     }
@@ -172,17 +195,15 @@ impl InMemoryMetricExporter {
             .map(|mut metrics_guard| metrics_guard.clear());
     }
 
-    fn clone_metrics(metric: &ResourceMetrics) -> ResourceMetrics {
+    fn clone_metrics(metric: ResourceMetricsRef<'_>) -> ResourceMetrics {
         ResourceMetrics {
             resource: metric.resource.clone(),
             scope_metrics: metric
                 .scope_metrics
-                .iter()
                 .map(|scope_metric| ScopeMetrics {
                     scope: scope_metric.scope.clone(),
                     metrics: scope_metric
                         .metrics
-                        .iter()
                         .map(|metric| Metric {
                             name: metric.name.clone(),
                             description: metric.description.clone(),
@@ -237,7 +258,7 @@ impl InMemoryMetricExporter {
 }
 
 impl PushMetricExporter for InMemoryMetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {

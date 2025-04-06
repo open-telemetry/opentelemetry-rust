@@ -122,11 +122,12 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
+    use self::data::{HistogramDataPoint, SumDataPoint};
     use super::data::MetricData;
+    use super::data::ResourceMetrics;
+    use super::data::ScopeMetrics;
     use super::internal::Number;
     use super::*;
-    use crate::metrics::data::ResourceMetrics;
     use crate::metrics::internal::AggregatedMetricsAccess;
     use crate::metrics::InMemoryMetricExporter;
     use crate::metrics::InMemoryMetricExporterBuilder;

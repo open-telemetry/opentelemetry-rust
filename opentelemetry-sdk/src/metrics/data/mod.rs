@@ -18,7 +18,7 @@ pub struct ResourceMetrics {
 }
 
 /// A collection of metrics produced by a meter.
-#[derive(Default, Debug)]
+#[derive(Debug, Default)]
 pub struct ScopeMetrics {
     /// The [InstrumentationScope] that the meter was created with.
     pub scope: InstrumentationScope,
