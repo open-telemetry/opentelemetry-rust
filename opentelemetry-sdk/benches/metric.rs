@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, MetricResult, Pipeline, SdkMeterProvider, Stream,
+        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
         Temporality, View,
     },
     Resource,
@@ -24,7 +24,7 @@ impl MetricReader for SharedReader {
         self.0.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         self.0.collect(rm)
     }
 

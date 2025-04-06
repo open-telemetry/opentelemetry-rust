@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex, Weak};
 
 use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::metrics::Temporality;
 use crate::metrics::{
     data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
-use crate::metrics::{MetricResult, Temporality};
 
 #[derive(Debug, Clone)]
 pub struct TestMetricReader {
@@ -34,7 +34,7 @@ impl Default for TestMetricReader {
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
-    fn collect(&self, _rm: &mut ResourceMetrics) -> MetricResult<()> {
+    fn collect(&self, _rm: &mut ResourceMetrics) -> OTelSdkResult {
         Ok(())
     }
 
