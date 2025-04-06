@@ -3,7 +3,6 @@ use crate::metrics::Temporality;
 use crate::metrics::{
     data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
 };
-use crate::metrics::{MetricResult, Temporality};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
