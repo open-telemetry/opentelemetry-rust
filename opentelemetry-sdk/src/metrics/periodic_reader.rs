@@ -361,7 +361,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
-                .ok_or_else(|| OTelSdkError::AlreadyShutdown)?
+                .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
             Ok(())
         } else {
