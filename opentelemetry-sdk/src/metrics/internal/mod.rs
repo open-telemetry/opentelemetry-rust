@@ -152,9 +152,6 @@ where
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
-            otel_warn!( name: "ValueMap.measure",
-                message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
-            );
         }
     }
 
