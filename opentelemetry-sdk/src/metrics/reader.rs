@@ -1,5 +1,5 @@
 //! Interfaces for reading and producing metrics
-use crate::{error::OTelSdkResult, metrics::MetricResult};
+use crate::error::OTelSdkResult;
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
@@ -30,7 +30,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     /// SDK and stores it in the provided [ResourceMetrics] reference.
     ///
     /// An error is returned if this is called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult;
 
     /// Flushes all metric measurements held in an export pipeline.
     ///
@@ -63,5 +63,5 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()>;
+    fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult;
 }
