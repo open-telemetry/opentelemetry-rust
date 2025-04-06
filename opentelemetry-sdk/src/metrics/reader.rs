@@ -46,7 +46,7 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// After `shutdown` is called, calls to `collect` will perform no operation and
     /// instead will return an error indicating the shutdown state.
-    fn shutdown_with_timeout(&self, timeout: Duration) ->   ;
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult;
 
     /// shutdown with default timeout
     fn shutdown(&self) -> OTelSdkResult {
