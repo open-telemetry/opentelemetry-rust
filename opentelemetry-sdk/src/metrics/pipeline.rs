@@ -302,7 +302,7 @@ where
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
-            cardinality_limit: cardinality_limit,
+            cardinality_limit,
         };
 
         // Override default histogram boundaries if provided.
