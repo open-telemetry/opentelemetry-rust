@@ -1,14 +1,12 @@
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
+use opentelemetry_sdk::metrics::exporter::{BatchScopeMetrics, ResourceMetricsRef};
 use opentelemetry_sdk::metrics::Temporality;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::{
-            Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, ResourceMetrics, ScopeMetrics,
-            Sum, SumDataPoint,
-        },
+        data::{Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint},
         exporter::PushMetricExporter,
     },
 };
@@ -42,7 +40,7 @@ impl fmt::Debug for MetricExporter {
 
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
@@ -55,7 +53,7 @@ impl PushMetricExporter for MetricExporter {
             metrics.resource.iter().for_each(|(k, v)| {
                 println!("\t ->  {}={:?}", k, v);
             });
-            print_metrics(&metrics.scope_metrics);
+            print_metrics(metrics.scope_metrics);
             Ok(())
         }
     }
@@ -79,8 +77,8 @@ impl PushMetricExporter for MetricExporter {
     }
 }
 
-fn print_metrics(metrics: &[ScopeMetrics]) {
-    for (i, metric) in metrics.iter().enumerate() {
+fn print_metrics(metrics: BatchScopeMetrics<'_>) {
+    for (i, metric) in metrics.enumerate() {
         println!("\tInstrumentation Scope #{}", i);
         println!("\t\tName         : {}", &metric.scope.name());
         if let Some(version) = &metric.scope.version() {
@@ -100,7 +98,7 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
                 println!("\t\t\t ->  {}: {}", kv.key, kv.value);
             });
 
-        metric.metrics.iter().enumerate().for_each(|(i, metric)| {
+        metric.metrics.enumerate().for_each(|(i, metric)| {
             println!("Metric #{}", i);
             println!("\t\tName         : {}", &metric.name);
             println!("\t\tDescription  : {}", &metric.description);
