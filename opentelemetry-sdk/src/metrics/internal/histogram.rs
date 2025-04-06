@@ -87,6 +87,7 @@ impl<T: Number> Histogram<T> {
         mut bounds: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
+        cardinality_limit: usize,
     ) -> Self {
         #[cfg(feature = "spec_unstable_metrics_views")]
         {
@@ -97,7 +98,7 @@ impl<T: Number> Histogram<T> {
 
         let buckets_count = bounds.len() + 1;
         Histogram {
-            value_map: ValueMap::new(buckets_count),
+            value_map: ValueMap::new(buckets_count, cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -262,6 +263,7 @@ mod tests {
             vec![1.0, 3.0, 6.0],
             false,
             false,
+            2000,
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
