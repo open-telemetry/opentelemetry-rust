@@ -7,8 +7,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
-        Temporality, View,
+        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
     },
     Resource,
 };

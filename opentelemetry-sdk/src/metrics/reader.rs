@@ -1,7 +1,7 @@
 //! Interfaces for reading and producing metrics
-use std::{fmt, sync::Weak};
 use crate::error::OTelSdkResult;
 use std::time::Duration;
+use std::{fmt, sync::Weak};
 
 use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
 
