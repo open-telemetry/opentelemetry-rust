@@ -21,6 +21,10 @@ also modified to suppress telemetry before invoking exporters.
   - TODO/Placeholder: Add ability to configure cardinality limits via Instrument
     advisory.
 
+- *Breaking* change for custom `MetricReader` authors.
+  The `shutdown_with_timeout` method is added to `MetricReader` trait.
+  `collect` method on `MetricReader` modified to return `OTelSdkResult`.
+
 ## 0.29.0
 
 Released 2025-Mar-21

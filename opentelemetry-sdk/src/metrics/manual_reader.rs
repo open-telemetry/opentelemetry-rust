@@ -1,13 +1,13 @@
+use opentelemetry::otel_debug;
+use std::time::Duration;
 use std::{
     fmt,
     sync::{Mutex, Weak},
 };
 
-use opentelemetry::otel_debug;
-
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{MetricError, MetricResult, Temporality},
+    metrics::Temporality,
 };
 
 use super::{
@@ -90,12 +90,16 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        let inner = self.inner.lock()?;
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock pipeline".into()))?;
+
         match &inner.sdk_producer.as_ref().and_then(|w| w.upgrade()) {
             Some(producer) => producer.produce(rm)?,
             None => {
-                return Err(MetricError::Other(
+                return Err(OTelSdkError::InternalFailure(
                     "reader is shut down or not registered".into(),
                 ))
             }
@@ -110,7 +114,7 @@ impl MetricReader for ManualReader {
     }
 
     /// Closes any connections and frees any resources used by the reader.
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let mut inner = self
             .inner
             .lock()

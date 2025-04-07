@@ -12,7 +12,7 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
+    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
     Resource,
 };
 
@@ -357,11 +357,11 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         self.exporter.temporality()
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
-                .ok_or_else(|| MetricError::Other("pipeline is dropped".into()))?
+                .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
             Ok(())
         } else {
@@ -371,7 +371,9 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
                    This occurs when a periodic reader is created but not associated with a MeterProvider \
                    by calling `.with_reader(reader)` on MeterProviderBuilder."
             );
-            Err(MetricError::Other("MeterProvider is not registered".into()))
+            Err(OTelSdkError::InternalFailure(
+                "MeterProvider is not registered".into(),
+            ))
         }
     }
 
@@ -479,7 +481,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         self.inner.register_pipeline(pipeline);
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         self.inner.collect(rm)
     }
 
@@ -491,7 +493,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     // completion, and avoid blocking the thread. The default shutdown on drop
     // can still use blocking call. If user already explicitly called shutdown,
     // drop won't call shutdown again.
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.inner.shutdown()
     }
 
