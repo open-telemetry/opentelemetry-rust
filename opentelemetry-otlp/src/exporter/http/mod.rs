@@ -4,6 +4,8 @@ use super::{
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
+#[cfg(feature = "http-json")]
+use opentelemetry::otel_debug;
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
@@ -335,7 +337,7 @@ impl OtlpHttpClient {
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => Some((json.into(), "application/json")),
                 Err(e) => {
-                    otel_debug!(name: "JsonSerializationFaied", error = e);
+                    otel_debug!(name: "JsonSerializationFaied", error = e.to_string());
                     None
                 }
             },
