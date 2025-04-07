@@ -1,7 +1,7 @@
 use std::fmt;
 
+use crate::metrics::error::{MetricError, MetricResult};
 use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use crate::metrics::{MetricError, MetricResult};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]
