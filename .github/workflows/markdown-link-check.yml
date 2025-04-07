@@ -8,6 +8,8 @@ on:
     paths:
       - '**/*.md'
 
+permissions: read-all
+
 jobs:
   markdown-link-check:
     runs-on: ubuntu-latest
