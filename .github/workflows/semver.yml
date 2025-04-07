@@ -1,6 +1,7 @@
 name: Semver compliance
 env:
   CI: true
+permissions: read-all
 on:
   pull_request:
     types: [ labeled, synchronize, opened, reopened ]
