@@ -35,15 +35,15 @@ jobs:
       # For pushes to main, compare against the previous commit
       BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 10  # Fetch current commit and its parent
-      - uses: arduino/setup-protoc@v3
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0 # master
         with:
           toolchain: stable
-      - uses: boa-dev/criterion-compare-action@v3
+      - uses: boa-dev/criterion-compare-action@adfd3a94634fe2041ce5613eb7df09d247555b87 # v3.2.4
         with:
           branchName: ${{ env.BRANCH_NAME }}
