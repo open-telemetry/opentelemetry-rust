@@ -325,7 +325,7 @@ impl OtlpHttpClient {
     fn build_metrics_export_body(
         &self,
         metrics: &mut ResourceMetrics,
-    ) -> opentelemetry_sdk::metrics::MetricResult<(Vec<u8>, &'static str)> {
+    ) -> Option<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = (&*metrics).into();
@@ -333,12 +333,13 @@ impl OtlpHttpClient {
         match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(opentelemetry_sdk::metrics::MetricError::Other(
-                    e.to_string(),
-                )),
+                Ok(json) => Some((json.into(), "application/json")),
+                Err(e) => {
+                    otel_debug!(name: "JsonSerializationFaied", error = e);
+                    None
+                }
             },
-            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
+            _ => Some((req.encode_to_vec(), "application/x-protobuf")),
         }
     }
 }

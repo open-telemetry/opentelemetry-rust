@@ -19,8 +19,8 @@ impl MetricsClient for OtlpHttpClient {
                 _ => Err(OTelSdkError::AlreadyShutdown),
             })?;
 
-        let (body, content_type) = self.build_metrics_export_body(metrics).map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to serialize metrics: {e:?}"))
+        let (body, content_type) = self.build_metrics_export_body(metrics).ok_or_else(|| {
+            OTelSdkError::InternalFailure("Failed to serialize metrics: None returned".to_string())
         })?;
         let mut request = http::Request::builder()
             .method(Method::POST)
