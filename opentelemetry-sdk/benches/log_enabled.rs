@@ -21,6 +21,7 @@ use opentelemetry_sdk::logs::{
 use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
+use std::time;
 
 #[derive(Debug)]
 struct NoopExporter;
@@ -29,7 +30,7 @@ impl LogExporter for NoopExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         Ok(())
     }
 

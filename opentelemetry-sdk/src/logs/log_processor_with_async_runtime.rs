@@ -309,6 +309,7 @@ mod tests {
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
+    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -321,8 +322,12 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            self.shutdown_with_timeout(time::Duration::from_secs(5))
         }
 
         fn set_resource(&mut self, resource: &Resource) {

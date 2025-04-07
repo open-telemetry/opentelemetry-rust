@@ -81,6 +81,7 @@ pub(crate) mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
+    use std::time;
 
     #[derive(Debug, Clone)]
     pub(crate) struct MockLogExporter {
@@ -92,7 +93,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
 
