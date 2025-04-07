@@ -15,7 +15,7 @@ use crate::metrics::{
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
-    MetricError, MetricResult,
+    error::{MetricError, MetricResult},
 };
 
 use super::noop::NoopSyncInstrument;
