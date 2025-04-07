@@ -109,6 +109,7 @@ impl fmt::Display for Aggregation {
 
 impl Aggregation {
     /// Validate that this aggregation has correct configuration
+    #[allow(unused)]
     pub(crate) fn validate(&self) -> MetricResult<()> {
         match self {
             Aggregation::Drop => Ok(()),
