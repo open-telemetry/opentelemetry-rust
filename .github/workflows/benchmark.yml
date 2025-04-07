@@ -13,8 +13,7 @@ on:
     branches:
       - main
 name: benchmark pull requests
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   runBenchmark:
