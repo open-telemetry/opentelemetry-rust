@@ -22,8 +22,8 @@ also modified to suppress telemetry before invoking exporters.
     advisory.
 
 - *Breaking* change for custom `MetricReader` authors.
-  The `shutdown_with_timeout` method is added to `MetricReader` trait. `collect`
-  method on `MetricReader` modified to return `OTelSdkResult`.
+  The `shutdown_with_timeout` method is added to `MetricReader` trait.
+  `collect` method on `MetricReader` modified to return `OTelSdkResult`.
   [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
   `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
