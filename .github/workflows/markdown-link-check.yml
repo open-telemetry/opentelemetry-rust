@@ -8,8 +8,7 @@ on:
     paths:
       - '**/*.md'
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   markdown-link-check:
