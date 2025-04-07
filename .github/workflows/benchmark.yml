@@ -35,6 +35,11 @@ jobs:
       # For pushes to main, compare against the previous commit
       BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 10  # Fetch current commit and its parent
