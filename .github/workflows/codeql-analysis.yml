@@ -1,5 +1,8 @@
 name: "CodeQL Analysis for Rust"
 
+env:    
+    CODEQL_ENABLE_EXPERIMENTAL_FEATURES : true 
+
 on:
   push:
     branches: [ "main" ]
