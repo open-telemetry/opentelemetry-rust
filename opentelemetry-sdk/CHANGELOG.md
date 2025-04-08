@@ -13,19 +13,26 @@ those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
 also modified to suppress telemetry before invoking exporters.
 
 - **Feature**: Implemented and enabled cardinality capping for Metrics by
-  default.  
+  default. [#2901](https://github.com/open-telemetry/opentelemetry-rust/pull/2901)
   - The default cardinality limit is 2000 and can be customized using Views.  
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
     the limit.  
-  - TODO/Placeholder: Add ability to configure cardinality limits via Instrument
-    advisory.
-
+  - There is ability to configure cardinality limits via Instrument
+    advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
+  - Fixed the overflow attribute to correctly use the boolean value `true`
+    instead of the string `"true"`.
+    [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
 - *Breaking* change for custom `MetricReader` authors.
   The `shutdown_with_timeout` method is added to `MetricReader` trait.
   `collect` method on `MetricReader` modified to return `OTelSdkResult`.
 - *Breaking* The `shutdown_with_timeout` method is added to LogExporter trait. This is breaking change for custom `LogExporter` authors.
-- 
+- [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+- *Breaking* `MetricError`, `MetricResult` no longer public (except when
+  `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
+  be used instead, wherever applicable.
+  [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+
 ## 0.29.0
 
 Released 2025-Mar-21

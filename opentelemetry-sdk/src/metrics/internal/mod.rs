@@ -23,7 +23,7 @@ pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock
 
 #[inline]
 fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", "true")])
+    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
 }
 
 pub(crate) trait Aggregator {
