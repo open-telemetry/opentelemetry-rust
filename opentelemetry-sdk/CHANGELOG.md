@@ -18,8 +18,11 @@ also modified to suppress telemetry before invoking exporters.
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
     the limit.  
-  - There is ability to configure cardinality limits via Instrument 
+  - There is ability to configure cardinality limits via Instrument
     advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
+  - Fixed the overflow attribute to correctly use the boolean value `true`
+    instead of the string `"true"`.
+    [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
 
 - *Breaking* change for custom `MetricReader` authors.
   The `shutdown_with_timeout` method is added to `MetricReader` trait.

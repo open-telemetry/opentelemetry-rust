@@ -123,6 +123,7 @@ mod tests {
     use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
+    use opentelemetry::Value;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::cmp::{max, min};
@@ -2400,8 +2401,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2002);
 
         let data_point =
-            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
@@ -2449,8 +2449,7 @@ mod tests {
             // For cumulative, overflow should still be there, and new points should not be added.
             assert_eq!(sum.data_points.len(), 2002);
             let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                    .expect("overflow point expected");
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
             assert_eq!(data_point.value, 600);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
@@ -2506,8 +2505,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
 
         let data_point =
-            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
@@ -2555,8 +2553,7 @@ mod tests {
             // For cumulative, overflow should still be there, and new points should not be added.
             assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
             let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                    .expect("overflow point expected");
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
             assert_eq!(data_point.value, 600);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
@@ -2605,8 +2602,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
 
         let data_point =
-            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
@@ -2654,8 +2650,7 @@ mod tests {
             // For cumulative, overflow should still be there, and new points should not be added.
             assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
             let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                    .expect("overflow point expected");
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
             assert_eq!(data_point.value, 600);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
@@ -2835,6 +2830,16 @@ mod tests {
                 .attributes
                 .iter()
                 .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
+        })
+    }
+
+    fn find_overflow_sum_datapoint<'a, T>(
+        data_points: &'a [SumDataPoint<T>],
+    ) -> Option<&'a SumDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint.attributes.iter().any(|kv| {
+                kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
+            })
         })
     }
 
