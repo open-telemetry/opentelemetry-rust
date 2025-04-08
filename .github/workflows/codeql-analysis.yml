@@ -6,10 +6,6 @@ env:
 permissions: read-all
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   schedule:
     - cron: '0 0 * * *' # once in a day at 00:00
   workflow_dispatch:
@@ -25,6 +21,11 @@ jobs:
       fail-fast: false
 
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@v2
+      with:
+        egress-policy: audit
+
     - name: Checkout repository
       uses: actions/checkout@v3
 
