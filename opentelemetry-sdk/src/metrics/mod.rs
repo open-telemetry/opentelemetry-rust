@@ -2833,9 +2833,7 @@ mod tests {
         })
     }
 
-    fn find_overflow_sum_datapoint<'a, T>(
-        data_points: &'a [SumDataPoint<T>],
-    ) -> Option<&'a SumDataPoint<T>> {
+    fn find_overflow_sum_datapoint<T>(data_points: &[SumDataPoint<T>]) -> Option<&SumDataPoint<T>> {
         data_points.iter().find(|&datapoint| {
             datapoint.attributes.iter().any(|kv| {
                 kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
