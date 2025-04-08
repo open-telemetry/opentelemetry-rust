@@ -17,6 +17,7 @@ jobs:
       - name: Install stable
         uses: dtolnay/rust-toolchain@fcf085fcb4b4b8f63f96906cd713eb52181b5ea4
         with:
+          toolchain: stable
           components: rustfmt
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@7272cc2caa468d3e009a2b0a9cc366839348237b # v2.6
