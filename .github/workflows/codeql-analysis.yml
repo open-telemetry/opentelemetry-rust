@@ -1,18 +1,14 @@
-name: "CodeQL Analysis for Rust"
+name: "CodeQL Analysis"
 
 env:    
-    CODEQL_ENABLE_EXPERIMENTAL_FEATURES : true
+    CODEQL_ENABLE_EXPERIMENTAL_FEATURES : true # CodeQL support for Rust is experimental
 
 permissions: read-all
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  schedule:
-    - cron: '0 6 * * 1'  # Run every Monday at 6:00 UTC
-  workflow_dispatch:
+    schedule:
+      - cron: '0 0 * * *' # once in a day at 00:00
+    workflow_dispatch:
 
 jobs:
   analyze:
@@ -38,5 +34,3 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@45775bd8235c68ba998cffa5171334d58593da47 # v3.28.15
-      with:
-        category: "/language:rust"
