@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install markdown-link-check
-        run: npm install -g markdown-link-check@ef7e09486e579ba7479700b386e7ca90f34cbd0a # v3.13.7
+        run: npm install -g markdown-link-check#ef7e09486e579ba7479700b386e7ca90f34cbd0a # v3.13.7
 
       - name: Run markdown-link-check
         run: |
