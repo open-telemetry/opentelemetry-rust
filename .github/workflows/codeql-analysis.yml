@@ -1,0 +1,51 @@
+name: "CodeQL Analysis for Rust"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * 1'  # Run every Monday at 6:00 UTC
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      # Required for all workflows
+      security-events: write
+      # Only required for workflows in private repositories
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        # If you need to customize the queries used, uncomment and modify these lines
+        # queries: ./path/to/custom/queries,security-and-quality
+
+    # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift)
+    # If this step fails, then you should remove it and run the build manually
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    # ℹ️ Optional: If autobuild doesn't work for your Rust project, you can 
+    # uncomment and modify this section to run your own build commands
+    # - name: Build Rust project
+    #   run: |
+    #     cargo build
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:rust"
