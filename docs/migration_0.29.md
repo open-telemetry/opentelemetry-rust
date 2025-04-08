@@ -79,7 +79,7 @@ maintain any instrumentations directly. This has recently changed with a
 [contribution](https://github.com/open-telemetry/opentelemetry-rust-contrib/pull/202)
 from one of the founding members of the OpenTelemetry Rust project to the
 contrib repository, providing an instrumentation library for
-[`actix-web`](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/actix-web-opentelemetry).
+[`actix-web`](https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-actix-web).
 We expect that this instrumentation will serve as a reference implementation demonstrating best practices for
 creating OpenTelemetry instrumentations in Rust.
 
