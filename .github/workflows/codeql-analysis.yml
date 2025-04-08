@@ -40,7 +40,7 @@ jobs:
     # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift)
     # If this step fails, then you should remove it and run the build manually
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      uses: github/codeql-action/autobuild@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
 
     # ℹ️ Optional: If autobuild doesn't work for your Rust project, you can 
     # uncomment and modify this section to run your own build commands
