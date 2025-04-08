@@ -1,7 +1,7 @@
 use std::fmt;
 
+use crate::metrics::error::{MetricError, MetricResult};
 use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use crate::metrics::{MetricError, MetricResult};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]
@@ -109,7 +109,8 @@ impl fmt::Display for Aggregation {
 
 impl Aggregation {
     /// Validate that this aggregation has correct configuration
-    pub fn validate(&self) -> MetricResult<()> {
+    #[allow(unused)]
+    pub(crate) fn validate(&self) -> MetricResult<()> {
         match self {
             Aggregation::Drop => Ok(()),
             Aggregation::Default => Ok(()),
@@ -149,11 +150,11 @@ impl Aggregation {
 
 #[cfg(test)]
 mod tests {
+    use crate::metrics::error::{MetricError, MetricResult};
     use crate::metrics::{
         internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
         Aggregation,
     };
-    use crate::metrics::{MetricError, MetricResult};
 
     #[test]
     fn validate_aggregation() {

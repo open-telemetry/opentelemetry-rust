@@ -12,10 +12,10 @@ use opentelemetry::{
 };
 
 use crate::metrics::{
+    error::{MetricError, MetricResult},
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
-    MetricError, MetricResult,
 };
 
 use super::noop::NoopSyncInstrument;

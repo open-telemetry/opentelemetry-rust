@@ -66,6 +66,7 @@ pub mod in_memory_exporter;
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
 pub use aggregation::*;
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use error::{MetricError, MetricResult};
 pub use manual_reader::*;
 pub use meter_provider::*;

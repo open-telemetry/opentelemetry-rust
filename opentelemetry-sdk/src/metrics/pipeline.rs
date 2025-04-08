@@ -12,11 +12,11 @@ use crate::{
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
+        error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
-        MetricError, MetricResult,
     },
     Resource,
 };
