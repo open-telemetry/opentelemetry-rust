@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: PR Conventional Commit Validation
-        uses:  ytanikin/pr-conventional-commits@1.4.1
+        uses:  ytanikin/pr-conventional-commits@8267db1bacc237419f9ed0228bb9d94e94271a1d # 1.4.1
         with:
           task_types: '["build","chore","ci","docs","feat","fix","perf","refactor","revert","test"]'
           add_label: 'false'
