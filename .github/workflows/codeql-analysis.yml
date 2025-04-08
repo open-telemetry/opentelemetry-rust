@@ -6,9 +6,13 @@ env:
 permissions: read-all
 
 on:
-    schedule:
-      - cron: '0 0 * * *' # once in a day at 00:00
-    workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 0 * * *' # once in a day at 00:00
+  workflow_dispatch:
 
 jobs:
   analyze:
