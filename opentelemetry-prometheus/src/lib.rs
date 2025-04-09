@@ -491,16 +491,16 @@ fn add_histogram_metric<T: Numeric>(
         let mut h = prometheus::proto::Histogram::default();
         h.set_sample_sum(dp.sum.as_f64());
         h.set_sample_count(dp.count);
-        h.set_bucket(bucket.into());
+        h.set_bucket(bucket);
         let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs.into());
+        pm.set_label(kvs);
         pm.set_histogram(h);
 
         let mut mf = prometheus::proto::MetricFamily::default();
         mf.set_name(name.to_string());
         mf.set_help(description.clone());
         mf.set_field_type(prometheus::proto::MetricType::HISTOGRAM);
-        mf.set_metric(vec![pm].into());
+        mf.set_metric(vec![pm]);
         res.push(mf);
     }
 }
@@ -525,7 +525,7 @@ fn add_sum_metric<T: Numeric>(
         );
 
         let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs.into());
+        pm.set_label(kvs);
 
         if sum.is_monotonic {
             let mut c = prometheus::proto::Counter::default();
@@ -541,7 +541,7 @@ fn add_sum_metric<T: Numeric>(
         mf.set_name(name.to_string());
         mf.set_help(description.clone());
         mf.set_field_type(metric_type);
-        mf.set_metric(vec![pm].into());
+        mf.set_metric(vec![pm]);
         res.push(mf);
     }
 }
@@ -562,14 +562,14 @@ fn add_gauge_metric<T: Numeric>(
         let mut g = prometheus::proto::Gauge::default();
         g.set_value(dp.value.as_f64());
         let mut pm = prometheus::proto::Metric::default();
-        pm.set_label(kvs.into());
+        pm.set_label(kvs);
         pm.set_gauge(g);
 
         let mut mf = prometheus::proto::MetricFamily::default();
         mf.set_name(name.to_string());
         mf.set_help(description.to_string());
         mf.set_field_type(MetricType::GAUGE);
-        mf.set_metric(vec![pm].into());
+        mf.set_metric(vec![pm]);
         res.push(mf);
     }
 }
@@ -586,14 +586,14 @@ fn create_info_metric(
     m.set_label(get_attrs(
         &mut resource.iter(),
         &[],
-    ).into());
+    ));
     m.set_gauge(g);
 
     let mut mf = MetricFamily::default();
     mf.set_name(target_info_name.into());
     mf.set_help(target_info_description.into());
     mf.set_field_type(MetricType::GAUGE);
-    mf.set_metric(vec![m].into());
+    mf.set_metric(vec![m]);
     mf
 }
 
@@ -614,14 +614,14 @@ fn create_scope_info_metric(scope: &InstrumentationScope) -> MetricFamily {
     }
 
     let mut m = prometheus::proto::Metric::default();
-    m.set_label(labels.into());
+    m.set_label(labels);
     m.set_gauge(g);
 
     let mut mf = MetricFamily::default();
     mf.set_name(SCOPE_INFO_METRIC_NAME.into());
     mf.set_help(SCOPE_INFO_DESCRIPTION.into());
     mf.set_field_type(MetricType::GAUGE);
-    mf.set_metric(vec![m].into());
+    mf.set_metric(vec![m]);
     mf
 }
 
