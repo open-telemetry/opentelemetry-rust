@@ -3,7 +3,7 @@
 ## vNext
 
 - Update `tonic` dependency version to 0.13
-- TLS configuration via environment variables for GRPc exporters.
+- TLS configuration via environment variables for GRPC exporters.
 
 ## 0.29.0
 
