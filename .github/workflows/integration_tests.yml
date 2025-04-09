@@ -5,7 +5,8 @@ on:
   pull_request:
     types: [ labeled, synchronize, opened, reopened ]
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   integration_tests:

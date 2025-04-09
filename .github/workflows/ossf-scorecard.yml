@@ -8,7 +8,8 @@ on:
     - cron: "50 3 * * 0" # once a week
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   analysis:
