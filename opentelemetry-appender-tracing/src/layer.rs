@@ -246,27 +246,28 @@ where
 
         #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
+            use opentelemetry::trace::TraceContextExt;
             use tracing_opentelemetry::OtelData;
-            let opt_span_id = span
-                .extensions()
-                .get::<OtelData>()
-                .and_then(|otd| otd.builder.span_id);
-
-            let opt_trace_id = span.scope().last().and_then(|root_span| {
-                root_span
-                    .extensions()
-                    .get::<OtelData>()
-                    .and_then(|otd| otd.builder.trace_id)
-            });
-
-            if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
-                log_record.set_trace_context(trace_id, span_id, None);
-            }
-
             if let Some(otd) = span.extensions().get::<OtelData>() {
                 if let Some(attributes) = &otd.builder.attributes {
                     for attribute in attributes {
                         log_record.add_attribute(attribute.key.clone(), &attribute.value);
+                    }
+                }
+
+                if let Some(span_id) = otd.builder.span_id {
+                    let opt_trace_id = if otd.parent_cx.has_active_span() {
+                        Some(otd.parent_cx.span().span_context().trace_id())
+                    } else {
+                        span.scope().last().and_then(|root_span| {
+                            root_span
+                                .extensions()
+                                .get::<OtelData>()
+                                .and_then(|otd| otd.builder.trace_id)
+                        })
+                    };
+                    if let Some(trace_id) = opt_trace_id {
+                        log_record.set_trace_context(trace_id, span_id, None);
                     }
                 }
             }
@@ -619,7 +620,9 @@ mod tests {
     #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
+        use opentelemetry::{trace::SpanContext, Context, SpanId, TraceId};
         use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
 
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
@@ -646,7 +649,21 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
+        let remote_trace_id = TraceId::from_u128(233);
+        let remote_span_id = SpanId::from_u64(2333);
+        let remote_span_context = SpanContext::new(
+            remote_trace_id,
+            remote_span_id,
+            TraceFlags::SAMPLED,
+            true,
+            Default::default(),
+        );
+
         tracing::error_span!("outer-span", field1 = true).in_scope(|| {
+            let span = tracing::Span::current();
+            let parent_context = Context::current().with_remote_span_context(remote_span_context);
+            span.set_parent(parent_context);
+
             error!("first-event");
 
             tracing::error_span!("inner-span", field2 = 233).in_scope(|| {
@@ -663,6 +680,7 @@ mod tests {
         assert_eq!(spans.len(), 2);
 
         let trace_id = spans[0].span_context.trace_id();
+        assert_eq!(trace_id, remote_trace_id);
         assert_eq!(trace_id, spans[1].span_context.trace_id());
         let inner_span_id = spans[0].span_context.span_id();
         let outer_span_id = spans[1].span_context.span_id();
