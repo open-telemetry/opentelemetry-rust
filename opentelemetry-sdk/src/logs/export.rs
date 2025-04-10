@@ -6,6 +6,7 @@ use crate::Resource;
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
+use std::time;
 
 /// A batch of log records to be exported by a `LogExporter`.
 ///
@@ -134,10 +135,11 @@ pub trait LogExporter: Send + Sync + Debug {
         &self,
         batch: LogBatch<'_>,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
-
     /// Shuts down the exporter.
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult;
+    /// Shuts down the exporter with a default timeout.
     fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
+        self.shutdown_with_timeout(time::Duration::from_secs(5))
     }
     #[cfg(feature = "spec_unstable_logs_enabled")]
     /// Check if logs are enabled.

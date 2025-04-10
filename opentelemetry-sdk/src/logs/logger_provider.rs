@@ -291,7 +291,7 @@ mod tests {
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
     use std::sync::Mutex;
-    use std::thread;
+    use std::{thread, time};
 
     struct ShutdownTestLogProcessor {
         is_shutdown: Arc<Mutex<bool>>,
@@ -364,7 +364,7 @@ mod tests {
             *res = resource.clone();
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

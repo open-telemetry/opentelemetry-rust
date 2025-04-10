@@ -164,6 +164,7 @@ mod tests {
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -193,6 +194,9 @@ mod tests {
             for _ in batch.iter() {
                 self.export_count.fetch_add(1, Ordering::Acquire);
             }
+            Ok(())
+        }
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -460,7 +464,7 @@ mod tests {
     }
 
     impl LogExporter for ReentrantLogExporter {
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
 
