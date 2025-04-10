@@ -262,6 +262,14 @@ where
             if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
                 log_record.set_trace_context(trace_id, span_id, None);
             }
+
+            if let Some(otd) = span.extensions().get::<OtelData>() {
+                if let Some(attributes) = &otd.builder.attributes {
+                    for attribute in attributes {
+                        log_record.add_attribute(attribute.key.clone(), &attribute.value);
+                    }
+                }
+            }
         }
 
         //emit record

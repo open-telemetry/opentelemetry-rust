@@ -1,4 +1,4 @@
-use crate::{Key, StringValue};
+use crate::{Array, Key, StringValue, Value};
 
 use crate::{SpanId, TraceFlags, TraceId};
 
@@ -118,6 +118,28 @@ impl_trivial_from!(bool, AnyValue::Boolean);
 impl From<&[u8]> for AnyValue {
     fn from(val: &[u8]) -> AnyValue {
         AnyValue::Bytes(Box::new(val.to_vec()))
+    }
+}
+
+impl From<&Value> for AnyValue {
+    fn from(value: &Value) -> Self {
+        match value {
+            Value::Bool(b) => AnyValue::Boolean(*b),
+            Value::I64(i) => AnyValue::Int(*i),
+            Value::F64(f) => AnyValue::Double(*f),
+            Value::String(s) => AnyValue::String(s.clone()),
+            Value::Array(a) => {
+                let v = match a {
+                    Array::Bool(items) => items.iter().map(|b| AnyValue::Boolean(*b)).collect(),
+                    Array::I64(items) => items.iter().map(|i| AnyValue::Int(*i)).collect(),
+                    Array::F64(items) => items.iter().map(|f| AnyValue::Double(*f)).collect(),
+                    Array::String(items) => {
+                        items.iter().map(|s| AnyValue::String(s.clone())).collect()
+                    }
+                };
+                AnyValue::ListAny(Box::new(v))
+            }
+        }
     }
 }
 
