@@ -1,7 +1,8 @@
 name: CI
 env:
   CI: true
-permissions: read-all
+permissions:
+  contents: read
 on:
   pull_request:
   push:
