@@ -3,14 +3,13 @@ name: "CodeQL Analysis"
 env:    
     CODEQL_ENABLE_EXPERIMENTAL_FEATURES : true # CodeQL support for Rust is experimental
 
-permissions: read-all
+permissions:
+  contents: read
 
 on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    - cron: '0 0 * * *' # once in a day at 00:00
   workflow_dispatch:
 
 jobs:
