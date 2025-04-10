@@ -646,10 +646,10 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
-        tracing::error_span!("outer-span").in_scope(|| {
+        tracing::error_span!("outer-span", field1 = true).in_scope(|| {
             error!("first-event");
 
-            tracing::error_span!("inner-span").in_scope(|| {
+            tracing::error_span!("inner-span", field2 = 233).in_scope(|| {
                 error!("second-event");
             });
         });
@@ -675,6 +675,19 @@ mod tests {
         assert_eq!(trace_ctx1.trace_id, trace_id);
         assert_eq!(trace_ctx0.span_id, outer_span_id);
         assert_eq!(trace_ctx1.span_id, inner_span_id);
+
+        assert!(logs[0]
+            .record
+            .attributes_iter()
+            .any(|attr| attr.0.as_str() == "field1"));
+        assert!(logs[1]
+            .record
+            .attributes_iter()
+            .all(|attr| attr.0.as_str() != "field1"));
+        assert!(logs[1]
+            .record
+            .attributes_iter()
+            .any(|attr| attr.0.as_str() == "field2"));
     }
 
     #[test]
