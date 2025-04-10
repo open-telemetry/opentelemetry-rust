@@ -13,6 +13,7 @@ allowed_external_types = [
     # prost is a pre 1.0 crate
     "prost::error::EncodeError",
     # tonic is a pre 1.0 crate
+    "tonic",
     "tonic::status::Code",
     "tonic::status::Status",
     "tonic::metadata::map::MetadataMap",
