@@ -335,11 +335,22 @@ pub use crate::span::{
     OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
+#[cfg(all(feature = "trace", feature = "tls"))]
+pub use crate::span::{
+    OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE, OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY, OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+};
+
 #[cfg(feature = "metrics")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
     MetricExporter, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
     OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+};
+#[cfg(all(feature = "metrics", feature = "tls"))]
+pub use crate::metric::{
+    OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE, OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY, OTEL_EXPORTER_OTLP_METRICS_INSECURE,
 };
 
 #[cfg(feature = "logs")]
@@ -347,6 +358,11 @@ pub use crate::metric::{
 pub use crate::logs::{
     LogExporter, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
     OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+};
+#[cfg(all(feature = "metrics", feature = "tls"))]
+pub use crate::logs::{
+    OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE, OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY, OTEL_EXPORTER_OTLP_LOGS_INSECURE,
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -361,6 +377,14 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
+
+#[cfg(feature = "tls")]
+pub use crate::exporter::{
+    OTEL_EXPORTER_OTLP_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_INSECURE,
+};
+
+use opentelemetry_sdk::ExportError;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
@@ -390,6 +414,108 @@ pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+
+/// Wrap type for errors from this crate.
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    /// Wrap error from [`tonic::transport::Error`]
+    #[cfg(feature = "grpc-tonic")]
+    #[error("transport error {0}")]
+    Transport(#[from] tonic::transport::Error),
+
+    /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    #[error("invalid URI {0}")]
+    InvalidUri(#[from] http::uri::InvalidUri),
+
+    /// Wrap type for [`tonic::Status`]
+    #[cfg(feature = "grpc-tonic")]
+    #[error("the grpc server returns error ({code}): {message}")]
+    Status {
+        /// grpc status code
+        code: tonic::Code,
+        /// error message
+        message: String,
+    },
+
+    /// Http requests failed because no http client is provided.
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    #[error(
+        "no http client, you must select one from features or provide your own implementation"
+    )]
+    NoHttpClient,
+
+    /// Http requests failed.
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    #[error("http request failed with {0}")]
+    RequestFailed(#[from] opentelemetry_http::HttpError),
+
+    /// The provided value is invalid in HTTP headers.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    #[error("http header value error {0}")]
+    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
+
+    /// The provided name is invalid in HTTP headers.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    #[error("http header name error {0}")]
+    InvalidHeaderName(#[from] http::header::InvalidHeaderName),
+
+    /// Prost encode failed
+    #[cfg(any(
+        feature = "http-proto",
+        all(feature = "http-json", not(feature = "trace"))
+    ))]
+    #[error("prost encoding error {0}")]
+    EncodeError(#[from] prost::EncodeError),
+
+    /// The lock in exporters has been poisoned.
+    #[cfg(feature = "metrics")]
+    #[error("the lock of the {0} has been poisoned")]
+    PoisonedLock(&'static str),
+
+    /// Unsupported compression algorithm.
+    #[error("unsupported compression algorithm '{0}'")]
+    UnsupportedCompressionAlgorithm(String),
+
+    /// Feature required to use the specified compression algorithm.
+    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
+    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
+
+    /// TLS configuration error.
+    #[error("TLS configuration error: {0}")]
+    TLSConfigError(String),
+}
+
+#[cfg(feature = "grpc-tonic")]
+impl From<tonic::Status> for Error {
+    fn from(status: tonic::Status) -> Error {
+        Error::Status {
+            code: status.code(),
+            message: {
+                if !status.message().is_empty() {
+                    let mut result = ", detailed error message: ".to_string() + status.message();
+                    if status.code() == tonic::Code::Unknown {
+                        let source = (&status as &dyn std::error::Error)
+                            .source()
+                            .map(|e| format!("{:?}", e));
+                        result.push(' ');
+                        result.push_str(source.unwrap_or_default().as_ref());
+                    }
+                    result
+                } else {
+                    String::new()
+                }
+            },
+        }
+    }
+}
+
+impl ExportError for Error {
+    fn exporter_name(&self) -> &'static str {
+        "otlp"
+    }
+}
 
 /// The communication protocol to use when exporting data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
