@@ -250,3 +250,20 @@ impl Severity {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_any_value_from_value() {
+        let _ = AnyValue::from(&Value::from(true));
+        let _ = AnyValue::from(&Value::from(233i64));
+        let _ = AnyValue::from(&Value::from(2.33f64));
+        let _ = AnyValue::from(&Value::from("233"));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![true])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![233i64])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![2.33f64])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![StringValue::from("233")])));
+    }
+}
