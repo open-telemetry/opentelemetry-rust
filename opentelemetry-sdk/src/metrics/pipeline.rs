@@ -23,7 +23,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::{Aggregation, Temporality};
+use super::{aggregation::Aggregation, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
