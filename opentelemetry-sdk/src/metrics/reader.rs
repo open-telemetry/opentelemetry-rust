@@ -6,7 +6,8 @@ use crate::Resource;
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
-use super::data::Metric;
+use super::data::AggregatedMetrics;
+use super::InstrumentInfo;
 use super::{pipeline::Pipeline, InstrumentKind, Temporality};
 
 /// A collection of [ScopeMetricsData] and the associated [Resource] that created them.
@@ -24,7 +25,18 @@ pub struct ScopeMetricsData {
     /// The [InstrumentationScope] that the meter was created with.
     pub scope: InstrumentationScope,
     /// The list of aggregations created by the meter.
-    pub metrics: Vec<Metric>,
+    pub metrics: Vec<MetricsData>,
+}
+
+/// A collection of one or more aggregated time series from an [Instrument].
+///
+/// [Instrument]: crate::metrics::Instrument
+#[derive(Debug)]
+pub struct MetricsData {
+    /// The name of the instrument that created this data.
+    pub instrument: InstrumentInfo,
+    /// The aggregated data from an instrument.
+    pub data: AggregatedMetrics,
 }
 
 /// The interface used between the SDK and an exporter.

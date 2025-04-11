@@ -11,9 +11,9 @@ pub mod tonic {
     use opentelemetry_sdk::metrics::data::{
         AggregatedMetrics, Exemplar as SdkExemplar,
         ExponentialHistogram as SdkExponentialHistogram, Gauge as SdkGauge,
-        Histogram as SdkHistogram, Metric as SdkMetric, MetricData, Sum as SdkSum,
+        Histogram as SdkHistogram, MetricData, Sum as SdkSum,
     };
-    use opentelemetry_sdk::metrics::exporter::{ResourceMetrics, ScopeMetrics};
+    use opentelemetry_sdk::metrics::exporter::{Metric, ResourceMetrics, ScopeMetrics};
     use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
@@ -153,12 +153,12 @@ pub mod tonic {
         }
     }
 
-    impl From<&SdkMetric> for TonicMetric {
-        fn from(metric: &SdkMetric) -> Self {
+    impl From<Metric<'_>> for TonicMetric {
+        fn from(metric: Metric<'_>) -> Self {
             TonicMetric {
-                name: metric.name.to_string(),
-                description: metric.description.to_string(),
-                unit: metric.unit.to_string(),
+                name: metric.instrument.name.to_string(),
+                description: metric.instrument.description.to_string(),
+                unit: metric.instrument.unit.to_string(),
                 metadata: vec![], // internal and currently unused
                 data: Some(match &metric.data {
                     AggregatedMetrics::F64(data) => data.into(),

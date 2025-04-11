@@ -6,9 +6,9 @@ use crate::{error::OTelSdkResult, Resource};
 use std::{fmt::Debug, slice::Iter, time::Duration};
 
 use super::{
-    data::Metric,
-    reader::{ResourceMetricsData, ScopeMetricsData},
-    Temporality,
+    data::AggregatedMetrics,
+    reader::{MetricsData, ResourceMetricsData, ScopeMetricsData},
+    InstrumentInfo, Temporality,
 };
 
 /// A collection of [`BatchScopeMetrics`] and the associated [Resource] that created them.
@@ -38,7 +38,18 @@ pub struct ScopeMetrics<'a> {
 /// Iterator over aggregations created by the meter.
 /// Doesn't implement standard [`Iterator`], because it returns borrowed items. AKA "LendingIterator".
 pub struct MetricsLendingIter<'a> {
-    iter: Iter<'a, Metric>,
+    iter: Iter<'a, MetricsData>,
+}
+
+/// A collection of one or more aggregated time series from an [Instrument].
+///
+/// [Instrument]: crate::metrics::Instrument
+#[derive(Debug)]
+pub struct Metric<'a> {
+    /// The name of the instrument that created this data.
+    pub instrument: &'a InstrumentInfo,
+    /// The aggregated data from an instrument.
+    pub data: &'a AggregatedMetrics,
 }
 
 impl<'a> ResourceMetrics<'a> {
@@ -78,8 +89,11 @@ impl ScopeMetricsLendingIter<'_> {
 
 impl MetricsLendingIter<'_> {
     /// Advances the iterator and returns the next value.
-    pub fn next(&mut self) -> Option<&Metric> {
-        self.iter.next()
+    pub fn next(&mut self) -> Option<Metric<'_>> {
+        self.iter.next().map(|metric| Metric {
+            instrument: &metric.instrument,
+            data: &metric.data,
+        })
     }
 }
 

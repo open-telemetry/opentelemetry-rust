@@ -8,9 +8,9 @@ use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::data::{AggregatedMetrics, Metric};
+use super::data::AggregatedMetrics;
 use super::exporter::ResourceMetrics;
-use super::reader::{ResourceMetricsData, ScopeMetricsData};
+use super::reader::{MetricsData, ResourceMetricsData, ScopeMetricsData};
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -163,10 +163,8 @@ impl InMemoryMetricExporter {
                                 metrics: data
                                     .metrics
                                     .iter()
-                                    .map(|data| Metric {
-                                        name: data.name.clone(),
-                                        description: data.description.clone(),
-                                        unit: data.unit.clone(),
+                                    .map(|data| MetricsData {
+                                        instrument: data.instrument.clone(),
                                         data: Self::clone_data(&data.data),
                                     })
                                     .collect(),
@@ -201,10 +199,8 @@ impl InMemoryMetricExporter {
         while let Some(mut scope_metric) = metric.scope_metrics.next() {
             let mut metrics = Vec::new();
             while let Some(metric) = scope_metric.metrics.next() {
-                metrics.push(Metric {
-                    name: metric.name.clone(),
-                    description: metric.description.clone(),
-                    unit: metric.unit.clone(),
+                metrics.push(MetricsData {
+                    instrument: metric.instrument.clone(),
                     data: Self::clone_data(&metric.data),
                 });
             }

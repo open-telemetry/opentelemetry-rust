@@ -111,9 +111,9 @@ fn print_metrics(mut metrics: MetricsLendingIter<'_>) {
         iter += 1;
 
         println!("Metric #{}", iter);
-        println!("\t\tName         : {}", &metric.name);
-        println!("\t\tDescription  : {}", &metric.description);
-        println!("\t\tUnit         : {}", &metric.unit);
+        println!("\t\tName         : {}", &metric.instrument.name);
+        println!("\t\tDescription  : {}", &metric.instrument.description);
+        println!("\t\tUnit         : {}", &metric.instrument.unit);
 
         fn print_info<T>(data: &MetricData<T>)
         where
