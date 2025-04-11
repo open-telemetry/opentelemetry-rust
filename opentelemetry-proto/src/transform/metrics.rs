@@ -13,7 +13,7 @@ pub mod tonic {
         ExponentialHistogram as SdkExponentialHistogram, Gauge as SdkGauge,
         Histogram as SdkHistogram, Metric as SdkMetric, MetricData, Sum as SdkSum,
     };
-    use opentelemetry_sdk::metrics::exporter::{ResourceMetricsRef, ScopeMetricsRef};
+    use opentelemetry_sdk::metrics::exporter::{ResourceMetrics, ScopeMetrics};
     use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
@@ -110,12 +110,16 @@ pub mod tonic {
         }
     }
 
-    impl From<ResourceMetricsRef<'_>> for ExportMetricsServiceRequest {
-        fn from(rm: ResourceMetricsRef<'_>) -> Self {
+    impl From<ResourceMetrics<'_>> for ExportMetricsServiceRequest {
+        fn from(mut rm: ResourceMetrics<'_>) -> Self {
+            let mut scope_metrics = Vec::new();
+            while let Some(scope_metric) = rm.scope_metrics.next() {
+                scope_metrics.push(scope_metric.into());
+            }
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
                     resource: Some(rm.resource.into()),
-                    scope_metrics: rm.scope_metrics.map(Into::into).collect(),
+                    scope_metrics,
                     schema_url: rm.resource.schema_url().map(Into::into).unwrap_or_default(),
                 }],
             }
@@ -131,11 +135,15 @@ pub mod tonic {
         }
     }
 
-    impl From<ScopeMetricsRef<'_>> for TonicScopeMetrics {
-        fn from(sm: ScopeMetricsRef<'_>) -> Self {
+    impl From<ScopeMetrics<'_>> for TonicScopeMetrics {
+        fn from(mut sm: ScopeMetrics<'_>) -> Self {
+            let mut metrics = Vec::new();
+            while let Some(metric) = sm.metrics.next() {
+                metrics.push(metric.into());
+            }
             TonicScopeMetrics {
                 scope: Some((sm.scope, None).into()),
-                metrics: sm.metrics.map(Into::into).collect(),
+                metrics,
                 schema_url: sm
                     .scope
                     .schema_url()

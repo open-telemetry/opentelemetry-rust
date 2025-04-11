@@ -8,8 +8,9 @@ use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::data::{AggregatedMetrics, Metric, ResourceMetrics, ScopeMetrics};
-use super::exporter::ResourceMetricsRef;
+use super::data::{AggregatedMetrics, Metric};
+use super::exporter::ResourceMetrics;
+use super::reader::{ResourceMetricsData, ScopeMetricsData};
 
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
@@ -59,7 +60,7 @@ use super::exporter::ResourceMetricsRef;
 ///# }
 /// ```
 pub struct InMemoryMetricExporter {
-    metrics: Arc<Mutex<VecDeque<ResourceMetrics>>>,
+    metrics: Arc<Mutex<VecDeque<ResourceMetricsData>>>,
     temporality: Temporality,
 }
 
@@ -145,19 +146,19 @@ impl InMemoryMetricExporter {
     /// let exporter = InMemoryMetricExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
     /// ```
-    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>, InMemoryExporterError> {
+    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetricsData>, InMemoryExporterError> {
         let metrics = self
             .metrics
             .lock()
             .map(|metrics_guard| {
                 metrics_guard
                     .iter()
-                    .map(|data| ResourceMetrics {
+                    .map(|data| ResourceMetricsData {
                         resource: data.resource.clone(),
                         scope_metrics: data
                             .scope_metrics
                             .iter()
-                            .map(|data| ScopeMetrics {
+                            .map(|data| ScopeMetricsData {
                                 scope: data.scope.clone(),
                                 metrics: data
                                     .metrics
@@ -195,24 +196,26 @@ impl InMemoryMetricExporter {
             .map(|mut metrics_guard| metrics_guard.clear());
     }
 
-    fn clone_metrics(metric: ResourceMetricsRef<'_>) -> ResourceMetrics {
-        ResourceMetrics {
+    fn clone_metrics(mut metric: ResourceMetrics<'_>) -> ResourceMetricsData {
+        let mut scope_metrics = Vec::new();
+        while let Some(mut scope_metric) = metric.scope_metrics.next() {
+            let mut metrics = Vec::new();
+            while let Some(metric) = scope_metric.metrics.next() {
+                metrics.push(Metric {
+                    name: metric.name.clone(),
+                    description: metric.description.clone(),
+                    unit: metric.unit.clone(),
+                    data: Self::clone_data(&metric.data),
+                });
+            }
+            scope_metrics.push(ScopeMetricsData {
+                scope: scope_metric.scope.clone(),
+                metrics,
+            });
+        }
+        ResourceMetricsData {
             resource: metric.resource.clone(),
-            scope_metrics: metric
-                .scope_metrics
-                .map(|scope_metric| ScopeMetrics {
-                    scope: scope_metric.scope.clone(),
-                    metrics: scope_metric
-                        .metrics
-                        .map(|metric| Metric {
-                            name: metric.name.clone(),
-                            description: metric.description.clone(),
-                            unit: metric.unit.clone(),
-                            data: Self::clone_data(&metric.data),
-                        })
-                        .collect(),
-                })
-                .collect(),
+            scope_metrics,
         }
     }
 
@@ -258,7 +261,7 @@ impl InMemoryMetricExporter {
 }
 
 impl PushMetricExporter for InMemoryMetricExporter {
-    async fn export(&self, metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
+    async fn export(&self, metrics: ResourceMetrics<'_>) -> OTelSdkResult {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
