@@ -3,11 +3,15 @@
 use opentelemetry::InstrumentationScope;
 
 use crate::{error::OTelSdkResult, Resource};
-use std::{fmt::Debug, slice::Iter, time::Duration};
+use std::{
+    fmt::Debug,
+    slice::Iter,
+    time::{Duration, SystemTime},
+};
 
 use super::{
-    data::AggregatedMetrics,
-    reader::{MetricsData, ResourceMetricsData, ScopeMetricsData},
+    data::{AggregatedMetrics, Sum},
+    pipeline::InstrumentSync,
     InstrumentInfo, Temporality,
 };
 
@@ -23,7 +27,7 @@ pub struct ResourceMetrics<'a> {
 /// Iterator over libraries instrumentation scopes ([`InstrumentationScope`]) together with metrics.
 /// Doesn't implement standard [`Iterator`], because it returns borrowed items. AKA "LendingIterator".
 pub struct ScopeMetricsLendingIter<'a> {
-    iter: Iter<'a, ScopeMetricsData>,
+    iter: std::collections::hash_map::Iter<'a, InstrumentationScope, Vec<InstrumentSync>>,
 }
 
 /// A collection of metrics produced by a [`InstrumentationScope`] meter.
@@ -38,7 +42,9 @@ pub struct ScopeMetrics<'a> {
 /// Iterator over aggregations created by the meter.
 /// Doesn't implement standard [`Iterator`], because it returns borrowed items. AKA "LendingIterator".
 pub struct MetricsLendingIter<'a> {
-    iter: Iter<'a, MetricsData>,
+    // for  optimization purposes
+    aggr: AggregatedMetrics,
+    iter: Iter<'a, InstrumentSync>,
 }
 
 /// A collection of one or more aggregated time series from an [Instrument].
@@ -53,23 +59,13 @@ pub struct Metric<'a> {
 }
 
 impl<'a> ResourceMetrics<'a> {
-    pub(crate) fn new(rm: &'a ResourceMetricsData) -> Self {
+    pub(crate) fn new(
+        resource: &'a Resource,
+        iter: std::collections::hash_map::Iter<'a, InstrumentationScope, Vec<InstrumentSync>>,
+    ) -> Self {
         Self {
-            resource: &rm.resource,
-            scope_metrics: ScopeMetricsLendingIter {
-                iter: rm.scope_metrics.iter(),
-            },
-        }
-    }
-}
-
-impl<'a> ScopeMetrics<'a> {
-    fn new(sm: &'a ScopeMetricsData) -> Self {
-        Self {
-            scope: &sm.scope,
-            metrics: MetricsLendingIter {
-                iter: sm.metrics.iter(),
-            },
+            resource,
+            scope_metrics: ScopeMetricsLendingIter { iter },
         }
     }
 }
@@ -81,19 +77,42 @@ impl Debug for ScopeMetricsLendingIter<'_> {
 }
 
 impl ScopeMetricsLendingIter<'_> {
-    /// Advances the iterator and returns the next value.
-    pub fn next(&mut self) -> Option<ScopeMetrics<'_>> {
-        self.iter.next().map(ScopeMetrics::new)
+    /// Advances the iterator and returns the next value.    
+    pub fn next_scope_metric(&mut self) -> Option<ScopeMetrics<'_>> {
+        self.iter.next().map(|(scope, instruments)| ScopeMetrics {
+            scope,
+            metrics: MetricsLendingIter {
+                // doesn't matter what we initialize this with,
+                // it's purpose is to be reused between collections
+                aggr: AggregatedMetrics::F64(super::data::MetricData::Sum(Sum {
+                    is_monotonic: true,
+                    data_points: Vec::new(),
+                    start_time: SystemTime::now(),
+                    time: SystemTime::now(),
+                    temporality: Temporality::Cumulative,
+                })),
+                iter: instruments.iter(),
+            },
+        })
     }
 }
 
 impl MetricsLendingIter<'_> {
-    /// Advances the iterator and returns the next value.
-    pub fn next(&mut self) -> Option<Metric<'_>> {
-        self.iter.next().map(|metric| Metric {
-            instrument: &metric.instrument,
-            data: &metric.data,
-        })
+    /// Advances the iterator and returns the next value.    
+    pub fn next_metric(&mut self) -> Option<Metric<'_>> {
+        loop {
+            let inst = self.iter.next()?;
+            let (len, data) = inst.comp_agg.call(Some(&mut self.aggr));
+            if len > 0 {
+                if let Some(new_aggr) = data {
+                    self.aggr = new_aggr;
+                }
+                return Some(Metric {
+                    instrument: &inst.info,
+                    data: &self.aggr,
+                });
+            }
+        }
     }
 }
 

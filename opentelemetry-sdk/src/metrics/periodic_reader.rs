@@ -16,7 +16,6 @@ use crate::{
         exporter::{PushMetricExporter, ResourceMetrics},
         reader::SdkProducer,
     },
-    Resource,
 };
 
 use super::{
@@ -350,11 +349,11 @@ impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
 struct PeriodicReaderInner<E: PushMetricExporter> {
     exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
-    producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    producer: Mutex<Option<Weak<Pipeline>>>,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
-    fn register_pipeline(&self, producer: Weak<dyn SdkProducer>) {
+    fn register_pipeline(&self, producer: Weak<Pipeline>) {
         let mut inner = self.producer.lock().expect("lock poisoned");
         *inner = Some(producer);
     }
@@ -384,39 +383,48 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     }
 
     fn collect_and_export(&self) -> OTelSdkResult {
-        // TODO: Reuse the internal vectors. Or refactor to avoid needing any
-        // owned data structures to be passed to exporters.
-        let mut rm = ResourceMetricsData {
-            resource: Resource::empty(),
-            scope_metrics: Vec::new(),
+        let producer = self.producer.lock().expect("lock poisoned");
+        let pipeline = if let Some(p) = producer.as_ref() {
+            p.upgrade().ok_or(OTelSdkError::AlreadyShutdown)?
+        } else {
+            otel_warn!(
+            name: "PeriodReader.MeterProviderNotRegistered",
+            message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
+                   This occurs when a periodic reader is created but not associated with a MeterProvider \
+                   by calling `.with_reader(reader)` on MeterProviderBuilder."
+            );
+            return Err(OTelSdkError::InternalFailure(
+                "MeterProvider is not registered".into(),
+            ));
         };
-
+        drop(producer);
+        let Ok(inner) = pipeline.inner.lock() else {
+            otel_warn!(
+                name: "PeriodReader.PipelineLockPoisoned",
+                message = "Failed to acquire lock for collect and export"
+            );
+            return Err(OTelSdkError::InternalFailure(
+                "Paniced while holding a pipeline lock".into(),
+            ));
+        };
+        for cb in &inner.callbacks {
+            cb();
+        }
         let current_time = Instant::now();
-        let collect_result = self.collect(&mut rm);
-        let time_taken_for_collect = current_time.elapsed();
+        // Relying on futures executor to execute async call.
+        let res = futures_executor::block_on(self.exporter.export(ResourceMetrics::new(
+            &pipeline.resource,
+            inner.aggregations.iter(),
+        )));
+        otel_debug!(name: "PeriodicReaderMetricsCollected", time_taken_in_millis = current_time.elapsed().as_millis());
 
-        #[allow(clippy::question_mark)]
-        if let Err(e) = collect_result {
+        if let Err(err) = &res {
             otel_warn!(
                 name: "PeriodReaderCollectError",
-                error = format!("{:?}", e)
+                error = format!("{:?}", err)
             );
-            return Err(OTelSdkError::InternalFailure(e.to_string()));
         }
-
-        if rm.scope_metrics.is_empty() {
-            otel_debug!(name: "NoMetricsCollected");
-            return Ok(());
-        }
-
-        let metrics_count = rm.scope_metrics.iter().fold(0, |count, scope_metrics| {
-            count + scope_metrics.metrics.len()
-        });
-        otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count, time_taken_in_millis = time_taken_for_collect.as_millis());
-
-        // Relying on futures executor to execute async call.
-        // TODO: Pass timeout to exporter
-        futures_executor::block_on(self.exporter.export(ResourceMetrics::new(&rm)))
+        res
     }
 
     fn force_flush(&self) -> OTelSdkResult {

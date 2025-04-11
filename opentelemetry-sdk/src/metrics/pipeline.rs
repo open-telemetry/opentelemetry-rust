@@ -15,7 +15,8 @@ use crate::{
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, MetricsData, ScopeMetricsData, SdkProducer},
-        view::View, InstrumentInfo,
+        view::View,
+        InstrumentInfo,
     },
     Resource,
 };
@@ -37,7 +38,7 @@ pub struct Pipeline {
     pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
-    inner: Mutex<PipelineInner>,
+    pub(crate) inner: Mutex<PipelineInner>,
 }
 
 impl fmt::Debug for Pipeline {
@@ -52,9 +53,9 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
 
 #[derive(Default)]
-struct PipelineInner {
-    aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
-    callbacks: Vec<GenericCallback>,
+pub(crate) struct PipelineInner {
+    pub(crate) aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
+    pub(crate) callbacks: Vec<GenericCallback>,
 }
 
 impl fmt::Debug for PipelineInner {
@@ -169,9 +170,9 @@ impl SdkProducer for Pipeline {
 }
 
 /// A synchronization point between a [Pipeline] and an instrument's aggregate function.
-struct InstrumentSync {
-    info: InstrumentInfo,
-    comp_agg: Arc<dyn internal::ComputeAggregation>,
+pub(crate) struct InstrumentSync {
+    pub(crate) info: InstrumentInfo,
+    pub(crate) comp_agg: Arc<dyn internal::ComputeAggregation>,
 }
 
 impl fmt::Debug for InstrumentSync {

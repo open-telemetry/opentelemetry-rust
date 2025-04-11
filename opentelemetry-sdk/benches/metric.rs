@@ -6,8 +6,10 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::ResourceMetricsData, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
+        new_view,
+        reader::{MetricReader, ResourceMetricsData},
+        Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
+        Temporality, View,
     },
     Resource,
 };

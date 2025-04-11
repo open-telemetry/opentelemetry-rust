@@ -81,7 +81,7 @@ impl PushMetricExporter for MetricExporter {
 
 fn print_scope_metrics(mut metrics: ScopeMetricsLendingIter<'_>) {
     let mut iter = 0;
-    while let Some(scope_metric) = metrics.next() {
+    while let Some(scope_metric) = metrics.next_scope_metric() {
         iter += 1;
         println!("\tInstrumentation Scope #{}", iter);
         println!("\t\tName         : {}", &scope_metric.scope.name());
@@ -107,7 +107,7 @@ fn print_scope_metrics(mut metrics: ScopeMetricsLendingIter<'_>) {
 
 fn print_metrics(mut metrics: MetricsLendingIter<'_>) {
     let mut iter = 0;
-    while let Some(metric) = metrics.next() {
+    while let Some(metric) = metrics.next_metric() {
         iter += 1;
 
         println!("Metric #{}", iter);

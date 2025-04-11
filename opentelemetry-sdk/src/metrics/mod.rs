@@ -82,8 +82,7 @@ pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
 
-#[cfg(feature = "experimental_metrics_custom_reader")]
-pub use instrument::InstrumentKind;
+pub use instrument::{InstrumentInfo, InstrumentKind};
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use instrument::*;

@@ -194,24 +194,30 @@ impl InMemoryMetricExporter {
             .map(|mut metrics_guard| metrics_guard.clear());
     }
 
-    fn clone_metrics(mut metric: ResourceMetrics<'_>) -> ResourceMetricsData {
+    fn clone_metrics(mut metric: ResourceMetrics<'_>) -> Option<ResourceMetricsData> {
         let mut scope_metrics = Vec::new();
-        while let Some(mut scope_metric) = metric.scope_metrics.next() {
+        while let Some(mut scope_metric) = metric.scope_metrics.next_scope_metric() {
             let mut metrics = Vec::new();
-            while let Some(metric) = scope_metric.metrics.next() {
+            while let Some(metric) = scope_metric.metrics.next_metric() {
                 metrics.push(MetricsData {
                     instrument: metric.instrument.clone(),
-                    data: Self::clone_data(&metric.data),
+                    data: Self::clone_data(metric.data),
                 });
             }
-            scope_metrics.push(ScopeMetricsData {
-                scope: scope_metric.scope.clone(),
-                metrics,
-            });
+            if !metrics.is_empty() {
+                scope_metrics.push(ScopeMetricsData {
+                    scope: scope_metric.scope.clone(),
+                    metrics,
+                });
+            }
         }
-        ResourceMetricsData {
-            resource: metric.resource.clone(),
-            scope_metrics,
+        if !scope_metrics.is_empty() {
+            Some(ResourceMetricsData {
+                resource: metric.resource.clone(),
+                scope_metrics,
+            })
+        } else {
+            None
         }
     }
 
@@ -261,7 +267,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
-                metrics_guard.push_back(InMemoryMetricExporter::clone_metrics(metrics))
+                metrics_guard.extend(InMemoryMetricExporter::clone_metrics(metrics))
             })
             .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }

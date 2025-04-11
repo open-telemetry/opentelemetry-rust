@@ -113,7 +113,7 @@ pub mod tonic {
     impl From<ResourceMetrics<'_>> for ExportMetricsServiceRequest {
         fn from(mut rm: ResourceMetrics<'_>) -> Self {
             let mut scope_metrics = Vec::new();
-            while let Some(scope_metric) = rm.scope_metrics.next() {
+            while let Some(scope_metric) = rm.scope_metrics.next_scope_metric() {
                 scope_metrics.push(scope_metric.into());
             }
             ExportMetricsServiceRequest {
@@ -138,7 +138,7 @@ pub mod tonic {
     impl From<ScopeMetrics<'_>> for TonicScopeMetrics {
         fn from(mut sm: ScopeMetrics<'_>) -> Self {
             let mut metrics = Vec::new();
-            while let Some(metric) = sm.metrics.next() {
+            while let Some(metric) = sm.metrics.next_metric() {
                 metrics.push(metric.into());
             }
             TonicScopeMetrics {
