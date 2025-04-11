@@ -45,16 +45,21 @@ mod error;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
+#[cfg(feature = "experimental_custom_metric_reader")]
 pub(crate) mod manual_reader;
 pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
+#[allow(unreachable_pub)]
 pub(crate) mod periodic_reader;
 #[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
 /// Module for periodic reader with async runtime.
 pub mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
+#[cfg(feature = "experimental_custom_metric_reader")]
 pub mod reader;
+#[cfg(not(feature = "experimental_custom_metric_reader"))]
+pub(crate) mod reader;
 pub(crate) mod view;
 
 /// In-Memory metric exporter for testing purpose.
@@ -68,9 +73,12 @@ pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuild
 pub use aggregation::*;
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use error::{MetricError, MetricResult};
+#[cfg(feature = "experimental_custom_metric_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
+#[cfg(feature = "experimental_custom_metric_reader")]
 pub use periodic_reader::*;
+#[cfg(feature = "experimental_custom_metric_reader")]
 pub use pipeline::Pipeline;
 
 pub use instrument::InstrumentKind;

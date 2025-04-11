@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
+    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, pipeline::Pipeline, Temporality,
 };
 
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -51,6 +51,7 @@ where
     ///
     /// If this option is not used or `interval` is equal to zero, 60 seconds is
     /// used as the default.
+    #[allow(unused)]
     pub fn with_interval(mut self, interval: Duration) -> Self {
         if !interval.is_zero() {
             self.interval = interval;
