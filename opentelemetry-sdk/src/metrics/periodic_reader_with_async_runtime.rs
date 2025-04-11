@@ -20,7 +20,9 @@ use crate::{
     Resource,
 };
 
-use super::{data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, instrument::InstrumentKind};
+use super::{
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
