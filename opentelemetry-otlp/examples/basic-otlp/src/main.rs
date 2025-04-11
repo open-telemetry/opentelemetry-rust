@@ -80,10 +80,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Note: This filtering will also drop logs from these components even when
     // they are used outside of the OTLP Exporter.
     let filter_otel = EnvFilter::new("info")
-        .add_directive("tokio=off".parse().unwrap())
+        .add_directive("hyper=off".parse().unwrap())
         .add_directive("tonic=off".parse().unwrap())
         .add_directive("h2=off".parse().unwrap())
-        .add_directive("oxidizer=warn".parse().unwrap())
         .add_directive("reqwest=off".parse().unwrap());
     let otel_layer = otel_layer.with_filter(filter_otel);
 
