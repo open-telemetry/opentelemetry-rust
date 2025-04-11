@@ -6,7 +6,7 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
+        data::ResourceMetricsData, new_view, reader::MetricReader, Aggregation, Instrument,
         InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
     },
     Resource,
@@ -23,7 +23,7 @@ impl MetricReader for SharedReader {
         self.0.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn collect(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         self.0.collect(rm)
     }
 
@@ -240,7 +240,7 @@ fn counters(c: &mut Criterion) {
     });
 
     let (rdr, cntr) = bench_counter(None, "cumulative");
-    let mut rm = ResourceMetrics {
+    let mut rm = ResourceMetricsData {
         resource: Resource::builder_empty().build(),
         scope_metrics: Vec::new(),
     };
@@ -337,7 +337,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         h.record(1, &[]);
     }
 
-    let mut rm = ResourceMetrics {
+    let mut rm = ResourceMetricsData {
         resource: Resource::builder_empty().build(),
         scope_metrics: Vec::new(),
     };
