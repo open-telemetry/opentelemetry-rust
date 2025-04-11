@@ -76,7 +76,6 @@ pub use error::{MetricError, MetricResult};
 #[cfg(feature = "experimental_custom_metric_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
-#[cfg(feature = "experimental_custom_metric_reader")]
 pub use periodic_reader::*;
 #[cfg(feature = "experimental_custom_metric_reader")]
 pub use pipeline::Pipeline;
