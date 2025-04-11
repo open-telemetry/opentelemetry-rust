@@ -108,7 +108,7 @@ required-features = ["testing"]
 [[bench]]
 name = "metric"
 harness = false
-required-features = ["metrics", "spec_unstable_metrics_views"]
+required-features = ["metrics", "spec_unstable_metrics_views", "experimental_custom_metric_reader"]
 
 [[bench]]
 name = "log"

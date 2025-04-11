@@ -52,7 +52,7 @@ ctrlc = { workspace = true }
 lazy_static = { workspace = true }
 num_cpus = { workspace = true }
 opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor", "experimental_custom_metric_reader"] }
 opentelemetry-appender-tracing = { workspace = true, features = ["spec_unstable_logs_enabled"] }
 rand = { workspace = true, features = ["small_rng", "os_rng"] }
 tracing = { workspace = true, features = ["std"]}
