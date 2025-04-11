@@ -11,11 +11,11 @@ use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
-        data::{Metric, ResourceMetrics, ScopeMetrics},
+        data::Metric,
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal::{self, AggregateBuilder, Number},
-        reader::{MetricReader, SdkProducer},
+        reader::{MetricReader, ScopeMetricsData, SdkProducer},
         view::View,
     },
     Resource,
@@ -23,7 +23,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::{aggregation::Aggregation, Temporality};
+use super::{aggregation::Aggregation, reader::ResourceMetricsData, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -100,7 +100,7 @@ impl Pipeline {
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn produce(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         let inner = self
             .inner
             .lock()
@@ -125,7 +125,7 @@ impl SdkProducer for Pipeline {
             let sm = match rm.scope_metrics.get_mut(i) {
                 Some(sm) => sm,
                 None => {
-                    rm.scope_metrics.push(ScopeMetrics::default());
+                    rm.scope_metrics.push(ScopeMetricsData::default());
                     rm.scope_metrics.last_mut().unwrap()
                 }
             };

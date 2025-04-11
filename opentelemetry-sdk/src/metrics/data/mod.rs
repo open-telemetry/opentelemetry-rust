@@ -2,29 +2,9 @@
 
 use std::{borrow::Cow, time::SystemTime};
 
-use opentelemetry::{InstrumentationScope, KeyValue};
-
-use crate::Resource;
+use opentelemetry::KeyValue;
 
 use super::Temporality;
-
-/// A collection of [ScopeMetrics] and the associated [Resource] that created them.
-#[derive(Debug)]
-pub struct ResourceMetrics {
-    /// The entity that collected the metrics.
-    pub resource: Resource,
-    /// The collection of metrics with unique [InstrumentationScope]s.
-    pub scope_metrics: Vec<ScopeMetrics>,
-}
-
-/// A collection of metrics produced by a meter.
-#[derive(Debug, Default)]
-pub struct ScopeMetrics {
-    /// The [InstrumentationScope] that the meter was created with.
-    pub scope: InstrumentationScope,
-    /// The list of aggregations created by the meter.
-    pub metrics: Vec<Metric>,
-}
 
 /// A collection of one or more aggregated time series from an [Instrument].
 ///

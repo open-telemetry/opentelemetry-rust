@@ -6,83 +6,84 @@ use crate::{error::OTelSdkResult, Resource};
 use std::{fmt::Debug, slice::Iter, time::Duration};
 
 use super::{
-    data::{Metric, ResourceMetrics, ScopeMetrics},
+    data::Metric,
+    reader::{ResourceMetricsData, ScopeMetricsData},
     Temporality,
 };
 
 /// A collection of [`BatchScopeMetrics`] and the associated [Resource] that created them.
 #[derive(Debug)]
-pub struct ResourceMetricsRef<'a> {
+pub struct ResourceMetrics<'a> {
     /// The entity that collected the metrics.
     pub resource: &'a Resource,
     /// The collection of metrics with unique [InstrumentationScope]s.
-    pub scope_metrics: BatchScopeMetrics<'a>,
+    pub scope_metrics: ScopeMetricsLendingIter<'a>,
 }
 
 /// Iterator over libraries instrumentation scopes ([`InstrumentationScope`]) together with metrics.
-pub struct BatchScopeMetrics<'a> {
-    iter: Iter<'a, ScopeMetrics>,
+/// Doesn't implement standard [`Iterator`], because it returns borrowed items. AKA "LendingIterator".
+pub struct ScopeMetricsLendingIter<'a> {
+    iter: Iter<'a, ScopeMetricsData>,
 }
 
 /// A collection of metrics produced by a [`InstrumentationScope`] meter.
 #[derive(Debug)]
-pub struct ScopeMetricsRef<'a> {
+pub struct ScopeMetrics<'a> {
     /// The [InstrumentationScope] that the meter was created with.
     pub scope: &'a InstrumentationScope,
     /// The list of aggregations created by the meter.
-    pub metrics: BatchMetrics<'a>,
+    pub metrics: MetricsLendingIter<'a>,
 }
 
 /// Iterator over aggregations created by the meter.
-pub struct BatchMetrics<'a> {
+/// Doesn't implement standard [`Iterator`], because it returns borrowed items. AKA "LendingIterator".
+pub struct MetricsLendingIter<'a> {
     iter: Iter<'a, Metric>,
 }
 
-impl<'a> ResourceMetricsRef<'a> {
-    pub(crate) fn new(rm: &'a ResourceMetrics) -> Self {
+impl<'a> ResourceMetrics<'a> {
+    pub(crate) fn new(rm: &'a ResourceMetricsData) -> Self {
         Self {
             resource: &rm.resource,
-            scope_metrics: BatchScopeMetrics {
+            scope_metrics: ScopeMetricsLendingIter {
                 iter: rm.scope_metrics.iter(),
             },
         }
     }
 }
 
-impl<'a> ScopeMetricsRef<'a> {
-    fn new(sm: &'a ScopeMetrics) -> Self {
+impl<'a> ScopeMetrics<'a> {
+    fn new(sm: &'a ScopeMetricsData) -> Self {
         Self {
             scope: &sm.scope,
-            metrics: BatchMetrics {
+            metrics: MetricsLendingIter {
                 iter: sm.metrics.iter(),
             },
         }
     }
 }
 
-impl Debug for BatchScopeMetrics<'_> {
+impl Debug for ScopeMetricsLendingIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BatchScopeMetrics").finish()
     }
 }
 
-impl<'a> Iterator for BatchScopeMetrics<'a> {
-    type Item = ScopeMetricsRef<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(ScopeMetricsRef::new)
+impl ScopeMetricsLendingIter<'_> {
+    /// Advances the iterator and returns the next value.
+    pub fn next(&mut self) -> Option<ScopeMetrics<'_>> {
+        self.iter.next().map(ScopeMetrics::new)
     }
 }
 
-impl<'a> Iterator for BatchMetrics<'a> {
-    type Item = &'a Metric;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl MetricsLendingIter<'_> {
+    /// Advances the iterator and returns the next value.
+    pub fn next(&mut self) -> Option<&Metric> {
         self.iter.next()
     }
 }
 
-impl Debug for BatchMetrics<'_> {
+impl Debug for MetricsLendingIter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BatchMetrics").finish()
     }
@@ -99,7 +100,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     /// considered unrecoverable and will be logged.
     fn export(
         &self,
-        metrics: ResourceMetricsRef<'_>,
+        metrics: ResourceMetrics<'_>,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
     /// Flushes any metric data held by an exporter.

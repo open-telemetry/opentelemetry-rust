@@ -1,9 +1,31 @@
 //! Interfaces for reading and producing metrics
+use opentelemetry::InstrumentationScope;
+
 use crate::error::OTelSdkResult;
+use crate::Resource;
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
-use super::{data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, Temporality};
+use super::data::Metric;
+use super::{pipeline::Pipeline, InstrumentKind, Temporality};
+
+/// A collection of [ScopeMetricsData] and the associated [Resource] that created them.
+#[derive(Debug)]
+pub struct ResourceMetricsData {
+    /// The entity that collected the metrics.
+    pub resource: Resource,
+    /// The collection of metrics with unique [InstrumentationScope]s.
+    pub scope_metrics: Vec<ScopeMetricsData>,
+}
+
+/// A collection of metrics produced by a meter.
+#[derive(Debug, Default)]
+pub struct ScopeMetricsData {
+    /// The [InstrumentationScope] that the meter was created with.
+    pub scope: InstrumentationScope,
+    /// The list of aggregations created by the meter.
+    pub metrics: Vec<Metric>,
+}
 
 /// The interface used between the SDK and an exporter.
 ///
@@ -27,10 +49,10 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>);
 
     /// Gathers and returns all metric data related to the [MetricReader] from the
-    /// SDK and stores it in the provided [ResourceMetrics] reference.
+    /// SDK and stores it in the provided [ResourceMetricsData] reference.
     ///
     /// An error is returned if this is called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult;
+    fn collect(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult;
 
     /// Flushes all metric measurements held in an export pipeline.
     ///
@@ -63,5 +85,5 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
 /// Produces metrics for a [MetricReader].
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult;
+    fn produce(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult;
 }

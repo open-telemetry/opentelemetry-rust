@@ -124,9 +124,9 @@ pub enum Temporality {
 mod tests {
     use self::data::{HistogramDataPoint, SumDataPoint};
     use super::data::MetricData;
-    use super::data::ResourceMetrics;
-    use super::data::ScopeMetrics;
     use super::internal::Number;
+    use super::reader::ResourceMetricsData;
+    use super::reader::ScopeMetricsData;
     use super::*;
     use crate::metrics::internal::AggregatedMetricsAccess;
     use crate::metrics::InMemoryMetricExporter;
@@ -2903,9 +2903,9 @@ mod tests {
     }
 
     fn find_scope_metric<'a>(
-        metrics: &'a [ScopeMetrics],
+        metrics: &'a [ScopeMetricsData],
         name: &'a str,
-    ) -> Option<&'a ScopeMetrics> {
+    ) -> Option<&'a ScopeMetricsData> {
         metrics
             .iter()
             .find(|&scope_metric| scope_metric.scope.name() == name)
@@ -2916,7 +2916,7 @@ mod tests {
         meter_provider: SdkMeterProvider,
 
         // Saving this on the test context for lifetime simplicity
-        resource_metrics: Vec<ResourceMetrics>,
+        resource_metrics: Vec<ResourceMetricsData>,
     }
 
     impl TestContext {

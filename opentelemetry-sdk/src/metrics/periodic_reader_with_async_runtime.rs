@@ -13,7 +13,8 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::metrics::exporter::ResourceMetricsRef;
+use crate::metrics::exporter::ResourceMetrics;
+use crate::metrics::reader::ResourceMetricsData;
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -21,9 +22,7 @@ use crate::{
     Resource,
 };
 
-use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
-};
+use super::{instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -121,7 +120,7 @@ where
                     reader,
                     timeout: self.timeout,
                     runtime,
-                    rm: ResourceMetrics {
+                    rm: ResourceMetricsData {
                         resource: Resource::empty(),
                         scope_metrics: Vec::new(),
                     },
@@ -239,7 +238,7 @@ struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
     reader: PeriodicReader<E>,
     timeout: Duration,
     runtime: RT,
-    rm: ResourceMetrics,
+    rm: ResourceMetricsData,
 }
 
 impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
@@ -260,10 +259,7 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
             message = "Calling exporter's export method with collected metrics.",
             count = self.rm.scope_metrics.len(),
         );
-        let export = self
-            .reader
-            .exporter
-            .export(ResourceMetricsRef::new(&self.rm));
+        let export = self.reader.exporter.export(ResourceMetrics::new(&self.rm));
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);
         pin_mut!(timeout);
@@ -357,7 +353,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         worker(self);
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn collect(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         let inner = self
             .inner
             .lock()
@@ -447,11 +443,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 mod tests {
     use super::PeriodicReader;
     use crate::error::OTelSdkError;
-    use crate::metrics::reader::MetricReader;
-    use crate::{
-        metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
-        runtime, Resource,
-    };
+    use crate::metrics::reader::{MetricReader, ResourceMetricsData};
+    use crate::{metrics::InMemoryMetricExporter, metrics::SdkMeterProvider, runtime, Resource};
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
 
@@ -498,7 +491,7 @@ mod tests {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let mut rm = ResourceMetrics {
+        let mut rm = ResourceMetricsData {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };

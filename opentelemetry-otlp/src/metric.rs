@@ -17,7 +17,7 @@ use crate::{ExporterBuildError, NoExporterBuilderSet};
 use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
 
-use opentelemetry_sdk::metrics::exporter::ResourceMetricsRef;
+use opentelemetry_sdk::metrics::exporter::ResourceMetrics;
 use opentelemetry_sdk::metrics::{exporter::PushMetricExporter, Temporality};
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
@@ -122,7 +122,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
     fn export(
         &self,
-        metrics: ResourceMetricsRef<'_>,
+        metrics: ResourceMetrics<'_>,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
     fn shutdown(&self) -> OTelSdkResult;
 }
@@ -148,7 +148,7 @@ impl Debug for MetricExporter {
 }
 
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: ResourceMetricsRef<'_>) -> OTelSdkResult {
+    async fn export(&self, metrics: ResourceMetrics<'_>) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.export(metrics).await,
