@@ -1,4 +1,4 @@
-use crate::{Key, StringValue};
+use crate::{Array, Key, StringValue, Value};
 
 use crate::{SpanId, TraceFlags, TraceId};
 
@@ -121,6 +121,28 @@ impl From<&[u8]> for AnyValue {
     }
 }
 
+impl From<&Value> for AnyValue {
+    fn from(value: &Value) -> Self {
+        match value {
+            Value::Bool(b) => AnyValue::Boolean(*b),
+            Value::I64(i) => AnyValue::Int(*i),
+            Value::F64(f) => AnyValue::Double(*f),
+            Value::String(s) => AnyValue::String(s.clone()),
+            Value::Array(a) => {
+                let v = match a {
+                    Array::Bool(items) => items.iter().map(|b| AnyValue::Boolean(*b)).collect(),
+                    Array::I64(items) => items.iter().map(|i| AnyValue::Int(*i)).collect(),
+                    Array::F64(items) => items.iter().map(|f| AnyValue::Double(*f)).collect(),
+                    Array::String(items) => {
+                        items.iter().map(|s| AnyValue::String(s.clone())).collect()
+                    }
+                };
+                AnyValue::ListAny(Box::new(v))
+            }
+        }
+    }
+}
+
 impl<T: Into<AnyValue>> FromIterator<T> for AnyValue {
     /// Creates an [`AnyValue::ListAny`] value from a sequence of `Into<AnyValue>` values.
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
@@ -226,5 +248,22 @@ impl Severity {
             Severity::Fatal3 => "FATAL3",
             Severity::Fatal4 => "FATAL4",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_any_value_from_value() {
+        let _ = AnyValue::from(&Value::from(true));
+        let _ = AnyValue::from(&Value::from(233i64));
+        let _ = AnyValue::from(&Value::from(2.33f64));
+        let _ = AnyValue::from(&Value::from("233"));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![true])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![233i64])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![2.33f64])));
+        let _ = AnyValue::from(&Value::Array(Array::from(vec![StringValue::from("233")])));
     }
 }
