@@ -1,7 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::metrics::Temporality;
 use crate::metrics::{
-    data::ResourceMetrics, pipeline::Pipeline, reader::MetricReader, InstrumentKind,
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
 };
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
