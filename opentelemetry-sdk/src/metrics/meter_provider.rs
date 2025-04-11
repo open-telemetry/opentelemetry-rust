@@ -16,8 +16,8 @@ use crate::error::OTelSdkResult;
 use crate::Resource;
 
 use super::{
-    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
-    reader::MetricReader, view::View, PeriodicReader,
+    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
+    periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
 };
 
 /// Handles the creation and coordination of [Meter]s.

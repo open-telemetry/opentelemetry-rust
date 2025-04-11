@@ -696,7 +696,7 @@ where
 mod tests {
     use std::borrow::Cow;
 
-    use crate::metrics::MetricError;
+    use crate::metrics::error::MetricError;
 
     use super::{
         validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,
