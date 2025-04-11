@@ -23,8 +23,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 once_cell = { version = "1.13" }
 opentelemetry = { version = "0.29", default-features = false, features = ["metrics"] }
 opentelemetry_sdk = { version = "0.29", default-features = false, features = ["metrics"] }
-prometheus = "0.13"
-protobuf = "2.14"
+prometheus = "0.14"
 tracing = { version = ">=0.1.40", default-features = false, optional = true } # optional for opentelemetry internal logging
 
 [dev-dependencies]
