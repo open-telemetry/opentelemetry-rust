@@ -2,6 +2,13 @@
 
 ## vNext
 
+## 0.29.1
+
+Released 2025-April-11
+
+- Update `prometheus` dependency version to 0.14
+- Remove `protobuf` dependency
+
 ## v0.29.0
 
 - Update `opentelemetry` dependency version to 0.29
