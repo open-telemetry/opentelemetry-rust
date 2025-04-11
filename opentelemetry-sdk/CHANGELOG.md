@@ -23,15 +23,22 @@ also modified to suppress telemetry before invoking exporters.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
-
-- *Breaking* change for custom `MetricReader` authors.
-  The `shutdown_with_timeout` method is added to `MetricReader` trait.
-  `collect` method on `MetricReader` modified to return `OTelSdkResult`.
-  [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
   `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
   be used instead, wherever applicable.
+- *Breaking* change, affecting custom MetricReader authors:   The
+  `shutdown_with_timeout` method is added to `MetricReader` trait. `collect`
+  method on `MetricReader` modified to return `OTelSdkResult`.
   [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+  [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+- *Breaking* change, affecting custom MetricReader authors: `MetricReader`
+  trait, `ManualReader` struct, `Pipeline` struct, `InstrumentKind` enum moved
+  behind feature flag "experimental_metrics_custom_reader". These were only
+  required for writing custom readers.
+  [2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
+- *Breaking* `Aggregation` enum moved behind feature flag
+  "spec_unstable_metrics_views". This was only required when using Views.
+  [2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
 ## 0.29.0
 
