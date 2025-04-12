@@ -87,13 +87,9 @@ pub use instrument::InstrumentKind;
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use instrument::*;
-// #[cfg(not(feature = "spec_unstable_metrics_views"))]
-// pub(crate) use instrument::*;
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use view::*;
-// #[cfg(not(feature = "spec_unstable_metrics_views"))]
-// pub(crate) use view::*;
 
 use std::hash::Hash;
 
