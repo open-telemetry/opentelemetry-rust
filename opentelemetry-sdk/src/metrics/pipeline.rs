@@ -11,19 +11,19 @@ use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
-        data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal::{self, AggregateBuilder, Number},
-        reader::{MetricReader, SdkProducer},
+        reader::{MetricReader, MetricsData, ScopeMetricsData, SdkProducer},
         view::View,
+        InstrumentInfo,
     },
     Resource,
 };
 
 use self::internal::AggregateFns;
 
-use super::{aggregation::Aggregation, Temporality};
+use super::{aggregation::Aggregation, reader::ResourceMetricsData, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -38,7 +38,7 @@ pub struct Pipeline {
     pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
-    inner: Mutex<PipelineInner>,
+    pub(crate) inner: Mutex<PipelineInner>,
 }
 
 impl fmt::Debug for Pipeline {
@@ -53,9 +53,9 @@ type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
 
 #[derive(Default)]
-struct PipelineInner {
-    aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
-    callbacks: Vec<GenericCallback>,
+pub(crate) struct PipelineInner {
+    pub(crate) aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
+    pub(crate) callbacks: Vec<GenericCallback>,
 }
 
 impl fmt::Debug for PipelineInner {
@@ -100,7 +100,7 @@ impl Pipeline {
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn produce(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         let inner = self
             .inner
             .lock()
@@ -125,7 +125,7 @@ impl SdkProducer for Pipeline {
             let sm = match rm.scope_metrics.get_mut(i) {
                 Some(sm) => sm,
                 None => {
-                    rm.scope_metrics.push(ScopeMetrics::default());
+                    rm.scope_metrics.push(ScopeMetricsData::default());
                     rm.scope_metrics.last_mut().unwrap()
                 }
             };
@@ -138,10 +138,8 @@ impl SdkProducer for Pipeline {
                 let mut m = sm.metrics.get_mut(j);
                 match (inst.comp_agg.call(m.as_mut().map(|m| &mut m.data)), m) {
                     // No metric to re-use, expect agg to create new metric data
-                    ((len, Some(initial_agg)), None) if len > 0 => sm.metrics.push(Metric {
-                        name: inst.name.clone(),
-                        description: inst.description.clone(),
-                        unit: inst.unit.clone(),
+                    ((len, Some(initial_agg)), None) if len > 0 => sm.metrics.push(MetricsData {
+                        instrument: inst.info.clone(),
                         data: initial_agg,
                     }),
                     // Existing metric can be re-used, update its values
@@ -150,9 +148,7 @@ impl SdkProducer for Pipeline {
                             // previous aggregation was of a different type
                             prev_agg.data = data;
                         }
-                        prev_agg.name.clone_from(&inst.name);
-                        prev_agg.description.clone_from(&inst.description);
-                        prev_agg.unit.clone_from(&inst.unit);
+                        prev_agg.instrument.clone_from(&inst.info);
                     }
                     _ => continue,
                 }
@@ -174,19 +170,17 @@ impl SdkProducer for Pipeline {
 }
 
 /// A synchronization point between a [Pipeline] and an instrument's aggregate function.
-struct InstrumentSync {
-    name: Cow<'static, str>,
-    description: Cow<'static, str>,
-    unit: Cow<'static, str>,
-    comp_agg: Arc<dyn internal::ComputeAggregation>,
+pub(crate) struct InstrumentSync {
+    pub(crate) info: InstrumentInfo,
+    pub(crate) comp_agg: Arc<dyn internal::ComputeAggregation>,
 }
 
 impl fmt::Debug for InstrumentSync {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InstrumentSync")
-            .field("name", &self.name)
-            .field("description", &self.description)
-            .field("unit", &self.unit)
+            .field("name", &self.info.name)
+            .field("description", &self.info.description)
+            .field("unit", &self.info.unit)
             .finish()
     }
 }
@@ -410,9 +404,12 @@ where
             self.pipeline.add_sync(
                 scope.clone(),
                 InstrumentSync {
-                    name: stream.name,
-                    description: stream.description,
-                    unit: stream.unit,
+                    info: InstrumentInfo {
+                        name: stream.name,
+                        description: stream.description,
+                        unit: stream.unit,
+                        kind,
+                    },
                     comp_agg: collect,
                 },
             );

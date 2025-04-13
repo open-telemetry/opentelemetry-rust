@@ -1,8 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::metrics::reader::ResourceMetricsData;
 use crate::metrics::Temporality;
-use crate::metrics::{
-    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
-};
+use crate::metrics::{instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
@@ -34,7 +33,7 @@ impl Default for TestMetricReader {
 impl MetricReader for TestMetricReader {
     fn register_pipeline(&self, _pipeline: Weak<Pipeline>) {}
 
-    fn collect(&self, _rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn collect(&self, _rm: &mut ResourceMetricsData) -> OTelSdkResult {
         Ok(())
     }
 

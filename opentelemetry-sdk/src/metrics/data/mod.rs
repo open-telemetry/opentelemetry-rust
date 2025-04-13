@@ -1,45 +1,10 @@
 //! Types for delivery of pre-aggregated metric time series data.
 
-use std::{borrow::Cow, time::SystemTime};
+use std::time::SystemTime;
 
-use opentelemetry::{InstrumentationScope, KeyValue};
-
-use crate::Resource;
+use opentelemetry::KeyValue;
 
 use super::Temporality;
-
-/// A collection of [ScopeMetrics] and the associated [Resource] that created them.
-#[derive(Debug)]
-pub struct ResourceMetrics {
-    /// The entity that collected the metrics.
-    pub resource: Resource,
-    /// The collection of metrics with unique [InstrumentationScope]s.
-    pub scope_metrics: Vec<ScopeMetrics>,
-}
-
-/// A collection of metrics produced by a meter.
-#[derive(Default, Debug)]
-pub struct ScopeMetrics {
-    /// The [InstrumentationScope] that the meter was created with.
-    pub scope: InstrumentationScope,
-    /// The list of aggregations created by the meter.
-    pub metrics: Vec<Metric>,
-}
-
-/// A collection of one or more aggregated time series from an [Instrument].
-///
-/// [Instrument]: crate::metrics::Instrument
-#[derive(Debug)]
-pub struct Metric {
-    /// The name of the instrument that created this data.
-    pub name: Cow<'static, str>,
-    /// The description of the instrument, which can be used in documentation.
-    pub description: Cow<'static, str>,
-    /// The unit in which the instrument reports.
-    pub unit: Cow<'static, str>,
-    /// The aggregated data from an instrument.
-    pub data: AggregatedMetrics,
-}
 
 /// Aggregated metrics data from an instrument
 #[derive(Debug)]

@@ -6,23 +6,20 @@ use std::{
 
 use futures_channel::{mpsc, oneshot};
 use futures_util::{
-    future::{self, Either},
-    pin_mut,
     stream::{self, FusedStream},
     StreamExt,
 };
 use opentelemetry::{otel_debug, otel_error};
 
+use crate::metrics::exporter::ResourceMetrics;
+use crate::metrics::reader::ResourceMetricsData;
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
-    Resource,
 };
 
-use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
-};
+use super::{instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -116,17 +113,7 @@ where
                     .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
                     .map(|_| Message::Export);
                 let messages = Box::pin(stream::select(message_receiver, ticker));
-                PeriodicReaderWorker {
-                    reader,
-                    timeout: self.timeout,
-                    runtime,
-                    rm: ResourceMetrics {
-                        resource: Resource::empty(),
-                        scope_metrics: Vec::new(),
-                    },
-                }
-                .run(messages)
-                .await
+                PeriodicReaderWorker { reader }.run(messages).await
             });
         };
 
@@ -229,47 +216,50 @@ enum Message {
 }
 
 enum ProducerOrWorker<E: PushMetricExporter> {
-    Producer(Weak<dyn SdkProducer>),
+    Producer(Weak<Pipeline>),
     #[allow(clippy::type_complexity)]
     Worker(Box<dyn FnOnce(&PeriodicReader<E>) + Send + Sync>),
 }
 
-struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
+struct PeriodicReaderWorker<E: PushMetricExporter> {
     reader: PeriodicReader<E>,
-    timeout: Duration,
-    runtime: RT,
-    rm: ResourceMetrics,
 }
 
-impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
+impl<E: PushMetricExporter> PeriodicReaderWorker<E> {
     async fn collect_and_export(&mut self) -> OTelSdkResult {
-        self.reader
-            .collect(&mut self.rm)
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        if self.rm.scope_metrics.is_empty() {
-            otel_debug!(
-                name: "PeriodicReaderWorker.NoMetricsToExport",
-            );
-            // No metrics to export.
-            return Ok(());
+        let inner = self
+            .reader
+            .inner
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock pipeline".into()))?;
+
+        if inner.is_shutdown {
+            return Err(OTelSdkError::AlreadyShutdown);
         }
 
-        otel_debug!(
-            name: "PeriodicReaderWorker.InvokeExporter",
-            message = "Calling exporter's export method with collected metrics.",
-            count = self.rm.scope_metrics.len(),
-        );
-        let export = self.reader.exporter.export(&mut self.rm);
-        let timeout = self.runtime.delay(self.timeout);
-        pin_mut!(export);
-        pin_mut!(timeout);
-
-        match future::select(export, timeout).await {
-            Either::Left((res, _)) => {
-                res // return the status of export.
-            }
-            Either::Right(_) => Err(OTelSdkError::Timeout(self.timeout)),
+        let producer = match &inner.sdk_producer_or_worker {
+            ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
+            ProducerOrWorker::Worker(_) => None,
         }
+        .ok_or(OTelSdkError::InternalFailure(
+            "reader is not registered".into(),
+        ))?;
+        drop(inner);
+
+        let Ok(producer_inner) = producer.inner.lock() else {
+            return Err(OTelSdkError::InternalFailure(
+                "Paniced while holding a pipeline lock".into(),
+            ));
+        };
+        for cb in &producer_inner.callbacks {
+            cb();
+        }
+        // unfortunatelly we need to block here, because runtime require future to be "Send",
+        // but we hold a lock for PipelineInner.
+        futures_executor::block_on(self.reader.exporter.export(ResourceMetrics::new(
+            &producer.resource,
+            producer_inner.aggregations.iter(),
+        )))
     }
 
     async fn process_message(&mut self, message: Message) -> bool {
@@ -353,7 +343,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         worker(self);
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn collect(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         let inner = self
             .inner
             .lock()
@@ -443,11 +433,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 mod tests {
     use super::PeriodicReader;
     use crate::error::OTelSdkError;
-    use crate::metrics::reader::MetricReader;
-    use crate::{
-        metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
-        runtime, Resource,
-    };
+    use crate::metrics::reader::{MetricReader, ResourceMetricsData};
+    use crate::{metrics::InMemoryMetricExporter, metrics::SdkMeterProvider, runtime, Resource};
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
 
@@ -494,7 +481,7 @@ mod tests {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
-        let mut rm = ResourceMetrics {
+        let mut rm = ResourceMetricsData {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
         };

@@ -65,6 +65,19 @@ impl InstrumentKind {
     }
 }
 
+/// Describes properties an instrument is created with
+#[derive(Debug, Clone)]
+pub struct InstrumentInfo {
+    /// The human-readable identifier of the instrument.
+    pub name: Cow<'static, str>,
+    /// describes the purpose of the instrument.
+    pub description: Cow<'static, str>,
+    /// The functional group of the instrument.
+    pub kind: InstrumentKind,
+    /// Unit is the unit of measurement recorded by the instrument.
+    pub unit: Cow<'static, str>,
+}
+
 /// Describes properties an instrument is created with, also used for filtering
 /// in [View](crate::metrics::View)s.
 ///
