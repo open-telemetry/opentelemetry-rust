@@ -13,7 +13,7 @@ bench = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics", "rt-tokio"] }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["metrics"] }
 opentelemetry-stdout = { workspace = true, features = ["metrics"] }
 tokio = { workspace = true, features = ["full"] }
 
