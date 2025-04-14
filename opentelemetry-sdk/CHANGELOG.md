@@ -2,14 +2,16 @@
 
 ## vNext
 
-[#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
-`SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
+- **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
+  - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
-enabled, then logs/spans will be ignored. The flag is typically set by OTel
+enabled, then logs/spans will be ignored.
+  - The flag is typically set by OTel
 components to prevent telemetry from itself being fed back into OTel.
-`BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
+  - `BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
 the suppression flag in their dedicated thread, so that telemetry generated from
-those threads will not be fed back into OTel. Similarly, `SimpleLogProcessor`
+those threads will not be fed back into OTel.
+  - Similarly, `SimpleLogProcessor`
 also modified to suppress telemetry before invoking exporters.
 
 - **Feature**: Implemented and enabled cardinality capping for Metrics by
@@ -23,15 +25,25 @@ also modified to suppress telemetry before invoking exporters.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
-- *Breaking* change for custom `MetricReader` authors.
-  The `shutdown_with_timeout` method is added to `MetricReader` trait.
-  `collect` method on `MetricReader` modified to return `OTelSdkResult`.
 - *Breaking* The `shutdown_with_timeout` method is added to LogExporter trait. This is breaking change for custom `LogExporter` authors.
 - [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
   `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
-  be used instead, wherever applicable.
+  be used instead, wherever applicable. [#2906](https://github.com/open-telemetry/opentelemetry-rust/pull/2906)
+- *Breaking* change, affecting custom `MetricReader` authors:
+  - The
+  `shutdown_with_timeout` method is added to `MetricReader` trait.
+  - `collect`
+  method on `MetricReader` modified to return `OTelSdkResult`.
   [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+  - `MetricReader`
+  trait, `ManualReader` struct, `Pipeline` struct, `InstrumentKind` enum moved
+  behind feature flag "experimental_metrics_custom_reader".
+  [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
+
+- *Breaking* `Aggregation` enum moved behind feature flag
+  "spec_unstable_metrics_views". This was only required when using Views.
+  [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
 ## 0.29.0
 
