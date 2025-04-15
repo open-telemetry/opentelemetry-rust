@@ -17,7 +17,8 @@ use crate::{
 };
 
 use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, reader::MetricReader, Pipeline, Temporality,
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
+    Temporality,
 };
 
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);

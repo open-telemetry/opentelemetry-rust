@@ -39,12 +39,15 @@
 //!
 //! [Resource]: crate::Resource
 
+#[allow(unreachable_pub)]
+#[allow(unused)]
 pub(crate) mod aggregation;
 pub mod data;
 mod error;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
+#[cfg(feature = "experimental_metrics_custom_reader")]
 pub(crate) mod manual_reader;
 pub(crate) mod meter;
 mod meter_provider;
@@ -54,7 +57,10 @@ pub(crate) mod periodic_reader;
 /// Module for periodic reader with async runtime.
 pub mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
+#[cfg(feature = "experimental_metrics_custom_reader")]
 pub mod reader;
+#[cfg(not(feature = "experimental_metrics_custom_reader"))]
+pub(crate) mod reader;
 pub(crate) mod view;
 
 /// In-Memory metric exporter for testing purpose.
@@ -65,24 +71,25 @@ pub mod in_memory_exporter;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use aggregation::*;
+#[cfg(feature = "spec_unstable_metrics_views")]
 pub use error::{MetricError, MetricResult};
+#[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
 pub use periodic_reader::*;
+#[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
 
+#[cfg(feature = "experimental_metrics_custom_reader")]
 pub use instrument::InstrumentKind;
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use instrument::*;
-// #[cfg(not(feature = "spec_unstable_metrics_views"))]
-// pub(crate) use instrument::*;
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use view::*;
-// #[cfg(not(feature = "spec_unstable_metrics_views"))]
-// pub(crate) use view::*;
 
 use std::hash::Hash;
 
@@ -122,6 +129,7 @@ mod tests {
     use data::GaugeDataPoint;
     use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
+    use opentelemetry::Value;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::cmp::{max, min};
@@ -370,12 +378,14 @@ mod tests {
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
+        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Cumulative);
+        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2397,8 +2407,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), 2002);
 
         let data_point =
-            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
@@ -2446,8 +2455,7 @@ mod tests {
             // For cumulative, overflow should still be there, and new points should not be added.
             assert_eq!(sum.data_points.len(), 2002);
             let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                    .expect("overflow point expected");
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
             assert_eq!(data_point.value, 600);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
@@ -2503,8 +2511,7 @@ mod tests {
         assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
 
         let data_point =
-            find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                .expect("overflow point expected");
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
         assert_eq!(data_point.value, 300);
 
         // let empty_attrs_data_point = &sum.data_points[0];
@@ -2552,8 +2559,104 @@ mod tests {
             // For cumulative, overflow should still be there, and new points should not be added.
             assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
             let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "otel.metric.overflow", "true")
-                    .expect("overflow point expected");
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+            assert_eq!(data_point.value, 600);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
+            assert!(data_point.is_none(), "point should not be present");
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another");
+            assert!(data_point.is_none(), "point should not be present");
+        }
+    }
+
+    fn counter_aggregation_overflow_helper_custom_limit_via_advice(temporality: Temporality) {
+        // Arrange
+        let cardinality_limit = 2300;
+        let mut test_context = TestContext::new(temporality);
+        let meter = test_context.meter();
+        let counter = meter
+            .u64_counter("my_counter")
+            .with_cardinality_limit(cardinality_limit)
+            .build();
+
+        // Act
+        // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
+        for v in 0..cardinality_limit {
+            counter.add(100, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // Empty attributes is specially treated and does not count towards the limit.
+        counter.add(3, &[]);
+        counter.add(3, &[]);
+
+        // All of the below will now go into overflow.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
+        assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
+
+        let data_point =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(data_point.value, 300);
+
+        // let empty_attrs_data_point = &sum.data_points[0];
+        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
+            .expect("Empty attributes point expected");
+        assert!(
+            empty_attrs_data_point.attributes.is_empty(),
+            "Non-empty attribute set"
+        );
+        assert_eq!(
+            empty_attrs_data_point.value, 6,
+            "Empty attributes value should be 3+3=6"
+        );
+
+        // Phase 2 - for delta temporality, after each collect, data points are cleared
+        // but for cumulative, they are not cleared.
+        test_context.reset_metrics();
+        // The following should be aggregated normally for Delta,
+        // and should go into overflow for Cumulative.
+        counter.add(100, &[KeyValue::new("A", "foo")]);
+        counter.add(100, &[KeyValue::new("A", "another")]);
+        counter.add(100, &[KeyValue::new("A", "yet_another")]);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        if temporality == Temporality::Delta {
+            assert_eq!(sum.data_points.len(), 3);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
+                .expect("point expected");
+            assert_eq!(data_point.value, 100);
+
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
+                    .expect("point expected");
+            assert_eq!(data_point.value, 100);
+        } else {
+            // For cumulative, overflow should still be there, and new points should not be added.
+            assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
+            let data_point =
+                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
             assert_eq!(data_point.value, 600);
 
             let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
@@ -2733,6 +2836,14 @@ mod tests {
                 .attributes
                 .iter()
                 .any(|kv| kv.key.as_str() == key && kv.value.as_str() == value)
+        })
+    }
+
+    fn find_overflow_sum_datapoint<T>(data_points: &[SumDataPoint<T>]) -> Option<&SumDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint.attributes.iter().any(|kv| {
+                kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
+            })
         })
     }
 
