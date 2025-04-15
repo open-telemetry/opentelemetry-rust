@@ -117,7 +117,7 @@ use opentelemetry::{
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{
-    CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+    CODE_FILE_PATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
 };
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -156,7 +156,7 @@ where
             {
                 if let Some(filepath) = record.file() {
                     log_record.add_attribute(
-                        Key::new(CODE_FILEPATH),
+                        Key::new(CODE_FILE_PATH),
                         AnyValue::from(filepath.to_string()),
                     );
                 }
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn logbridge_code_attributes() {
         use opentelemetry_semantic_conventions::attribute::{
-            CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+            CODE_FILE_PATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
         };
 
         let exporter = InMemoryLogExporter::default();
