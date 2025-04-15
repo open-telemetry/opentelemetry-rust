@@ -117,7 +117,7 @@ use opentelemetry::{
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{
-    CODE_FILE_PATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+    CODE_FILE_PATH, CODE_FUNCTION_NAME, CODE_LINE_NUMBER,
 };
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -167,7 +167,7 @@ where
 
                 if let Some(module) = record.module_path() {
                     log_record.add_attribute(
-                        Key::new(CODE_NAMESPACE),
+                        Key::new(CODE_FUNCTION_NAME),
                         AnyValue::from(module.to_string()),
                     );
                 }
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn logbridge_code_attributes() {
         use opentelemetry_semantic_conventions::attribute::{
-            CODE_FILE_PATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+            CODE_FILE_PATH, CODE_FUNCTION_NAME, CODE_LINE_NUMBER,
         };
 
         let exporter = InMemoryLogExporter::default();
@@ -1223,7 +1223,7 @@ mod tests {
         );
         assert_eq!(
             Some(AnyValue::String(StringValue::from("service"))),
-            get(CODE_NAMESPACE)
+            get(CODE_FUNCTION_NAME)
         );
         assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINE_NUMBER));
     }
