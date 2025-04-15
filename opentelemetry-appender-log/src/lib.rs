@@ -1219,7 +1219,7 @@ mod tests {
 
         assert_eq!(
             Some(AnyValue::String(StringValue::from("src/main.rs"))),
-            get(CODE_FILEPATH)
+            get(CODE_FILE_PATH)
         );
         assert_eq!(
             Some(AnyValue::String(StringValue::from("service"))),
