@@ -59,10 +59,6 @@ impl LogExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        self.shutdown_with_timeout(time::Duration::from_secs(5))
-    }
-
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
         self.resource = resource.into();
     }

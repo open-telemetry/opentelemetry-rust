@@ -464,10 +464,6 @@ mod tests {
     }
 
     impl LogExporter for ReentrantLogExporter {
-        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-            Ok(())
-        }
-
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
             let logger = self.logger.lock().unwrap();
             if let Some(logger) = logger.as_ref() {
