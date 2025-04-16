@@ -81,7 +81,6 @@ pub(crate) mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
-    use std::time;
 
     #[derive(Debug, Clone)]
     pub(crate) struct MockLogExporter {

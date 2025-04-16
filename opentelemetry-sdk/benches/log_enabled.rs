@@ -21,7 +21,6 @@ use opentelemetry_sdk::logs::{
 use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
-use std::time;
 
 #[derive(Debug)]
 struct NoopExporter;
