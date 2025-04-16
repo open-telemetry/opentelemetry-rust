@@ -38,15 +38,6 @@ http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
-[dev-dependencies]
-async-trait = { workspace = true }
-bytes = { workspace = true }
-futures-util = { workspace = true, features = ["io"] }
-http-body-util = { workspace = true }
-hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
-opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
-temp-env = { workspace = true }
-
 [lints]
 workspace = true
 

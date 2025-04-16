@@ -25,7 +25,7 @@ also modified to suppress telemetry before invoking exporters.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
-- *Breaking* The `shutdown_with_timeout` method is added to LogExporter trait. This is breaking change for custom `LogExporter` authors.
+- The `shutdown_with_timeout` method is added to LogExporter trait.
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
   `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
   be used instead, wherever applicable. [#2906](https://github.com/open-telemetry/opentelemetry-rust/pull/2906)

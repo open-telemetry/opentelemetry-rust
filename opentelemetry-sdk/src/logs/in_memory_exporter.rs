@@ -215,10 +215,6 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        self.shutdown_with_timeout(time::Duration::from_secs(5))
-    }
-
     fn set_resource(&mut self, resource: &Resource) {
         let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
         *res_guard = resource.clone();

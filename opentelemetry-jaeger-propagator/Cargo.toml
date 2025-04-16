@@ -25,9 +25,6 @@ opentelemetry = { version = "0.29", default-features = false, features = [
     "trace",
 ], path = "../opentelemetry" }
 
-[dev-dependencies]
-opentelemetry = { features = ["testing"], path = "../opentelemetry" }
-
 [features]
 default = ["internal-logs"]
 internal-logs = ["opentelemetry/internal-logs"]

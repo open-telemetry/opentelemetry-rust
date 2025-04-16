@@ -136,7 +136,9 @@ pub trait LogExporter: Send + Sync + Debug {
         batch: LogBatch<'_>,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
     /// Shuts down the exporter.
-    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult;
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
+        Ok(())
+    }
     /// Shuts down the exporter with a default timeout.
     fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(time::Duration::from_secs(5))

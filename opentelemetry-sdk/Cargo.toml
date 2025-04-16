@@ -31,14 +31,6 @@ http = { workspace = true, optional = true }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[dev-dependencies]
-criterion = { workspace = true, features = ["html_reports"] }
-rstest = { workspace = true }
-temp-env = { workspace = true }
-
-[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
-
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
