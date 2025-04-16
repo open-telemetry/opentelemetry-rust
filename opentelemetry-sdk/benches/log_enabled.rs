@@ -30,10 +30,6 @@ impl LogExporter for NoopExporter {
         Ok(())
     }
 
-    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-        Ok(())
-    }
-
     #[inline]
     fn event_enabled(
         &self,

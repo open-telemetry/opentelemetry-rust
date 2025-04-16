@@ -93,10 +93,6 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-            Ok(())
-        }
-
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
                 .lock()
