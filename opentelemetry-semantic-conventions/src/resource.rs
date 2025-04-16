@@ -27,6 +27,9 @@
 pub use crate::attribute::ANDROID_OS_API_LEVEL;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_INSTALLATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_ECS_CLUSTER_ARN;
 
 #[cfg(feature = "semconv_experimental")]
@@ -181,6 +184,33 @@ pub use crate::attribute::FAAS_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FAAS_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_CONTAINER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_LOCATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GCP_CLOUD_RUN_JOB_EXECUTION;

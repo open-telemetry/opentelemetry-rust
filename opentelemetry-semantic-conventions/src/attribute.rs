@@ -37,7 +37,36 @@ pub const ANDROID_OS_API_LEVEL: &str = "android.os.api_level";
 ///
 /// The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `android.app.state`, reason: uncategorized}")]
 pub const ANDROID_STATE: &str = "android.state";
+
+/// A unique identifier representing the installation of an application on a specific device
+///
+/// ## Notes
+///
+/// Its value SHOULD persist across launches of the same application installation, including through application upgrades.
+/// It SHOULD change if the application is uninstalled or if all applications of the vendor are uninstalled.
+/// Additionally, users might be able to reset this value (e.g. by clearing application data).
+/// If an app is installed multiple times on the same device (e.g. in different accounts on Android), each `app.installation.id` SHOULD have a different value.
+/// If multiple OpenTelemetry SDKs are used within the same application, they SHOULD use the same value for `app.installation.id`.
+/// Hardware IDs (e.g. serial number, IMEI, MAC address) MUST NOT be used as the `app.installation.id`.
+///
+/// For iOS, this value SHOULD be equal to the [vendor identifier](https://developer.apple.com/documentation/uikit/uidevice/identifierforvendor).
+///
+/// For Android, examples of `app.installation.id` implementations include:
+///
+/// - [Firebase Installation ID](https://firebase.google.com/docs/projects/manage-installations).
+/// - A globally unique UUID which is persisted across sessions in your application.
+/// - [App set ID](https://developer.android.com/identity/app-set-id).
+/// - [`Settings.getString(Settings.Secure.ANDROID_ID)`](https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID).
+///
+/// More information about Android identifier best practices can be found [here](https://developer.android.com/training/articles/user-data-ids).
+///
+/// # Examples
+///
+/// - `"2ab2916d-a51f-4ac8-80ee-45ac31a28092"`
+#[cfg(feature = "semconv_experimental")]
+pub const APP_INSTALLATION_ID: &str = "app.installation.id";
 
 /// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations) specification for more information.
 ///
@@ -1376,6 +1405,7 @@ pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.
 ///
 /// - `16`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `code.column.number`, reason: uncategorized}")]
 pub const CODE_COLUMN: &str = "code.column";
 
 /// The column number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`.
@@ -1406,6 +1436,7 @@ pub const CODE_FILE_PATH: &str = "code.file.path";
 ///
 /// - `"/usr/local/MyApplication/content_root/app/index.php"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `code.file.path`, reason: uncategorized}")]
 pub const CODE_FILEPATH: &str = "code.filepath";
 
 /// Deprecated, use `code.function.name` instead
@@ -1416,6 +1447,7 @@ pub const CODE_FILEPATH: &str = "code.filepath";
 ///
 /// - `"serveRequest"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `code.function.name`, reason: uncategorized}")]
 pub const CODE_FUNCTION: &str = "code.function";
 
 /// The method or function fully-qualified name without arguments. The value should fit the natural representation of the language runtime, which is also likely the same used within `code.stacktrace` attribute value.
@@ -1431,7 +1463,7 @@ pub const CODE_FUNCTION: &str = "code.function";
 /// - Java method: `com.example.MyHttpService.serveRequest`
 /// - Java anonymous class method: `com.mycompany.Main$1.myMethod`
 /// - Java lambda method: `com.mycompany.Main$$Lambda/0x0000748ae4149c00.myMethod`
-/// - PHP function: `GuzzleHttp\Client::transfer
+/// - PHP function: `GuzzleHttp\Client::transfer`
 /// - Go function: `github.com/my/repo/pkg.foo.func5`
 /// - Elixir: `OpenTelemetry.Ctx.new`
 /// - Erlang: `opentelemetry_ctx:new`
@@ -1464,6 +1496,7 @@ pub const CODE_LINE_NUMBER: &str = "code.line.number";
 ///
 /// - `42`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `code.line.number`, reason: uncategorized}")]
 pub const CODE_LINENO: &str = "code.lineno";
 
 /// Deprecated, namespace is now included into `code.function.name`
@@ -1474,6 +1507,9 @@ pub const CODE_LINENO: &str = "code.lineno";
 ///
 /// - `"com.example.MyHttpService"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Value should be included in `code.function.name` which is expected to be a fully-qualified name., reason: uncategorized}"
+)]
 pub const CODE_NAMESPACE: &str = "code.namespace";
 
 /// A stacktrace as a string in the natural representation for the language runtime. The representation is identical to [`exception.stacktrace`](/docs/exceptions/exceptions-spans.md#stacktrace-representation).
@@ -1531,6 +1567,7 @@ pub const CONTAINER_COMMAND_LINE: &str = "container.command_line";
 /// - `"user"`
 /// - `"kernel"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.mode`, reason: uncategorized}")]
 pub const CONTAINER_CPU_STATE: &str = "container.cpu.state";
 
 /// The name of the CSI ([Container Storage Interface](https://github.com/container-storage-interface/spec)) plugin used by the volume.
@@ -1637,6 +1674,7 @@ pub const CONTAINER_LABEL: &str = "container.label";
 ///
 /// - `"container.label.app=nginx"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `container.label`., reason: uncategorized}")]
 pub const CONTAINER_LABELS: &str = "container.labels";
 
 /// Container name used by container runtime.
@@ -1682,10 +1720,23 @@ pub const CPU_LOGICAL_NUMBER: &str = "cpu.logical_number";
 #[cfg(feature = "semconv_experimental")]
 pub const CPU_MODE: &str = "cpu.mode";
 
+/// Value of the garbage collector collection generation.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `0`
+/// - `1`
+/// - `2`
+#[cfg(feature = "semconv_experimental")]
+pub const CPYTHON_GC_GENERATION: &str = "cpython.gc.generation";
+
 /// Deprecated, use `cassandra.consistency.level` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cassandra.consistency.level`., reason: uncategorized}")]
 pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level";
 
 /// Deprecated, use `cassandra.coordinator.dc` instead.
@@ -1696,6 +1747,7 @@ pub const DB_CASSANDRA_CONSISTENCY_LEVEL: &str = "db.cassandra.consistency_level
 ///
 /// - `"us-west-2"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cassandra.coordinator.dc`., reason: uncategorized}")]
 pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 
 /// Deprecated, use `cassandra.coordinator.id` instead.
@@ -1706,12 +1758,14 @@ pub const DB_CASSANDRA_COORDINATOR_DC: &str = "db.cassandra.coordinator.dc";
 ///
 /// - `"be13faa2-8574-4d71-926d-27f16cf8a7af"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cassandra.coordinator.id`., reason: uncategorized}")]
 pub const DB_CASSANDRA_COORDINATOR_ID: &str = "db.cassandra.coordinator.id";
 
 /// Deprecated, use `cassandra.query.idempotent` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cassandra.query.idempotent`., reason: uncategorized}")]
 pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 
 /// Deprecated, use `cassandra.page.size` instead.
@@ -1722,6 +1776,7 @@ pub const DB_CASSANDRA_IDEMPOTENCE: &str = "db.cassandra.idempotence";
 ///
 /// - `5000`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cassandra.page.size`., reason: uncategorized}")]
 pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 
 /// Deprecated, use `cassandra.speculative_execution.count` instead.
@@ -1733,6 +1788,9 @@ pub const DB_CASSANDRA_PAGE_SIZE: &str = "db.cassandra.page_size";
 /// - `0`
 /// - `2`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `cassandra.speculative_execution.count`., reason: uncategorized}"
+)]
 pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
     "db.cassandra.speculative_execution_count";
 
@@ -1744,6 +1802,7 @@ pub const DB_CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str =
 ///
 /// - `"mytable"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.collection.name`., reason: uncategorized}")]
 pub const DB_CASSANDRA_TABLE: &str = "db.cassandra.table";
 
 /// The name of the connection pool; unique within the instrumented application. In case the connection pool implementation doesn't provide a name, instrumentation SHOULD use a combination of parameters that would make the name unique, for example, combining attributes `server.address`, `server.port`, and `db.namespace`, formatted as `server.address:server.port/db.namespace`. Instrumentations that generate connection pool name following different patterns SHOULD document it.
@@ -1774,6 +1833,7 @@ pub const DB_CLIENT_CONNECTION_STATE: &str = "db.client.connection.state";
 ///
 /// - `"myDataSource"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.pool.name`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_POOL_NAME: &str = "db.client.connections.pool.name";
 
 /// Deprecated, use `db.client.connection.state` instead.
@@ -1784,6 +1844,7 @@ pub const DB_CLIENT_CONNECTIONS_POOL_NAME: &str = "db.client.connections.pool.na
 ///
 /// - `"idle"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.state`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 
 /// The name of a collection (table, container) within the database.
@@ -1814,6 +1875,9 @@ pub const DB_COLLECTION_NAME: &str = "db.collection.name";
 ///
 /// - `"Server=(localdb)\\v11.0;Integrated Security=true;"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `server.address` and `server.port`., reason: uncategorized}"
+)]
 pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 
 /// Deprecated, use `azure.client.id` instead.
@@ -1824,12 +1888,14 @@ pub const DB_CONNECTION_STRING: &str = "db.connection_string";
 ///
 /// - `"3ba4827d-4422-483f-b59f-85b74211c11d"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `azure.client.id`., reason: uncategorized}")]
 pub const DB_COSMOSDB_CLIENT_ID: &str = "db.cosmosdb.client_id";
 
 /// Deprecated, use `azure.cosmosdb.connection.mode` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `azure.cosmosdb.connection.mode`., reason: uncategorized}")]
 pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 
 /// Deprecated, use `cosmosdb.consistency.level` instead.
@@ -1844,6 +1910,9 @@ pub const DB_COSMOSDB_CONNECTION_MODE: &str = "db.cosmosdb.connection_mode";
 /// - `"Strong"`
 /// - `"Session"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.consistency.level`., reason: uncategorized}"
+)]
 pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
 
 /// Deprecated, use `db.collection.name` instead.
@@ -1854,12 +1923,14 @@ pub const DB_COSMOSDB_CONSISTENCY_LEVEL: &str = "db.cosmosdb.consistency_level";
 ///
 /// - `"mytable"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.collection.name`., reason: uncategorized}")]
 pub const DB_COSMOSDB_CONTAINER: &str = "db.cosmosdb.container";
 
 /// Deprecated, no replacement at this time.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: No replacement at this time., reason: uncategorized}")]
 pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 
 /// Deprecated, use `azure.cosmosdb.operation.contacted_regions` instead.
@@ -1874,6 +1945,9 @@ pub const DB_COSMOSDB_OPERATION_TYPE: &str = "db.cosmosdb.operation_type";
 ///  "Australia Southeast",
 /// ]`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.operation.contacted_regions`., reason: uncategorized}"
+)]
 pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 
 /// Deprecated, use `azure.cosmosdb.operation.request_charge` instead.
@@ -1885,12 +1959,18 @@ pub const DB_COSMOSDB_REGIONS_CONTACTED: &str = "db.cosmosdb.regions_contacted";
 /// - `46.18`
 /// - `1.0`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.operation.request_charge`., reason: uncategorized}"
+)]
 pub const DB_COSMOSDB_REQUEST_CHARGE: &str = "db.cosmosdb.request_charge";
 
 /// Deprecated, use `azure.cosmosdb.request.body.size` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.request.body.size`., reason: uncategorized}"
+)]
 pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_content_length";
 
 /// Deprecated, use `db.response.status_code` instead.
@@ -1902,6 +1982,7 @@ pub const DB_COSMOSDB_REQUEST_CONTENT_LENGTH: &str = "db.cosmosdb.request_conten
 /// - `200`
 /// - `201`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.response.status_code`., reason: uncategorized}")]
 pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 
 /// Deprecated, use `azure.cosmosdb.response.sub_status_code` instead.
@@ -1913,6 +1994,9 @@ pub const DB_COSMOSDB_STATUS_CODE: &str = "db.cosmosdb.status_code";
 /// - `1000`
 /// - `1002`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.response.sub_status_code`., reason: uncategorized}"
+)]
 pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 
 /// Deprecated, use `db.namespace` instead.
@@ -1923,6 +2007,7 @@ pub const DB_COSMOSDB_SUB_STATUS_CODE: &str = "db.cosmosdb.sub_status_code";
 ///
 /// - `"e9106fc68e3044f0b1475b04bf4ffd5f"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.namespace`., reason: uncategorized}")]
 pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 
 /// Deprecated, use `elasticsearch.node.name` instead.
@@ -1933,6 +2018,7 @@ pub const DB_ELASTICSEARCH_CLUSTER_NAME: &str = "db.elasticsearch.cluster.name";
 ///
 /// - `"instance-0000000001"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `elasticsearch.node.name`., reason: uncategorized}")]
 pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 
 /// Deprecated, use `db.operation.parameter` instead.
@@ -1944,6 +2030,7 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 /// - `"db.elasticsearch.path_parts.index=test-index"`
 /// - `"db.elasticsearch.path_parts.doc_id=123"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.operation.parameter`., reason: uncategorized}")]
 pub const DB_ELASTICSEARCH_PATH_PARTS: &str = "db.elasticsearch.path_parts";
 
 /// Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.
@@ -1954,6 +2041,9 @@ pub const DB_ELASTICSEARCH_PATH_PARTS: &str = "db.elasticsearch.path_parts";
 ///
 /// - `"mysql-e26b99z.example.com"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead., reason: uncategorized}"
+)]
 pub const DB_INSTANCE_ID: &str = "db.instance.id";
 
 /// Removed, no replacement at this time.
@@ -1965,6 +2055,7 @@ pub const DB_INSTANCE_ID: &str = "db.instance.id";
 /// - `"org.postgresql.Driver"`
 /// - `"com.microsoft.sqlserver.jdbc.SQLServerDriver"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed as not used., reason: uncategorized}")]
 pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 
 /// Deprecated, use `db.collection.name` instead.
@@ -1975,6 +2066,7 @@ pub const DB_JDBC_DRIVER_CLASSNAME: &str = "db.jdbc.driver_classname";
 ///
 /// - `"mytable"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.collection.name`., reason: uncategorized}")]
 pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 
 /// Deprecated, SQL Server instance is now populated as a part of `db.namespace` attribute.
@@ -1985,6 +2077,7 @@ pub const DB_MONGODB_COLLECTION: &str = "db.mongodb.collection";
 ///
 /// - `"MSSQLSERVER"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Deprecated, no replacement at this time., reason: uncategorized}")]
 pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 
 /// Deprecated, use `db.namespace` instead.
@@ -1996,6 +2089,7 @@ pub const DB_MSSQL_INSTANCE_NAME: &str = "db.mssql.instance_name";
 /// - `"customers"`
 /// - `"main"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.namespace`., reason: uncategorized}")]
 pub const DB_NAME: &str = "db.name";
 
 /// The name of the database, fully qualified within the server address and port.
@@ -2023,6 +2117,7 @@ pub const DB_NAMESPACE: &str = "db.namespace";
 /// - `"HMSET"`
 /// - `"SELECT"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.operation.name`., reason: uncategorized}")]
 pub const DB_OPERATION: &str = "db.operation";
 
 /// The number of queries included in a batch operation.
@@ -2049,6 +2144,9 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// The operation name SHOULD NOT be extracted from `db.query.text`,
 /// when the database system supports cross-table queries in non-batch operations.
 ///
+/// If spaces can occur in the operation name, multiple consecutive spaces
+/// SHOULD be normalized to a single space.
+///
 /// For batch operations, if the individual operations are known to have the same operation name
 /// then that operation name SHOULD be used prepended by `BATCH `,
 /// otherwise `db.operation.name` SHOULD be `BATCH` or some other database
@@ -2068,6 +2166,7 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 ///
 /// If a parameter has no name and instead is referenced only by index, then `[key]` SHOULD be the 0-based index.
 /// If `db.query.text` is also captured, then `db.operation.parameter.[key]` SHOULD match up with the parameterized placeholders present in `db.query.text`.
+/// `db.operation.parameter.[key]` SHOULD NOT be captured on batch operations.
 ///
 /// # Examples
 ///
@@ -2085,6 +2184,7 @@ pub const DB_OPERATION_PARAMETER: &str = "db.operation.parameter";
 /// - `"someval"`
 /// - `"55"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.operation.parameter`., reason: uncategorized}")]
 pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
 
 /// Low cardinality representation of a database query text.
@@ -2127,6 +2227,7 @@ pub const DB_QUERY_TEXT: &str = "db.query.text";
 /// - `1`
 /// - `15`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.namespace`., reason: uncategorized}")]
 pub const DB_REDIS_DATABASE_INDEX: &str = "db.redis.database_index";
 
 /// Number of rows returned by the operation.
@@ -2157,7 +2258,7 @@ pub const DB_RESPONSE_RETURNED_ROWS: &str = "db.response.returned_rows";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 
-/// Deprecated, use `db.collection.name` instead.
+/// Deprecated, use `db.collection.name` instead, but only if not extracting the value from `db.query.text`.
 ///
 /// ## Notes
 ///
@@ -2165,6 +2266,9 @@ pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 ///
 /// - `"mytable"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `db.collection.name`, but only if not extracting the value from `db.query.text`., reason: uncategorized}"
+)]
 pub const DB_SQL_TABLE: &str = "db.sql.table";
 
 /// The database statement being executed.
@@ -2176,12 +2280,30 @@ pub const DB_SQL_TABLE: &str = "db.sql.table";
 /// - `"SELECT * FROM wuser_table"`
 /// - `"SET mykey \"WuValue\""`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.query.text`., reason: uncategorized}")]
 pub const DB_STATEMENT: &str = "db.statement";
+
+/// The name of a stored procedure within the database.
+///
+/// ## Notes
+///
+/// It is RECOMMENDED to capture the value as provided by the application
+/// without attempting to do any case normalization.
+///
+/// For batch operations, if the individual operations are known to have the same
+/// stored procedure name then that stored procedure name SHOULD be used.
+///
+/// # Examples
+///
+/// - `"GetCustomer"`
+#[cfg(feature = "semconv_experimental")]
+pub const DB_STORED_PROCEDURE_NAME: &str = "db.stored_procedure.name";
 
 /// Deprecated, use `db.system.name` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.system.name`., reason: uncategorized}")]
 pub const DB_SYSTEM: &str = "db.system";
 
 /// The database management system (DBMS) product as identified by the client instrumentation.
@@ -2201,6 +2323,7 @@ pub const DB_SYSTEM_NAME: &str = "db.system.name";
 /// - `"readonly_user"`
 /// - `"reporting_user"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: No replacement at this time., reason: uncategorized}")]
 pub const DB_USER: &str = "db.user";
 
 /// 'Deprecated, use `deployment.environment.name` instead.'
@@ -2212,6 +2335,9 @@ pub const DB_USER: &str = "db.user";
 /// - `"staging"`
 /// - `"production"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Deprecated, use `deployment.environment.name` instead., reason: uncategorized}"
+)]
 pub const DEPLOYMENT_ENVIRONMENT: &str = "deployment.environment";
 
 /// Name of the [deployment environment](https://wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
@@ -2289,11 +2415,27 @@ pub const DESTINATION_PORT: &str = "destination.port";
 ///
 /// ## Notes
 ///
-/// The device identifier MUST only be defined using the values outlined below. This value is not an advertising identifier and MUST NOT be used as such. On iOS (Swift or Objective-C), this value MUST be equal to the [vendor identifier](https://developer.apple.com/documentation/uikit/uidevice/1620059-identifierforvendor). On Android (Java or Kotlin), this value MUST be equal to the Firebase Installation ID or a globally unique UUID which is persisted across sessions in your application. More information can be found [here](https://developer.android.com/training/articles/user-data-ids) on best practices and exact implementation details. Caution should be taken when storing personal data or anything which can identify a user. GDPR and data protection laws may apply, ensure you do your own due diligence.
+/// Its value SHOULD be identical for all apps on a device and it SHOULD NOT change if an app is uninstalled and re-installed.
+/// However, it might be resettable by the user for all apps on a device.
+/// Hardware IDs (e.g. vendor-specific serial number, IMEI or MAC address) MAY be used as values.
+///
+/// More information about Android identifier best practices can be found [here](https://developer.android.com/training/articles/user-data-ids).
+///
+/// \] \[!WARNING\]
+/// \]
+/// \] This attribute may contain sensitive (PII) information. Caution should be taken when storing personal data or anything which can identify a user. GDPR and data protection laws may apply,
+/// \] ensure you do your own due diligence.
+/// \]
+/// \] Due to these reasons, this identifier is not recommended for consumer applications and will likely result in rejection from both Google Play and App Store.
+/// \] However, it may be appropriate for specific enterprise scenarios, such as kiosk devices or enterprise-managed devices, with appropriate compliance clearance.
+/// \] Any instrumentation providing this identifier MUST implement it as an opt-in feature.
+/// \]
+/// \] See [`app.installation.id`](/docs/attributes-registry/app.md#app-installation-id) for a more privacy-preserving alternative.
 ///
 /// # Examples
 ///
-/// - `"2ab2916d-a51f-4ac8-80ee-45ac31a28092"`
+/// - `"123456789012345"`
+/// - `"01:23:45:67:89:AB"`
 #[cfg(feature = "semconv_experimental")]
 pub const DEVICE_ID: &str = "device.id";
 
@@ -2418,6 +2560,7 @@ pub const ENDUSER_PSEUDO_ID: &str = "enduser.pseudo.id";
 ///
 /// - `"admin"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `user.roles` attribute., reason: uncategorized}")]
 pub const ENDUSER_ROLE: &str = "enduser.role";
 
 /// Deprecated, no replacement at this time.
@@ -2428,7 +2571,25 @@ pub const ENDUSER_ROLE: &str = "enduser.role";
 ///
 /// - `"read:message, write:files"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed., reason: uncategorized}")]
 pub const ENDUSER_SCOPE: &str = "enduser.scope";
+
+/// A message providing more detail about an error in human-readable form.
+///
+/// ## Notes
+///
+/// `error.message` should provide additional context and detail about an error.
+/// It is NOT RECOMMENDED to duplicate the value of `error.type` in `error.message`.
+/// It is also NOT RECOMMENDED to duplicate the value of `exception.message` in `error.message`.
+///
+/// `error.message` is NOT RECOMMENDED for metrics or spans due to its unbounded cardinality and overlap with span status.
+///
+/// # Examples
+///
+/// - `"Unexpected input type: string"`
+/// - `"The user has exceeded their storage quota"`
+#[cfg(feature = "semconv_experimental")]
+pub const ERROR_MESSAGE: &str = "error.message";
 
 /// Describes a class of error the operation ended with.
 ///
@@ -2471,11 +2632,17 @@ pub const ERROR_TYPE: &str = "error.type";
 /// - `"browser.mouse.click"`
 /// - `"device.app.lifecycle"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by EventName top-level field on the LogRecord, reason: uncategorized}"
+)]
 pub const EVENT_NAME: &str = "event.name";
 
 /// Indicates that the exception is escaping the scope of the span.
 ///
 /// ## Notes
+#[deprecated(
+    note = "{note: It's no longer recommended to record exceptions that are handled and do not escape the scope of a span., reason: uncategorized}"
+)]
 pub const EXCEPTION_ESCAPED: &str = "exception.escaped";
 
 /// The exception message.
@@ -2712,7 +2879,7 @@ pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_EVALUATION_ERROR_MESSAGE: &str = "feature_flag.evaluation.error.message";
 
-/// The reason code which shows how a feature flag value was determined.
+/// Deprecated, use `feature_flag.result.reason` instead.
 ///
 /// ## Notes
 ///
@@ -2723,6 +2890,7 @@ pub const FEATURE_FLAG_EVALUATION_ERROR_MESSAGE: &str = "feature_flag.evaluation
 /// - `"error"`
 /// - `"default"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `feature_flag.result.reason`., reason: uncategorized}")]
 pub const FEATURE_FLAG_EVALUATION_REASON: &str = "feature_flag.evaluation.reason";
 
 /// The lookup key of the feature flag.
@@ -2745,17 +2913,18 @@ pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
 
-/// The identifier of the [flag set](https://openfeature.dev/specification/glossary/#flag-set) to which the feature flag belongs.
+/// The reason code which shows how a feature flag value was determined.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
-/// - `"proj-1"`
-/// - `"ab98sgs"`
-/// - `"service1/dev"`
+/// - `"static"`
+/// - `"targeting_match"`
+/// - `"error"`
+/// - `"default"`
 #[cfg(feature = "semconv_experimental")]
-pub const FEATURE_FLAG_SET_ID: &str = "feature_flag.set.id";
+pub const FEATURE_FLAG_RESULT_REASON: &str = "feature_flag.result.reason";
 
 /// A semantic identifier for an evaluated flag value.
 ///
@@ -2772,6 +2941,31 @@ pub const FEATURE_FLAG_SET_ID: &str = "feature_flag.set.id";
 /// - `"true"`
 /// - `"on"`
 #[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_RESULT_VARIANT: &str = "feature_flag.result.variant";
+
+/// The identifier of the [flag set](https://openfeature.dev/specification/glossary/#flag-set) to which the feature flag belongs.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"proj-1"`
+/// - `"ab98sgs"`
+/// - `"service1/dev"`
+#[cfg(feature = "semconv_experimental")]
+pub const FEATURE_FLAG_SET_ID: &str = "feature_flag.set.id";
+
+/// Deprecated, use `feature_flag.result.variant` instead.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"red"`
+/// - `"true"`
+/// - `"on"`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `feature_flag.result.variant`., reason: uncategorized}")]
 pub const FEATURE_FLAG_VARIANT: &str = "feature_flag.variant";
 
 /// The version of the ruleset used during the evaluation. This may be any stable value which uniquely identifies the ruleset.
@@ -2982,6 +3176,88 @@ pub const FILE_SIZE: &str = "file.size";
 #[cfg(feature = "semconv_experimental")]
 pub const FILE_SYMBOLIC_LINK_TARGET_PATH: &str = "file.symbolic_link.target_path";
 
+/// The container within GCP where the AppHub application is defined.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"projects/my-container-project"`
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_APPLICATION_CONTAINER: &str = "gcp.apphub.application.container";
+
+/// The name of the application as configured in AppHub.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"my-application"`
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_APPLICATION_ID: &str = "gcp.apphub.application.id";
+
+/// The GCP zone or region where the application is defined.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"us-central1"`
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_APPLICATION_LOCATION: &str = "gcp.apphub.application.location";
+
+/// Criticality of a service indicates its importance to the business.
+///
+/// ## Notes
+///
+/// [See AppHub type enum](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_SERVICE_CRITICALITY_TYPE: &str = "gcp.apphub.service.criticality_type";
+
+/// Environment of a service is the stage of a software lifecycle.
+///
+/// ## Notes
+///
+/// [See AppHub environment type](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_SERVICE_ENVIRONMENT_TYPE: &str = "gcp.apphub.service.environment_type";
+
+/// The name of the service as configured in AppHub.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"my-service"`
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_SERVICE_ID: &str = "gcp.apphub.service.id";
+
+/// Criticality of a workload indicates its importance to the business.
+///
+/// ## Notes
+///
+/// [See AppHub type enum](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE: &str = "gcp.apphub.workload.criticality_type";
+
+/// Environment of a workload is the stage of a software lifecycle.
+///
+/// ## Notes
+///
+/// [See AppHub environment type](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_WORKLOAD_ENVIRONMENT_TYPE: &str = "gcp.apphub.workload.environment_type";
+
+/// The name of the workload as configured in AppHub.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"my-workload"`
+#[cfg(feature = "semconv_experimental")]
+pub const GCP_APPHUB_WORKLOAD_ID: &str = "gcp.apphub.workload.id";
+
 /// Identifies the Google Cloud service for which the official client library is intended.
 ///
 /// ## Notes
@@ -3082,12 +3358,14 @@ pub const GEN_AI_AGENT_NAME: &str = "gen_ai.agent.name";
 ///
 /// - `"[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: uncategorized}")]
 pub const GEN_AI_COMPLETION: &str = "gen_ai.completion";
 
 /// Deprecated, use `gen_ai.output.type`.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `gen_ai.output.type`., reason: uncategorized}")]
 pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.response_format";
 
 /// Deprecated, use `gen_ai.request.seed`.
@@ -3098,6 +3376,7 @@ pub const GEN_AI_OPENAI_REQUEST_RESPONSE_FORMAT: &str = "gen_ai.openai.request.r
 ///
 /// - `100`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `gen_ai.request.seed` attribute., reason: uncategorized}")]
 pub const GEN_AI_OPENAI_REQUEST_SEED: &str = "gen_ai.openai.request.seed";
 
 /// The service tier requested. May be a specific tier, default, or auto.
@@ -3159,6 +3438,7 @@ pub const GEN_AI_OUTPUT_TYPE: &str = "gen_ai.output.type";
 ///
 /// - `"[{'role': 'user', 'content': 'What is the capital of France?'}]"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: uncategorized}")]
 pub const GEN_AI_PROMPT: &str = "gen_ai.prompt";
 
 /// The target number of candidate completions to return.
@@ -3397,6 +3677,9 @@ pub const GEN_AI_TOOL_TYPE: &str = "gen_ai.tool.type";
 ///
 /// - `42`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `gen_ai.usage.output_tokens` attribute., reason: uncategorized}"
+)]
 pub const GEN_AI_USAGE_COMPLETION_TOKENS: &str = "gen_ai.usage.completion_tokens";
 
 /// The number of tokens used in the GenAI input (prompt).
@@ -3427,6 +3710,9 @@ pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
 ///
 /// - `42`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `gen_ai.usage.input_tokens` attribute., reason: uncategorized}"
+)]
 pub const GEN_AI_USAGE_PROMPT_TOKENS: &str = "gen_ai.usage.prompt_tokens";
 
 /// Two-letter code representing continent’s name.
@@ -3741,6 +4027,7 @@ pub const HOST_TYPE: &str = "host.type";
 ///
 /// - `"83.164.160.102"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `client.address`., reason: uncategorized}")]
 pub const HTTP_CLIENT_IP: &str = "http.client_ip";
 
 /// State of the HTTP connection in the HTTP connection pool.
@@ -3758,6 +4045,7 @@ pub const HTTP_CONNECTION_STATE: &str = "http.connection.state";
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.protocol.name`., reason: uncategorized}")]
 pub const HTTP_FLAVOR: &str = "http.flavor";
 
 /// Deprecated, use one of `server.address`, `client.address` or `http.request.header.host` instead, depending on the usage.
@@ -3768,6 +4056,9 @@ pub const HTTP_FLAVOR: &str = "http.flavor";
 ///
 /// - `"www.example.org"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by one of `server.address`, `client.address` or `http.request.header.host`, depending on the usage., reason: uncategorized}"
+)]
 pub const HTTP_HOST: &str = "http.host";
 
 /// Deprecated, use `http.request.method` instead.
@@ -3780,6 +4071,7 @@ pub const HTTP_HOST: &str = "http.host";
 /// - `"POST"`
 /// - `"HEAD"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `http.request.method`., reason: uncategorized}")]
 pub const HTTP_METHOD: &str = "http.method";
 
 /// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
@@ -3872,6 +4164,7 @@ pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `http.request.header.<key>`., reason: uncategorized}")]
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.request.body.size` instead.
@@ -3882,6 +4175,7 @@ pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 ///
 /// - `5493`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `http.request.body.size`., reason: uncategorized}")]
 pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.request_content_length_uncompressed";
 
@@ -3936,6 +4230,7 @@ pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `http.response.header.<key>`., reason: uncategorized}")]
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
@@ -3946,6 +4241,7 @@ pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 ///
 /// - `5493`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replace by `http.response.body.size`., reason: uncategorized}")]
 pub const HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.response_content_length_uncompressed";
 
@@ -3971,6 +4267,7 @@ pub const HTTP_ROUTE: &str = "http.route";
 /// - `"http"`
 /// - `"https"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `url.scheme` instead., reason: uncategorized}")]
 pub const HTTP_SCHEME: &str = "http.scheme";
 
 /// Deprecated, use `server.address` instead.
@@ -3981,6 +4278,7 @@ pub const HTTP_SCHEME: &str = "http.scheme";
 ///
 /// - `"example.com"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `server.address`., reason: uncategorized}")]
 pub const HTTP_SERVER_NAME: &str = "http.server_name";
 
 /// Deprecated, use `http.response.status_code` instead.
@@ -3991,6 +4289,7 @@ pub const HTTP_SERVER_NAME: &str = "http.server_name";
 ///
 /// - `200`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `http.response.status_code`., reason: uncategorized}")]
 pub const HTTP_STATUS_CODE: &str = "http.status_code";
 
 /// Deprecated, use `url.path` and `url.query` instead.
@@ -4001,6 +4300,7 @@ pub const HTTP_STATUS_CODE: &str = "http.status_code";
 ///
 /// - `"/search?q=OpenTelemetry#SemConv"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Split to `url.path` and `url.query., reason: uncategorized}")]
 pub const HTTP_TARGET: &str = "http.target";
 
 /// Deprecated, use `url.full` instead.
@@ -4011,6 +4311,7 @@ pub const HTTP_TARGET: &str = "http.target";
 ///
 /// - `"https://www.foo.bar/search?q=OpenTelemetry#SemConv"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `url.full`., reason: uncategorized}")]
 pub const HTTP_URL: &str = "http.url";
 
 /// Deprecated, use `user_agent.original` instead.
@@ -4022,6 +4323,7 @@ pub const HTTP_URL: &str = "http.url";
 /// - `"CERN-LineMode/2.15 libwww/2.17b3"`
 /// - `"Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `user_agent.original`., reason: uncategorized}")]
 pub const HTTP_USER_AGENT: &str = "http.user_agent";
 
 /// An identifier for the hardware component, unique within the monitored host
@@ -4082,6 +4384,7 @@ pub const IOS_APP_STATE: &str = "ios.app.state";
 ///
 /// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate), and from which the `OS terminology` column values are derived
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `ios.app.state`, reason: uncategorized}")]
 pub const IOS_STATE: &str = "ios.state";
 
 /// Name of the buffer pool.
@@ -4406,6 +4709,7 @@ pub const K8S_POD_LABEL: &str = "k8s.pod.label";
 ///
 /// - `"k8s.pod.label.app=my-app"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `k8s.pod.label`., reason: uncategorized}")]
 pub const K8S_POD_LABELS: &str = "k8s.pod.labels";
 
 /// The name of the Pod.
@@ -4616,24 +4920,28 @@ pub const LOG_RECORD_UID: &str = "log.record.uid";
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `rpc.message.compressed_size`., reason: uncategorized}")]
 pub const MESSAGE_COMPRESSED_SIZE: &str = "message.compressed_size";
 
 /// Deprecated, use `rpc.message.id` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `rpc.message.id`., reason: uncategorized}")]
 pub const MESSAGE_ID: &str = "message.id";
 
 /// Deprecated, use `rpc.message.type` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `rpc.message.type`., reason: uncategorized}")]
 pub const MESSAGE_TYPE: &str = "message.type";
 
 /// Deprecated, use `rpc.message.uncompressed_size` instead.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `rpc.message.uncompressed_size`., reason: uncategorized}")]
 pub const MESSAGE_UNCOMPRESSED_SIZE: &str = "message.uncompressed_size";
 
 /// The number of messages sent, received, or processed in the scope of the batching operation.
@@ -4738,6 +5046,7 @@ pub const MESSAGING_DESTINATION_TEMPORARY: &str = "messaging.destination.tempora
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: No replacement at this time., reason: uncategorized}")]
 pub const MESSAGING_DESTINATION_PUBLISH_ANONYMOUS: &str = "messaging.destination_publish.anonymous";
 
 /// Deprecated, no replacement at this time.
@@ -4749,6 +5058,7 @@ pub const MESSAGING_DESTINATION_PUBLISH_ANONYMOUS: &str = "messaging.destination
 /// - `"MyQueue"`
 /// - `"MyTopic"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: No replacement at this time., reason: uncategorized}")]
 pub const MESSAGING_DESTINATION_PUBLISH_NAME: &str = "messaging.destination_publish.name";
 
 /// Deprecated, use `messaging.consumer.group.name` instead.
@@ -4759,6 +5069,7 @@ pub const MESSAGING_DESTINATION_PUBLISH_NAME: &str = "messaging.destination_publ
 ///
 /// - `"$Default"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `messaging.consumer.group.name`., reason: uncategorized}")]
 pub const MESSAGING_EVENTHUBS_CONSUMER_GROUP: &str = "messaging.eventhubs.consumer.group";
 
 /// The UTC epoch seconds at which the message has been accepted and stored in the entity.
@@ -4823,6 +5134,7 @@ pub const MESSAGING_GCP_PUBSUB_MESSAGE_ORDERING_KEY: &str =
 ///
 /// - `"my-group"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `messaging.consumer.group.name`., reason: uncategorized}")]
 pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group";
 
 /// Deprecated, use `messaging.destination.partition.id` instead.
@@ -4833,6 +5145,9 @@ pub const MESSAGING_KAFKA_CONSUMER_GROUP: &str = "messaging.kafka.consumer.group
 ///
 /// - `2`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.destination.partition.id`., reason: uncategorized}"
+)]
 pub const MESSAGING_KAFKA_DESTINATION_PARTITION: &str = "messaging.kafka.destination.partition";
 
 /// Message keys in Kafka are used for grouping alike messages to ensure they're processed on the same partition. They differ from `messaging.message.id` in that they're not unique. If the key is `null`, the attribute MUST NOT be set.
@@ -4855,6 +5170,7 @@ pub const MESSAGING_KAFKA_MESSAGE_KEY: &str = "messaging.kafka.message.key";
 ///
 /// - `42`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `messaging.kafka.offset`., reason: uncategorized}")]
 pub const MESSAGING_KAFKA_MESSAGE_OFFSET: &str = "messaging.kafka.message.offset";
 
 /// A boolean that is true if the message is a tombstone.
@@ -4929,6 +5245,7 @@ pub const MESSAGING_MESSAGE_ID: &str = "messaging.message.id";
 /// - `"create"`
 /// - `"process"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `messaging.operation.type`., reason: uncategorized}")]
 pub const MESSAGING_OPERATION: &str = "messaging.operation";
 
 /// The system-specific name of the messaging operation.
@@ -4980,6 +5297,9 @@ pub const MESSAGING_RABBITMQ_MESSAGE_DELIVERY_TAG: &str = "messaging.rabbitmq.me
 ///
 /// - `"myConsumerGroup"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.consumer.group.name` on the consumer spans. No replacement for producer spans., reason: uncategorized}"
+)]
 pub const MESSAGING_ROCKETMQ_CLIENT_GROUP: &str = "messaging.rocketmq.client_group";
 
 /// Model of message consumption. This only applies to consumer spans.
@@ -5067,6 +5387,9 @@ pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 ///
 /// - `"subscription-a"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.destination.subscription.name`., reason: uncategorized}"
+)]
 pub const MESSAGING_SERVICEBUS_DESTINATION_SUBSCRIPTION_NAME: &str =
     "messaging.servicebus.destination.subscription_name";
 
@@ -5114,6 +5437,7 @@ pub const MESSAGING_SYSTEM: &str = "messaging.system";
 ///
 /// - `"192.168.0.1"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.local.address`., reason: uncategorized}")]
 pub const NET_HOST_IP: &str = "net.host.ip";
 
 /// Deprecated, use `server.address`.
@@ -5124,6 +5448,7 @@ pub const NET_HOST_IP: &str = "net.host.ip";
 ///
 /// - `"example.com"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `server.address`., reason: uncategorized}")]
 pub const NET_HOST_NAME: &str = "net.host.name";
 
 /// Deprecated, use `server.port`.
@@ -5134,6 +5459,7 @@ pub const NET_HOST_NAME: &str = "net.host.name";
 ///
 /// - `8080`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `server.port`., reason: uncategorized}")]
 pub const NET_HOST_PORT: &str = "net.host.port";
 
 /// Deprecated, use `network.peer.address`.
@@ -5144,6 +5470,7 @@ pub const NET_HOST_PORT: &str = "net.host.port";
 ///
 /// - `"127.0.0.1"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.peer.address`., reason: uncategorized}")]
 pub const NET_PEER_IP: &str = "net.peer.ip";
 
 /// Deprecated, use `server.address` on client spans and `client.address` on server spans.
@@ -5154,6 +5481,9 @@ pub const NET_PEER_IP: &str = "net.peer.ip";
 ///
 /// - `"example.com"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `server.address` on client spans and `client.address` on server spans., reason: uncategorized}"
+)]
 pub const NET_PEER_NAME: &str = "net.peer.name";
 
 /// Deprecated, use `server.port` on client spans and `client.port` on server spans.
@@ -5164,6 +5494,9 @@ pub const NET_PEER_NAME: &str = "net.peer.name";
 ///
 /// - `8080`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `server.port` on client spans and `client.port` on server spans., reason: uncategorized}"
+)]
 pub const NET_PEER_PORT: &str = "net.peer.port";
 
 /// Deprecated, use `network.protocol.name`.
@@ -5176,6 +5509,7 @@ pub const NET_PEER_PORT: &str = "net.peer.port";
 /// - `"http"`
 /// - `"mqtt"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.protocol.name`., reason: uncategorized}")]
 pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 
 /// Deprecated, use `network.protocol.version`.
@@ -5186,12 +5520,16 @@ pub const NET_PROTOCOL_NAME: &str = "net.protocol.name";
 ///
 /// - `"3.1.1"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.protocol.version`., reason: uncategorized}")]
 pub const NET_PROTOCOL_VERSION: &str = "net.protocol.version";
 
 /// Deprecated, use `network.transport` and `network.type`.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Split to `network.transport` and `network.type`., reason: uncategorized}"
+)]
 pub const NET_SOCK_FAMILY: &str = "net.sock.family";
 
 /// Deprecated, use `network.local.address`.
@@ -5202,6 +5540,7 @@ pub const NET_SOCK_FAMILY: &str = "net.sock.family";
 ///
 /// - `"/var/my.sock"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.local.address`., reason: uncategorized}")]
 pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 
 /// Deprecated, use `network.local.port`.
@@ -5212,6 +5551,7 @@ pub const NET_SOCK_HOST_ADDR: &str = "net.sock.host.addr";
 ///
 /// - `8080`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.local.port`., reason: uncategorized}")]
 pub const NET_SOCK_HOST_PORT: &str = "net.sock.host.port";
 
 /// Deprecated, use `network.peer.address`.
@@ -5222,6 +5562,7 @@ pub const NET_SOCK_HOST_PORT: &str = "net.sock.host.port";
 ///
 /// - `"192.168.0.1"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.peer.address`., reason: uncategorized}")]
 pub const NET_SOCK_PEER_ADDR: &str = "net.sock.peer.addr";
 
 /// Deprecated, no replacement at this time.
@@ -5232,6 +5573,7 @@ pub const NET_SOCK_PEER_ADDR: &str = "net.sock.peer.addr";
 ///
 /// - `"/var/my.sock"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed., reason: uncategorized}")]
 pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 
 /// Deprecated, use `network.peer.port`.
@@ -5242,12 +5584,14 @@ pub const NET_SOCK_PEER_NAME: &str = "net.sock.peer.name";
 ///
 /// - `65531`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.peer.port`., reason: uncategorized}")]
 pub const NET_SOCK_PEER_PORT: &str = "net.sock.peer.port";
 
 /// Deprecated, use `network.transport`.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `network.transport`., reason: uncategorized}")]
 pub const NET_TRANSPORT: &str = "net.transport";
 
 /// The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.
@@ -5560,6 +5904,7 @@ pub const OTEL_COMPONENT_TYPE: &str = "otel.component.type";
 ///
 /// - `"io.opentelemetry.contrib.mongodb"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Use the `otel.scope.name` attribute., reason: uncategorized}")]
 pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
 
 /// Deprecated. Use the `otel.scope.version` attribute.
@@ -5570,6 +5915,7 @@ pub const OTEL_LIBRARY_NAME: &str = "otel.library.name";
 ///
 /// - `"1.0.0"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Use the `otel.scope.version` attribute., reason: uncategorized}")]
 pub const OTEL_LIBRARY_VERSION: &str = "otel.library.version";
 
 /// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
@@ -5618,6 +5964,7 @@ pub const OTEL_STATUS_DESCRIPTION: &str = "otel.status_description";
 ///
 /// - `"idle"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.state`., reason: uncategorized}")]
 pub const STATE: &str = "state";
 
 /// The [`service.name`](/docs/resource/README.md#service) of the remote service. SHOULD be equal to the actual `service.name` resource attribute of the remote service if any.
@@ -5638,6 +5985,7 @@ pub const PEER_SERVICE: &str = "peer.service";
 ///
 /// - `"myDataSource"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.pool.name`., reason: uncategorized}")]
 pub const POOL_NAME: &str = "pool.name";
 
 /// Length of the process.command_args array
@@ -5695,6 +6043,7 @@ pub const PROCESS_CONTEXT_SWITCH_TYPE: &str = "process.context_switch_type";
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.mode`, reason: uncategorized}")]
 pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 
 /// The date and time the process was created, in ISO 8601 format.
@@ -5745,6 +6094,9 @@ pub const PROCESS_EXECUTABLE_BUILD_ID_HTLHASH: &str = "process.executable.build_
 ///
 /// - `"600DCAFE4A110000F2BF38C493F5FB92"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `process.executable.build_id.htlhash`, reason: uncategorized}"
+)]
 pub const PROCESS_EXECUTABLE_BUILD_ID_PROFILING: &str = "process.executable.build_id.profiling";
 
 /// The name of the process executable. On Linux based systems, this SHOULD be set to the base name of the target of `/proc/[pid]/exe`. On Windows, this SHOULD be set to the base name of `GetProcessImageFileNameW`.
@@ -6422,6 +6774,7 @@ pub const SYSTEM_CPU_LOGICAL_NUMBER: &str = "system.cpu.logical_number";
 /// - `"idle"`
 /// - `"interrupt"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.mode`, reason: uncategorized}")]
 pub const SYSTEM_CPU_STATE: &str = "system.cpu.state";
 
 /// The device identifier
@@ -6493,6 +6846,9 @@ pub const SYSTEM_MEMORY_STATE: &str = "system.memory.state";
 ///
 /// - `"close_wait"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Removed, report network connection state with `network.connection.state` attribute, reason: uncategorized}"
+)]
 pub const SYSTEM_NETWORK_STATE: &str = "system.network.state";
 
 /// The paging access direction
@@ -6543,6 +6899,7 @@ pub const SYSTEM_PROCESS_STATUS: &str = "system.process.status";
 ///
 /// - `"running"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `system.process.status`., reason: uncategorized}")]
 pub const SYSTEM_PROCESSES_STATUS: &str = "system.processes.status";
 
 /// The name of the auto instrumentation agent or distribution, if used.
@@ -6780,6 +7137,7 @@ pub const TLS_CLIENT_NOT_BEFORE: &str = "tls.client.not_before";
 ///
 /// - `"opentelemetry.io"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `server.address`., reason: uncategorized}")]
 pub const TLS_CLIENT_SERVER_NAME: &str = "tls.client.server_name";
 
 /// Distinguished name of subject of the x.509 certificate presented by the client.
@@ -7353,6 +7711,31 @@ pub const VCS_CHANGE_TITLE: &str = "vcs.change.title";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_LINE_CHANGE_TYPE: &str = "vcs.line_change.type";
 
+/// The group owner within the version control system.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"my-org"`
+/// - `"myteam"`
+/// - `"business-unit"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_OWNER_NAME: &str = "vcs.owner.name";
+
+/// The name of the version control system provider.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"github"`
+/// - `"gitlab"`
+/// - `"gittea"`
+/// - `"bitbucket"`
+#[cfg(feature = "semconv_experimental")]
+pub const VCS_PROVIDER_NAME: &str = "vcs.provider.name";
+
 /// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
 ///
 /// ## Notes
@@ -7482,6 +7865,7 @@ pub const VCS_REF_TYPE: &str = "vcs.ref.type";
 ///
 /// - `"123"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Deprecated, use `vcs.change.id` instead., reason: uncategorized}")]
 pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
 
 /// Deprecated, use `vcs.change.title` instead.
@@ -7494,6 +7878,7 @@ pub const VCS_REPOSITORY_CHANGE_ID: &str = "vcs.repository.change.id";
 /// - `"feat: add my new feature"`
 /// - `"[chore] update dependency"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Deprecated, use `vcs.change.title` instead., reason: uncategorized}")]
 pub const VCS_REPOSITORY_CHANGE_TITLE: &str = "vcs.repository.change.title";
 
 /// The human readable name of the repository. It SHOULD NOT include any additional identifier like Group/SubGroup in GitLab or organization in GitHub.
@@ -7520,6 +7905,7 @@ pub const VCS_REPOSITORY_NAME: &str = "vcs.repository.name";
 /// - `"my-feature-branch"`
 /// - `"tag-1-test"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Deprecated, use `vcs.ref.head.name` instead., reason: uncategorized}")]
 pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
 
 /// Deprecated, use `vcs.ref.head.revision` instead.
@@ -7533,6 +7919,9 @@ pub const VCS_REPOSITORY_REF_NAME: &str = "vcs.repository.ref.name";
 /// - `"123"`
 /// - `"HEAD"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Deprecated, use `vcs.ref.head.revision` instead., reason: uncategorized}"
+)]
 pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 
 /// Deprecated, use `vcs.ref.head.type` instead.
@@ -7544,6 +7933,7 @@ pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 /// - `"branch"`
 /// - `"tag"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Deprecated, use `vcs.ref.head.type` instead., reason: uncategorized}")]
 pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 
 /// The [canonical URL](https://support.google.com/webmasters/answer/10347851?hl=en#:~:text=A%20canonical%20URL%20is%20the,Google%20chooses%20one%20as%20canonical.) of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.

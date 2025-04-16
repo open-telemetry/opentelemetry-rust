@@ -204,6 +204,9 @@ pub use crate::attribute::DB_RESPONSE_RETURNED_ROWS;
 pub use crate::attribute::DB_RESPONSE_STATUS_CODE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DB_STORED_PROCEDURE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_SYSTEM_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -211,6 +214,7 @@ pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
 
 pub use crate::attribute::ERROR_TYPE;
 
+#[allow(deprecated)]
 pub use crate::attribute::EXCEPTION_ESCAPED;
 
 pub use crate::attribute::EXCEPTION_MESSAGE;
@@ -259,19 +263,19 @@ pub use crate::attribute::FEATURE_FLAG_CONTEXT_ID;
 pub use crate::attribute::FEATURE_FLAG_EVALUATION_ERROR_MESSAGE;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::FEATURE_FLAG_EVALUATION_REASON;
-
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_KEY;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_PROVIDER_NAME;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::FEATURE_FLAG_SET_ID;
+pub use crate::attribute::FEATURE_FLAG_RESULT_REASON;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::FEATURE_FLAG_VARIANT;
+pub use crate::attribute::FEATURE_FLAG_RESULT_VARIANT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_SET_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_VERSION;
