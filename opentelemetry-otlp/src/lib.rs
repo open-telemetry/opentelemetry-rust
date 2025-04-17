@@ -39,9 +39,12 @@
 //!         .build()?;
 //!
 //!     // Create a tracer provider with the exporter
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
 //!
 //!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
