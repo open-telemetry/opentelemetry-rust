@@ -72,7 +72,7 @@
 //! use opentelemetry::{global, trace::Tracer};
 //!
 //! #[tokio::main]
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Initialize OTLP exporter using gRPC (Tonic)
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
 //!         .with_tonic()
