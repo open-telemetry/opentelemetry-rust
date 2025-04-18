@@ -309,7 +309,6 @@ mod tests {
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
-    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -320,14 +319,6 @@ mod tests {
     impl LogExporter for MockLogExporter {
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
             Ok(())
-        }
-
-        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
-            self.shutdown_with_timeout(time::Duration::from_secs(5))
         }
 
         fn set_resource(&mut self, resource: &Resource) {
