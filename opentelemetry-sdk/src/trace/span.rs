@@ -200,7 +200,20 @@ impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
         // skip if data has already been exported
         let mut data = match self.data.take() {
-            Some(data) => data,
+            Some(data) => crate::trace::SpanData {
+                span_context: self.span_context.clone(),
+                parent_span_id: data.parent_span_id,
+                span_kind: data.span_kind,
+                name: data.name,
+                start_time: data.start_time,
+                end_time: data.end_time,
+                attributes: data.attributes,
+                dropped_attributes_count: data.dropped_attributes_count,
+                events: data.events,
+                links: data.links,
+                status: data.status,
+                instrumentation_scope: self.tracer.instrumentation_scope().clone(),
+            },
             None => return,
         };
 
@@ -219,20 +232,10 @@ impl Span {
 
         match provider.span_processors() {
             [] => {}
-            [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
-            }
+            [processor] => processor.on_end(&mut data),
             processors => {
                 for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
+                    processor.on_end(&mut data);
                 }
             }
         }
