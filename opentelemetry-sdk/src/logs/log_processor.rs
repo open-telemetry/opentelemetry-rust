@@ -92,10 +92,6 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
         fn set_resource(&mut self, resource: &Resource) {
             self.resource
                 .lock()
