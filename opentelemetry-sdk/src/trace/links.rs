@@ -31,6 +31,14 @@ impl IntoIterator for SpanLinks {
 }
 
 impl SpanLinks {
+    /// Create a new `SpanLinks` from a list of events and a dropped count
+    pub fn new(links: Vec<Link>, dropped_count: u32) -> Self {
+        Self {
+            links,
+            dropped_count,
+        }
+    }
+
     pub(crate) fn add_link(&mut self, link: Link) {
         self.links.push(link);
     }
