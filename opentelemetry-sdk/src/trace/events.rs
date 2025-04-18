@@ -31,6 +31,14 @@ impl IntoIterator for SpanEvents {
 }
 
 impl SpanEvents {
+    /// Create a new `SpanEvents` from a list of events and a dropped count
+    pub fn new(events: Vec<Event>, dropped_count: u32) -> Self {
+        Self {
+            events,
+            dropped_count,
+        }
+    }
+
     pub(crate) fn add_event(&mut self, event: Event) {
         self.events.push(event);
     }
