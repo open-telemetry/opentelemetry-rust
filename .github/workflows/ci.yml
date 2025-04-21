@@ -140,6 +140,11 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@34899fc7ba81ca6268d5947a7a16b4649013fea1 # v2.0.11
         with:
           command: check advisories
+
+      - name: Check licenses
+        uses: EmbarkStudios/cargo-deny-action@34899fc7ba81ca6268d5947a7a16b4649013fea1 # v2.0.11
+        with:
+          command: check licenses
   docs:
     continue-on-error: true
     runs-on: ubuntu-latest
