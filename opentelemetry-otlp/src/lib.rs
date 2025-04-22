@@ -452,5 +452,15 @@ pub enum Protocol {
 pub struct NoExporterConfig(());
 
 #[cfg(feature = "grpc-tonic")]
-#[doc(no_inline)]
-pub use tonic;
+pub mod tonic_types {
+    pub mod metadata {
+        #[doc(no_inline)]
+        pub use tonic::metadata::MetadataMap;
+    }
+
+    #[cfg(feature = "tls")]
+    pub mod transport {
+        #[doc(no_inline)]
+        pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
+    }
+}
