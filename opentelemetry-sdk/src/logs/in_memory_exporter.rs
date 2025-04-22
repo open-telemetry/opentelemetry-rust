@@ -1,13 +1,13 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::SdkLogRecord;
 use crate::logs::{LogBatch, LogExporter};
+use crate::InMemoryExporterError;
 use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-
-type LogResult<T> = Result<T, OTelSdkError>;
+use std::time;
 
 /// An in-memory logs exporter that stores logs data in memory..
 ///
@@ -157,14 +157,9 @@ impl InMemoryLogExporter {
     /// let emitted_logs = exporter.get_emitted_logs().unwrap();
     /// ```
     ///
-    pub fn get_emitted_logs(&self) -> LogResult<Vec<LogDataWithResource>> {
-        let logs_guard = self
-            .logs
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to lock logs: {}", e)))?;
-        let resource_guard = self.resource.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to lock resource: {}", e))
-        })?;
+    pub fn get_emitted_logs(&self) -> Result<Vec<LogDataWithResource>, InMemoryExporterError> {
+        let logs_guard = self.logs.lock().map_err(InMemoryExporterError::from)?;
+        let resource_guard = self.resource.lock().map_err(InMemoryExporterError::from)?;
         let logs: Vec<LogDataWithResource> = logs_guard
             .iter()
             .map(|log_data| LogDataWithResource {
@@ -211,7 +206,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {

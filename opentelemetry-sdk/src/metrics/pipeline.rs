@@ -12,18 +12,18 @@ use crate::{
     metrics::{
         aggregation,
         data::{Metric, ResourceMetrics, ScopeMetrics},
+        error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
         internal::{self, AggregateBuilder, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
-        MetricError, MetricResult,
     },
     Resource,
 };
 
 use self::internal::AggregateFns;
 
-use super::{Aggregation, Temporality};
+use super::{aggregation::Aggregation, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -50,6 +50,8 @@ impl fmt::Debug for Pipeline {
 /// Single or multi-instrument callbacks
 type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
+const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
+
 #[derive(Default)]
 struct PipelineInner {
     aggregations: HashMap<InstrumentationScope, Vec<InstrumentSync>>,
@@ -73,10 +75,6 @@ impl Pipeline {
     /// unique values.
     fn add_sync(&self, scope: InstrumentationScope, i_sync: InstrumentSync) {
         let _ = self.inner.lock().map(|mut inner| {
-            otel_debug!(
-                name : "InstrumentCreated",
-                instrument_name = i_sync.name.as_ref(),
-            );
             inner.aggregations.entry(scope).or_default().push(i_sync);
         });
     }
@@ -102,8 +100,11 @@ impl Pipeline {
 
 impl SdkProducer for Pipeline {
     /// Returns aggregated metrics from a single collection.
-    fn produce(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        let inner = self.inner.lock()?;
+    fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock pipeline".into()))?;
         otel_debug!(
             name: "MeterProviderInvokingObservableCallbacks",
             count =  inner.callbacks.len(),
@@ -135,7 +136,7 @@ impl SdkProducer for Pipeline {
             let mut j = 0;
             for inst in instruments {
                 let mut m = sm.metrics.get_mut(j);
-                match (inst.comp_agg.call(m.as_mut().map(|m| m.data.as_mut())), m) {
+                match (inst.comp_agg.call(m.as_mut().map(|m| &mut m.data)), m) {
                     // No metric to re-use, expect agg to create new metric data
                     ((len, Some(initial_agg)), None) if len > 0 => sm.metrics.push(Metric {
                         name: inst.name.clone(),
@@ -253,6 +254,7 @@ where
         &self,
         inst: Instrument,
         boundaries: Option<&[f64]>,
+        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
@@ -303,6 +305,7 @@ where
             unit: inst.unit,
             aggregation: None,
             allowed_attribute_keys: None,
+            cardinality_limit,
         };
 
         // Override default histogram boundaries if provided.
@@ -385,11 +388,24 @@ where
                 .clone()
                 .map(|allowed| Arc::new(move |kv: &KeyValue| allowed.contains(&kv.key)) as Arc<_>);
 
-            let b = AggregateBuilder::new(self.pipeline.reader.temporality(kind), filter);
+            let cardinality_limit = stream
+                .cardinality_limit
+                .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
+            let b = AggregateBuilder::new(
+                self.pipeline.reader.temporality(kind),
+                filter,
+                cardinality_limit,
+            );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
+
+            otel_debug!(
+                name : "Metrics.InstrumentCreated",
+                instrument_name = stream.name.as_ref(),
+                cardinality_limit = cardinality_limit,
+            );
 
             self.pipeline.add_sync(
                 scope.clone(),
@@ -711,11 +727,12 @@ where
         &self,
         id: Instrument,
         boundaries: Option<Vec<f64>>,
+        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
-            match inserter.instrument(id.clone(), boundaries.as_deref()) {
+            match inserter.instrument(id.clone(), boundaries.as_deref(), cardinality_limit) {
                 Ok(ms) => measures.extend(ms),
                 Err(err) => errs.push(err),
             }

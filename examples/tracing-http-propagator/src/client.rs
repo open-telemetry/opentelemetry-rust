@@ -3,13 +3,18 @@ use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use opentelemetry::{
     global,
     trace::{SpanKind, TraceContextExt, Tracer},
-    Context, KeyValue,
+    Context,
 };
+use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_http::{Bytes, HeaderInjector};
-use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::SdkTracerProvider};
-use opentelemetry_stdout::SpanExporter;
+use opentelemetry_sdk::{
+    logs::SdkLoggerProvider, propagation::TraceContextPropagator, trace::SdkTracerProvider,
+};
+use opentelemetry_stdout::{LogExporter, SpanExporter};
+use tracing::info;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn init_tracer() {
+fn init_tracer() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces.
@@ -17,7 +22,23 @@ fn init_tracer() {
         .with_simple_exporter(SpanExporter::default())
         .build();
 
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
+    provider
+}
+
+fn init_logs() -> SdkLoggerProvider {
+    // Setup tracerprovider with stdout exporter
+    // that prints the spans to stdout.
+    let logger_provider = SdkLoggerProvider::builder()
+        .with_simple_exporter(LogExporter::default())
+        .build();
+    let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
+    tracing_subscriber::registry()
+        .with(otel_layer)
+        .with(tracing_subscriber::filter::LevelFilter::INFO)
+        .init();
+
+    logger_provider
 }
 
 async fn send_request(
@@ -37,21 +58,22 @@ async fn send_request(
     global::get_text_map_propagator(|propagator| {
         propagator.inject_context(&cx, &mut HeaderInjector(req.headers_mut().unwrap()))
     });
+    req.headers_mut()
+        .unwrap()
+        .insert("baggage", "is_synthetic=true".parse().unwrap());
     let res = client
         .request(req.body(Full::new(Bytes::from(body_content.to_string())))?)
         .await?;
 
-    cx.span().add_event(
-        "Got response!",
-        vec![KeyValue::new("status", res.status().to_string())],
-    );
+    info!(name: "ResponseReceived", status = res.status().to_string(), message = "Response received");
 
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    init_tracer();
+    let tracer_provider = init_tracer();
+    let logger_provider = init_logs();
 
     send_request(
         "http://127.0.0.1:3000/health",
@@ -66,5 +88,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error + Send + Sy
     )
     .await?;
 
+    tracer_provider
+        .shutdown()
+        .expect("Shutdown provider failed");
+    logger_provider
+        .shutdown()
+        .expect("Shutdown provider failed");
     Ok(())
 }

@@ -2,8 +2,57 @@
 
 ## vNext
 
+- **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
+  - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
+`Context`. In other words, if the current context has telemetry suppression
+enabled, then logs/spans will be ignored.
+  - The flag is typically set by OTel
+components to prevent telemetry from itself being fed back into OTel.
+  - `BatchLogProcessor`, `BatchSpanProcessor`, and `PeriodicReader` modified to set
+the suppression flag in their dedicated thread, so that telemetry generated from
+those threads will not be fed back into OTel.
+  - Similarly, `SimpleLogProcessor`
+also modified to suppress telemetry before invoking exporters.
+
+- **Feature**: Implemented and enabled cardinality capping for Metrics by
+  default. [#2901](https://github.com/open-telemetry/opentelemetry-rust/pull/2901)
+  - The default cardinality limit is 2000 and can be customized using Views.  
+  - This feature was previously removed in version 0.28 due to the lack of
+    configurability but has now been reintroduced with the ability to configure
+    the limit.  
+  - There is ability to configure cardinality limits via Instrument
+    advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
+  - Fixed the overflow attribute to correctly use the boolean value `true`
+    instead of the string `"true"`.
+    [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
+- The `shutdown_with_timeout` method is added to LogExporter trait.
+- *Breaking* `MetricError`, `MetricResult` no longer public (except when
+  `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
+  be used instead, wherever applicable. [#2906](https://github.com/open-telemetry/opentelemetry-rust/pull/2906)
+- *Breaking* change, affecting custom `MetricReader` authors:
+  - The
+  `shutdown_with_timeout` method is added to `MetricReader` trait.
+  - `collect`
+  method on `MetricReader` modified to return `OTelSdkResult`.
+  [#2905](https://github.com/open-telemetry/opentelemetry-rust/pull/2905)
+  - `MetricReader`
+  trait, `ManualReader` struct, `Pipeline` struct, `InstrumentKind` enum moved
+  behind feature flag "experimental_metrics_custom_reader".
+  [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
+
+- *Breaking* `Aggregation` enum moved behind feature flag
+  "spec_unstable_metrics_views". This was only required when using Views.
+  [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
+
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency to 0.29.
+- Update `opentelemetry-http` dependency to 0.29.
 - **Breaking**: The `Runtime` trait has been simplified and refined. See the [#2641](https://github.com/open-telemetry/opentelemetry-rust/pull/2641)
   for the changes.
+- Removed `async-std` support for `Runtime`, as [`async-std` crate is deprecated](https://crates.io/crates/async-std).
 - Calls to `MeterProviderBuilder::with_resource`, `TracerProviderBuilder::with_resource`,
   `LoggerProviderBuilder::with_resource` are now additive ([#2677](https://github.com/open-telemetry/opentelemetry-rust/pull/2677)).
 - Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
@@ -51,6 +100,7 @@
 
   Custom exporters will need to internally synchronize any mutable state, if applicable.
 
+- **Breaking** The `shutdown_with_timeout` method is added to MetricExporter trait. This is breaking change for custom `MetricExporter` authors.
 - Bug Fix: `BatchLogProcessor` now correctly calls `shutdown` on the exporter
   when its `shutdown` is invoked.
 
@@ -69,11 +119,14 @@
  intended to be public. If you are authoring custom processor/exporters, use
  `opentelemetry_sdk::error::OTelSdkError` and
  `opentelemetry_sdk::error::OTelSdkResult`.
- // PLACEHOLDER to fill in when the similar change is done for traces, metrics.
- // PLACEHOLDER to put all the PR links together.
+  [2790](https://github.com/open-telemetry/opentelemetry-rust/pull/2790)
 - **Breaking** for custom `LogProcessor` authors: Changed `set_resource`
   to require mutable ref.
   `fn set_resource(&mut self, _resource: &Resource) {}`
+- **Breaking**: InMemoryExporter's return type change.
+  - `TraceResult<Vec<SpanData>>` to `Result<Vec<SpanData>, InMemoryExporterError>`
+  - `MetricResult<Vec<ResourceMetrics>>` to `Result<Vec<ResourceMetrics>, InMemoryExporterError>`
+  - `LogResult<Vec<LogDataWithResource>>` to `Result<Vec<LogDataWithResource>, InMemoryExporterError>`
 
 ## 0.28.0
 

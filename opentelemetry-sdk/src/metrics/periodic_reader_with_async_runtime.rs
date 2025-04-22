@@ -16,11 +16,13 @@ use opentelemetry::{otel_debug, otel_error};
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer, MetricError, MetricResult},
+    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
     Resource,
 };
 
-use super::{data::ResourceMetrics, reader::MetricReader, InstrumentKind, Pipeline};
+use super::{
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -351,10 +353,14 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         worker(self);
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
-        let inner = self.inner.lock()?;
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| OTelSdkError::InternalFailure("Failed to lock pipeline".into()))?;
+
         if inner.is_shutdown {
-            return Err(MetricError::Other("reader is shut down".into()));
+            return Err(OTelSdkError::AlreadyShutdown);
         }
 
         if let Some(producer) = match &inner.sdk_producer_or_worker {
@@ -363,7 +369,9 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         } {
             producer.produce(rm)?;
         } else {
-            return Err(MetricError::Other("reader is not registered".into()));
+            return Err(OTelSdkError::InternalFailure(
+                "reader is not registered".into(),
+            ));
         }
 
         Ok(())
@@ -390,7 +398,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             .and_then(|res| res)
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let mut inner = self
             .inner
             .lock()
@@ -434,8 +442,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
+    use crate::error::OTelSdkError;
     use crate::metrics::reader::MetricReader;
-    use crate::metrics::MetricError;
     use crate::{
         metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
         runtime, Resource,
@@ -496,7 +504,7 @@ mod tests {
 
         // Assert
         assert!(
-            matches!(result.unwrap_err(), MetricError::Other(err) if err == "reader is not registered")
+            matches!(result.unwrap_err(), OTelSdkError::InternalFailure(err) if err == "reader is not registered")
         );
     }
 

@@ -71,7 +71,7 @@
 #[cfg(feature = "semconv_experimental")]
         {% endif %}
         {% if metric is deprecated %}
-#[deprecated(note="{{ metric.deprecated.strip(" \n\"") }}")]
+#[deprecated(note="{{ metric.deprecated | replace('"', '') | replace('\n', ' ') | trim }}")]
         {% endif %}
 pub const {{ metric.metric_name | screaming_snake_case }}: &str = "{{ metric.metric_name }}";
 

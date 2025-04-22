@@ -6,7 +6,6 @@ use crate::{
 
 use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
 
-use std::env;
 use std::{
     fmt::{self, Debug, Formatter},
     sync::Arc,
@@ -17,6 +16,7 @@ use std::{
 };
 
 use super::{BatchConfig, LogProcessor};
+#[cfg(feature = "experimental_async_runtime")]
 use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use futures_channel::oneshot;
 use futures_util::{
@@ -318,10 +318,6 @@ mod tests {
 
     impl LogExporter for MockLogExporter {
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 

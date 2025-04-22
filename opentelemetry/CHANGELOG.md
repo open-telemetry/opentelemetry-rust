@@ -2,10 +2,45 @@
 
 ## vNext
 
+[#2821](https://github.com/open-telemetry/opentelemetry-rust/pull/2821) Context
+based suppression capabilities added: Added the ability to prevent recursive
+telemetry generation through new context-based suppression mechanisms. This
+feature helps prevent feedback loops and excessive telemetry when OpenTelemetry
+components perform their own operations.
+
+New methods added to `Context`:
+
+- `is_telemetry_suppressed()` - Checks if telemetry is suppressed in this
+  context
+- `with_telemetry_suppressed()` - Creates a new context with telemetry
+  suppression enabled
+- `is_current_telemetry_suppressed()` - Efficiently checks if the current thread's context
+  has telemetry suppressed
+- `enter_telemetry_suppressed_scope()` - Convenience method to enter a scope where telemetry is
+  suppressed
+
+These methods allow SDK components, exporters, and processors to temporarily
+disable telemetry generation during their internal operations, ensuring more
+predictable and efficient observability pipelines.
+
+- re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
+- Added ability to configure cardinality limits via Instrument
+  advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
+
+## 0.29.1
+
+Release 2025-Apr-01
+
+- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatability
+  - The new path for `WithContext` and `FutureExt` are in  `opentelemetry::context` as they are independent of the trace signal. Users should prefer this path.
+
+## 0.29.0
+
+Released 2025-Mar-21
+
 - *Breaking* Moved `ExportError` trait from `opentelemetry::trace::ExportError` to `opentelemetry_sdk::export::ExportError`
 - *Breaking* Moved `TraceError` enum from `opentelemetry::trace::TraceError` to `opentelemetry_sdk::trace::TraceError`
 - *Breaking* Moved `TraceResult` type alias from `opentelemetry::trace::TraceResult` to `opentelemetry_sdk::trace::TraceResult`
-- {PLACEHOLDER} - Remove the above completely. // TODO fill this when changes are actually in.
 - Bug Fix: `InstrumentationScope` implementation for `PartialEq` and `Hash` fixed to include Attributes also.
 - **Breaking changes for baggage users**: [#2717](https://github.com/open-telemetry/opentelemetry-rust/issues/2717)
   - Changed value type of `Baggage` from `Value` to `StringValue`
@@ -13,6 +48,8 @@
   - Align `Baggage.remove()` signature with `.get()` to take the key as a reference
   - `Baggage` can't be retrieved from the `Context` directly anymore and needs to be accessed via `context.baggage()`
   - `with_baggage()` and `current_with_baggage()` override any existing `Baggage` in the `Context`
+  - `Baggage` keys can't be empty and only allow ASCII visual chars, except `"(),/:;<=>?@[\]{}` (see [RFC7230, Section 3.2.6](https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.6))
+  - `KeyValueMetadata` does not publicly expose its fields. This should be transparent change to the users.
 - Changed `Context` to use a stack to properly handle out of order dropping of `ContextGuard`. This imposes a limit of `65535` nested contexts on a single thread. See #[2378](https://github.com/open-telemetry/opentelemetry-rust/pull/2284) and #[1887](https://github.com/open-telemetry/opentelemetry-rust/issues/1887).
 - Added additional `name: Option<&str>` parameter to the `event_enabled` method
   on the `Logger` trait. This allows implementations (SDK, processor, exporters)

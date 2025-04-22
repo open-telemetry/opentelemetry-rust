@@ -316,6 +316,7 @@ impl BatchSpanProcessor {
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
             .spawn(move || {
+                let _suppress_guard = Context::enter_telemetry_suppressed_scope();
                 otel_debug!(
                     name: "BatchSpanProcessor.ThreadStarted",
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
@@ -704,6 +705,8 @@ impl Default for BatchConfigBuilder {
     /// * `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`
     /// * `OTEL_BSP_EXPORT_TIMEOUT`
     /// * `OTEL_BSP_MAX_CONCURRENT_EXPORTS`
+    ///
+    /// Note: Programmatic configuration overrides any value set via the environment variable.
     fn default() -> Self {
         BatchConfigBuilder {
             max_queue_size: OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
@@ -720,7 +723,11 @@ impl BatchConfigBuilder {
     /// Set max_queue_size for [`BatchConfigBuilder`].
     /// It's the maximum queue size to buffer spans for delayed processing.
     /// If the queue gets full it will drops the spans.
-    /// The default value of is 2048.
+    /// The default value is 2048.
+    ///
+    /// Corresponding environment variable: `OTEL_BSP_MAX_QUEUE_SIZE`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_queue_size(mut self, max_queue_size: usize) -> Self {
         self.max_queue_size = max_queue_size;
         self
@@ -731,6 +738,10 @@ impl BatchConfigBuilder {
     /// more than one batch worth of spans then it processes multiple batches
     /// of spans one batch after the other without any delay. The default value
     /// is 512.
+    ///
+    /// Corresponding environment variable: `OTEL_BSP_MAX_EXPORT_BATCH_SIZE`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_export_batch_size(mut self, max_export_batch_size: usize) -> Self {
         self.max_export_batch_size = max_export_batch_size;
         self
@@ -743,6 +754,11 @@ impl BatchConfigBuilder {
     /// The default value is 1.
     /// If the max_concurrent_exports value is default value, it will cause exports to be performed
     /// synchronously on the BatchSpanProcessor task.
+    /// The default value is 1.
+    ///
+    /// Corresponding environment variable: `OTEL_BSP_MAX_CONCURRENT_EXPORTS`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
         self.max_concurrent_exports = max_concurrent_exports;
         self
@@ -751,6 +767,10 @@ impl BatchConfigBuilder {
     /// Set scheduled_delay_duration for [`BatchConfigBuilder`].
     /// It's the delay interval in milliseconds between two consecutive processing of batches.
     /// The default value is 5000 milliseconds.
+    ///
+    /// Corresponding environment variable: `OTEL_BSP_SCHEDULE_DELAY`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
         self.scheduled_delay = scheduled_delay;
         self
@@ -759,6 +779,10 @@ impl BatchConfigBuilder {
     /// Set max_export_timeout for [`BatchConfigBuilder`].
     /// It's the maximum duration to export a batch of data.
     /// The The default value is 30000 milliseconds.
+    ///
+    /// Corresponding environment variable: `OTEL_BSP_EXPORT_TIMEOUT`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
         self.max_export_timeout = max_export_timeout;
@@ -930,6 +954,40 @@ mod tests {
             config.max_export_batch_size,
             OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT
         );
+    }
+
+    #[test]
+    fn test_code_based_config_overrides_env_vars() {
+        let env_vars = vec![
+            (OTEL_BSP_EXPORT_TIMEOUT, Some("60000")),
+            (OTEL_BSP_MAX_CONCURRENT_EXPORTS, Some("5")),
+            (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("1024")),
+            (OTEL_BSP_MAX_QUEUE_SIZE, Some("4096")),
+            (OTEL_BSP_SCHEDULE_DELAY, Some("2000")),
+        ];
+
+        temp_env::with_vars(env_vars, || {
+            let config = BatchConfigBuilder::default()
+                .with_max_export_batch_size(512)
+                .with_max_queue_size(2048)
+                .with_scheduled_delay(Duration::from_millis(1000));
+            #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+            let config = {
+                config
+                    .with_max_concurrent_exports(10)
+                    .with_max_export_timeout(Duration::from_millis(2000))
+            };
+            let config = config.build();
+
+            assert_eq!(config.max_export_batch_size, 512);
+            assert_eq!(config.max_queue_size, 2048);
+            assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
+            #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
+            {
+                assert_eq!(config.max_concurrent_exports, 10);
+                assert_eq!(config.max_export_timeout, Duration::from_millis(2000));
+            }
+        });
     }
 
     #[test]

@@ -23,7 +23,7 @@ use crate::{
     Resource,
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
@@ -76,6 +76,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -134,6 +135,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(
         &self,
         level: opentelemetry::logs::Severity,
@@ -151,16 +153,18 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use crate::logs::log_processor::tests::MockLogExporter;
-    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLogger};
     use crate::{
         error::OTelSdkResult,
         logs::{InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor},
         Resource,
     };
+    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -190,6 +194,9 @@ mod tests {
             for _ in batch.iter() {
                 self.export_count.fetch_add(1, Ordering::Acquire);
             }
+            Ok(())
+        }
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -436,5 +443,53 @@ mod tests {
         processor.emit(&mut record, &instrumentation);
 
         assert_eq!(exporter.len(), 1);
+    }
+
+    #[derive(Debug, Clone)]
+    struct ReentrantLogExporter {
+        logger: Arc<Mutex<Option<SdkLogger>>>,
+    }
+
+    impl ReentrantLogExporter {
+        fn new() -> Self {
+            Self {
+                logger: Arc::new(Mutex::new(None)),
+            }
+        }
+
+        fn set_logger(&self, logger: SdkLogger) {
+            let mut guard = self.logger.lock().unwrap();
+            *guard = Some(logger);
+        }
+    }
+
+    impl LogExporter for ReentrantLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            let logger = self.logger.lock().unwrap();
+            if let Some(logger) = logger.as_ref() {
+                let mut log_record = logger.create_log_record();
+                log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+                logger.emit(log_record);
+            }
+
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn exporter_internal_log_does_not_deadlock_with_simple_processor() {
+        // This tests that even when exporter produces logs while
+        // exporting, it does not deadlock, as SimpleLogProcessor
+        // activates SuppressGuard before calling the exporter.
+        let exporter: ReentrantLogExporter = ReentrantLogExporter::new();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        exporter.set_logger(logger_provider.logger("processor-logger"));
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+        logger.emit(log_record);
     }
 }

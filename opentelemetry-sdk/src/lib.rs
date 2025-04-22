@@ -94,10 +94,8 @@
 //! * `experimental_async_runtime`: Enables the experimental `Runtime` trait and related functionality.
 //! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
 //! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
-//! * `rt-async-std`: Spawn telemetry tasks using [async-std]'s runtime.
 //!
 //! [tokio]: https://crates.io/crates/tokio
-//! [async-std]: https://crates.io/crates/async-std
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -136,7 +134,6 @@ pub mod runtime;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub mod testing;
 
-#[allow(deprecated)]
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
@@ -149,3 +146,24 @@ pub use resource::Resource;
 
 pub mod error;
 pub use error::ExportError;
+
+#[cfg(any(feature = "testing", test))]
+#[derive(thiserror::Error, Debug)]
+/// Errors that can occur during when returning telemetry from InMemoryLogExporter
+pub enum InMemoryExporterError {
+    /// Operation failed due to an internal error.
+    ///
+    /// The error message is intended for logging purposes only and should not
+    /// be used to make programmatic decisions. It is implementation-specific
+    /// and subject to change without notice. Consumers of this error should not
+    /// rely on its content beyond logging.
+    #[error("Unable to obtain telemetry. Reason: {0}")]
+    InternalFailure(String),
+}
+
+#[cfg(any(feature = "testing", test))]
+impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {}", err))
+    }
+}

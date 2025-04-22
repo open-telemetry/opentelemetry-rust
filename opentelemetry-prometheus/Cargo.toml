@@ -1,7 +1,7 @@
 [package]
 name = "opentelemetry-prometheus"
-version = "0.28.0"
-description = "Prometheus exporter for OpenTelemetry"
+version = "0.29.1"
+description = "Prometheus exporter for OpenTelemetry (This crate is discontinued and is no longer maintained)"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-prometheus"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-prometheus"
 readme = "README.md"
@@ -21,14 +21,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 once_cell = { version = "1.13" }
-opentelemetry = { version = "0.28", default-features = false, features = ["metrics"] }
-opentelemetry_sdk = { version = "0.28", default-features = false, features = ["metrics"] }
-prometheus = "0.13"
-protobuf = "2.14"
-tracing = {version = ">=0.1.40", default-features = false, optional = true} # optional for opentelemetry internal logging
+opentelemetry = { version = "0.29", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.29", default-features = false, features = ["metrics"] }
+prometheus = "0.14"
+tracing = { version = ">=0.1.40", default-features = false, optional = true } # optional for opentelemetry internal logging
 
 [dev-dependencies]
-opentelemetry-semantic-conventions = { version = "0.28" }
+opentelemetry-semantic-conventions = { version = "0.29" }
 http-body-util = { version = "0.1" }
 hyper = { version = "1.3", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
@@ -38,3 +37,8 @@ tokio = { version = "1", features = ["full"] }
 default = ["internal-logs"]
 prometheus-encoding = []
 internal-logs = ["tracing"]
+
+[package.metadata.cargo-machete]
+ignored = [
+    "tracing" # needed for `internal-logs`
+]

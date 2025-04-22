@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.28.0"
+version = "0.29.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -15,9 +15,11 @@ license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
 autotests = false
+autobenches = false
 
 [lib]
 doctest = false
+bench = false
 
 [[test]]
 name = "grpc_build"
@@ -44,19 +46,18 @@ zpages = ["trace"]
 testing = ["opentelemetry/testing"]
 
 # add ons
-internal-logs = ["tracing"]
+internal-logs = ["opentelemetry/internal-logs"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "hex", "base64"]
 
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
-opentelemetry = { version = "0.28", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.28", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.29", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.29", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
 base64 = { workspace = true, optional = true }
 
 [dev-dependencies]

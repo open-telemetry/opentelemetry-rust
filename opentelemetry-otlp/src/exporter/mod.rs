@@ -68,27 +68,32 @@ pub(crate) mod tonic;
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
 pub struct ExportConfig {
-    /// The address of the OTLP collector. If it's not provided via builder or environment variables.
+    /// The address of the OTLP collector.
     /// Default address will be used based on the protocol.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
     pub protocol: Protocol,
 
     /// The timeout to the collector.
-    pub timeout: Duration,
+    /// The default value is 10 seconds.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
+    pub timeout: Option<Duration>,
 }
 
 impl Default for ExportConfig {
     fn default() -> Self {
         let protocol = default_protocol();
 
-        ExportConfig {
+        Self {
             endpoint: None,
             // don't use default_endpoint(protocol) here otherwise we
             // won't know if user provided a value
             protocol,
-            timeout: OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+            timeout: None,
         }
     }
 }
@@ -223,6 +228,8 @@ impl HasExportConfig for HttpExporterBuilder {
 /// ```
 pub trait WithExportConfig {
     /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
     /// Set the protocol to use when communicating with the collector.
     ///
@@ -230,11 +237,15 @@ pub trait WithExportConfig {
     /// will use default protocol in this case.
     ///
     /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is an no-op at the moment.
+    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
-    /// Set export config. This will override all previous configuration.
+    /// Set export config. This will override all previous configurations.
+    ///
+    /// Note: Programmatically setting this will override any value set via environment variables.
     fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
 
@@ -250,7 +261,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 
     fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.export_config().timeout = timeout;
+        self.export_config().timeout = Some(timeout);
         self
     }
 
@@ -259,6 +270,28 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
         self
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+fn resolve_timeout(signal_timeout_var: &str, provided_timeout: Option<&Duration>) -> Duration {
+    // programmatic configuration overrides any value set via environment variables
+    if let Some(timeout) = provided_timeout {
+        *timeout
+    } else if let Some(timeout) = std::env::var(signal_timeout_var)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // per signal env var is not modified
+        Duration::from_millis(timeout)
+    } else if let Some(timeout) = std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_TIMEOUT env var is set
+        Duration::from_millis(timeout)
+    } else {
+        OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT
     }
 }
 
@@ -350,7 +383,7 @@ mod tests {
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
             protocol: Protocol::HttpBinary,
-            timeout: Duration::from_secs(10),
+            timeout: Some(Duration::from_secs(10)),
         };
 
         let exporter_result = LogExporter::builder()
@@ -358,15 +391,19 @@ mod tests {
             .with_export_config(ex_config)
             .build();
 
-        assert!(matches!(
-            exporter_result,
-            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
-        ));
+        assert!(
+            matches!(
+                exporter_result,
+                Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+            ),
+            "Expected InvalidUri error, but got {:?}",
+            exporter_result
+        );
     }
 
     #[cfg(feature = "grpc-tonic")]
-    #[test]
-    fn export_builder_error_invalid_grpc_endpoint() {
+    #[tokio::test]
+    async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
@@ -374,7 +411,7 @@ mod tests {
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
             protocol: Protocol::Grpc,
-            timeout: Duration::from_secs(10),
+            timeout: Some(Duration::from_secs(10)),
         };
 
         let exporter_result = LogExporter::builder()
@@ -493,5 +530,45 @@ mod tests {
                 expected_headers.map(|(k, v)| (k, v.to_string())),
             )
         }
+    }
+
+    #[test]
+    fn test_priority_of_signal_env_over_generic_env_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout =
+                    super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+                assert_eq!(timeout.as_millis(), 3000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_priority_of_code_based_config_over_envs_for_timeout() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "3000"),
+                (super::OTEL_EXPORTER_OTLP_TIMEOUT, "2000"),
+            ],
+            || {
+                let timeout = super::resolve_timeout(
+                    crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                    Some(&std::time::Duration::from_millis(1000)),
+                );
+                assert_eq!(timeout.as_millis(), 1000);
+            },
+        );
+    }
+
+    #[test]
+    fn test_use_default_when_others_missing_for_timeout() {
+        run_env_test(vec![], || {
+            let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
+            assert_eq!(timeout.as_millis(), 10_000);
+        });
     }
 }

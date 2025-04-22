@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! use opentelemetry::KeyValue;
-//! use opentelemetry_sdk::{trace::{config, SdkTracerProvider}, Resource};
+//! use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
 //! let _tracer = SdkTracerProvider::builder()
@@ -25,6 +25,9 @@
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ANDROID_OS_API_LEVEL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_INSTALLATION_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_ECS_CLUSTER_ARN;
@@ -183,6 +186,33 @@ pub use crate::attribute::FAAS_NAME;
 pub use crate::attribute::FAAS_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_CONTAINER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_LOCATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GCP_CLOUD_RUN_JOB_EXECUTION;
 
 #[cfg(feature = "semconv_experimental")]
@@ -282,6 +312,12 @@ pub use crate::attribute::K8S_DEPLOYMENT_NAME;
 pub use crate::attribute::K8S_DEPLOYMENT_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_UID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_JOB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -313,6 +349,18 @@ pub use crate::attribute::K8S_REPLICASET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_REPLICASET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICATIONCONTROLLER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICATIONCONTROLLER_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_RESOURCEQUOTA_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_RESOURCEQUOTA_UID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_NAME;

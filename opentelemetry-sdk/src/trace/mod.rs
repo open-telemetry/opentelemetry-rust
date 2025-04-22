@@ -22,7 +22,7 @@ mod span_processor;
 pub mod span_processor_with_async_runtime;
 mod tracer;
 
-pub use config::{config, Config};
+pub use config::Config;
 pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
@@ -136,7 +136,11 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {}
+        fn on_end(&self, _span: SpanData) {
+            // TODO: Accessing Context::current() will panic today and hence commented out.
+            // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
+            // let _c = Context::current();
+        }
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {
             Ok(())
@@ -532,5 +536,31 @@ mod tests {
         let tracer_scope = InstrumentationScope::builder("").build();
         let tracer2 = tracer_provider.tracer_with_scope(tracer_scope);
         tracer_name_retained_helper(tracer2, tracer_provider, exporter).await;
+    }
+
+    #[test]
+    fn trace_suppression() {
+        // Arrange
+        let exporter = InMemorySpanExporter::default();
+        let span_processor = SimpleSpanProcessor::new(exporter.clone());
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_span_processor(span_processor)
+            .build();
+
+        // Act
+        let tracer = tracer_provider.tracer("test");
+        {
+            let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            // This span should not be emitted as it is created in a suppressed context
+            let _span = tracer.span_builder("span_name").start(&tracer);
+        }
+
+        // Assert
+        let finished_spans = exporter.get_finished_spans().expect("this should not fail");
+        assert_eq!(
+            finished_spans.len(),
+            0,
+            "There should be a no spans as span emission is done inside a suppressed context"
+        );
     }
 }

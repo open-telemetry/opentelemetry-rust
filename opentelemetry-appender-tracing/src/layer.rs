@@ -80,6 +80,18 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         }
     }
 
+    fn record_error(
+        &mut self,
+        _field: &tracing_core::Field,
+        value: &(dyn std::error::Error + 'static),
+    ) {
+        self.log_record.add_attribute(
+            Key::new("exception.message"),
+            AnyValue::from(value.to_string()),
+        );
+        // No ability to get exception.stacktrace or exception.type from the error today.
+    }
+
     fn record_bytes(&mut self, field: &tracing_core::Field, value: &[u8]) {
         self.log_record
             .add_attribute(Key::new(field.name()), AnyValue::from(value));
@@ -122,6 +134,34 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     // TODO: We might need to do similar for record_i128,record_u128 too
     // to avoid stringification, unless needed.
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
+    }
+
+    fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        if is_duplicated_metadata(field.name()) {
+            return;
+        }
+        if let Ok(signed) = i64::try_from(value) {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(signed));
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
+    }
+
+    fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
         #[cfg(feature = "experimental_metadata_attributes")]
         if is_duplicated_metadata(field.name()) {
             return;
@@ -247,15 +287,13 @@ mod tests {
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::{logs::AnyValue, Key};
-    use opentelemetry_sdk::error::OTelSdkResult;
+    use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
-    use opentelemetry_sdk::logs::{LogBatch, LogExporter};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
     use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
-    use tracing::{error, warn};
+    use tracing::error;
     use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::{EnvFilter, Layer};
+    use tracing_subscriber::Layer;
 
     pub fn attributes_contains(log_record: &SdkLogRecord, key: &Key, value: &AnyValue) -> bool {
         log_record
@@ -273,69 +311,6 @@ mod tests {
     }
 
     // cargo test --features=testing
-
-    #[derive(Clone, Debug, Default)]
-    struct ReentrantLogExporter;
-
-    impl LogExporter for ReentrantLogExporter {
-        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            // This will cause a deadlock as the export itself creates a log
-            // while still within the lock of the SimpleLogProcessor.
-            warn!(name: "my-event-name", target: "reentrant", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-            Ok(())
-        }
-    }
-
-    #[test]
-    #[ignore = "See issue: https://github.com/open-telemetry/opentelemetry-rust/issues/1745"]
-    fn simple_processor_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // Setting subscriber as global as that is the only way to test this scenario.
-        tracing_subscriber::registry().with(layer).init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[test]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    fn simple_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        // This filter will prevent the deadlock as the reentrant log will be
-        // ignored.
-        let filter = EnvFilter::new("debug").add_directive("reentrant=error".parse().unwrap());
-        // Setting subscriber as global as that is the only way to test this scenario.
-        tracing_subscriber::registry()
-            .with(filter)
-            .with(layer)
-            .init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "While this test runs fine, this uses global subscriber and does not play well with other tests."]
-    async fn batch_processor_no_deadlock() {
-        let exporter: ReentrantLogExporter = ReentrantLogExporter;
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_batch_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-        tracing_subscriber::registry().with(layer).init();
-        warn!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
-    }
-
     #[test]
     fn tracing_appender_standalone() {
         // Arrange
@@ -355,7 +330,11 @@ mod tests {
         let big_u64value: u64 = u64::MAX;
         let small_usizevalue: usize = 42;
         let big_usizevalue: usize = usize::MAX;
-        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], small_u64value, big_u64value, small_usizevalue, big_usizevalue, user_name = "otel", user_email = "otel@opentelemetry.io");
+        let small_u128value: u128 = 42;
+        let big_u128value: u128 = u128::MAX;
+        let small_i128value: i128 = 42;
+        let big_i128value: i128 = i128::MAX;
+        error!(name: "my-event-name", target: "my-system", event_id = 20, bytes = &b"abc"[..], error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error, small_u64value, big_u64value, small_usizevalue, big_usizevalue, small_u128value, big_u128value, small_i128value, big_i128value, user_name = "otel", user_email = "otel@opentelemetry.io");
         assert!(logger_provider.force_flush().is_ok());
 
         // Assert TODO: move to helper methods
@@ -386,9 +365,9 @@ mod tests {
 
         // Validate attributes
         #[cfg(not(feature = "experimental_metadata_attributes"))]
-        assert_eq!(log.record.attributes_iter().count(), 8);
+        assert_eq!(log.record.attributes_iter().count(), 13);
         #[cfg(feature = "experimental_metadata_attributes")]
-        assert_eq!(log.record.attributes_iter().count(), 12);
+        assert_eq!(log.record.attributes_iter().count(), 17);
         assert!(attributes_contains(
             &log.record,
             &Key::new("event_id"),
@@ -403,6 +382,11 @@ mod tests {
             &log.record,
             &Key::new("user_email"),
             &AnyValue::String("otel@opentelemetry.io".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("exception.message"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
         ));
         assert!(attributes_contains(
             &log.record,
@@ -423,6 +407,26 @@ mod tests {
             &log.record,
             &Key::new("big_usizevalue"),
             &AnyValue::String(format!("{}", u64::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u128value"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u128value"),
+            &AnyValue::String(format!("{}", u128::MAX).into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_i128value"),
+            &AnyValue::Int(42.into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_i128value"),
+            &AnyValue::String(format!("{}", i128::MAX).into())
         ));
         assert!(attributes_contains(
             &log.record,
