@@ -239,10 +239,6 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
-
-        fn shutdown(&self) -> OTelSdkResult {
-            Ok(())
-        }
     }
 
     fn create_test_log_data(
