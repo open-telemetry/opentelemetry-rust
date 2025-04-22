@@ -3,6 +3,7 @@ use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use std::time;
 
 impl LogExporter for OtlpHttpClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
@@ -46,7 +47,7 @@ impl LogExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
             OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
         })?;

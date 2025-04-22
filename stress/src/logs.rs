@@ -24,6 +24,7 @@ use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProces
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use opentelemetry_sdk::Resource;
+use std::time;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
@@ -52,7 +53,7 @@ impl LogExporter for NoopExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         Ok(())
     }
 

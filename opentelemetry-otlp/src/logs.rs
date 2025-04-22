@@ -4,9 +4,9 @@
 
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry::otel_debug;
-use std::fmt::Debug;
-
 use opentelemetry_sdk::{error::OTelSdkResult, logs::LogBatch};
+use std::fmt::Debug;
+use std::time;
 
 use crate::{ExporterBuildError, HasExportConfig, NoExporterBuilderSet};
 
@@ -157,7 +157,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.shutdown(),
