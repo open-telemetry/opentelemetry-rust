@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{SpanData, FinishedSpan, SpanExporter, ReadableSpan};
 use futures_channel::oneshot;
 use futures_util::pin_mut;
 use futures_util::{
@@ -102,10 +102,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: &mut FinishedSpan) {
+        if !span.context().is_sampled() {
             return;
         }
+        let span = span.consume();
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
