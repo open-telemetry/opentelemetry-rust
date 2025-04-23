@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - dependabot/scottgerring/benchmark-fix
 name: benchmark pull requests
 permissions:
   contents: read
