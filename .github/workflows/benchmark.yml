@@ -25,10 +25,10 @@ jobs:
     # If we're running on a PR, use ubuntu-latest - a shared runner. We can't use the self-hosted
     # runners on arbitrary PRs, and we don't want to unleash that load on the pool anyway.     
     # If we're running on main, use the OTEL self-hosted runner pool. 
-    
-    # TODO - temporarily move main to the shared workers, until we've resolved the instance setup issue
+
+    # TODO - temporarily use self-hosted to get shared-worker environment going
+    runs-on: 'self-hosted'
     # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
-    runs-on: 'ubuntu-latest'
     if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
     env:
       # For PRs, compare against the base branch - e.g., 'main'. 
