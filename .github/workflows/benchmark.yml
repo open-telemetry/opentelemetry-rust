@@ -44,6 +44,26 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 10  # Fetch current commit and its parent
+
+      - name: Detect OS and attempt unzip installation
+        run: |
+          echo "Detecting OS..."
+          if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            echo "Detected OS: $NAME ($ID)"
+          else
+            echo "/etc/os-release not found – cannot detect OS"
+          fi
+
+          echo "Trying to install unzip..."
+          sudo apt-get update && sudo apt-get install -y unzip || \
+          sudo yum install -y unzip || \
+          sudo dnf install -y unzip || \
+          sudo pacman -Sy --noconfirm unzip || \
+          sudo apk add unzip || \
+          sudo zypper install -y unzip || \
+          true
+      
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
