@@ -10,7 +10,7 @@ allow = [
 ]
 
 exceptions = [
-    { allow = ["MPL-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_collections" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_locid" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_locid_transform" }, # This crate gets used transitively by `reqwest`.
