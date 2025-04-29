@@ -76,11 +76,11 @@ let meter = global::meter("my_company.my_product.my_library");
 | [UpDownCounter](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#updowncounter) | [`UpDownCounter`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.UpDownCounter.html) |
 
 :stop_sign: You should avoid creating instruments (e.g. `Counter`) too
-frequently. Instruments are fairly expensive and meant to be reused.
-For most applications, instruments can be created once and
-re-used. Instruments can also be cloned to create multiple handles to the same
-instrument, but the cloning should not be on hot path, but instead the cloned
-instance should be stored and re-used.
+frequently. Instruments are fairly expensive and meant to be reused. For most
+applications, instruments can be created once and re-used. Instruments can also
+be cloned to create multiple handles to the same instrument, but the cloning
+should not be on hot path, but instead the cloned instance should be stored and
+re-used.
 
 :stop_sign: You should avoid invalid instrument names.
 
@@ -245,9 +245,8 @@ follows while implementing the metrics aggregation logic:
    limits](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#cardinality-limits),
    so the SDK does not use indefinite amount of memory when there is cardinality
    explosion.
-3. [**Memory Preallocation**](#memory-preallocation): the memory used by
-   aggregation logic is allocated during the SDK initialization (wherever feasible),
-   so the SDK does not have to allocate memory on-the-fly.
+3. [**Memory Preallocation**](#memory-preallocation): SDK tries to pre-allocate
+   the memory it needs at each instrument creation time.
 
 ### Example
 
@@ -301,8 +300,8 @@ Temporality](https://github.com/open-telemetry/opentelemetry-specification/blob/
   * attributes: {name = `apple`, color = `green`}, count: `2`
   * attributes: {verb = `lemon`, color = `yellow`}, count: `10`
 
-Note that the start time is advanced after each export, and only the delta
-since last export is exported, allowing SDK to "forget" previous state.
+Note that the start time is advanced after each export, and only the delta since
+last export is exported, allowing SDK to "forget" previous state.
 
 ### Pre-Aggregation
 
@@ -333,10 +332,15 @@ metrics backend.
 
 Pre-aggregation offers several advantages:
 
-1. **Reduced Data Volume**: Summarizes measurements before export, minimizing network overhead and improving efficiency.
-2. **Predictable Resource Usage**: Ensures consistent resource consumption by applying [cardinality limits](#cardinality-limits) and [memory preallocation](#memory-preallocation) during SDK initialization. In other words, metrics storage/network needs remains
-fixed, irrespective of growing volume or changing traffic patterns.
-3. **Improved Performance**: Reduces computational load on downstream systems, enabling them to focus on analysis and storage.
+1. **Reduced Data Volume**: Summarizes measurements before export, minimizing
+   network overhead and improving efficiency.
+2. **Predictable Resource Usage**: Ensures consistent resource consumption by
+applying [cardinality limits](#cardinality-limits) and [memory
+preallocation](#memory-preallocation) during SDK initialization. In other words,
+metrics storage/network needs remains fixed, irrespective of growing volume or
+changing traffic patterns.
+3. **Improved Performance**: Reduces computational load on downstream systems,
+   enabling them to focus on analysis and storage.
 
 > [!NOTE] There is no ability to export raw measurement events instead of using
 pre-aggregation.
@@ -346,8 +350,8 @@ pre-aggregation.
 The number of unique combinations of attributes is called cardinality. Taking
 the [fruit example](#example), if we know that we can only have apple/lemon as
 the name, red/yellow/green as the color, then we can say the cardinality is 6.
-No matter how many fruits we sell, we can always use the following
-table to summarize the total number of fruits based on the name and color.
+No matter how many fruits we sell, we can always use the following table to
+summarize the total number of fruits based on the name and color.
 
 | Name  | Color  | Count |
 | ----- | ------ | ----- |
@@ -398,7 +402,8 @@ see much higher cardinality due to:
    is only applicable to Delta temporality)
 
 Therefore, the actual cardinality in your metrics backend can be orders of
-magnitude higher than what any single OTel SDK process handles in an export cycle.
+magnitude higher than what any single OTel SDK process handles in an export
+cycle.
 
 #### Cardinality Limit - Implications
 
@@ -484,8 +489,9 @@ important:
   that triggered overflow.
 
   OpenTelemetry's cardinality capping is only applied to attributes provided
-  when reporting measurements via the [Metrics API](#metrics-api). In other words, attributes used to create
-  `Meter` or `Resource` attributes are not subject to this cap.
+  when reporting measurements via the [Metrics API](#metrics-api). In other
+  words, attributes used to create `Meter` or `Resource` attributes are not
+  subject to this cap.
 
   :heavy_check_mark: Use `Meter` attributes or `Resource` attributes as
   appropriate, see [modelling attributes](#modelling-metric-attributes) for
@@ -494,13 +500,13 @@ important:
   Resource - this is not only efficient, but reduced the cardinality capping
   possibility as well.
 
+// TODO: Document how to pick cardinality limit.
+
 ### Memory Preallocation
 
 OpenTelemetry Rust SDK aims to avoid memory allocation on the hot code path.
 When this is combined with [proper use of Metrics API](#metrics-api), heap
-allocation can be avoided on the hot code path. Refer to the [metrics benchmark
-results](../opentelemetry-sdk/benches/metrics_counter.rs) to learn the
-benchmarks.
+allocation can be avoided on the hot code path.
 
 ## Metrics Correlation
 
@@ -532,9 +538,8 @@ dimensions can come from different sources:
   [`meter_with_scope`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/trait.MeterProvider.html#tymethod.meter_with_scope).
 * [Resources](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md)
   configured at the `MeterProvider` level.
-* Additional attributes provided by the exporter or collector. For example,
-  [jobs and instances](https://prometheus.io/docs/concepts/jobs_instances/) in
-  Prometheus.
+* Additional attributes provided by the collector. For example, [jobs and
+  instances](https://prometheus.io/docs/concepts/jobs_instances/) in Prometheus.
 
 Here is the rule of thumb when modeling the dimensions:
 
@@ -548,7 +553,8 @@ Here is the rule of thumb when modeling the dimensions:
   * If the dimension applies to a subset of metrics (e.g. the version of a
     client library), model it as meter level attributes.
 * If the dimension value is dynamic, report it via the [Metrics
-  API](#metrics-api).
+  API](#metrics-api). Be aware that [cardinality limits](#cardinality-limits)
+  are applied to these attributes.
 
 ## Common issues that lead to missing metrics
 
