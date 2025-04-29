@@ -5,16 +5,24 @@
 
 * [Best Practices](#best-practices)
 * [Metrics API](#metrics-api)
-    * [Meter](#meter)
-    * [Instruments](#instruments)
+  * [Meter](#meter)
+  * [Instruments](#instruments)
+  * [Reporting measurements - use array slices for
+    attributes](#reporting-measurements---use-array-slices-for-attributes)
+  * [Reporting measurements via synchronous
+    instruments](#reporting-measurements-via-synchronous-instruments)
+  * [Reporting measurements via asynchronous
+    instruments](#reporting-measurements-via-asynchronous-instruments)
 * [MeterProvider Management](#meterprovider-management)
 * [Memory Management](#memory-management)
-    * [Example](#example)
-    * [Pre-Aggregation](#pre-aggregation)
-    * [Cardinality Limits](#cardinality-limits)
-    * [Memory Preallocation](#memory-preallocation)
+  * [Example](#example)
+  * [Pre-Aggregation](#pre-aggregation)
+    * [Pre-Aggregation Benefits](#pre-aggregation-benefits)
+  * [Cardinality Limits](#cardinality-limits)
+    * [Cardinality Limit - Implications](#cardinality-limit---implications)
+  * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
-* [Metrics Enrichment](#metrics-enrichment)
+* [Modelling Metric Attributes](#modelling-metric-attributes)
 
 </details>
 
@@ -27,11 +35,11 @@ practices.
 
 ### Meter
 
-:stop_sign: You should avoid creating
+:stop_sign: You should avoid creating duplicate
 [`Meter`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.Meter.html)
-too frequently. `Meter` is fairly expensive and meant to be reused throughout
-the application. For most applications, a Meter should be obtained from `global`
-and saved for re-use.
+instances with the same name. `Meter` is fairly expensive and meant to be reused
+throughout the application. For most applications, a `Meter` should be obtained
+from `global` and saved for re-use.
 
 The fully qualified module name might be a good option for the Meter name.
 Optionally, one may create a meter with version, schema_url, and additional
@@ -45,11 +53,11 @@ use opentelemetry::KeyValue;
 let scope = InstrumentationScope::builder("my_company.my_product.my_library")
         .with_version("0.17")
         .with_schema_url("https://opentelemetry.io/schema/1.2.0")
-        .with_attributes([(KeyValue::new("key", "value"))])
+        .with_attributes([KeyValue::new("key", "value")])
         .build();
 
 // creating Meter with InstrumentationScope, comprising of
-// name, schema and attributes.
+// name, version, schema and attributes.
 let meter = global::meter_with_scope(scope);
 
 // creating Meter with just name
@@ -60,10 +68,10 @@ let meter = global::meter("my_company.my_product.my_library");
 
 :heavy_check_mark: You should understand and pick the right instrument type.
 
-  > [!NOTE] Picking the right instrument type for your use case is crucial to
-  > ensure the correct semantics and performance. Check the [Instrument
-    Selection](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/supplementary-guidelines.md#instrument-selection)
-    section from the supplementary guidelines for more information.
+> [!NOTE] Picking the right instrument type for your use case is crucial to
+> ensure the correct semantics and performance. Check the [Instrument
+  Selection](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/supplementary-guidelines.md#instrument-selection)
+  section from the supplementary guidelines for more information.
 
 | OpenTelemetry Specification | OTel Rust Instrument Type |
 | --------------------------- | -------------------- |
@@ -75,14 +83,14 @@ let meter = global::meter("my_company.my_product.my_library");
 | [Histogram](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#histogram) | [`Histogram`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.Histogram.html) |
 | [UpDownCounter](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#updowncounter) | [`UpDownCounter`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.UpDownCounter.html) |
 
-:stop_sign: You should avoid creating instruments (e.g. `Counter`) too
-frequently. Instruments are fairly expensive and meant to be reused. For most
-applications, instruments can be created once and re-used. Instruments can also
-be cloned to create multiple handles to the same instrument, but the cloning
-should not be on hot path, but instead the cloned instance should be stored and
-re-used.
+:stop_sign: You should avoid creating duplicate instruments (e.g., `Counter`)
+with the same name. Instruments are fairly expensive and meant to be reused
+throughout the application. For most applications, an instrument should be
+created once and saved for re-use. Instruments can also be cloned to create
+multiple handles to the same instrument, but cloning should not occur on the hot
+path. Instead, the cloned instance should be stored and reused.
 
-:stop_sign: You should avoid invalid instrument names.
+:stop_sign: Do NOT use invalid instrument names.
 
 > [!NOTE] OpenTelemetry will not collect metrics from instruments that are using
 > invalid names. Refer to the [OpenTelemetry
@@ -96,47 +104,71 @@ measurements.
 > not following the same order as before:
 
 ```rust
-let counter = meter.u64_counter("example_counter").build();
+let counter = meter.u64_counter("fruits_sold").build();
 counter.add(2, &[KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 counter.add(3, &[KeyValue::new("color", "green"), KeyValue::new("name", "lime")]);
 counter.add(5, &[KeyValue::new("color", "yellow"), KeyValue::new("name", "lemon")]);
-counter.add(8, &[KeyValue::new("name", "lemon"), KeyValue::new("color", "yellow")]); // bad perf
+counter.add(8, &[KeyValue::new("name", "lemon"), KeyValue::new("color", "yellow")]); // bad performance
 ```
 
-:heavy_check_mark: You should use consistent ordering of attributes to achieve
-the best performance.
-
-:heavy_check_mark: If feasible, provide the attributes in the sorted order of
-`Key`s, to minimize memory usage within the Metrics SDK.
+:heavy_check_mark: If feasible, provide the attributes sorted by `Key`s in
+ascending order to minimize memory usage within the Metrics SDK.
 
 ```rust
-let counter = meter.u64_counter("example_counter").build();
+let counter = meter.u64_counter("fruits_sold").build();
 counter.add(2, &[KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 ```
 
-### Reporting measurements via synchronous instruments
+### Reporting measurements - use array slices for attributes
 
 :heavy_check_mark:  When reporting measurements, use array slices for attributes
 rather than creating vectors. Arrays are more efficient as they avoid
-unnecessary heap allocations on the measurement path:
+unnecessary heap allocations on the measurement path. This is true for both
+synchronous and observable instruments.
 
 ```rust
 // Good practice: Using an array slice directly
 counter.add(2, &[KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 
+// Usi
+let _observable_counter = meter
+        .u64_observable_counter("request_count")
+        .with_callback(|observer| {
+            // Good practice: Using an array slice directly
+            observer.observe(
+                100,
+                &[KeyValue::new("endpoint", "/api")]
+            )
+        })
+        .build();
+
 // Avoid this: Creating a Vec is unnecessary, and it allocates on the heap
 // counter.add(2, &vec![KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 ```
 
-This approach minimizes memory allocations on metrics hot paths, improving
-overall performance when reporting metrics frequently.
+### Reporting measurements via synchronous instruments
+
+:heavy_check_mark: Use synchronous Counter when you need to increment counts at
+specific points in your code:
+
+```rust
+// Example: Using Counter when incrementing at specific code points
+use opentelemetry::KeyValue;
+
+fn process_item(counter: &opentelemetry::metrics::Counter<u64>, item_type: &str) {
+    // Process item...
+    
+    // Increment the counter with the item type as an attribute
+    counter.add(1, &[KeyValue::new("type", item_type)]);
+}
+```
 
 ### Reporting measurements via asynchronous instruments
 
 Asynchronous instruments like `ObservableCounter` are ideal for reporting
 metrics that are already being tracked or stored elsewhere in your application.
-These instruments allow you to observe and report the current state of existing
-values without manually managing the aggregation yourself.
+These instruments allow you to observe and report the current state of such
+metric without manually managing the aggregation yourself.
 
 :heavy_check_mark: Use `ObservableCounter` when you already have a variable
 tracking a count:
@@ -172,45 +204,24 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 }
 ```
 
-:heavy_check_mark: Use regular Counter when you need to increment counts at
-specific points in your code:
-
-```rust
-// Example: Using Counter when incrementing at specific code points
-use opentelemetry::KeyValue;
-
-fn setup_metrics(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::Counter<u64> {
-    meter
-        .u64_counter("processed_items")
-        .with_description("Number of items processed")
-        .build()
-}
-
-// Then in your processing code:
-fn process_item(counter: &opentelemetry::metrics::Counter<u64>, item_type: &str) {
-    // Process item...
-    
-    // Increment the counter with the item type as an attribute
-    counter.add(1, &[KeyValue::new("type", item_type)]);
-}
-```
+> [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
+during each export cycle.
 
 ## MeterProvider Management
 
-:stop_sign: Avoid creating `MeterProvider` instances too frequently. A
-`MeterProvider` is resource-intensive and designed to be reused throughout the
-application. Typically, one `MeterProvider` instance per process is sufficient.
+Most use-cases require you to create ONLY one instance of MeterProvider. You
+should NOT create multiple instances of MeterProvider unless you have some
+unusual requirement of having different export strategies within the same
+application. Using multiple instances of MeterProvider requires users to
+exercise caution..
 
 :heavy_check_mark: Properly manage the lifecycle of `MeterProvider` instances if
 you create them. Follow these guidelines:
 
-* **Create Once, Reuse Always**: Create a single `MeterProvider` instance and
-  reuse it throughout the application. Avoid creating multiple instances to
-  conserve resources.
-
 * **Cloning**: A `MeterProvider` is a handle to an underlying provider. Cloning
   it creates a new handle pointing to the same provider. Clone the
-  `MeterProvider` when necessary.
+  `MeterProvider` when necessary, but re-use the cloned instead of repeatedly
+  cloning.
 
 * **Set as Global Provider**: Use `opentelemetry::global::set_meter_provider` to
   set a clone of the `MeterProvider` as the global provider. This ensures
@@ -220,11 +231,10 @@ you create them. Follow these guidelines:
 * **Shutdown**: Explicitly call `shutdown` on the `MeterProvider` at the end of
   your application to ensure all metrics are properly flushed and exported.
 
-> [!NOTE] Dropping the last reference to a `MeterProvider` instance implicitly
-> calls `shutdown`. However, this does not apply if
-> `opentelemetry::global::set_meter_provider` is used to set it as the global
-> provider. When set globally, the `MeterProvider` is backed by a static
-> reference, preventing automatic drop and shutdown.
+> [!NOTE] If you did not use opentelemetry::global::set_meter_provider to set a
+> clone of the MeterProvider as the global provider, then you should be aware
+> that dropping the last instance of MeterProvider implicitly call shutdown on
+> the provider.
 
 :heavy_check_mark: Always call `shutdown` on the `MeterProvider` at the end of
 your application to ensure proper cleanup.
@@ -335,23 +345,26 @@ Pre-aggregation offers several advantages:
 1. **Reduced Data Volume**: Summarizes measurements before export, minimizing
    network overhead and improving efficiency.
 2. **Predictable Resource Usage**: Ensures consistent resource consumption by
-applying [cardinality limits](#cardinality-limits) and [memory
-preallocation](#memory-preallocation) during SDK initialization. In other words,
-metrics storage/network needs remains fixed, irrespective of growing volume or
-changing traffic patterns.
-3. **Improved Performance**: Reduces computational load on downstream systems,
-   enabling them to focus on analysis and storage.
+   applying [cardinality limits](#cardinality-limits) and [memory
+   preallocation](#memory-preallocation) during SDK initialization. In other
+   words, metrics memory/network usage remains capped, regardless of the volume
+   of measurements being made.This ensures that resource utilization remains
+   stable despite fluctuations in traffic volume.
+3. **Improved Performance**: Reduces serialization costs as we work with
+   aggregated data and not the numerous individual measurements. It also reduces
+   computational load on downstream systems, enabling them to focus on analysis
+   and storage.
 
-> [!NOTE] There is no ability to export raw measurement events instead of using
-pre-aggregation.
+> [!NOTE] There is no ability to opt out of pre-aggregation.
 
 ### Cardinality Limits
 
-The number of unique combinations of attributes is called cardinality. Taking
-the [fruit example](#example), if we know that we can only have apple/lemon as
-the name, red/yellow/green as the color, then we can say the cardinality is 6.
-No matter how many fruits we sell, we can always use the following table to
-summarize the total number of fruits based on the name and color.
+The number of unique combinations of attributes for a given metric is referred
+to as the cardinality of that metric. Taking the [fruit example](#example), if
+we know that we can only have apple/lemon as the name, red/yellow/green as the
+color, then we can say the cardinality is 6 (i.e 2 * 3). No matter how many
+fruits we sell, we can always use the following table to summarize the total
+number of fruits based on the name and color.
 
 | Name  | Color  | Count |
 | ----- | ------ | ----- |
@@ -362,22 +375,22 @@ summarize the total number of fruits based on the name and color.
 | lemon | yellow | 12    |
 | lemon | green  | 0     |
 
-In other words, we know how much storage and network are needed to collect and
+In other words, we know how much memory and network are needed to collect and
 transmit these metrics, regardless of the traffic pattern or volume.
 
 In real world applications, the cardinality can be extremely high. Imagine if we
 have a long running service and we collect metrics with 7 attributes and each
 attribute can have 30 different values. We might eventually end up having to
-remember the complete set of all 21,870,000,000 combinations! This cardinality
-explosion is a well-known challenge in the metrics space. For example, it can
-cause surprisingly high costs in the observability system, or even be leveraged
-by hackers to launch a denial-of-service attack.
+remember the complete set of 30⁷ - or 21.87 billion combinations! This
+cardinality explosion is a well-known challenge in the metrics space. For
+example, it can cause surprisingly high costs in the observability system, or
+even be leveraged by bad actors to launch a denial-of-service attack.
 
 [Cardinality
 limit](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#cardinality-limits)
 is a throttling mechanism which allows the metrics collection system to have a
-predictable and reliable behavior when excessive cardinality happens, whether it
-was due to a malicious attack or developer making mistakes while writing code.
+predictable and reliable behavior when there is a cardinality explosion, be it
+due to a malicious attack or developer making mistakes while writing code.
 
 OpenTelemetry has a default cardinality limit of `2000` per metric. This limit
 can be configured at the individual metric level using the [View
@@ -415,7 +428,10 @@ important:
 * **Cardinality Capping**: When the limit is reached within an export interval,
   any new attribute combination is not individually tracked but instead folded
   into a single aggregation with the attribute `{"otel.metric.overflow": true}`.
-  This ensures that measurements are never lost, even when cardinality explodes.
+  This preserves the overall accuracy of aggregates (such as Sum, Count, etc.)
+  even though information about specific attribute combinations is lost. Every
+  measurement is accounted for - either with its original attributes or within
+  the overflow bucket.
 
 * **Temporality Effects**: The impact of cardinality limits differs based on the
   temporality mode:
@@ -459,7 +475,7 @@ important:
   cardinality limit of 3 and we're tracking sales with attributes for `name`,
   `color`, and `store_location`:
 
-  During a busy sales period at time T1-T4, we record:
+  During a busy sales period at time (T3, T4], we record:
   
   1. 10 red apples sold at Downtown store
   2. 5 yellow lemons sold at Uptown store
@@ -480,8 +496,8 @@ important:
   If we later query "How many red apples were sold?" the answer would be 10, not
   13, because the Midtown sales were folded into the overflow bucket. Similarly,
   queries about "How many items were sold in Midtown?" would return 0, not 3.
-  However, the total count across all dimensions (i.e How many fruits were sold
-  in T1-T4 would correctly give 26) would be accurate.
+  However, the total count across all dimensions (i.e How many total fruits were
+  sold in (T3, T4] would correctly give 26) would be accurate.
 
   This limitation applies regardless of whether the attribute in question is
   naturally high-cardinality. Even low-cardinality attributes like "color"
