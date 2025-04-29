@@ -44,7 +44,7 @@ from `global` and saved for re-use.
 
 The fully qualified module name might be a good option for the Meter name.
 Optionally, one may create a meter with version, schema_url, and additional
-meter-level attributes as well. Both are shown in below examples.
+meter-level attributes as well. Both approaches are demonstrated below.
 
 ```rust
 use opentelemetry::global;
@@ -66,6 +66,10 @@ let meter = global::meter("my_company.my_product.my_library");
 ```
 
 ### Instruments
+
+OpenTelemetry defines several types of metric instruments, each optimized for
+specific usage patterns. The following table maps OpenTelemetry Specification
+instruments to their corresponding Rust SDK types.
 
 :heavy_check_mark: You should understand and pick the right instrument type.
 
@@ -232,9 +236,9 @@ you create them. Follow these guidelines:
 * **Shutdown**: Explicitly call `shutdown` on the `MeterProvider` at the end of
   your application to ensure all metrics are properly flushed and exported.
 
-> [!NOTE] If you did not use opentelemetry::global::set_meter_provider to set a
-> clone of the MeterProvider as the global provider, then you should be aware
-> that dropping the last instance of MeterProvider implicitly call shutdown on
+> [!NOTE] If you did not use `opentelemetry::global::set_meter_provider` to set a
+> clone of the `MeterProvider` as the global provider, then you should be aware
+> that dropping the last instance of `MeterProvider` implicitly calls shutdown on
 > the provider.
 
 :heavy_check_mark: Always call `shutdown` on the `MeterProvider` at the end of
@@ -315,6 +319,9 @@ Note that the start time is advanced after each export, and only the delta since
 last export is exported, allowing SDK to "forget" previous state.
 
 ### Pre-Aggregation
+
+Rather than exporting every individual measurement to the backend, OpenTelemetry
+Rust aggregates data locally and only exports the aggregated metrics.
 
 Using the [fruit example](#example), there are six measurements reported during
 the time range `(T2, T3]`. Instead of exporting each individual measurement
