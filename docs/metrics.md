@@ -19,7 +19,8 @@
   * [Pre-Aggregation](#pre-aggregation)
     * [Pre-Aggregation Benefits](#pre-aggregation-benefits)
   * [Cardinality Limits](#cardinality-limits)
-    * [Cardinality Limit - Implications](#cardinality-limit---implications)
+    * [Cardinality Limits - Implications](#cardinality-limits---implications)
+    * [Cardinality Limits - Example](#cardinality-limits---example)
   * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
@@ -283,14 +284,14 @@ Temporality](https://github.com/open-telemetry/opentelemetry-specification/blob/
 
 * (T0, T1]
   * attributes: {name = `apple`, color = `red`}, count: `1`
-  * attributes: {verb = `lemon`, color = `yellow`}, count: `2`
+  * attributes: {name = `lemon`, color = `yellow`}, count: `2`
 * (T0, T2]
   * attributes: {name = `apple`, color = `red`}, count: `1`
-  * attributes: {verb = `lemon`, color = `yellow`}, count: `2`
+  * attributes: {name = `lemon`, color = `yellow`}, count: `2`
 * (T0, T3]
   * attributes: {name = `apple`, color = `red`}, count: `6`
   * attributes: {name = `apple`, color = `green`}, count: `2`
-  * attributes: {verb = `lemon`, color = `yellow`}, count: `12`
+  * attributes: {name = `lemon`, color = `yellow`}, count: `12`
 
 Note that the start time is not advanced, and the exported values are the
 cumulative total of what happened since the beginning.
@@ -302,13 +303,13 @@ Temporality](https://github.com/open-telemetry/opentelemetry-specification/blob/
 
 * (T0, T1]
   * attributes: {name = `apple`, color = `red`}, count: `1`
-  * attributes: {verb = `lemon`, color = `yellow`}, count: `2`
+  * attributes: {name = `lemon`, color = `yellow`}, count: `2`
 * (T1, T2]
   * nothing since we do not have any measurement received
 * (T2, T3]
   * attributes: {name = `apple`, color = `red`}, count: `5`
   * attributes: {name = `apple`, color = `green`}, count: `2`
-  * attributes: {verb = `lemon`, color = `yellow`}, count: `10`
+  * attributes: {name = `lemon`, color = `yellow`}, count: `10`
 
 Note that the start time is advanced after each export, and only the delta since
 last export is exported, allowing SDK to "forget" previous state.
@@ -418,9 +419,9 @@ Therefore, the actual cardinality in your metrics backend can be orders of
 magnitude higher than what any single OTel SDK process handles in an export
 cycle.
 
-#### Cardinality Limit - Implications
+#### Cardinality Limits - Implications
 
-Cardinality limits are enforced during each export interval, meaning the metrics
+Cardinality limits are enforced for each export interval, meaning the metrics
 aggregation system only allows up to the configured cardinality limit of unique
 attribute combinations per metric. Understanding how this works in practice is
 important:
@@ -471,27 +472,29 @@ important:
     combination is replaced with the `{"otel.metric.overflow": true}` attribute,
     meaning queries for any attribute in that combination will miss data points.
 
-  **Example**: Extending our fruit sales tracking example, imagine we set a
-  cardinality limit of 3 and we're tracking sales with attributes for `name`,
-  `color`, and `store_location`:
+#### Cardinality Limits - Example
 
-  During a busy sales period at time (T3, T4], we record:
+Extending our fruit sales tracking example, imagine we set a
+cardinality limit of 3 and we're tracking sales with attributes for `name`,
+`color`, and `store_location`:
+
+During a busy sales period at time (T3, T4], we record:
   
-  1. 10 red apples sold at Downtown store
-  2. 5 yellow lemons sold at Uptown store
-  3. 8 green apples sold at Downtown store
-  4. 3 red apples sold at Midtown store (at this point, the cardinality limit is
-     hit, and attributes are replaced with overflow attribute.)
+1. 10 red apples sold at Downtown store
+2. 5 yellow lemons sold at Uptown store
+3. 8 green apples sold at Downtown store
+4. 3 red apples sold at Midtown store (at this point, the cardinality limit is
+    hit, and attributes are replaced with overflow attribute.)
+
+The exported metrics would be:
   
-  The exported metrics would be:
-  
-  * attributes: {name = `apple`, color = `red`, store_location = `Downtown`},
+* attributes: {name = `apple`, color = `red`, store_location = `Downtown`},
     count: `10`
-  * attributes: {name = `lemon`, color = `yellow`, store_location = `Uptown`},
+* attributes: {name = `lemon`, color = `yellow`, store_location = `Uptown`},
     count: `5`
-  * attributes: {name = `apple`, color = `green`, store_location = `Downtown`},
+* attributes: {name = `apple`, color = `green`, store_location = `Downtown`},
     count: `8`
-  * attributes: {`otel.metric.overflow` = `true`}, count: `3`
+* attributes: {`otel.metric.overflow` = `true`}, count: `3`
   
   If we later query "How many red apples were sold?" the answer would be 10, not
   13, because the Midtown sales were folded into the overflow bucket. Similarly,
