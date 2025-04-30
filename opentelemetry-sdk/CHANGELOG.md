@@ -44,7 +44,7 @@ also modified to suppress telemetry before invoking exporters.
   "spec_unstable_metrics_views". This was only required when using Views.
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 - *Breaking* change, affecting custom `PushMetricExporter` authors:
-  - The `export` method on `PushMetricExporter` receives a `&ResourceMetrics`
+  - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
     instead of `&mut ResourceMetrics`.
 
 ## 0.29.0
