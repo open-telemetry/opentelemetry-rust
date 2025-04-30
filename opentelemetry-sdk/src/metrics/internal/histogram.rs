@@ -27,7 +27,10 @@ where
 
         buckets.total += value;
         buckets.count += 1;
-        buckets.counts[index] += 1;
+        if !buckets.counts.is_empty() {
+            buckets.counts[index] += 1;
+        }
+
         if value < buckets.min {
             buckets.min = value;
         }
@@ -96,7 +99,12 @@ impl<T: Number> Histogram<T> {
             bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
         }
 
-        let buckets_count = bounds.len() + 1;
+        let buckets_count = if bounds.is_empty() {
+            0
+        } else {
+            bounds.len() + 1
+        };
+
         Histogram {
             value_map: ValueMap::new(buckets_count, cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
