@@ -102,7 +102,7 @@ jobs:
         run: |
           cargo install cargo-check-external-types@0.1.13
           cd ${{ matrix.example }}
-          cargo check-external-types --config allowed-external-types.toml
+          cargo check-external-types --all-features --config allowed-external-types.toml
   msrv:
     strategy:
       matrix:

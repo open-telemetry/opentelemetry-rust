@@ -3,6 +3,8 @@
 ## vNext
 
 - Update `tonic` dependency version to 0.13
+- Re-export `tonic` types under `tonic_types`
+  [2898](https://github.com/open-telemetry/opentelemetry-rust/pull/2898)
 
 ## 0.29.0
 
