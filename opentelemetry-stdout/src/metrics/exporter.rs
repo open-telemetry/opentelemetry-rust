@@ -42,7 +42,7 @@ impl fmt::Debug for MetricExporter {
 
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {

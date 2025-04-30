@@ -9,7 +9,7 @@ use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use super::OtlpHttpClient;
 
 impl MetricsClient for OtlpHttpClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         let client = self
             .client
             .lock()
