@@ -2214,9 +2214,6 @@ mod tests {
 
         assert_eq!(data_point.count, 5);
         assert_eq!(data_point.sum, 15);
-
-        println!("bounds: {:?}", data_point.bounds);
-        println!("bucket_counts: {:?}", data_point.bucket_counts);
         assert!(data_point.bounds.is_empty());
         assert!(data_point.bucket_counts.is_empty());
     }
