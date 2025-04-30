@@ -52,7 +52,7 @@ impl TonicMetricsClient {
 }
 
 impl MetricsClient for TonicMetricsClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         let (mut client, metadata, extensions) = self
             .inner
             .lock()
@@ -81,7 +81,7 @@ impl MetricsClient for TonicMetricsClient {
             .export(Request::from_parts(
                 metadata,
                 extensions,
-                ExportMetricsServiceRequest::from(&*metrics),
+                ExportMetricsServiceRequest::from(metrics),
             ))
             .await
             .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
