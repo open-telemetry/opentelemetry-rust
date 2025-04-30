@@ -326,11 +326,11 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &ResourceMetrics,
     ) -> Option<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
-        let req: ExportMetricsServiceRequest = (&*metrics).into();
+        let req: ExportMetricsServiceRequest = metrics.into();
 
         match self.protocol {
             #[cfg(feature = "http-json")]

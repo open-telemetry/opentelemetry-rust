@@ -237,7 +237,7 @@ impl InMemoryMetricExporter {
 }
 
 impl PushMetricExporter for InMemoryMetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
