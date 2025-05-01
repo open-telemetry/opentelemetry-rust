@@ -877,10 +877,6 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
-
-        fn shutdown(&self) -> OTelSdkResult {
-            Ok(())
-        }
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
