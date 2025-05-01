@@ -72,7 +72,7 @@ jobs:
       with:
         toolchain: stable
         components: rustfmt, clippy
-    - uses: taiki-e/install-action@d4635f2de61c8b8104d59cd4aede2060638378cc # v2.49.45
+    - uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # v2.50.4
       with:
           tool: cargo-hack
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -201,7 +201,7 @@ jobs:
         with:
             repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@5075451c95db43b063f20f0c8fef04c04d5bf0ba # cargo-llvm-cov
+        uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # cargo-llvm-cov
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
@@ -228,7 +228,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@d4635f2de61c8b8104d59cd4aede2060638378cc # v2.49.45
+      - uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # v2.50.4
         with:
           tool: cargo-machete
       - name: cargo machete
