@@ -127,6 +127,7 @@ pub mod tonic {
             TonicResource {
                 attributes: resource.iter().map(Into::into).collect(),
                 dropped_attributes_count: 0,
+                entity_refs: vec![], // internal and currently unused
             }
         }
     }
