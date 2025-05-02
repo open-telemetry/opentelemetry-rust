@@ -3,6 +3,7 @@
 ## vNext
 
 - Update `tonic` dependency version to 0.13
+- - Update proto definitions to v1.6.0.
 
 ## 0.29.0
 
