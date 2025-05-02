@@ -10,7 +10,17 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 196 ns      |
+    | ot_layer_enabled            | 155 ns      |
+
+    Hardware: Apple M4 Pro
+    Total Number of Cores:	14 (10 performance and 4 efficiency)
+    | Test                        | Average time|
+    |-----------------------------|-------------|
+    | log_no_subscriber           | 285 ps      |
+    | noop_layer_disabled         | 8 ns       |
+    | noop_layer_enabled          | 14 ns       |
+    | ot_layer_disabled           | 12 ns       |
+    | ot_layer_enabled            | 130 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -44,15 +54,11 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
     fn event_enabled(
         &self,
         _level: opentelemetry::logs::Severity,
         _target: &str,
-        _name: &str,
+        _name: Option<&str>,
     ) -> bool {
         self.enabled
     }
@@ -94,7 +100,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
     c.bench_function("log_no_subscriber", |b| {
         b.iter(|| {
             error!(
-                name = "CheckoutFailed",
+                name : "CheckoutFailed",
                 book_id = "12345",
                 book_title = "Rust Programming Adventures",
                 message = "Unable to process checkout."
@@ -120,7 +126,7 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
                     message = "Unable to process checkout."
@@ -137,10 +143,10 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
         c.bench_function(bench_name, |b| {
             b.iter(|| {
                 error!(
-                    name = "CheckoutFailed",
+                    name : "CheckoutFailed",
                     book_id = "12345",
                     book_title = "Rust Programming Adventures",
-                    "Unable to process checkout."
+                    message = "Unable to process checkout."
                 );
             });
         });
@@ -158,13 +164,18 @@ fn criterion_benchmark(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2))
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
 #[cfg(target_os = "windows")]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 criterion_main!(benches);

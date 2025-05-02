@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::metrics::{data::Aggregation, Temporality};
+use crate::metrics::{data::AggregatedMetrics, Temporality};
 use opentelemetry::time::now;
 use opentelemetry::KeyValue;
 
@@ -14,16 +14,6 @@ use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
     precomputed_sum::PrecomputedSum, sum::Sum, Number,
 };
-
-pub(crate) const STREAM_CARDINALITY_LIMIT: usize = 2000;
-
-/// Checks whether aggregator has hit cardinality limit for metric streams
-pub(crate) fn is_under_cardinality_limit(_size: usize) -> bool {
-    true
-
-    // TODO: Implement this feature, after allowing the ability to customize the cardinality limit.
-    // size < STREAM_CARDINALITY_LIMIT
-}
 
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
@@ -38,7 +28,7 @@ pub(crate) trait ComputeAggregation: Send + Sync + 'static {
     /// If no initial aggregation exists, `dest` will be `None`, in which case the
     /// returned option is expected to contain a new aggregation with the data from
     /// the current collection cycle.
-    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>);
+    fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>);
 }
 
 /// Separate `measure` and `collect` functions for an aggregate.
@@ -133,14 +123,22 @@ pub(crate) struct AggregateBuilder<T> {
     /// measurements.
     filter: AttributeSetFilter,
 
+    /// Cardinality limit for the metric stream
+    cardinality_limit: usize,
+
     _marker: marker::PhantomData<T>,
 }
 
 impl<T: Number> AggregateBuilder<T> {
-    pub(crate) fn new(temporality: Temporality, filter: Option<Filter>) -> Self {
+    pub(crate) fn new(
+        temporality: Temporality,
+        filter: Option<Filter>,
+        cardinality_limit: usize,
+    ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
+            cardinality_limit,
             _marker: marker::PhantomData,
         }
     }
@@ -150,18 +148,31 @@ impl<T: Number> AggregateBuilder<T> {
         LastValue::new(
             overwrite_temporality.unwrap_or(self.temporality),
             self.filter.clone(),
+            self.cardinality_limit,
         )
         .into()
     }
 
     /// Builds a precomputed sum aggregate function input and output.
     pub(crate) fn precomputed_sum(&self, monotonic: bool) -> AggregateFns<T> {
-        PrecomputedSum::new(self.temporality, self.filter.clone(), monotonic).into()
+        PrecomputedSum::new(
+            self.temporality,
+            self.filter.clone(),
+            monotonic,
+            self.cardinality_limit,
+        )
+        .into()
     }
 
     /// Builds a sum aggregate function input and output.
     pub(crate) fn sum(&self, monotonic: bool) -> AggregateFns<T> {
-        Sum::new(self.temporality, self.filter.clone(), monotonic).into()
+        Sum::new(
+            self.temporality,
+            self.filter.clone(),
+            monotonic,
+            self.cardinality_limit,
+        )
+        .into()
     }
 
     /// Builds a histogram aggregate function input and output.
@@ -177,6 +188,7 @@ impl<T: Number> AggregateBuilder<T> {
             boundaries,
             record_min_max,
             record_sum,
+            self.cardinality_limit,
         )
         .into()
     }
@@ -196,6 +208,7 @@ impl<T: Number> AggregateBuilder<T> {
             max_scale,
             record_min_max,
             record_sum,
+            self.cardinality_limit,
         )
         .into()
     }
@@ -205,17 +218,20 @@ impl<T: Number> AggregateBuilder<T> {
 mod tests {
     use crate::metrics::data::{
         ExponentialBucket, ExponentialHistogram, ExponentialHistogramDataPoint, Gauge,
-        GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint,
+        GaugeDataPoint, Histogram, HistogramDataPoint, MetricData, Sum, SumDataPoint,
     };
     use std::vec;
 
     use super::*;
 
+    const CARDINALITY_LIMIT_DEFAULT: usize = 2000;
+
     #[test]
     fn last_value_aggregation() {
         let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None).last_value(None);
-        let mut a = Gauge {
+            AggregateBuilder::<u64>::new(Temporality::Cumulative, None, CARDINALITY_LIMIT_DEFAULT)
+                .last_value(None);
+        let mut a = MetricData::Gauge(Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
                 value: 1u64,
@@ -223,11 +239,15 @@ mod tests {
             }],
             start_time: Some(now()),
             time: now(),
-        };
+        })
+        .into();
         let new_attributes = [KeyValue::new("b", 2)];
         measure.call(2, &new_attributes[..]);
 
         let (count, new_agg) = collect.call(Some(&mut a));
+        let AggregatedMetrics::U64(MetricData::Gauge(a)) = a else {
+            unreachable!()
+        };
 
         assert_eq!(count, 1);
         assert!(new_agg.is_none());
@@ -240,8 +260,9 @@ mod tests {
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None).precomputed_sum(true);
-            let mut a = Sum {
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                    .precomputed_sum(true);
+            let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
@@ -262,11 +283,15 @@ mod tests {
                     Temporality::Delta
                 },
                 is_monotonic: false,
-            };
+            })
+            .into();
             let new_attributes = [KeyValue::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = collect.call(Some(&mut a));
+            let AggregatedMetrics::U64(MetricData::Sum(a)) = a else {
+                unreachable!()
+            };
 
             assert_eq!(count, 1);
             assert!(new_agg.is_none());
@@ -282,8 +307,9 @@ mod tests {
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None).sum(true);
-            let mut a = Sum {
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                    .sum(true);
+            let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
                         attributes: vec![KeyValue::new("a1", 1)],
@@ -304,11 +330,15 @@ mod tests {
                     Temporality::Delta
                 },
                 is_monotonic: false,
-            };
+            })
+            .into();
             let new_attributes = [KeyValue::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = collect.call(Some(&mut a));
+            let AggregatedMetrics::U64(MetricData::Sum(a)) = a else {
+                unreachable!()
+            };
 
             assert_eq!(count, 1);
             assert!(new_agg.is_none());
@@ -323,9 +353,10 @@ mod tests {
     #[test]
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None)
-                .explicit_bucket_histogram(vec![1.0], true, true);
-            let mut a = Histogram {
+            let AggregateFns { measure, collect } =
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                    .explicit_bucket_histogram(vec![1.0], true, true);
+            let mut a = MetricData::Histogram(Histogram {
                 data_points: vec![HistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
                     count: 2,
@@ -343,11 +374,15 @@ mod tests {
                 } else {
                     Temporality::Delta
                 },
-            };
+            })
+            .into();
             let new_attributes = [KeyValue::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = collect.call(Some(&mut a));
+            let AggregatedMetrics::U64(MetricData::Histogram(a)) = a else {
+                unreachable!()
+            };
 
             assert_eq!(count, 1);
             assert!(new_agg.is_none());
@@ -366,9 +401,10 @@ mod tests {
     #[test]
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(temporality, None)
-                .exponential_bucket_histogram(4, 20, true, true);
-            let mut a = ExponentialHistogram {
+            let AggregateFns { measure, collect } =
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                    .exponential_bucket_histogram(4, 20, true, true);
+            let mut a = MetricData::ExponentialHistogram(ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
                     count: 2,
@@ -395,11 +431,15 @@ mod tests {
                 } else {
                     Temporality::Delta
                 },
-            };
+            })
+            .into();
             let new_attributes = [KeyValue::new("b", 2)];
             measure.call(3, &new_attributes[..]);
 
             let (count, new_agg) = collect.call(Some(&mut a));
+            let AggregatedMetrics::U64(MetricData::ExponentialHistogram(a)) = a else {
+                unreachable!()
+            };
 
             assert_eq!(count, 1);
             assert!(new_agg.is_none());

@@ -12,16 +12,16 @@ use crate::{exporter::http::HttpExporterBuilder, HasHttpConfig, HttpExporterBuil
 #[cfg(feature = "grpc-tonic")]
 use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporterBuilderSet};
 
-use crate::NoExporterBuilderSet;
+use crate::{ExporterBuildError, NoExporterBuilderSet};
 
 use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::metrics::MetricResult;
 
 use opentelemetry_sdk::metrics::{
     data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
 };
 use std::fmt::{Debug, Formatter};
+use std::time::Duration;
 
 /// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
 /// Learn about the relationship between this constant and default/spans/logs at
@@ -76,7 +76,7 @@ impl<C> MetricExporterBuilder<C> {
 
 #[cfg(feature = "grpc-tonic")]
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricExporter> {
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         opentelemetry::otel_debug!(name: "MetricExporterBuilt");
         Ok(exporter)
@@ -85,7 +85,7 @@ impl MetricExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl MetricExporterBuilder<HttpExporterBuilderSet> {
-    pub fn build(self) -> MetricResult<MetricExporter> {
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
     }
@@ -123,7 +123,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
     fn export(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &ResourceMetrics,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
     fn shutdown(&self) -> OTelSdkResult;
 }
@@ -149,7 +149,7 @@ impl Debug for MetricExporter {
 }
 
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.export(metrics).await,
@@ -164,6 +164,10 @@ impl PushMetricExporter for MetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.shutdown(),

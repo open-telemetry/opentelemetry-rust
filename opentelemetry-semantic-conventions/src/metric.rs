@@ -9,7 +9,7 @@
 //! The [metric semantic conventions] define a set of standardized attributes to
 //! be used in `Meter`s.
 //!
-//! [metric semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/metric
+//! [metric semantic conventions]: https://opentelemetry.io/docs/specs/semconv/general/metrics/
 //!
 //! ## Usage
 //!
@@ -23,7 +23,7 @@
 //! let meter = global::meter("mylibraryname");
 //! let histogram = meter
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
-//!     .with_unit("By")
+//!     .with_unit("s")
 //!     .with_description("Duration of HTTP server requests.")
 //!     .build();
 //! ```
@@ -220,7 +220,7 @@ pub const AZURE_COSMOSDB_CLIENT_ACTIVE_INSTANCE_COUNT: &str =
 /// | [`crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE`] | `Conditionally_required`: when response was received and contained sub-code.
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available.
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -450,6 +450,122 @@ pub const CONTAINER_UPTIME: &str = "container.uptime";
 
 /// ## Description
 ///
+/// Operating frequency of the logical CPU in Hertz
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Hz` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const CPU_FREQUENCY: &str = "cpu.frequency";
+
+/// ## Description
+///
+/// Seconds each logical CPU spent on each mode
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::CPU_MODE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const CPU_TIME: &str = "cpu.time";
+
+/// ## Description
+///
+/// For each logical CPU, the utilization is calculated as the change in cumulative CPU time (cpu.time) over a measurement interval, divided by the elapsed time
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::CPU_MODE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const CPU_UTILIZATION: &str = "cpu.utilization";
+
+/// ## Description
+///
+/// The total number of objects collected inside a generation since interpreter start.
+///
+/// ## Notes
+///
+/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{object}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPYTHON_GC_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CPYTHON_GC_COLLECTED_OBJECTS: &str = "cpython.gc.collected_objects";
+
+/// ## Description
+///
+/// The number of times a generation was collected since interpreter start.
+///
+/// ## Notes
+///
+/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{collection}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPYTHON_GC_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CPYTHON_GC_COLLECTIONS: &str = "cpython.gc.collections";
+
+/// ## Description
+///
+/// The total number of objects which were found to be uncollectable inside a generation since interpreter start.
+///
+/// ## Notes
+///
+/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{object}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::CPYTHON_GC_GENERATION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const CPYTHON_GC_UNCOLLECTABLE_OBJECTS: &str = "cpython.gc.uncollectable_objects";
+
+/// ## Description
+///
 /// The number of connections that are currently in state described by the `state` attribute
 /// ## Metadata
 /// | | |
@@ -618,7 +734,7 @@ pub const DB_CLIENT_CONNECTION_WAIT_TIME: &str = "db.client.connection.wait_time
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "Replaced by `db.client.connection.create_time`. Note: the unit also changed from `ms` to `s`."
+    note = "{note: Replaced by `db.client.connection.create_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.create_time";
 
@@ -637,7 +753,7 @@ pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.creat
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.idle.max`.")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.idle.max`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max";
 
 /// ## Description
@@ -655,7 +771,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.idle.min`.")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.idle.min`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min";
 
 /// ## Description
@@ -673,7 +789,7 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.max`.")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.max`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 
 /// ## Description
@@ -691,7 +807,9 @@ pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.pending_requests`.")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.pending_requests`., reason: uncategorized}"
+)]
 pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.pending_requests";
 
 /// ## Description
@@ -709,7 +827,7 @@ pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.timeouts`.")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.timeouts`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts";
 
 /// ## Description
@@ -728,7 +846,7 @@ pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_STATE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `db.client.connection.count`.")]
+#[deprecated(note = "{note: Replaced by `db.client.connection.count`., reason: uncategorized}")]
 pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 
 /// ## Description
@@ -747,7 +865,7 @@ pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "Replaced by `db.client.connection.use_time`. Note: the unit also changed from `ms` to `s`."
+    note = "{note: Replaced by `db.client.connection.use_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time";
 
@@ -767,7 +885,7 @@ pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "Replaced by `db.client.connection.wait_time`. Note: the unit also changed from `ms` to `s`."
+    note = "{note: Replaced by `db.client.connection.wait_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_time";
 
@@ -787,7 +905,9 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `azure.cosmosdb.client.active_instance.count`.")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.client.active_instance.count`., reason: uncategorized}"
+)]
 pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
     "db.client.cosmosdb.active_instance.count";
 
@@ -811,7 +931,9 @@ pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `azure.cosmosdb.client.operation.request_charge`.")]
+#[deprecated(
+    note = "{note: Replaced by `azure.cosmosdb.client.operation.request_charge`., reason: uncategorized}"
+)]
 pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
     "db.client.cosmosdb.operation.request_charge";
 
@@ -832,12 +954,13 @@ pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection. The collection name MAY be parsed from the query text, in which case it SHOULD be the single collection name in the query.
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call.
 /// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
+/// | [`crate::attribute::DB_STORED_PROCEDURE_NAME`] | `{"recommended": "if operation represents a stored procedure execution."}`
 /// | [`crate::attribute::DB_SYSTEM_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
@@ -860,9 +983,9 @@ pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection. The collection name MAY be parsed from the query text, in which case it SHOULD be the single collection name in the query.
+/// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call.
 /// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
@@ -1933,6 +2056,90 @@ pub const HW_ERRORS: &str = "hw.errors";
 
 /// ## Description
 ///
+/// Ambient (external) temperature of the physical host
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Cel` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_HOST_AMBIENT_TEMPERATURE: &str = "hw.host.ambient_temperature";
+
+/// ## Description
+///
+/// Total energy consumed by the entire physical host, in joules
+///
+/// ## Notes
+///
+/// The overall energy usage of a host MUST be reported using the specific `hw.host.energy` and `hw.host.power` metrics **only**, instead of the generic `hw.energy` and `hw.power` described in the previous section, to prevent summing up overlapping values
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `J` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_HOST_ENERGY: &str = "hw.host.energy";
+
+/// ## Description
+///
+/// By how many degrees Celsius the temperature of the physical host can be increased, before reaching a warning threshold on one of the internal sensors
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Cel` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_HOST_HEATING_MARGIN: &str = "hw.host.heating_margin";
+
+/// ## Description
+///
+/// Instantaneous power consumed by the entire physical host in Watts (`hw.host.energy` is preferred)
+///
+/// ## Notes
+///
+/// The overall energy usage of a host MUST be reported using the specific `hw.host.energy` and `hw.host.power` metrics **only**, instead of the generic `hw.energy` and `hw.power` described in the previous section, to prevent summing up overlapping values
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `W` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_HOST_POWER: &str = "hw.host.power";
+
+/// ## Description
+///
 /// Instantaneous power consumed by the component
 ///
 /// ## Notes
@@ -2029,7 +2236,7 @@ pub const JVM_BUFFER_MEMORY_LIMIT: &str = "jvm.buffer.memory.limit";
 /// |:-|:- |
 /// | [`crate::attribute::JVM_BUFFER_POOL_NAME`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `jvm.buffer.memory.used`.")]
+#[deprecated(note = "{note: Replaced by `jvm.buffer.memory.used`., reason: uncategorized}")]
 pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
 
 /// ## Description
@@ -2419,6 +2626,9 @@ pub const K8S_DEPLOYMENT_DESIRED_PODS: &str = "k8s.deployment.desired_pods";
 ///
 /// This metric aligns with the `currentReplicas` field of the
 /// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.hpa`](../resource/k8s.md#horizontalpodautoscaler) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2436,6 +2646,9 @@ pub const K8S_HPA_CURRENT_PODS: &str = "k8s.hpa.current_pods";
 ///
 /// This metric aligns with the `desiredReplicas` field of the
 /// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.hpa`](../resource/k8s.md#horizontalpodautoscaler) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2453,6 +2666,9 @@ pub const K8S_HPA_DESIRED_PODS: &str = "k8s.hpa.desired_pods";
 ///
 /// This metric aligns with the `maxReplicas` field of the
 /// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.hpa`](../resource/k8s.md#horizontalpodautoscaler) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2470,6 +2686,9 @@ pub const K8S_HPA_MAX_PODS: &str = "k8s.hpa.max_pods";
 ///
 /// This metric aligns with the `minReplicas` field of the
 /// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.hpa`](../resource/k8s.md#horizontalpodautoscaler) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2845,12 +3064,15 @@ pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
 
 /// ## Description
 ///
-/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replication controller
+/// Deprecated, use `k8s.replicationcontroller.available_pods` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
 /// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2858,8 +3080,55 @@ pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicationcontroller.available_pods`., reason: uncategorized}"
+)]
 pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
     "k8s.replication_controller.available_pods";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.replicationcontroller.desired_pods` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicationcontroller.desired_pods`., reason: uncategorized}"
+)]
+pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_controller.desired_pods";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replication controller
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICATIONCONTROLLER_AVAILABLE_PODS: &str =
+    "k8s.replicationcontroller.available_pods";
 
 /// ## Description
 ///
@@ -2869,6 +3138,9 @@ pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
 ///
 /// This metric aligns with the `replicas` field of the
 /// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
+///
+/// This metric SHOULD, at a minimum, be reported against a
+/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2876,7 +3148,7 @@ pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_controller.desired_pods";
+pub const K8S_REPLICATIONCONTROLLER_DESIRED_PODS: &str = "k8s.replicationcontroller.desired_pods";
 
 /// ## Description
 ///
@@ -3237,7 +3509,7 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.sent.messages`.")]
+#[deprecated(note = "{note: Replaced by `messaging.client.sent.messages`., reason: uncategorized}")]
 pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.published.messages";
 
 /// ## Description
@@ -3316,7 +3588,9 @@ pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.consumed.messages`.")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: uncategorized}"
+)]
 pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 
 /// ## Description
@@ -3337,7 +3611,9 @@ pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.operation.duration`.")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.operation.duration`., reason: uncategorized}"
+)]
 pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 
 /// ## Description
@@ -3358,7 +3634,9 @@ pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.produced.messages`.")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.produced.messages`., reason: uncategorized}"
+)]
 pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 
 /// ## Description
@@ -3379,7 +3657,9 @@ pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.operation.duration`.")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.operation.duration`., reason: uncategorized}"
+)]
 pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 
 /// ## Description
@@ -3400,7 +3680,9 @@ pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "Replaced by `messaging.client.consumed.messages`.")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: uncategorized}"
+)]
 pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
 
 /// ## Description
@@ -3554,12 +3836,307 @@ pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 
 /// ## Description
 ///
+/// The number of log records for which the export has finished, either successful or failed
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause.
+/// For exporters with partial success semantics (e.g. OTLP with `rejected_log_records`), rejected log records must count as failed and only non-rejected log records count as success.
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_LOG_EXPORTED: &str = "otel.sdk.exporter.log.exported";
+
+/// ## Description
+///
+/// The number of log records which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_LOG_INFLIGHT: &str = "otel.sdk.exporter.log.inflight";
+
+/// ## Description
+///
+/// The number of spans for which the export has finished, either successful or failed
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause.
+/// For exporters with partial success semantics (e.g. OTLP with `rejected_spans`), rejected spans must count as failed and only non-rejected spans count as success.
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.exported.count";
+
+/// ## Description
+///
+/// The number of spans which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_SPAN_INFLIGHT_COUNT: &str = "otel.sdk.exporter.span.inflight.count";
+
+/// ## Description
+///
+/// The number of logs submitted to enabled SDK Loggers
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_LOG_CREATED: &str = "otel.sdk.log.created";
+
+/// ## Description
+///
+/// The number of log records for which the processing has finished, either successful or failed
+///
+/// ## Notes
+///
+/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` must contain the failure cause.
+/// For the SDK Simple and Batching Log Record Processor a log record is considered to be processed already when it has been submitted to the exporter,
+/// not when the corresponding export call has finished
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_LOG_PROCESSED: &str = "otel.sdk.processor.log.processed";
+
+/// ## Description
+///
+/// The maximum number of log records the queue of a given instance of an SDK Log Record processor can hold
+///
+/// ## Notes
+///
+/// Only applies to Log Record processors which use a queue, e.g. the SDK Batching Log Record Processor
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_CAPACITY: &str = "otel.sdk.processor.log.queue.capacity";
+
+/// ## Description
+///
+/// The number of log records in the queue of a given instance of an SDK log processor
+///
+/// ## Notes
+///
+/// Only applies to log record processors which use a queue, e.g. the SDK Batching Log Record Processor
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{log_record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_SIZE: &str = "otel.sdk.processor.log.queue.size";
+
+/// ## Description
+///
+/// The number of spans for which the processing has finished, either successful or failed
+///
+/// ## Notes
+///
+/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` must contain the failure cause.
+/// For the SDK Simple and Batching Span Processor a span is considered to be processed already when it has been submitted to the exporter, not when the corresponding export call has finished
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED_COUNT: &str = "otel.sdk.processor.span.processed.count";
+
+/// ## Description
+///
+/// The maximum number of spans the queue of a given instance of an SDK span processor can hold
+///
+/// ## Notes
+///
+/// Only applies to span processors which use a queue, e.g. the SDK Batching Span Processor
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_SPAN_QUEUE_CAPACITY: &str = "otel.sdk.processor.span.queue.capacity";
+
+/// ## Description
+///
+/// The number of spans in the queue of a given instance of an SDK span processor
+///
+/// ## Notes
+///
+/// Only applies to span processors which use a queue, e.g. the SDK Batching Span Processor
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_SPAN_QUEUE_SIZE: &str = "otel.sdk.processor.span.queue.size";
+
+/// ## Description
+///
+/// The number of created spans for which the end operation was called
+///
+/// ## Notes
+///
+/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live.count` and `otel.sdk.span.ended.count`.
+/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.live.count`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_SPAN_SAMPLING_RESULT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_SPAN_ENDED_COUNT: &str = "otel.sdk.span.ended.count";
+
+/// ## Description
+///
+/// The number of created spans for which the end operation has not been called yet
+///
+/// ## Notes
+///
+/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live.count` and `otel.sdk.span.ended.count`.
+/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.ended.count`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_SPAN_SAMPLING_RESULT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_SPAN_LIVE_COUNT: &str = "otel.sdk.span.live.count";
+
+/// ## Description
+///
 /// Number of times the process has been context switched
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `counter` |
-/// | Unit: | `{count}` |
+/// | Unit: | `{context_switch}` |
 /// | Status: | `Development`  |
 ///
 /// ## Attributes
@@ -3668,7 +4245,7 @@ pub const PROCESS_NETWORK_IO: &str = "process.network.io";
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
-/// | Unit: | `{count}` |
+/// | Unit: | `{file_descriptor}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descriptor.count";
@@ -3937,19 +4514,15 @@ pub const SIGNALR_SERVER_CONNECTION_DURATION: &str = "signalr.server.connection.
 
 /// ## Description
 ///
-/// Reports the current frequency of the CPU in Hz
+/// Deprecated. Use `cpu.frequency` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `{Hz}` |
 /// | Status: | `Development`  |
-///
-/// ## Attributes
-/// | Name | Requirement |
-/// |:-|:- |
-/// | [`crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.frequency`., reason: uncategorized}")]
 pub const SYSTEM_CPU_FREQUENCY: &str = "system.cpu.frequency";
 
 /// ## Description
@@ -3986,38 +4559,28 @@ pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 
 /// ## Description
 ///
-/// Seconds each logical CPU spent on each mode
+/// Deprecated. Use `cpu.time` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
 /// | Status: | `Development`  |
-///
-/// ## Attributes
-/// | Name | Requirement |
-/// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.time`., reason: uncategorized}")]
 pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 
 /// ## Description
 ///
-/// Difference in system.cpu.time since the last measurement, divided by the elapsed time and number of logical CPUs
+/// Deprecated. Use `cpu.utilization` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `gauge` |
 /// | Unit: | `1` |
 /// | Status: | `Development`  |
-///
-/// ## Attributes
-/// | Name | Requirement |
-/// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_CPU_LOGICAL_NUMBER`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `cpu.utilization`., reason: uncategorized}")]
 pub const SYSTEM_CPU_UTILIZATION: &str = "system.cpu.utilization";
 
 /// ## Description
@@ -4532,7 +5095,7 @@ pub const SYSTEM_UPTIME: &str = "system.uptime";
 ///
 /// ## Notes
 ///
-/// The values can be retrieve from [`perf_hooks.PerformanceObserver(...).observe({ entryTypes: ['gc'] })`](https://nodejs.org/api/perf_hooks.html#performanceobserverobserveoptions)
+/// The values can be retrieved from [`perf_hooks.PerformanceObserver(...).observe({ entryTypes: ['gc'] })`](https://nodejs.org/api/perf_hooks.html#performanceobserverobserveoptions)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4645,6 +5208,8 @@ pub const V8JS_MEMORY_HEAP_USED: &str = "v8js.memory.heap.used";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
@@ -4664,6 +5229,8 @@ pub const VCS_CHANGE_COUNT: &str = "vcs.change.count";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_STATE`] | `Required`
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
@@ -4683,6 +5250,8 @@ pub const VCS_CHANGE_DURATION: &str = "vcs.change.duration";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REF_BASE_REVISION`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
@@ -4705,6 +5274,8 @@ pub const VCS_CHANGE_TIME_TO_APPROVAL: &str = "vcs.change.time_to_approval";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REF_BASE_REVISION`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
@@ -4727,6 +5298,8 @@ pub const VCS_CHANGE_TIME_TO_MERGE: &str = "vcs.change.time_to_merge";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
 #[cfg(feature = "semconv_experimental")]
@@ -4745,6 +5318,8 @@ pub const VCS_CONTRIBUTOR_COUNT: &str = "vcs.contributor.count";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
 /// | [`crate::attribute::VCS_REPOSITORY_URL_FULL`] | `Required`
@@ -4772,6 +5347,8 @@ pub const VCS_REF_COUNT: &str = "vcs.ref.count";
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_ID`] | `Conditionally_required`: if a change is associate with the ref.
 /// | [`crate::attribute::VCS_LINE_CHANGE_TYPE`] | `Required`
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
@@ -4800,6 +5377,8 @@ pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::VCS_CHANGE_ID`] | `Conditionally_required`: if a change is associate with the ref.
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_BASE_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_BASE_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
@@ -4823,6 +5402,8 @@ pub const VCS_REF_REVISIONS_DELTA: &str = "vcs.ref.revisions_delta";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 /// | [`crate::attribute::VCS_REF_HEAD_NAME`] | `Required`
 /// | [`crate::attribute::VCS_REF_HEAD_TYPE`] | `Required`
 /// | [`crate::attribute::VCS_REPOSITORY_NAME`] | `Recommended`
@@ -4839,5 +5420,11 @@ pub const VCS_REF_TIME: &str = "vcs.ref.time";
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `{repository}` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::VCS_OWNER_NAME`] | `Recommended`
+/// | [`crate::attribute::VCS_PROVIDER_NAME`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REPOSITORY_COUNT: &str = "vcs.repository.count";

@@ -10,7 +10,7 @@
 //! The [metric semantic conventions] define a set of standardized attributes to
 //! be used in `Meter`s.
 //!
-//! [metric semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/metric
+//! [metric semantic conventions]: https://opentelemetry.io/docs/specs/semconv/general/metrics/
 //!
 //! ## Usage
 //!
@@ -24,7 +24,7 @@
 //! let meter = global::meter("mylibraryname");
 //! let histogram = meter
 //!     .u64_histogram(semconv::metric::HTTP_SERVER_REQUEST_DURATION)
-//!     .with_unit("By")
+//!     .with_unit("s")
 //!     .with_description("Duration of HTTP server requests.")
 //!     .build();
 //! ```
@@ -71,7 +71,7 @@
 #[cfg(feature = "semconv_experimental")]
         {% endif %}
         {% if metric is deprecated %}
-#[deprecated(note="{{ metric.deprecated.strip(" \n\"") }}")]
+#[deprecated(note="{{ metric.deprecated | replace('"', '') | replace('\n', ' ') | trim }}")]
         {% endif %}
 pub const {{ metric.metric_name | screaming_snake_case }}: &str = "{{ metric.metric_name }}";
 

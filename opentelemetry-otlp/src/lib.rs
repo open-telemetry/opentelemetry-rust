@@ -1,56 +1,207 @@
-//! The OTLP Exporter supports exporting logs, metrics and traces in the OTLP
-//! format to the OpenTelemetry collector or other compatible backend.
+//! # OpenTelemetry OTLP Exporter
 //!
-//! The OpenTelemetry Collector offers a vendor-agnostic implementation on how
-//! to receive, process, and export telemetry data. In addition, it removes
-//! the need to run, operate, and maintain multiple agents/collectors in
-//! order to support open-source telemetry data formats (e.g. Jaeger,
-//! Prometheus, etc.) sending to multiple open-source or commercial back-ends.
+//! The OTLP Exporter enables exporting telemetry data (logs, metrics, and traces) in the
+//! OpenTelemetry Protocol (OTLP) format to compatible backends. These backends include:
 //!
-//! Currently, this crate supports sending telemetry in OTLP
-//! via gRPC and http (binary and json).
+//! - OpenTelemetry Collector
+//! - Open-source observability tools (Prometheus, Jaeger, etc.)
+//! - Vendor-specific monitoring platforms
 //!
-//! # Quickstart
+//! This crate supports sending OTLP data via:
+//! - gRPC
+//! - HTTP (binary protobuf or JSON)
 //!
-//! First make sure you have a running version of the opentelemetry collector
-//! you want to send data to:
+//! ## Quickstart with OpenTelemetry Collector
+//!
+//! ### HTTP Transport (Port 4318)
+//!
+//! Run the OpenTelemetry Collector:
+//!
+//! ```shell
+//! $ docker run -p 4318:4318 otel/opentelemetry-collector:latest
+//! ```
+//!
+//! Configure your application to export traces via HTTP:
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "http-proto"))]
+//! # {
+//! use opentelemetry::global;
+//! use opentelemetry::trace::Tracer;
+//! use opentelemetry_otlp::Protocol;
+//! use opentelemetry_otlp::WithExportConfig;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_http()
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .build()?;
+//!
+//!     // Create a tracer provider with the exporter
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!         .with_simple_exporter(otlp_exporter)
+//!         .build();
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
+//!
+//!     // Get a tracer and create spans
+//!     let tracer = global::tracer("my_tracer");
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
+//!     });
+//!
+//!     Ok(())
+//! # }
+//! }
+//! ```
+//!
+//! ### gRPC Transport (Port 4317)
+//!
+//! Run the OpenTelemetry Collector:
 //!
 //! ```shell
 //! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
-//! Then create a new `Exporter`, and `Provider` with the recommended defaults to start exporting
-//! telemetry.
+//! Configure your application to export traces via gRPC (the tonic client requires a Tokio runtime):
 //!
-//! You will have to build a OTLP exporter first. Create the correct exporter based on the signal
-//! you are looking to export `SpanExporter::builder()`, `MetricExporter::builder()`,
-//! `LogExporter::builder()` respectively for traces, metrics, and logs.
-//!
-//! Once you have the exporter, you can create your `Provider` by starting with `TracerProvider::builder()`,
-//! `SdkMeterProvider::builder()`, and `LoggerProvider::builder()` respectively for traces, metrics, and logs.
+//! - With `[tokio::main]`
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//! use opentelemetry::global;
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::{global, trace::Tracer};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // First, create a OTLP exporter builder. Configure it as you need.
-//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
-//!     // Then pass it into provider builder
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using gRPC (Tonic)
+//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_tonic()
+//!         .build()?;
+//!
+//!     // Create a tracer provider with the exporter
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
+//!
+//!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
 //!     });
 //!
 //!     Ok(())
-//!   # }
+//! # }
 //! }
 //! ```
+//!
+//! - Without `[tokio::main]`
+//!
+//!  ```no_run
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry::{global, trace::Tracer};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using gRPC (Tonic)
+//!     let rt = tokio::runtime::Runtime::new()?;
+//!     let tracer_provider = rt.block_on(async {
+//!         let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!             .with_tonic()
+//!             .build()
+//!             .expect("Failed to create span exporter");
+//!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!             .with_simple_exporter(exporter)
+//!             .build()
+//!     });
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
+//!
+//!     // Get a tracer and create spans
+//!     let tracer = global::tracer("my_tracer");
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
+//!     });
+//!
+//!     // Ensure the runtime (`rt`) remains active until the program ends
+//!     Ok(())
+//! # }
+//! }
+//! ```
+//!
+//! ## Using with Jaeger
+//!
+//! Jaeger natively supports the OTLP protocol, making it easy to send traces directly:
+//!
+//! ```shell
+//! $ docker run -p 16686:16686 -p 4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest
+//! ```
+//!
+//! After running your application configured with the OTLP exporter, view traces at:
+//! `http://localhost:16686`
+//!
+//! ## Using with Prometheus
+//!
+//! Prometheus natively supports accepting metrics via the OTLP protocol
+//! (HTTP/protobuf). You can [run
+//! Prometheus](https://prometheus.io/docs/prometheus/latest/installation/) with
+//! the following command:
+//!
+//! ```shell
+//! docker run -p 9090:9090 -v ./prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver
+//! ```
+//!
+//! (An empty prometheus.yml file is sufficient for this example.)
+//!
+//! Modify your application to export metrics via OTLP:
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "metrics", feature = "http-proto"))]
+//! # {
+//! use opentelemetry::global;
+//! use opentelemetry::metrics::Meter;
+//! use opentelemetry::KeyValue;
+//! use opentelemetry_otlp::Protocol;
+//! use opentelemetry_otlp::WithExportConfig;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
+//!         .with_http()
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_endpoint("http://localhost:9090/api/v1/otlp/v1/metrics")
+//!         .build()?;
+//!
+//!     // Create a meter provider with the OTLP Metric exporter
+//!     let meter_provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
+//!         .with_periodic_exporter(exporter)
+//!         .build();
+//!     global::set_meter_provider(meter_provider.clone());
+//!
+//!     // Get a meter
+//!     let meter = global::meter("my_meter");
+//!
+//!     // Create a metric
+//!     let counter = meter.u64_counter("my_counter").build();
+//!     counter.add(1, &[KeyValue::new("key", "value")]);
+//!
+//!     // Shutdown the meter provider. This will trigger an export of all metrics.
+//!     meter_provider.shutdown()?;
+//!
+//!     Ok(())
+//! # }
+//! }
+//! ```
+//!
+//! After running your application configured with the OTLP exporter, view metrics at:
+//! `http://localhost:9090`
+//! ## Show Logs, Metrics too (TODO)
 //!
 //! ## Performance
 //!
@@ -87,7 +238,6 @@
 //! ```
 //!
 //! [`tokio`]: https://tokio.rs
-//! [`async-std`]: https://async.rs
 //!
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
@@ -153,15 +303,12 @@
 //!
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(exporter)
-//!         .with_config(
-//!             trace::Config::default()
-//!                 .with_sampler(Sampler::AlwaysOn)
-//!                 .with_id_generator(RandomIdGenerator::default())
-//!                 .with_max_events_per_span(64)
-//!                 .with_max_attributes_per_span(16)
-//!                 .with_max_events_per_span(16)
-//!                 .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build()),
-//!         ).build();
+//!         .with_sampler(Sampler::AlwaysOn)
+//!         .with_id_generator(RandomIdGenerator::default())
+//!         .with_max_events_per_span(64)
+//!         .with_max_attributes_per_span(16)
+//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
+//!         .build();
 //!     global::set_tracer_provider(tracer_provider.clone());
 //!     let tracer = global::tracer("tracer-name");
 //!         # tracer
@@ -223,6 +370,7 @@ mod span;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
+pub use crate::exporter::ExporterBuildError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{
@@ -257,8 +405,6 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-use opentelemetry_sdk::ExportError;
-
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
 pub struct NoExporterBuilderSet;
@@ -267,6 +413,8 @@ pub struct NoExporterBuilderSet;
 ///
 /// Allowing access to [TonicExporterBuilder] specific configuration methods.
 #[cfg(feature = "grpc-tonic")]
+// This is for clippy to work with only the grpc-tonic feature enabled
+#[allow(unused)]
 #[derive(Debug, Default)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
@@ -286,104 +434,6 @@ pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
-/// Wrap type for errors from this crate.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// Wrap error from [`tonic::transport::Error`]
-    #[cfg(feature = "grpc-tonic")]
-    #[error("transport error {0}")]
-    Transport(#[from] tonic::transport::Error),
-
-    /// Wrap the [`tonic::codegen::http::uri::InvalidUri`] error
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("invalid URI {0}")]
-    InvalidUri(#[from] http::uri::InvalidUri),
-
-    /// Wrap type for [`tonic::Status`]
-    #[cfg(feature = "grpc-tonic")]
-    #[error("the grpc server returns error ({code}): {message}")]
-    Status {
-        /// grpc status code
-        code: tonic::Code,
-        /// error message
-        message: String,
-    },
-
-    /// Http requests failed because no http client is provided.
-    #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    #[error(
-        "no http client, you must select one from features or provide your own implementation"
-    )]
-    NoHttpClient,
-
-    /// Http requests failed.
-    #[cfg(any(feature = "http-proto", feature = "http-json"))]
-    #[error("http request failed with {0}")]
-    RequestFailed(#[from] opentelemetry_http::HttpError),
-
-    /// The provided value is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("http header value error {0}")]
-    InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
-
-    /// The provided name is invalid in HTTP headers.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("http header name error {0}")]
-    InvalidHeaderName(#[from] http::header::InvalidHeaderName),
-
-    /// Prost encode failed
-    #[cfg(any(
-        feature = "http-proto",
-        all(feature = "http-json", not(feature = "trace"))
-    ))]
-    #[error("prost encoding error {0}")]
-    EncodeError(#[from] prost::EncodeError),
-
-    /// The lock in exporters has been poisoned.
-    #[cfg(feature = "metrics")]
-    #[error("the lock of the {0} has been poisoned")]
-    PoisonedLock(&'static str),
-
-    /// Unsupported compression algorithm.
-    #[error("unsupported compression algorithm '{0}'")]
-    UnsupportedCompressionAlgorithm(String),
-
-    /// Feature required to use the specified compression algorithm.
-    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
-    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
-    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
-}
-
-#[cfg(feature = "grpc-tonic")]
-impl From<tonic::Status> for Error {
-    fn from(status: tonic::Status) -> Error {
-        Error::Status {
-            code: status.code(),
-            message: {
-                if !status.message().is_empty() {
-                    let mut result = ", detailed error message: ".to_string() + status.message();
-                    if status.code() == tonic::Code::Unknown {
-                        let source = (&status as &dyn std::error::Error)
-                            .source()
-                            .map(|e| format!("{:?}", e));
-                        result.push(' ');
-                        result.push_str(source.unwrap_or_default().as_ref());
-                    }
-                    result
-                } else {
-                    String::new()
-                }
-            },
-        }
-    }
-}
-
-impl ExportError for Error {
-    fn exporter_name(&self) -> &'static str {
-        "otlp"
-    }
-}
-
 /// The communication protocol to use when exporting data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -400,3 +450,20 @@ pub enum Protocol {
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+/// Re-exported types from the `tonic` crate.
+#[cfg(feature = "grpc-tonic")]
+pub mod tonic_types {
+    /// Re-exported types from `tonic::metadata`.
+    pub mod metadata {
+        #[doc(no_inline)]
+        pub use tonic::metadata::MetadataMap;
+    }
+
+    /// Re-exported types from `tonic::transport`.
+    #[cfg(feature = "tls")]
+    pub mod transport {
+        #[doc(no_inline)]
+        pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
+    }
+}

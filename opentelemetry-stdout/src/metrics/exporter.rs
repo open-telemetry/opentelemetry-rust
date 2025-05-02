@@ -1,18 +1,20 @@
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
+use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
 use opentelemetry_sdk::metrics::Temporality;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::{
-            ExponentialHistogram, Gauge, GaugeDataPoint, Histogram, HistogramDataPoint,
-            ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
+            Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, ResourceMetrics, ScopeMetrics,
+            Sum, SumDataPoint,
         },
         exporter::PushMetricExporter,
     },
 };
 use std::fmt::Debug;
 use std::sync::atomic;
+use std::time::Duration;
 
 /// An OpenTelemetry exporter that writes to stdout on export.
 pub struct MetricExporter {
@@ -40,7 +42,7 @@ impl fmt::Debug for MetricExporter {
 
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
@@ -64,6 +66,10 @@ impl PushMetricExporter for MetricExporter {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
@@ -100,39 +106,32 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
             println!("\t\tDescription  : {}", &metric.description);
             println!("\t\tUnit         : {}", &metric.unit);
 
-            let data = metric.data.as_any();
-            if let Some(hist) = data.downcast_ref::<Histogram<u64>>() {
-                println!("\t\tType         : Histogram");
-                print_histogram(hist);
-            } else if let Some(hist) = data.downcast_ref::<Histogram<f64>>() {
-                println!("\t\tType         : Histogram");
-                print_histogram(hist);
-            } else if let Some(_hist) = data.downcast_ref::<ExponentialHistogram<u64>>() {
-                println!("\t\tType         : Exponential Histogram");
-                // TODO
-            } else if let Some(_hist) = data.downcast_ref::<ExponentialHistogram<f64>>() {
-                println!("\t\tType         : Exponential Histogram");
-                // TODO
-            } else if let Some(sum) = data.downcast_ref::<Sum<u64>>() {
-                println!("\t\tType         : Sum");
-                print_sum(sum);
-            } else if let Some(sum) = data.downcast_ref::<Sum<i64>>() {
-                println!("\t\tType         : Sum");
-                print_sum(sum);
-            } else if let Some(sum) = data.downcast_ref::<Sum<f64>>() {
-                println!("\t\tType         : Sum");
-                print_sum(sum);
-            } else if let Some(gauge) = data.downcast_ref::<Gauge<u64>>() {
-                println!("\t\tType         : Gauge");
-                print_gauge(gauge);
-            } else if let Some(gauge) = data.downcast_ref::<Gauge<i64>>() {
-                println!("\t\tType         : Gauge");
-                print_gauge(gauge);
-            } else if let Some(gauge) = data.downcast_ref::<Gauge<f64>>() {
-                println!("\t\tType         : Gauge");
-                print_gauge(gauge);
-            } else {
-                println!("Unsupported data type");
+            fn print_info<T>(data: &MetricData<T>)
+            where
+                T: Debug,
+            {
+                match data {
+                    MetricData::Gauge(gauge) => {
+                        println!("\t\tType         : Gauge");
+                        print_gauge(gauge);
+                    }
+                    MetricData::Sum(sum) => {
+                        println!("\t\tType         : Sum");
+                        print_sum(sum);
+                    }
+                    MetricData::Histogram(hist) => {
+                        println!("\t\tType         : Histogram");
+                        print_histogram(hist);
+                    }
+                    MetricData::ExponentialHistogram(_) => {
+                        println!("\t\tType         : Exponential Histogram");
+                    }
+                }
+            }
+            match &metric.data {
+                AggregatedMetrics::F64(data) => print_info(data),
+                AggregatedMetrics::U64(data) => print_info(data),
+                AggregatedMetrics::I64(data) => print_info(data),
             }
         });
     }
@@ -236,19 +235,21 @@ fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
 
-        println!("\t\t\tBuckets");
-        let mut lower_bound = f64::NEG_INFINITY;
-        for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
-            let count = data_point.bucket_counts.get(i).unwrap_or(&0);
-            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
-            lower_bound = upper_bound;
-        }
+        if !data_point.bucket_counts.is_empty() {
+            println!("\t\t\tBuckets");
+            let mut lower_bound = f64::NEG_INFINITY;
+            for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
+                let count = data_point.bucket_counts.get(i).unwrap_or(&0);
+                println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+                lower_bound = upper_bound;
+            }
 
-        let last_count = data_point
-            .bucket_counts
-            .get(data_point.bounds.len())
-            .unwrap_or(&0);
-        println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
+            let last_count = data_point
+                .bucket_counts
+                .get(data_point.bounds.len())
+                .unwrap_or(&0);
+            println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
+        }
     }
 }
 

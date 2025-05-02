@@ -110,7 +110,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     let contains_wildcard = criteria.name.contains(['*', '?']);
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
-        if mask.name != "" {
+        if !mask.name.is_empty() {
             // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }
@@ -161,6 +161,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
                 },
                 aggregation: agg.clone(),
                 allowed_attribute_keys: mask.allowed_attribute_keys.clone(),
+                cardinality_limit: mask.cardinality_limit,
             })
         } else {
             None
@@ -169,6 +170,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
 }
 
 #[cfg(test)]
+#[cfg(feature = "spec_unstable_metrics_views")]
 mod tests {
     use super::*;
     #[test]

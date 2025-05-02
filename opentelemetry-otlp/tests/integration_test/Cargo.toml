@@ -3,6 +3,7 @@ name = "integration_test_runner"
 version = "0.1.0"
 edition = "2021"
 publish = false
+autobenches = false
 
 [dependencies]
 opentelemetry = { path = "../../../opentelemetry", features = [] }
@@ -11,7 +12,6 @@ opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
 testcontainers = { workspace = true, features = ["http_wait"] }
-once_cell.workspace = true
 anyhow = { workspace = true }
 ctor = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
@@ -29,9 +29,13 @@ reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-
 reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 internal-logs = ["opentelemetry-otlp/internal-logs"]
+experimental_metadata_attributes = ["opentelemetry-appender-tracing/experimental_metadata_attributes"]
 
 # Keep tonic as the default client
 default = ["tonic-client", "internal-logs"]
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

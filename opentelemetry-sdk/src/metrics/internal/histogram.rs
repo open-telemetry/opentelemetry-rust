@@ -2,8 +2,8 @@ use std::mem::replace;
 use std::ops::DerefMut;
 use std::sync::Mutex;
 
-use crate::metrics::data::HistogramDataPoint;
-use crate::metrics::data::{self, Aggregation};
+use crate::metrics::data::{self, MetricData};
+use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
@@ -27,7 +27,10 @@ where
 
         buckets.total += value;
         buckets.count += 1;
-        buckets.counts[index] += 1;
+        if !buckets.counts.is_empty() {
+            buckets.counts[index] += 1;
+        }
+
         if value < buckets.min {
             buckets.min = value;
         }
@@ -87,6 +90,7 @@ impl<T: Number> Histogram<T> {
         mut bounds: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
+        cardinality_limit: usize,
     ) -> Self {
         #[cfg(feature = "spec_unstable_metrics_views")]
         {
@@ -95,9 +99,14 @@ impl<T: Number> Histogram<T> {
             bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
         }
 
-        let buckets_count = bounds.len() + 1;
+        let buckets_count = if bounds.is_empty() {
+            0
+        } else {
+            bounds.len() + 1
+        };
+
         Histogram {
-            value_map: ValueMap::new(buckets_count),
+            value_map: ValueMap::new(buckets_count, cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -107,10 +116,16 @@ impl<T: Number> Histogram<T> {
         }
     }
 
-    fn delta(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
+    fn delta(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.delta();
 
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let h = dest.and_then(|d| {
+            if let MetricData::Histogram(hist) = d {
+                Some(hist)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
@@ -153,15 +168,18 @@ impl<T: Number> Histogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(Into::into))
     }
 
-    fn cumulative(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+    fn cumulative(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.cumulative();
-        let h = dest.and_then(|d| d.as_mut().downcast_mut::<data::Histogram<T>>());
+        let h = dest.and_then(|d| {
+            if let MetricData::Histogram(hist) = d {
+                Some(hist)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if h.is_none() {
             Some(data::Histogram {
                 data_points: vec![],
@@ -204,7 +222,7 @@ impl<T: Number> Histogram<T> {
                 }
             });
 
-        (h.data_points.len(), new_agg.map(|a| Box::new(a) as Box<_>))
+        (h.data_points.len(), new_agg.map(Into::into))
     }
 }
 
@@ -231,11 +249,13 @@ impl<T> ComputeAggregation for Histogram<T>
 where
     T: Number,
 {
-    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
-        match self.temporality {
-            Temporality::Delta => self.delta(dest),
-            _ => self.cumulative(dest),
-        }
+    fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
+        let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
+        let (len, new) = match self.temporality {
+            Temporality::Delta => self.delta(data),
+            _ => self.cumulative(data),
+        };
+        (len, new.map(T::make_aggregated_metrics))
     }
 }
 
@@ -251,13 +271,16 @@ mod tests {
             vec![1.0, 3.0, 6.0],
             false,
             false,
+            2000,
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
         }
         let (count, dp) = ComputeAggregation::call(&hist, None);
         let dp = dp.unwrap();
-        let dp = dp.as_any().downcast_ref::<data::Histogram<i64>>().unwrap();
+        let AggregatedMetrics::I64(MetricData::Histogram(dp)) = dp else {
+            unreachable!()
+        };
         assert_eq!(count, 1);
         assert_eq!(dp.data_points[0].count, 10);
         assert_eq!(dp.data_points[0].bucket_counts.len(), 4);

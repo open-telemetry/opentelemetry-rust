@@ -26,10 +26,13 @@
     // workspace dictionary.
     "words": [
         "actix",
+        "Antonsson",
         "anyvalue",
         "appender",
         "appenders",
+        "autobenches",
         "Bhasin",
+        "Björn",
         "BLRP",
         "Cijo",
         "clippy",
@@ -42,6 +45,8 @@
         "Dwarnings",
         "EPYC",
         "flamegraph",
+        "Gerring",
+        "Grübel",
         "hasher",
         "Isobel",
         "jaegertracing",

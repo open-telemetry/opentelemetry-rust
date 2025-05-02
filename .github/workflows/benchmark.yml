@@ -1,0 +1,54 @@
+# This workflow runs a Criterion benchmark on a PR and compares the results against the base branch.
+# It is triggered on a PR or a push to main.
+#
+# The workflow is gated on the presence of the "performance" label on the PR.
+#
+# The workflow runs on a self-hosted runner pool. We can't use the shared runners for this,
+# because they are only permitted to run on the default branch to preserve resources. 
+#
+# In the future, we might like to consider using bencher.dev or the framework used by otel-golang here. 
+on: 
+  pull_request:
+  push:
+    branches:
+      - main
+name: benchmark pull requests
+permissions:
+  contents: read
+
+jobs:
+  runBenchmark:
+    name: run benchmark
+    permissions:
+      pull-requests: write
+
+    # If we're running on a PR, use ubuntu-latest - a shared runner. We can't use the self-hosted
+    # runners on arbitrary PRs, and we don't want to unleash that load on the pool anyway.     
+    # If we're running on main, use the OTEL self-hosted runner pool. 
+    
+    # TODO - temporarily move main to the shared workers, until we've resolved the instance setup issue
+    # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
+    runs-on: 'ubuntu-latest'
+    if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
+    env:
+      # For PRs, compare against the base branch - e.g., 'main'. 
+      # For pushes to main, compare against the previous commit
+      BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 10  # Fetch current commit and its parent
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+        with:
+          toolchain: stable
+      - uses: boa-dev/criterion-compare-action@adfd3a94634fe2041ce5613eb7df09d247555b87 # v3.2.4
+        with:
+          branchName: ${{ env.BRANCH_NAME }}

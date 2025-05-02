@@ -3,10 +3,11 @@
 The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
-[![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
+[![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-telemetry/opentelemetry-rust/badge)](https://scorecard.dev/viewer/?uri=github.com/open-telemetry/opentelemetry-rust)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
@@ -30,10 +31,13 @@ documentation.
 
 | Signal/Component      | Overall Status     |
 | --------------------  | ------------------ |
+| Context               | Beta               |
+| Baggage               | RC                 |
+| Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | RC                 |
+| Logs-SDK              | Stable              |
 | Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | RC                 |
+| Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
 | Metrics-SDK           | RC                 |
 | Metrics-OTLP Exporter | RC                 |
@@ -176,22 +180,24 @@ you're more than welcome to participate!
 
 ### Maintainers
 
-* [Cijo Thomas](https://github.com/cijothomas)
+* [Cijo Thomas](https://github.com/cijothomas), Microsoft
 * [Harold Dost](https://github.com/hdost)
-* [Julian Tescher](https://github.com/jtescher)
-* [Lalit Kumar Bhasin](https://github.com/lalitb)
-* [Utkarsh Umesan Pillai](https://github.com/utpilla)
+* [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
+* [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
 ### Approvers
 
-* [Shaun Cox](https://github.com/shaun-cox)
-* [Scott Gerring](https://github.com/scottgerring)
+* [Anton Grübel](https://github.com/gruebel), Baz
+* [Björn Antonsson](https://github.com/bantonsson), Datadog
+* [Shaun Cox](https://github.com/shaun-cox), Microsoft
+* [Scott Gerring](https://github.com/scottgerring), Datadog
 
 ### Emeritus
 
 * [Dirkjan Ochtman](https://github.com/djc)
 * [Jan Kühle](https://github.com/frigus02)
+* [Julian Tescher](https://github.com/jtescher)
 * [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Mike Goldsmith](https://github.com/MikeGoldsmith)
 

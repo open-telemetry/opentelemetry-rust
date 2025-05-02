@@ -2,6 +2,22 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency version to 0.29.
+- Update `opentelemetry_sdk` dependency version to 0.29.
+- Update `opentelemetry-http` dependency version to 0.29.
+
+- **Breaking** The `ZipkinExporterBuilder::build()` method now returns a
+  `Result<ZipkinExporter, ExporterBuildError>`. The `ExporterBuildError` enum
+  lists possible failures specific to the Zipkin exporter and was renamed from
+  `opentelemetry_zipkin::Error`. Previously, this method returned a `TraceError`
+  from the `opentelemetry_sdk` crate, which was unrelated to Zipkin builder
+  failures.
+  [2839](https://github.com/open-telemetry/opentelemetry-rust/pull/2839)
+
 ## 0.28.0
 
 Released 2025-Feb-10

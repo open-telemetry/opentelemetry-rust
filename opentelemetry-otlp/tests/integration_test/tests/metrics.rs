@@ -69,11 +69,11 @@ mod metrictests {
         );
 
         // In tokio::current_thread flavor, shutdown must be done in a separate thread
-        let shutdown_resut = Handle::current()
+        let shutdown_result = Handle::current()
             .spawn_blocking(move || meter_provider.shutdown())
             .await
             .unwrap();
-        assert!(shutdown_resut.is_ok());
+        assert!(shutdown_result.is_ok());
         // We still need to sleep, to give otel-collector a chance to flush to disk
         std::thread::sleep(SLEEP_DURATION);
 
@@ -102,8 +102,8 @@ mod metrictests {
             ],
         );
 
-        let shutdown_resut = meter_provider.shutdown();
-        assert!(shutdown_resut.is_ok());
+        let shutdown_result = meter_provider.shutdown();
+        assert!(shutdown_result.is_ok());
         // We still need to sleep, to give otel-collector a chance to flush to disk
         std::thread::sleep(SLEEP_DURATION);
 
@@ -129,8 +129,8 @@ mod metrictests {
             ],
         );
 
-        let shutdown_resut = meter_provider.shutdown();
-        assert!(shutdown_resut.is_ok());
+        let shutdown_result = meter_provider.shutdown();
+        assert!(shutdown_result.is_ok());
         // We still need to sleep, to give otel-collector a chance to flush to disk
         std::thread::sleep(SLEEP_DURATION);
 

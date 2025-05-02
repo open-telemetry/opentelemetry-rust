@@ -2,6 +2,18 @@
 
 ## vNext
 
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Similar to the `opentelemetry-appender-tracing` fix [2658](https://github.com/open-telemetry/opentelemetry-rust/issues/2658)
+  InstrumentationScope(Logger) used by the appender now uses an empty ("") named Logger.
+  Previously, a Logger with name and version of the crate was used.
+  Receivers (processors, exporters) are expected to use `LogRecord.target()` as scope name.
+  This is already done in OTLP Exporters, so this change should be transparent to most users.
+- Update `opentelemetry` dependency version to 0.29.
+- Update `opentelemetry-semantic-conventions` dependency version to 0.29.
+
 ## 0.28.0
 
 Released 2025-Feb-10

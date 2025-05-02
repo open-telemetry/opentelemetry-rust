@@ -1,6 +1,3 @@
-use rand::Rng;
-use std::sync::{Arc, Weak};
-
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _},
@@ -10,11 +7,13 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, MetricResult, Pipeline, SdkMeterProvider, Stream,
-        Temporality, View,
+        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
     },
     Resource,
 };
+use rand::Rng;
+use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 #[derive(Clone, Debug)]
 struct SharedReader(Arc<dyn MetricReader>);
@@ -24,7 +23,7 @@ impl MetricReader for SharedReader {
         self.0.register_pipeline(pipeline)
     }
 
-    fn collect(&self, rm: &mut ResourceMetrics) -> MetricResult<()> {
+    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         self.0.collect(rm)
     }
 
@@ -32,7 +31,7 @@ impl MetricReader for SharedReader {
         self.0.force_flush()
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.0.shutdown()
     }
 
@@ -351,5 +350,12 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
     })
 }
 
-criterion_group!(benches, counters, histograms);
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
+    targets = counters, histograms
+}
+
 criterion_main!(benches);

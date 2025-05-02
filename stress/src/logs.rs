@@ -6,59 +6,82 @@
     ~31 M/sec
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
-    ~40 M /sec
-*/
+    ~44 M /sec
 
-use opentelemetry::InstrumentationScope;
+    Hardware: Apple M4 Pro
+    Total Number of Cores:	14 (10 performance and 4 efficiency)
+    ~50 M/sec
+    ~1.1 B/sec (when disabled)
+
+    With existing SimpleLogProcessor:
+     3 M/sec (when enabled)  (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(true))))
+    26 M/sec (when disabled) (.with_log_processor(SimpleLogProcessor::new(NoopExporter::new(false)))
+*/
+use opentelemetry::Key;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
+use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
-
+use opentelemetry_sdk::Resource;
+use std::time;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
 mod throughput;
 
-#[derive(Debug, Clone)]
-struct MockLogExporter;
-
-impl LogExporter for MockLogExporter {
-    async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
-pub struct MockLogProcessor {
-    exporter: MockLogExporter,
+struct NoopExporter {
+    enabled: bool,
+    service_name: Option<String>,
 }
 
-impl LogProcessor for MockLogProcessor {
-    fn emit(
+impl NoopExporter {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled,
+            service_name: None,
+        }
+    }
+}
+
+impl LogExporter for NoopExporter {
+    async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
+        if let Some(_service_name) = &self.service_name {
+            // do something with the service name
+        }
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn event_enabled(
         &self,
-        record: &mut opentelemetry_sdk::logs::SdkLogRecord,
-        scope: &InstrumentationScope,
-    ) {
-        let log_tuple = &[(record as &SdkLogRecord, scope)];
-        let _ = futures_executor::block_on(self.exporter.export(LogBatch::new(log_tuple)));
+        _level: opentelemetry::logs::Severity,
+        _target: &str,
+        _name: Option<&str>,
+    ) -> bool {
+        self.enabled
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
+    fn set_resource(&mut self, res: &Resource) {
+        self.service_name = res
+            .get(&Key::from_static_str("service.name"))
+            .map(|v| v.to_string());
     }
 }
 
 fn main() {
+    // change this to false to test the throughput when enabled is false.
+    let enabled = true;
+
     // LoggerProvider with a no-op processor.
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
-        .with_log_processor(MockLogProcessor {
-            exporter: MockLogExporter {},
-        })
+        .with_log_processor(SimpleConcurrentLogProcessor::new(NoopExporter::new(
+            enabled,
+        )))
         .build();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
@@ -69,7 +92,7 @@ fn main() {
 
 fn test_log() {
     error!(
-        name = "CheckoutFailed",
+        name : "CheckoutFailed",
         book_id = "12345",
         book_title = "Rust Programming Adventures",
         message = "Unable to process checkout."

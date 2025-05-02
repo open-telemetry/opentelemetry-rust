@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.28.0"
+version = "0.29.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
@@ -8,11 +8,11 @@ readme = "README.md"
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [dependencies]
-opentelemetry = { version = "0.28", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.28", path = "../opentelemetry-http", optional = true }
-async-std = { workspace = true, features = ["unstable"], optional = true }
+opentelemetry = { version = "0.29", path = "../opentelemetry/" }
+opentelemetry-http = { version = "0.29", path = "../opentelemetry-http", optional = true }
 futures-channel = { workspace = true }
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
@@ -26,7 +26,6 @@ url = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-tracing = {workspace = true, optional = true}
 
 [package.metadata.docs.rs]
 all-features = true
@@ -43,22 +42,22 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
-jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url"]
+jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
 metrics = ["opentelemetry/metrics", "glob"]
-testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-async-std", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
+testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 experimental_async_runtime = []
 rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
-rt-async-std = ["async-std", "experimental_async_runtime"]
-internal-logs = ["tracing"]
-experimental_metrics_periodicreader_with_async_runtime = ["metrics"]
+internal-logs = ["opentelemetry/internal-logs"]
+experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
-experimental_logs_batch_log_processor_with_async_runtime = ["logs"]
-experimental_trace_batch_span_processor_with_async_runtime = ["trace"]
+experimental_metrics_custom_reader = ["metrics"]
+experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
+experimental_logs_concurrent_log_processor = ["logs"]
+experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
-
 
 [[bench]]
 name = "context"
@@ -89,6 +88,11 @@ name = "log_processor"
 harness = false
 
 [[bench]]
+name = "log_enabled"
+harness = false
+required-features = ["spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor"]
+
+[[bench]]
 name = "tracer_creation"
 harness = false
 
@@ -99,12 +103,12 @@ harness = false
 [[bench]]
 name = "batch_span_processor"
 harness = false
-required-features = ["rt-tokio", "testing"]
+required-features = ["testing"]
 
 [[bench]]
 name = "metric"
 harness = false
-required-features = ["metrics"]
+required-features = ["metrics", "spec_unstable_metrics_views", "experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "log"

@@ -10,17 +10,17 @@
 //! The [resource semantic conventions] define a set of standardized attributes
 //! to be used in `Resource`s.
 //!
-//! [resource semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/resource
+//! [resource semantic conventions]: https://opentelemetry.io/docs/specs/semconv/resource/
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use opentelemetry::KeyValue;
-//! use opentelemetry_sdk::{trace::{config, TracerProvider}, Resource};
+//! use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
 //! use opentelemetry_semantic_conventions as semconv;
 //!
-//! let _tracer = TracerProvider::builder()
-//!     .with_config(config().with_resource(Resource::builder_empty().with_service_name("my-service").build()))
+//! let _tracer = SdkTracerProvider::builder()
+//!     .with_resource(Resource::builder_empty().with_service_name("my-service").build())
 //!     .build();
 //! ```
 

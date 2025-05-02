@@ -12,17 +12,18 @@ use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 
-use aggregate::{is_under_cardinality_limit, STREAM_CARDINALITY_LIMIT};
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
+
+use super::data::{AggregatedMetrics, MetricData};
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
 
 #[inline]
 fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", "true")])
+    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
 }
 
 pub(crate) trait Aggregator {
@@ -69,27 +70,34 @@ where
     no_attribute_tracker: A,
     /// Configuration for an Aggregator
     config: A::InitConfig,
+    cardinality_limit: usize,
 }
 
 impl<A> ValueMap<A>
 where
     A: Aggregator,
 {
-    fn new(config: A::InitConfig) -> Self {
+    fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)),
+            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
             config,
+            cardinality_limit,
         }
     }
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
         self.trackers_for_collect
-            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + STREAM_CARDINALITY_LIMIT)))
+            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + self.cardinality_limit)))
+    }
+
+    /// Checks whether aggregator has hit cardinality limit for metric streams
+    fn is_under_cardinality_limit(&self) -> bool {
+        self.count.load(Ordering::SeqCst) < self.cardinality_limit
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
@@ -129,7 +137,7 @@ where
             tracker.update(value);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.update(value);
-        } else if is_under_cardinality_limit(self.count.load(Ordering::SeqCst)) {
+        } else if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(A::create(&self.config));
             new_tracker.update(value);
 
@@ -144,9 +152,6 @@ where
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
-            otel_warn!( name: "ValueMap.measure",
-                message = "Maximum data points for metric stream exceeded. Entry added to overflow. Subsequent overflows to same metric until next collect will not be logged."
-            );
         }
     }
 
@@ -242,6 +247,14 @@ pub(crate) trait AtomicallyUpdate<T> {
     fn new_atomic_tracker(init: T) -> Self::AtomicTracker;
 }
 
+pub(crate) trait AggregatedMetricsAccess: Sized {
+    /// This function is used in tests.
+    #[allow(unused)]
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<Self>>;
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<Self>>;
+    fn make_aggregated_metrics(data: MetricData<Self>) -> AggregatedMetrics;
+}
+
 pub(crate) trait Number:
     Add<Output = Self>
     + AddAssign
@@ -256,6 +269,7 @@ pub(crate) trait Number:
     + Sync
     + 'static
     + AtomicallyUpdate<Self>
+    + AggregatedMetricsAccess
 {
     fn min() -> Self;
     fn max() -> Self;
@@ -302,6 +316,72 @@ impl Number for f64 {
 
     fn into_float(self) -> f64 {
         self
+    }
+}
+
+impl AggregatedMetricsAccess for i64 {
+    fn make_aggregated_metrics(data: MetricData<i64>) -> AggregatedMetrics {
+        AggregatedMetrics::I64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<i64>> {
+        if let AggregatedMetrics::I64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<i64>> {
+        if let AggregatedMetrics::I64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+}
+
+impl AggregatedMetricsAccess for u64 {
+    fn make_aggregated_metrics(data: MetricData<u64>) -> AggregatedMetrics {
+        AggregatedMetrics::U64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<u64>> {
+        if let AggregatedMetrics::U64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<u64>> {
+        if let AggregatedMetrics::U64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+}
+
+impl AggregatedMetricsAccess for f64 {
+    fn make_aggregated_metrics(data: MetricData<f64>) -> AggregatedMetrics {
+        AggregatedMetrics::F64(data)
+    }
+
+    fn extract_metrics_data_ref(data: &AggregatedMetrics) -> Option<&MetricData<f64>> {
+        if let AggregatedMetrics::F64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn extract_metrics_data_mut(data: &mut AggregatedMetrics) -> Option<&mut MetricData<f64>> {
+        if let AggregatedMetrics::F64(data) = data {
+            Some(data)
+        } else {
+            None
+        }
     }
 }
 
