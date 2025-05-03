@@ -58,8 +58,8 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-
     use super::*;
+    use crate::error::OTelSdkResult;
     use crate::{
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
@@ -76,6 +76,7 @@ mod tests {
         },
         Context, KeyValue,
     };
+    use std::time::Duration;
 
     #[test]
     fn span_modification_via_context() {
@@ -146,7 +147,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> crate::error::OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
     }
