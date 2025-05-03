@@ -2,6 +2,15 @@
 
 ## vNext
 
+- *Breaking* change for `PushMetricExporter::export` from accepting
+  `metrics: &ResourceMetrics`, to accepting `metrics: ResourceMetrics<'_>`.
+  In addition, `ResourceMetrics` was also changed to allow improving underlying
+  metric collection without any allocations in the future.
+  [#2957](https://github.com/open-telemetry/opentelemetry-rust/pull/2957)
+- *Breaking* change for `Metric::data` field: From dynamic `Box<dyn Aggregation>`
+  to new enum `AggregatedMetrics`.
+  [#2857](https://github.com/open-telemetry/opentelemetry-rust/pull/2857)
+
 - **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
   - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
@@ -47,6 +56,7 @@ also modified to suppress telemetry before invoking exporters.
 - *Breaking* change, affecting custom `PushMetricExporter` authors:
   - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
     instead of `&mut ResourceMetrics`.
+
 
 ## 0.29.0
 

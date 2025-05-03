@@ -1,14 +1,14 @@
 use chrono::{DateTime, Utc};
 use core::{f64, fmt};
 use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
+use opentelemetry_sdk::metrics::exporter::{
+    MetricsLendingIter, ResourceMetrics, ScopeMetricsCollector,
+};
 use opentelemetry_sdk::metrics::Temporality;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::{
-            Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, ResourceMetrics, ScopeMetrics,
-            Sum, SumDataPoint,
-        },
+        data::{Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, Sum, SumDataPoint},
         exporter::PushMetricExporter,
     },
 };
@@ -42,7 +42,7 @@ impl fmt::Debug for MetricExporter {
 
 impl PushMetricExporter for MetricExporter {
     /// Write Metrics to stdout
-    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: ResourceMetrics<'_>) -> OTelSdkResult {
         if self.is_shutdown.load(atomic::Ordering::SeqCst) {
             Err(opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown)
         } else {
@@ -55,7 +55,7 @@ impl PushMetricExporter for MetricExporter {
             metrics.resource.iter().for_each(|(k, v)| {
                 println!("\t ->  {}={:?}", k, v);
             });
-            print_metrics(&metrics.scope_metrics);
+            print_scope_metrics(metrics.scope_metrics);
             Ok(())
         }
     }
@@ -79,61 +79,71 @@ impl PushMetricExporter for MetricExporter {
     }
 }
 
-fn print_metrics(metrics: &[ScopeMetrics]) {
-    for (i, metric) in metrics.iter().enumerate() {
-        println!("\tInstrumentation Scope #{}", i);
-        println!("\t\tName         : {}", &metric.scope.name());
-        if let Some(version) = &metric.scope.version() {
-            println!("\t\tVersion  : {:?}", version);
+fn print_scope_metrics(scope_metrics: ScopeMetricsCollector<'_>) {
+    scope_metrics.collect(|mut metrics| {
+        let mut iter = 0;
+        while let Some(scope_metric) = metrics.next_scope_metrics() {
+            iter += 1;
+            println!("\tInstrumentation Scope #{}", iter);
+            println!("\t\tName         : {}", &scope_metric.scope.name());
+            if let Some(version) = &scope_metric.scope.version() {
+                println!("\t\tVersion  : {:?}", version);
+            }
+            if let Some(schema_url) = &scope_metric.scope.schema_url() {
+                println!("\t\tSchemaUrl: {:?}", schema_url);
+            }
+            scope_metric
+                .scope
+                .attributes()
+                .enumerate()
+                .for_each(|(index, kv)| {
+                    if index == 0 {
+                        println!("\t\tScope Attributes:");
+                    }
+                    println!("\t\t\t ->  {}: {}", kv.key, kv.value);
+                });
+            print_metrics(scope_metric.metrics);
         }
-        if let Some(schema_url) = &metric.scope.schema_url() {
-            println!("\t\tSchemaUrl: {:?}", schema_url);
-        }
-        metric
-            .scope
-            .attributes()
-            .enumerate()
-            .for_each(|(index, kv)| {
-                if index == 0 {
-                    println!("\t\tScope Attributes:");
+    });
+}
+
+fn print_metrics(mut metrics: MetricsLendingIter<'_>) {
+    let mut iter = 0;
+    while let Some(metric) = metrics.next_metric() {
+        iter += 1;
+
+        println!("Metric #{}", iter);
+        println!("\t\tName         : {}", &metric.instrument.name);
+        println!("\t\tDescription  : {}", &metric.instrument.description);
+        println!("\t\tUnit         : {}", &metric.instrument.unit);
+
+        fn print_info<T>(data: &MetricData<T>)
+        where
+            T: Debug,
+        {
+            match data {
+                MetricData::Gauge(gauge) => {
+                    println!("\t\tType         : Gauge");
+                    print_gauge(gauge);
                 }
-                println!("\t\t\t ->  {}: {}", kv.key, kv.value);
-            });
-
-        metric.metrics.iter().enumerate().for_each(|(i, metric)| {
-            println!("Metric #{}", i);
-            println!("\t\tName         : {}", &metric.name);
-            println!("\t\tDescription  : {}", &metric.description);
-            println!("\t\tUnit         : {}", &metric.unit);
-
-            fn print_info<T>(data: &MetricData<T>)
-            where
-                T: Debug,
-            {
-                match data {
-                    MetricData::Gauge(gauge) => {
-                        println!("\t\tType         : Gauge");
-                        print_gauge(gauge);
-                    }
-                    MetricData::Sum(sum) => {
-                        println!("\t\tType         : Sum");
-                        print_sum(sum);
-                    }
-                    MetricData::Histogram(hist) => {
-                        println!("\t\tType         : Histogram");
-                        print_histogram(hist);
-                    }
-                    MetricData::ExponentialHistogram(_) => {
-                        println!("\t\tType         : Exponential Histogram");
-                    }
+                MetricData::Sum(sum) => {
+                    println!("\t\tType         : Sum");
+                    print_sum(sum);
+                }
+                MetricData::Histogram(hist) => {
+                    println!("\t\tType         : Histogram");
+                    print_histogram(hist);
+                }
+                MetricData::ExponentialHistogram(_) => {
+                    println!("\t\tType         : Exponential Histogram");
                 }
             }
-            match &metric.data {
-                AggregatedMetrics::F64(data) => print_info(data),
-                AggregatedMetrics::U64(data) => print_info(data),
-                AggregatedMetrics::I64(data) => print_info(data),
-            }
-        });
+        }
+        match &metric.data {
+            AggregatedMetrics::F64(data) => print_info(data),
+            AggregatedMetrics::U64(data) => print_info(data),
+            AggregatedMetrics::I64(data) => print_info(data),
+        }
     }
 }
 

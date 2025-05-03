@@ -10,8 +10,8 @@ use crate::{
     metrics::Temporality,
 };
 
+use super::reader::ResourceMetricsData;
 use super::{
-    data::ResourceMetrics,
     pipeline::Pipeline,
     reader::{MetricReader, SdkProducer},
 };
@@ -90,7 +90,7 @@ impl MetricReader for ManualReader {
     /// callbacks necessary and returning the results.
     ///
     /// Returns an error if called after shutdown.
-    fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+    fn collect(&self, rm: &mut ResourceMetricsData) -> OTelSdkResult {
         let inner = self
             .inner
             .lock()
