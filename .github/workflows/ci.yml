@@ -199,9 +199,11 @@ jobs:
           components: rustfmt,llvm-tools-preview
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # cargo-llvm-cov
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b
+        with:
+          tool: cargo-llvm-cov
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
