@@ -106,3 +106,41 @@ pub struct InstrumentationScope {
     #[prost(uint32, tag = "4")]
     pub dropped_attributes_count: u32,
 }
+/// A reference to an Entity.
+/// Entity represents an object of interest associated with produced telemetry: e.g spans, metrics, profiles, or logs.
+///
+/// Status: \[Development\]
+#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EntityRef {
+    /// The Schema URL, if known. This is the identifier of the Schema that the entity data
+    /// is recorded in. To learn more about Schema URL see
+    /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
+    ///
+    /// This schema_url applies to the data in this message and to the Resource attributes
+    /// referenced by id_keys and description_keys.
+    /// TODO: discuss if we are happy with this somewhat complicated definition of what
+    /// the schema_url applies to.
+    ///
+    /// This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
+    #[prost(string, tag = "1")]
+    pub schema_url: ::prost::alloc::string::String,
+    /// Defines the type of the entity. MUST not change during the lifetime of the entity.
+    /// For example: "service" or "host". This field is required and MUST not be empty
+    /// for valid entities.
+    #[prost(string, tag = "2")]
+    pub r#type: ::prost::alloc::string::String,
+    /// Attribute Keys that identify the entity.
+    /// MUST not change during the lifetime of the entity. The Id must contain at least one attribute.
+    /// These keys MUST exist in the containing {message}.attributes.
+    #[prost(string, repeated, tag = "3")]
+    pub id_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Descriptive (non-identifying) attribute keys of the entity.
+    /// MAY change over the lifetime of the entity. MAY be empty.
+    /// These attribute keys are not part of entity's identity.
+    /// These keys MUST exist in the containing {message}.attributes.
+    #[prost(string, repeated, tag = "4")]
+    pub description_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
