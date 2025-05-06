@@ -127,8 +127,8 @@ impl HttpExporterBuilder {
             ))]
             {
                 // TODO - support configuring custom connector and executor
-                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
-                    as Arc<dyn HttpClient>);
+                let client = HyperClient::with_default_connector(timeout, None);
+                http_client = Some(Arc::new(client));
             }
             #[cfg(all(
                 not(feature = "hyper-client"),
@@ -136,12 +136,11 @@ impl HttpExporterBuilder {
                 feature = "reqwest-client"
             ))]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .unwrap_or_default();
+                http_client = Some(Arc::new(client));
             }
             #[cfg(all(
                 not(feature = "hyper-client"),
@@ -149,17 +148,11 @@ impl HttpExporterBuilder {
                 feature = "reqwest-blocking-client"
             ))]
             {
-                let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
-                        reqwest::blocking::Client::builder()
-                            .timeout(timeout_clone)
-                            .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
-                    })
-                    .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::blocking::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .unwrap_or_default();
+                http_client = Some(Arc::new(client));
             }
         }
 
