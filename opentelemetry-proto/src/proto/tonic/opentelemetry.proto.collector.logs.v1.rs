@@ -153,8 +153,6 @@ pub mod logs_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// For performance reasons, it is recommended to keep this RPC
-        /// alive for the entire life of the application.
         pub async fn export(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportLogsServiceRequest>,
@@ -200,8 +198,6 @@ pub mod logs_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with LogsServiceServer.
     #[async_trait]
     pub trait LogsService: std::marker::Send + std::marker::Sync + 'static {
-        /// For performance reasons, it is recommended to keep this RPC
-        /// alive for the entire life of the application.
         async fn export(
             &self,
             request: tonic::Request<super::ExportLogsServiceRequest>,

@@ -44,6 +44,7 @@ mod json_serde {
                                 }),
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_spans: vec![ScopeSpans {
                             scope: Some(InstrumentationScope {
@@ -249,6 +250,7 @@ mod json_serde {
                                 }),
                             }],
                             dropped_attributes_count: 1,
+                            entity_refs: vec![],
                         }),
                         scope_spans: vec![ScopeSpans {
                             scope: Some(InstrumentationScope {
@@ -792,6 +794,7 @@ mod json_serde {
                                 }),
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_metrics: vec![ScopeMetrics {
                             scope: Some(InstrumentationScope {
@@ -1178,6 +1181,7 @@ mod json_serde {
                                 }),
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_logs: vec![ScopeLogs {
                             scope: Some(InstrumentationScope {
