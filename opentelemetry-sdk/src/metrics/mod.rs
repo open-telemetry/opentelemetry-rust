@@ -82,8 +82,7 @@ pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
 
-#[cfg(feature = "experimental_metrics_custom_reader")]
-pub use instrument::InstrumentKind;
+pub use instrument::{InstrumentInfo, InstrumentKind};
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use instrument::*;
@@ -118,11 +117,12 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
+    use self::data::{HistogramDataPoint, SumDataPoint};
     use super::data::MetricData;
     use super::internal::Number;
+    use super::reader::ResourceMetricsData;
+    use super::reader::ScopeMetricsData;
     use super::*;
-    use crate::metrics::data::ResourceMetrics;
     use crate::metrics::internal::AggregatedMetricsAccess;
     use crate::metrics::InMemoryMetricExporter;
     use crate::metrics::InMemoryMetricExporterBuilder;
@@ -693,8 +693,8 @@ mod tests {
             "There should be single metric merging duplicate instruments"
         );
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit, "my_unit");
+        assert_eq!(metric.instrument.name, "my_counter");
+        assert_eq!(metric.instrument.unit, "my_unit");
         let MetricData::Sum(sum) = u64::extract_metrics_data_ref(&metric.data)
             .expect("Sum aggregation expected for Counter instruments by default")
         else {
@@ -759,9 +759,9 @@ mod tests {
 
         if let Some(scope1) = scope1 {
             let metric1 = &scope1.metrics[0];
-            assert_eq!(metric1.name, "my_counter");
-            assert_eq!(metric1.unit, "my_unit");
-            assert_eq!(metric1.description, "my_description");
+            assert_eq!(metric1.instrument.name, "my_counter");
+            assert_eq!(metric1.instrument.unit, "my_unit");
+            assert_eq!(metric1.instrument.description, "my_description");
             let MetricData::Sum(sum1) = u64::extract_metrics_data_ref(&metric1.data)
                 .expect("Sum aggregation expected for Counter instruments by default")
             else {
@@ -779,9 +779,9 @@ mod tests {
 
         if let Some(scope2) = scope2 {
             let metric2 = &scope2.metrics[0];
-            assert_eq!(metric2.name, "my_counter");
-            assert_eq!(metric2.unit, "my_unit");
-            assert_eq!(metric2.description, "my_description");
+            assert_eq!(metric2.instrument.name, "my_counter");
+            assert_eq!(metric2.instrument.unit, "my_unit");
+            assert_eq!(metric2.instrument.description, "my_description");
 
             let MetricData::Sum(sum2) = u64::extract_metrics_data_ref(&metric2.data)
                 .expect("Sum aggregation expected for Counter instruments by default")
@@ -865,9 +865,9 @@ mod tests {
         assert!(scope.attributes().eq(&[KeyValue::new("key", "value1")]));
 
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter");
-        assert_eq!(metric.unit, "my_unit");
-        assert_eq!(metric.description, "my_description");
+        assert_eq!(metric.instrument.name, "my_counter");
+        assert_eq!(metric.instrument.unit, "my_unit");
+        assert_eq!(metric.instrument.description, "my_description");
 
         let MetricData::Sum(sum) = u64::extract_metrics_data_ref(&metric.data)
             .expect("Sum aggregation expected for Counter instruments by default")
@@ -922,11 +922,11 @@ mod tests {
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(
-            metric.name, "test_histogram",
+            metric.instrument.name, "test_histogram",
             "View rename should be ignored and original name retained."
         );
         assert_eq!(
-            metric.unit, "test_unit",
+            metric.instrument.unit, "test_unit",
             "View rename of unit should be ignored and original unit retained."
         );
     }
@@ -988,7 +988,7 @@ mod tests {
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_observable_counter",);
+        assert_eq!(metric.instrument.name, "my_observable_counter",);
 
         let MetricData::Sum(sum) = u64::extract_metrics_data_ref(&metric.data)
             .expect("Sum aggregation expected for ObservableCounter instruments by default")
@@ -1064,7 +1064,7 @@ mod tests {
             .expect("metrics are expected to be exported.");
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(metric.name, "my_counter",);
+        assert_eq!(metric.instrument.name, "my_counter",);
 
         let MetricData::Sum(sum) = u64::extract_metrics_data_ref(&metric.data)
             .expect("Sum aggregation expected for Counter instruments by default")
@@ -2955,9 +2955,9 @@ mod tests {
     }
 
     fn find_scope_metric<'a>(
-        metrics: &'a [ScopeMetrics],
+        metrics: &'a [ScopeMetricsData],
         name: &'a str,
-    ) -> Option<&'a ScopeMetrics> {
+    ) -> Option<&'a ScopeMetricsData> {
         metrics
             .iter()
             .find(|&scope_metric| scope_metric.scope.name() == name)
@@ -2968,7 +2968,7 @@ mod tests {
         meter_provider: SdkMeterProvider,
 
         // Saving this on the test context for lifetime simplicity
-        resource_metrics: Vec<ResourceMetrics>,
+        resource_metrics: Vec<ResourceMetricsData>,
     }
 
     impl TestContext {
@@ -3081,9 +3081,9 @@ mod tests {
             assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
 
             let metric = &resource_metric.scope_metrics[0].metrics[0];
-            assert_eq!(metric.name, counter_name);
+            assert_eq!(metric.instrument.name, counter_name);
             if let Some(expected_unit) = unit_name {
-                assert_eq!(metric.unit, expected_unit);
+                assert_eq!(metric.instrument.unit, expected_unit);
             }
 
             T::extract_metrics_data_ref(&metric.data)
@@ -3125,10 +3125,10 @@ mod tests {
                     assert!(!resource_metric.scope_metrics[0].metrics.is_empty());
 
                     let metric = &resource_metric.scope_metrics[0].metrics[0];
-                    assert_eq!(metric.name, counter_name);
+                    assert_eq!(metric.instrument.name, counter_name);
 
                     if let Some(expected_unit) = unit_name {
-                        assert_eq!(metric.unit, expected_unit);
+                        assert_eq!(metric.instrument.unit, expected_unit);
                     }
 
                     let aggregation = T::extract_metrics_data_ref(&metric.data)

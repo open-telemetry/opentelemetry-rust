@@ -11,9 +11,9 @@ pub mod tonic {
     use opentelemetry_sdk::metrics::data::{
         AggregatedMetrics, Exemplar as SdkExemplar,
         ExponentialHistogram as SdkExponentialHistogram, Gauge as SdkGauge,
-        Histogram as SdkHistogram, Metric as SdkMetric, MetricData, ResourceMetrics,
-        ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
+        Histogram as SdkHistogram, MetricData, Sum as SdkSum,
     };
+    use opentelemetry_sdk::metrics::exporter::{Metric, ResourceMetrics, ScopeMetrics};
     use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
@@ -110,12 +110,18 @@ pub mod tonic {
         }
     }
 
-    impl From<&ResourceMetrics> for ExportMetricsServiceRequest {
-        fn from(rm: &ResourceMetrics) -> Self {
+    impl From<ResourceMetrics<'_>> for ExportMetricsServiceRequest {
+        fn from(rm: ResourceMetrics<'_>) -> Self {
+            let mut scope_metrics = Vec::new();
+            rm.scope_metrics.collect(|mut iter| {
+                while let Some(scope_metric) = iter.next_scope_metrics() {
+                    scope_metrics.push(scope_metric.into());
+                }
+            });
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
-                    resource: Some((&rm.resource).into()),
-                    scope_metrics: rm.scope_metrics.iter().map(Into::into).collect(),
+                    resource: Some(rm.resource.into()),
+                    scope_metrics,
                     schema_url: rm.resource.schema_url().map(Into::into).unwrap_or_default(),
                 }],
             }
@@ -132,11 +138,15 @@ pub mod tonic {
         }
     }
 
-    impl From<&SdkScopeMetrics> for TonicScopeMetrics {
-        fn from(sm: &SdkScopeMetrics) -> Self {
+    impl From<ScopeMetrics<'_>> for TonicScopeMetrics {
+        fn from(mut sm: ScopeMetrics<'_>) -> Self {
+            let mut metrics = Vec::new();
+            while let Some(metric) = sm.metrics.next_metric() {
+                metrics.push(metric.into());
+            }
             TonicScopeMetrics {
-                scope: Some((&sm.scope, None).into()),
-                metrics: sm.metrics.iter().map(Into::into).collect(),
+                scope: Some((sm.scope, None).into()),
+                metrics,
                 schema_url: sm
                     .scope
                     .schema_url()
@@ -146,12 +156,12 @@ pub mod tonic {
         }
     }
 
-    impl From<&SdkMetric> for TonicMetric {
-        fn from(metric: &SdkMetric) -> Self {
+    impl From<Metric<'_>> for TonicMetric {
+        fn from(metric: Metric<'_>) -> Self {
             TonicMetric {
-                name: metric.name.to_string(),
-                description: metric.description.to_string(),
-                unit: metric.unit.to_string(),
+                name: metric.instrument.name.to_string(),
+                description: metric.instrument.description.to_string(),
+                unit: metric.instrument.unit.to_string(),
                 metadata: vec![], // internal and currently unused
                 data: Some(match &metric.data {
                     AggregatedMetrics::F64(data) => data.into(),
