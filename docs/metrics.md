@@ -90,9 +90,9 @@ instruments to their corresponding Rust SDK types.
 
 > [!NOTE]
 > Picking the right instrument type for your use case is crucial to ensure the
-  correct semantics and performance. Check the [Instrument
-  Selection](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/supplementary-guidelines.md#instrument-selection)
-  section from the supplementary guidelines for more information.
+correct semantics and performance. Check the [Instrument
+Selection](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/supplementary-guidelines.md#instrument-selection)
+section from the supplementary guidelines for more information.
 
 | OpenTelemetry Specification | OTel Rust Instrument Type |
 | --------------------------- | -------------------- |
