@@ -1,5 +1,7 @@
 # OpenTelemetry Rust Metrics
 
+Status: **Work-In-Progress**
+
 <details>
 <summary>Table of Contents</summary>
 
@@ -228,15 +230,13 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 > [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
 during each export cycle.
 
-
-
 ## MeterProvider Management
 
 Most use-cases require you to create ONLY one instance of MeterProvider. You
 should NOT create multiple instances of MeterProvider unless you have some
 unusual requirement of having different export strategies within the same
 application. Using multiple instances of MeterProvider requires users to
-exercise caution..
+exercise caution.
 
 :heavy_check_mark: Properly manage the lifecycle of `MeterProvider` instances if
 you create them. Follow these guidelines:
@@ -276,7 +276,7 @@ follows while implementing the metrics aggregation logic:
 2. [**Cardinality Limits**](#cardinality-limits): the aggregation logic respects
    [cardinality
    limits](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#cardinality-limits),
-   so the SDK does not use indefinite amount of memory when there is cardinality
+   so the SDK does not use an indefinite amount of memory in the event of a cardinality
    explosion.
 3. [**Memory Preallocation**](#memory-preallocation): SDK tries to pre-allocate
    the memory it needs at each instrument creation time.
@@ -334,7 +334,7 @@ Temporality](https://github.com/open-telemetry/opentelemetry-specification/blob/
   * attributes: {name = `lemon`, color = `yellow`}, count: `10`
 
 Note that the start time is advanced after each export, and only the delta since
-last export is exported, allowing SDK to "forget" previous state.
+last export is exported, allowing the SDK to "forget" previous state.
 
 ### Pre-Aggregation
 
