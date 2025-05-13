@@ -1,4 +1,5 @@
 use opentelemetry::{otel_info, InstrumentationScope};
+use std::time::Duration;
 
 use crate::{error::OTelSdkResult, Resource};
 
@@ -43,8 +44,8 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        self.exporter.shutdown()
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        self.exporter.shutdown_with_timeout(timeout)
     }
 
     #[cfg(feature = "spec_unstable_logs_enabled")]

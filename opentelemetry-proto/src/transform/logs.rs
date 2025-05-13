@@ -150,6 +150,7 @@ pub mod tonic {
                 resource: Some(Resource {
                     attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
+                    entity_refs: vec![],
                 }),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_logs: vec![ScopeLogs {
@@ -210,6 +211,7 @@ pub mod tonic {
             resource: Some(Resource {
                 attributes: resource.attributes.0.clone(),
                 dropped_attributes_count: 0,
+                entity_refs: vec![],
             }),
             scope_logs,
             schema_url: resource.schema_url.clone().unwrap_or_default(),
@@ -237,10 +239,6 @@ mod tests {
         fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
 
         fn force_flush(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }

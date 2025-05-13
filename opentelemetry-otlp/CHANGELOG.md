@@ -3,6 +3,10 @@
 ## vNext
 
 - Update `tonic` dependency version to 0.13
+- Re-export `tonic` types under `tonic_types`
+  [2898](https://github.com/open-telemetry/opentelemetry-rust/pull/2898)
+- It is now possible to add links to a `Span` via the `SpanRef` that you get from
+  a `Context`. [2959](https://github.com/open-telemetry/opentelemetry-rust/pull/2959)
 
 ## 0.29.0
 

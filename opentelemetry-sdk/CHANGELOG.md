@@ -26,6 +26,7 @@ also modified to suppress telemetry before invoking exporters.
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
 - The `shutdown_with_timeout` method is added to LogExporter trait.
+- The `shutdown_with_timeout` method is added to LogProvider and LogProcessor trait.
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
   `spec_unstable_metrics_views` feature flag is enabled). `OTelSdkResult` should
   be used instead, wherever applicable. [#2906](https://github.com/open-telemetry/opentelemetry-rust/pull/2906)
@@ -43,6 +44,9 @@ also modified to suppress telemetry before invoking exporters.
 - *Breaking* `Aggregation` enum moved behind feature flag
   "spec_unstable_metrics_views". This was only required when using Views.
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
+- *Breaking* change, affecting custom `PushMetricExporter` authors:
+  - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
+    instead of `&mut ResourceMetrics`.
 
 ## 0.29.0
 

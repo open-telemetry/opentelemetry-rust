@@ -221,10 +221,6 @@ impl LogProcessor for EnrichWithBaggageLogProcessor {
     fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
-
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
 }
 
 /// A custom span processor that enriches spans with baggage attributes. Baggage

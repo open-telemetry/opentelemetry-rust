@@ -234,6 +234,16 @@ mod tests {
             span.update_name("span_name_updated");
             span.set_attribute(KeyValue::new("attribute1", "value1"));
             span.add_event("test-event".to_string(), vec![]);
+            span.add_link(
+                SpanContext::new(
+                    TraceId::from(47),
+                    SpanId::from(11),
+                    TraceFlags::default(),
+                    false,
+                    Default::default(),
+                ),
+                vec![],
+            );
         });
 
         // Assert
@@ -247,6 +257,9 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.links.len(), 1);
+        assert_eq!(span.links[0].span_context.trace_id(), TraceId::from(47));
+        assert_eq!(span.links[0].span_context.span_id(), SpanId::from(11));
         assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Unset);

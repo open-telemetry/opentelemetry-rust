@@ -450,3 +450,20 @@ pub enum Protocol {
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+/// Re-exported types from the `tonic` crate.
+#[cfg(feature = "grpc-tonic")]
+pub mod tonic_types {
+    /// Re-exported types from `tonic::metadata`.
+    pub mod metadata {
+        #[doc(no_inline)]
+        pub use tonic::metadata::MetadataMap;
+    }
+
+    /// Re-exported types from `tonic::transport`.
+    #[cfg(feature = "tls")]
+    pub mod transport {
+        #[doc(no_inline)]
+        pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
+    }
+}
