@@ -27,6 +27,17 @@
 
 </details>
 
+## Introduction
+
+This document provides comprehensive guidance on leveraging OpenTelemetry
+metrics in Rust applications. Whether you're tracking request counts, monitoring
+response times, or analyzing resource utilization, this guide equips you with
+the knowledge to implement robust and efficient metrics collection.
+
+It covers best practices, API usage patterns, memory management techniques, and
+advanced topics to help you design effective metrics solutions while steering
+clear of common challenges.
+
 ## Best Practices
 
 // TODO: Add link to the examples, once they are modified to show best
@@ -35,6 +46,10 @@ practices.
 ## Metrics API
 
 ### Meter
+
+[Meter](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.Meter.html)
+provides the ability to create instruments for recording measurements or
+accepting callbacks to report measurements.
 
 :stop_sign: You should avoid creating duplicate
 [`Meter`](https://docs.rs/opentelemetry/latest/opentelemetry/metrics/struct.Meter.html)
@@ -73,8 +88,9 @@ instruments to their corresponding Rust SDK types.
 
 :heavy_check_mark: You should understand and pick the right instrument type.
 
-> [!NOTE] Picking the right instrument type for your use case is crucial to
-> ensure the correct semantics and performance. Check the [Instrument
+> [!NOTE]
+> Picking the right instrument type for your use case is crucial to ensure the
+  correct semantics and performance. Check the [Instrument
   Selection](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/supplementary-guidelines.md#instrument-selection)
   section from the supplementary guidelines for more information.
 
@@ -212,6 +228,8 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 > [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
 during each export cycle.
 
+
+
 ## MeterProvider Management
 
 Most use-cases require you to create ONLY one instance of MeterProvider. You
@@ -236,10 +254,10 @@ you create them. Follow these guidelines:
 * **Shutdown**: Explicitly call `shutdown` on the `MeterProvider` at the end of
   your application to ensure all metrics are properly flushed and exported.
 
-> [!NOTE] If you did not use `opentelemetry::global::set_meter_provider` to set a
-> clone of the `MeterProvider` as the global provider, then you should be aware
-> that dropping the last instance of `MeterProvider` implicitly calls shutdown on
-> the provider.
+> [!NOTE] If you did not use `opentelemetry::global::set_meter_provider` to set
+> a clone of the `MeterProvider` as the global provider, then you should be
+> aware that dropping the last instance of `MeterProvider` implicitly calls
+> shutdown on the provider.
 
 :heavy_check_mark: Always call `shutdown` on the `MeterProvider` at the end of
 your application to ensure proper cleanup.
@@ -367,7 +385,7 @@ Pre-aggregation offers several advantages:
 
 ### Cardinality Limits
 
-The number of unique combinations of attributes for a given metric is referred
+The number of distinct combinations of attributes for a given metric is referred
 to as the cardinality of that metric. Taking the [fruit example](#example), if
 we know that we can only have apple/lemon as the name, red/yellow/green as the
 color, then we can say the cardinality is 6 (i.e 2 * 3). No matter how many
@@ -419,8 +437,8 @@ see much higher cardinality due to:
    infrastructure
 3. The possibility of reporting different key-value pair combinations in each
    export interval, as the cardinality limit only applies to the number of
-   unique attribute combinations tracked during a single export interval. (This
-   is only applicable to Delta temporality)
+   distinct attribute combinations tracked during a single export interval.
+   (This is only applicable to Delta temporality)
 
 Therefore, the actual cardinality in your metrics backend can be orders of
 magnitude higher than what any single OTel SDK process handles in an export
@@ -429,9 +447,9 @@ cycle.
 #### Cardinality Limits - Implications
 
 Cardinality limits are enforced for each export interval, meaning the metrics
-aggregation system only allows up to the configured cardinality limit of unique
-attribute combinations per metric. Understanding how this works in practice is
-important:
+aggregation system only allows up to the configured cardinality limit of
+distinct attribute combinations per metric. Understanding how this works in
+practice is important:
 
 * **Cardinality Capping**: When the limit is reached within an export interval,
   any new attribute combination is not individually tracked but instead folded
@@ -448,7 +466,7 @@ important:
     collection/export cycle. This means in each new interval, the SDK can track
     up to the cardinality limit of completely different attribute combinations.
     Over time, your metrics backend might see far more than the configured limit
-    of unique combinations from a single process.
+    of distinct combinations from a single process.
   
   * **Cumulative Temporality**: Since the SDK maintains state across export
     intervals, once the cardinality limit is reached, new attribute combinations
@@ -457,7 +475,7 @@ important:
     for the lifetime of that metric instrument.
 
 * **Impact on Monitoring**: While cardinality limits protect your system from
-  unbounded resource consumption, they do mean that high-cardinality dimensions
+  unbounded resource consumption, they do mean that high-cardinality attributes
   may not be fully represented in your metrics. Since cardinality capping can
   cause metrics to be folded into the overflow bucket, it becomes impossible to
   predict which specific attribute combinations were affected across multiple
@@ -467,12 +485,13 @@ important:
   metrics in any backend system:
   
   * **Total Accuracy**: OpenTelemetry Metrics always ensures the total
-    aggregation (sum of metric values across all dimensions) remains accurate,
+    aggregation (sum of metric values across all attributes) remains accurate,
     even when overflow occurs.
   
   * **Attribute-Based Query Limitations**: Any metric query based on specific
-    attributes could be misleading, as it's possible those dimensions were
-    folded into the overflow bucket due to cardinality capping.
+    attributes could be misleading, as it's possible that measurements recorded
+    with a superset of those attributes were folded into the overflow bucket due
+    to cardinality capping.
   
   * **All Attributes Affected**: When overflow occurs, it's not just
     high-cardinality attributes that are affected. The entire attribute
@@ -481,9 +500,9 @@ important:
 
 #### Cardinality Limits - Example
 
-Extending our fruit sales tracking example, imagine we set a
-cardinality limit of 3 and we're tracking sales with attributes for `name`,
-`color`, and `store_location`:
+Extending our fruit sales tracking example, imagine we set a cardinality limit
+of 3 and we're tracking sales with attributes for `name`, `color`, and
+`store_location`:
 
 During a busy sales period at time (T3, T4], we record:
   
@@ -506,7 +525,7 @@ The exported metrics would be:
   If we later query "How many red apples were sold?" the answer would be 10, not
   13, because the Midtown sales were folded into the overflow bucket. Similarly,
   queries about "How many items were sold in Midtown?" would return 0, not 3.
-  However, the total count across all dimensions (i.e How many total fruits were
+  However, the total count across all attributes (i.e How many total fruits were
   sold in (T3, T4] would correctly give 26) would be accurate.
 
   This limitation applies regardless of whether the attribute in question is
@@ -518,13 +537,6 @@ The exported metrics would be:
   when reporting measurements via the [Metrics API](#metrics-api). In other
   words, attributes used to create `Meter` or `Resource` attributes are not
   subject to this cap.
-
-  :heavy_check_mark: Use `Meter` attributes or `Resource` attributes as
-  appropriate, see [modelling attributes](#modelling-metric-attributes) for
-  details. In the above example, if a process only sells fruits from a
-  particular store, then store_location attribute should be modelled as a
-  Resource - this is not only efficient, but reduced the cardinality capping
-  possibility as well.
 
 // TODO: Document how to pick cardinality limit.
 
@@ -542,7 +554,7 @@ is ineffective and can make metrics practically unusable. Moreover, it can
 quickly lead to cardinality issues, resulting in metrics being capped.
 
 A better alternative is to use a concept in OpenTelemetry called
-[exemplars](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#exemplar).
+[Exemplars](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#exemplar).
 Exemplars provide a mechanism to correlate metrics with traces by sampling
 specific measurements and attaching trace context to them.
 
@@ -553,10 +565,10 @@ Currently, exemplars are not yet implemented in the OpenTelemetry Rust SDK.
 When metrics are being collected, they normally get stored in a [time series
 database](https://en.wikipedia.org/wiki/Time_series_database). From storage and
 consumption perspective, metrics can be multi-dimensional. Taking the [fruit
-example](#example), there are two dimensions - "name" and "color". For basic
-scenarios, all the dimensions can be reported during the [Metrics
+example](#example), there are two attributes - "name" and "color". For basic
+scenarios, all the attributes can be reported during the [Metrics
 API](#metrics-api) invocation, however, for less trivial scenarios, the
-dimensions can come from different sources:
+attributes can come from different sources:
 
 * [Measurements](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#measurement)
   reported via the [Metrics API](#metrics-api).
@@ -567,12 +579,12 @@ dimensions can come from different sources:
 * Additional attributes provided by the collector. For example, [jobs and
   instances](https://prometheus.io/docs/concepts/jobs_instances/) in Prometheus.
 
-Here is the rule of thumb when modeling the dimensions:
+Here is the rule of thumb when modeling the attributes:
 
 * If the dimension is static throughout the process lifetime (e.g. the name of
   the machine, data center):
   * If the dimension applies to all metrics, model it as Resource, or even
-    better, let the collector add these dimensions if feasible (e.g. a collector
+    better, let the collector add these attributes if feasible (e.g. a collector
     running in the same data center should know the name of the data center,
     rather than relying on / trusting each service instance to report the data
     center name).
