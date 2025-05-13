@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, FinishedSpan, SpanExporter, ReadableSpan};
+use crate::trace::{FinishedSpan, ReadableSpan, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::pin_mut;
 use futures_util::{

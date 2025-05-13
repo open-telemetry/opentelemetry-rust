@@ -215,12 +215,12 @@ impl Span {
         if self.tracer.provider().is_shutdown() {
             return;
         }
-        let provider = self.tracer.provider().clone();
 
         #[cfg(feature = "experimental_span_processor_on_ending")]
         {
+            let provider = self.tracer.provider().clone();
             for processor in provider.span_processors() {
-                processor.on_ending( self);
+                processor.on_ending(self);
             }
         }
 
@@ -230,7 +230,7 @@ impl Span {
             span_context,
             ..
         } = self;
-    
+
         // skip if data has already been exported
         let data = match data.take() {
             Some(data) => data,
@@ -245,8 +245,9 @@ impl Span {
             is_consummed: false,
         };
 
-        for (i, processor) in provider.span_processors().iter().enumerate() {
-            if i == provider.span_processors().len() - 1 {
+        let span_processors = tracer.provider().span_processors();
+        for (i, processor) in span_processors.iter().enumerate() {
+            if i == span_processors.len() - 1 {
                 finished_span.is_last_processor = true;
             }
             finished_span.is_consummed = false;

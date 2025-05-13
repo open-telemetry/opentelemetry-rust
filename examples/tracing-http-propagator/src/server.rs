@@ -167,7 +167,8 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
 }
 
 fn obfuscate_http_auth_url(s: &str) -> Option<String> {
-    let uri = hyper::http::Uri::from_maybe_shared(s.to_owned()).ok()?;
+    #[allow(clippy::unnecessary_to_owned)]
+    let uri = hyper::http::Uri::from_maybe_shared(s.to_string()).ok()?;
     let authority = uri.authority()?;
     let (_, url) = authority.as_str().split_once('@')?;
     let new_auth = format!("REDACTED_USERNAME:REDACTED_PASSWORD@{url}");
