@@ -198,32 +198,46 @@ impl opentelemetry::trace::Span for Span {
 
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
+        match self.data {
+            Some(ref mut data) => {
+                // ensure end time is set via explicit end or implicitly on drop
+                if let Some(timestamp) = timestamp {
+                    data.end_time = timestamp;
+                } else if data.end_time == data.start_time {
+                    data.end_time = opentelemetry::time::now();
+                }
+            }
+            None => {
+                return;
+            }
+        };
+
+        if self.tracer.provider().is_shutdown() {
+            return;
+        }
+        let provider = self.tracer.provider().clone();
+
+        #[cfg(feature = "experimental_span_processor_on_ending")]
+        {
+            for processor in provider.span_processors() {
+                processor.on_ending( self);
+            }
+        }
+
         let Span {
             data,
             tracer,
             span_context,
             ..
         } = self;
+    
         // skip if data has already been exported
-        let mut data = match data.take() {
+        let data = match data.take() {
             Some(data) => data,
             None => return,
         };
         let span_context: SpanContext =
             std::mem::replace(span_context, SpanContext::empty_context());
-
-        let provider = tracer.provider();
-        // skip if provider has been shut down
-        if provider.is_shutdown() {
-            return;
-        }
-
-        // ensure end time is set via explicit end or implicitly on drop
-        if let Some(timestamp) = timestamp {
-            data.end_time = timestamp;
-        } else if data.end_time == data.start_time {
-            data.end_time = opentelemetry::time::now();
-        }
 
         let mut finished_span = FinishedSpan {
             span: Some(build_export_data(data, span_context, tracer)),

@@ -79,10 +79,23 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// synchronously on the thread that started the span, therefore it should
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
+    #[cfg(feature = "experimental_span_processor_on_ending")]
+    /// `on_ending` is called when a `Span` is ending. The en timestampe has already
+    /// been computed.
+    /// Mutations done to the span in this method will be reflected in the span passed
+    /// to other span processors.
+    /// This method is called synchronously within the `Span::end` API, therefore it
+    /// should not block or throw an exception.
+    /// If multiple SpanProcessors are registered, their on_ending methods are invoked
+    /// in the order they have been registered.
+    fn on_ending(&self, _span: &mut Span) {
+        // Default implementation is a no-op so existing processor implementations
+        // don't break if this feature in enabled transitively.
+    }
+
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
-    /// TODO - This method should take reference to `SpanData`
     fn on_end(&self, span: &mut FinishedSpan);
     /// Force the spans lying in the cache to be exported.
     fn force_flush(&self) -> OTelSdkResult;
@@ -870,8 +883,8 @@ mod tests {
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
-    use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
+    use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
