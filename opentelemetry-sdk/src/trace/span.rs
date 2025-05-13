@@ -239,18 +239,11 @@ impl Span {
         let span_context: SpanContext =
             std::mem::replace(span_context, SpanContext::empty_context());
 
-        let mut finished_span = FinishedSpan {
-            span: Some(build_export_data(data, span_context, tracer)),
-            is_last_processor: false,
-            is_consummed: false,
-        };
+        let mut finished_span = FinishedSpan::new(build_export_data(data, span_context, tracer));
 
         let span_processors = tracer.provider().span_processors();
         for (i, processor) in span_processors.iter().enumerate() {
-            if i == span_processors.len() - 1 {
-                finished_span.is_last_processor = true;
-            }
-            finished_span.is_consummed = false;
+            finished_span.reset(i == span_processors.len() - 1);
             processor.on_end(&mut finished_span);
         }
     }
@@ -278,9 +271,11 @@ impl Drop for Span {
 /// ```
 /// use opentelemetry_sdk::trace::{FinishedSpan, ReadableSpan};
 /// fn on_end(span: &mut FinishedSpan) {
+///     // Read the span data without consuming it
 ///     if span.name() != "my_span" {
 ///         return;
 ///     }
+///     // Consume the span data, potentially cloning it
 ///     let span = span.consume();
 ///     # let _ = span;
 /// }
@@ -298,14 +293,18 @@ impl FinishedSpan {
             .expect("Span data has already been consumed")
     }
 
-    #[allow(unused)] // Only exposed for testing purposes, and internal to the crate
     /// Creates a new `FinishedSpan` with the given span data.
-    pub(crate) fn new(span_data: crate::trace::SpanData) -> Self {
+    pub fn new(span_data: crate::trace::SpanData) -> Self {
         FinishedSpan {
             span: Some(span_data),
             is_last_processor: false,
             is_consummed: false,
         }
+    }
+
+    fn reset(&mut self, last_processor: bool) {
+        self.is_last_processor = last_processor;
+        self.is_consummed = false;
     }
 
     /// Takes ownership of the span data in the `FinishedSpan`.
