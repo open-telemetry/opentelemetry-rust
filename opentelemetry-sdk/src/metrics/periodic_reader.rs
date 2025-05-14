@@ -384,7 +384,6 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     }
 
     fn collect_and_export(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
-
         let current_time = Instant::now();
         let collect_result = self.collect(rm);
         let time_taken_for_collect = current_time.elapsed();
