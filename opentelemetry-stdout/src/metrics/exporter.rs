@@ -125,6 +125,7 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
                     }
                     MetricData::ExponentialHistogram(_) => {
                         println!("\t\tType         : Exponential Histogram");
+                        // TODO: add support for ExponentialHistogram
                     }
                 }
             }
@@ -172,7 +173,7 @@ fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    print_gauge_data_points(&gauge.data_points);
+    print_gauge_data_points(gauge.data_points());
 }
 
 fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
@@ -192,7 +193,7 @@ fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
     println!("\t\tHistogram DataPoints");
-    print_hist_data_points(&histogram.data_points);
+    print_hist_data_points(histogram.data_points());
 }
 
 fn print_sum_data_points<'a, T: Debug + 'a>(
@@ -202,25 +203,29 @@ fn print_sum_data_points<'a, T: Debug + 'a>(
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
 }
 
-fn print_gauge_data_points<T: Debug>(data_points: &[GaugeDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_gauge_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a GaugeDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
 }
 
-fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_hist_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a HistogramDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count);
         println!("\t\t\tSum          : {:?}", data_point.sum);
@@ -233,7 +238,7 @@ fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
         }
 
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
 

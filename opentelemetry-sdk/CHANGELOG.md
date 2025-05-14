@@ -47,6 +47,20 @@ also modified to suppress telemetry before invoking exporters.
 - *Breaking* change, affecting custom `PushMetricExporter` authors:
   - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
     instead of `&mut ResourceMetrics`.
+  - `ResourceMetrics` no longer exposes `scope_metrics` field, but instead
+    offers `scope_metrics()` method that returns an iterator over the same.
+  - `ScopeMetrics` no longer exposes `metrics` field, but instead offers
+    `metrics()` method that returns an iterator over the same.
+  - `Sum`, `Gauge`, `Histogram` & `ExponentialHistogram` no longer exposes
+    `data_points` field, but instead offers `data_points()` method that returns
+    an iterator over the same.
+  - `SumDataPoint`, `GaugeDataPoint`, `HistogramDataPoint` &
+    `ExponentialHistogramDataPoint` no longer exposes `attributes`, `exemplars`
+    field, but instead offers `attributes()`, and `exemplars()` method that
+    returns an iterator over the same.
+  - `Exemplar` no longer exposes `filtered_attributes` field, but instead
+     offers `filtered_attributes()` method that returns an iterator over
+     the same.
 
 ## 0.29.0
 
