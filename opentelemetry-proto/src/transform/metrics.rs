@@ -235,8 +235,7 @@ pub mod tonic {
         fn from(hist: &SdkExponentialHistogram<T>) -> Self {
             TonicExponentialHistogram {
                 data_points: hist
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicExponentialHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),

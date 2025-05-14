@@ -125,6 +125,7 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
                     }
                     MetricData::ExponentialHistogram(_) => {
                         println!("\t\tType         : Exponential Histogram");
+                        // TODO: add support for ExponentialHistogram
                     }
                 }
             }

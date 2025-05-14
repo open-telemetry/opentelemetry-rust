@@ -245,7 +245,7 @@ pub struct HistogramDataPoint<T> {
 #[derive(Debug, Clone)]
 pub struct ExponentialHistogram<T> {
     /// The individual aggregated measurements with unique attributes.
-    pub data_points: Vec<ExponentialHistogramDataPoint<T>>,
+    pub(crate) data_points: Vec<ExponentialHistogramDataPoint<T>>,
     /// When the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
@@ -253,6 +253,13 @@ pub struct ExponentialHistogram<T> {
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
+}
+
+impl<T> ExponentialHistogram<T> {
+    /// Returns an iterator over the [ExponentialHistogramDataPoint]s in [ExponentialHistogram].
+    pub fn data_points(&self) -> impl Iterator<Item = &ExponentialHistogramDataPoint<T>> {
+        self.data_points.iter()
+    }
 }
 
 /// A single exponential histogram data point in a time series.
