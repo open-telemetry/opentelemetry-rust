@@ -9,7 +9,6 @@ use opentelemetry_sdk::{
         data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
         InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
     },
-    Resource,
 };
 use rand::Rng;
 use std::sync::{Arc, Weak};
@@ -240,10 +239,7 @@ fn counters(c: &mut Criterion) {
     });
 
     let (rdr, cntr) = bench_counter(None, "cumulative");
-    let mut rm = ResourceMetrics {
-        resource: Resource::builder_empty().build(),
-        scope_metrics: Vec::new(),
-    };
+    let mut rm = ResourceMetrics::default();
 
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
@@ -337,10 +333,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         h.record(1, &[]);
     }
 
-    let mut rm = ResourceMetrics {
-        resource: Resource::builder_empty().build(),
-        scope_metrics: Vec::new(),
-    };
+    let mut rm = ResourceMetrics::default();
 
     b.iter(|| {
         let _ = r.collect(&mut rm);
