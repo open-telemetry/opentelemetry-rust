@@ -1129,7 +1129,7 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
-        processor.on_end(&mut &mut FinishedSpan::new(test_span.clone()));
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Wait for flush interval to ensure the span is processed
         std::thread::sleep(Duration::from_secs(6));
