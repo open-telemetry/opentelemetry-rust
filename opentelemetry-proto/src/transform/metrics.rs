@@ -115,7 +115,7 @@ pub mod tonic {
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
                     resource: Some((&rm.resource).into()),
-                    scope_metrics: rm.scope_metrics.iter().map(Into::into).collect(),
+                    scope_metrics: rm.scope_metrics().map(Into::into).collect(),
                     schema_url: rm.resource.schema_url().map(Into::into).unwrap_or_default(),
                 }],
             }
@@ -136,7 +136,7 @@ pub mod tonic {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
                 scope: Some((&sm.scope, None).into()),
-                metrics: sm.metrics.iter().map(Into::into).collect(),
+                metrics: sm.metrics().map(Into::into).collect(),
                 schema_url: sm
                     .scope
                     .schema_url()
@@ -273,8 +273,7 @@ pub mod tonic {
         fn from(sum: &SdkSum<T>) -> Self {
             TonicSum {
                 data_points: sum
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(sum.start_time),
