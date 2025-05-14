@@ -296,8 +296,7 @@ pub mod tonic {
         fn from(gauge: &SdkGauge<T>) -> Self {
             TonicGauge {
                 data_points: gauge
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
                         start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),

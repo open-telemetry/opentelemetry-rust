@@ -146,11 +146,18 @@ pub struct GaugeDataPoint<T> {
 #[derive(Debug, Clone)]
 pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
-    pub data_points: Vec<GaugeDataPoint<T>>,
+    pub(crate) data_points: Vec<GaugeDataPoint<T>>,
     /// The time when the time series was started.
     pub start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
     pub time: SystemTime,
+}
+
+impl<T> Gauge<T> {
+    /// Returns an iterator over the [GaugeDataPoint]s in [Gauge].
+    pub fn data_points(&self) -> impl Iterator<Item = &GaugeDataPoint<T>> {
+        self.data_points.iter()
+    }
 }
 
 /// DataPoint is a single data point in a time series.

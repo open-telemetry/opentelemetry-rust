@@ -172,7 +172,7 @@ fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    print_gauge_data_points(&gauge.data_points);
+    print_gauge_data_points(gauge.data_points());
 }
 
 fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
@@ -208,8 +208,10 @@ fn print_sum_data_points<'a, T: Debug + 'a>(
     }
 }
 
-fn print_gauge_data_points<T: Debug>(data_points: &[GaugeDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_gauge_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a GaugeDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
