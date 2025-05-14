@@ -208,8 +208,7 @@ pub mod tonic {
         fn from(hist: &SdkHistogram<T>) -> Self {
             TonicHistogram {
                 data_points: hist
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicHistogramDataPoint {
                         attributes: dp.attributes.iter().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),

@@ -199,7 +199,7 @@ impl<T> Sum<T> {
 #[derive(Debug, Clone)]
 pub struct Histogram<T> {
     /// Individual aggregated measurements with unique attributes.
-    pub data_points: Vec<HistogramDataPoint<T>>,
+    pub(crate) data_points: Vec<HistogramDataPoint<T>>,
     /// The time when the time series was started.
     pub start_time: SystemTime,
     /// The time when the time series was recorded.
@@ -207,6 +207,13 @@ pub struct Histogram<T> {
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
     pub temporality: Temporality,
+}
+
+impl<T> Histogram<T> {
+    /// Returns an iterator over the [HistogramDataPoint]s in [Histogram].
+    pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
+        self.data_points.iter()
+    }
 }
 
 /// A single histogram data point in a time series.

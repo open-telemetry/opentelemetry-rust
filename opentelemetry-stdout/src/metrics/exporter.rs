@@ -192,7 +192,7 @@ fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
     println!("\t\tHistogram DataPoints");
-    print_hist_data_points(&histogram.data_points);
+    print_hist_data_points(histogram.data_points());
 }
 
 fn print_sum_data_points<'a, T: Debug + 'a>(
@@ -221,8 +221,10 @@ fn print_gauge_data_points<'a, T: Debug + 'a>(
     }
 }
 
-fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_hist_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a HistogramDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count);
         println!("\t\t\tSum          : {:?}", data_point.sum);
