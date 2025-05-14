@@ -242,19 +242,28 @@ fn print_hist_data_points<'a, T: Debug + 'a>(
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
 
-        if !data_point.bucket_counts.is_empty() {
-            println!("\t\t\tBuckets");
-            let mut lower_bound = f64::NEG_INFINITY;
-            for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
-                let count = data_point.bucket_counts.get(i).unwrap_or(&0);
-                println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
-                lower_bound = upper_bound;
+        let mut lower_bound = f64::NEG_INFINITY;
+        let bounds_iter = data_point.bounds();
+        let mut bucket_counts_iter = data_point.bucket_counts();
+        let mut header_printed = false;
+
+        // Process all the regular buckets
+        for (_, &upper_bound) in bounds_iter.enumerate() {
+            // Print header only once before the first item
+            if !header_printed {
+                println!("\t\t\tBuckets");
+                header_printed = true;
             }
 
-            let last_count = data_point
-                .bucket_counts
-                .get(data_point.bounds.len())
-                .unwrap_or(&0);
+            // Get the count for this bucket, or 0 if not available
+            let count = bucket_counts_iter.next().unwrap_or(&0);
+            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+            lower_bound = upper_bound;
+        }
+
+        // Handle the final +Infinity bucket if we processed any buckets
+        if header_printed {
+            let last_count = bucket_counts_iter.next().unwrap_or(&0);
             println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
         }
     }

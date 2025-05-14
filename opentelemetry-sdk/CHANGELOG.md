@@ -61,6 +61,9 @@ also modified to suppress telemetry before invoking exporters.
   - `Exemplar` no longer exposes `filtered_attributes` field, but instead
      offers `filtered_attributes()` method that returns an iterator over
      the same.
+  - `HistogramDataPoint` no longer exposes `bounds` and `bucket_counts`, but
+    instead offers `bounds()` and `bucket_counts()` methods that returns an
+    iterator over the same.
 
 ## 0.29.0
 

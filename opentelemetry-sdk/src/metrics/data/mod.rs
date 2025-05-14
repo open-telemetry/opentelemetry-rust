@@ -148,7 +148,7 @@ impl<T> GaugeDataPoint<T> {
         self.attributes.iter()
     }
 
-    /// Returns an iterator over the exemplars in [GaugeDataPoint].
+    /// Returns an iterator over the [Exemplar]s in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
     }
@@ -190,7 +190,7 @@ impl<T> SumDataPoint<T> {
         self.attributes.iter()
     }
 
-    /// Returns an iterator over the exemplars in [SumDataPoint].
+    /// Returns an iterator over the [Exemplar]s in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
     }
@@ -250,9 +250,9 @@ pub struct HistogramDataPoint<T> {
     /// The upper bounds of the buckets of the histogram.
     ///
     /// Because the last boundary is +infinity this one is implied.
-    pub bounds: Vec<f64>,
+    pub(crate) bounds: Vec<f64>,
     /// The count of each of the buckets.
-    pub bucket_counts: Vec<u64>,
+    pub(crate) bucket_counts: Vec<u64>,
 
     /// The minimum value recorded.
     pub min: Option<T>,
@@ -274,6 +274,16 @@ impl<T> HistogramDataPoint<T> {
     /// Returns an iterator over the exemplars in [HistogramDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+
+    /// Returns an iterator over the bucket boundaries in [HistogramDataPoint].
+    pub fn bounds(&self) -> impl Iterator<Item = &f64> {
+        self.bounds.iter()
+    }
+
+    /// Returns an iterator over the bucket counts in [HistogramDataPoint].
+    pub fn bucket_counts(&self) -> impl Iterator<Item = &u64> {
+        self.bucket_counts.iter()
     }
 }
 
