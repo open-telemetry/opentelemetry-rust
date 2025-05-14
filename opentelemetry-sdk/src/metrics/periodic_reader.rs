@@ -409,7 +409,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 
         // Relying on futures executor to execute async call.
         // TODO: Pass timeout to exporter
-        futures_executor::block_on(self.exporter.export(&rm))
+        futures_executor::block_on(self.exporter.export(rm))
     }
 
     fn force_flush(&self) -> OTelSdkResult {
