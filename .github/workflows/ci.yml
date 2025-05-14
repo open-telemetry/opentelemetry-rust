@@ -98,6 +98,8 @@ jobs:
         with:
           toolchain: nightly-2024-06-30
           components: rustfmt
+      - name: Patch dependencies versions
+        run: bash ./scripts/patch_dependencies.sh
       - name: external-type-check
         run: |
           cargo install cargo-check-external-types@0.1.13
