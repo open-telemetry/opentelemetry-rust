@@ -315,8 +315,7 @@ pub mod tonic {
         fn from(ex: &SdkExemplar<T>) -> Self {
             TonicExemplar {
                 filtered_attributes: ex
-                    .filtered_attributes
-                    .iter()
+                    .filtered_attributes()
                     .map(|kv| (&kv.key, &kv.value).into())
                     .collect(),
                 time_unix_nano: to_nanos(ex.time),

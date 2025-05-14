@@ -147,7 +147,7 @@ impl<T> GaugeDataPoint<T> {
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
     }
-    
+
     /// Returns an iterator over the exemplars in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
@@ -189,7 +189,7 @@ impl<T> SumDataPoint<T> {
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
     }
-    
+
     /// Returns an iterator over the exemplars in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
@@ -270,7 +270,7 @@ impl<T> HistogramDataPoint<T> {
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
     }
-    
+
     /// Returns an iterator over the exemplars in [HistogramDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
@@ -348,7 +348,7 @@ impl<T> ExponentialHistogramDataPoint<T> {
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
     }
-    
+
     /// Returns an iterator over the exemplars in [ExponentialHistogramDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
@@ -373,7 +373,7 @@ pub struct ExponentialBucket {
 pub struct Exemplar<T> {
     /// The attributes recorded with the measurement but filtered out of the
     /// time series' aggregated data.
-    pub filtered_attributes: Vec<KeyValue>,
+    pub(crate) filtered_attributes: Vec<KeyValue>,
     /// The time when the measurement was recorded.
     pub time: SystemTime,
     /// The measured value.
@@ -386,6 +386,13 @@ pub struct Exemplar<T> {
     ///
     /// If no span was active or the span was not sampled this will be empty.
     pub trace_id: [u8; 16],
+}
+
+impl<T> Exemplar<T> {
+    /// Returns an iterator over the filtered attributes in [Exemplar].
+    pub fn filtered_attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.filtered_attributes.iter()
+    }
 }
 
 #[cfg(test)]

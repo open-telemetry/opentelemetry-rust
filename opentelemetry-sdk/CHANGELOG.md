@@ -55,8 +55,12 @@ also modified to suppress telemetry before invoking exporters.
     `data_points` field, but instead offers `data_points()` method that returns
     an iterator over the same.
   - `SumDataPoint`, `GaugeDataPoint`, `HistogramDataPoint` &
-    `ExponentialHistogramDataPoint` no longer exposes `attributes` field, but
-    instead offers `attributes()` method that returns an iterator over the same.
+    `ExponentialHistogramDataPoint` no longer exposes `attributes`, `exemplars`
+    field, but instead offers `attributes()`, and `exemplars()` method that
+    returns an iterator over the same.
+  - `Exemplar` no longer exposes `filtered_attributes` field, but instead
+     offers `filtered_attributes()` method that returns an iterator over
+     the same.
 
 ## 0.29.0
 
