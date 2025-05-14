@@ -135,11 +135,18 @@ impl<T> From<ExponentialHistogram<T>> for MetricData<T> {
 pub struct GaugeDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> GaugeDataPoint<T> {
+    /// Returns an iterator over the attributes in [GaugeDataPoint].
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
 /// A measurement of the current value of an instrument.
@@ -165,11 +172,18 @@ impl<T> Gauge<T> {
 pub struct SumDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> SumDataPoint<T> {
+    /// Returns an iterator over the attributes in [SumDataPoint].
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
 /// Represents the sum of all measurements of values from an instrument.
@@ -220,7 +234,7 @@ impl<T> Histogram<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue>,
     /// The number of updates this histogram has been calculated with.
     pub count: u64,
     /// The upper bounds of the buckets of the histogram.
@@ -239,6 +253,13 @@ pub struct HistogramDataPoint<T> {
 
     /// The sampled [Exemplar]s collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> HistogramDataPoint<T> {
+    /// Returns an iterator over the attributes in [HistogramDataPoint].
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
 /// The histogram of all measurements of values from an instrument.
@@ -266,7 +287,7 @@ impl<T> ExponentialHistogram<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExponentialHistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
-    pub attributes: Vec<KeyValue>,
+    pub(crate) attributes: Vec<KeyValue>,
 
     /// The number of updates this histogram has been calculated with.
     pub count: usize,
@@ -305,6 +326,13 @@ pub struct ExponentialHistogramDataPoint<T> {
 
     /// The sampled exemplars collected during the time series.
     pub exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> ExponentialHistogramDataPoint<T> {
+    /// Returns an iterator over the attributes in [ExponentialHistogramDataPoint].
+    pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
+        self.attributes.iter()
+    }
 }
 
 /// A set of bucket counts, encoded in a contiguous array of counts.

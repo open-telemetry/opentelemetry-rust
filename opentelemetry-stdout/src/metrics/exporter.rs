@@ -203,7 +203,7 @@ fn print_sum_data_points<'a, T: Debug + 'a>(
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
@@ -216,7 +216,7 @@ fn print_gauge_data_points<'a, T: Debug + 'a>(
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
@@ -238,7 +238,7 @@ fn print_hist_data_points<'a, T: Debug + 'a>(
         }
 
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
 

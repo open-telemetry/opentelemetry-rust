@@ -210,7 +210,7 @@ pub mod tonic {
                 data_points: hist
                     .data_points()
                     .map(|dp| TonicHistogramDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),
                         time_unix_nano: to_nanos(hist.time),
                         count: dp.count,
@@ -237,7 +237,7 @@ pub mod tonic {
                 data_points: hist
                     .data_points()
                     .map(|dp| TonicExponentialHistogramDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),
                         time_unix_nano: to_nanos(hist.time),
                         count: dp.count as u64,
@@ -273,7 +273,7 @@ pub mod tonic {
                 data_points: sum
                     .data_points()
                     .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(sum.start_time),
                         time_unix_nano: to_nanos(sum.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
@@ -296,7 +296,7 @@ pub mod tonic {
                 data_points: gauge
                     .data_points()
                     .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),
                         time_unix_nano: to_nanos(gauge.time),
                         exemplars: dp.exemplars.iter().map(Into::into).collect(),
