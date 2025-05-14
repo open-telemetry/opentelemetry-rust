@@ -432,7 +432,7 @@ mod tests {
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
-    use crate::trace::{SpanData, SpanExporter, FinishedSpan};
+    use crate::trace::{FinishedSpan, SpanData, SpanExporter};
     use futures_util::Future;
     use std::fmt::Debug;
     use std::time::Duration;
