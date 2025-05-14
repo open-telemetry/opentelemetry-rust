@@ -139,13 +139,18 @@ pub struct GaugeDataPoint<T> {
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
-    pub exemplars: Vec<Exemplar<T>>,
+    pub(crate) exemplars: Vec<Exemplar<T>>,
 }
 
 impl<T> GaugeDataPoint<T> {
     /// Returns an iterator over the attributes in [GaugeDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
+    }
+    
+    /// Returns an iterator over the exemplars in [GaugeDataPoint].
+    pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
+        self.exemplars.iter()
     }
 }
 
@@ -176,13 +181,18 @@ pub struct SumDataPoint<T> {
     /// The value of this data point.
     pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
-    pub exemplars: Vec<Exemplar<T>>,
+    pub(crate) exemplars: Vec<Exemplar<T>>,
 }
 
 impl<T> SumDataPoint<T> {
     /// Returns an iterator over the attributes in [SumDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
+    }
+    
+    /// Returns an iterator over the exemplars in [SumDataPoint].
+    pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
+        self.exemplars.iter()
     }
 }
 
@@ -252,13 +262,18 @@ pub struct HistogramDataPoint<T> {
     pub sum: T,
 
     /// The sampled [Exemplar]s collected during the time series.
-    pub exemplars: Vec<Exemplar<T>>,
+    pub(crate) exemplars: Vec<Exemplar<T>>,
 }
 
 impl<T> HistogramDataPoint<T> {
     /// Returns an iterator over the attributes in [HistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
+    }
+    
+    /// Returns an iterator over the exemplars in [HistogramDataPoint].
+    pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
+        self.exemplars.iter()
     }
 }
 
@@ -325,13 +340,18 @@ pub struct ExponentialHistogramDataPoint<T> {
     pub zero_threshold: f64,
 
     /// The sampled exemplars collected during the time series.
-    pub exemplars: Vec<Exemplar<T>>,
+    pub(crate) exemplars: Vec<Exemplar<T>>,
 }
 
 impl<T> ExponentialHistogramDataPoint<T> {
     /// Returns an iterator over the attributes in [ExponentialHistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
+    }
+    
+    /// Returns an iterator over the exemplars in [ExponentialHistogramDataPoint].
+    pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
+        self.exemplars.iter()
     }
 }
 
