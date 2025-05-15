@@ -277,13 +277,13 @@ impl<T> HistogramDataPoint<T> {
     }
 
     /// Returns an iterator over the bucket boundaries in [HistogramDataPoint].
-    pub fn bounds(&self) -> impl Iterator<Item = &f64> {
-        self.bounds.iter()
+    pub fn bounds(&self) -> impl Iterator<Item = f64> + '_ {
+        self.bounds.iter().copied()
     }
 
     /// Returns an iterator over the bucket counts in [HistogramDataPoint].
-    pub fn bucket_counts(&self) -> impl Iterator<Item = &u64> {
-        self.bucket_counts.iter()
+    pub fn bucket_counts(&self) -> impl Iterator<Item = u64> + '_ {
+        self.bucket_counts.iter().copied()
     }
 }
 
