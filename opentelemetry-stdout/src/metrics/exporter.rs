@@ -248,7 +248,7 @@ fn print_hist_data_points<'a, T: Debug + 'a>(
         let mut header_printed = false;
 
         // Process all the regular buckets
-        for (_, upper_bound) in bounds_iter.enumerate() {
+        for upper_bound in bounds_iter {
             // Print header only once before the first item
             if !header_printed {
                 println!("\t\t\tBuckets");
