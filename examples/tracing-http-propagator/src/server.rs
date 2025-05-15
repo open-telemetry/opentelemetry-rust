@@ -15,11 +15,16 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider},
     propagation::{BaggagePropagator, TraceContextPropagator},
-    trace::{SdkTracerProvider, SpanProcessor},
+    trace::{FinishedSpan, ReadableSpan, SdkTracerProvider, SpanProcessor},
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
-use std::{convert::Infallible, net::SocketAddr, sync::OnceLock};
+use std::{
+    collections::HashMap,
+    convert::Infallible,
+    net::SocketAddr,
+    sync::{Mutex, OnceLock},
+};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -83,6 +88,7 @@ async fn router(
         let span = tracer
             .span_builder("router")
             .with_kind(SpanKind::Server)
+            .with_attributes([KeyValue::new("http.route", req.uri().path().to_string())])
             .start_with_context(tracer, &parent_cx);
 
         info!(name = "router", message = "Dispatching request");
@@ -102,6 +108,101 @@ async fn router(
     };
 
     response
+}
+
+#[derive(Debug, Default)]
+/// A custom span processor that counts concurrent requests for each route (indetified by the http.route
+/// attribute) and adds that information to the span attributes.
+struct RouteConcurrencyCounterSpanProcessor(Mutex<HashMap<opentelemetry::Key, usize>>);
+
+impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
+    fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn on_start(&self, span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {
+        if !matches!(span.span_kind(), SpanKind::Server) {
+            return;
+        }
+        let Some(route) = span
+            .attributes()
+            .iter()
+            .find(|kv| kv.key.as_str() == "http.route")
+        else {
+            return;
+        };
+        let mut counts = self.0.lock().unwrap();
+        let count = counts.entry(route.key.clone()).or_default();
+        *count += 1;
+        span.set_attribute(KeyValue::new(
+            "http.route.concurrent_requests",
+            count.to_string(),
+        ));
+    }
+
+    fn on_end(&self, span: &mut FinishedSpan) {
+        if !matches!(span.span_kind(), SpanKind::Server) {
+            return;
+        }
+        let Some(route) = span
+            .attributes()
+            .iter()
+            .find(|kv| kv.key.as_str() == "http.route")
+        else {
+            return;
+        };
+        let mut counts = self.0.lock().unwrap();
+        let Some(count) = counts.get_mut(&route.key) else {
+            return;
+        };
+        *count -= 1;
+        if *count == 0 {
+            counts.remove(&route.key);
+        }
+    }
+}
+
+fn obfuscate_http_auth_url(s: &str) -> Option<String> {
+    #[allow(clippy::unnecessary_to_owned)]
+    let uri = hyper::http::Uri::from_maybe_shared(s.to_string()).ok()?;
+    let authority = uri.authority()?;
+    let (_, url) = authority.as_str().split_once('@')?;
+    let new_auth = format!("REDACTED_USERNAME:REDACTED_PASSWORD@{url}");
+    let mut parts = uri.into_parts();
+    parts.authority = Some(hyper::http::uri::Authority::from_maybe_shared(new_auth).ok()?);
+    Some(hyper::Uri::from_parts(parts).ok()?.to_string())
+}
+
+#[derive(Debug)]
+/// A custom span processor that uses on_ending to obfuscate sensitive information in span attributes.
+///
+/// Currently this only overrides http auth information in the URI.
+struct SpanOnbfuscationProcessor;
+
+impl SpanProcessor for SpanOnbfuscationProcessor {
+    fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
+        Ok(())
+    }
+    fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {}
+
+    fn on_ending(&self, span: &mut opentelemetry_sdk::trace::Span) {
+        let mut obfuscated_attributes = Vec::new();
+        for KeyValue { key, value, .. } in span.attributes() {
+            if let Some(redacted_uri) = obfuscate_http_auth_url(value.as_str().as_ref()) {
+                obfuscated_attributes.push((key.clone(), KeyValue::new(key.clone(), redacted_uri)));
+            }
+        }
+    }
+
+    fn on_end(&self, _span: &mut FinishedSpan) {}
 }
 
 /// A custom log processor that enriches LogRecords with baggage attributes.
@@ -141,7 +242,7 @@ impl SpanProcessor for EnrichWithBaggageSpanProcessor {
         }
     }
 
-    fn on_end(&self, _span: opentelemetry_sdk::trace::SpanData) {}
+    fn on_end(&self, _span: &mut opentelemetry_sdk::trace::FinishedSpan) {}
 }
 
 fn init_tracer() -> SdkTracerProvider {
@@ -157,7 +258,9 @@ fn init_tracer() -> SdkTracerProvider {
     // Setup tracerprovider with stdout exporter
     // that prints the spans to stdout.
     let provider = SdkTracerProvider::builder()
+        .with_span_processor(RouteConcurrencyCounterSpanProcessor::default())
         .with_span_processor(EnrichWithBaggageSpanProcessor)
+        .with_span_processor(SpanOnbfuscationProcessor)
         .with_simple_exporter(SpanExporter::default())
         .build();
 

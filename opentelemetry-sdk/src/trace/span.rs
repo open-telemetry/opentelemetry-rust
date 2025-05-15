@@ -198,43 +198,53 @@ impl opentelemetry::trace::Span for Span {
 
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
-        // skip if data has already been exported
-        let mut data = match self.data.take() {
-            Some(data) => data,
-            None => return,
+        match self.data {
+            Some(ref mut data) => {
+                // ensure end time is set via explicit end or implicitly on drop
+                if let Some(timestamp) = timestamp {
+                    data.end_time = timestamp;
+                } else if data.end_time == data.start_time {
+                    data.end_time = opentelemetry::time::now();
+                }
+            }
+            None => {
+                return;
+            }
         };
 
-        let provider = self.tracer.provider();
-        // skip if provider has been shut down
-        if provider.is_shutdown() {
+        if self.tracer.provider().is_shutdown() {
             return;
         }
 
-        // ensure end time is set via explicit end or implicitly on drop
-        if let Some(timestamp) = timestamp {
-            data.end_time = timestamp;
-        } else if data.end_time == data.start_time {
-            data.end_time = opentelemetry::time::now();
+        #[cfg(feature = "experimental_span_processor_on_ending")]
+        {
+            let provider = self.tracer.provider().clone();
+            for processor in provider.span_processors() {
+                processor.on_ending(self);
+            }
         }
 
-        match provider.span_processors() {
-            [] => {}
-            [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
-            }
-            processors => {
-                for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
-                }
-            }
+        let Span {
+            data,
+            tracer,
+            span_context,
+            ..
+        } = self;
+
+        // skip if data has already been exported
+        let data = match data.take() {
+            Some(data) => data,
+            None => return,
+        };
+        let span_context: SpanContext =
+            std::mem::replace(span_context, SpanContext::empty_context());
+
+        let mut finished_span = FinishedSpan::new(build_export_data(data, span_context, tracer));
+
+        let span_processors = tracer.provider().span_processors();
+        for (i, processor) in span_processors.iter().enumerate() {
+            finished_span.reset(i == span_processors.len() - 1);
+            processor.on_end(&mut finished_span);
         }
     }
 }
@@ -243,6 +253,282 @@ impl Drop for Span {
     /// Report span on inner drop
     fn drop(&mut self) {
         self.ensure_ended_and_exported(None);
+    }
+}
+
+/// Represents a finished span passed to a span processor.
+///
+/// The data associated with the span is not writable, but it can be read
+/// through the `ReadableSpan` trait.
+///
+/// Taking ownership of the span data is done by calling `consume`.
+/// If `consume`` is never called, the on_ending method will not perform any copy of
+/// the span data.
+///
+/// Calling any `ReadableSpan` method on the `FinishedSpan` will panic if the span data
+/// has aready been consumed.
+///
+/// ```
+/// use opentelemetry_sdk::trace::{FinishedSpan, ReadableSpan};
+/// fn on_end(span: &mut FinishedSpan) {
+///     // Read the span data without consuming it
+///     if span.name() != "my_span" {
+///         return;
+///     }
+///     // Consume the span data, potentially cloning it
+///     let span = span.consume();
+///     # let _ = span;
+/// }
+/// ```
+pub struct FinishedSpan {
+    span: Option<crate::trace::SpanData>,
+    is_last_processor: bool,
+    is_consummed: bool,
+}
+
+impl FinishedSpan {
+    fn span_data_ref(&self) -> &crate::trace::SpanData {
+        self.span
+            .as_ref()
+            .expect("Span data has already been consumed")
+    }
+
+    /// Creates a new `FinishedSpan` with the given span data.
+    pub fn new(span_data: crate::trace::SpanData) -> Self {
+        FinishedSpan {
+            span: Some(span_data),
+            is_last_processor: false,
+            is_consummed: false,
+        }
+    }
+
+    fn reset(&mut self, last_processor: bool) {
+        self.is_last_processor = last_processor;
+        self.is_consummed = false;
+    }
+
+    /// Takes ownership of the span data in the `FinishedSpan`.
+    ///
+    /// # Panics
+    ///
+    /// This function panics
+    /// * if it called twice in the same SpanProcessor::on_end
+    pub fn consume(&mut self) -> crate::trace::SpanData {
+        if self.is_consummed {
+            panic!("Span data has already been consumed");
+        }
+        self.is_consummed = true;
+        if self.is_last_processor {
+            self.span
+                .take()
+                .expect("Span data has already been consumed")
+        } else {
+            self.span
+                .as_ref()
+                .expect("Span data has already been consumed")
+                .clone()
+        }
+    }
+}
+
+impl ReadableSpan for FinishedSpan {
+    fn context(&self) -> &SpanContext {
+        &self.span_data_ref().span_context
+    }
+
+    fn parent_span_id(&self) -> SpanId {
+        self.span_data_ref().parent_span_id
+    }
+
+    fn span_kind(&self) -> SpanKind {
+        self.span_data_ref().span_kind.clone()
+    }
+
+    fn name(&self) -> &str {
+        self.span_data_ref().name.as_ref()
+    }
+    fn start_time(&self) -> Option<SystemTime> {
+        Some(self.span_data_ref().start_time)
+    }
+    fn end_time(&self) -> Option<SystemTime> {
+        Some(self.span_data_ref().end_time)
+    }
+    fn attributes(&self) -> &[KeyValue] {
+        self.span_data_ref().attributes.as_slice()
+    }
+    fn dropped_attributes_count(&self) -> u32 {
+        self.span_data_ref().dropped_attributes_count
+    }
+    fn events(&self) -> &[Event] {
+        self.span_data_ref().events.events.as_slice()
+    }
+    fn dropped_events_count(&self) -> u32 {
+        self.span_data_ref().events.dropped_count
+    }
+    fn links(&self) -> &[Link] {
+        self.span_data_ref().links.links.as_slice()
+    }
+    fn dropped_links_count(&self) -> u32 {
+        self.span_data_ref().links.dropped_count
+    }
+    fn status(&self) -> &Status {
+        &self.span_data_ref().status
+    }
+}
+
+impl std::fmt::Debug for FinishedSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut fmt = f.debug_struct("FinishedSpan");
+        if self.is_consummed {
+            fmt.field("consummed", &self.is_consummed);
+        } else {
+            fmt.field("span", &self.span_data_ref());
+        }
+        fmt.finish()
+    }
+}
+
+/// A trait for reading span data.
+pub trait ReadableSpan {
+    /// Returns the `SpanContext` of the span.
+    fn context(&self) -> &SpanContext;
+
+    /// Returns the `SpanId` of the parent span.
+    fn parent_span_id(&self) -> SpanId;
+
+    /// Returns the `SpanKind` of the span.
+    ///
+    /// Returns `SpanKind::Internal` if the span is not recording.
+    fn span_kind(&self) -> SpanKind;
+
+    /// Returns the name of the span.
+    ///
+    /// Returns an empty string if the span is not recording.
+    fn name(&self) -> &str;
+
+    /// Returns the start time of the span.
+    ///
+    /// Returns `None` if the span is not recording.
+    fn start_time(&self) -> Option<SystemTime>;
+
+    /// Returns the end time of the span.
+    ///
+    /// Returns `None` if
+    /// * the span is not recording.
+    /// * the span has not been ended.
+    fn end_time(&self) -> Option<SystemTime>;
+
+    /// Returns the attributes of the span.
+    ///
+    /// Returns an empty slice if the span is not recording.
+    fn attributes(&self) -> &[KeyValue];
+
+    /// Returns the number of dropped attributes.
+    fn dropped_attributes_count(&self) -> u32;
+
+    /// Returns the events associated to the span.
+    ///
+    /// Returns an empty slice if the span is not recording.
+    fn events(&self) -> &[Event];
+
+    /// Returns the number of dropped events.
+    fn dropped_events_count(&self) -> u32;
+
+    /// Returns the span links associated to the span.
+    ///
+    /// Returns an empty slice if the span is not recording.
+    fn links(&self) -> &[Link];
+
+    /// Returns the number of dropped links.
+    fn dropped_links_count(&self) -> u32;
+
+    /// Returns the status of the span.
+    ///
+    /// Returns `Status::Unset` if the span is not recording.
+    fn status(&self) -> &Status;
+}
+
+impl ReadableSpan for Span {
+    fn context(&self) -> &SpanContext {
+        &self.span_context
+    }
+
+    fn parent_span_id(&self) -> SpanId {
+        self.data
+            .as_ref()
+            .map(|data| data.parent_span_id)
+            .unwrap_or_else(|| SpanId::INVALID)
+    }
+
+    fn span_kind(&self) -> SpanKind {
+        self.data
+            .as_ref()
+            .map(|data| data.span_kind.clone())
+            .unwrap_or(SpanKind::Internal)
+    }
+
+    fn name(&self) -> &str {
+        self.data
+            .as_ref()
+            .map(|data| data.name.as_ref())
+            .unwrap_or("")
+    }
+
+    fn start_time(&self) -> Option<SystemTime> {
+        self.data.as_ref().map(|data| data.start_time)
+    }
+
+    fn end_time(&self) -> Option<SystemTime> {
+        self.data.as_ref().map(|data| data.end_time)
+    }
+
+    fn attributes(&self) -> &[KeyValue] {
+        self.data
+            .as_ref()
+            .map(|data| data.attributes.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn dropped_attributes_count(&self) -> u32 {
+        self.data
+            .as_ref()
+            .map(|data| data.dropped_attributes_count)
+            .unwrap_or(0)
+    }
+
+    fn events(&self) -> &[Event] {
+        self.data
+            .as_ref()
+            .map(|data| data.events.events.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn dropped_events_count(&self) -> u32 {
+        self.data
+            .as_ref()
+            .map(|data| data.events.dropped_count)
+            .unwrap_or(0)
+    }
+
+    fn links(&self) -> &[Link] {
+        self.data
+            .as_ref()
+            .map(|data| data.links.links.as_slice())
+            .unwrap_or(&[])
+    }
+
+    fn dropped_links_count(&self) -> u32 {
+        self.data
+            .as_ref()
+            .map(|data| data.links.dropped_count)
+            .unwrap_or(0)
+    }
+
+    fn status(&self) -> &Status {
+        self.data
+            .as_ref()
+            .map(|data| &data.status)
+            .unwrap_or(&Status::Unset)
     }
 }
 
@@ -276,8 +562,9 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
     use crate::trace::{SpanEvents, SpanLinks};
-    use opentelemetry::trace::{self, SpanBuilder, TraceFlags, TraceId, Tracer};
-    use opentelemetry::{trace::Span as _, trace::TracerProvider};
+    use opentelemetry::trace::{
+        self, Span as _, SpanBuilder, TraceFlags, TraceId, Tracer, TracerProvider,
+    };
     use std::time::Duration;
     use std::vec;
 

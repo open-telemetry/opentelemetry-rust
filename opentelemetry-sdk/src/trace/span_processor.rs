@@ -79,11 +79,24 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// synchronously on the thread that started the span, therefore it should
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
+    #[cfg(feature = "experimental_span_processor_on_ending")]
+    /// `on_ending` is called when a `Span` is ending. The en timestampe has already
+    /// been computed.
+    /// Mutations done to the span in this method will be reflected in the span passed
+    /// to other span processors.
+    /// This method is called synchronously within the `Span::end` API, therefore it
+    /// should not block or throw an exception.
+    /// If multiple SpanProcessors are registered, their on_ending methods are invoked
+    /// in the order they have been registered.
+    fn on_ending(&self, _span: &mut Span) {
+        // Default implementation is a no-op so existing processor implementations
+        // don't break if this feature in enabled transitively.
+    }
+
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
-    /// TODO - This method should take reference to `SpanData`
-    fn on_end(&self, span: SpanData);
+    fn on_end(&self, span: &mut FinishedSpan);
     /// Force the spans lying in the cache to be exported.
     fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
@@ -129,10 +142,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: &mut FinishedSpan) {
+        if !span.context().is_sampled() {
             return;
         }
+        let span = span.consume();
 
         let result = self
             .exporter
@@ -235,6 +249,9 @@ use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::mpsc::SyncSender;
+
+use super::span::FinishedSpan;
+use super::ReadableSpan;
 
 /// Messages exchanged between the main thread and the background thread.
 #[allow(clippy::large_enum_variant)]
@@ -513,7 +530,7 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Handles span end.
-    fn on_end(&self, span: SpanData) {
+    fn on_end(&self, span: &mut FinishedSpan) {
         if self.is_shutdown.load(Ordering::Relaxed) {
             // this is a warning, as the user is trying to emit after the processor has been shutdown
             otel_warn!(
@@ -522,6 +539,7 @@ impl SpanProcessor for BatchSpanProcessor {
             );
             return;
         }
+        let span = span.consume();
         let result = self.span_sender.try_send(span);
 
         if result.is_err() {
@@ -865,8 +883,8 @@ mod tests {
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
-    use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
+    use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -877,7 +895,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
@@ -900,7 +918,7 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        processor.on_end(unsampled);
+        processor.on_end(&mut FinishedSpan::new(unsampled));
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
@@ -909,7 +927,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
         // Assume shutdown is called by ensuring spans are empty in the exporter
@@ -1111,7 +1129,7 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Wait for flush interval to ensure the span is processed
         std::thread::sleep(Duration::from_secs(6));
@@ -1134,7 +1152,7 @@ mod tests {
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Call force_flush to immediately export the spans
         let flush_result = processor.force_flush();
@@ -1163,7 +1181,7 @@ mod tests {
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("shutdown_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Call shutdown to flush and export all pending spans
         let shutdown_result = processor.shutdown();
@@ -1201,9 +1219,9 @@ mod tests {
         let span2 = create_test_span("span2");
         let span3 = create_test_span("span3"); // This span should be dropped
 
-        processor.on_end(span1.clone());
-        processor.on_end(span2.clone());
-        processor.on_end(span3.clone()); // This span exceeds the queue size
+        processor.on_end(&mut FinishedSpan::new(span1.clone()));
+        processor.on_end(&mut FinishedSpan::new(span2.clone()));
+        processor.on_end(&mut FinishedSpan::new(span3.clone())); // This span exceeds the queue size
 
         // Wait for the scheduled delay to expire
         std::thread::sleep(Duration::from_secs(3));
@@ -1243,7 +1261,7 @@ mod tests {
             KeyValue::new("key1", "value1"),
             KeyValue::new("key2", "value2"),
         ];
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
 
         // Force flush to export the span
         let _ = processor.force_flush();
@@ -1274,7 +1292,7 @@ mod tests {
 
         // Create a span and send it to the processor
         let test_span = create_test_span("resource_test");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Force flush to ensure the span is exported
         let _ = processor.force_flush();
@@ -1309,7 +1327,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&mut FinishedSpan::new(span));
         }
 
         processor.force_flush().unwrap();
@@ -1332,7 +1350,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&mut FinishedSpan::new(span));
         }
 
         processor.force_flush().unwrap();
@@ -1359,7 +1377,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let span = new_test_export_span_data();
-                processor_clone.on_end(span);
+                processor_clone.on_end(&mut FinishedSpan::new(span));
             });
             handles.push(handle);
         }
