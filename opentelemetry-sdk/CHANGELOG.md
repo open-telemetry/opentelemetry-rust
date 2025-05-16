@@ -25,6 +25,7 @@ also modified to suppress telemetry before invoking exporters.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
+- The `shutdown_with_timeout` method is added to SpanProcessor, SpanExporter trait and TracerProvider.
 - The `shutdown_with_timeout` method is added to LogExporter trait.
 - The `shutdown_with_timeout` method is added to LogProvider and LogProcessor trait.
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
