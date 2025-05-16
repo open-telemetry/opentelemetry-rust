@@ -281,8 +281,8 @@ enum BatchMessage {
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-/// [`shutdown()`]: crate::trace::TracerProvider::shutdown
-/// [`force_flush()`]: crate::trace::TracerProvider::force_flush
+/// [`shutdown()`]: crate::trace::SdkTracerProvider::shutdown
+/// [`force_flush()`]: crate::trace::SdkTracerProvider::force_flush
 #[derive(Debug)]
 pub struct BatchSpanProcessor {
     span_sender: SyncSender<SpanData>, // Data channel to store spans

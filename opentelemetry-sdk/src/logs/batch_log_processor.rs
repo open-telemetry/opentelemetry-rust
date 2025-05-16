@@ -101,8 +101,8 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-/// [`shutdown()`]: crate::logs::LoggerProvider::shutdown
-/// [`force_flush()`]: crate::logs::LoggerProvider::force_flush
+/// [`shutdown()`]: crate::logs::SdkLoggerProvider::shutdown
+/// [`force_flush()`]: crate::logs::SdkLoggerProvider::force_flush
 ///
 /// ### Using a BatchLogProcessor:
 ///
