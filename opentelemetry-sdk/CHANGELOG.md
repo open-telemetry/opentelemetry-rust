@@ -25,6 +25,7 @@ also modified to suppress telemetry before invoking exporters.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)
+- The `shutdown_with_timeout` method is added to SpanProcessor, SpanExporter trait and TracerProvider.
 - The `shutdown_with_timeout` method is added to LogExporter trait.
 - The `shutdown_with_timeout` method is added to LogProvider and LogProcessor trait.
 - *Breaking* `MetricError`, `MetricResult` no longer public (except when
@@ -47,6 +48,23 @@ also modified to suppress telemetry before invoking exporters.
 - *Breaking* change, affecting custom `PushMetricExporter` authors:
   - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
     instead of `&mut ResourceMetrics`.
+  - `ResourceMetrics` no longer exposes `scope_metrics` field, but instead
+    offers `scope_metrics()` method that returns an iterator over the same.
+  - `ScopeMetrics` no longer exposes `metrics` field, but instead offers
+    `metrics()` method that returns an iterator over the same.
+  - `Sum`, `Gauge`, `Histogram` & `ExponentialHistogram` no longer exposes
+    `data_points` field, but instead offers `data_points()` method that returns
+    an iterator over the same.
+  - `SumDataPoint`, `GaugeDataPoint`, `HistogramDataPoint` &
+    `ExponentialHistogramDataPoint` no longer exposes `attributes`, `exemplars`
+    field, but instead offers `attributes()`, and `exemplars()` method that
+    returns an iterator over the same.
+  - `Exemplar` no longer exposes `filtered_attributes` field, but instead
+     offers `filtered_attributes()` method that returns an iterator over
+     the same.
+  - `HistogramDataPoint` no longer exposes `bounds` and `bucket_counts`, but
+    instead offers `bounds()` and `bucket_counts()` methods that returns an
+    iterator over the same.
 
 ## 0.29.0
 

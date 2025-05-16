@@ -98,6 +98,8 @@ jobs:
         with:
           toolchain: nightly-2024-06-30
           components: rustfmt
+      - name: Patch dependencies versions
+        run: bash ./scripts/patch_dependencies.sh
       - name: external-type-check
         run: |
           cargo install cargo-check-external-types@0.1.13
@@ -199,9 +201,11 @@ jobs:
           components: rustfmt,llvm-tools-preview
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # cargo-llvm-cov
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # v2.50.4
+        with:
+          tool: cargo-llvm-cov
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
@@ -216,11 +220,11 @@ jobs:
   build-examples:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4305c38b25d97ef35a8ad1f985ccf2d2242004f2 # stable
         with:
           components: rustfmt
-      - uses: arduino/setup-protoc@v3
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build examples
