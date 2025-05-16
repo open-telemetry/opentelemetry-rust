@@ -116,7 +116,11 @@ pub mod tonic {
                 resource_metrics: vec![TonicResourceMetrics {
                     resource: Some((rm.resource()).into()),
                     scope_metrics: rm.scope_metrics().map(Into::into).collect(),
-                    schema_url: rm.resource().schema_url().map(Into::into).unwrap_or_default(),
+                    schema_url: rm
+                        .resource()
+                        .schema_url()
+                        .map(Into::into)
+                        .unwrap_or_default(),
                 }],
             }
         }

@@ -90,15 +90,12 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
         if let Some(schema_url) = scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
-        scope
-            .attributes()
-            .enumerate()
-            .for_each(|(index, kv)| {
-                if index == 0 {
-                    println!("\t\tScope Attributes:");
-                }
-                println!("\t\t\t ->  {}: {}", kv.key, kv.value);
-            });
+        scope.attributes().enumerate().for_each(|(index, kv)| {
+            if index == 0 {
+                println!("\t\tScope Attributes:");
+            }
+            println!("\t\t\t ->  {}: {}", kv.key, kv.value);
+        });
 
         metric.metrics().enumerate().for_each(|(i, metric)| {
             println!("Metric #{}", i);
