@@ -64,6 +64,12 @@ also modified to suppress telemetry before invoking exporters.
   - `HistogramDataPoint` no longer exposes `bounds` and `bucket_counts`, but
     instead offers `bounds()` and `bucket_counts()` methods that returns an
     iterator over the same.
+  - `Metric` no longer exposes `name`, `description`, `unit`, `data` fields, but
+    instead offers `name()`, `description()`, `unit()`, and `data()` accessor methods.
+  - `ResourceMetrics` no longer exposes `resource` field, but instead offers
+    a `resource()` accessor method.
+  - `ScopeMetrics` no longer exposes `scope` field, but instead offers
+    a `scope()` accessor method.
 
 ## 0.29.0
 

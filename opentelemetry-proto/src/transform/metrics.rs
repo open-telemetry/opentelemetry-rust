@@ -114,9 +114,9 @@ pub mod tonic {
         fn from(rm: &ResourceMetrics) -> Self {
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
-                    resource: Some((&rm.resource).into()),
+                    resource: Some((rm.resource()).into()),
                     scope_metrics: rm.scope_metrics().map(Into::into).collect(),
-                    schema_url: rm.resource.schema_url().map(Into::into).unwrap_or_default(),
+                    schema_url: rm.resource().schema_url().map(Into::into).unwrap_or_default(),
                 }],
             }
         }
@@ -135,10 +135,10 @@ pub mod tonic {
     impl From<&SdkScopeMetrics> for TonicScopeMetrics {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
-                scope: Some((&sm.scope, None).into()),
+                scope: Some((sm.scope(), None).into()),
                 metrics: sm.metrics().map(Into::into).collect(),
                 schema_url: sm
-                    .scope
+                    .scope()
                     .schema_url()
                     .map(ToOwned::to_owned)
                     .unwrap_or_default(),
@@ -149,11 +149,11 @@ pub mod tonic {
     impl From<&SdkMetric> for TonicMetric {
         fn from(metric: &SdkMetric) -> Self {
             TonicMetric {
-                name: metric.name.to_string(),
-                description: metric.description.to_string(),
-                unit: metric.unit.to_string(),
+                name: metric.name().to_string(),
+                description: metric.description().to_string(),
+                unit: metric.unit().to_string(),
                 metadata: vec![], // internal and currently unused
-                data: Some(match &metric.data {
+                data: Some(match metric.data() {
                     AggregatedMetrics::F64(data) => data.into(),
                     AggregatedMetrics::U64(data) => data.into(),
                     AggregatedMetrics::I64(data) => data.into(),
