@@ -52,4 +52,10 @@ expression='
 "${SED[@]}" -E "${expression}" src/metric.rs
 "${SED[@]}" -E "${expression}" src/attribute.rs
 
+# Fix unclosed HTML tag warnings for <key> in doc comments.
+# Rustdoc treats <key> as an unclosed HTML tag and fails the build with -D warnings.
+# We replace <key> with Markdown code formatting `key` to prevent the error.
+# TODO: This workaround should be removed once the upstream generator handles this correctly.
+"${SED[@]}" 's/<key>/`key`/g' src/attribute.rs
+
 cargo fmt

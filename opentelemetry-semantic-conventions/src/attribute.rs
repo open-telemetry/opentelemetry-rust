@@ -1759,7 +1759,7 @@ pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_IMAGE_TAGS: &str = "container.image.tags";
 
-/// Container labels, `<key>` being the label name, the value being the label value.
+/// Container labels, ``key`` being the label name, the value being the label value.
 ///
 /// ## Notes
 ///
@@ -2263,7 +2263,7 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// - `"SELECT"`
 pub const DB_OPERATION_NAME: &str = "db.operation.name";
 
-/// A database operation parameter, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+/// A database operation parameter, with ``key`` being the parameter name, and the attribute value being a string representation of the parameter value.
 ///
 /// ## Notes
 ///
@@ -2280,7 +2280,7 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_OPERATION_PARAMETER: &str = "db.operation.parameter";
 
-/// A database query parameter, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+/// A database query parameter, with ``key`` being the parameter name, and the attribute value being a string representation of the parameter value.
 ///
 /// ## Notes
 ///
@@ -4216,7 +4216,7 @@ pub const HTTP_METHOD: &str = "http.method";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_REQUEST_BODY_SIZE: &str = "http.request.body.size";
 
-/// HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
+/// HTTP request headers, ``key`` being the normalized HTTP Header name (lowercase), the value being the header values.
 ///
 /// ## Notes
 ///
@@ -4301,7 +4301,7 @@ pub const HTTP_REQUEST_RESEND_COUNT: &str = "http.request.resend_count";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 
-/// Deprecated, use `http.request.header.<key>` instead.
+/// Deprecated, use `http.request.header.`key`` instead.
 ///
 /// ## Notes
 ///
@@ -4309,7 +4309,7 @@ pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `http.request.header.<key>`., reason: uncategorized}")]
+#[deprecated(note = "{note: Replaced by `http.request.header.`key``., reason: uncategorized}")]
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.request.body.size` instead.
@@ -4334,7 +4334,7 @@ pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_RESPONSE_BODY_SIZE: &str = "http.response.body.size";
 
-/// HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
+/// HTTP response headers, ``key`` being the normalized HTTP Header name (lowercase), the value being the header values.
 ///
 /// ## Notes
 ///
@@ -4379,7 +4379,7 @@ pub const HTTP_RESPONSE_SIZE: &str = "http.response.size";
 /// - `200`
 pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
-/// Deprecated, use `http.response.header.<key>` instead.
+/// Deprecated, use `http.response.header.`key`` instead.
 ///
 /// ## Notes
 ///
@@ -4387,7 +4387,7 @@ pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `http.response.header.<key>`., reason: uncategorized}")]
+#[deprecated(note = "{note: Replaced by `http.response.header.`key``., reason: uncategorized}")]
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
@@ -4703,7 +4703,7 @@ pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
 pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
     "k8s.container.status.last_terminated_reason";
 
-/// The cronjob annotation placed on the CronJob, the `<key>` being the annotation name, the value being the annotation value.
+/// The cronjob annotation placed on the CronJob, the ``key`` being the annotation name, the value being the annotation value.
 ///
 /// ## Notes
 ///
@@ -4721,7 +4721,7 @@ pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_CRONJOB_ANNOTATION: &str = "k8s.cronjob.annotation";
 
-/// The label placed on the CronJob, the `<key>` being the label name, the value being the label value.
+/// The label placed on the CronJob, the ``key`` being the label name, the value being the label value.
 ///
 /// ## Notes
 ///
@@ -4967,7 +4967,7 @@ pub const K8S_NAMESPACE_NAME: &str = "k8s.namespace.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
 
-/// The annotation placed on the Node, the `<key>` being the annotation name, the value being the annotation value, even if the value is empty.
+/// The annotation placed on the Node, the ``key`` being the annotation name, the value being the annotation value, even if the value is empty.
 ///
 /// ## Notes
 ///
@@ -4985,7 +4985,7 @@ pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_ANNOTATION: &str = "k8s.node.annotation";
 
-/// The label placed on the Node, the `<key>` being the label name, the value being the label value, even if the value is empty.
+/// The label placed on the Node, the ``key`` being the label name, the value being the label value, even if the value is empty.
 ///
 /// ## Notes
 ///
@@ -5023,7 +5023,7 @@ pub const K8S_NODE_NAME: &str = "k8s.node.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_UID: &str = "k8s.node.uid";
 
-/// The annotation placed on the Pod, the `<key>` being the annotation name, the value being the annotation value.
+/// The annotation placed on the Pod, the ``key`` being the annotation name, the value being the annotation value.
 ///
 /// ## Notes
 ///
@@ -5044,7 +5044,7 @@ pub const K8S_NODE_UID: &str = "k8s.node.uid";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_ANNOTATION: &str = "k8s.pod.annotation";
 
-/// The label placed on the Pod, the `<key>` being the label name, the value being the label value.
+/// The label placed on the Pod, the ``key`` being the label name, the value being the label value.
 ///
 /// ## Notes
 ///
@@ -6472,7 +6472,7 @@ pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
 
-/// Process environment variables, <key> being the environment variable name, the value being the environment variable value.
+/// Process environment variables, `key` being the environment variable name, the value being the environment variable value.
 ///
 /// ## Notes
 ///
@@ -6791,7 +6791,7 @@ pub const PROFILE_FRAME_TYPE: &str = "profile.frame.type";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 
-/// Connect request metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+/// Connect request metadata, ``key`` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
@@ -6807,7 +6807,7 @@ pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_REQUEST_METADATA: &str = "rpc.connect_rpc.request.metadata";
 
-/// Connect response metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+/// Connect response metadata, ``key`` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
@@ -6823,7 +6823,7 @@ pub const RPC_CONNECT_RPC_REQUEST_METADATA: &str = "rpc.connect_rpc.request.meta
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_RESPONSE_METADATA: &str = "rpc.connect_rpc.response.metadata";
 
-/// gRPC request metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+/// gRPC request metadata, ``key`` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
@@ -6839,7 +6839,7 @@ pub const RPC_CONNECT_RPC_RESPONSE_METADATA: &str = "rpc.connect_rpc.response.me
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_REQUEST_METADATA: &str = "rpc.grpc.request.metadata";
 
-/// gRPC response metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+/// gRPC response metadata, ``key`` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
