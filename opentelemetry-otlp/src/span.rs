@@ -7,12 +7,18 @@ use std::fmt::Debug;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::trace::SpanData;
 
-use crate::ExporterBuildError;
 #[cfg(feature = "grpc-tonic")]
 use crate::{
     exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
-    TonicExporterBuilderSet,
+    TonicExporterBuilderSet, OTEL_EXPORTER_OTLP_PROTOCOL_GRPC,
 };
+use crate::{ExporterBuildError, OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT};
+
+#[cfg(feature = "http-proto")]
+use crate::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
+
+#[cfg(feature = "http-json")]
+use crate::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{
@@ -124,6 +130,24 @@ impl SpanExporter {
     /// Obtain a builder to configure a [SpanExporter].
     pub fn builder() -> SpanExporterBuilder<NoExporterBuilderSet> {
         SpanExporterBuilder::default()
+    }
+
+    /// Builds a default [SpanExporter] based on the value of `OTEL_EXPORTER_OTLP_PROTOCOL`.
+    pub fn build_default(self) -> Result<SpanExporter, ExporterBuildError> {
+        match std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL)
+            .unwrap_or(OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
+            .as_str()
+        {
+            #[cfg(feature = "grpc-tonic")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Self::builder().with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Self::builder().with_http().build(),
+            #[cfg(feature = "http-json")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Self::builder().with_http().build(),
+            other => Err(ExporterBuildError::InternalFailure(format!(
+                "Invalid {OTEL_EXPORTER_OTLP_PROTOCOL}: {other}"
+            ))),
+        }
     }
 
     #[cfg(any(feature = "http-proto", feature = "http-json"))]

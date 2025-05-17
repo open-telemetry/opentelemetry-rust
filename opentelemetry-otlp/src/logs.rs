@@ -8,10 +8,21 @@ use opentelemetry_sdk::{error::OTelSdkResult, logs::LogBatch};
 use std::fmt::Debug;
 use std::time;
 
-use crate::{ExporterBuildError, HasExportConfig, NoExporterBuilderSet};
+use crate::{
+    ExporterBuildError, HasExportConfig, NoExporterBuilderSet, OTEL_EXPORTER_OTLP_PROTOCOL,
+    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT,
+};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet};
+use crate::{
+    HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet, OTEL_EXPORTER_OTLP_PROTOCOL_GRPC,
+};
+
+#[cfg(feature = "http-proto")]
+use crate::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
+
+#[cfg(feature = "http-json")]
+use crate::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{HasHttpConfig, HttpExporterBuilder, HttpExporterBuilderSet};
@@ -121,6 +132,24 @@ impl LogExporter {
     /// Obtain a builder to configure a [LogExporter].
     pub fn builder() -> LogExporterBuilder<NoExporterBuilderSet> {
         LogExporterBuilder::default()
+    }
+
+    /// Builds a default [LogExporter] based on the value of `OTEL_EXPORTER_OTLP_PROTOCOL`.
+    pub fn build_default(self) -> Result<LogExporter, ExporterBuildError> {
+        match std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL)
+            .unwrap_or(OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
+            .as_str()
+        {
+            #[cfg(feature = "grpc-tonic")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Self::builder().with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Self::builder().with_http().build(),
+            #[cfg(feature = "http-json")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Self::builder().with_http().build(),
+            other => Err(ExporterBuildError::InternalFailure(format!(
+                "Invalid {OTEL_EXPORTER_OTLP_PROTOCOL}: {other}"
+            ))),
+        }
     }
 
     #[cfg(any(feature = "http-proto", feature = "http-json"))]

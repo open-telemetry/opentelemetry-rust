@@ -9,10 +9,22 @@ use crate::HasExportConfig;
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{exporter::http::HttpExporterBuilder, HasHttpConfig, HttpExporterBuilderSet};
 
-#[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporterBuilderSet};
+#[cfg(feature = "http-proto")]
+use crate::exporter::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
 
-use crate::{ExporterBuildError, NoExporterBuilderSet};
+#[cfg(feature = "http-json")]
+use crate::exporter::OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
+
+#[cfg(feature = "grpc-tonic")]
+use crate::{
+    exporter::{tonic::TonicExporterBuilder, OTEL_EXPORTER_OTLP_PROTOCOL_GRPC},
+    HasTonicConfig, TonicExporterBuilderSet,
+};
+
+use crate::{
+    ExporterBuildError, NoExporterBuilderSet, OTEL_EXPORTER_OTLP_PROTOCOL,
+    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT,
+};
 
 use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
@@ -185,6 +197,24 @@ impl MetricExporter {
     /// Obtain a builder to configure a [MetricExporter].
     pub fn builder() -> MetricExporterBuilder<NoExporterBuilderSet> {
         MetricExporterBuilder::default()
+    }
+
+    /// Builds a default [MetricExporter] based on the value of `OTEL_EXPORTER_OTLP_PROTOCOL`.
+    pub fn build_default(self) -> Result<MetricExporter, ExporterBuildError> {
+        match std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL)
+            .unwrap_or(OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT.to_string())
+            .as_str()
+        {
+            #[cfg(feature = "grpc-tonic")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Self::builder().with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Self::builder().with_http().build(),
+            #[cfg(feature = "http-json")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Self::builder().with_http().build(),
+            other => Err(ExporterBuildError::InternalFailure(format!(
+                "Invalid {OTEL_EXPORTER_OTLP_PROTOCOL}: {other}"
+            ))),
+        }
     }
 
     #[cfg(feature = "grpc-tonic")]
