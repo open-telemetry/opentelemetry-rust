@@ -32,6 +32,18 @@
 pub use crate::attribute::ANDROID_APP_STATE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_SCREEN_COORDINATE_X;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_SCREEN_COORDINATE_Y;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_WIDGET_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_WIDGET_NAME;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -169,6 +181,24 @@ pub use crate::attribute::CASSANDRA_QUERY_IDEMPOTENT;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CASSANDRA_SPECULATIVE_EXECUTION_COUNT;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_ACTION_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_RESULT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_TASK_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_TASK_RUN_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_TASK_RUN_RESULT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_TASK_RUN_URL_FULL;
+
 pub use crate::attribute::CLIENT_ADDRESS;
 
 pub use crate::attribute::CLIENT_PORT;
@@ -176,41 +206,38 @@ pub use crate::attribute::CLIENT_PORT;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_RESOURCE_ID;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_COLLECTION_NAME;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_NAMESPACE;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_OPERATION_BATCH_SIZE;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_OPERATION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_OPERATION_PARAMETER;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DB_QUERY_PARAMETER;
+
 pub use crate::attribute::DB_QUERY_SUMMARY;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_QUERY_TEXT;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_RESPONSE_RETURNED_ROWS;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_RESPONSE_STATUS_CODE;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_STORED_PROCEDURE_NAME;
 
-#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::DB_SYSTEM_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ERROR_MESSAGE;
 
 pub use crate::attribute::ERROR_TYPE;
 
@@ -258,9 +285,6 @@ pub use crate::attribute::FAAS_TRIGGER;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_CONTEXT_ID;
-
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::FEATURE_FLAG_EVALUATION_ERROR_MESSAGE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_KEY;
@@ -351,6 +375,9 @@ pub use crate::attribute::GEN_AI_SYSTEM;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_TOOL_CALL_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_TOOL_DESCRIPTION;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_TOOL_NAME;
