@@ -12,7 +12,7 @@ use super::Temporality;
 #[derive(Debug)]
 pub struct ResourceMetrics {
     /// The entity that collected the metrics.
-    pub resource: Resource,
+    pub(crate) resource: Resource,
     /// The collection of metrics with unique [InstrumentationScope]s.
     pub(crate) scope_metrics: Vec<ScopeMetrics>,
 }
@@ -27,6 +27,11 @@ impl Default for ResourceMetrics {
 }
 
 impl ResourceMetrics {
+    /// Returns a reference to the [Resource] in [ResourceMetrics].
+    pub fn resource(&self) -> &Resource {
+        &self.resource
+    }
+
     /// Returns an iterator over the [ScopeMetrics] in [ResourceMetrics].
     pub fn scope_metrics(&self) -> impl Iterator<Item = &ScopeMetrics> {
         self.scope_metrics.iter()
@@ -37,12 +42,17 @@ impl ResourceMetrics {
 #[derive(Default, Debug)]
 pub struct ScopeMetrics {
     /// The [InstrumentationScope] that the meter was created with.
-    pub scope: InstrumentationScope,
+    pub(crate) scope: InstrumentationScope,
     /// The list of aggregations created by the meter.
     pub(crate) metrics: Vec<Metric>,
 }
 
 impl ScopeMetrics {
+    /// Returns a reference to the [InstrumentationScope] in [ScopeMetrics].
+    pub fn scope(&self) -> &InstrumentationScope {
+        &self.scope
+    }
+
     /// Returns an iterator over the [Metric]s in [ScopeMetrics].
     pub fn metrics(&self) -> impl Iterator<Item = &Metric> {
         self.metrics.iter()
@@ -55,13 +65,35 @@ impl ScopeMetrics {
 #[derive(Debug)]
 pub struct Metric {
     /// The name of the instrument that created this data.
-    pub name: Cow<'static, str>,
+    pub(crate) name: Cow<'static, str>,
     /// The description of the instrument, which can be used in documentation.
-    pub description: Cow<'static, str>,
+    pub(crate) description: Cow<'static, str>,
     /// The unit in which the instrument reports.
-    pub unit: Cow<'static, str>,
+    pub(crate) unit: Cow<'static, str>,
     /// The aggregated data from an instrument.
-    pub data: AggregatedMetrics,
+    pub(crate) data: AggregatedMetrics,
+}
+
+impl Metric {
+    /// Returns the name of the instrument that created this data.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the description of the instrument.
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// Returns the unit in which the instrument reports.
+    pub fn unit(&self) -> &str {
+        &self.unit
+    }
+
+    /// Returns the aggregated data from the instrument.
+    pub fn data(&self) -> &AggregatedMetrics {
+        &self.data
+    }
 }
 
 /// Aggregated metrics data from an instrument
