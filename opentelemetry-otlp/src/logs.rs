@@ -31,6 +31,7 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
 
+/// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,
@@ -38,10 +39,12 @@ pub struct LogExporterBuilder<C> {
 }
 
 impl LogExporterBuilder<NoExporterBuilderSet> {
+    /// Create a new [LogExporterBuilder] with default settings.
     pub fn new() -> Self {
         LogExporterBuilder::default()
     }
 
+    /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> LogExporterBuilder<TonicExporterBuilderSet> {
         LogExporterBuilder {
@@ -50,6 +53,7 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
         }
     }
 
+    /// With the HTTP transport.
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     pub fn with_http(self) -> LogExporterBuilder<HttpExporterBuilderSet> {
         LogExporterBuilder {
@@ -61,6 +65,7 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl LogExporterBuilder<TonicExporterBuilderSet> {
+    /// Build the [LogExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         let result = self.client.0.build_log_exporter();
         otel_debug!(name: "LogExporterBuilt", result = format!("{:?}", &result));
@@ -70,6 +75,7 @@ impl LogExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl LogExporterBuilder<HttpExporterBuilderSet> {
+    /// Build the [LogExporter] with the HTTP transport.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         self.client.0.build_log_exporter()
     }
