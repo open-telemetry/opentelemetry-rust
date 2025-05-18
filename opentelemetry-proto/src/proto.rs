@@ -266,5 +266,13 @@ pub mod tonic {
         pub mod v1;
     }
 
+    /// Generated types used in zpages.
+    #[cfg(feature = "profiles")]
+    #[path = ""]
+    pub mod profiles {
+        #[path = "opentelemetry.proto.profiles.v1development.rs"]
+        pub mod v1;
+    }
+
     pub use crate::transform::common::tonic::Attributes;
 }
