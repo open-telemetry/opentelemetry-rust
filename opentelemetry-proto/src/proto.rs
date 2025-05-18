@@ -6,7 +6,7 @@ pub(crate) mod serializers {
     use crate::tonic::common::v1::any_value::{self, Value};
     use crate::tonic::common::v1::AnyValue;
     use serde::de::{self, MapAccess, Visitor};
-    use serde::ser::{SerializeMap, SerializeStruct};
+    use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
 
@@ -172,6 +172,30 @@ pub(crate) mod serializers {
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<u64>().map_err(de::Error::custom)
+    }
+
+    pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = value.iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        let mut sq = serializer.serialize_seq(Some(s.len()))?;
+        for v in value {
+            sq.serialize_element(&v.to_string())?;
+        }
+        sq.end()
+    }
+
+    pub fn deserialize_vec_string_to_vec_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Vec<String> = Deserialize::deserialize(deserializer)?;
+        s.into_iter()
+            .map(|v| v.parse::<u64>().map_err(de::Error::custom))
+            .collect()
     }
 
     pub fn serialize_i64_to_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>

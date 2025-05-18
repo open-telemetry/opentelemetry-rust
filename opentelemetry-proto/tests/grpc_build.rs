@@ -109,12 +109,23 @@ fn build_tonic() {
         "metrics.v1.HistogramDataPoint.time_unix_nano",
         "metrics.v1.NumberDataPoint.start_time_unix_nano",
         "metrics.v1.NumberDataPoint.time_unix_nano",
-        "profiles.v1development.Sample.timestamps_unix_nano",
-        "profiles.v1development.Profile.time_nanos",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
+    for path in [
+        "profiles.v1development.Profile.time_nanos",
+    ] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
+    }
+    for path in [
+        "profiles.v1development.Sample.timestamps_unix_nano",
+    ] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
+    }
+
 
     // special serializer and deserializer for value
     // The Value::value field must be hidden
