@@ -67,7 +67,7 @@ fn build_tonic() {
         "metrics.v1.Summary",
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
-        "profiles.v1development.Function"
+        "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
             path,
