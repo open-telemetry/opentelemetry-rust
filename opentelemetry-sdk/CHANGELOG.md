@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Feature**: Added Rust code generation for profiles protos. [#2979](https://github.com/open-telemetry/opentelemetry-rust/pull/2979)
+
 - **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
   - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
