@@ -190,22 +190,22 @@ impl Instrument {
 #[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
-    pub name: Option<Cow<'static, str>>,
+    pub(crate) name: Option<Cow<'static, str>>,
     /// Describes the purpose of the data.
-    pub description: Option<Cow<'static, str>>,
+    pub(crate) description: Option<Cow<'static, str>>,
     /// the unit of measurement recorded.
-    pub unit: Option<Cow<'static, str>>,
+    pub(crate) unit: Option<Cow<'static, str>>,
     /// Aggregation the stream uses for an instrument.
-    pub aggregation: Option<Aggregation>,
+    pub(crate) aggregation: Option<Aggregation>,
     /// An allow-list of attribute keys that will be preserved for the stream.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
     /// dropped. If the set is empty, all attributes will be dropped, if `None` all
     /// attributes will be kept.
-    pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
+    pub(crate) allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 
     /// Cardinality limit for the stream.
-    pub cardinality_limit: Option<usize>,
+    pub(crate) cardinality_limit: Option<usize>,
 }
 
 #[cfg(feature = "spec_unstable_metrics_views")]
