@@ -190,11 +190,11 @@ impl Instrument {
 #[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
-    pub name: Cow<'static, str>,
+    pub name: Option<Cow<'static, str>>,
     /// Describes the purpose of the data.
-    pub description: Cow<'static, str>,
+    pub description: Option<Cow<'static, str>>,
     /// the unit of measurement recorded.
-    pub unit: Cow<'static, str>,
+    pub unit: Option<Cow<'static, str>>,
     /// Aggregation the stream uses for an instrument.
     pub aggregation: Option<Aggregation>,
     /// An allow-list of attribute keys that will be preserved for the stream.
@@ -217,19 +217,19 @@ impl Stream {
 
     /// Set the stream name.
     pub fn name(mut self, name: impl Into<Cow<'static, str>>) -> Self {
-        self.name = name.into();
+        self.name = Some(name.into());
         self
     }
 
     /// Set the stream description.
     pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
-        self.description = description.into();
+        self.description = Some(description.into());
         self
     }
 
     /// Set the stream unit.
     pub fn unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
-        self.unit = unit.into();
+        self.unit = Some(unit.into());
         self
     }
 
