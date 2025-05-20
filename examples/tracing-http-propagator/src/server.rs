@@ -140,7 +140,7 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         *count += 1;
         span.set_attribute(KeyValue::new(
             "http.route.concurrent_requests",
-            count.to_string(),
+            *count as i64,
         ));
     }
 
