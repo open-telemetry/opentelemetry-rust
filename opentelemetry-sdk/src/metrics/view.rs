@@ -110,7 +110,7 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     let contains_wildcard = criteria.name.contains(['*', '?']);
 
     let match_fn: Box<dyn Fn(&Instrument) -> bool + Send + Sync> = if contains_wildcard {
-        if !mask.name.is_none() {
+        if mask.name.is_some() {
             // TODO - The error is getting lost here. Need to return or log.
             return Ok(Box::new(empty_view));
         }
@@ -144,17 +144,17 @@ pub fn new_view(criteria: Instrument, mask: Stream) -> MetricResult<Box<dyn View
     Ok(Box::new(move |i: &Instrument| -> Option<Stream> {
         if match_fn(i) {
             Some(Stream {
-                name: if !mask.name.is_none() {
+                name: if mask.name.is_some() {
                     mask.name.clone()
                 } else {
                     Some(i.name.clone())
                 },
-                description: if !mask.description.is_none() {
+                description: if mask.description.is_some() {
                     mask.description.clone()
                 } else {
                     Some(i.description.clone())
                 },
-                unit: if !mask.unit.is_none() {
+                unit: if mask.unit.is_some() {
                     mask.unit.clone()
                 } else {
                     Some(i.unit.clone())
