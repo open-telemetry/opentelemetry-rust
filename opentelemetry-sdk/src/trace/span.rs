@@ -283,7 +283,7 @@ impl Drop for Span {
 pub struct FinishedSpan {
     span: Option<crate::trace::SpanData>,
     is_last_processor: bool,
-    is_consummed: bool,
+    is_consumed: bool,
 }
 
 impl FinishedSpan {
@@ -298,13 +298,13 @@ impl FinishedSpan {
         FinishedSpan {
             span: Some(span_data),
             is_last_processor: false,
-            is_consummed: false,
+            is_consumed: false,
         }
     }
 
     fn reset(&mut self, last_processor: bool) {
         self.is_last_processor = last_processor;
-        self.is_consummed = false;
+        self.is_consumed = false;
     }
 
     /// Takes ownership of the span data in the `FinishedSpan`.
@@ -314,10 +314,10 @@ impl FinishedSpan {
     /// This function panics
     /// * if it called twice in the same SpanProcessor::on_end
     pub fn consume(&mut self) -> crate::trace::SpanData {
-        if self.is_consummed {
+        if self.is_consumed {
             panic!("Span data has already been consumed");
         }
-        self.is_consummed = true;
+        self.is_consumed = true;
         if self.is_last_processor {
             self.span
                 .take()
@@ -379,8 +379,8 @@ impl ReadableSpan for FinishedSpan {
 impl std::fmt::Debug for FinishedSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut fmt = f.debug_struct("FinishedSpan");
-        if self.is_consummed {
-            fmt.field("consummed", &self.is_consummed);
+        if self.is_consumed {
+            fmt.field("consumed", &self.is_consumed);
         } else {
             fmt.field("span", &self.span_data_ref());
         }

@@ -80,7 +80,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
     #[cfg(feature = "experimental_span_processor_on_ending")]
-    /// `on_ending` is called when a `Span` is ending. The en timestampe has already
+    /// `on_ending` is called when a `Span` is ending. The end timestamp has already
     /// been computed.
     /// Mutations done to the span in this method will be reflected in the span passed
     /// to other span processors.

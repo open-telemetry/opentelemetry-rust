@@ -111,7 +111,7 @@ async fn router(
 }
 
 #[derive(Debug, Default)]
-/// A custom span processor that counts concurrent requests for each route (indetified by the http.route
+/// A custom span processor that counts concurrent requests for each route (indentified by the http.route
 /// attribute) and adds that information to the span attributes.
 struct RouteConcurrencyCounterSpanProcessor(Mutex<HashMap<opentelemetry::Key, usize>>);
 
@@ -181,9 +181,9 @@ fn obfuscate_http_auth_url(s: &str) -> Option<String> {
 /// A custom span processor that uses on_ending to obfuscate sensitive information in span attributes.
 ///
 /// Currently this only overrides http auth information in the URI.
-struct SpanOnbfuscationProcessor;
+struct SpanObfuscationProcessor;
 
-impl SpanProcessor for SpanOnbfuscationProcessor {
+impl SpanProcessor for SpanObfuscationProcessor {
     fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
@@ -260,7 +260,7 @@ fn init_tracer() -> SdkTracerProvider {
     let provider = SdkTracerProvider::builder()
         .with_span_processor(RouteConcurrencyCounterSpanProcessor::default())
         .with_span_processor(EnrichWithBaggageSpanProcessor)
-        .with_span_processor(SpanOnbfuscationProcessor)
+        .with_span_processor(SpanObfuscationProcessor)
         .with_simple_exporter(SpanExporter::default())
         .build();
 
