@@ -2702,6 +2702,7 @@ mod tests {
             unreachable!()
         };
 
+
         // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
         assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
 
