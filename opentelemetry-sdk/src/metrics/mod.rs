@@ -1465,118 +1465,72 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn view_test_rename() {
-        // Run this test with stdout enabled to see output.
-        // cargo test view_test_rename --all-features -- --nocapture
-
-        // Arrange
-        let view_rename = |i: &Instrument| {
-            if i.name == "my_counter" {
-                Some(Stream::new().name("my_counter_renamed"))
-            } else {
-                None
-            }
-        };
-
-        let exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
-            .with_view(view_rename)
-            .build();
-
-        // Act
-        let meter = meter_provider.meter("test");
-        let counter = meter
-            .f64_counter("my_counter")
-            .with_unit("my_unit")
-            .with_description("my_description")
-            .build();
-
-        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(
-            metric.name, "my_counter_renamed",
-            "my_counter_renamed is expected."
-        );
-        assert_eq!(metric.unit, "my_unit", "Original unit should be retained.");
-        assert_eq!(
-            metric.description, "my_description",
-            "Original description should be retained."
-        );
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().name("my_counter_renamed"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit",
+            "my_description",
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn view_test_change_unit() {
-        // Run this test with stdout enabled to see output.
-        // cargo test view_test_change_unit --all-features -- --nocapture
-
-        // Arrange
-        let view_rename = |i: &Instrument| {
-            if i.name == "my_counter" {
-                Some(Stream::new().unit("my_unit_new"))
-            } else {
-                None
-            }
-        };
-
-        let exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
-            .with_view(view_rename)
-            .build();
-
-        // Act
-        let meter = meter_provider.meter("test");
-        let counter = meter
-            .f64_counter("my_counter")
-            .with_unit("my_unit")
-            .with_description("my_description")
-            .build();
-
-        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
-        meter_provider.force_flush().unwrap();
-
-        // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
-        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
-        assert_eq!(
-            metric.name, "my_counter",
-            "original name is expected."
-        );
-        assert_eq!(metric.unit, "my_unit_new", "unit should be updated.");
-        assert_eq!(
-            metric.description, "my_description",
-            "Original description should be retained."
-        );
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn view_test_change_description() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().description("my_description_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description_new",
+        )
+        .await;
+    }
+
+    /// Helper function to test view customizations
+    async fn test_view_customization<F>(
+        view_function: F,
+        expected_name: &str,
+        expected_unit: &str,
+        expected_description: &str,
+    ) where
+        F: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
         // Run this test with stdout enabled to see output.
-        // cargo test view_test_change_description --all-features -- --nocapture
+        // cargo test view_test_* --all-features -- --nocapture
 
         // Arrange
-        let view_rename = |i: &Instrument| {
-            if i.name == "my_counter" {
-                Some(Stream::new().description("my_description_new"))
-            } else {
-                None
-            }
-        };
-
         let exporter = InMemoryMetricExporter::default();
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter.clone())
-            .with_view(view_rename)
+            .with_view(view_function)
             .build();
 
         // Act
@@ -1597,13 +1551,19 @@ mod tests {
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(
-            metric.name, "my_counter",
-            "original name is expected."
+            metric.name, expected_name,
+            "Expected name: {}.",
+            expected_name
         );
-        assert_eq!(metric.unit, "my_unit", "Original unit should be retained.");
         assert_eq!(
-            metric.description, "my_description_new",
-            "description should be updated."
+            metric.unit, expected_unit,
+            "Expected unit: {}.",
+            expected_unit
+        );
+        assert_eq!(
+            metric.description, expected_description,
+            "Expected description: {}.",
+            expected_description
         );
     }
 
