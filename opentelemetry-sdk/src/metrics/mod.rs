@@ -1514,6 +1514,40 @@ mod tests {
         .await;
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_unit() {
+        test_view_customization(
+            |i| {
+                if i.unit == "my_unit" {
+                    Some(Stream::new().unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_none() {
+        test_view_customization(
+            |i| {
+                if i.name == "not_expected_to_match" {
+                    Some(Stream::new())
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description",
+        )
+        .await;
+    }
+
     /// Helper function to test view customizations
     async fn test_view_customization<F>(
         view_function: F,
