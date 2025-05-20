@@ -48,11 +48,11 @@ impl PushMetricExporter for MetricExporter {
         } else {
             println!("Metrics");
             println!("Resource");
-            if let Some(schema_url) = metrics.resource.schema_url() {
+            if let Some(schema_url) = metrics.resource().schema_url() {
                 println!("\tResource SchemaUrl: {:?}", schema_url);
             }
 
-            metrics.resource.iter().for_each(|(k, v)| {
+            metrics.resource().iter().for_each(|(k, v)| {
                 println!("\t ->  {}={:?}", k, v);
             });
             print_metrics(metrics.scope_metrics());
@@ -82,29 +82,26 @@ impl PushMetricExporter for MetricExporter {
 fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
     for (i, metric) in metrics.enumerate() {
         println!("\tInstrumentation Scope #{}", i);
-        println!("\t\tName         : {}", &metric.scope.name());
-        if let Some(version) = &metric.scope.version() {
+        let scope = metric.scope();
+        println!("\t\tName         : {}", scope.name());
+        if let Some(version) = scope.version() {
             println!("\t\tVersion  : {:?}", version);
         }
-        if let Some(schema_url) = &metric.scope.schema_url() {
+        if let Some(schema_url) = scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
-        metric
-            .scope
-            .attributes()
-            .enumerate()
-            .for_each(|(index, kv)| {
-                if index == 0 {
-                    println!("\t\tScope Attributes:");
-                }
-                println!("\t\t\t ->  {}: {}", kv.key, kv.value);
-            });
+        scope.attributes().enumerate().for_each(|(index, kv)| {
+            if index == 0 {
+                println!("\t\tScope Attributes:");
+            }
+            println!("\t\t\t ->  {}: {}", kv.key, kv.value);
+        });
 
         metric.metrics().enumerate().for_each(|(i, metric)| {
             println!("Metric #{}", i);
-            println!("\t\tName         : {}", &metric.name);
-            println!("\t\tDescription  : {}", &metric.description);
-            println!("\t\tUnit         : {}", &metric.unit);
+            println!("\t\tName         : {}", metric.name());
+            println!("\t\tDescription  : {}", metric.description());
+            println!("\t\tUnit         : {}", metric.unit());
 
             fn print_info<T>(data: &MetricData<T>)
             where
@@ -129,7 +126,7 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
                     }
                 }
             }
-            match &metric.data {
+            match metric.data() {
                 AggregatedMetrics::F64(data) => print_info(data),
                 AggregatedMetrics::U64(data) => print_info(data),
                 AggregatedMetrics::I64(data) => print_info(data),
