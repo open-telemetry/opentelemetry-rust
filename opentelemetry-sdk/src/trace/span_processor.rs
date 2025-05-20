@@ -85,9 +85,9 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// This method is called synchronously within the `Span::end` API, therefore it
     /// should not block or throw an exception.
     ///
-    /// If multiple SpanProcessors are registered, their on_ending methods are invoked
-    /// in the order they have been registered, and mutations to the span will be
-    /// visible to the next processor.
+    /// If multiple span processors are registered, their on_ending methods are invoked
+    /// in the order the span processors have been registered, and mutations to the span
+    /// will be visible to the next processor.
     ///
     /// The tracer will call `on_ending` for all span processors before calling `on_end`
     /// for any of them.
