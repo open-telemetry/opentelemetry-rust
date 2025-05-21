@@ -42,6 +42,10 @@ also modified to suppress telemetry before invoking exporters.
   behind feature flag "experimental_metrics_custom_reader".
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
+- TODO: Placeholder for View related changelog. Polish this after all
+  changes are done.
+  Hide public fields from `Stream` struct.
+
 - *Breaking* `Aggregation` enum moved behind feature flag
   "spec_unstable_metrics_views". This was only required when using Views.
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)

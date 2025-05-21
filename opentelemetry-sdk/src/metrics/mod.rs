@@ -1463,6 +1463,201 @@ mod tests {
         );
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_rename() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().name("my_counter_renamed"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_unit() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_description() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().description("my_description_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description_new",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_name_unit() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().name("my_counter_renamed").unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_name_unit_desc() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::new()
+                            .name("my_counter_renamed")
+                            .unit("my_unit_new")
+                            .description("my_description_new"),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description_new",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_unit() {
+        test_view_customization(
+            |i| {
+                if i.unit == "my_unit" {
+                    Some(Stream::new().unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_none() {
+        test_view_customization(
+            |i| {
+                if i.name == "not_expected_to_match" {
+                    Some(Stream::new())
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_multiple() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" && i.unit == "my_unit" {
+                    Some(Stream::new().name("my_counter_renamed"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit",
+            "my_description",
+        )
+        .await;
+    }
+
+    /// Helper function to test view customizations
+    async fn test_view_customization<F>(
+        view_function: F,
+        expected_name: &str,
+        expected_unit: &str,
+        expected_description: &str,
+    ) where
+        F: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
+        // Run this test with stdout enabled to see output.
+        // cargo test view_test_* --all-features -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view_function)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .f64_counter("my_counter")
+            .with_unit("my_unit")
+            .with_description("my_description")
+            .build();
+
+        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(
+            metric.name, expected_name,
+            "Expected name: {}.",
+            expected_name
+        );
+        assert_eq!(
+            metric.unit, expected_unit,
+            "Expected unit: {}.",
+            expected_unit
+        );
+        assert_eq!(
+            metric.description, expected_description,
+            "Expected description: {}.",
+            expected_description
+        );
+    }
+
     fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
         instrument_name: &'static str,
         should_not_emit: bool,
