@@ -26,7 +26,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
             // Note: If Stream is invalid, build() will return an error.
             // By calling `.ok()`, any such error is ignored and treated as if the view does not exist.
             // Consider handling the error explicitly if this is not the desired behavior.
-            Stream::builder().with_cardinality_limit(0).build().ok()
+            Stream::builder().with_cardinality_limit(2).build().ok()
         } else {
             None
         }
