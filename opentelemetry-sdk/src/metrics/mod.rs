@@ -82,10 +82,12 @@ pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
 
-pub use instrument::{Instrument, InstrumentKind, Stream};
+pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
 
 #[cfg(feature = "spec_unstable_metrics_views")]
-pub use view::*;
+pub use view::new_view;
+
+pub use view::View;
 
 use std::hash::Hash;
 
@@ -879,8 +881,8 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    #[ignore = "TODO: This test should be fixed when Stream is moved to proper builder pattern."]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
@@ -889,15 +891,15 @@ mod tests {
         let exporter = InMemoryMetricExporter::default();
         let view = |i: &Instrument| {
             if i.name == "test_histogram" {
-                Some(
-                    Stream::new()
-                        .aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
-                            boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
-                            record_min_max: false,
-                        })
-                        .name("test_histogram_renamed")
-                        .unit("test_unit_renamed"),
-                )
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
+                        record_min_max: false,
+                    })
+                    .with_name("test_histogram_renamed")
+                    .with_unit("test_unit_renamed")
+                    .build()
+                    .ok()
             } else {
                 None
             }
@@ -933,6 +935,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
@@ -943,7 +946,12 @@ mod tests {
         // View drops all attributes.
         let view = |i: &Instrument| {
             if i.name == "my_observable_counter" {
-                Some(Stream::new().allowed_attribute_keys(vec![]))
+                Some(
+                    Stream::builder()
+                        .with_allowed_attribute_keys(vec![])
+                        .build()
+                        .unwrap(),
+                )
             } else {
                 None
             }
@@ -1010,6 +1018,7 @@ mod tests {
         assert_eq!(data_point.value, 300);
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn spatial_aggregation_when_view_drops_attributes_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
@@ -1019,7 +1028,12 @@ mod tests {
         // View drops all attributes.
         let view = |i: &Instrument| {
             if i.name == "my_counter" {
-                Some(Stream::new().allowed_attribute_keys(vec![]))
+                Some(
+                    Stream::builder()
+                        .with_allowed_attribute_keys(vec![])
+                        .build()
+                        .unwrap(),
+                )
             } else {
                 None
             }
@@ -1474,7 +1488,12 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
-                    Some(Stream::new().name("my_counter_renamed"))
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .build()
+                            .unwrap(),
+                    )
                 } else {
                     None
                 }
@@ -1490,7 +1509,7 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
-                    Some(Stream::new().unit("my_unit_new"))
+                    Some(Stream::builder().with_unit("my_unit_new").build().unwrap())
                 } else {
                     None
                 }
@@ -1506,7 +1525,12 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
-                    Some(Stream::new().description("my_description_new"))
+                    Some(
+                        Stream::builder()
+                            .with_description("my_description_new")
+                            .build()
+                            .unwrap(),
+                    )
                 } else {
                     None
                 }
@@ -1522,7 +1546,13 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
-                    Some(Stream::new().name("my_counter_renamed").unit("my_unit_new"))
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .with_unit("my_unit_new")
+                            .build()
+                            .unwrap(),
+                    )
                 } else {
                     None
                 }
@@ -1539,10 +1569,12 @@ mod tests {
             |i| {
                 if i.name == "my_counter" {
                     Some(
-                        Stream::new()
-                            .name("my_counter_renamed")
-                            .unit("my_unit_new")
-                            .description("my_description_new"),
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .with_unit("my_unit_new")
+                            .with_description("my_description_new")
+                            .build()
+                            .unwrap(),
                     )
                 } else {
                     None
@@ -1559,7 +1591,7 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.unit == "my_unit" {
-                    Some(Stream::new().unit("my_unit_new"))
+                    Some(Stream::builder().with_unit("my_unit_new").build().unwrap())
                 } else {
                     None
                 }
@@ -1575,7 +1607,7 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "not_expected_to_match" {
-                    Some(Stream::new())
+                    Some(Stream::builder().build().unwrap())
                 } else {
                     None
                 }
@@ -1591,7 +1623,12 @@ mod tests {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" && i.unit == "my_unit" {
-                    Some(Stream::new().name("my_counter_renamed"))
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .build()
+                            .unwrap(),
+                    )
                 } else {
                     None
                 }
@@ -2726,9 +2763,11 @@ mod tests {
         let view_change_cardinality = move |i: &Instrument| {
             if i.name == "my_counter" {
                 Some(
-                    Stream::new()
-                        .name("my_counter")
-                        .cardinality_limit(cardinality_limit),
+                    Stream::builder()
+                        .with_name("my_counter")
+                        .with_cardinality_limit(cardinality_limit)
+                        .build()
+                        .unwrap(),
                 )
             } else {
                 None

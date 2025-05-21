@@ -9,9 +9,11 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     let my_view_rename_and_unit = |i: &Instrument| {
         if i.name == "my_histogram" {
             Some(
-                Stream::new()
-                    .name("my_histogram_renamed")
-                    .unit("milliseconds"),
+                Stream::builder()
+                    .with_name("my_histogram_renamed")
+                    .with_unit("milliseconds")
+                    .build()
+                    .unwrap(),
             )
         } else {
             None
@@ -21,7 +23,10 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 2
     let my_view_change_cardinality = |i: &Instrument| {
         if i.name == "my_second_histogram" {
-            Some(Stream::new().cardinality_limit(2))
+            // Note: If Stream is invalid, build() will return an error.
+            // By calling `.ok()`, any such error is ignored and treated as if the view does not exist.
+            // Consider handling the error explicitly if this is not the desired behavior.
+            Stream::builder().with_cardinality_limit(0).build().ok()
         } else {
             None
         }
