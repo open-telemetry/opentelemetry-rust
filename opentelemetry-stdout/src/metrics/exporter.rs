@@ -48,14 +48,14 @@ impl PushMetricExporter for MetricExporter {
         } else {
             println!("Metrics");
             println!("Resource");
-            if let Some(schema_url) = metrics.resource.schema_url() {
+            if let Some(schema_url) = metrics.resource().schema_url() {
                 println!("\tResource SchemaUrl: {:?}", schema_url);
             }
 
-            metrics.resource.iter().for_each(|(k, v)| {
+            metrics.resource().iter().for_each(|(k, v)| {
                 println!("\t ->  {}={:?}", k, v);
             });
-            print_metrics(&metrics.scope_metrics);
+            print_metrics(metrics.scope_metrics());
             Ok(())
         }
     }
@@ -79,32 +79,29 @@ impl PushMetricExporter for MetricExporter {
     }
 }
 
-fn print_metrics(metrics: &[ScopeMetrics]) {
-    for (i, metric) in metrics.iter().enumerate() {
+fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
+    for (i, metric) in metrics.enumerate() {
         println!("\tInstrumentation Scope #{}", i);
-        println!("\t\tName         : {}", &metric.scope.name());
-        if let Some(version) = &metric.scope.version() {
+        let scope = metric.scope();
+        println!("\t\tName         : {}", scope.name());
+        if let Some(version) = scope.version() {
             println!("\t\tVersion  : {:?}", version);
         }
-        if let Some(schema_url) = &metric.scope.schema_url() {
+        if let Some(schema_url) = scope.schema_url() {
             println!("\t\tSchemaUrl: {:?}", schema_url);
         }
-        metric
-            .scope
-            .attributes()
-            .enumerate()
-            .for_each(|(index, kv)| {
-                if index == 0 {
-                    println!("\t\tScope Attributes:");
-                }
-                println!("\t\t\t ->  {}: {}", kv.key, kv.value);
-            });
+        scope.attributes().enumerate().for_each(|(index, kv)| {
+            if index == 0 {
+                println!("\t\tScope Attributes:");
+            }
+            println!("\t\t\t ->  {}: {}", kv.key, kv.value);
+        });
 
-        metric.metrics.iter().enumerate().for_each(|(i, metric)| {
+        metric.metrics().enumerate().for_each(|(i, metric)| {
             println!("Metric #{}", i);
-            println!("\t\tName         : {}", &metric.name);
-            println!("\t\tDescription  : {}", &metric.description);
-            println!("\t\tUnit         : {}", &metric.unit);
+            println!("\t\tName         : {}", metric.name());
+            println!("\t\tDescription  : {}", metric.description());
+            println!("\t\tUnit         : {}", metric.unit());
 
             fn print_info<T>(data: &MetricData<T>)
             where
@@ -125,10 +122,11 @@ fn print_metrics(metrics: &[ScopeMetrics]) {
                     }
                     MetricData::ExponentialHistogram(_) => {
                         println!("\t\tType         : Exponential Histogram");
+                        // TODO: add support for ExponentialHistogram
                     }
                 }
             }
-            match &metric.data {
+            match metric.data() {
                 AggregatedMetrics::F64(data) => print_info(data),
                 AggregatedMetrics::U64(data) => print_info(data),
                 AggregatedMetrics::I64(data) => print_info(data),
@@ -155,7 +153,7 @@ fn print_sum<T: Debug>(sum: &Sum<T>) {
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    print_sum_data_points(&sum.data_points);
+    print_sum_data_points(sum.data_points());
 }
 
 fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
@@ -172,7 +170,7 @@ fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    print_gauge_data_points(&gauge.data_points);
+    print_gauge_data_points(gauge.data_points());
 }
 
 fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
@@ -192,33 +190,39 @@ fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
     println!("\t\tHistogram DataPoints");
-    print_hist_data_points(&histogram.data_points);
+    print_hist_data_points(histogram.data_points());
 }
 
-fn print_sum_data_points<T: Debug>(data_points: &[SumDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_sum_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a SumDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
 }
 
-fn print_gauge_data_points<T: Debug>(data_points: &[GaugeDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_gauge_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a GaugeDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
     }
 }
 
-fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
-    for (i, data_point) in data_points.iter().enumerate() {
+fn print_hist_data_points<'a, T: Debug + 'a>(
+    data_points: impl Iterator<Item = &'a HistogramDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count);
         println!("\t\t\tSum          : {:?}", data_point.sum);
@@ -231,23 +235,32 @@ fn print_hist_data_points<T: Debug>(data_points: &[HistogramDataPoint<T>]) {
         }
 
         println!("\t\t\tAttributes   :");
-        for kv in data_point.attributes.iter() {
+        for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
         }
 
-        if !data_point.bucket_counts.is_empty() {
-            println!("\t\t\tBuckets");
-            let mut lower_bound = f64::NEG_INFINITY;
-            for (i, &upper_bound) in data_point.bounds.iter().enumerate() {
-                let count = data_point.bucket_counts.get(i).unwrap_or(&0);
-                println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
-                lower_bound = upper_bound;
+        let mut lower_bound = f64::NEG_INFINITY;
+        let bounds_iter = data_point.bounds();
+        let mut bucket_counts_iter = data_point.bucket_counts();
+        let mut header_printed = false;
+
+        // Process all the regular buckets
+        for upper_bound in bounds_iter {
+            // Print header only once before the first item
+            if !header_printed {
+                println!("\t\t\tBuckets");
+                header_printed = true;
             }
 
-            let last_count = data_point
-                .bucket_counts
-                .get(data_point.bounds.len())
-                .unwrap_or(&0);
+            // Get the count for this bucket, or 0 if not available
+            let count = bucket_counts_iter.next().unwrap_or(0);
+            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+            lower_bound = upper_bound;
+        }
+
+        // Handle the final +Infinity bucket if we processed any buckets
+        if header_printed {
+            let last_count = bucket_counts_iter.next().unwrap_or(0);
             println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
         }
     }

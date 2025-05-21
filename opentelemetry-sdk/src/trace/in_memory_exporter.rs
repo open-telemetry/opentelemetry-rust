@@ -3,6 +3,7 @@ use crate::resource::Resource;
 use crate::trace::{SpanData, SpanExporter};
 use crate::InMemoryExporterError;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// An in-memory span exporter that stores span data in memory.
 ///
@@ -140,7 +141,7 @@ impl SpanExporter for InMemorySpanExporter {
         result
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
         self.reset();
         Ok(())
     }

@@ -267,11 +267,21 @@ where
         // The cache will return the same Aggregator instance. Use stream ids to de duplicate.
         let mut seen = HashSet::new();
         for v in &self.pipeline.views {
-            let stream = match v.match_inst(&inst) {
+            let mut stream = match v.match_inst(&inst) {
                 Some(stream) => stream,
                 None => continue,
             };
             matched = true;
+
+            if stream.name.is_none() {
+                stream.name = Some(inst.name.clone());
+            }
+            if stream.description.is_none() {
+                stream.description = Some(inst.description.clone());
+            }
+            if stream.unit.is_none() {
+                stream.unit = Some(inst.unit.clone());
+            }
 
             let id = self.inst_id(kind, &stream);
             if seen.contains(&id) {
@@ -300,9 +310,9 @@ where
 
         // Apply implicit default view if no explicit matched.
         let mut stream = Stream {
-            name: inst.name,
-            description: inst.description,
-            unit: inst.unit,
+            name: Some(inst.name),
+            description: Some(inst.description),
+            unit: Some(inst.unit),
             aggregation: None,
             allowed_attribute_keys: None,
             cardinality_limit,
@@ -403,16 +413,16 @@ where
 
             otel_debug!(
                 name : "Metrics.InstrumentCreated",
-                instrument_name = stream.name.as_ref(),
+                instrument_name = stream.name.clone().unwrap_or_default().as_ref(),
                 cardinality_limit = cardinality_limit,
             );
 
             self.pipeline.add_sync(
                 scope.clone(),
                 InstrumentSync {
-                    name: stream.name,
-                    description: stream.description,
-                    unit: stream.unit,
+                    name: stream.name.unwrap_or_default(),
+                    description: stream.description.unwrap_or_default(),
+                    unit: stream.unit.unwrap_or_default(),
                     comp_agg: collect,
                 },
             );
@@ -453,10 +463,10 @@ where
 
     fn inst_id(&self, kind: InstrumentKind, stream: &Stream) -> InstrumentId {
         InstrumentId {
-            name: stream.name.clone(),
-            description: stream.description.clone(),
+            name: stream.name.clone().unwrap_or_default(),
+            description: stream.description.clone().unwrap_or_default(),
             kind,
-            unit: stream.unit.clone(),
+            unit: stream.unit.clone().unwrap_or_default(),
             number: Cow::Borrowed(std::any::type_name::<T>()),
         }
     }
