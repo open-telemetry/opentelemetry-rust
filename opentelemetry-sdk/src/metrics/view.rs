@@ -36,6 +36,8 @@ use super::instrument::{Instrument, Stream};
 /// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
+// TODO: This trait need not be public, if we modify MeterProvider to take a
+// Fn(&Instrument) -> Option<Stream> instead of View.
 pub trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///
