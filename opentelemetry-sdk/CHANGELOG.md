@@ -44,14 +44,17 @@ also modified to suppress telemetry before invoking exporters.
   behind feature flag "experimental_metrics_custom_reader".
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
-- TODO: Placeholder for View related changelog. Polish this after all
-  - The `Stream` struct now has its public fields hidden.
+- TODO: Placeholder for View related changelog. Polish this after all changs done
   - Core view functionality is now available by default—users can change the
     name, unit, description, and cardinality limit of a metric via views without
     enabling the `spec_unstable_metrics_views` feature flag. Advanced view
     features, such as custom aggregation or attribute filtering, still require
     the `spec_unstable_metrics_views` feature.
-  - TODO: Add Stream::builder() pattern change, validation when done.
+- Introduced a builder pattern for `Stream` creation to use with "Views".
+  - Added `StreamBuilder` struct with methods to configure stream properties
+  - Added `Stream::builder()` method that returns a new `StreamBuilder`
+  - `StreamBuilder::build()` returns `Result<Stream, Box<dyn Error>>` enabling
+    proper validation
 
 - *Breaking* `Aggregation` enum moved behind feature flag
   "spec_unstable_metrics_views". This was only required when using Views.

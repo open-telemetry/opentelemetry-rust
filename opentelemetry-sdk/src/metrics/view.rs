@@ -96,7 +96,10 @@ impl View for Box<dyn View> {
 /// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream};
 ///
 /// let criteria = Instrument::new().name("counter_*");
-/// let mask = Stream::new().aggregation(Aggregation::Sum);
+/// let mask = Stream::builder()
+///     .with_aggregation(Aggregation::Sum)
+///     .build()
+///     .unwrap();
 ///
 /// let view = new_view(criteria, mask);
 /// # drop(view);
@@ -175,7 +178,7 @@ mod tests {
     #[test]
     fn test_new_view_matching_all() {
         let criteria = Instrument::new().name("*");
-        let mask = Stream::new();
+        let mask = Stream::builder().build().unwrap();
 
         let view = new_view(criteria, mask).expect("Expected to create a new view");
 
@@ -189,7 +192,7 @@ mod tests {
     #[test]
     fn test_new_view_exact_match() {
         let criteria = Instrument::new().name("counter_exact_match");
-        let mask = Stream::new();
+        let mask = Stream::builder().build().unwrap();
 
         let view = new_view(criteria, mask).expect("Expected to create a new view");
 
@@ -209,7 +212,7 @@ mod tests {
     #[test]
     fn test_new_view_with_wildcard_pattern() {
         let criteria = Instrument::new().name("prefix_*");
-        let mask = Stream::new();
+        let mask = Stream::builder().build().unwrap();
 
         let view = new_view(criteria, mask).expect("Expected to create a new view");
 
@@ -229,7 +232,7 @@ mod tests {
     #[test]
     fn test_new_view_wildcard_question_mark() {
         let criteria = Instrument::new().name("test_?");
-        let mask = Stream::new();
+        let mask = Stream::builder().build().unwrap();
 
         let view = new_view(criteria, mask).expect("Expected to create a new view");
 

@@ -223,7 +223,10 @@ fn counters(c: &mut Criterion) {
         Some(
             new_view(
                 Instrument::new().name("*"),
-                Stream::new().allowed_attribute_keys([Key::new("K")]),
+                Stream::builder()
+                    .with_allowed_attribute_keys([Key::new("K")])
+                    .build()
+                    .unwrap(),
             )
             .unwrap(),
         ),
@@ -273,10 +276,13 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let view = Some(
         new_view(
             Instrument::new().name("histogram_*"),
-            Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
-                boundaries: bounds.iter().map(|&x| x as f64).collect(),
-                record_min_max: true,
-            }),
+            Stream::builder()
+                .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                    boundaries: bounds.iter().map(|&x| x as f64).collect(),
+                    record_min_max: true,
+                })
+                .build()
+                .unwrap(),
         )
         .unwrap(),
     );
