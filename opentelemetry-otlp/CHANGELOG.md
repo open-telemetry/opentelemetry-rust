@@ -8,6 +8,7 @@
 - Publicly re-exported `MetricExporterBuilder`, `SpanExporterBuilder`, and
   `LogExporterBuilder` types, enabling users to directly reference and use these
   builder types for metrics, traces, and logs exporters.
+  [2966](https://github.com/open-telemetry/opentelemetry-rust/pull/2966)
 
 ## 0.29.0
 
