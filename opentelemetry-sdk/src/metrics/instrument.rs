@@ -190,22 +190,22 @@ impl Instrument {
 #[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
-    pub name: Cow<'static, str>,
+    pub(crate) name: Option<Cow<'static, str>>,
     /// Describes the purpose of the data.
-    pub description: Cow<'static, str>,
+    pub(crate) description: Option<Cow<'static, str>>,
     /// the unit of measurement recorded.
-    pub unit: Cow<'static, str>,
+    pub(crate) unit: Option<Cow<'static, str>>,
     /// Aggregation the stream uses for an instrument.
-    pub aggregation: Option<Aggregation>,
+    pub(crate) aggregation: Option<Aggregation>,
     /// An allow-list of attribute keys that will be preserved for the stream.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
     /// dropped. If the set is empty, all attributes will be dropped, if `None` all
     /// attributes will be kept.
-    pub allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
+    pub(crate) allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
 
     /// Cardinality limit for the stream.
-    pub cardinality_limit: Option<usize>,
+    pub(crate) cardinality_limit: Option<usize>,
 }
 
 #[cfg(feature = "spec_unstable_metrics_views")]
@@ -217,19 +217,19 @@ impl Stream {
 
     /// Set the stream name.
     pub fn name(mut self, name: impl Into<Cow<'static, str>>) -> Self {
-        self.name = name.into();
+        self.name = Some(name.into());
         self
     }
 
     /// Set the stream description.
     pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
-        self.description = description.into();
+        self.description = Some(description.into());
         self
     }
 
     /// Set the stream unit.
     pub fn unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
-        self.unit = unit.into();
+        self.unit = Some(unit.into());
         self
     }
 
