@@ -7,7 +7,7 @@ use std::error::Error;
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
-        if i.name == "my_histogram" {
+        if i.name() == "my_histogram" {
             Some(
                 Stream::builder()
                     .with_name("my_histogram_renamed")
@@ -22,7 +22,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
     // for example 2
     let my_view_change_cardinality = |i: &Instrument| {
-        if i.name == "my_second_histogram" {
+        if i.name() == "my_second_histogram" {
             // Note: If Stream is invalid, build() will return an error. By
             // calling `.ok()`, any such error is ignored and treated as if the
             // view does not match the instrument. If this is not the desired

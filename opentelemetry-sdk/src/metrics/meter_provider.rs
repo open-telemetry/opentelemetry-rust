@@ -308,7 +308,11 @@ impl MeterProviderBuilder {
     /// ```
     /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
     /// let view_rename = |i: &Instrument| {
+<<<<<<< HEAD
+    ///     if i.name() == "my_counter" {
+=======
     ///     if i.name == "my_counter" {
+>>>>>>> f04e9ec6 (feat: Use builder pattern for constructing Metric Streams (#2984))
     ///         Some(Stream::builder().with_name("my_counter_renamed").build().expect("Stream should be valid"))
     ///     } else {
     ///         None
@@ -324,7 +328,11 @@ impl MeterProviderBuilder {
     /// ```
     /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
     /// let view_change_cardinality = |i: &Instrument| {
+<<<<<<< HEAD
+    ///     if i.name() == "my_counter" {
+=======
     ///     if i.name == "my_counter" {
+>>>>>>> f04e9ec6 (feat: Use builder pattern for constructing Metric Streams (#2984))
     ///         Some(
     ///             Stream::builder()
     ///                 .with_cardinality_limit(100).build().expect("Stream should be valid"),
@@ -343,7 +351,11 @@ impl MeterProviderBuilder {
     /// ```
     /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
     /// let my_view_change_cardinality = |i: &Instrument| {
+<<<<<<< HEAD
+    ///     if i.name() == "my_second_histogram" {
+=======
     ///     if i.name == "my_second_histogram" {
+>>>>>>> f04e9ec6 (feat: Use builder pattern for constructing Metric Streams (#2984))
     ///         // Note: If Stream is invalid, build() will return `Error` variant.
     ///         // By calling `.ok()`, any such error is ignored and treated as if the view does not match
     ///         // the instrument.

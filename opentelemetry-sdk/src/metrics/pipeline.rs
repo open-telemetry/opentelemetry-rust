@@ -259,10 +259,7 @@ where
         let mut matched = false;
         let mut measures = vec![];
         let mut errs = vec![];
-        let kind = match inst.kind {
-            Some(kind) => kind,
-            None => return Err(MetricError::Other("instrument must have a kind".into())),
-        };
+        let kind = inst.kind;
 
         // The cache will return the same Aggregator instance. Use stream ids to de duplicate.
         let mut seen = HashSet::new();

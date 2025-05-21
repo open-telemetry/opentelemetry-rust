@@ -1,13 +1,4 @@
 use super::instrument::{Instrument, Stream};
-#[cfg(feature = "spec_unstable_metrics_views")]
-use crate::metrics::{MetricError, MetricResult};
-#[cfg(feature = "spec_unstable_metrics_views")]
-use glob::Pattern;
-
-#[cfg(feature = "spec_unstable_metrics_views")]
-fn empty_view(_inst: &Instrument) -> Option<Stream> {
-    None
-}
 
 /// Used to customize the metrics that are output by the SDK.
 ///
@@ -67,6 +58,8 @@ impl View for Box<dyn View> {
         (**self).match_inst(inst)
     }
 }
+<<<<<<< HEAD
+=======
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 /// Creates a [View] that applies the [Stream] mask for all instruments that
@@ -251,3 +244,4 @@ mod tests {
         );
     }
 }
+>>>>>>> f04e9ec6 (feat: Use builder pattern for constructing Metric Streams (#2984))

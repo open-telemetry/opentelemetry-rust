@@ -55,6 +55,13 @@ also modified to suppress telemetry before invoking exporters.
   - Added `Stream::builder()` method that returns a new `StreamBuilder`
   - `StreamBuilder::build()` returns `Result<Stream, Box<dyn Error>>` enabling
     proper validation
+<<<<<<< HEAD
+- Removed `new_view()` on `View`. Views can be instead added by passing anything
+  that implements `View` trait to `with_view` method on `MeterProviderBuilder`.
+  `View` is implemented for `Fn(&Instrument) -> Option<Stream>`, so this can be
+  used to add views.
+=======
+>>>>>>> f04e9ec6 (feat: Use builder pattern for constructing Metric Streams (#2984))
 
 - *Breaking* `Aggregation` enum moved behind feature flag
   "spec_unstable_metrics_views". This was only required when using Views.
