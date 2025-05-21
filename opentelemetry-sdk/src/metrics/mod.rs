@@ -1515,6 +1515,45 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_name_unit() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::new().name("my_counter_renamed").unit("my_unit_new"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_change_name_unit_desc() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::new()
+                            .name("my_counter_renamed")
+                            .unit("my_unit_new")
+                            .description("my_description_new"),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description_new",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn view_test_match_unit() {
         test_view_customization(
             |i| {
@@ -1542,6 +1581,23 @@ mod tests {
                 }
             },
             "my_counter",
+            "my_unit",
+            "my_description",
+        )
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn view_test_match_multiple() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" && i.unit == "my_unit" {
+                    Some(Stream::new().name("my_counter_renamed"))
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
             "my_unit",
             "my_description",
         )
@@ -1582,7 +1638,8 @@ mod tests {
         let resource_metrics = exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        assert!(!resource_metrics.is_empty());
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(
             metric.name, expected_name,
