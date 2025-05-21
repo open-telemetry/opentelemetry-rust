@@ -45,7 +45,6 @@ fn empty_view(_inst: &Instrument) -> Option<Stream> {
 /// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
-#[allow(unreachable_pub)]
 pub trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///

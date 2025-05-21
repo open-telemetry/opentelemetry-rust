@@ -2,6 +2,8 @@
 
 ## vNext
 
+- It is now possible to add links to a `Span` via the `SpanRef` that you get from
+  a `Context`. [2959](https://github.com/open-telemetry/opentelemetry-rust/pull/2959)
 - **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
   - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
@@ -43,8 +45,13 @@ also modified to suppress telemetry before invoking exporters.
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
 - TODO: Placeholder for View related changelog. Polish this after all
-  changes are done.
-  Hide public fields from `Stream` struct.
+  - The `Stream` struct now has its public fields hidden.
+  - Core view functionality is now available by default—users can change the
+    name, unit, description, and cardinality limit of a metric via views without
+    enabling the `spec_unstable_metrics_views` feature flag. Advanced view
+    features, such as custom aggregation or attribute filtering, still require
+    the `spec_unstable_metrics_views` feature.
+  - TODO: Add Stream::builder() pattern change, validation when done.
 
 - *Breaking* `Aggregation` enum moved behind feature flag
   "spec_unstable_metrics_views". This was only required when using Views.
