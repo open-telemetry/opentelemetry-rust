@@ -23,9 +23,10 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 2
     let my_view_change_cardinality = |i: &Instrument| {
         if i.name == "my_second_histogram" {
-            // Note: If Stream is invalid, build() will return an error.
-            // By calling `.ok()`, any such error is ignored and treated as if the view does not exist.
-            // Consider handling the error explicitly if this is not the desired behavior.
+            // Note: If Stream is invalid, build() will return an error. By
+            // calling `.ok()`, any such error is ignored and treated as if the
+            // view does not match the instrument. If this is not the desired
+            // behavior, consider handling the error explicitly.
             Stream::builder().with_cardinality_limit(2).build().ok()
         } else {
             None
