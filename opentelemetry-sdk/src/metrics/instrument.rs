@@ -73,7 +73,7 @@ impl InstrumentKind {
 /// Instruments can be used as criteria for views.
 ///
 /// ```
-/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, StreamBuilder};
+/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream, StreamBuilder};
 ///
 /// let criteria = Instrument::new().name("counter_*");
 /// let mask = Stream::builder()
@@ -177,10 +177,10 @@ impl Instrument {
 /// # Example
 ///
 /// ```
-/// use opentelemetry_sdk::metrics::{Aggregation, StreamBuilder};
+/// use opentelemetry_sdk::metrics::{Aggregation, Stream};
 /// use opentelemetry::Key;
 ///
-/// let stream = StreamBuilder::new()
+/// let stream = Stream::builder()
 ///     .with_name("my_stream")
 ///     .with_aggregation(Aggregation::Sum)
 ///     .with_cardinality_limit(100)
@@ -319,10 +319,10 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
 /// Streams can be used as masks in views.
 ///
 /// ```
-/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, StreamBuilder};
+/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream};
 ///
 /// let criteria = Instrument::new().name("counter_*");
-/// let mask = StreamBuilder::new()
+/// let mask = Stream::builder()
 ///     .with_aggregation(Aggregation::Sum)
 ///     .build()
 ///     .unwrap();

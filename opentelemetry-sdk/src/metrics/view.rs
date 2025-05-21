@@ -93,7 +93,7 @@ impl View for Box<dyn View> {
 /// # Example
 ///
 /// ```
-/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, StreamBuilder};
+/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream};
 ///
 /// let criteria = Instrument::new().name("counter_*");
 /// let mask = Stream::builder()
