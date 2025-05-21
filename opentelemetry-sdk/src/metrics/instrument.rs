@@ -83,7 +83,6 @@ impl InstrumentKind {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
-#[allow(unreachable_pub)]
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
     pub name: Cow<'static, str>,
@@ -208,7 +207,6 @@ pub struct Stream {
     pub(crate) cardinality_limit: Option<usize>,
 }
 
-#[cfg(feature = "spec_unstable_metrics_views")]
 impl Stream {
     /// Create a new stream with empty values.
     pub fn new() -> Self {
@@ -233,12 +231,14 @@ impl Stream {
         self
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Set the stream aggregation.
     pub fn aggregation(mut self, aggregation: Aggregation) -> Self {
         self.aggregation = Some(aggregation);
         self
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Set the stream allowed attribute keys.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
