@@ -274,7 +274,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let builder = SdkMeterProvider::builder()
         .with_reader(r.clone())
         .with_view(Box::new(move |i: &Instrument| {
-            if i.name() == "histogram_*" {
+            if i.name().starts_with("histogram_") {
                 Stream::builder()
                     .with_aggregation(Aggregation::ExplicitBucketHistogram {
                         boundaries: bounds.iter().map(|&x| x as f64).collect(),
