@@ -2,6 +2,8 @@
 
 ## vNext
 
+- It is now possible to add links to a `Span` via the `SpanRef` that you get from
+  a `Context`. [2959](https://github.com/open-telemetry/opentelemetry-rust/pull/2959)
 - **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
   - `SdkLogger`, `SdkTracer` modified to respect telemetry suppression based on
 `Context`. In other words, if the current context has telemetry suppression
