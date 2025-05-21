@@ -683,7 +683,7 @@ where
             name,
             description: description.unwrap_or_default(),
             unit: unit.unwrap_or_default(),
-            kind: Some(kind),
+            kind,
             scope: self.meter.scope.clone(),
         };
 

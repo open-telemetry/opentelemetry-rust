@@ -73,8 +73,6 @@ pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuild
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use aggregation::*;
-#[cfg(feature = "spec_unstable_metrics_views")]
-pub use error::{MetricError, MetricResult};
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
@@ -83,10 +81,6 @@ pub use periodic_reader::*;
 pub use pipeline::Pipeline;
 
 pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
-
-#[cfg(feature = "spec_unstable_metrics_views")]
-pub use view::new_view;
-
 pub use view::View;
 
 use std::hash::Hash;
@@ -1691,6 +1685,108 @@ mod tests {
             "Expected description: {}.",
             expected_description
         );
+    }
+
+    // Following are just a basic set of advanced View tests - Views bring a lot
+    // of permutations and combinations, and we need
+    // to expand coverage for more scenarios in future.
+    // It is best to first split this file into multiple files
+    // based on scenarios (eg: regular aggregation, cardinality, views, view_advanced, etc)
+    // and then add more tests for each of the scenarios.
+    #[test]
+    fn test_view_single_instrument_multiple_stream() {
+        // Run this test with stdout enabled to see output.
+        // cargo test test_view_multiple_stream --all-features
+
+        // Each of the views match the instrument name "my_counter" and create a
+        // new stream with a different name. In other words, View can be used to
+        // create multiple streams for the same instrument.
+
+        let view1 = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Some(Stream::builder().with_name("my_counter_1").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        let view2 = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Some(Stream::builder().with_name("my_counter_2").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view1)
+            .with_view(view2)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.f64_counter("my_counter").build();
+
+        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metrics = &resource_metrics[0].scope_metrics[0].metrics;
+        assert_eq!(metrics.len(), 2);
+        assert_eq!(metrics[0].name, "my_counter_1");
+        assert_eq!(metrics[1].name, "my_counter_2");
+    }
+
+    #[test]
+    fn test_view_multiple_instrument_single_stream() {
+        // Run this test with stdout enabled to see output.
+        // cargo test test_view_multiple_instrument_single_stream --all-features
+
+        // The view matches the instrument name "my_counter1" and "my_counter1"
+        // and create a single new stream for both. In other words, View can be used to
+        // "merge" multiple instruments into a single stream.
+        let view = |i: &Instrument| {
+            if i.name() == "my_counter1" || i.name() == "my_counter2" {
+                Some(Stream::builder().with_name("my_counter").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter1 = meter.f64_counter("my_counter1").build();
+        let counter2 = meter.f64_counter("my_counter2").build();
+
+        counter1.add(1.5, &[KeyValue::new("key1", "value1")]);
+        counter2.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metrics = &resource_metrics[0].scope_metrics[0].metrics;
+        assert_eq!(metrics.len(), 1);
+        assert_eq!(metrics[0].name, "my_counter");
+        // TODO: Assert that the data points are aggregated correctly.
     }
 
     fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
