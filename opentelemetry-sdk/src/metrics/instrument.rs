@@ -65,110 +65,62 @@ impl InstrumentKind {
     }
 }
 
-/// Describes properties an instrument is created with, also used for filtering
-/// in [View](crate::metrics::View)s.
+/// Describes properties an instrument is created with, used for filtering in
+/// [View](crate::metrics::View)s.
+///
+/// A reference to `Instrument` is provided to the `view` to select the
+/// instrument(s) for which the [Stream] should be applied.
 ///
 /// # Example
 ///
-/// Instruments can be used as criteria for views.
+/// ```rust
+/// use opentelemetry_sdk::metrics::{Instrument, Stream};
 ///
+/// let my_view_change_cardinality = |i: &Instrument| {
+///     if i.name() == "my_second_histogram" {
+///         // Note: If Stream is invalid, build() will return an error. By
+///         // calling `.ok()`, any such error is ignored and treated as if the
+///         // view does not match the instrument. If this is not the desired
+///         // behavior, consider handling the error explicitly.
+///         Stream::builder().with_cardinality_limit(2).build().ok()
+///     } else {
+///         None
+///     }
+/// };
 /// ```
-/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream, StreamBuilder};
-///
-/// let criteria = Instrument::new().name("counter_*");
-/// let mask = Stream::builder()
-///     .with_aggregation(Aggregation::Sum)
-///     .build()
-///     .unwrap();
-///
-/// let view = new_view(criteria, mask);
-/// # drop(view);
-/// ```
-#[derive(Clone, Default, Debug, PartialEq)]
-#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
-    pub name: Cow<'static, str>,
+    pub(crate) name: Cow<'static, str>,
     /// describes the purpose of the instrument.
-    pub description: Cow<'static, str>,
+    pub(crate) description: Cow<'static, str>,
     /// The functional group of the instrument.
-    pub kind: Option<InstrumentKind>,
+    pub(crate) kind: InstrumentKind,
     /// Unit is the unit of measurement recorded by the instrument.
-    pub unit: Cow<'static, str>,
+    pub(crate) unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
-    pub scope: InstrumentationScope,
+    pub(crate) scope: InstrumentationScope,
 }
 
-#[cfg(feature = "spec_unstable_metrics_views")]
 impl Instrument {
-    /// Create a new instrument with default values
-    pub fn new() -> Self {
-        Instrument::default()
+    /// Instrument name.
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
-    /// Set the instrument name.
-    pub fn name(mut self, name: impl Into<Cow<'static, str>>) -> Self {
-        self.name = name.into();
-        self
+    /// Instrument kind.
+    pub fn kind(&self) -> InstrumentKind {
+        self.kind
     }
 
-    /// Set the instrument description.
-    pub fn description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
-        self.description = description.into();
-        self
+    /// Instrument unit.
+    pub fn unit(&self) -> &str {
+        self.unit.as_ref()
     }
 
-    /// Set the instrument unit.
-    pub fn unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
-        self.unit = unit.into();
-        self
-    }
-
-    /// Set the instrument scope.
-    pub fn scope(mut self, scope: InstrumentationScope) -> Self {
-        self.scope = scope;
-        self
-    }
-
-    /// empty returns if all fields of i are their default-value.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.name.is_empty()
-            && self.description.is_empty()
-            && self.kind.is_none()
-            && self.unit.is_empty()
-            && self.scope == InstrumentationScope::default()
-    }
-
-    pub(crate) fn matches(&self, other: &Instrument) -> bool {
-        self.matches_name(other)
-            && self.matches_description(other)
-            && self.matches_kind(other)
-            && self.matches_unit(other)
-            && self.matches_scope(other)
-    }
-
-    pub(crate) fn matches_name(&self, other: &Instrument) -> bool {
-        self.name.is_empty() || self.name.as_ref() == other.name.as_ref()
-    }
-
-    pub(crate) fn matches_description(&self, other: &Instrument) -> bool {
-        self.description.is_empty() || self.description.as_ref() == other.description.as_ref()
-    }
-
-    pub(crate) fn matches_kind(&self, other: &Instrument) -> bool {
-        self.kind.is_none() || self.kind == other.kind
-    }
-
-    pub(crate) fn matches_unit(&self, other: &Instrument) -> bool {
-        self.unit.is_empty() || self.unit.as_ref() == other.unit.as_ref()
-    }
-
-    pub(crate) fn matches_scope(&self, other: &Instrument) -> bool {
-        (self.scope.name().is_empty() || self.scope.name() == other.scope.name())
-            && (self.scope.version().is_none()
-                || self.scope.version().as_ref() == other.scope.version().as_ref())
-            && (self.scope.schema_url().is_none()
-                || self.scope.schema_url().as_ref() == other.scope.schema_url().as_ref())
+    /// Instrument scope.
+    pub fn scope(&self) -> &InstrumentationScope {
+        &self.scope
     }
 }
 
@@ -188,7 +140,6 @@ impl Instrument {
 ///     .unwrap();
 /// ```
 #[derive(Default, Debug)]
-#[non_exhaustive]
 pub struct StreamBuilder {
     name: Option<Cow<'static, str>>,
     description: Option<Cow<'static, str>>,
@@ -312,27 +263,9 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
     Ok(())
 }
 
-/// Describes the stream of data an instrument produces.
-///
-/// # Example
-///
-/// Streams can be used as masks in views.
-///
-/// ```
-/// use opentelemetry_sdk::metrics::{new_view, Aggregation, Instrument, Stream};
-///
-/// let criteria = Instrument::new().name("counter_*");
-/// let mask = Stream::builder()
-///     .with_aggregation(Aggregation::Sum)
-///     .build()
-///     .unwrap();
-///
-/// let view = new_view(criteria, mask);
-/// # drop(view);
-/// ```
+/// Describes the stream of data an instrument produces. Used in
+/// [View](crate::metrics::View)s to customize the metric output.
 #[derive(Default, Debug)]
-#[non_exhaustive]
-#[allow(unreachable_pub)]
 pub struct Stream {
     /// The human-readable identifier of the stream.
     pub(crate) name: Option<Cow<'static, str>>,
