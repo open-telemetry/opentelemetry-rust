@@ -276,11 +276,9 @@ impl StreamBuilder {
             }
         }
 
-        // If the aggregation is set to Histogram, validate the bucket boundaries.
-        if let Some(aggregation) = &self.aggregation {
-            if let Aggregation::ExplicitBucketHistogram { boundaries, .. } = aggregation {
-                validate_bucket_boundaries(boundaries)?;
-            }
+        // If the aggregation is set to ExplicitBucketHistogram, validate the bucket boundaries.
+        if let Some(Aggregation::ExplicitBucketHistogram { boundaries, .. }) = &self.aggregation {
+            validate_bucket_boundaries(boundaries)?;
         }
 
         Ok(Stream {
