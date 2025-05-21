@@ -117,6 +117,7 @@ mod tests {
     use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::data::MetricData;
     use super::internal::Number;
+    use super::view::View;
     use super::*;
     use crate::metrics::data::ResourceMetrics;
     use crate::metrics::internal::AggregatedMetricsAccess;
@@ -133,7 +134,6 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::Duration;
-    use super::view::View;
 
     // Run all tests in this mod
     // cargo test metrics::tests --features=testing,spec_unstable_metrics_views
@@ -1469,8 +1469,8 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_rename() {
+    #[test]
+    fn view_test_rename() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
@@ -1483,11 +1483,10 @@ mod tests {
             "my_unit",
             "my_description",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_change_unit() {
+    #[test]
+    fn view_test_change_unit() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
@@ -1500,11 +1499,10 @@ mod tests {
             "my_unit_new",
             "my_description",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_change_description() {
+    #[test]
+    fn view_test_change_description() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
@@ -1517,11 +1515,10 @@ mod tests {
             "my_unit",
             "my_description_new",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_change_name_unit() {
+    #[test]
+    fn view_test_change_name_unit() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
@@ -1534,11 +1531,10 @@ mod tests {
             "my_unit_new",
             "my_description",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_change_name_unit_desc() {
+    #[test]
+    fn view_test_change_name_unit_desc() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" {
@@ -1556,11 +1552,10 @@ mod tests {
             "my_unit_new",
             "my_description_new",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_match_unit() {
+    #[test]
+    fn view_test_match_unit() {
         test_view_customization(
             |i| {
                 if i.unit == "my_unit" {
@@ -1573,11 +1568,10 @@ mod tests {
             "my_unit_new",
             "my_description",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_match_none() {
+    #[test]
+    fn view_test_match_none() {
         test_view_customization(
             |i| {
                 if i.name == "not_expected_to_match" {
@@ -1590,11 +1584,10 @@ mod tests {
             "my_unit",
             "my_description",
         )
-        .await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn view_test_match_multiple() {
+    #[test]
+    fn view_test_match_multiple() {
         test_view_customization(
             |i| {
                 if i.name == "my_counter" && i.unit == "my_unit" {
@@ -1607,11 +1600,10 @@ mod tests {
             "my_unit",
             "my_description",
         )
-        .await;
     }
 
     /// Helper function to test view customizations
-    async fn test_view_customization<F>(
+    fn test_view_customization<F>(
         view_function: F,
         expected_name: &str,
         expected_unit: &str,
