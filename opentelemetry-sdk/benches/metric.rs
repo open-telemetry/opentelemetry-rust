@@ -6,8 +6,8 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
+        data::ResourceMetrics, reader::MetricReader, Aggregation, Instrument, InstrumentKind,
+        ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
     },
 };
 use rand::Rng;
@@ -220,16 +220,12 @@ fn counters(c: &mut Criterion) {
     });
 
     let (_, cntr) = bench_counter(
-        Some(
-            new_view(
-                Instrument::new().name("*"),
-                Stream::builder()
-                    .with_allowed_attribute_keys([Key::new("K")])
-                    .build()
-                    .unwrap(),
-            )
-            .unwrap(),
-        ),
+        Some(Box::new(|_i: &Instrument| {
+            Stream::builder()
+                .with_allowed_attribute_keys([Key::new("K")])
+                .build()
+                .ok()
+        })),
         "cumulative",
     );
 
@@ -273,25 +269,24 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     for i in 0..bounds.len() {
         bounds[i] = i * MAX_BOUND / bound_count
     }
-    let view = Some(
-        new_view(
-            Instrument::new().name("histogram_*"),
-            Stream::builder()
-                .with_aggregation(Aggregation::ExplicitBucketHistogram {
-                    boundaries: bounds.iter().map(|&x| x as f64).collect(),
-                    record_min_max: true,
-                })
-                .build()
-                .unwrap(),
-        )
-        .unwrap(),
-    );
 
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mut builder = SdkMeterProvider::builder().with_reader(r.clone());
-    if let Some(view) = view {
-        builder = builder.with_view(view);
-    }
+    let builder = SdkMeterProvider::builder()
+        .with_reader(r.clone())
+        .with_view(Box::new(move |i: &Instrument| {
+            if i.name() == "histogram_*" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                        boundaries: bounds.iter().map(|&x| x as f64).collect(),
+                        record_min_max: true,
+                    })
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        }));
+
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
         .u64_histogram(format!("histogram_{}", bound_count))
