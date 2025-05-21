@@ -363,6 +363,9 @@ where
         kind: InstrumentKind,
         mut stream: Stream,
     ) -> MetricResult<Option<Arc<dyn internal::Measure<T>>>> {
+        // TODO: Create a separate pub (crate) Stream struct for the pipeline,
+        // as Stream will not have any Optional fields as None at this point and
+        // new struct can better reflect this.
         let mut agg = stream
             .aggregation
             .take()
