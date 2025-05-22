@@ -109,10 +109,7 @@ impl MetricReader for SharedReader {
 //                         time:   [726.87 ns 736.52 ns 747.09 ns]
 type ViewFn = Box<dyn Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static>;
 
-fn bench_counter(
-    view: Option<ViewFn>,
-    temporality: &str,
-) -> (SharedReader, Counter<u64>) {
+fn bench_counter(view: Option<ViewFn>, temporality: &str) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
     } else {
