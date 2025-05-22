@@ -3,7 +3,7 @@
 //! ## Configuration
 //!
 //! The metrics SDK configuration is stored with each [SdkMeterProvider].
-//! Configuration for [Resource]s, [View]s, and [ManualReader] or
+//! Configuration for [Resource]s, views, and [ManualReader] or
 //! [PeriodicReader] instances can be specified.
 //!
 //! ### Example
@@ -81,7 +81,6 @@ pub use periodic_reader::*;
 pub use pipeline::Pipeline;
 
 pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
-pub use view::View;
 
 use std::hash::Hash;
 
@@ -113,7 +112,6 @@ mod tests {
     use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
     use super::data::MetricData;
     use super::internal::Number;
-    use super::view::View;
     use super::*;
     use crate::metrics::data::ResourceMetrics;
     use crate::metrics::internal::AggregatedMetricsAccess;
@@ -3312,7 +3310,10 @@ mod tests {
             }
         }
 
-        fn new_with_view<T: View>(temporality: Temporality, view: T) -> Self {
+        fn new_with_view<T>(temporality: Temporality, view: T) -> Self
+        where
+            T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+        {
             let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
             let exporter = exporter.build();
             let meter_provider = SdkMeterProvider::builder()

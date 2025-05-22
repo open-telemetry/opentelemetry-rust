@@ -64,12 +64,12 @@ impl InstrumentKind {
         }
     }
 }
-
-/// Describes properties an instrument is created with, used for filtering in
-/// [View](crate::metrics::View)s.
+/// Describes the properties of an instrument at creation, used for filtering in
+/// views. This is utilized in the `with_view` methods on `MeterProviderBuilder`
+/// to customize metric output.
 ///
-/// Users can utilize a reference to `Instrument` to select the instrument(s)
-/// for which the [Stream] should be applied.
+/// Users can use a reference to `Instrument` to select which instrument(s) a
+/// [Stream] should be applied to.
 ///
 /// # Example
 ///
@@ -265,8 +265,8 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
     Ok(())
 }
 
-/// Describes the stream of data an instrument produces. Used in
-/// [View](crate::metrics::View)s to customize the metric output.
+/// Describes the stream of data an instrument produces. Used in `with_view`
+/// methods on `MeterProviderBuilder` to customize the metric output.
 #[derive(Default, Debug)]
 pub struct Stream {
     /// The human-readable identifier of the stream.

@@ -36,9 +36,7 @@ use super::instrument::{Instrument, Stream};
 /// let provider = SdkMeterProvider::builder().with_view(my_view).build();
 /// # drop(provider)
 /// ```
-// TODO: This trait need not be public, if we modify MeterProvider to take a
-// Fn(&Instrument) -> Option<Stream> instead of View.
-pub trait View: Send + Sync + 'static {
+pub(crate) trait View: Send + Sync + 'static {
     /// Defines how data should be collected for certain instruments.
     ///
     /// Return [Stream] to use for matching [Instrument]s,
@@ -52,11 +50,5 @@ where
 {
     fn match_inst(&self, inst: &Instrument) -> Option<Stream> {
         self(inst)
-    }
-}
-
-impl View for Box<dyn View> {
-    fn match_inst(&self, inst: &Instrument) -> Option<Stream> {
-        (**self).match_inst(inst)
     }
 }
