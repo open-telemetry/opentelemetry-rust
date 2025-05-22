@@ -137,18 +137,18 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
 
 fn print_sum<T: Debug>(sum: &Sum<T>) {
     println!("\t\tSum DataPoints");
-    println!("\t\tMonotonic    : {}", sum.is_monotonic);
-    if sum.temporality == Temporality::Cumulative {
+    println!("\t\tMonotonic    : {}", sum.is_monotonic());
+    if sum.temporality() == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    let datetime: DateTime<Utc> = sum.start_time.into();
+    let datetime: DateTime<Utc> = sum.start_time().into();
     println!(
         "\t\tStartTime    : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    let datetime: DateTime<Utc> = sum.time.into();
+    let datetime: DateTime<Utc> = sum.time().into();
     println!(
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
@@ -158,14 +158,14 @@ fn print_sum<T: Debug>(sum: &Sum<T>) {
 
 fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
     println!("\t\tGauge DataPoints");
-    if let Some(start_time) = gauge.start_time {
+    if let Some(start_time) = gauge.start_time() {
         let datetime: DateTime<Utc> = start_time.into();
         println!(
             "\t\tStartTime    : {}",
             datetime.format("%Y-%m-%d %H:%M:%S%.6f")
         );
     }
-    let datetime: DateTime<Utc> = gauge.time.into();
+    let datetime: DateTime<Utc> = gauge.time().into();
     println!(
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
@@ -174,17 +174,17 @@ fn print_gauge<T: Debug>(gauge: &Gauge<T>) {
 }
 
 fn print_histogram<T: Debug>(histogram: &Histogram<T>) {
-    if histogram.temporality == Temporality::Cumulative {
+    if histogram.temporality() == Temporality::Cumulative {
         println!("\t\tTemporality  : Cumulative");
     } else {
         println!("\t\tTemporality  : Delta");
     }
-    let datetime: DateTime<Utc> = histogram.start_time.into();
+    let datetime: DateTime<Utc> = histogram.start_time().into();
     println!(
         "\t\tStartTime    : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
     );
-    let datetime: DateTime<Utc> = histogram.time.into();
+    let datetime: DateTime<Utc> = histogram.time().into();
     println!(
         "\t\tEndTime      : {}",
         datetime.format("%Y-%m-%d %H:%M:%S%.6f")
@@ -198,7 +198,7 @@ fn print_sum_data_points<'a, T: Debug + 'a>(
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tValue        : {:#?}", data_point.value);
+        println!("\t\t\tValue        : {:#?}", data_point.value());
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
@@ -211,7 +211,7 @@ fn print_gauge_data_points<'a, T: Debug + 'a>(
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tValue        : {:#?}", data_point.value);
+        println!("\t\t\tValue        : {:#?}", data_point.value());
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
@@ -224,13 +224,13 @@ fn print_hist_data_points<'a, T: Debug + 'a>(
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tCount        : {}", data_point.count);
-        println!("\t\t\tSum          : {:?}", data_point.sum);
-        if let Some(min) = &data_point.min {
+        println!("\t\t\tCount        : {}", data_point.count());
+        println!("\t\t\tSum          : {:?}", data_point.sum());
+        if let Some(min) = data_point.min() {
             println!("\t\t\tMin          : {:?}", min);
         }
 
-        if let Some(max) = &data_point.max {
+        if let Some(max) = data_point.max() {
             println!("\t\t\tMax          : {:?}", max);
         }
 
