@@ -8,9 +8,9 @@ use opentelemetry::{
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
 use super::meter::{
-        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
-    };
+    INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+    INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+};
 
 use super::Temporality;
 
@@ -484,6 +484,38 @@ mod tests {
                     err_str
                 );
             }
+        }
+    }
+
+    #[test]
+    fn stream_cardinality_limit_validation() {
+        // Test zero cardinality limit (invalid)
+        let builder = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_cardinality_limit(0);
+
+        let result = builder.build();
+        assert!(result.is_err(), "Expected error for zero cardinality limit");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Cardinality limit must be greater than 0",
+            "Expected cardinality limit validation error message"
+        );
+
+        // Test valid cardinality limits
+        let valid_limits = vec![1, 10, 100, 1000];
+        for limit in valid_limits {
+            let builder = StreamBuilder::new()
+                .with_name("valid_name")
+                .with_cardinality_limit(limit);
+
+            let result = builder.build();
+            assert!(
+                result.is_ok(),
+                "Expected successful build for cardinality limit {}, but got error: {:?}",
+                limit,
+                result.err()
+            );
         }
     }
 
