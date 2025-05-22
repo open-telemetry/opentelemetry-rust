@@ -44,24 +44,46 @@ also modified to suppress telemetry before invoking exporters.
   behind feature flag "experimental_metrics_custom_reader".
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 
-- TODO: Placeholder for View related changelog. Polish this after all changs done
+- **Views improvements**:
   - Core view functionality is now available by default—users can change the
     name, unit, description, and cardinality limit of a metric via views without
     enabling the `spec_unstable_metrics_views` feature flag. Advanced view
     features, such as custom aggregation or attribute filtering, still require
     the `spec_unstable_metrics_views` feature.
-- Introduced a builder pattern for `Stream` creation to use with "Views".
+  - Removed `new_view()` method and `View` trait. Views can now be added by passing
+    a function with signature `Fn(&Instrument) -> Option<Stream>` to the `with_view`
+    method on `MeterProviderBuilder`.
+- Introduced a builder pattern for `Stream` creation to use with views:
   - Added `StreamBuilder` struct with methods to configure stream properties
   - Added `Stream::builder()` method that returns a new `StreamBuilder`
   - `StreamBuilder::build()` returns `Result<Stream, Box<dyn Error>>` enabling
-    proper validation
-  - Removed `new_view()` on `View`. Views can be instead added by passing anything
-    that implements `View` trait to `with_view` method on `MeterProviderBuilder`.
-    `View` is implemented for `Fn(&Instrument) -> Option<Stream>`, so this can be
-    used to add views.
+    proper validation.
+
+Example of using views to rename a metric:
+
+```rust
+let view_rename = |i: &Instrument| {
+    if i.name() == "my_histogram" {
+        Some(
+            Stream::builder()
+                .with_name("my_histogram_renamed")
+                .build()
+                .unwrap(),
+        )
+    } else {
+        None
+    }
+};
+
+let provider = SdkMeterProvider::builder()
+    // add exporters, set resource etc.
+    .with_view(view_rename)
+    .build();
+```
 
 - *Breaking* `Aggregation` enum moved behind feature flag
-  "spec_unstable_metrics_views". This was only required when using Views.
+  "spec_unstable_metrics_views". This was only required when using advanced view
+  capabilities.
   [#2928](https://github.com/open-telemetry/opentelemetry-rust/pull/2928)
 - *Breaking* change, affecting custom `PushMetricExporter` authors:
   - The `export` method on `PushMetricExporter` now accepts `&ResourceMetrics`
