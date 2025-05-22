@@ -7,7 +7,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::ResourceMetrics, reader::MetricReader, Aggregation, Instrument, InstrumentKind,
-        ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
+        ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality,
     },
 };
 use rand::Rng;
@@ -107,7 +107,9 @@ impl MetricReader for SharedReader {
 //                         time:   [643.75 ns 649.05 ns 655.14 ns]
 // Histogram/Record10Attrs1000bounds
 //                         time:   [726.87 ns 736.52 ns 747.09 ns]
-fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReader, Counter<u64>) {
+type ViewFn = Box<dyn Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static>;
+
+fn bench_counter(view: Option<ViewFn>, temporality: &str) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
     } else {
@@ -273,7 +275,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     let r = SharedReader(Arc::new(ManualReader::default()));
     let builder = SdkMeterProvider::builder()
         .with_reader(r.clone())
-        .with_view(Box::new(move |i: &Instrument| {
+        .with_view(move |i: &Instrument| {
             if i.name().starts_with("histogram_") {
                 Stream::builder()
                     .with_aggregation(Aggregation::ExplicitBucketHistogram {
@@ -285,7 +287,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
             } else {
                 None
             }
-        }));
+        });
 
     let mtr = builder.build().meter("test_meter");
     let hist = mtr

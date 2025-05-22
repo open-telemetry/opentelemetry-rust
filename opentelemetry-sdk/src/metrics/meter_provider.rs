@@ -18,12 +18,13 @@ use crate::Resource;
 use super::{
     exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
     periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
+    Instrument, Stream,
 };
 
 /// Handles the creation and coordination of [Meter]s.
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
-/// [Resource], have the same [View]s applied to them, and have their produced
+/// [Resource], have the same views applied to them, and have their produced
 /// metric telemetry passed to the configured [MetricReader]s. This is a
 /// clonable handle to the MeterProvider implementation itself, and cloning it
 /// will create a new reference, not a new instance of a MeterProvider. Dropping
@@ -287,14 +288,14 @@ impl MeterProviderBuilder {
         self
     }
 
-    /// Adds a [View] to the [MeterProvider].
+    /// Adds a view to the [MeterProvider].
     ///
     /// Views allow you to customize how metrics are aggregated, renamed, or
     /// otherwise transformed before export, without modifying instrument
     /// definitions in your application or library code.
     ///
-    /// You can pass any type implementing the [`View`] trait, including
-    /// closures matching the pattern `Fn(&Instrument) -> Option<Stream>`. The
+    /// You can pass any function or closure matching the signature
+    /// `Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static`. The
     /// function receives a reference to the [`Instrument`] and can return an
     /// [`Option`] of [`Stream`] to specify how matching instruments should be
     /// exported. Returning `None` means the view does not apply to the given
@@ -348,7 +349,7 @@ impl MeterProviderBuilder {
     ///         // By calling `.ok()`, any such error is ignored and treated as if the view does not match
     ///         // the instrument.
     ///         // If this is not the desired behavior, consider handling the error explicitly.
-    ///         Stream::builder().with_cardinality_limit(100).build().ok()
+    ///         Stream::builder().with_cardinality_limit(0).build().ok()
     ///     } else {
     ///         None
     ///     }
@@ -361,10 +362,12 @@ impl MeterProviderBuilder {
     /// If no views are added, the [MeterProvider] uses the default view.
     ///
     /// [`Instrument`]: crate::metrics::Instrument
-    /// [`View`]: crate::metrics::View
     /// [`Stream`]: crate::metrics::Stream
     /// [`Option`]: core::option::Option
-    pub fn with_view<T: View>(mut self, view: T) -> Self {
+    pub fn with_view<T>(mut self, view: T) -> Self
+    where
+        T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
         self.views.push(Arc::new(view));
         self
     }
