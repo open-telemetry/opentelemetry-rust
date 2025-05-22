@@ -186,7 +186,7 @@ impl StreamBuilder {
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
     /// dropped. If the set is empty, all attributes will be dropped.
-    /// If not set, all attributes will be kept.
+    /// If this method is not used, all attributes will be kept.
     pub fn with_allowed_attribute_keys(
         mut self,
         attribute_keys: impl IntoIterator<Item = Key>,
