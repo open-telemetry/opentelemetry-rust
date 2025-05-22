@@ -7,6 +7,11 @@ use opentelemetry::{
 
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
+use super::meter::{
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+    };
+
 use super::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
@@ -212,39 +217,40 @@ impl StreamBuilder {
         // It is a bug that validations are done in meter.rs
         // as it'll not allow users to fix instrumentation mistakes
         // using views.
-        
+
         // Validate name if provided
         if let Some(name) = &self.name {
             if name.is_empty() {
-                return Err("Stream name must be non-empty".into());
+                return Err(INSTRUMENT_NAME_EMPTY.into());
             }
-            
+
             if name.len() > super::meter::INSTRUMENT_NAME_MAX_LENGTH {
-                return Err("Stream name must be less than 256 characters".into());
+                return Err(INSTRUMENT_NAME_LENGTH.into());
             }
-            
+
             if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-                return Err("Stream name must start with an alphabetic character".into());
+                return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC.into());
             }
-            
+
             if name.contains(|c: char| {
-                !c.is_ascii_alphanumeric() && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
+                !c.is_ascii_alphanumeric()
+                    && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
             }) {
-                return Err("Characters in Stream name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'".into());
+                return Err(INSTRUMENT_NAME_INVALID_CHAR.into());
             }
         }
-        
+
         // Validate unit if provided
         if let Some(unit) = &self.unit {
             if unit.len() > super::meter::INSTRUMENT_UNIT_NAME_MAX_LENGTH {
-                return Err("Stream unit must be less than 64 characters".into());
+                return Err(INSTRUMENT_UNIT_LENGTH.into());
             }
-            
+
             if unit.contains(|c: char| !c.is_ascii()) {
-                return Err("Characters in Stream unit must be ASCII".into());
+                return Err(INSTRUMENT_UNIT_INVALID_CHAR.into());
             }
         }
-        
+
         // Validate cardinality limit
         if let Some(limit) = self.cardinality_limit {
             if limit == 0 {
@@ -379,5 +385,121 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
         for measure in &self.measures {
             measure.call(measurement, attrs)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StreamBuilder;
+    use crate::metrics::meter::{
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+    };
+
+    #[test]
+    fn stream_name_validation() {
+        // (name, expected error)
+        let stream_name_test_cases = vec![
+            ("validateName", ""),
+            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
+            ("a".repeat(255).leak(), ""),
+            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
+            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
+            ("allow/slash", ""),
+            ("allow_under_score", ""),
+            ("allow.dots.ok", ""),
+            ("", INSTRUMENT_NAME_EMPTY),
+            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
+            (
+                "\\test\\UsagePercent(Total) > 80%",
+                INSTRUMENT_NAME_FIRST_ALPHABETIC,
+            ),
+            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+        ];
+
+        for (name, expected_error) in stream_name_test_cases {
+            let builder = StreamBuilder::new().with_name(name);
+            let result = builder.build();
+
+            if expected_error.is_empty() {
+                assert!(
+                    result.is_ok(),
+                    "Expected successful build for name '{}', but got error: {:?}",
+                    name,
+                    result.err()
+                );
+            } else {
+                let err = result.err().unwrap();
+                let err_str = err.to_string();
+                assert!(
+                    err_str == expected_error,
+                    "For name '{}', expected error '{}', but got '{}'",
+                    name,
+                    expected_error,
+                    err_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stream_unit_validation() {
+        // (unit, expected error)
+        let stream_unit_test_cases = vec![
+            (
+                "0123456789012345678901234567890123456789012345678901234567890123",
+                INSTRUMENT_UNIT_LENGTH,
+            ),
+            ("utf8char锈", INSTRUMENT_UNIT_INVALID_CHAR),
+            ("kb", ""),
+            ("Kb/sec", ""),
+            ("%", ""),
+            ("", ""),
+        ];
+
+        for (unit, expected_error) in stream_unit_test_cases {
+            // Use a valid name to isolate unit validation
+            let builder = StreamBuilder::new().with_name("valid_name").with_unit(unit);
+
+            let result = builder.build();
+
+            if expected_error.is_empty() {
+                assert!(
+                    result.is_ok(),
+                    "Expected successful build for unit '{}', but got error: {:?}",
+                    unit,
+                    result.err()
+                );
+            } else {
+                let err = result.err().unwrap();
+                let err_str = err.to_string();
+                assert!(
+                    err_str == expected_error,
+                    "For unit '{}', expected error '{}', but got '{}'",
+                    unit,
+                    expected_error,
+                    err_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stream_valid_build() {
+        // Test with valid configuration
+        let stream = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_description("Valid description")
+            .with_unit("ms")
+            .with_cardinality_limit(100)
+            .build();
+
+        assert!(
+            stream.is_ok(),
+            "Expected valid Stream to be built successfully"
+        );
     }
 }
