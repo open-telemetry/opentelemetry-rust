@@ -21,9 +21,7 @@ also modified to suppress telemetry before invoking exporters.
   - The default cardinality limit is 2000 and can be customized using Views.  
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
-    the limit.  
-  - There is ability to configure cardinality limits via Instrument
-    advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
+    the limit.
   - Fixed the overflow attribute to correctly use the boolean value `true`
     instead of the string `"true"`.
     [#2878](https://github.com/open-telemetry/opentelemetry-rust/issues/2878)

@@ -254,7 +254,6 @@ where
         &self,
         inst: Instrument,
         boundaries: Option<&[f64]>,
-        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let mut matched = false;
         let mut measures = vec![];
@@ -312,7 +311,7 @@ where
             unit: Some(inst.unit),
             aggregation: None,
             allowed_attribute_keys: None,
-            cardinality_limit,
+            cardinality_limit: None,
         };
 
         // Override default histogram boundaries if provided.
@@ -737,12 +736,11 @@ where
         &self,
         id: Instrument,
         boundaries: Option<Vec<f64>>,
-        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let (mut measures, mut errs) = (vec![], vec![]);
 
         for inserter in &self.inserters {
-            match inserter.instrument(id.clone(), boundaries.as_deref(), cardinality_limit) {
+            match inserter.instrument(id.clone(), boundaries.as_deref()) {
                 Ok(ms) => measures.extend(ms),
                 Err(err) => errs.push(err),
             }

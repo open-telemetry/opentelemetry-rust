@@ -369,14 +369,12 @@ mod tests {
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
-        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Cumulative);
-        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -2867,103 +2865,6 @@ mod tests {
         };
         let mut test_context = TestContext::new_with_view(temporality, view_change_cardinality);
         let counter = test_context.u64_counter("test", "my_counter", None);
-
-        // Act
-        // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
-        for v in 0..cardinality_limit {
-            counter.add(100, &[KeyValue::new("A", v.to_string())]);
-        }
-
-        // Empty attributes is specially treated and does not count towards the limit.
-        counter.add(3, &[]);
-        counter.add(3, &[]);
-
-        // All of the below will now go into overflow.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
-        test_context.flush_metrics();
-
-        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
-            unreachable!()
-        };
-
-        // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
-        assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
-
-        let data_point =
-            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
-        assert_eq!(data_point.value, 300);
-
-        // let empty_attrs_data_point = &sum.data_points[0];
-        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
-            .expect("Empty attributes point expected");
-        assert!(
-            empty_attrs_data_point.attributes.is_empty(),
-            "Non-empty attribute set"
-        );
-        assert_eq!(
-            empty_attrs_data_point.value, 6,
-            "Empty attributes value should be 3+3=6"
-        );
-
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
-        test_context.reset_metrics();
-        // The following should be aggregated normally for Delta,
-        // and should go into overflow for Cumulative.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
-        test_context.flush_metrics();
-
-        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
-            unreachable!()
-        };
-
-        if temporality == Temporality::Delta {
-            assert_eq!(sum.data_points.len(), 3);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
-                .expect("point expected");
-            assert_eq!(data_point.value, 100);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
-                .expect("point expected");
-            assert_eq!(data_point.value, 100);
-
-            let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
-                    .expect("point expected");
-            assert_eq!(data_point.value, 100);
-        } else {
-            // For cumulative, overflow should still be there, and new points should not be added.
-            assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
-            let data_point =
-                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
-            assert_eq!(data_point.value, 600);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
-            assert!(data_point.is_none(), "point should not be present");
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
-            assert!(data_point.is_none(), "point should not be present");
-
-            let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another");
-            assert!(data_point.is_none(), "point should not be present");
-        }
-    }
-
-    fn counter_aggregation_overflow_helper_custom_limit_via_advice(temporality: Temporality) {
-        // Arrange
-        let cardinality_limit = 2300;
-        let mut test_context = TestContext::new(temporality);
-        let meter = test_context.meter();
-        let counter = meter
-            .u64_counter("my_counter")
-            .with_cardinality_limit(cardinality_limit)
-            .build();
 
         // Act
         // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
