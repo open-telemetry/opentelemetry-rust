@@ -21,11 +21,11 @@ use crate::metrics::{
 use super::noop::NoopSyncInstrument;
 
 // maximum length of instrument name
-const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
+pub(crate) const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
-const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
+pub(crate) const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
 // Characters allowed in instrument name
-const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
+pub(crate) const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
 // instrument name validation error strings
 const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";

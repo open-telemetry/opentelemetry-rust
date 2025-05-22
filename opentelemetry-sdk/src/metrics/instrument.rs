@@ -207,27 +207,52 @@ impl StreamBuilder {
     ///
     /// A Result containing the new Stream instance or an error if the build failed.
     pub fn build(self) -> Result<Stream, Box<dyn Error>> {
-        // TODO: Add same validation as already done while
-        // creating instruments. It is better to move validation logic
-        // to a common helper and call it from both places.
-        // The current implementations does a basic validation
-        // only to close the overall API design.
-
-        // if name is provided, it must not be empty
+        // TODO: Avoid copying the validation logic from meter.rs,
+        // and instead move it to a common place and do it once.
+        // It is a bug that validations are done in meter.rs
+        // as it'll not allow users to fix instrumentation mistakes
+        // using views.
+        
+        // Validate name if provided
         if let Some(name) = &self.name {
             if name.is_empty() {
-                return Err("Stream name must not be empty".into());
+                return Err("Stream name must be non-empty".into());
+            }
+            
+            if name.len() > super::meter::INSTRUMENT_NAME_MAX_LENGTH {
+                return Err("Stream name must be less than 256 characters".into());
+            }
+            
+            if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
+                return Err("Stream name must start with an alphabetic character".into());
+            }
+            
+            if name.contains(|c: char| {
+                !c.is_ascii_alphanumeric() && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
+            }) {
+                return Err("Characters in Stream name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'".into());
             }
         }
-
-        // if cardinality limit is provided, it must be greater than 0
+        
+        // Validate unit if provided
+        if let Some(unit) = &self.unit {
+            if unit.len() > super::meter::INSTRUMENT_UNIT_NAME_MAX_LENGTH {
+                return Err("Stream unit must be less than 64 characters".into());
+            }
+            
+            if unit.contains(|c: char| !c.is_ascii()) {
+                return Err("Characters in Stream unit must be ASCII".into());
+            }
+        }
+        
+        // Validate cardinality limit
         if let Some(limit) = self.cardinality_limit {
             if limit == 0 {
                 return Err("Cardinality limit must be greater than 0".into());
             }
         }
 
-        // If the aggregation is set to ExplicitBucketHistogram, validate the bucket boundaries.
+        // Validate bucket boundaries if using ExplicitBucketHistogram
         if let Some(Aggregation::ExplicitBucketHistogram { boundaries, .. }) = &self.aggregation {
             validate_bucket_boundaries(boundaries)?;
         }
