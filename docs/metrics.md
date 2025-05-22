@@ -200,7 +200,7 @@ fn process_item(counter: &opentelemetry::metrics::Counter<u64>, item_type: &str)
 Asynchronous instruments like `ObservableCounter` are ideal for reporting
 metrics that are already being tracked or stored elsewhere in your application.
 These instruments allow you to observe and report the current state of such
-metric without manually managing the aggregation yourself.
+metric.
 
 :heavy_check_mark: Use `ObservableCounter` when you already have a variable
 tracking a count:
@@ -248,8 +248,12 @@ unusual requirement of having different export strategies within the same
 application. Using multiple instances of MeterProvider requires users to
 exercise caution.
 
+// TODO: Mention about creating per-thread MeterProvider // as shown in
+[this](https://github.com/open-telemetry/opentelemetry-rust/pull/2659) // PR
+
 :heavy_check_mark: Properly manage the lifecycle of `MeterProvider` instances if
-you create them. Creating a MeterProvider is typically done at application startup. Follow these guidelines:
+you create them. Creating a MeterProvider is typically done at application
+startup. Follow these guidelines:
 
 * **Cloning**: A `MeterProvider` is a handle to an underlying provider. Cloning
   it creates a new handle pointing to the same provider. Clone the
