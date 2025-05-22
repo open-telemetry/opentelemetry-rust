@@ -69,14 +69,17 @@ harness = false
 [[bench]]
 name = "metrics_counter"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "metrics_gauge"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "metrics_histogram"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "trace"
