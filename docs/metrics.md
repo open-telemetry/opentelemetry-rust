@@ -5,6 +5,7 @@ Status: **Work-In-Progress**
 <details>
 <summary>Table of Contents</summary>
 
+* [Introduction](#introduction)
 * [Best Practices](#best-practices)
 * [Metrics API](#metrics-api)
   * [Meter](#meter)
@@ -26,6 +27,7 @@ Status: **Work-In-Progress**
   * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
+* [Common Issues Leading to Missing Metrics](#common-issues-that-lead-to-missing-metrics)
 
 </details>
 
@@ -58,6 +60,9 @@ accepting callbacks to report measurements.
 instances with the same name. `Meter` is fairly expensive and meant to be reused
 throughout the application. For most applications, a `Meter` should be obtained
 from `global` and saved for re-use.
+
+> [!IMPORTANT]
+> Create your `Meter` instance once at initialization time and store it for reuse throughout your application's lifecycle.
 
 The fully qualified module name might be a good option for the Meter name.
 Optionally, one may create a meter with version, schema_url, and additional
@@ -123,7 +128,8 @@ path. Instead, the cloned instance should be stored and reused.
 :stop_sign: You should avoid changing the order of attributes while reporting
 measurements.
 
-> [!WARNING] The last line of code has bad performance since the attributes are
+> [!WARNING]
+> The last line of code has bad performance since the attributes are
 > not following the same order as before:
 
 ```rust
@@ -135,9 +141,10 @@ counter.add(8, &[KeyValue::new("name", "lemon"), KeyValue::new("color", "yellow"
 ```
 
 :heavy_check_mark: If feasible, provide the attributes sorted by `Key`s in
-ascending order to minimize memory usage within the Metrics SDK.
+ascending order to minimize memory usage within the Metrics SDK. Using consistent attribute ordering allows the SDK to efficiently reuse internal data structures.
 
 ```rust
+// Good practice: Consistent attribute ordering
 let counter = meter.u64_counter("fruits_sold").build();
 counter.add(2, &[KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 ```
@@ -153,9 +160,11 @@ synchronous and observable instruments.
 // Good practice: Using an array slice directly
 counter.add(2, &[KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 
-// Usi
+// Observable instrument
 let _observable_counter = meter
         .u64_observable_counter("request_count")
+        .with_description("Counts HTTP requests")
+        .with_unit("requests")  // Optional: Adding units improves context
         .with_callback(|observer| {
             // Good practice: Using an array slice directly
             observer.observe(
@@ -165,7 +174,7 @@ let _observable_counter = meter
         })
         .build();
 
-// Avoid this: Creating a Vec is unnecessary, and it allocates on the heap
+// Avoid this: Creating a Vec is unnecessary, and it allocates on the heap each time
 // counter.add(2, &vec![KeyValue::new("color", "red"), KeyValue::new("name", "apple")]);
 ```
 
@@ -227,8 +236,9 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 }
 ```
 
-> [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
-during each export cycle.
+> [!NOTE]
+> The callbacks in the Observable instruments are invoked by the SDK
+> during each export cycle.
 
 ## MeterProvider Management
 
@@ -239,7 +249,7 @@ application. Using multiple instances of MeterProvider requires users to
 exercise caution.
 
 :heavy_check_mark: Properly manage the lifecycle of `MeterProvider` instances if
-you create them. Follow these guidelines:
+you create them. Creating a MeterProvider is typically done at application startup. Follow these guidelines:
 
 * **Cloning**: A `MeterProvider` is a handle to an underlying provider. Cloning
   it creates a new handle pointing to the same provider. Clone the
@@ -344,7 +354,7 @@ Rust aggregates data locally and only exports the aggregated metrics.
 Using the [fruit example](#example), there are six measurements reported during
 the time range `(T2, T3]`. Instead of exporting each individual measurement
 event, the SDK aggregates them and exports only the summarized results. This
-process, illustrated in the following diagram, is known as pre-aggregation:
+summarization process, illustrated in the following diagram, is known as pre-aggregation:
 
 ```mermaid
 graph LR
@@ -381,14 +391,15 @@ Pre-aggregation offers several advantages:
    computational load on downstream systems, enabling them to focus on analysis
    and storage.
 
-> [!NOTE] There is no ability to opt out of pre-aggregation.
+> [!NOTE]
+> There is no ability to opt out of pre-aggregation in OpenTelemetry.
 
 ### Cardinality Limits
 
 The number of distinct combinations of attributes for a given metric is referred
 to as the cardinality of that metric. Taking the [fruit example](#example), if
 we know that we can only have apple/lemon as the name, red/yellow/green as the
-color, then we can say the cardinality is 6 (i.e 2 * 3). No matter how many
+color, then we can say the cardinality is 6 (i.e., 2 names × 3 colors = 6 combinations). No matter how many
 fruits we sell, we can always use the following table to summarize the total
 number of fruits based on the name and color.
 
@@ -409,8 +420,12 @@ have a long running service and we collect metrics with 7 attributes and each
 attribute can have 30 different values. We might eventually end up having to
 remember the complete set of 30⁷ - or 21.87 billion combinations! This
 cardinality explosion is a well-known challenge in the metrics space. For
-example, it can cause surprisingly high costs in the observability system, or
-even be leveraged by bad actors to launch a denial-of-service attack.
+example, it can cause:
+
+* Surprisingly high costs in the observability system
+* Excessive memory consumption in your application
+* Poor query performance in your metrics backend
+* Potential denial-of-service vulnerability that could be exploited by bad actors
 
 [Cardinality
 limit](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#cardinality-limits)
@@ -520,7 +535,7 @@ The exported metrics would be:
     count: `5`
 * attributes: {name = `apple`, color = `green`, store_location = `Downtown`},
     count: `8`
-* attributes: {`otel.metric.overflow` = `true`}, count: `3`
+* attributes: {`otel.metric.overflow` = `true`}, count: `3` ← Notice this special overflow attribute
   
   If we later query "How many red apples were sold?" the answer would be 10, not
   13, because the Midtown sales were folded into the overflow bucket. Similarly,
@@ -558,7 +573,8 @@ A better alternative is to use a concept in OpenTelemetry called
 Exemplars provide a mechanism to correlate metrics with traces by sampling
 specific measurements and attaching trace context to them.
 
-Currently, exemplars are not yet implemented in the OpenTelemetry Rust SDK.
+> [!NOTE]
+> Currently, exemplars are not yet implemented in the OpenTelemetry Rust SDK.
 
 ## Modelling Metric Attributes
 
@@ -579,21 +595,54 @@ attributes can come from different sources:
 * Additional attributes provided by the collector. For example, [jobs and
   instances](https://prometheus.io/docs/concepts/jobs_instances/) in Prometheus.
 
-Here is the rule of thumb when modeling the attributes:
+### Best Practices for Modeling Attributes
 
-* If the dimension is static throughout the process lifetime (e.g. the name of
-  the machine, data center):
-  * If the dimension applies to all metrics, model it as Resource, or even
-    better, let the collector add these attributes if feasible (e.g. a collector
-    running in the same data center should know the name of the data center,
-    rather than relying on / trusting each service instance to report the data
-    center name).
-  * If the dimension applies to a subset of metrics (e.g. the version of a
-    client library), model it as meter level attributes.
-* If the dimension value is dynamic, report it via the [Metrics
-  API](#metrics-api). Be aware that [cardinality limits](#cardinality-limits)
-  are applied to these attributes.
+Follow these guidelines when deciding where to attach metric attributes:
+
+* **For static attributes** (constant throughout the process lifetime):
+  * **Resource-level attributes**: If the dimension applies to all metrics (e.g., hostname, datacenter),
+    model it as a Resource attribute, or better yet, let the collector add these automatically.
+
+    ```rust
+    // Example: Setting resource-level attributes
+    let resource = Resource::new(vec![
+        KeyValue::new("service.name", "payment-processor"),
+        KeyValue::new("deployment.environment", "production"),
+    ]);
+    ```
+
+  * **Meter-level attributes**: If the dimension applies only to a subset of metrics (e.g., library version),
+    model it as meter-level attributes via `meter_with_scope`.
+    
+    ```rust
+    // Example: Setting meter-level attributes
+    let scope = InstrumentationScope::builder("payment_library")
+        .with_version("1.2.3")
+        .with_attributes([KeyValue::new("payment.gateway", "stripe")])
+        .build();
+    let meter = global::meter_with_scope(scope);
+    ```
+
+* **For dynamic attributes** (values that change during execution):
+  * Report these via the Metrics API with each measurement.
+  * Be mindful that [cardinality limits](#cardinality-limits) apply to these attributes.
+
+    ```rust
+    // Example: Using dynamic attributes with each measurement
+    counter.add(1, &[
+        KeyValue::new("customer.tier", customer.tier),
+        KeyValue::new("transaction.status", status.to_string()),
+    ]);
+    ```
 
 ## Common issues that lead to missing metrics
 
-// TODO
+Common pitfalls that can result in missing metrics include:
+
+1. **Invalid instrument names** - OpenTelemetry will not collect metrics from instruments using invalid names. See the [specification for valid syntax](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#instrument-name-syntax).
+
+2. **Not calling `shutdown` on the MeterProvider** - Ensure you properly call `shutdown` at application termination to flush any pending metrics.
+
+3. **Cardinality explosion** - When too many unique attribute combinations are used, some metrics may be placed in the overflow bucket.
+
+// TODO: Add more specific examples
