@@ -43,6 +43,7 @@ trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 zpages = ["trace"]
+profiles = []
 testing = ["opentelemetry/testing"]
 
 # add ons

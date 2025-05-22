@@ -150,11 +150,9 @@ impl Aggregation {
 
 #[cfg(test)]
 mod tests {
+    use super::Aggregation;
     use crate::metrics::error::{MetricError, MetricResult};
-    use crate::metrics::{
-        internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
-        Aggregation,
-    };
+    use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 
     #[test]
     fn validate_aggregation() {

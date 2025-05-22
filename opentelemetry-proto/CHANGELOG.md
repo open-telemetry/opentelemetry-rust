@@ -2,6 +2,7 @@
 
 ## vNext
 
+- **Feature**: Added Rust code generation for profiles protos. [#2979](https://github.com/open-telemetry/opentelemetry-rust/pull/2979)
 - Update `tonic` dependency version to 0.13
 - - Update proto definitions to v1.6.0.
 

@@ -18,12 +18,13 @@ use crate::Resource;
 use super::{
     exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
     periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
+    Instrument, Stream,
 };
 
 /// Handles the creation and coordination of [Meter]s.
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
-/// [Resource], have the same [View]s applied to them, and have their produced
+/// [Resource], have the same views applied to them, and have their produced
 /// metric telemetry passed to the configured [MetricReader]s. This is a
 /// clonable handle to the MeterProvider implementation itself, and cloning it
 /// will create a new reference, not a new instance of a MeterProvider. Dropping
@@ -287,15 +288,86 @@ impl MeterProviderBuilder {
         self
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
-    /// Associates a [View] with a [MeterProvider].
+    /// Adds a view to the [MeterProvider].
     ///
-    /// [View]s are appended to existing ones in a [MeterProvider] if this option is
-    /// used multiple times.
+    /// Views allow you to customize how metrics are aggregated, renamed, or
+    /// otherwise transformed before export, without modifying instrument
+    /// definitions in your application or library code.
     ///
-    /// By default, if this option is not used, the [MeterProvider] will use the
-    /// default view.
-    pub fn with_view<T: View>(mut self, view: T) -> Self {
+    /// You can pass any function or closure matching the signature
+    /// `Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static`. The
+    /// function receives a reference to the [`Instrument`] and can return an
+    /// [`Option`] of [`Stream`] to specify how matching instruments should be
+    /// exported. Returning `None` means the view does not apply to the given
+    /// instrument, and the default behavior will be used.
+    ///
+    ///
+    /// # Examples
+    ///
+    /// Renaming a metric:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let view_rename = |i: &Instrument| {
+    ///     if i.name() == "my_counter" {
+    ///         Some(Stream::builder().with_name("my_counter_renamed").build().expect("Stream should be valid"))
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(view_rename);
+    /// ```
+    ///
+    /// Setting a cardinality limit to control resource usage:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let view_change_cardinality = |i: &Instrument| {
+    ///     if i.name() == "my_counter" {
+    ///         Some(
+    ///             Stream::builder()
+    ///                 .with_cardinality_limit(100).build().expect("Stream should be valid"),
+    ///         )
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(view_change_cardinality);
+    /// ```
+    ///
+    /// Silently ignoring Stream build errors:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let my_view_change_cardinality = |i: &Instrument| {
+    ///     if i.name() == "my_second_histogram" {
+    ///         // Note: If Stream is invalid, build() will return `Error` variant.
+    ///         // By calling `.ok()`, any such error is ignored and treated as if the view does not match
+    ///         // the instrument.
+    ///         // If this is not the desired behavior, consider handling the error explicitly.
+    ///         Stream::builder().with_cardinality_limit(0).build().ok()
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(my_view_change_cardinality);
+    /// ```
+    ///
+    /// If no views are added, the [MeterProvider] uses the default view.
+    ///
+    /// [`Instrument`]: crate::metrics::Instrument
+    /// [`Stream`]: crate::metrics::Stream
+    /// [`Option`]: core::option::Option
+    pub fn with_view<T>(mut self, view: T) -> Self
+    where
+        T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
         self.views.push(Arc::new(view));
         self
     }

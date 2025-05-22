@@ -68,6 +68,55 @@ pub const ANDROID_STATE: &str = "android.state";
 #[cfg(feature = "semconv_experimental")]
 pub const APP_INSTALLATION_ID: &str = "app.installation.id";
 
+/// The x (horizontal) coordinate of a screen coordinate, in screen pixels.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `0`
+/// - `131`
+#[cfg(feature = "semconv_experimental")]
+pub const APP_SCREEN_COORDINATE_X: &str = "app.screen.coordinate.x";
+
+/// The y (vertical) component of a screen coordinate, in screen pixels.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `12`
+/// - `99`
+#[cfg(feature = "semconv_experimental")]
+pub const APP_SCREEN_COORDINATE_Y: &str = "app.screen.coordinate.y";
+
+/// An identifier that uniquely differentiates this widget from other widgets in the same application.
+///
+/// ## Notes
+///
+/// A widget is an application component, typically an on-screen visual GUI element.
+///
+/// # Examples
+///
+/// - `"f9bc787d-ff05-48ad-90e1-fca1d46130b3"`
+/// - `"submit_order_1829"`
+#[cfg(feature = "semconv_experimental")]
+pub const APP_WIDGET_ID: &str = "app.widget.id";
+
+/// The name of an application widget.
+///
+/// ## Notes
+///
+/// A widget is an application component, typically an on-screen visual GUI element.
+///
+/// # Examples
+///
+/// - `"submit"`
+/// - `"attack"`
+/// - `"Clear Cart"`
+#[cfg(feature = "semconv_experimental")]
+pub const APP_WIDGET_NAME: &str = "app.widget.name";
+
 /// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations) specification for more information.
 ///
 /// ## Notes
@@ -942,6 +991,18 @@ pub const CASSANDRA_QUERY_IDEMPOTENT: &str = "cassandra.query.idempotent";
 #[cfg(feature = "semconv_experimental")]
 pub const CASSANDRA_SPECULATIVE_EXECUTION_COUNT: &str = "cassandra.speculative_execution.count";
 
+/// The kind of action a pipeline run is performing.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"BUILD"`
+/// - `"RUN"`
+/// - `"SYNC"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_ACTION_NAME: &str = "cicd.pipeline.action.name";
+
 /// The human readable name of the pipeline within a CI/CD system.
 ///
 /// ## Notes
@@ -1023,6 +1084,19 @@ pub const CICD_PIPELINE_TASK_NAME: &str = "cicd.pipeline.task.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_TASK_RUN_ID: &str = "cicd.pipeline.task.run.id";
 
+/// The result of a task run.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"success"`
+/// - `"failure"`
+/// - `"timeout"`
+/// - `"skipped"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_PIPELINE_TASK_RUN_RESULT: &str = "cicd.pipeline.task.run.result";
+
 /// The [URL](https://wikipedia.org/wiki/URL) of the pipeline task run, providing the complete address in order to locate and identify the pipeline task run.
 ///
 /// ## Notes
@@ -1057,6 +1131,30 @@ pub const CICD_PIPELINE_TASK_TYPE: &str = "cicd.pipeline.task.type";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_SYSTEM_COMPONENT: &str = "cicd.system.component";
 
+/// The unique identifier of a worker within a CICD system.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"abc123"`
+/// - `"10.0.1.2"`
+/// - `"controller"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_WORKER_ID: &str = "cicd.worker.id";
+
+/// The name of a worker within a CICD system.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"agent-abc"`
+/// - `"controller"`
+/// - `"Ubuntu LTS"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_WORKER_NAME: &str = "cicd.worker.name";
+
 /// The state of a CICD worker / agent.
 ///
 /// ## Notes
@@ -1068,6 +1166,16 @@ pub const CICD_SYSTEM_COMPONENT: &str = "cicd.system.component";
 /// - `"down"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_WORKER_STATE: &str = "cicd.worker.state";
+
+/// The [URL](https://wikipedia.org/wiki/URL) of the worker, providing the complete address in order to locate and identify the worker.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"https://cicd.example.org/worker/abc123"`
+#[cfg(feature = "semconv_experimental")]
+pub const CICD_WORKER_URL_FULL: &str = "cicd.worker.url.full";
 
 /// Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
 ///
@@ -1408,24 +1516,22 @@ pub const CLOUDFOUNDRY_SYSTEM_INSTANCE_ID: &str = "cloudfoundry.system.instance.
 #[deprecated(note = "{note: Replaced by `code.column.number`, reason: uncategorized}")]
 pub const CODE_COLUMN: &str = "code.column";
 
-/// The column number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`.
+/// The column number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Line'. This constraint is imposed to prevent redundancy and maintain data integrity.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
 /// - `16`
-#[cfg(feature = "semconv_experimental")]
 pub const CODE_COLUMN_NUMBER: &str = "code.column.number";
 
-/// The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
+/// The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path). This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Function'. This constraint is imposed to prevent redundancy and maintain data integrity.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
 /// - `"/usr/local/MyApplication/content_root/app/index.php"`
-#[cfg(feature = "semconv_experimental")]
 pub const CODE_FILE_PATH: &str = "code.file.path";
 
 /// Deprecated, use `code.file.path` instead
@@ -1450,7 +1556,7 @@ pub const CODE_FILEPATH: &str = "code.filepath";
 #[deprecated(note = "{note: Replaced by `code.function.name`, reason: uncategorized}")]
 pub const CODE_FUNCTION: &str = "code.function";
 
-/// The method or function fully-qualified name without arguments. The value should fit the natural representation of the language runtime, which is also likely the same used within `code.stacktrace` attribute value.
+/// The method or function fully-qualified name without arguments. The value should fit the natural representation of the language runtime, which is also likely the same used within `code.stacktrace` attribute value. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Function'. This constraint is imposed to prevent redundancy and maintain data integrity.
 ///
 /// ## Notes
 ///
@@ -1475,17 +1581,15 @@ pub const CODE_FUNCTION: &str = "code.function";
 /// - `"com.example.MyHttpService.serveRequest"`
 /// - `"GuzzleHttp\\Client::transfer"`
 /// - `"fopen"`
-#[cfg(feature = "semconv_experimental")]
 pub const CODE_FUNCTION_NAME: &str = "code.function.name";
 
-/// The line number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`.
+/// The line number in `code.file.path` best representing the operation. It SHOULD point within the code unit named in `code.function.name`. This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Line'. This constraint is imposed to prevent redundancy and maintain data integrity.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
 /// - `42`
-#[cfg(feature = "semconv_experimental")]
 pub const CODE_LINE_NUMBER: &str = "code.line.number";
 
 /// Deprecated, use `code.line.number` instead
@@ -1512,14 +1616,13 @@ pub const CODE_LINENO: &str = "code.lineno";
 )]
 pub const CODE_NAMESPACE: &str = "code.namespace";
 
-/// A stacktrace as a string in the natural representation for the language runtime. The representation is identical to [`exception.stacktrace`](/docs/exceptions/exceptions-spans.md#stacktrace-representation).
+/// A stacktrace as a string in the natural representation for the language runtime. The representation is identical to [`exception.stacktrace`](/docs/exceptions/exceptions-spans.md#stacktrace-representation). This attribute MUST NOT be used on the Profile signal since the data is already captured in 'message Location'. This constraint is imposed to prevent redundancy and maintain data integrity.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
 /// - `"at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)\n"`
-#[cfg(feature = "semconv_experimental")]
 pub const CODE_STACKTRACE: &str = "code.stacktrace";
 
 /// The command used to run the container (i.e. the command name).
@@ -1656,13 +1759,15 @@ pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_IMAGE_TAGS: &str = "container.image.tags";
 
-/// Container labels, `<key>` being the label name, the value being the label value.
+/// Container labels, ``key`` being the label name, the value being the label value.
 ///
 /// ## Notes
 ///
+/// For example, a docker container label `app` with value `nginx` SHOULD be recorded as the `container.label.app` attribute with value `"nginx"`.
+///
 /// # Examples
 ///
-/// - `"container.label.app=nginx"`
+/// - `"nginx"`
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_LABEL: &str = "container.label";
 
@@ -1672,7 +1777,7 @@ pub const CONTAINER_LABEL: &str = "container.label";
 ///
 /// # Examples
 ///
-/// - `"container.label.app=nginx"`
+/// - `"nginx"`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "{note: Replaced by `container.label`., reason: uncategorized}")]
 pub const CONTAINER_LABELS: &str = "container.labels";
@@ -1855,7 +1960,8 @@ pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 /// without attempting to do any case normalization.
 ///
 /// The collection name SHOULD NOT be extracted from `db.query.text`,
-/// when the database system supports cross-table queries in non-batch operations.
+/// when the database system supports query text with multiple collections
+/// in non-batch operations.
 ///
 /// For batch operations, if the individual operations are known to have the same
 /// collection name then that collection name SHOULD be used.
@@ -1864,7 +1970,6 @@ pub const DB_CLIENT_CONNECTIONS_STATE: &str = "db.client.connections.state";
 ///
 /// - `"public.users"`
 /// - `"customers"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_COLLECTION_NAME: &str = "db.collection.name";
 
 /// Deprecated, use `server.address`, `server.port` attributes instead.
@@ -2027,8 +2132,8 @@ pub const DB_ELASTICSEARCH_NODE_NAME: &str = "db.elasticsearch.node.name";
 ///
 /// # Examples
 ///
-/// - `"db.elasticsearch.path_parts.index=test-index"`
-/// - `"db.elasticsearch.path_parts.doc_id=123"`
+/// - `"test-index"`
+/// - `"123"`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "{note: Replaced by `db.operation.parameter`., reason: uncategorized}")]
 pub const DB_ELASTICSEARCH_PATH_PARTS: &str = "db.elasticsearch.path_parts";
@@ -2096,7 +2201,7 @@ pub const DB_NAME: &str = "db.name";
 ///
 /// ## Notes
 ///
-/// If a database system has multiple namespace components, they SHOULD be concatenated (potentially using database system specific conventions) from most general to most specific namespace component, and more specific namespaces SHOULD NOT be captured without the more general namespaces, to ensure that "startswith" queries for the more general namespaces will be valid.
+/// If a database system has multiple namespace components, they SHOULD be concatenated from the most general to the most specific namespace component, using `|` as a separator between the components. Any missing components (and their associated separators) SHOULD be omitted.
 /// Semantic conventions for individual database systems SHOULD document what `db.namespace` means in the context of that system.
 /// It is RECOMMENDED to capture the value as provided by the application without attempting to do any case normalization.
 ///
@@ -2104,7 +2209,6 @@ pub const DB_NAME: &str = "db.name";
 ///
 /// - `"customers"`
 /// - `"test.users"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_NAMESPACE: &str = "db.namespace";
 
 /// Deprecated, use `db.operation.name` instead.
@@ -2131,7 +2235,6 @@ pub const DB_OPERATION: &str = "db.operation";
 /// - `2`
 /// - `3`
 /// - `4`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 
 /// The name of the operation or command being executed.
@@ -2142,7 +2245,8 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// without attempting to do any case normalization.
 ///
 /// The operation name SHOULD NOT be extracted from `db.query.text`,
-/// when the database system supports cross-table queries in non-batch operations.
+/// when the database system supports query text with multiple operations
+/// in non-batch operations.
 ///
 /// If spaces can occur in the operation name, multiple consecutive spaces
 /// SHOULD be normalized to a single space.
@@ -2157,16 +2261,17 @@ pub const DB_OPERATION_BATCH_SIZE: &str = "db.operation.batch.size";
 /// - `"findAndModify"`
 /// - `"HMSET"`
 /// - `"SELECT"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_OPERATION_NAME: &str = "db.operation.name";
 
-/// A database operation parameter, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+/// A database operation parameter, with ``key`` being the parameter name, and the attribute value being a string representation of the parameter value.
 ///
 /// ## Notes
 ///
-/// If a parameter has no name and instead is referenced only by index, then `[key]` SHOULD be the 0-based index.
-/// If `db.query.text` is also captured, then `db.operation.parameter.[key]` SHOULD match up with the parameterized placeholders present in `db.query.text`.
-/// `db.operation.parameter.[key]` SHOULD NOT be captured on batch operations.
+/// For example, a client-side maximum number of rows to read from the database
+/// MAY be recorded as the `db.operation.parameter.max_rows` attribute.
+///
+/// `db.query.text` parameters SHOULD be captured using `db.query.parameter.[key]`
+/// instead of `db.operation.parameter.[key]`.
 ///
 /// # Examples
 ///
@@ -2175,46 +2280,65 @@ pub const DB_OPERATION_NAME: &str = "db.operation.name";
 #[cfg(feature = "semconv_experimental")]
 pub const DB_OPERATION_PARAMETER: &str = "db.operation.parameter";
 
-/// A query parameter used in `db.query.text`, with `<key>` being the parameter name, and the attribute value being a string representation of the parameter value.
+/// A database query parameter, with ``key`` being the parameter name, and the attribute value being a string representation of the parameter value.
 ///
 /// ## Notes
+///
+/// If a query parameter has no name and instead is referenced only by index,
+/// then `[key]` SHOULD be the 0-based index.
+///
+/// `db.query.parameter.[key]` SHOULD match
+/// up with the parameterized placeholders present in `db.query.text`.
+///
+/// `db.query.parameter.[key]` SHOULD NOT be captured on batch operations.
+///
+/// Examples:
+///
+/// - For a query `SELECT * FROM users where username =  %s` with the parameter `"jdoe"`,
+///   the attribute `db.query.parameter.0` SHOULD be set to `"jdoe"`.
+/// - For a query `"SELECT * FROM users WHERE username = %(username)s;` with parameter
+///   `username = "jdoe"`, the attribute `db.query.parameter.username` SHOULD be set to `"jdoe"`.
 ///
 /// # Examples
 ///
 /// - `"someval"`
 /// - `"55"`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.operation.parameter`., reason: uncategorized}")]
 pub const DB_QUERY_PARAMETER: &str = "db.query.parameter";
 
-/// Low cardinality representation of a database query text.
+/// Low cardinality summary of a database query.
 ///
 /// ## Notes
 ///
-/// `db.query.summary` provides static summary of the query text. It describes a class of database queries and is useful as a grouping key, especially when analyzing telemetry for database calls involving complex queries.
-/// Summary may be available to the instrumentation through instrumentation hooks or other means. If it is not available, instrumentations that support query parsing SHOULD generate a summary following [Generating query summary](../database/database-spans.md#generating-a-summary-of-the-query-text) section.
+/// The query summary describes a class of database queries and is useful
+/// as a grouping key, especially when analyzing telemetry for database
+/// calls involving complex queries.
+///
+/// Summary may be available to the instrumentation through
+/// instrumentation hooks or other means. If it is not available, instrumentations
+/// that support query parsing SHOULD generate a summary following
+/// [Generating query summary](/docs/database/database-spans.md#generating-a-summary-of-the-query)
+/// section.
 ///
 /// # Examples
 ///
 /// - `"SELECT wuser_table"`
 /// - `"INSERT shipping_details SELECT orders"`
 /// - `"get user by id"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_QUERY_SUMMARY: &str = "db.query.summary";
 
 /// The database query being executed.
 ///
 /// ## Notes
 ///
-/// For sanitization see [Sanitization of `db.query.text`](../database/database-spans.md#sanitization-of-dbquerytext).
+/// For sanitization see [Sanitization of `db.query.text`](/docs/database/database-spans.md#sanitization-of-dbquerytext).
 /// For batch operations, if the individual operations are known to have the same query text then that query text SHOULD be used, otherwise all of the individual query texts SHOULD be concatenated with separator `; ` or some other database system specific separator if more applicable.
-/// Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
+/// Parameterized query text SHOULD NOT be sanitized. Even though parameterized query text can potentially have sensitive data, by using a parameterized query the user is giving a strong signal that any sensitive data will be passed as parameter values, and the benefit to observability of capturing the static part of the query text by default outweighs the risk.
 ///
 /// # Examples
 ///
 /// - `"SELECT * FROM wuser_table where username = ?"`
 /// - `"SET mykey ?"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_QUERY_TEXT: &str = "db.query.text";
 
 /// Deprecated, use `db.namespace` instead.
@@ -2255,7 +2379,6 @@ pub const DB_RESPONSE_RETURNED_ROWS: &str = "db.response.returned_rows";
 /// - `"ORA-17002"`
 /// - `"08P01"`
 /// - `"404"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_RESPONSE_STATUS_CODE: &str = "db.response.status_code";
 
 /// Deprecated, use `db.collection.name` instead, but only if not extracting the value from `db.query.text`.
@@ -2296,7 +2419,6 @@ pub const DB_STATEMENT: &str = "db.statement";
 /// # Examples
 ///
 /// - `"GetCustomer"`
-#[cfg(feature = "semconv_experimental")]
 pub const DB_STORED_PROCEDURE_NAME: &str = "db.stored_procedure.name";
 
 /// Deprecated, use `db.system.name` instead.
@@ -2311,7 +2433,6 @@ pub const DB_SYSTEM: &str = "db.system";
 /// ## Notes
 ///
 /// The actual DBMS may differ from the one identified by the client. For example, when using PostgreSQL client libraries to connect to a CockroachDB, the `db.system.name` is set to `postgresql` based on the instrumentation's best knowledge
-#[cfg(feature = "semconv_experimental")]
 pub const DB_SYSTEM_NAME: &str = "db.system.name";
 
 /// Deprecated, no replacement at this time.
@@ -2869,7 +2990,7 @@ pub const FAAS_VERSION: &str = "faas.version";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
 
-/// A message explaining the nature of an error occurring during flag evaluation.
+/// Deprecated, use `error.message` instead.
 ///
 /// ## Notes
 ///
@@ -2877,6 +2998,7 @@ pub const FEATURE_FLAG_CONTEXT_ID: &str = "feature_flag.context.id";
 ///
 /// - `"Flag `header-color`expected type`string`but found type`number`"`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Replaced by `error.message`., reason: uncategorized}")]
 pub const FEATURE_FLAG_EVALUATION_ERROR_MESSAGE: &str = "feature_flag.evaluation.error.message";
 
 /// Deprecated, use `feature_flag.result.reason` instead.
@@ -2911,7 +3033,7 @@ pub const FEATURE_FLAG_KEY: &str = "feature_flag.key";
 ///
 /// - `"Flag Manager"`
 #[cfg(feature = "semconv_experimental")]
-pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider_name";
+pub const FEATURE_FLAG_PROVIDER_NAME: &str = "feature_flag.provider.name";
 
 /// The reason code which shows how a feature flag value was determined.
 ///
@@ -3641,6 +3763,16 @@ pub const GEN_AI_TOKEN_TYPE: &str = "gen_ai.token.type";
 #[cfg(feature = "semconv_experimental")]
 pub const GEN_AI_TOOL_CALL_ID: &str = "gen_ai.tool.call.id";
 
+/// The tool description.
+///
+/// ## Notes
+///
+/// # Examples
+///
+/// - `"Multiply two numbers"`
+#[cfg(feature = "semconv_experimental")]
+pub const GEN_AI_TOOL_DESCRIPTION: &str = "gen_ai.tool.description";
+
 /// Name of the tool utilized by the agent.
 ///
 /// ## Notes
@@ -4084,18 +4216,31 @@ pub const HTTP_METHOD: &str = "http.method";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_REQUEST_BODY_SIZE: &str = "http.request.body.size";
 
-/// HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
+/// HTTP request headers, ``key`` being the normalized HTTP Header name (lowercase), the value being the header values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
-/// The `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.
-/// The attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.
+/// Instrumentations SHOULD require an explicit configuration of which headers are to be captured.
+/// Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
+/// The `User-Agent` header is already captured in the `user_agent.original` attribute.
+/// Users MAY explicitly configure instrumentations to capture them even though it is not recommended.
+///
+/// The attribute value MUST consist of either multiple header values as an array of strings
+/// or a single-item array containing a possibly comma-concatenated string, depending on the way
+/// the HTTP library provides access to headers.
+///
+/// Examples:
+///
+/// - A header `Content-Type: application/json` SHOULD be recorded as the `http.request.header.content-type`
+///   attribute with value `["application/json"]`.
+/// - A header `X-Forwarded-For: 1.2.3.4, 1.2.3.5` SHOULD be recorded as the `http.request.header.x-forwarded-for`
+///   attribute with value `["1.2.3.4", "1.2.3.5"]` or `["1.2.3.4, 1.2.3.5"]` depending on the HTTP library.
 ///
 /// # Examples
 ///
-/// - `"http.request.header.content-type=[\"application/json\"]"`
-/// - `"http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"`
+/// - `"[\"application/json\"]"`
+/// - `"[\"1.2.3.4\", \"1.2.3.5\"]"`
 pub const HTTP_REQUEST_HEADER: &str = "http.request.header";
 
 /// HTTP request method.
@@ -4156,7 +4301,7 @@ pub const HTTP_REQUEST_RESEND_COUNT: &str = "http.request.resend_count";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 
-/// Deprecated, use `http.request.header.<key>` instead.
+/// Deprecated, use `http.request.header.`key`` instead.
 ///
 /// ## Notes
 ///
@@ -4164,7 +4309,7 @@ pub const HTTP_REQUEST_SIZE: &str = "http.request.size";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `http.request.header.<key>`., reason: uncategorized}")]
+#[deprecated(note = "{note: Replaced by `http.request.header.`key``., reason: uncategorized}")]
 pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 
 /// Deprecated, use `http.request.body.size` instead.
@@ -4189,18 +4334,30 @@ pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_RESPONSE_BODY_SIZE: &str = "http.response.body.size";
 
-/// HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
+/// HTTP response headers, ``key`` being the normalized HTTP Header name (lowercase), the value being the header values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
+/// Instrumentations SHOULD require an explicit configuration of which headers are to be captured.
+/// Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
 /// Users MAY explicitly configure instrumentations to capture them even though it is not recommended.
-/// The attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.
+///
+/// The attribute value MUST consist of either multiple header values as an array of strings
+/// or a single-item array containing a possibly comma-concatenated string, depending on the way
+/// the HTTP library provides access to headers.
+///
+/// Examples:
+///
+/// - A header `Content-Type: application/json` header SHOULD be recorded as the `http.request.response.content-type`
+///   attribute with value `["application/json"]`.
+/// - A header `My-custom-header: abc, def` header SHOULD be recorded as the `http.response.header.my-custom-header`
+///   attribute with value `["abc", "def"]` or `["abc, def"]` depending on the HTTP library.
 ///
 /// # Examples
 ///
-/// - `"http.response.header.content-type=[\"application/json\"]"`
-/// - `"http.response.header.my-custom-header=[\"abc\", \"def\"]"`
+/// - `"[\"application/json\"]"`
+/// - `"[\"abc\", \"def\"]"`
 pub const HTTP_RESPONSE_HEADER: &str = "http.response.header";
 
 /// The total size of the response in bytes. This should be the total number of bytes sent over the wire, including the status line (HTTP/1.1), framing (HTTP/2 and HTTP/3), headers, and response body and trailers if any.
@@ -4222,7 +4379,7 @@ pub const HTTP_RESPONSE_SIZE: &str = "http.response.size";
 /// - `200`
 pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
-/// Deprecated, use `http.response.header.<key>` instead.
+/// Deprecated, use `http.response.header.`key`` instead.
 ///
 /// ## Notes
 ///
@@ -4230,7 +4387,7 @@ pub const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 ///
 /// - `3495`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `http.response.header.<key>`., reason: uncategorized}")]
+#[deprecated(note = "{note: Replaced by `http.response.header.`key``., reason: uncategorized}")]
 pub const HTTP_RESPONSE_CONTENT_LENGTH: &str = "http.response_content_length";
 
 /// Deprecated, use `http.response.body.size` instead.
@@ -4412,6 +4569,19 @@ pub const JVM_BUFFER_POOL_NAME: &str = "jvm.buffer.pool.name";
 /// - `"end of major GC"`
 pub const JVM_GC_ACTION: &str = "jvm.gc.action";
 
+/// Name of the garbage collector cause.
+///
+/// ## Notes
+///
+/// Garbage collector cause is generally obtained via [GarbageCollectionNotificationInfo#getGcCause()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcCause()).
+///
+/// # Examples
+///
+/// - `"System.gc()"`
+/// - `"Allocation Failure"`
+#[cfg(feature = "semconv_experimental")]
+pub const JVM_GC_CAUSE: &str = "jvm.gc.cause";
+
 /// Name of the garbage collector.
 ///
 /// ## Notes
@@ -4533,6 +4703,42 @@ pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
 pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
     "k8s.container.status.last_terminated_reason";
 
+/// The cronjob annotation placed on the CronJob, the ``key`` being the annotation name, the value being the annotation value.
+///
+/// ## Notes
+///
+/// Examples:
+///
+/// - An annotation `retries` with value `4` SHOULD be recorded as the
+///   `k8s.cronjob.annotation.retries` attribute with value `"4"`.
+/// - An annotation `data` with empty string value SHOULD be recorded as
+///   the `k8s.cronjob.annotation.data` attribute with value `""`.
+///
+/// # Examples
+///
+/// - `"4"`
+/// - `""`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CRONJOB_ANNOTATION: &str = "k8s.cronjob.annotation";
+
+/// The label placed on the CronJob, the ``key`` being the label name, the value being the label value.
+///
+/// ## Notes
+///
+/// Examples:
+///
+/// - A label `type` with value `weekly` SHOULD be recorded as the
+///   `k8s.cronjob.label.type` attribute with value `"weekly"`.
+/// - A label `automated` with empty string value SHOULD be recorded as
+///   the `k8s.cronjob.label.automated` attribute with value `""`.
+///
+/// # Examples
+///
+/// - `"weekly"`
+/// - `""`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CRONJOB_LABEL: &str = "k8s.cronjob.label";
+
 /// The name of the CronJob.
 ///
 /// ## Notes
@@ -4553,6 +4759,32 @@ pub const K8S_CRONJOB_NAME: &str = "k8s.cronjob.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_CRONJOB_UID: &str = "k8s.cronjob.uid";
 
+/// The annotation key-value pairs placed on the DaemonSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.daemonset.annotation.replicas=1"`
+/// - `"k8s.daemonset.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_ANNOTATION: &str = "k8s.daemonset.annotation";
+
+/// The label key-value pairs placed on the DaemonSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.daemonset.label.app=guestbook"`
+/// - `"k8s.daemonset.label.injected="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_LABEL: &str = "k8s.daemonset.label";
+
 /// The name of the DaemonSet.
 ///
 /// ## Notes
@@ -4572,6 +4804,32 @@ pub const K8S_DAEMONSET_NAME: &str = "k8s.daemonset.name";
 /// - `"275ecb36-5aa8-4c2a-9c47-d8bb681b9aff"`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_DAEMONSET_UID: &str = "k8s.daemonset.uid";
+
+/// The annotation key-value pairs placed on the Deployment.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.deployment.annotation.replicas=1"`
+/// - `"k8s.deployment.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_ANNOTATION: &str = "k8s.deployment.annotation";
+
+/// The label key-value pairs placed on the Deployment.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.deployment.label.app=guestbook"`
+/// - `"k8s.deployment.label.injected="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_LABEL: &str = "k8s.deployment.label";
 
 /// The name of the Deployment.
 ///
@@ -4613,6 +4871,32 @@ pub const K8S_HPA_NAME: &str = "k8s.hpa.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_HPA_UID: &str = "k8s.hpa.uid";
 
+/// The annotation key-value pairs placed on the Job.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.job.annotation.number=1"`
+/// - `"k8s.job.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_ANNOTATION: &str = "k8s.job.annotation";
+
+/// The label key-value pairs placed on the Job.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.job.label.jobtype=ci"`
+/// - `"k8s.job.label.automated="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_LABEL: &str = "k8s.job.label";
+
 /// The name of the Job.
 ///
 /// ## Notes
@@ -4632,6 +4916,32 @@ pub const K8S_JOB_NAME: &str = "k8s.job.name";
 /// - `"275ecb36-5aa8-4c2a-9c47-d8bb681b9aff"`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_JOB_UID: &str = "k8s.job.uid";
+
+/// The annotation key-value pairs placed on the Namespace.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.namespace.annotation.ttl=0"`
+/// - `"k8s.namespace.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NAMESPACE_ANNOTATION: &str = "k8s.namespace.annotation";
+
+/// The label key-value pairs placed on the Namespace.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.namespace.label.kubernetes.io/metadata.name=default"`
+/// - `"k8s.namespace.label.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NAMESPACE_LABEL: &str = "k8s.namespace.label";
 
 /// The name of the namespace that the pod is running in.
 ///
@@ -4657,6 +4967,42 @@ pub const K8S_NAMESPACE_NAME: &str = "k8s.namespace.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
 
+/// The annotation placed on the Node, the ``key`` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// ## Notes
+///
+/// Examples:
+///
+/// - An annotation `node.alpha.kubernetes.io/ttl` with value `0` SHOULD be recorded as
+///   the `k8s.node.annotation.node.alpha.kubernetes.io/ttl` attribute with value `"0"`.
+/// - An annotation `data` with empty string value SHOULD be recorded as
+///   the `k8s.node.annotation.data` attribute with value `""`.
+///
+/// # Examples
+///
+/// - `"0"`
+/// - `""`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_ANNOTATION: &str = "k8s.node.annotation";
+
+/// The label placed on the Node, the ``key`` being the label name, the value being the label value, even if the value is empty.
+///
+/// ## Notes
+///
+/// Examples:
+///
+/// - A label `kubernetes.io/arch` with value `arm64` SHOULD be recorded
+///   as the `k8s.node.label.kubernetes.io/arch` attribute with value `"arm64"`.
+/// - A label `data` with empty string value SHOULD be recorded as
+///   the `k8s.node.label.data` attribute with value `""`.
+///
+/// # Examples
+///
+/// - `"arm64"`
+/// - `""`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_LABEL: &str = "k8s.node.label";
+
 /// The name of the Node.
 ///
 /// ## Notes
@@ -4677,27 +5023,45 @@ pub const K8S_NODE_NAME: &str = "k8s.node.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_UID: &str = "k8s.node.uid";
 
-/// The annotation key-value pairs placed on the Pod, the `<key>` being the annotation name, the value being the annotation value.
+/// The annotation placed on the Pod, the ``key`` being the annotation name, the value being the annotation value.
 ///
 /// ## Notes
 ///
+/// Examples:
+///
+/// - An annotation `kubernetes.io/enforce-mountable-secrets` with value `true` SHOULD be recorded as
+///   the `k8s.pod.annotation.kubernetes.io/enforce-mountable-secrets` attribute with value `"true"`.
+/// - An annotation `mycompany.io/arch` with value `x64` SHOULD be recorded as
+///   the `k8s.pod.annotation.mycompany.io/arch` attribute with value `"x64"`.
+/// - An annotation `data` with empty string value SHOULD be recorded as
+///   the `k8s.pod.annotation.data` attribute with value `""`.
+///
 /// # Examples
 ///
-/// - `"k8s.pod.annotation.kubernetes.io/enforce-mountable-secrets=true"`
-/// - `"k8s.pod.annotation.mycompany.io/arch=x64"`
-/// - `"k8s.pod.annotation.data="`
+/// - `"true"`
+/// - `"x64"`
+/// - `""`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_ANNOTATION: &str = "k8s.pod.annotation";
 
-/// The label key-value pairs placed on the Pod, the `<key>` being the label name, the value being the label value.
+/// The label placed on the Pod, the ``key`` being the label name, the value being the label value.
 ///
 /// ## Notes
 ///
+/// Examples:
+///
+/// - A label `app` with value `my-app` SHOULD be recorded as
+///   the `k8s.pod.label.app` attribute with value `"my-app"`.
+/// - A label `mycompany.io/arch` with value `x64` SHOULD be recorded as
+///   the `k8s.pod.label.mycompany.io/arch` attribute with value `"x64"`.
+/// - A label `data` with empty string value SHOULD be recorded as
+///   the `k8s.pod.label.data` attribute with value `""`.
+///
 /// # Examples
 ///
-/// - `"k8s.pod.label.app=my-app"`
-/// - `"k8s.pod.label.mycompany.io/arch=x64"`
-/// - `"k8s.pod.label.data="`
+/// - `"my-app"`
+/// - `"x64"`
+/// - `""`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_LABEL: &str = "k8s.pod.label";
 
@@ -4707,7 +5071,7 @@ pub const K8S_POD_LABEL: &str = "k8s.pod.label";
 ///
 /// # Examples
 ///
-/// - `"k8s.pod.label.app=my-app"`
+/// - `"my-app"`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "{note: Replaced by `k8s.pod.label`., reason: uncategorized}")]
 pub const K8S_POD_LABELS: &str = "k8s.pod.labels";
@@ -4731,6 +5095,32 @@ pub const K8S_POD_NAME: &str = "k8s.pod.name";
 /// - `"275ecb36-5aa8-4c2a-9c47-d8bb681b9aff"`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_UID: &str = "k8s.pod.uid";
+
+/// The annotation key-value pairs placed on the ReplicaSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.replicaset.annotation.replicas=0"`
+/// - `"k8s.replicaset.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_ANNOTATION: &str = "k8s.replicaset.annotation";
+
+/// The label key-value pairs placed on the ReplicaSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.replicaset.label.app=guestbook"`
+/// - `"k8s.replicaset.label.injected="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_LABEL: &str = "k8s.replicaset.label";
 
 /// The name of the ReplicaSet.
 ///
@@ -4791,6 +5181,32 @@ pub const K8S_RESOURCEQUOTA_NAME: &str = "k8s.resourcequota.name";
 /// - `"275ecb36-5aa8-4c2a-9c47-d8bb681b9aff"`
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_RESOURCEQUOTA_UID: &str = "k8s.resourcequota.uid";
+
+/// The annotation key-value pairs placed on the StatefulSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the annotation name, the value being the annotation value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.statefulset.annotation.replicas=1"`
+/// - `"k8s.statefulset.annotation.data="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_ANNOTATION: &str = "k8s.statefulset.annotation";
+
+/// The label key-value pairs placed on the StatefulSet.
+///
+/// ## Notes
+///
+/// The `[key]` being the label name, the value being the label value, even if the value is empty.
+///
+/// # Examples
+///
+/// - `"k8s.statefulset.label.app=guestbook"`
+/// - `"k8s.statefulset.label.injected="`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_LABEL: &str = "k8s.statefulset.label";
 
 /// The name of the StatefulSet.
 ///
@@ -6056,6 +6472,25 @@ pub const PROCESS_CPU_STATE: &str = "process.cpu.state";
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CREATION_TIME: &str = "process.creation.time";
 
+/// Process environment variables, `key` being the environment variable name, the value being the environment variable value.
+///
+/// ## Notes
+///
+/// Examples:
+///
+/// - an environment variable `USER` with value `"ubuntu"` SHOULD be recorded
+///   as the `process.environment_variable.USER` attribute with value `"ubuntu"`.
+/// - an environment variable `PATH` with value `"/usr/local/bin:/usr/bin"`
+///   SHOULD be recorded as the `process.environment_variable.PATH` attribute
+///   with value `"/usr/local/bin:/usr/bin"`.
+///
+/// # Examples
+///
+/// - `"ubuntu"`
+/// - `"/usr/local/bin:/usr/bin"`
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_ENVIRONMENT_VARIABLE: &str = "process.environment_variable";
+
 /// The GNU build ID as found in the `.note.gnu.build-id` ELF section (hex string).
 ///
 /// ## Notes
@@ -6356,51 +6791,67 @@ pub const PROFILE_FRAME_TYPE: &str = "profile.frame.type";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_ERROR_CODE: &str = "rpc.connect_rpc.error_code";
 
-/// Connect request metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+/// Connect request metadata, ``key`` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+/// Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
+/// For example, a property `my-custom-key` with value `["1.2.3.4", "1.2.3.5"]` SHOULD be recorded as
+/// the `rpc.connect_rpc.request.metadata.my-custom-key` attribute with value `["1.2.3.4", "1.2.3.5"]`
 ///
 /// # Examples
 ///
-/// - `"rpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"`
+/// - `"[\"1.2.3.4\", \"1.2.3.5\"]"`
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_REQUEST_METADATA: &str = "rpc.connect_rpc.request.metadata";
 
-/// Connect response metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+/// Connect response metadata, ``key`` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+/// Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
+/// For example, a property `my-custom-key` with value `"attribute_value"` SHOULD be recorded as
+/// the `rpc.connect_rpc.response.metadata.my-custom-key` attribute with value `["attribute_value"]`
 ///
 /// # Examples
 ///
-/// - `"rpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"`
+/// - `"attribute_value"`
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_CONNECT_RPC_RESPONSE_METADATA: &str = "rpc.connect_rpc.response.metadata";
 
-/// gRPC request metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+/// gRPC request metadata, ``key`` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+/// Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
+/// For example, a property `my-custom-key` with value `["1.2.3.4", "1.2.3.5"]` SHOULD be recorded as
+/// `rpc.grpc.request.metadata.my-custom-key` attribute with value `["1.2.3.4", "1.2.3.5"]`
 ///
 /// # Examples
 ///
-/// - `"rpc.grpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"`
+/// - `"[\"1.2.3.4\", \"1.2.3.5\"]"`
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_REQUEST_METADATA: &str = "rpc.grpc.request.metadata";
 
-/// gRPC response metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+/// gRPC response metadata, ``key`` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
 ///
 /// ## Notes
 ///
-/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+/// Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured.
+/// Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+///
+/// For example, a property `my-custom-key` with value `["attribute_value"]` SHOULD be recorded as
+/// the `rpc.grpc.response.metadata.my-custom-key` attribute with value `["attribute_value"]`
 ///
 /// # Examples
 ///
-/// - `"rpc.grpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"`
+/// - `"[\"attribute_value\"]"`
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_RESPONSE_METADATA: &str = "rpc.grpc.response.metadata";
 
@@ -7731,7 +8182,7 @@ pub const VCS_OWNER_NAME: &str = "vcs.owner.name";
 ///
 /// - `"github"`
 /// - `"gitlab"`
-/// - `"gittea"`
+/// - `"gitea"`
 /// - `"bitbucket"`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_PROVIDER_NAME: &str = "vcs.provider.name";

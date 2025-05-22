@@ -6,10 +6,9 @@ use opentelemetry::{
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::ResourceMetrics, new_view, reader::MetricReader, Aggregation, Instrument,
-        InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality, View,
+        data::ResourceMetrics, reader::MetricReader, Aggregation, Instrument, InstrumentKind,
+        ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality,
     },
-    Resource,
 };
 use rand::Rng;
 use std::sync::{Arc, Weak};
@@ -108,7 +107,9 @@ impl MetricReader for SharedReader {
 //                         time:   [643.75 ns 649.05 ns 655.14 ns]
 // Histogram/Record10Attrs1000bounds
 //                         time:   [726.87 ns 736.52 ns 747.09 ns]
-fn bench_counter(view: Option<Box<dyn View>>, temporality: &str) -> (SharedReader, Counter<u64>) {
+type ViewFn = Box<dyn Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static>;
+
+fn bench_counter(view: Option<ViewFn>, temporality: &str) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
         SharedReader(Arc::new(ManualReader::builder().build()))
     } else {
@@ -221,13 +222,12 @@ fn counters(c: &mut Criterion) {
     });
 
     let (_, cntr) = bench_counter(
-        Some(
-            new_view(
-                Instrument::new().name("*"),
-                Stream::new().allowed_attribute_keys([Key::new("K")]),
-            )
-            .unwrap(),
-        ),
+        Some(Box::new(|_i: &Instrument| {
+            Stream::builder()
+                .with_allowed_attribute_keys([Key::new("K")])
+                .build()
+                .ok()
+        })),
         "cumulative",
     );
 
@@ -240,10 +240,7 @@ fn counters(c: &mut Criterion) {
     });
 
     let (rdr, cntr) = bench_counter(None, "cumulative");
-    let mut rm = ResourceMetrics {
-        resource: Resource::builder_empty().build(),
-        scope_metrics: Vec::new(),
-    };
+    let mut rm = ResourceMetrics::default();
 
     group.bench_function("CollectOneAttr", |b| {
         let mut v = 0;
@@ -274,22 +271,24 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
     for i in 0..bounds.len() {
         bounds[i] = i * MAX_BOUND / bound_count
     }
-    let view = Some(
-        new_view(
-            Instrument::new().name("histogram_*"),
-            Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
-                boundaries: bounds.iter().map(|&x| x as f64).collect(),
-                record_min_max: true,
-            }),
-        )
-        .unwrap(),
-    );
 
     let r = SharedReader(Arc::new(ManualReader::default()));
-    let mut builder = SdkMeterProvider::builder().with_reader(r.clone());
-    if let Some(view) = view {
-        builder = builder.with_view(view);
-    }
+    let builder = SdkMeterProvider::builder()
+        .with_reader(r.clone())
+        .with_view(move |i: &Instrument| {
+            if i.name().starts_with("histogram_") {
+                Stream::builder()
+                    .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                        boundaries: bounds.iter().map(|&x| x as f64).collect(),
+                        record_min_max: true,
+                    })
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        });
+
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
         .u64_histogram(format!("histogram_{}", bound_count))
@@ -337,10 +336,7 @@ fn benchmark_collect_histogram(b: &mut Bencher, n: usize) {
         h.record(1, &[]);
     }
 
-    let mut rm = ResourceMetrics {
-        resource: Resource::builder_empty().build(),
-        scope_metrics: Vec::new(),
-    };
+    let mut rm = ResourceMetrics::default();
 
     b.iter(|| {
         let _ = r.collect(&mut rm);
