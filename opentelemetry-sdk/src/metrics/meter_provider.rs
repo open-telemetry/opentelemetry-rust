@@ -348,7 +348,7 @@ impl MeterProviderBuilder {
     ///         // By calling `.ok()`, any such error is ignored and treated as if the view does not match
     ///         // the instrument.
     ///         // If this is not the desired behavior, consider handling the error explicitly.
-    ///         Stream::builder().with_cardinality_limit(100).build().ok()
+    ///         Stream::builder().with_cardinality_limit(0).build().ok()
     ///     } else {
     ///         None
     ///     }

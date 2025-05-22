@@ -940,12 +940,10 @@ mod tests {
         // View drops all attributes.
         let view = |i: &Instrument| {
             if i.name == "my_observable_counter" {
-                Some(
-                    Stream::builder()
-                        .with_allowed_attribute_keys(vec![])
-                        .build()
-                        .unwrap(),
-                )
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![])
+                    .build()
+                    .ok()
             } else {
                 None
             }

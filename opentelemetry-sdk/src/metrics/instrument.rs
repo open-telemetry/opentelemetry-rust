@@ -68,8 +68,8 @@ impl InstrumentKind {
 /// Describes properties an instrument is created with, used for filtering in
 /// [View](crate::metrics::View)s.
 ///
-/// A reference to `Instrument` is provided to the `view` to select the
-/// instrument(s) for which the [Stream] should be applied.
+/// Users can utilize a reference to `Instrument` to select the instrument(s)
+/// for which the [Stream] should be applied.
 ///
 /// # Example
 ///
@@ -78,7 +78,7 @@ impl InstrumentKind {
 ///
 /// let my_view_change_cardinality = |i: &Instrument| {
 ///     if i.name() == "my_second_histogram" {
-///         // Note: If Stream is invalid, build() will return an error. By
+///         // Note: If Stream is invalid, `build()` will return an error. By
 ///         // calling `.ok()`, any such error is ignored and treated as if the
 ///         // view does not match the instrument. If this is not the desired
 ///         // behavior, consider handling the error explicitly.
@@ -185,8 +185,8 @@ impl StreamBuilder {
     /// Set the stream allowed attribute keys.
     ///
     /// Any attribute recorded for the stream with a key not in this set will be
-    /// dropped. If the set is empty, all attributes will be dropped, if `None` all
-    /// attributes will be kept.
+    /// dropped. If the set is empty, all attributes will be dropped.
+    /// If not set, all attributes will be kept.
     pub fn with_allowed_attribute_keys(
         mut self,
         attribute_keys: impl IntoIterator<Item = Key>,
@@ -256,7 +256,9 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
     // validate that buckets are sorted and non-duplicate
     for i in 1..boundaries.len() {
         if boundaries[i] <= boundaries[i - 1] {
-            return Err("Bucket boundaries must be sorted and non-duplicate".to_string());
+            return Err(
+                "Bucket boundaries must be sorted and not contain any duplicates".to_string(),
+            );
         }
     }
 
