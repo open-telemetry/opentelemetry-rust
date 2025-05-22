@@ -107,8 +107,10 @@ impl MetricReader for SharedReader {
 //                         time:   [643.75 ns 649.05 ns 655.14 ns]
 // Histogram/Record10Attrs1000bounds
 //                         time:   [726.87 ns 736.52 ns 747.09 ns]
+type ViewFn = Box<dyn Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static>;
+
 fn bench_counter(
-    view: Option<Box<dyn Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static>>,
+    view: Option<ViewFn>,
     temporality: &str,
 ) -> (SharedReader, Counter<u64>) {
     let rdr = if temporality == "cumulative" {
