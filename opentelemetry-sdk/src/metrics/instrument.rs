@@ -7,6 +7,11 @@ use opentelemetry::{
 
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
+use super::meter::{
+    INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+    INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+};
+
 use super::Temporality;
 
 /// The identifier of a group of instruments that all perform the same function.
@@ -207,27 +212,53 @@ impl StreamBuilder {
     ///
     /// A Result containing the new Stream instance or an error if the build failed.
     pub fn build(self) -> Result<Stream, Box<dyn Error>> {
-        // TODO: Add same validation as already done while
-        // creating instruments. It is better to move validation logic
-        // to a common helper and call it from both places.
-        // The current implementations does a basic validation
-        // only to close the overall API design.
+        // TODO: Avoid copying the validation logic from meter.rs,
+        // and instead move it to a common place and do it once.
+        // It is a bug that validations are done in meter.rs
+        // as it'll not allow users to fix instrumentation mistakes
+        // using views.
 
-        // if name is provided, it must not be empty
+        // Validate name if provided
         if let Some(name) = &self.name {
             if name.is_empty() {
-                return Err("Stream name must not be empty".into());
+                return Err(INSTRUMENT_NAME_EMPTY.into());
+            }
+
+            if name.len() > super::meter::INSTRUMENT_NAME_MAX_LENGTH {
+                return Err(INSTRUMENT_NAME_LENGTH.into());
+            }
+
+            if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
+                return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC.into());
+            }
+
+            if name.contains(|c: char| {
+                !c.is_ascii_alphanumeric()
+                    && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
+            }) {
+                return Err(INSTRUMENT_NAME_INVALID_CHAR.into());
             }
         }
 
-        // if cardinality limit is provided, it must be greater than 0
+        // Validate unit if provided
+        if let Some(unit) = &self.unit {
+            if unit.len() > super::meter::INSTRUMENT_UNIT_NAME_MAX_LENGTH {
+                return Err(INSTRUMENT_UNIT_LENGTH.into());
+            }
+
+            if unit.contains(|c: char| !c.is_ascii()) {
+                return Err(INSTRUMENT_UNIT_INVALID_CHAR.into());
+            }
+        }
+
+        // Validate cardinality limit
         if let Some(limit) = self.cardinality_limit {
             if limit == 0 {
                 return Err("Cardinality limit must be greater than 0".into());
             }
         }
 
-        // If the aggregation is set to ExplicitBucketHistogram, validate the bucket boundaries.
+        // Validate bucket boundaries if using ExplicitBucketHistogram
         if let Some(Aggregation::ExplicitBucketHistogram { boundaries, .. }) = &self.aggregation {
             validate_bucket_boundaries(boundaries)?;
         }
@@ -354,5 +385,281 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
         for measure in &self.measures {
             measure.call(measurement, attrs)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StreamBuilder;
+    use crate::metrics::meter::{
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+    };
+
+    #[test]
+    fn stream_name_validation() {
+        // (name, expected error)
+        let stream_name_test_cases = vec![
+            ("validateName", ""),
+            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
+            ("a".repeat(255).leak(), ""),
+            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
+            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
+            ("allow/slash", ""),
+            ("allow_under_score", ""),
+            ("allow.dots.ok", ""),
+            ("", INSTRUMENT_NAME_EMPTY),
+            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
+            (
+                "\\test\\UsagePercent(Total) > 80%",
+                INSTRUMENT_NAME_FIRST_ALPHABETIC,
+            ),
+            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+        ];
+
+        for (name, expected_error) in stream_name_test_cases {
+            let builder = StreamBuilder::new().with_name(name);
+            let result = builder.build();
+
+            if expected_error.is_empty() {
+                assert!(
+                    result.is_ok(),
+                    "Expected successful build for name '{}', but got error: {:?}",
+                    name,
+                    result.err()
+                );
+            } else {
+                let err = result.err().unwrap();
+                let err_str = err.to_string();
+                assert!(
+                    err_str == expected_error,
+                    "For name '{}', expected error '{}', but got '{}'",
+                    name,
+                    expected_error,
+                    err_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stream_unit_validation() {
+        // (unit, expected error)
+        let stream_unit_test_cases = vec![
+            (
+                "0123456789012345678901234567890123456789012345678901234567890123",
+                INSTRUMENT_UNIT_LENGTH,
+            ),
+            ("utf8char锈", INSTRUMENT_UNIT_INVALID_CHAR),
+            ("kb", ""),
+            ("Kb/sec", ""),
+            ("%", ""),
+            ("", ""),
+        ];
+
+        for (unit, expected_error) in stream_unit_test_cases {
+            // Use a valid name to isolate unit validation
+            let builder = StreamBuilder::new().with_name("valid_name").with_unit(unit);
+
+            let result = builder.build();
+
+            if expected_error.is_empty() {
+                assert!(
+                    result.is_ok(),
+                    "Expected successful build for unit '{}', but got error: {:?}",
+                    unit,
+                    result.err()
+                );
+            } else {
+                let err = result.err().unwrap();
+                let err_str = err.to_string();
+                assert!(
+                    err_str == expected_error,
+                    "For unit '{}', expected error '{}', but got '{}'",
+                    unit,
+                    expected_error,
+                    err_str
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stream_cardinality_limit_validation() {
+        // Test zero cardinality limit (invalid)
+        let builder = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_cardinality_limit(0);
+
+        let result = builder.build();
+        assert!(result.is_err(), "Expected error for zero cardinality limit");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Cardinality limit must be greater than 0",
+            "Expected cardinality limit validation error message"
+        );
+
+        // Test valid cardinality limits
+        let valid_limits = vec![1, 10, 100, 1000];
+        for limit in valid_limits {
+            let builder = StreamBuilder::new()
+                .with_name("valid_name")
+                .with_cardinality_limit(limit);
+
+            let result = builder.build();
+            assert!(
+                result.is_ok(),
+                "Expected successful build for cardinality limit {}, but got error: {:?}",
+                limit,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn stream_valid_build() {
+        // Test with valid configuration
+        let stream = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_description("Valid description")
+            .with_unit("ms")
+            .with_cardinality_limit(100)
+            .build();
+
+        assert!(
+            stream.is_ok(),
+            "Expected valid Stream to be built successfully"
+        );
+    }
+
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[test]
+    fn stream_histogram_bucket_validation() {
+        use super::Aggregation;
+
+        // Test with valid bucket boundaries
+        let valid_boundaries = vec![1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0];
+        let builder = StreamBuilder::new()
+            .with_name("valid_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: valid_boundaries.clone(),
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_ok(),
+            "Expected successful build with valid bucket boundaries"
+        );
+
+        // Test with invalid bucket boundaries (NaN and Infinity)
+
+        // Test with NaN
+        let invalid_nan_boundaries = vec![1.0, 2.0, f64::NAN, 10.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_nan")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_nan_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for NaN in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for NaN"
+        );
+
+        // Test with infinity
+        let invalid_inf_boundaries = vec![1.0, 5.0, f64::INFINITY, 100.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_inf")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_inf_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for Infinity in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for Infinity"
+        );
+
+        // Test with negative infinity
+        let invalid_neg_inf_boundaries = vec![f64::NEG_INFINITY, 5.0, 10.0, 100.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_neg_inf")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_neg_inf_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for negative Infinity in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for negative Infinity"
+        );
+
+        // Test with unsorted bucket boundaries
+        let unsorted_boundaries = vec![1.0, 5.0, 2.0, 10.0]; // 2.0 comes after 5.0, which is incorrect
+
+        let builder = StreamBuilder::new()
+            .with_name("unsorted_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: unsorted_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for unsorted bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must be sorted and not contain any duplicates",
+            "Expected correct validation error for unsorted boundaries"
+        );
+
+        // Test with duplicate bucket boundaries
+        let duplicate_boundaries = vec![1.0, 2.0, 5.0, 5.0, 10.0]; // 5.0 appears twice
+
+        let builder = StreamBuilder::new()
+            .with_name("duplicate_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: duplicate_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for duplicate bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must be sorted and not contain any duplicates",
+            "Expected correct validation error for duplicate boundaries"
+        );
     }
 }
