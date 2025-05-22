@@ -18,7 +18,6 @@ futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
 percent-encoding = { workspace = true, optional = true }
 rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
-glob = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
@@ -45,7 +44,7 @@ trace = ["opentelemetry/trace", "rand", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs", "serde_json"]
 spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
-metrics = ["opentelemetry/metrics", "glob"]
+metrics = ["opentelemetry/metrics"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 experimental_async_runtime = []
 rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
@@ -70,14 +69,17 @@ harness = false
 [[bench]]
 name = "metrics_counter"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "metrics_gauge"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "metrics_histogram"
 harness = false
+required-features = ["experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "trace"
