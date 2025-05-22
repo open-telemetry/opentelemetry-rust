@@ -3,6 +3,7 @@ name = "metrics-advanced"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+rust-version = "1.75.0"
 publish = false
 autobenches = false
 
@@ -13,6 +14,6 @@ bench = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry", features = ["metrics"] }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["spec_unstable_metrics_views"] }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
 opentelemetry-stdout = { workspace = true, features = ["metrics"] }
 tokio = { workspace = true, features = ["full"] }

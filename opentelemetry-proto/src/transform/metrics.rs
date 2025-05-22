@@ -114,9 +114,13 @@ pub mod tonic {
         fn from(rm: &ResourceMetrics) -> Self {
             ExportMetricsServiceRequest {
                 resource_metrics: vec![TonicResourceMetrics {
-                    resource: Some((&rm.resource).into()),
+                    resource: Some((rm.resource()).into()),
                     scope_metrics: rm.scope_metrics().map(Into::into).collect(),
-                    schema_url: rm.resource.schema_url().map(Into::into).unwrap_or_default(),
+                    schema_url: rm
+                        .resource()
+                        .schema_url()
+                        .map(Into::into)
+                        .unwrap_or_default(),
                 }],
             }
         }
@@ -135,10 +139,10 @@ pub mod tonic {
     impl From<&SdkScopeMetrics> for TonicScopeMetrics {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
-                scope: Some((&sm.scope, None).into()),
+                scope: Some((sm.scope(), None).into()),
                 metrics: sm.metrics().map(Into::into).collect(),
                 schema_url: sm
-                    .scope
+                    .scope()
                     .schema_url()
                     .map(ToOwned::to_owned)
                     .unwrap_or_default(),
@@ -149,11 +153,11 @@ pub mod tonic {
     impl From<&SdkMetric> for TonicMetric {
         fn from(metric: &SdkMetric) -> Self {
             TonicMetric {
-                name: metric.name.to_string(),
-                description: metric.description.to_string(),
-                unit: metric.unit.to_string(),
+                name: metric.name().to_string(),
+                description: metric.description().to_string(),
+                unit: metric.unit().to_string(),
                 metadata: vec![], // internal and currently unused
-                data: Some(match &metric.data {
+                data: Some(match metric.data() {
                     AggregatedMetrics::F64(data) => data.into(),
                     AggregatedMetrics::U64(data) => data.into(),
                     AggregatedMetrics::I64(data) => data.into(),
@@ -208,17 +212,16 @@ pub mod tonic {
         fn from(hist: &SdkHistogram<T>) -> Self {
             TonicHistogram {
                 data_points: hist
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicHistogramDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),
                         time_unix_nano: to_nanos(hist.time),
                         count: dp.count,
                         sum: Some(dp.sum.into_f64()),
-                        bucket_counts: dp.bucket_counts.clone(),
-                        explicit_bounds: dp.bounds.clone(),
-                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        bucket_counts: dp.bucket_counts().collect(),
+                        explicit_bounds: dp.bounds().collect(),
+                        exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         min: dp.min.map(Numeric::into_f64),
                         max: dp.max.map(Numeric::into_f64),
@@ -236,10 +239,9 @@ pub mod tonic {
         fn from(hist: &SdkExponentialHistogram<T>) -> Self {
             TonicExponentialHistogram {
                 data_points: hist
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicExponentialHistogramDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(hist.start_time),
                         time_unix_nano: to_nanos(hist.time),
                         count: dp.count as u64,
@@ -255,7 +257,7 @@ pub mod tonic {
                             bucket_counts: dp.negative_bucket.counts.clone(),
                         }),
                         flags: TonicDataPointFlags::default() as u32,
-                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        exemplars: dp.exemplars().map(Into::into).collect(),
                         min: dp.min.map(Numeric::into_f64),
                         max: dp.max.map(Numeric::into_f64),
                         zero_threshold: dp.zero_threshold,
@@ -275,10 +277,10 @@ pub mod tonic {
                 data_points: sum
                     .data_points()
                     .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: to_nanos(sum.start_time),
                         time_unix_nano: to_nanos(sum.time),
-                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),
                     })
@@ -296,13 +298,12 @@ pub mod tonic {
         fn from(gauge: &SdkGauge<T>) -> Self {
             TonicGauge {
                 data_points: gauge
-                    .data_points
-                    .iter()
+                    .data_points()
                     .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes.iter().map(Into::into).collect(),
+                        attributes: dp.attributes().map(Into::into).collect(),
                         start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),
                         time_unix_nano: to_nanos(gauge.time),
-                        exemplars: dp.exemplars.iter().map(Into::into).collect(),
+                        exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
                         value: Some(dp.value.into()),
                     })
@@ -318,8 +319,7 @@ pub mod tonic {
         fn from(ex: &SdkExemplar<T>) -> Self {
             TonicExemplar {
                 filtered_attributes: ex
-                    .filtered_attributes
-                    .iter()
+                    .filtered_attributes()
                     .map(|kv| (&kv.key, &kv.value).into())
                     .collect(),
                 time_unix_nano: to_nanos(ex.time),

@@ -11,3 +11,6 @@ pub mod logs;
 
 #[cfg(feature = "zpages")]
 pub mod tracez;
+
+#[cfg(feature = "profiles")]
+pub mod profiles;
