@@ -534,4 +534,132 @@ mod tests {
             "Expected valid Stream to be built successfully"
         );
     }
+
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[test]
+    fn stream_histogram_bucket_validation() {
+        use super::Aggregation;
+
+        // Test with valid bucket boundaries
+        let valid_boundaries = vec![1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0];
+        let builder = StreamBuilder::new()
+            .with_name("valid_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: valid_boundaries.clone(),
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_ok(),
+            "Expected successful build with valid bucket boundaries"
+        );
+
+        // Test with invalid bucket boundaries (NaN and Infinity)
+
+        // Test with NaN
+        let invalid_nan_boundaries = vec![1.0, 2.0, f64::NAN, 10.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_nan")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_nan_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for NaN in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for NaN"
+        );
+
+        // Test with infinity
+        let invalid_inf_boundaries = vec![1.0, 5.0, f64::INFINITY, 100.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_inf")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_inf_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for Infinity in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for Infinity"
+        );
+
+        // Test with negative infinity
+        let invalid_neg_inf_boundaries = vec![f64::NEG_INFINITY, 5.0, 10.0, 100.0];
+
+        let builder = StreamBuilder::new()
+            .with_name("invalid_histogram_neg_inf")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: invalid_neg_inf_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for negative Infinity in bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must not contain NaN, Infinity, or -Infinity",
+            "Expected correct validation error for negative Infinity"
+        );
+
+        // Test with unsorted bucket boundaries
+        let unsorted_boundaries = vec![1.0, 5.0, 2.0, 10.0]; // 2.0 comes after 5.0, which is incorrect
+
+        let builder = StreamBuilder::new()
+            .with_name("unsorted_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: unsorted_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for unsorted bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must be sorted and not contain any duplicates",
+            "Expected correct validation error for unsorted boundaries"
+        );
+
+        // Test with duplicate bucket boundaries
+        let duplicate_boundaries = vec![1.0, 2.0, 5.0, 5.0, 10.0]; // 5.0 appears twice
+
+        let builder = StreamBuilder::new()
+            .with_name("duplicate_histogram")
+            .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                boundaries: duplicate_boundaries,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for duplicate bucket boundaries"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Bucket boundaries must be sorted and not contain any duplicates",
+            "Expected correct validation error for duplicate boundaries"
+        );
+    }
 }
