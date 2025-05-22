@@ -127,6 +127,9 @@ jobs:
       - uses: taiki-e/install-action@33734a118689b0b418824fb78ea2bf18e970b43b # v2.50.4
         with:
           tool: cargo-msrv
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check MSRV for all crates
         run: bash ./scripts/msrv.sh
   cargo-deny:
