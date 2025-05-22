@@ -169,7 +169,7 @@ pub struct GaugeDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -226,7 +226,7 @@ pub struct SumDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -269,23 +269,23 @@ impl<T> Sum<T> {
     pub fn data_points(&self) -> impl Iterator<Item = &SumDataPoint<T>> {
         self.data_points.iter()
     }
-    
+
     /// Returns the time when the time series was started.
     pub fn start_time(&self) -> SystemTime {
         self.start_time
     }
-    
+
     /// Returns the time when the time series was recorded.
     pub fn time(&self) -> SystemTime {
         self.time
     }
-    
-    /// Returns the temporality describing if the aggregation is reported as the change 
+
+    /// Returns the temporality describing if the aggregation is reported as the change
     /// from the last report time, or the cumulative changes since a fixed start time.
     pub fn temporality(&self) -> Temporality {
         self.temporality
     }
-    
+
     /// Returns whether this aggregation only increases or decreases.
     pub fn is_monotonic(&self) -> bool {
         self.is_monotonic
@@ -311,18 +311,18 @@ impl<T> Histogram<T> {
     pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
         self.data_points.iter()
     }
-    
+
     /// Returns the time when the time series was started.
     pub fn start_time(&self) -> SystemTime {
         self.start_time
     }
-    
+
     /// Returns the time when the time series was recorded.
     pub fn time(&self) -> SystemTime {
         self.time
     }
-    
-    /// Returns the temporality describing if the aggregation is reported as the change 
+
+    /// Returns the temporality describing if the aggregation is reported as the change
     /// from the last report time, or the cumulative changes since a fixed start time.
     pub fn temporality(&self) -> Temporality {
         self.temporality
@@ -374,22 +374,22 @@ impl<T> HistogramDataPoint<T> {
     pub fn bucket_counts(&self) -> impl Iterator<Item = u64> + '_ {
         self.bucket_counts.iter().copied()
     }
-    
+
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> u64 {
         self.count
     }
-    
+
     /// Returns the minimum value recorded.
     pub fn min(&self) -> Option<&T> {
         self.min.as_ref()
     }
-    
+
     /// Returns the maximum value recorded.
     pub fn max(&self) -> Option<&T> {
         self.max.as_ref()
     }
-    
+
     /// Returns the sum of the values recorded.
     pub fn sum(&self) -> &T {
         &self.sum
@@ -415,18 +415,18 @@ impl<T> ExponentialHistogram<T> {
     pub fn data_points(&self) -> impl Iterator<Item = &ExponentialHistogramDataPoint<T>> {
         self.data_points.iter()
     }
-    
+
     /// Returns the time when the time series was started.
     pub fn start_time(&self) -> SystemTime {
         self.start_time
     }
-    
+
     /// Returns the time when the time series was recorded.
     pub fn time(&self) -> SystemTime {
         self.time
     }
-    
-    /// Returns the temporality describing if the aggregation is reported as the change 
+
+    /// Returns the temporality describing if the aggregation is reported as the change
     /// from the last report time, or the cumulative changes since a fixed start time.
     pub fn temporality(&self) -> Temporality {
         self.temporality
@@ -488,47 +488,47 @@ impl<T> ExponentialHistogramDataPoint<T> {
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
     }
-    
+
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> usize {
         self.count
     }
-    
+
     /// Returns the minimum value recorded.
     pub fn min(&self) -> Option<&T> {
         self.min.as_ref()
     }
-    
+
     /// Returns the maximum value recorded.
     pub fn max(&self) -> Option<&T> {
         self.max.as_ref()
     }
-    
+
     /// Returns the sum of the values recorded.
     pub fn sum(&self) -> &T {
         &self.sum
     }
-    
+
     /// Returns the resolution of the histogram.
     pub fn scale(&self) -> i8 {
         self.scale
     }
-    
+
     /// Returns the number of values whose absolute value is less than or equal to zero_threshold.
     pub fn zero_count(&self) -> u64 {
         self.zero_count
     }
-    
+
     /// Returns the range of positive value bucket counts.
     pub fn positive_bucket(&self) -> &ExponentialBucket {
         &self.positive_bucket
     }
-    
+
     /// Returns the range of negative value bucket counts.
     pub fn negative_bucket(&self) -> &ExponentialBucket {
         &self.negative_bucket
     }
-    
+
     /// Returns the width of the zero region.
     pub fn zero_threshold(&self) -> f64 {
         self.zero_threshold
@@ -553,7 +553,7 @@ impl ExponentialBucket {
     pub fn offset(&self) -> i32 {
         self.offset
     }
-    
+
     /// Returns a reference to the counts vec.
     pub fn counts(&self) -> &[u64] {
         &self.counts
