@@ -169,7 +169,7 @@ pub struct GaugeDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub(crate) value: T,
+    pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -183,11 +183,6 @@ impl<T> GaugeDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
-    }
-
-    /// Returns the value of this data point.
-    pub fn value(&self) -> &T {
-        &self.value
     }
 }
 
@@ -226,7 +221,7 @@ pub struct SumDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub(crate) value: T,
+    pub value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -240,11 +235,6 @@ impl<T> SumDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
-    }
-
-    /// Returns the value of this data point.
-    pub fn value(&self) -> &T {
-        &self.value
     }
 }
 
@@ -344,9 +334,9 @@ pub struct HistogramDataPoint<T> {
     pub(crate) bucket_counts: Vec<u64>,
 
     /// The minimum value recorded.
-    pub(crate) min: Option<T>,
+    pub min: Option<T>,
     /// The maximum value recorded.
-    pub(crate) max: Option<T>,
+    pub max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
 
@@ -378,16 +368,6 @@ impl<T> HistogramDataPoint<T> {
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> u64 {
         self.count
-    }
-
-    /// Returns the minimum value recorded.
-    pub fn min(&self) -> Option<&T> {
-        self.min.as_ref()
-    }
-
-    /// Returns the maximum value recorded.
-    pub fn max(&self) -> Option<&T> {
-        self.max.as_ref()
     }
 
     /// Returns the sum of the values recorded.
@@ -442,9 +422,9 @@ pub struct ExponentialHistogramDataPoint<T> {
     /// The number of updates this histogram has been calculated with.
     pub(crate) count: usize,
     /// The minimum value recorded.
-    pub(crate) min: Option<T>,
+    pub min: Option<T>,
     /// The maximum value recorded.
-    pub(crate) max: Option<T>,
+    pub max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
 
@@ -492,16 +472,6 @@ impl<T> ExponentialHistogramDataPoint<T> {
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> usize {
         self.count
-    }
-
-    /// Returns the minimum value recorded.
-    pub fn min(&self) -> Option<&T> {
-        self.min.as_ref()
-    }
-
-    /// Returns the maximum value recorded.
-    pub fn max(&self) -> Option<&T> {
-        self.max.as_ref()
     }
 
     /// Returns the sum of the values recorded.
@@ -569,7 +539,7 @@ pub struct Exemplar<T> {
     /// The time when the measurement was recorded.
     pub(crate) time: SystemTime,
     /// The measured value.
-    pub(crate) value: T,
+    pub value: T,
     /// The ID of the span that was active during the measurement.
     ///
     /// If no span was active or the span was not sampled this will be empty.
@@ -589,11 +559,6 @@ impl<T> Exemplar<T> {
     /// Returns the time when the measurement was recorded.
     pub fn time(&self) -> SystemTime {
         self.time
-    }
-
-    /// Returns the measured value.
-    pub fn value(&self) -> &T {
-        &self.value
     }
 
     /// Returns the ID of the span that was active during the measurement.

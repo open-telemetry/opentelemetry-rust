@@ -198,7 +198,7 @@ fn print_sum_data_points<'a, T: Debug + 'a>(
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tValue        : {:#?}", data_point.value());
+        println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
@@ -211,7 +211,7 @@ fn print_gauge_data_points<'a, T: Debug + 'a>(
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tValue        : {:#?}", data_point.value());
+        println!("\t\t\tValue        : {:#?}", data_point.value);
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
@@ -226,11 +226,11 @@ fn print_hist_data_points<'a, T: Debug + 'a>(
         println!("\t\tDataPoint #{}", i);
         println!("\t\t\tCount        : {}", data_point.count());
         println!("\t\t\tSum          : {:?}", data_point.sum());
-        if let Some(min) = data_point.min() {
+        if let Some(min) = &data_point.min {
             println!("\t\t\tMin          : {:?}", min);
         }
 
-        if let Some(max) = data_point.max() {
+        if let Some(max) = &data_point.max {
             println!("\t\t\tMax          : {:?}", max);
         }
 
