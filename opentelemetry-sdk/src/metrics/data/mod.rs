@@ -197,9 +197,9 @@ pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub(crate) data_points: Vec<GaugeDataPoint<T>>,
     /// The time when the time series was started.
-    pub start_time: Option<SystemTime>,
+    pub(crate) start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
 }
 
 impl<T> Gauge<T> {
@@ -567,17 +567,17 @@ pub struct Exemplar<T> {
     /// time series' aggregated data.
     pub(crate) filtered_attributes: Vec<KeyValue>,
     /// The time when the measurement was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
     /// The measured value.
-    pub value: T,
+    pub(crate) value: T,
     /// The ID of the span that was active during the measurement.
     ///
     /// If no span was active or the span was not sampled this will be empty.
-    pub span_id: [u8; 8],
+    pub(crate) span_id: [u8; 8],
     /// The ID of the trace the active span belonged to during the measurement.
     ///
     /// If no span was active or the span was not sampled this will be empty.
-    pub trace_id: [u8; 16],
+    pub(crate) trace_id: [u8; 16],
 }
 
 impl<T> Exemplar<T> {
