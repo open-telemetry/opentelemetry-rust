@@ -483,7 +483,7 @@ practice is important:
   
   * **Delta Temporality**: The SDK "forgets" the state after each
     collection/export cycle. This means in each new interval, the SDK can track
-    up to the cardinality limit of completely different attribute combinations.
+    up to the cardinality limit of distinct attribute combinations.
     Over time, your metrics backend might see far more than the configured limit
     of distinct combinations from a single process.
   
