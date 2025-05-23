@@ -562,9 +562,9 @@ impl ExponentialBucket {
         self.offset
     }
 
-    /// Returns a reference to the counts vec.
-    pub fn counts(&self) -> &[u64] {
-        &self.counts
+    /// Returns an iterator over the counts.
+    pub fn counts(&self) -> impl Iterator<Item = u64> + '_ {
+        self.counts.iter().copied()
     }
 }
 

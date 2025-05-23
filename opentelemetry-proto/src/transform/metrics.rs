@@ -250,11 +250,11 @@ pub mod tonic {
                         zero_count: dp.zero_count(),
                         positive: Some(TonicBuckets {
                             offset: dp.positive_bucket().offset(),
-                            bucket_counts: dp.positive_bucket().counts().to_vec(),
+                            bucket_counts: dp.positive_bucket().counts().collect(),
                         }),
                         negative: Some(TonicBuckets {
                             offset: dp.negative_bucket().offset(),
-                            bucket_counts: dp.negative_bucket().counts().to_vec(),
+                            bucket_counts: dp.negative_bucket().counts().collect(),
                         }),
                         flags: TonicDataPointFlags::default() as u32,
                         exemplars: dp.exemplars().map(Into::into).collect(),
