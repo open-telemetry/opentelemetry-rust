@@ -136,9 +136,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .build();
 
-    // Metrics are exported by default every 30 seconds when using stdout
+    // Metrics are exported by default every 60 seconds when using stdout
     // exporter, however shutting down the MeterProvider here instantly flushes
-    // the metrics, instead of waiting for the 30 sec interval. Shutdown returns
+    // the metrics, instead of waiting for the 60 sec interval. Shutdown returns
     // a result, which is bubbled up to the caller The commented code below
     // demonstrates handling the shutdown result, instead of bubbling up the
     // error.
