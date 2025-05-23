@@ -161,6 +161,14 @@ impl HttpExporterBuilder {
                     .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
                 ) as Arc<dyn HttpClient>);
             }
+            #[cfg(any(
+                all(feature = "hyper-client", feature = "reqwest-client"),
+                all(feature = "hyper-client", feature = "reqwest-blocking-client"),
+                all(feature = "reqwest-client", feature = "reqwest-blocking-client")
+            ))]
+            {
+                panic!("Can't enable more than one HTTP client features simultaneously. Please choose only one: hyper-client, reqwest-client, or reqwest-blocking-client (default feature)");
+            }
         }
 
         let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
@@ -740,5 +748,21 @@ mod tests {
 
             assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
         });
+    }
+
+    #[cfg(any(
+        all(feature = "hyper-client", feature = "reqwest-client"),
+        all(feature = "hyper-client", feature = "reqwest-blocking-client"),
+        all(feature = "reqwest-client", feature = "reqwest-blocking-client")
+    ))]
+    #[test]
+    #[should_panic(expected = "Can't enable more than one HTTP client features simultaneously.")]
+    fn test_http_exporter_builder_panics_with_multiple_http_features() {
+        let mut builder = HttpExporterBuilder {
+            http_config: HttpConfig::default(),
+            exporter_config: crate::ExportConfig::default(),
+        };
+
+        let _ = builder.build_client("ENV_VAR_1", "PATH", "ENV_VAR_2", "ENV_VAR_3");
     }
 }
