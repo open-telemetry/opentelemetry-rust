@@ -448,9 +448,9 @@ pub struct ExponentialHistogramDataPoint<T> {
     /// The number of updates this histogram has been calculated with.
     pub(crate) count: usize,
     /// The minimum value recorded.
-    pub min: Option<T>,
+    pub(crate) min: Option<T>,
     /// The maximum value recorded.
-    pub max: Option<T>,
+    pub(crate) max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
 
@@ -528,6 +528,18 @@ impl<T> ExponentialHistogramDataPoint<T> {
     /// Returns the width of the zero region.
     pub fn zero_threshold(&self) -> f64 {
         self.zero_threshold
+    }
+}
+
+impl <T: Copy> ExponentialHistogramDataPoint<T> {
+    /// Returns the minimum value recorded.
+    pub fn min(&self) -> Option<T> {
+        self.min
+    }
+
+    /// Returns the maximum value recorded.
+    pub fn max(&self) -> Option<T> {
+        self.max
     }
 }
 

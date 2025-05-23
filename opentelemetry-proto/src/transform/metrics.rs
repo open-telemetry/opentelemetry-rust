@@ -258,8 +258,8 @@ pub mod tonic {
                         }),
                         flags: TonicDataPointFlags::default() as u32,
                         exemplars: dp.exemplars().map(Into::into).collect(),
-                        min: dp.min.map(Numeric::into_f64),
-                        max: dp.max.map(Numeric::into_f64),
+                        min: dp.min().map(Numeric::into_f64),
+                        max: dp.max().map(Numeric::into_f64),
                         zero_threshold: dp.zero_threshold(),
                     })
                     .collect(),
