@@ -485,9 +485,9 @@ practice is important:
   
   * **Delta Temporality**: The SDK "forgets" the state after each
     collection/export cycle. This means in each new interval, the SDK can track
-    up to the cardinality limit of distinct attribute combinations.
-    Over time, your metrics backend might see far more than the configured limit
-    of distinct combinations from a single process.
+    up to the cardinality limit of distinct attribute combinations. Over time,
+    your metrics backend might see far more than the configured limit of
+    distinct combinations from a single process.
   
   * **Cumulative Temporality**: Since the SDK maintains state across export
     intervals, once the cardinality limit is reached, new attribute combinations
@@ -560,7 +560,85 @@ The exported metrics would be:
   words, attributes used to create `Meter` or `Resource` attributes are not
   subject to this cap.
 
-// TODO: Document how to pick cardinality limit.
+#### Cardinality Limits - How to Choose the Right Limit
+
+Choosing the right cardinality limit is crucial for maintaining efficient memory
+usage and predictable performance in your metrics system. The optimal limit
+depends on your temporality choice and application characteristics.
+
+Setting the limit incorrectly can have consequences:
+
+* **Limit too high**: Due to the SDK's [memory
+  preallocation](#memory-preallocation) strategy, excess memory will be
+  allocated upfront and remain unused, leading to resource waste.
+* **Limit too low**: Measurements will be folded into the overflow bucket
+  (`{"otel.metric.overflow": true}`), losing granular attribute information and
+  making attribute-based queries unreliable.
+
+Consider these guidelines when determining the appropriate limit:
+
+**1. For Cumulative Temporality:**
+
+* Cumulative metrics keep track of every unique attribute combination that has
+  ever been seen, so you need to account for the maximum number of combinations
+  that could exist. Calculate this by multiplying the number of possible values
+  (i.e cardinality) for each attribute.
+* **Example:** Using the fruit sales example, if you have a `name` attribute
+  that can be either "apple" or "lemon" (2 values) and a `color` attribute that
+  can be "red", "yellow", or "green" (3 values), then you could potentially see
+  `2 × 3 = 6` different combinations. Set your cardinality limit to 6.
+
+**2. For Delta Temporality:**
+
+* Delta temporality resets aggregations after each export cycle, enabling more
+  flexible cardinality management based on actual usage patterns rather than
+  theoretical maximums.
+* When all possible attribute combinations are known (eg: fruit sales example from
+  above), use the same calculation approach as cumulative temporality.
+* For dynamic scenarios where not all combinations appear in every export cycle,
+  base the limit on expected total measurements within a single interval.
+* **Example 1:** If your application generates at most 1,000 distinct attribute
+  combinations per export interval, set
+  the cardinality limit to 1,000. Delta temporality allows the SDK to reset
+  after each export, accommodating different attribute combinations across
+  intervals without accumulating state.
+* **Example 2:** For web applications with known Request Per Second (RPS) rates,
+  calculate the maximum measurements per interval: `RPS × Export Interval`
+  (assuming one measurement per request). With 500 RPS and a 60-second interval:
+  `500 × 60 = 30,000` measurements per cycle. Set the cardinality limit to
+  30,000.
+* **High-Cardinality Attributes:** Delta temporality excels with attributes like
+  `user_id` where not all values appear simultaneously. Due to delta temporality's
+  state-clearing behavior and the fact that not all users are active within a
+  single interval, you can set a cardinality limit much lower than the total
+  possible cardinality. For example, even with millions of registered users, if
+  only 30,000 are active per interval (based on `500 RPS × 60 seconds`), the
+  cardinality limit can be set to 30,000 rather than millions.
+* **Export Interval Tuning:** Reducing export intervals lowers cardinality
+  requirements. With 30-second intervals: `500 × 30 = 15,000` measurements,
+  allowing a lower limit. However, balance this against increased serialization
+  and network overhead from more frequent exports.
+
+**3. Backend Compatibility Considerations:**
+
+While delta temporality offers significant advantages for cardinality
+management, your choice may be constrained by backend support:
+
+* **Backend Restrictions:** Some metrics backends only support cumulative
+  temporality. For example, Prometheus requires cumulative temporality and
+  cannot directly consume delta metrics.
+* **Collector Conversion:** To leverage delta temporality's memory advantages
+  while maintaining backend compatibility, configure your SDK to use delta
+  temporality and deploy an OpenTelemetry Collector with a delta-to-cumulative
+  conversion processor. This approach pushes the memory overhead from your
+  application to the collector, which can be more easily scaled and managed
+  independently.
+
+TODO: Add the memory cost incurred by each data points, so users can know the
+memory impact of setting a higher limits.
+
+TODO: Add example of how query can be affected when overflow occurs, use
+[Aspire](https://github.com/dotnet/aspire/pull/7784) tool.
 
 ### Memory Preallocation
 
