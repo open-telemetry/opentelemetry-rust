@@ -223,8 +223,8 @@ pub mod tonic {
                         explicit_bounds: dp.bounds().collect(),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        min: dp.min.map(Numeric::into_f64),
-                        max: dp.max.map(Numeric::into_f64),
+                        min: dp.min().map(Numeric::into_f64),
+                        max: dp.max().map(Numeric::into_f64),
                     })
                     .collect(),
                 aggregation_temporality: TonicTemporality::from(hist.temporality()).into(),
