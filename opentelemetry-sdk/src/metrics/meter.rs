@@ -96,7 +96,6 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
-                builder.cardinality_limit,
             )
             .map(|i| Counter::new(Arc::new(i)))
         {
@@ -139,7 +138,6 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
-            builder.cardinality_limit,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -199,7 +197,6 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
-            builder.cardinality_limit,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -259,7 +256,6 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
-            builder.cardinality_limit,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -321,7 +317,6 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
-                builder.cardinality_limit,
             )
             .map(|i| UpDownCounter::new(Arc::new(i)))
         {
@@ -366,7 +361,6 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
-                builder.cardinality_limit,
             )
             .map(|i| Gauge::new(Arc::new(i)))
         {
@@ -428,7 +422,6 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 builder.boundaries,
-                builder.cardinality_limit,
             )
             .map(|i| Histogram::new(Arc::new(i)))
         {
@@ -661,10 +654,8 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-        cardinality_limit: Option<usize>,
     ) -> MetricResult<ResolvedMeasures<T>> {
-        let aggregators =
-            self.measures(kind, name, description, unit, boundaries, cardinality_limit)?;
+        let aggregators = self.measures(kind, name, description, unit, boundaries)?;
         Ok(ResolvedMeasures {
             measures: aggregators,
         })
@@ -677,7 +668,6 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
-        cardinality_limit: Option<usize>,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
@@ -687,7 +677,7 @@ where
             scope: self.meter.scope.clone(),
         };
 
-        self.resolve.measures(inst, boundaries, cardinality_limit)
+        self.resolve.measures(inst, boundaries)
     }
 }
 
