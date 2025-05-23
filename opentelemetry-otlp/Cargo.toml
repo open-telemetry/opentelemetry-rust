@@ -45,8 +45,7 @@ serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
-# need tokio runtime to run smoke tests.
-opentelemetry_sdk = { features = ["trace", "rt-tokio", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { features = ["trace", "testing"], path = "../opentelemetry-sdk" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
