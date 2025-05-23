@@ -228,7 +228,7 @@ pub struct SumDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }

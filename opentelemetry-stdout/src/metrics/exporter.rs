@@ -135,7 +135,7 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
     }
 }
 
-fn print_sum<T: Debug>(sum: &Sum<T>) {
+fn print_sum<T: Debug + Copy>(sum: &Sum<T>) {
     println!("\t\tSum DataPoints");
     println!("\t\tMonotonic    : {}", sum.is_monotonic());
     if sum.temporality() == Temporality::Cumulative {
@@ -193,12 +193,12 @@ fn print_histogram<T: Debug + Copy>(histogram: &Histogram<T>) {
     print_hist_data_points(histogram.data_points());
 }
 
-fn print_sum_data_points<'a, T: Debug + 'a>(
+fn print_sum_data_points<'a, T: Debug + Copy + 'a>(
     data_points: impl Iterator<Item = &'a SumDataPoint<T>>,
 ) {
     for (i, data_point) in data_points.enumerate() {
         println!("\t\tDataPoint #{}", i);
-        println!("\t\t\tValue        : {:#?}", data_point.value);
+        println!("\t\t\tValue        : {:#?}", data_point.value());
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
             println!("\t\t\t\t ->  {}: {}", kv.key, kv.value.as_str());
