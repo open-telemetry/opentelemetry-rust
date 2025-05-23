@@ -225,7 +225,7 @@ impl TonicExporterBuilder {
         // If users for some reason want to use a custom path, they can use env var or builder to pass it
         //
         // programmatic configuration overrides any value set via environment variables
-        if let Some(endpoint) = provided_endpoint {
+        if let Some(endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
             endpoint
         } else if let Ok(endpoint) = env::var(default_endpoint_var) {
             endpoint
@@ -663,6 +663,17 @@ mod tests {
         run_env_test(vec![], || {
             let url =
                 TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None);
+            assert_eq!(url, "http://localhost:4317");
+        });
+    }
+
+    #[test]
+    fn test_use_default_when_empty_string_for_option() {
+        run_env_test(vec![], || {
+            let url = TonicExporterBuilder::resolve_endpoint(
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                Some(String::new()),
+            );
             assert_eq!(url, "http://localhost:4317");
         });
     }
