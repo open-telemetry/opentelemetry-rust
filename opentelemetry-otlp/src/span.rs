@@ -36,16 +36,19 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
 
+/// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]
 pub struct SpanExporterBuilder<C> {
     client: C,
 }
 
 impl SpanExporterBuilder<NoExporterBuilderSet> {
+    /// Create a new [SpanExporterBuilder] with default settings.
     pub fn new() -> Self {
         SpanExporterBuilder::default()
     }
 
+    /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> SpanExporterBuilder<TonicExporterBuilderSet> {
         SpanExporterBuilder {
@@ -53,6 +56,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
         }
     }
 
+    /// With the HTTP transport.
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     pub fn with_http(self) -> SpanExporterBuilder<HttpExporterBuilderSet> {
         SpanExporterBuilder {
@@ -63,6 +67,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl SpanExporterBuilder<TonicExporterBuilderSet> {
+    /// Build the [SpanExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         opentelemetry::otel_debug!(name: "SpanExporterBuilt");
@@ -72,6 +77,7 @@ impl SpanExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl SpanExporterBuilder<HttpExporterBuilderSet> {
+    /// Build the [SpanExporter] with the HTTP transport.
     pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
         let span_exporter = self.client.0.build_span_exporter()?;
         Ok(span_exporter)

@@ -19,6 +19,7 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
+use std::time::Duration;
 use std::{convert::Infallible, net::SocketAddr, sync::OnceLock};
 use tokio::net::TcpListener;
 use tracing::info;
@@ -131,7 +132,7 @@ impl SpanProcessor for EnrichWithBaggageSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 
