@@ -383,11 +383,6 @@ impl<T> HistogramDataPoint<T> {
     pub fn count(&self) -> u64 {
         self.count
     }
-
-    /// Returns the sum of the values recorded.
-    pub fn sum(&self) -> &T {
-        &self.sum
-    }
 }
 
 impl<T: Copy> HistogramDataPoint<T> {
@@ -399,6 +394,11 @@ impl<T: Copy> HistogramDataPoint<T> {
     /// Returns the maximum value recorded.
     pub fn max(&self) -> Option<T> {
         self.max
+    }
+
+    /// Returns the sum of the values recorded.
+    pub fn sum(&self) -> T {
+        self.sum
     }
 }
 
@@ -500,11 +500,6 @@ impl<T> ExponentialHistogramDataPoint<T> {
         self.count
     }
 
-    /// Returns the sum of the values recorded.
-    pub fn sum(&self) -> &T {
-        &self.sum
-    }
-
     /// Returns the resolution of the histogram.
     pub fn scale(&self) -> i8 {
         self.scale
@@ -540,6 +535,11 @@ impl<T: Copy> ExponentialHistogramDataPoint<T> {
     /// Returns the maximum value recorded.
     pub fn max(&self) -> Option<T> {
         self.max
+    }
+
+    /// Returns the sum of the values recorded.
+    pub fn sum(&self) -> T {
+        self.sum
     }
 }
 
