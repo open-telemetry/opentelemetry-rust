@@ -594,23 +594,42 @@ Consider these guidelines when determining the appropriate limit:
   above), use the same calculation approach as cumulative temporality.
 * For dynamic scenarios where not all combinations appear in every export cycle,
   base the limit on expected total measurements within a single interval.
-* **Example 1:** With a 60-second export interval and 1,000 measurements per
-  interval, set the cardinality limit to 1,000. Delta temporality allows the SDK
-  to reset after each export, accommodating different attribute combinations
-  across intervals without accumulating state.
+* **Example 1:** If your application generates at most 1,000 distinct attribute
+  combinations per export interval (regardless of the interval duration), set
+  the cardinality limit to 1,000. Delta temporality allows the SDK to reset
+  after each export, accommodating different attribute combinations across
+  intervals without accumulating state.
 * **Example 2:** For web applications with known Request Per Second (RPS) rates,
-  calculate the maximum measurements per interval: `RPS × Export Interval`. With
-  500 RPS and a 60-second interval: `500 × 60 = 30,000` measurements per cycle.
-  Set the cardinality limit to 30,000.
+  calculate the maximum measurements per interval: `RPS × Export Interval`
+  (assuming one measurement per request). With 500 RPS and a 60-second interval:
+  `500 × 60 = 30,000` measurements per cycle. Set the cardinality limit to
+  30,000.
 * **High-Cardinality Attributes:** Delta temporality excels with attributes like
-  `user_id` where not all values appear simultaneously. Base the limit on
-  concurrent active users within an interval rather than total possible users.
-  Using the same calculation (`500 RPS × 60 seconds = 30,000`), this
-  accommodates realistic concurrent user activity.
+  `user_id` where not all values appear simultaneously. Due to delta temporality's
+  state-clearing behavior and the fact that not all users are active within a
+  single interval, you can set a cardinality limit much lower than the total
+  possible cardinality. For example, even with millions of registered users, if
+  only 30,000 are active per interval (based on `500 RPS × 60 seconds`), the
+  cardinality limit can be set to 30,000 rather than millions.
 * **Export Interval Tuning:** Reducing export intervals lowers cardinality
   requirements. With 30-second intervals: `500 × 30 = 15,000` measurements,
   allowing a lower limit. However, balance this against increased serialization
   and network overhead from more frequent exports.
+
+**3. Backend Compatibility Considerations:**
+
+While delta temporality offers significant advantages for cardinality
+management, your choice may be constrained by backend support:
+
+* **Backend Restrictions:** Some metrics backends only support cumulative
+  temporality. For example, Prometheus requires cumulative temporality and
+  cannot directly consume delta metrics.
+* **Collector Conversion:** To leverage delta temporality's memory advantages
+  while maintaining backend compatibility, configure your SDK to use delta
+  temporality and deploy an OpenTelemetry Collector with a delta-to-cumulative
+  conversion processor. This approach pushes the memory overhead from your
+  application to the collector, which can be more easily scaled and managed
+  independently.
 
 TODO: Add the memory cost incurred by each data points, so users can know the
 memory impact of setting a higher limits.
