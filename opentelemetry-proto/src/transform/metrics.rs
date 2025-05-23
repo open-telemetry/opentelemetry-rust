@@ -215,19 +215,19 @@ pub mod tonic {
                     .data_points()
                     .map(|dp| TonicHistogramDataPoint {
                         attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(hist.start_time),
-                        time_unix_nano: to_nanos(hist.time),
-                        count: dp.count,
-                        sum: Some(dp.sum.into_f64()),
+                        start_time_unix_nano: to_nanos(hist.start_time()),
+                        time_unix_nano: to_nanos(hist.time()),
+                        count: dp.count(),
+                        sum: Some(dp.sum().into_f64()),
                         bucket_counts: dp.bucket_counts().collect(),
                         explicit_bounds: dp.bounds().collect(),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        min: dp.min.map(Numeric::into_f64),
-                        max: dp.max.map(Numeric::into_f64),
+                        min: dp.min().map(Numeric::into_f64),
+                        max: dp.max().map(Numeric::into_f64),
                     })
                     .collect(),
-                aggregation_temporality: TonicTemporality::from(hist.temporality).into(),
+                aggregation_temporality: TonicTemporality::from(hist.temporality()).into(),
             }
         }
     }
@@ -242,28 +242,28 @@ pub mod tonic {
                     .data_points()
                     .map(|dp| TonicExponentialHistogramDataPoint {
                         attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(hist.start_time),
-                        time_unix_nano: to_nanos(hist.time),
-                        count: dp.count as u64,
-                        sum: Some(dp.sum.into_f64()),
-                        scale: dp.scale.into(),
-                        zero_count: dp.zero_count,
+                        start_time_unix_nano: to_nanos(hist.start_time()),
+                        time_unix_nano: to_nanos(hist.time()),
+                        count: dp.count() as u64,
+                        sum: Some(dp.sum().into_f64()),
+                        scale: dp.scale().into(),
+                        zero_count: dp.zero_count(),
                         positive: Some(TonicBuckets {
-                            offset: dp.positive_bucket.offset,
-                            bucket_counts: dp.positive_bucket.counts.clone(),
+                            offset: dp.positive_bucket().offset(),
+                            bucket_counts: dp.positive_bucket().counts().collect(),
                         }),
                         negative: Some(TonicBuckets {
-                            offset: dp.negative_bucket.offset,
-                            bucket_counts: dp.negative_bucket.counts.clone(),
+                            offset: dp.negative_bucket().offset(),
+                            bucket_counts: dp.negative_bucket().counts().collect(),
                         }),
                         flags: TonicDataPointFlags::default() as u32,
                         exemplars: dp.exemplars().map(Into::into).collect(),
-                        min: dp.min.map(Numeric::into_f64),
-                        max: dp.max.map(Numeric::into_f64),
-                        zero_threshold: dp.zero_threshold,
+                        min: dp.min().map(Numeric::into_f64),
+                        max: dp.max().map(Numeric::into_f64),
+                        zero_threshold: dp.zero_threshold(),
                     })
                     .collect(),
-                aggregation_temporality: TonicTemporality::from(hist.temporality).into(),
+                aggregation_temporality: TonicTemporality::from(hist.temporality()).into(),
             }
         }
     }
@@ -278,15 +278,15 @@ pub mod tonic {
                     .data_points()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(sum.start_time),
-                        time_unix_nano: to_nanos(sum.time),
+                        start_time_unix_nano: to_nanos(sum.start_time()),
+                        time_unix_nano: to_nanos(sum.time()),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value.into()),
+                        value: Some(dp.value().into()),
                     })
                     .collect(),
-                aggregation_temporality: TonicTemporality::from(sum.temporality).into(),
-                is_monotonic: sum.is_monotonic,
+                aggregation_temporality: TonicTemporality::from(sum.temporality()).into(),
+                is_monotonic: sum.is_monotonic(),
             }
         }
     }
@@ -301,11 +301,11 @@ pub mod tonic {
                     .data_points()
                     .map(|dp| TonicNumberDataPoint {
                         attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: gauge.start_time.map(to_nanos).unwrap_or_default(),
-                        time_unix_nano: to_nanos(gauge.time),
+                        start_time_unix_nano: gauge.start_time().map(to_nanos).unwrap_or_default(),
+                        time_unix_nano: to_nanos(gauge.time()),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value.into()),
+                        value: Some(dp.value().into()),
                     })
                     .collect(),
             }
@@ -322,9 +322,9 @@ pub mod tonic {
                     .filtered_attributes()
                     .map(|kv| (&kv.key, &kv.value).into())
                     .collect(),
-                time_unix_nano: to_nanos(ex.time),
-                span_id: ex.span_id.into(),
-                trace_id: ex.trace_id.into(),
+                time_unix_nano: to_nanos(ex.time()),
+                span_id: ex.span_id().into(),
+                trace_id: ex.trace_id().into(),
                 value: Some(ex.value.into()),
             }
         }
