@@ -2,6 +2,11 @@
 
 ## vNext
 
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` and `opentelemetry-http` dependencies to version 0.30.0.
 - It is now possible to add links to a `Span` via the `SpanRef` that you get from
   a `Context`. [2959](https://github.com/open-telemetry/opentelemetry-rust/pull/2959)
 - **Feature**: Added context based telemetry suppression. [#2868](https://github.com/open-telemetry/opentelemetry-rust/pull/2868)
@@ -664,8 +669,7 @@ Released 2024-Sep-30
   Update `LogProcessor::emit()` method to take mutable reference to LogData. This is breaking
   change for LogProcessor developers. If the processor needs to invoke the exporter
   asynchronously, it should clone the data to ensure it can be safely processed without
-  lifetime issues. Any changes made to the log data before cloning in this method will be
-  reflected in the next log processor in the chain, as well as to the exporter.
+  lifetime issues. Any changes made to the log data before cloning in this method will be reflected in the next log processor in the chain, as well as to the exporter.
 - *Breaking* [1726](https://github.com/open-telemetry/opentelemetry-rust/pull/1726)
  Update `LogExporter::export()` method to accept a batch of log data, which can be either a
  reference or owned`LogData`. If the exporter needs to process the log data

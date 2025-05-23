@@ -2,6 +2,14 @@
 
 ## vNext
 
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` dependency to version 0.30.0.
+- Updated `opentelemetry_sdk` dependency to version 0.30.0.
+- Updated `opentelemetry-http` dependency to version 0.30.0.
+
 ## 0.29.0
 
 Released 2025-Mar-21

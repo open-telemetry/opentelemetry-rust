@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.29.0"
+version = "0.30.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -54,8 +54,8 @@ with-serde = ["serde", "hex", "base64"]
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
-opentelemetry = { version = "0.29", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.29", default-features = false, path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.30", default-features = false, path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.30", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive"] }
 hex = { workspace = true, optional = true }
