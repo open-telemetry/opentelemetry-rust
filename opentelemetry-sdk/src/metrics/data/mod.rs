@@ -531,7 +531,7 @@ impl<T> ExponentialHistogramDataPoint<T> {
     }
 }
 
-impl <T: Copy> ExponentialHistogramDataPoint<T> {
+impl<T: Copy> ExponentialHistogramDataPoint<T> {
     /// Returns the minimum value recorded.
     pub fn min(&self) -> Option<T> {
         self.min
