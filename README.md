@@ -35,11 +35,11 @@ documentation.
 | Baggage               | RC                 |
 | Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | Stable              |
+| Logs-SDK              | Stable             |
 | Logs-OTLP Exporter    | RC                 |
 | Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
-| Metrics-SDK           | RC                 |
+| Metrics-SDK           | Stable             |
 | Metrics-OTLP Exporter | RC                 |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
