@@ -169,7 +169,7 @@ pub struct GaugeDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -183,6 +183,13 @@ impl<T> GaugeDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+impl<T: Copy> GaugeDataPoint<T> {
+    /// Returns the value of this data point.
+    pub fn value(&self) -> T {
+        self.value
     }
 }
 
@@ -235,6 +242,13 @@ impl<T> SumDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+impl<T: Copy> SumDataPoint<T> {
+    /// Returns the value of this data point.
+    pub fn value(&self) -> T {
+        self.value
     }
 }
 
@@ -334,9 +348,9 @@ pub struct HistogramDataPoint<T> {
     pub(crate) bucket_counts: Vec<u64>,
 
     /// The minimum value recorded.
-    pub min: Option<T>,
+    pub(crate) min: Option<T>,
     /// The maximum value recorded.
-    pub max: Option<T>,
+    pub(crate) max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
 
@@ -373,6 +387,18 @@ impl<T> HistogramDataPoint<T> {
     /// Returns the sum of the values recorded.
     pub fn sum(&self) -> &T {
         &self.sum
+    }
+}
+
+impl<T: Copy> HistogramDataPoint<T> {
+    /// Returns the minimum value recorded.
+    pub fn min(&self) -> Option<T> {
+        self.min
+    }
+
+    /// Returns the maximum value recorded.
+    pub fn max(&self) -> Option<T> {
+        self.max
     }
 }
 

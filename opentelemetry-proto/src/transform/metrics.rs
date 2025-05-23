@@ -282,7 +282,7 @@ pub mod tonic {
                         time_unix_nano: to_nanos(sum.time()),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value.into()),
+                        value: Some(dp.value().into()),
                     })
                     .collect(),
                 aggregation_temporality: TonicTemporality::from(sum.temporality()).into(),
@@ -305,7 +305,7 @@ pub mod tonic {
                         time_unix_nano: to_nanos(gauge.time()),
                         exemplars: dp.exemplars().map(Into::into).collect(),
                         flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value.into()),
+                        value: Some(dp.value().into()),
                     })
                     .collect(),
             }
