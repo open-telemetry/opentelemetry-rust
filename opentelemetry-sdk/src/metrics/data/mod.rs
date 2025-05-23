@@ -169,7 +169,7 @@ pub struct GaugeDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -186,21 +186,38 @@ impl<T> GaugeDataPoint<T> {
     }
 }
 
+impl<T: Copy> GaugeDataPoint<T> {
+    /// Returns the value of this data point.
+    pub fn value(&self) -> T {
+        self.value
+    }
+}
+
 /// A measurement of the current value of an instrument.
 #[derive(Debug, Clone)]
 pub struct Gauge<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub(crate) data_points: Vec<GaugeDataPoint<T>>,
     /// The time when the time series was started.
-    pub start_time: Option<SystemTime>,
+    pub(crate) start_time: Option<SystemTime>,
     /// The time when the time series was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
 }
 
 impl<T> Gauge<T> {
     /// Returns an iterator over the [GaugeDataPoint]s in [Gauge].
     pub fn data_points(&self) -> impl Iterator<Item = &GaugeDataPoint<T>> {
         self.data_points.iter()
+    }
+
+    /// Returns the time when the time series was started.
+    pub fn start_time(&self) -> Option<SystemTime> {
+        self.start_time
+    }
+
+    /// Returns the time when the time series was recorded.
+    pub fn time(&self) -> SystemTime {
+        self.time
     }
 }
 
@@ -211,7 +228,7 @@ pub struct SumDataPoint<T> {
     /// time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The value of this data point.
-    pub value: T,
+    pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
 }
@@ -228,26 +245,54 @@ impl<T> SumDataPoint<T> {
     }
 }
 
+impl<T: Copy> SumDataPoint<T> {
+    /// Returns the value of this data point.
+    pub fn value(&self) -> T {
+        self.value
+    }
+}
+
 /// Represents the sum of all measurements of values from an instrument.
 #[derive(Debug, Clone)]
 pub struct Sum<T> {
     /// Represents individual aggregated measurements with unique attributes.
     pub(crate) data_points: Vec<SumDataPoint<T>>,
     /// The time when the time series was started.
-    pub start_time: SystemTime,
+    pub(crate) start_time: SystemTime,
     /// The time when the time series was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
-    pub temporality: Temporality,
+    pub(crate) temporality: Temporality,
     /// Whether this aggregation only increases or decreases.
-    pub is_monotonic: bool,
+    pub(crate) is_monotonic: bool,
 }
 
 impl<T> Sum<T> {
     /// Returns an iterator over the [SumDataPoint]s in [Sum].
     pub fn data_points(&self) -> impl Iterator<Item = &SumDataPoint<T>> {
         self.data_points.iter()
+    }
+
+    /// Returns the time when the time series was started.
+    pub fn start_time(&self) -> SystemTime {
+        self.start_time
+    }
+
+    /// Returns the time when the time series was recorded.
+    pub fn time(&self) -> SystemTime {
+        self.time
+    }
+
+    /// Returns the temporality describing if the aggregation is reported as the change
+    /// from the last report time, or the cumulative changes since a fixed start time.
+    pub fn temporality(&self) -> Temporality {
+        self.temporality
+    }
+
+    /// Returns whether this aggregation only increases or decreases.
+    pub fn is_monotonic(&self) -> bool {
+        self.is_monotonic
     }
 }
 
@@ -257,18 +302,34 @@ pub struct Histogram<T> {
     /// Individual aggregated measurements with unique attributes.
     pub(crate) data_points: Vec<HistogramDataPoint<T>>,
     /// The time when the time series was started.
-    pub start_time: SystemTime,
+    pub(crate) start_time: SystemTime,
     /// The time when the time series was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
-    pub temporality: Temporality,
+    pub(crate) temporality: Temporality,
 }
 
 impl<T> Histogram<T> {
     /// Returns an iterator over the [HistogramDataPoint]s in [Histogram].
     pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
         self.data_points.iter()
+    }
+
+    /// Returns the time when the time series was started.
+    pub fn start_time(&self) -> SystemTime {
+        self.start_time
+    }
+
+    /// Returns the time when the time series was recorded.
+    pub fn time(&self) -> SystemTime {
+        self.time
+    }
+
+    /// Returns the temporality describing if the aggregation is reported as the change
+    /// from the last report time, or the cumulative changes since a fixed start time.
+    pub fn temporality(&self) -> Temporality {
+        self.temporality
     }
 }
 
@@ -278,7 +339,7 @@ pub struct HistogramDataPoint<T> {
     /// The set of key value pairs that uniquely identify the time series.
     pub(crate) attributes: Vec<KeyValue>,
     /// The number of updates this histogram has been calculated with.
-    pub count: u64,
+    pub(crate) count: u64,
     /// The upper bounds of the buckets of the histogram.
     ///
     /// Because the last boundary is +infinity this one is implied.
@@ -287,11 +348,11 @@ pub struct HistogramDataPoint<T> {
     pub(crate) bucket_counts: Vec<u64>,
 
     /// The minimum value recorded.
-    pub min: Option<T>,
+    pub(crate) min: Option<T>,
     /// The maximum value recorded.
-    pub max: Option<T>,
+    pub(crate) max: Option<T>,
     /// The sum of the values recorded.
-    pub sum: T,
+    pub(crate) sum: T,
 
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
@@ -317,6 +378,28 @@ impl<T> HistogramDataPoint<T> {
     pub fn bucket_counts(&self) -> impl Iterator<Item = u64> + '_ {
         self.bucket_counts.iter().copied()
     }
+
+    /// Returns the number of updates this histogram has been calculated with.
+    pub fn count(&self) -> u64 {
+        self.count
+    }
+}
+
+impl<T: Copy> HistogramDataPoint<T> {
+    /// Returns the minimum value recorded.
+    pub fn min(&self) -> Option<T> {
+        self.min
+    }
+
+    /// Returns the maximum value recorded.
+    pub fn max(&self) -> Option<T> {
+        self.max
+    }
+
+    /// Returns the sum of the values recorded.
+    pub fn sum(&self) -> T {
+        self.sum
+    }
 }
 
 /// The histogram of all measurements of values from an instrument.
@@ -325,18 +408,34 @@ pub struct ExponentialHistogram<T> {
     /// The individual aggregated measurements with unique attributes.
     pub(crate) data_points: Vec<ExponentialHistogramDataPoint<T>>,
     /// When the time series was started.
-    pub start_time: SystemTime,
+    pub(crate) start_time: SystemTime,
     /// The time when the time series was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
     /// Describes if the aggregation is reported as the change from the last report
     /// time, or the cumulative changes since a fixed start time.
-    pub temporality: Temporality,
+    pub(crate) temporality: Temporality,
 }
 
 impl<T> ExponentialHistogram<T> {
     /// Returns an iterator over the [ExponentialHistogramDataPoint]s in [ExponentialHistogram].
     pub fn data_points(&self) -> impl Iterator<Item = &ExponentialHistogramDataPoint<T>> {
         self.data_points.iter()
+    }
+
+    /// Returns the time when the time series was started.
+    pub fn start_time(&self) -> SystemTime {
+        self.start_time
+    }
+
+    /// Returns the time when the time series was recorded.
+    pub fn time(&self) -> SystemTime {
+        self.time
+    }
+
+    /// Returns the temporality describing if the aggregation is reported as the change
+    /// from the last report time, or the cumulative changes since a fixed start time.
+    pub fn temporality(&self) -> Temporality {
+        self.temporality
     }
 }
 
@@ -347,20 +446,20 @@ pub struct ExponentialHistogramDataPoint<T> {
     pub(crate) attributes: Vec<KeyValue>,
 
     /// The number of updates this histogram has been calculated with.
-    pub count: usize,
+    pub(crate) count: usize,
     /// The minimum value recorded.
-    pub min: Option<T>,
+    pub(crate) min: Option<T>,
     /// The maximum value recorded.
-    pub max: Option<T>,
+    pub(crate) max: Option<T>,
     /// The sum of the values recorded.
-    pub sum: T,
+    pub(crate) sum: T,
 
     /// Describes the resolution of the histogram.
     ///
     /// Boundaries are located at powers of the base, where:
     ///
     ///   base = 2 ^ (2 ^ -scale)
-    pub scale: i8,
+    pub(crate) scale: i8,
 
     /// The number of values whose absolute value is less than or equal to
     /// `zero_threshold`.
@@ -368,18 +467,18 @@ pub struct ExponentialHistogramDataPoint<T> {
     /// When `zero_threshold` is `0`, this is the number of values that cannot be
     /// expressed using the standard exponential formula as well as values that have
     /// been rounded to zero.
-    pub zero_count: u64,
+    pub(crate) zero_count: u64,
 
     /// The range of positive value bucket counts.
-    pub positive_bucket: ExponentialBucket,
+    pub(crate) positive_bucket: ExponentialBucket,
     /// The range of negative value bucket counts.
-    pub negative_bucket: ExponentialBucket,
+    pub(crate) negative_bucket: ExponentialBucket,
 
     /// The width of the zero region.
     ///
     /// Where the zero region is defined as the closed interval
     /// [-zero_threshold, zero_threshold].
-    pub zero_threshold: f64,
+    pub(crate) zero_threshold: f64,
 
     /// The sampled exemplars collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
@@ -395,19 +494,78 @@ impl<T> ExponentialHistogramDataPoint<T> {
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
     }
+
+    /// Returns the number of updates this histogram has been calculated with.
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    /// Returns the resolution of the histogram.
+    pub fn scale(&self) -> i8 {
+        self.scale
+    }
+
+    /// Returns the number of values whose absolute value is less than or equal to zero_threshold.
+    pub fn zero_count(&self) -> u64 {
+        self.zero_count
+    }
+
+    /// Returns the range of positive value bucket counts.
+    pub fn positive_bucket(&self) -> &ExponentialBucket {
+        &self.positive_bucket
+    }
+
+    /// Returns the range of negative value bucket counts.
+    pub fn negative_bucket(&self) -> &ExponentialBucket {
+        &self.negative_bucket
+    }
+
+    /// Returns the width of the zero region.
+    pub fn zero_threshold(&self) -> f64 {
+        self.zero_threshold
+    }
+}
+
+impl<T: Copy> ExponentialHistogramDataPoint<T> {
+    /// Returns the minimum value recorded.
+    pub fn min(&self) -> Option<T> {
+        self.min
+    }
+
+    /// Returns the maximum value recorded.
+    pub fn max(&self) -> Option<T> {
+        self.max
+    }
+
+    /// Returns the sum of the values recorded.
+    pub fn sum(&self) -> T {
+        self.sum
+    }
 }
 
 /// A set of bucket counts, encoded in a contiguous array of counts.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExponentialBucket {
     /// The bucket index of the first entry in the `counts` vec.
-    pub offset: i32,
+    pub(crate) offset: i32,
 
     /// A vec where `counts[i]` carries the count of the bucket at index `offset + i`.
     ///
     /// `counts[i]` is the count of values greater than base^(offset+i) and less than
     /// or equal to base^(offset+i+1).
-    pub counts: Vec<u64>,
+    pub(crate) counts: Vec<u64>,
+}
+
+impl ExponentialBucket {
+    /// Returns the bucket index of the first entry in the counts vec.
+    pub fn offset(&self) -> i32 {
+        self.offset
+    }
+
+    /// Returns an iterator over the counts.
+    pub fn counts(&self) -> impl Iterator<Item = u64> + '_ {
+        self.counts.iter().copied()
+    }
 }
 
 /// A measurement sampled from a time series providing a typical example.
@@ -417,23 +575,38 @@ pub struct Exemplar<T> {
     /// time series' aggregated data.
     pub(crate) filtered_attributes: Vec<KeyValue>,
     /// The time when the measurement was recorded.
-    pub time: SystemTime,
+    pub(crate) time: SystemTime,
     /// The measured value.
     pub value: T,
     /// The ID of the span that was active during the measurement.
     ///
     /// If no span was active or the span was not sampled this will be empty.
-    pub span_id: [u8; 8],
+    pub(crate) span_id: [u8; 8],
     /// The ID of the trace the active span belonged to during the measurement.
     ///
     /// If no span was active or the span was not sampled this will be empty.
-    pub trace_id: [u8; 16],
+    pub(crate) trace_id: [u8; 16],
 }
 
 impl<T> Exemplar<T> {
     /// Returns an iterator over the filtered attributes in [Exemplar].
     pub fn filtered_attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.filtered_attributes.iter()
+    }
+
+    /// Returns the time when the measurement was recorded.
+    pub fn time(&self) -> SystemTime {
+        self.time
+    }
+
+    /// Returns the ID of the span that was active during the measurement.
+    pub fn span_id(&self) -> &[u8; 8] {
+        &self.span_id
+    }
+
+    /// Returns the ID of the trace the active span belonged to during the measurement.
+    pub fn trace_id(&self) -> &[u8; 16] {
+        &self.trace_id
     }
 }
 
