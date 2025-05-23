@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.29.0"
+version = "0.30.0"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
@@ -11,8 +11,8 @@ rust-version = "1.75.0"
 autobenches = false
 
 [dependencies]
-opentelemetry = { version = "0.29", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.29", path = "../opentelemetry-http", optional = true }
+opentelemetry = { version = "0.30", path = "../opentelemetry/" }
+opentelemetry-http = { version = "0.30", path = "../opentelemetry-http", optional = true }
 futures-channel = { workspace = true }
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }

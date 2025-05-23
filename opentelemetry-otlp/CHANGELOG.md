@@ -2,6 +2,14 @@
 
 ## vNext
 
+## 0.30.0
+
+Released 2025-May-23
+
+- Update `opentelemetry` dependency version to 0.30
+- Update `opentelemetry_sdk` dependency version to 0.30
+- Update `opentelemetry-http` dependency version to 0.30
+- Update `opentelemetry-proto` dependency version to 0.30
 - Update `tonic` dependency version to 0.13
 - Re-export `tonic` types under `tonic_types`
   [2898](https://github.com/open-telemetry/opentelemetry-rust/pull/2898)

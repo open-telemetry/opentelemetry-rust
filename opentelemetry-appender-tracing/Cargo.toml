@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-tracing"
-version = "0.29.1"
+version = "0.30.0"
 edition = "2021"
 description = "An OpenTelemetry log appender for the tracing crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-tracing"
@@ -13,12 +13,12 @@ autobenches = false
 
 [dependencies]
 log = { workspace = true, optional = true }
-opentelemetry = { version = "0.29", path = "../opentelemetry", features = ["logs"] }
+opentelemetry = { version = "0.30", path = "../opentelemetry", features = ["logs"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-core = { workspace = true }
 tracing-log = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
-tracing-opentelemetry = { workspace = true, optional = true }
+# tracing-opentelemetry = { workspace = true, optional = true }
 
 [dev-dependencies]
 log = { workspace = true }
@@ -37,7 +37,8 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
 default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
-experimental_use_tracing_span_context = ["tracing-opentelemetry"]
+# TODO: Enable this back in 0.30.1 after tracing-opentelemetry is released
+# experimental_use_tracing_span_context = ["tracing-opentelemetry"]
 
 
 [[bench]]
