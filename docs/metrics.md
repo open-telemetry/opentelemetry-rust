@@ -579,23 +579,26 @@ Consider these guidelines when determining the appropriate limit:
 
 **1. For Cumulative Temporality:**
 
-* Cumulative metrics retain their state across export cycles, so the total
-  cardinality equals the Cartesian product of all attribute combinations.
-* **Example:** Using the fruit sales example, if the metric has two attributes
-  (`name` with 2 possible values and `color` with 3 possible values), the total
-  cardinality is `2 × 3 = 6`. The cardinality limit can hence be set to 6.
+* Cumulative metrics keep track of every unique attribute combination that has
+  ever been seen, so you need to account for the maximum number of combinations
+  that could exist. Calculate this by multiplying the number of possible values
+  (i.e cardinality) for each attribute.
+* **Example:** Using the fruit sales example, if you have a `name` attribute
+  that can be either "apple" or "lemon" (2 values) and a `color` attribute that
+  can be "red", "yellow", or "green" (3 values), then you could potentially see
+  `2 × 3 = 6` different combinations. Set your cardinality limit to 6.
 
 **2. For Delta Temporality:**
 
 * Delta temporality resets aggregations after each export cycle, enabling more
   flexible cardinality management based on actual usage patterns rather than
   theoretical maximums.
-* When all possible attribute combinations are known (eg: Fruit example from
+* When all possible attribute combinations are known (eg: fruit sales example from
   above), use the same calculation approach as cumulative temporality.
 * For dynamic scenarios where not all combinations appear in every export cycle,
   base the limit on expected total measurements within a single interval.
 * **Example 1:** If your application generates at most 1,000 distinct attribute
-  combinations per export interval (regardless of the interval duration), set
+  combinations per export interval, set
   the cardinality limit to 1,000. Delta temporality allows the SDK to reset
   after each export, accommodating different attribute combinations across
   intervals without accumulating state.
