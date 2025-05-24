@@ -148,6 +148,7 @@ where
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             let mut log_record = self.logger.create_log_record();
+            log_record.set_observed_timestamp(std::time::SystemTime::now());
             log_record.set_severity_number(severity_of_level(record.level()));
             log_record.set_severity_text(record.level().as_str());
             log_record.set_body(AnyValue::from(record.args().to_string()));
