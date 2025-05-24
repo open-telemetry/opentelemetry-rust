@@ -7,7 +7,7 @@ pub mod tonic {
         tonic::{Attributes, ResourceAttributesWithSchema},
     };
     use opentelemetry::trace;
-    use opentelemetry::trace::{Link, SpanId, SpanKind};
+    use opentelemetry::trace::{SpanId, SpanKind};
     use opentelemetry_sdk::trace::SpanData;
     use std::collections::HashMap;
 
@@ -33,18 +33,6 @@ pub mod tonic {
         }
     }
 
-    impl From<Link> for span::Link {
-        fn from(link: Link) -> Self {
-            span::Link {
-                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
-                span_id: link.span_context.span_id().to_bytes().to_vec(),
-                trace_state: link.span_context.trace_state().header(),
-                attributes: Attributes::from(link.attributes).0,
-                dropped_attributes_count: link.dropped_attributes_count,
-                flags: link.span_context.trace_flags().to_u8() as u32,
-            }
-        }
-    }
     impl From<opentelemetry_sdk::trace::SpanData> for Span {
         fn from(source_span: opentelemetry_sdk::trace::SpanData) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
@@ -74,11 +62,22 @@ pub mod tonic {
                         time_unix_nano: to_nanos(event.timestamp),
                         name: event.name.into(),
                         attributes: Attributes::from(event.attributes).0,
-                        dropped_attributes_count: event.dropped_attributes_count,
+                        dropped_attributes_count: source_span.dropped_attributes_count,
                     })
                     .collect(),
                 dropped_links_count: source_span.links.dropped_count,
-                links: source_span.links.into_iter().map(Into::into).collect(),
+                links: source_span
+                    .links
+                    .into_iter()
+                    .map(|link| span::Link {
+                        trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: link.span_context.span_id().to_bytes().to_vec(),
+                        trace_state: link.span_context.trace_state().header(),
+                        attributes: Attributes::from(link.attributes).0,
+                        dropped_attributes_count: source_span.dropped_attributes_count,
+                        flags: link.span_context.trace_flags().to_u8() as u32,
+                    })
+                    .collect(),
                 status: Some(Status {
                     code: status::StatusCode::from(&source_span.status).into(),
                     message: match source_span.status {
@@ -133,11 +132,22 @@ pub mod tonic {
                                 time_unix_nano: to_nanos(event.timestamp),
                                 name: event.name.into(),
                                 attributes: Attributes::from(event.attributes).0,
-                                dropped_attributes_count: event.dropped_attributes_count,
+                                dropped_attributes_count: source_span.dropped_attributes_count,
                             })
                             .collect(),
                         dropped_links_count: source_span.links.dropped_count,
-                        links: source_span.links.into_iter().map(Into::into).collect(),
+                        links: source_span
+                            .links
+                            .into_iter()
+                            .map(|link| span::Link {
+                                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                                span_id: link.span_context.span_id().to_bytes().to_vec(),
+                                trace_state: link.span_context.trace_state().header(),
+                                attributes: Attributes::from(link.attributes).0,
+                                dropped_attributes_count: source_span.dropped_attributes_count,
+                                flags: link.span_context.trace_flags().to_u8() as u32,
+                            })
+                            .collect(),
                         status: Some(Status {
                             code: status::StatusCode::from(&source_span.status).into(),
                             message: match source_span.status {

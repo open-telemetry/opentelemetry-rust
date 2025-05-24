@@ -199,10 +199,6 @@ pub struct Event {
 
     /// Attributes that describe this event.
     pub attributes: Vec<KeyValue>,
-
-    /// The number of attributes that were above the configured limit, and thus
-    /// dropped.
-    pub dropped_attributes_count: u32,
 }
 
 impl Event {
@@ -211,13 +207,11 @@ impl Event {
         name: T,
         timestamp: time::SystemTime,
         attributes: Vec<KeyValue>,
-        dropped_attributes_count: u32,
     ) -> Self {
         Event {
             name: name.into(),
             timestamp,
             attributes,
-            dropped_attributes_count,
         }
     }
 
@@ -227,7 +221,6 @@ impl Event {
             name: name.into(),
             timestamp: crate::time::now(),
             attributes: Vec::new(),
-            dropped_attributes_count: 0,
         }
     }
 }
@@ -243,23 +236,14 @@ pub struct Link {
 
     /// Attributes that describe this link.
     pub attributes: Vec<KeyValue>,
-
-    /// The number of attributes that were above the configured limit, and thus
-    /// dropped.
-    pub dropped_attributes_count: u32,
 }
 
 impl Link {
     /// Create new `Link`
-    pub fn new(
-        span_context: SpanContext,
-        attributes: Vec<KeyValue>,
-        dropped_attributes_count: u32,
-    ) -> Self {
+    pub fn new(span_context: SpanContext, attributes: Vec<KeyValue>) -> Self {
         Link {
             span_context,
             attributes,
-            dropped_attributes_count,
         }
     }
 
@@ -268,7 +252,6 @@ impl Link {
         Link {
             span_context,
             attributes: Vec::new(),
-            dropped_attributes_count: 0,
         }
     }
 }
