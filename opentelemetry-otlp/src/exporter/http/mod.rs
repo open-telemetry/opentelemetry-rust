@@ -167,7 +167,7 @@ impl HttpExporterBuilder {
                 all(feature = "reqwest-client", feature = "reqwest-blocking-client")
             ))]
             {
-                panic!("Can't enable more than one HTTP client features simultaneously. Please choose only one: hyper-client, reqwest-client, or reqwest-blocking-client (default feature)");
+                return Err(ExporterBuildError::InternalFailure("Can't enable more than one HTTP client features simultaneously. Please choose only one: hyper-client, reqwest-client, or reqwest-blocking-client (default feature)".to_string()));
             }
         }
 
@@ -756,13 +756,18 @@ mod tests {
         all(feature = "reqwest-client", feature = "reqwest-blocking-client")
     ))]
     #[test]
-    #[should_panic(expected = "Can't enable more than one HTTP client features simultaneously.")]
     fn test_http_exporter_builder_panics_with_multiple_http_features() {
         let mut builder = HttpExporterBuilder {
             http_config: HttpConfig::default(),
             exporter_config: crate::ExportConfig::default(),
         };
 
-        let _ = builder.build_client("ENV_VAR_1", "PATH", "ENV_VAR_2", "ENV_VAR_3");
+        let client = builder.build_client("ENV_VAR_1", "PATH", "ENV_VAR_2", "ENV_VAR_3");
+
+        assert!(client.is_err());
+        assert!(client
+            .unwrap_err()
+            .to_string()
+            .contains("Can't enable more than one HTTP client features simultaneously."))
     }
 }
