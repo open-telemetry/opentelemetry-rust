@@ -85,15 +85,23 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .with_description("My histogram example description")
         .build();
 
-    // Record measurements using the histogram instrument.
-    // This metric will have a cardinality limit of 2,
-    // as set in the view. Because of this, only the first two
-    // measurements will be recorded, and the rest will be folded
-    // into the overflow attribute.
+    // Record measurements using the histogram instrument. This metric will have
+    // a cardinality limit of 2, as set in the view. Because of this, only the
+    // first two distinct attribute combinations will be recorded, and the rest
+    // will be folded into the overflow attribute. Any number of measurements
+    // can be recorded as long as they use the same or already-seen attribute
+    // combinations.
     histogram2.record(1.5, &[KeyValue::new("mykey1", "v1")]);
-
     histogram2.record(1.2, &[KeyValue::new("mykey1", "v2")]);
 
+    // Repeatedly emitting measurements for "v1" and "v2" will not
+    // trigger overflow, as they are already seen attribute combinations.
+    histogram2.record(1.7, &[KeyValue::new("mykey1", "v1")]);
+    histogram2.record(1.8, &[KeyValue::new("mykey1", "v2")]);
+
+    // Emitting measurements for new attribute combinations will trigger
+    // overflow, as the cardinality limit of 2 has been reached.
+    // All the below measurements will be folded into the overflow attribute.
     histogram2.record(1.23, &[KeyValue::new("mykey1", "v3")]);
 
     histogram2.record(1.4, &[KeyValue::new("mykey1", "v4")]);
@@ -104,9 +112,9 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     histogram2.record(1.8, &[KeyValue::new("mykey1", "v7")]);
 
-    // Metrics are exported by default every 30 seconds when using stdout exporter,
+    // Metrics are exported by default every 60 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
-    // the metrics, instead of waiting for the 30 sec interval.
+    // the metrics, instead of waiting for the 60 sec interval.
     meter_provider.shutdown()?;
     Ok(())
 }
