@@ -756,7 +756,7 @@ mod tests {
         all(feature = "reqwest-client", feature = "reqwest-blocking-client")
     ))]
     #[test]
-    fn test_http_exporter_builder_panics_with_multiple_http_features() {
+    fn test_http_exporter_builder_returns_error_with_multiple_http_features() {
         let mut builder = HttpExporterBuilder {
             http_config: HttpConfig::default(),
             exporter_config: crate::ExportConfig::default(),
