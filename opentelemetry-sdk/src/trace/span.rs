@@ -269,7 +269,7 @@ impl Drop for Span {
 /// use opentelemetry_sdk::trace::{FinishedSpan, ReadableSpan};
 /// fn on_end(span: &mut FinishedSpan) {
 ///     // Read the span data without consuming it
-///     if span.name() != "my_span" {
+///     if span.name() != Some("my_span") {
 ///         return;
 ///     }
 ///     // Consume the span data, potentially cloning it
@@ -342,7 +342,7 @@ impl ReadableSpan for FinishedSpan {
     }
 
     fn name(&self) -> Option<&str> {
-        Some(&self.span.as_ref()?.name)
+        Some(&self.span_data_ref().name)
     }
     fn start_time(&self) -> Option<SystemTime> {
         Some(self.span_data_ref().start_time)
@@ -558,9 +558,9 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
         DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
-    use crate::trace::{SpanEvents, SpanLinks, SpanProcessor};
+    use crate::trace::{SdkTracer, SpanEvents, SpanLinks, SpanProcessor};
     use opentelemetry::trace::{
-        self, Span as _, SpanBuilder, TraceFlags, TraceId, Tracer, TracerProvider,
+        self, SamplingResult, Span as _, SpanBuilder, TraceFlags, TraceId, Tracer, TracerProvider,
     };
     use std::time::Duration;
     use std::vec;
@@ -989,6 +989,82 @@ mod tests {
         assert_eq!(event_vec.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
     }
 
+    fn make_test_span(tracer: &SdkTracer, sampling_decision: trace::SamplingDecision) -> Span {
+        tracer
+            .span_builder("test_span")
+            .with_sampling_result(SamplingResult {
+                decision: sampling_decision,
+                attributes: vec![],
+                trace_state: Default::default(),
+            })
+            .with_attributes(vec![KeyValue::new("k", "v")])
+            .with_kind(SpanKind::Client)
+            .with_events(vec![Event::with_name("test_event")])
+            .with_links(vec![Link::with_context(SpanContext::new(
+                TraceId::from_bytes((1234_u128).to_ne_bytes()),
+                SpanId::from_bytes((5678_u64).to_ne_bytes()),
+                Default::default(),
+                false,
+                Default::default(),
+            ))])
+            .with_span_id(SpanId::from_bytes((1337_u64).to_ne_bytes()))
+            .start(tracer)
+    }
+
+    #[test]
+    fn test_readable_span() {
+        use super::ReadableSpan;
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(NoopSpanExporter::new())
+            .build();
+        let tracer = provider.tracer("test");
+        {
+            // ReadableSpan trait methods for recording span
+            let span = make_test_span(&tracer, trace::SamplingDecision::RecordOnly);
+
+            assert_eq!(
+                span.context().span_id(),
+                SpanId::from_bytes((1337_u64).to_ne_bytes())
+            );
+
+            assert_eq!(span.name(), Some("test_span"));
+            assert_eq!(span.span_kind(), SpanKind::Client);
+            assert!(span.start_time().is_some());
+            assert!(span.end_time().is_some());
+            assert_eq!(span.attributes(), &[KeyValue::new("k", "v")]);
+            assert_eq!(span.dropped_attributes_count(), 0);
+            assert_eq!(span.events().len(), 1);
+            assert_eq!(span.events()[0].name, "test_event");
+            assert_eq!(span.dropped_events_count(), 0);
+            assert_eq!(span.links().len(), 1);
+        }
+
+        {
+            // ReadableSpan trait methods for non-recording span
+            let span = make_test_span(&tracer, trace::SamplingDecision::Drop);
+
+            assert_eq!(
+                span.context().span_id(),
+                SpanId::from_bytes((1337_u64).to_ne_bytes())
+            );
+
+            assert_eq!(span.name(), None);
+            assert_eq!(span.span_kind(), SpanKind::Internal);
+            assert!(span.start_time().is_none());
+            assert!(span.end_time().is_none());
+            assert_eq!(span.attributes(), &[]);
+            assert_eq!(span.dropped_attributes_count(), 0);
+            assert_eq!(span.events().len(), 0);
+            assert_eq!(span.dropped_events_count(), 0);
+            assert_eq!(span.links().len(), 0);
+            assert_eq!(
+                span.context().span_id(),
+                SpanId::from_bytes((1337_u64).to_ne_bytes())
+            );
+        }
+    }
+
     #[test]
     fn test_span_exported_data() {
         let provider = crate::trace::SdkTracerProvider::builder()
@@ -1018,11 +1094,22 @@ mod tests {
         struct TestSpanProcessor;
         impl SpanProcessor for TestSpanProcessor {
             fn on_end(&self, span: &mut FinishedSpan) {
-                let parent_id = span.parent_span_id();
-                let name = span.name();
+                assert_eq!(
+                    span.context().span_id(),
+                    SpanId::from_bytes((1337_u64).to_ne_bytes())
+                );
 
-                assert_eq!(name, Some("test_span"));
-                assert_eq!(parent_id, SpanId::INVALID);
+                assert_eq!(span.name(), Some("test_span"));
+                assert_eq!(span.span_kind(), SpanKind::Client);
+                assert!(span.start_time().is_some());
+                assert!(span.end_time().is_some());
+                assert_eq!(span.attributes(), &[KeyValue::new("k", "v")]);
+                assert_eq!(span.dropped_attributes_count(), 0);
+                assert_eq!(span.events().len(), 1);
+                assert_eq!(span.events()[0].name, "test_event");
+                assert_eq!(span.dropped_events_count(), 0);
+                assert_eq!(span.links().len(), 1);
+
                 let _ = span.consume();
             }
 
@@ -1040,10 +1127,10 @@ mod tests {
         let provider = crate::trace::SdkTracerProvider::builder()
             .with_span_processor(TestSpanProcessor)
             .build();
-        let tracer = provider.tracer("test");
-        {
-            tracer.start("test_span");
-        }
+        drop(make_test_span(
+            &provider.tracer("test"),
+            trace::SamplingDecision::RecordAndSample,
+        ));
         let res = provider.shutdown();
         println!("{:?}", res);
         assert!(res.is_ok());
@@ -1075,10 +1162,11 @@ mod tests {
         let provider = crate::trace::SdkTracerProvider::builder()
             .with_span_processor(TestSpanProcessor)
             .build();
-        let tracer = provider.tracer("test");
-        {
-            tracer.start("test_span");
-        }
+        drop(make_test_span(
+            &provider.tracer("test"),
+            trace::SamplingDecision::RecordAndSample,
+        ));
+
         let res = provider.shutdown();
         println!("{:?}", res);
         assert!(res.is_ok());
