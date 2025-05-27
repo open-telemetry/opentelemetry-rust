@@ -75,18 +75,26 @@ impl MetricsClient for TonicMetricsClient {
                 )),
             })?;
 
-        otel_debug!(name: "TonicsMetricsClient.CallingExport");
+        otel_debug!(name: "TonicMetricsClient.ExportStarted");
 
-        client
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
                 ExportMetricsServiceRequest::from(metrics),
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
+            .await;
 
-        Ok(())
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicMetricsClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = format!("{:?}", e));
+                Err(OTelSdkError::InternalFailure(format!("{e:?}")))
+            }
+        }
     }
 
     fn shutdown(&self) -> OTelSdkResult {

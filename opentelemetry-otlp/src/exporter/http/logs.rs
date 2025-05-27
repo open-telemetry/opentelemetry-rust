@@ -30,11 +30,12 @@ impl LogExporter for OtlpHttpClient {
         }
 
         let request_uri = request.uri().to_string();
-        otel_debug!(name: "HttpLogsClient.CallingExport");
+        otel_debug!(name: "HttpLogsClient.ExportStarted");
         let response = client
             .send_bytes(request)
             .await
             .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
+
         if !response.status().is_success() {
             let error = format!(
                 "OpenTelemetry logs export failed. Url: {}, Status Code: {}, Response: {:?}",
@@ -42,8 +43,11 @@ impl LogExporter for OtlpHttpClient {
                 response.status().as_u16(),
                 response.body()
             );
+            otel_debug!(name: "HttpLogsClient.ExportFailed", error = &error);
             return Err(OTelSdkError::InternalFailure(error));
         }
+
+        otel_debug!(name: "HttpLogsClient.ExportSucceeded");
         Ok(())
     }
 

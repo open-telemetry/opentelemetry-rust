@@ -76,17 +76,27 @@ impl SpanExporter for TonicTracesClient {
 
         let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
 
-        otel_debug!(name: "TonicsTracesClient.CallingExport");
 
-        client
+        otel_debug!(name: "TonicTracesClient.ExportStarted");
+
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
                 ExportTraceServiceRequest { resource_spans },
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        Ok(())
+            .await;
+
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicTracesClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                otel_debug!(name: "TonicTracesClient.ExportFailed", error = format!("{:?}", e));
+                Err(OTelSdkError::InternalFailure(e.to_string()))
+            }
+        }
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
