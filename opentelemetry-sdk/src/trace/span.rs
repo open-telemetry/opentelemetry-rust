@@ -341,8 +341,8 @@ impl ReadableSpan for FinishedSpan {
         self.span_data_ref().span_kind.clone()
     }
 
-    fn name(&self) -> &str {
-        self.span_data_ref().name.as_ref()
+    fn name(&self) -> Option<&str> {
+        Some(&self.span.as_ref()?.name)
     }
     fn start_time(&self) -> Option<SystemTime> {
         Some(self.span_data_ref().start_time)
@@ -400,8 +400,8 @@ pub trait ReadableSpan {
 
     /// Returns the name of the span.
     ///
-    /// Returns an empty string if the span is not recording.
-    fn name(&self) -> &str;
+    /// Returns `None` if the span is not recording.
+    fn name(&self) -> Option<&str>;
 
     /// Returns the start time of the span.
     ///
@@ -464,11 +464,11 @@ impl ReadableSpan for Span {
             .unwrap_or(SpanKind::Internal)
     }
 
-    fn name(&self) -> &str {
-        self.data
-            .as_ref()
-            .map(|data| data.name.as_ref())
-            .unwrap_or("")
+    /// Returns the name of the span.
+    ///
+    /// Returns `None` if the span is not recording.
+    fn name(&self) -> Option<&str> {
+        Some(&self.data.as_ref()?.name)
     }
 
     fn start_time(&self) -> Option<SystemTime> {
@@ -1021,7 +1021,7 @@ mod tests {
                 let parent_id = span.parent_span_id();
                 let name = span.name();
 
-                assert_eq!(name, "test_span");
+                assert_eq!(name, Some("test_span"));
                 assert_eq!(parent_id, SpanId::INVALID);
                 let _ = span.consume();
             }
