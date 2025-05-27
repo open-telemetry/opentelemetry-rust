@@ -79,22 +79,6 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// synchronously on the thread that started the span, therefore it should
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
-    #[cfg(feature = "experimental_span_processor_on_ending")]
-    /// `on_ending` is called when a `Span` is ending. The end timestamp has already
-    /// been computed.
-    /// This method is called synchronously within the `Span::end` API, therefore it
-    /// should not block or throw an exception.
-    ///
-    /// If multiple span processors are registered, their on_ending methods are invoked
-    /// in the order the span processors have been registered, and mutations to the span
-    /// will be visible to the next processor.
-    ///
-    /// The tracer will call `on_ending` for all span processors before calling `on_end`
-    /// for any of them.
-    fn on_ending(&self, _span: &mut Span) {
-        // Default implementation is a no-op so existing processor implementations
-        // don't break if this feature in enabled transitively.
-    }
 
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`

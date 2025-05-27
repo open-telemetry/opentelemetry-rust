@@ -208,14 +208,6 @@ impl Span {
             return;
         }
 
-        #[cfg(feature = "experimental_span_processor_on_ending")]
-        {
-            let provider = self.tracer.provider().clone();
-            for processor in provider.span_processors() {
-                processor.on_ending(self);
-            }
-        }
-
         let Span {
             data,
             tracer,
@@ -258,7 +250,7 @@ impl Drop for Span {
 /// through the `ReadableSpan` trait.
 ///
 /// Taking ownership of the span data is done by calling `consume`.
-/// If `consume`` is never called, the on_ending method will not perform any copy of
+/// If `consume`` is never called, the on_end method will not perform any copy of
 /// the span data.
 ///
 /// ```
