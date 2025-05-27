@@ -223,11 +223,9 @@ impl Span {
             ..
         } = self;
 
-        // skip if data has already been exported
-        let data = match data.take() {
-            Some(data) => data,
-            None => return,
-        };
+        // Grab the span data from the span and leave it empty
+        // This way we don't have to clone the data
+        let Some(data) = data.take() else { return };
         let span_context: SpanContext =
             std::mem::replace(span_context, SpanContext::empty_context());
 
@@ -245,6 +243,7 @@ impl Drop for Span {
     /// Report span on inner drop
     fn drop(&mut self) {
         if let Some(ref mut data) = self.data {
+            // if the span has not been ended, set the end time to now
             if data.end_time == data.start_time {
                 data.end_time = opentelemetry::time::now();
             }
@@ -1152,6 +1151,7 @@ mod tests {
         }
 
         let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(TestSpanProcessor)
             .with_span_processor(TestSpanProcessor)
             .build();
         drop(make_test_span(
