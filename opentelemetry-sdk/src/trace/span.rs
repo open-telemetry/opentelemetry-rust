@@ -192,26 +192,18 @@ impl opentelemetry::trace::Span for Span {
 
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
-        self.ensure_ended_and_exported(Some(timestamp));
+        if let Some(data) = self.data.as_mut() {
+            data.end_time = timestamp;
+        }
+        self.ensure_ended_and_exported();
     }
 }
 
 impl Span {
-    fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
-        match self.data {
-            Some(ref mut data) => {
-                // ensure end time is set via explicit end or implicitly on drop
-                if let Some(timestamp) = timestamp {
-                    data.end_time = timestamp;
-                } else if data.end_time == data.start_time {
-                    data.end_time = opentelemetry::time::now();
-                }
-            }
-            None => {
-                return;
-            }
-        };
-
+    /// Span ending logic
+    /// 
+    /// The end timestamp of the span has to be set before calling this function
+    fn ensure_ended_and_exported(&mut self) {
         if self.tracer.provider().is_shutdown() {
             return;
         }
@@ -252,7 +244,12 @@ impl Span {
 impl Drop for Span {
     /// Report span on inner drop
     fn drop(&mut self) {
-        self.ensure_ended_and_exported(None);
+        if let Some(ref mut data) = self.data {
+            if data.end_time == data.start_time {
+                data.end_time = opentelemetry::time::now();
+            }
+        }
+        self.ensure_ended_and_exported();
     }
 }
 
