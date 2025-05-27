@@ -91,8 +91,9 @@ impl MetricsClient for TonicMetricsClient {
                 Ok(())
             }
             Err(e) => {
-                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = format!("{:?}", e));
-                Err(OTelSdkError::InternalFailure(format!("{e:?}")))
+                let error = format!("{e:?}");
+                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
             }
         }
     }

@@ -92,8 +92,9 @@ impl SpanExporter for TonicTracesClient {
                 Ok(())
             }
             Err(e) => {
-                otel_debug!(name: "TonicTracesClient.ExportFailed", error = format!("{:?}", e));
-                Err(OTelSdkError::InternalFailure(e.to_string()))
+                let error = e.to_string();
+                otel_debug!(name: "TonicTracesClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
             }
         }
     }

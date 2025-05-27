@@ -88,11 +88,9 @@ impl LogExporter for TonicLogsClient {
                 Ok(())
             }
             Err(e) => {
-                otel_debug!(name: "TonicLogsClient.ExportFailed", error = format!("{:?}", e));
-                Err(OTelSdkError::InternalFailure(format!(
-                    "export error: {:?}",
-                    e
-                )))
+                let error = format!("export error: {:?}", e);
+                otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
             }
         }
     }

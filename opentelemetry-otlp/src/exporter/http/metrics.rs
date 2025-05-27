@@ -52,8 +52,9 @@ impl MetricsClient for OtlpHttpClient {
                 }
             }
             Err(e) => {
-                otel_debug!(name: "HttpMetricsClient.ExportFailed", error = format!("{:?}", e));
-                Err(OTelSdkError::InternalFailure(format!("{e:?}")))
+                let error = format!("{e:?}");
+                otel_debug!(name: "HttpMetricsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
             }
         }
     }
