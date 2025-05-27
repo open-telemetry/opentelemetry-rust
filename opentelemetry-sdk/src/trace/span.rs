@@ -201,7 +201,7 @@ impl opentelemetry::trace::Span for Span {
 
 impl Span {
     /// Span ending logic
-    /// 
+    ///
     /// The end timestamp of the span has to be set before calling this function
     fn ensure_ended_and_exported(&mut self) {
         if self.tracer.provider().is_shutdown() {
@@ -312,7 +312,7 @@ impl FinishedSpan {
     /// * if it called twice in the same SpanProcessor::on_end
     pub fn consume(&mut self) -> crate::trace::SpanData {
         if self.is_consumed {
-            panic!("Span data has already been consumed");
+            opentelemetry::otel_error!(name: "FinishedSpan.ConsumeTwice", message = "consume called twice on FinishedSpan in the same span processor");
         }
         self.is_consumed = true;
         if self.is_last_processor {
