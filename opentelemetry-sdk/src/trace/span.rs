@@ -558,7 +558,7 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
         DEFAULT_MAX_ATTRIBUTES_PER_SPAN, DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN,
     };
-    use crate::trace::{SpanEvents, SpanLinks};
+    use crate::trace::{SpanEvents, SpanLinks, SpanProcessor};
     use opentelemetry::trace::{
         self, Span as _, SpanBuilder, TraceFlags, TraceId, Tracer, TracerProvider,
     };
@@ -1008,5 +1008,79 @@ mod tests {
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
+    }
+
+    #[test]
+    fn test_finished_span_consume() {
+        use super::ReadableSpan;
+
+        #[derive(Debug)]
+        struct TestSpanProcessor;
+        impl SpanProcessor for TestSpanProcessor {
+            fn on_end(&self, span: &mut FinishedSpan) {
+                let parent_id = span.parent_span_id();
+                let name = span.name();
+
+                assert_eq!(name, "test_span");
+                assert_eq!(parent_id, SpanId::INVALID);
+                let _ = span.consume();
+            }
+
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+
+            fn shutdown(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(TestSpanProcessor)
+            .build();
+        let tracer = provider.tracer("test");
+        {
+            tracer.start("test_span");
+        }
+        let res = provider.shutdown();
+        println!("{:?}", res);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_finished_span_consume_twice() {
+        #[derive(Debug)]
+        struct TestSpanProcessor;
+        impl SpanProcessor for TestSpanProcessor {
+            fn on_end(&self, span: &mut FinishedSpan) {
+                let _ = span.consume();
+                // consume again to trigger panic
+                let _ = span.consume();
+            }
+
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+
+            fn shutdown(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(TestSpanProcessor)
+            .build();
+        let tracer = provider.tracer("test");
+        {
+            tracer.start("test_span");
+        }
+        let res = provider.shutdown();
+        println!("{:?}", res);
+        assert!(res.is_ok());
     }
 }

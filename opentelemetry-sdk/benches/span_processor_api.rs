@@ -45,13 +45,13 @@ fn create_tracer(span_processors_count: usize) -> sdktrace::SdkTracer {
     builder.build().tracer("tracer")
 }
 
-fn create_span(tracer: &sdktrace::Tracer) {
+fn create_span(tracer: &sdktrace::Tracer) -> sdktrace::Span {
     let mut span = tracer.start("foo");
     span.set_attribute(KeyValue::new("key1", false));
     span.set_attribute(KeyValue::new("key2", "hello"));
     span.set_attribute(KeyValue::new("key4", 123.456));
     span.add_event("my_event", vec![KeyValue::new("key1", "value1")]);
-    span.end();
+    span
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
