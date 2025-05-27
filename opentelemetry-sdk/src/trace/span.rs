@@ -262,9 +262,6 @@ impl Drop for Span {
 /// If `consume`` is never called, the on_ending method will not perform any copy of
 /// the span data.
 ///
-/// Calling any `ReadableSpan` method on the `FinishedSpan` will panic if the span data
-/// has aready been consumed.
-///
 /// ```
 /// use opentelemetry_sdk::trace::{FinishedSpan, ReadableSpan};
 /// fn on_end(span: &mut FinishedSpan) {
