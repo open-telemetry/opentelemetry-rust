@@ -284,12 +284,6 @@ pub struct FinishedSpan {
 }
 
 impl FinishedSpan {
-    fn span_data_ref(&self) -> &crate::trace::SpanData {
-        self.span
-            .as_ref()
-            .expect("Span data has already been consumed")
-    }
-
     /// Creates a new `FinishedSpan` with the given span data.
     pub fn new(span_data: crate::trace::SpanData) -> Self {
         FinishedSpan {
@@ -336,57 +330,87 @@ impl FinishedSpan {
 
 impl ReadableSpan for FinishedSpan {
     fn context(&self) -> &SpanContext {
-        &self.span_data_ref().span_context
+        match self.span {
+            Some(ref data) => &data.span_context,
+            None => &SpanContext::NONE,
+        }
     }
 
     fn parent_span_id(&self) -> SpanId {
-        self.span_data_ref().parent_span_id
+        match self.span {
+            Some(ref data) => data.parent_span_id,
+            None => SpanId::INVALID,
+        }
     }
 
     fn span_kind(&self) -> SpanKind {
-        self.span_data_ref().span_kind.clone()
+        match self.span {
+            Some(ref data) => data.span_kind.clone(),
+            None => SpanKind::Internal,
+        }
     }
 
     fn name(&self) -> Option<&str> {
-        Some(&self.span_data_ref().name)
+        self.span.as_ref().map(|s| s.name.as_ref())
     }
     fn start_time(&self) -> Option<SystemTime> {
-        Some(self.span_data_ref().start_time)
+        self.span.as_ref().map(|s| s.start_time)
     }
     fn end_time(&self) -> Option<SystemTime> {
-        Some(self.span_data_ref().end_time)
+        self.span.as_ref().map(|s| s.end_time)
     }
     fn attributes(&self) -> &[KeyValue] {
-        self.span_data_ref().attributes.as_slice()
+        match self.span {
+            Some(ref data) => data.attributes.as_slice(),
+            None => &[],
+        }
     }
     fn dropped_attributes_count(&self) -> u32 {
-        self.span_data_ref().dropped_attributes_count
+        match self.span {
+            Some(ref data) => data.dropped_attributes_count,
+            None => 0,
+        }
     }
     fn events(&self) -> &[Event] {
-        self.span_data_ref().events.events.as_slice()
+        match self.span {
+            Some(ref data) => data.events.events.as_slice(),
+            None => &[],
+        }
     }
     fn dropped_events_count(&self) -> u32 {
-        self.span_data_ref().events.dropped_count
+        match self.span {
+            Some(ref data) => data.events.dropped_count,
+            None => 0,
+        }
     }
     fn links(&self) -> &[Link] {
-        self.span_data_ref().links.links.as_slice()
+        match self.span {
+            Some(ref data) => data.links.links.as_slice(),
+            None => &[],
+        }
     }
+
     fn dropped_links_count(&self) -> u32 {
-        self.span_data_ref().links.dropped_count
+        match self.span {
+            Some(ref data) => data.links.dropped_count,
+            None => 0,
+        }
     }
     fn status(&self) -> &Status {
-        &self.span_data_ref().status
+        match self.span {
+            Some(ref data) => &data.status,
+            None => &Status::Unset,
+        }
     }
 }
 
 impl std::fmt::Debug for FinishedSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut fmt = f.debug_struct("FinishedSpan");
-        if self.is_consumed {
-            fmt.field("consumed", &self.is_consumed);
-        } else {
-            fmt.field("span", &self.span_data_ref());
-        }
+        match &self.span {
+            Some(s) if !self.is_consumed => fmt.field("span", s),
+            _ => fmt.field("consumed", &self.is_consumed),
+        };
         fmt.finish()
     }
 }
