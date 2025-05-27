@@ -136,7 +136,9 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         else {
             return;
         };
-        let mut counts = self.0.lock().unwrap();
+        let Ok(mut counts) = self.0.lock() else {
+            return;
+        };
         let count = counts.entry(route.key.clone()).or_default();
         *count += 1;
         span.set_attribute(KeyValue::new(
@@ -156,7 +158,9 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         else {
             return;
         };
-        let mut counts = self.0.lock().unwrap();
+        let Ok(mut counts) = self.0.lock() else {
+            return;
+        };
         let Some(count) = counts.get_mut(&route.key) else {
             return;
         };
