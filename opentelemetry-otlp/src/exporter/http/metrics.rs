@@ -34,9 +34,7 @@ impl MetricsClient for OtlpHttpClient {
         }
 
         otel_debug!(name: "HttpMetricsClient.ExportStarted");
-        let result = client
-            .send_bytes(request)
-            .await;
+        let result = client.send_bytes(request).await;
 
         match result {
             Ok(response) => {

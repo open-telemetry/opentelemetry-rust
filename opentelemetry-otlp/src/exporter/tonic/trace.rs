@@ -76,7 +76,6 @@ impl SpanExporter for TonicTracesClient {
 
         let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
 
-
         otel_debug!(name: "TonicTracesClient.ExportStarted");
 
         let result = client
