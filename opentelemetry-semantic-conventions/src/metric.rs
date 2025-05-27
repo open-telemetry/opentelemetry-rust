@@ -220,7 +220,7 @@ pub const AZURE_COSMOSDB_CLIENT_ACTIVE_INSTANCE_COUNT: &str =
 /// | [`crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE`] | `Conditionally_required`: when response was received and contained sub-code.
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
-/// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available.
+/// | [`crate::attribute::DB_OPERATION_NAME`] | `Required`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
@@ -949,7 +949,7 @@ pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
 /// |:-|:-
 /// | Instrument: | `histogram` |
 /// | Unit: | `s` |
-/// | Status: | `Release_candidate`  |
+/// | Status: | `Stable`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
@@ -957,17 +957,16 @@ pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call.
-/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
+/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if available through instrumentation hooks or if the instrumentation supports generating a query summary."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
-/// | [`crate::attribute::DB_STORED_PROCEDURE_NAME`] | `{"recommended": "if operation represents a stored procedure execution."}`
+/// | [`crate::attribute::DB_STORED_PROCEDURE_NAME`] | `{"recommended": "if operation applies to a specific stored procedure."}`
 /// | [`crate::attribute::DB_SYSTEM_NAME`] | `Required`
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
 /// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `{"recommended": "if applicable for this database system."}`
 /// | [`crate::attribute::NETWORK_PEER_PORT`] | `{"recommended": "if and only if `network.peer.address` is set."}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
-#[cfg(feature = "semconv_experimental")]
 pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 
 /// ## Description
@@ -986,7 +985,7 @@ pub const DB_CLIENT_OPERATION_DURATION: &str = "db.client.operation.duration";
 /// | [`crate::attribute::DB_COLLECTION_NAME`] | `Conditionally_required`: If readily available and if a database call is performed on a single collection.
 /// | [`crate::attribute::DB_NAMESPACE`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call.
-/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if readily available or if instrumentation supports query summarization."}`
+/// | [`crate::attribute::DB_QUERY_SUMMARY`] | `{"recommended": "if available through instrumentation hooks or if the instrumentation supports generating a query summary."}`
 /// | [`crate::attribute::DB_QUERY_TEXT`] | `Opt_in`
 /// | [`crate::attribute::DB_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If the operation failed and status code is available.
 /// | [`crate::attribute::DB_SYSTEM_NAME`] | `Required`
@@ -2328,6 +2327,18 @@ pub const JVM_CPU_TIME: &str = "jvm.cpu.time";
 
 /// ## Description
 ///
+/// Number of open file descriptors as reported by the JVM
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{file_descriptor}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const JVM_FILE_DESCRIPTOR_COUNT: &str = "jvm.file_descriptor.count";
+
+/// ## Description
+///
 /// Duration of JVM garbage collection actions
 /// ## Metadata
 /// | | |
@@ -2340,6 +2351,7 @@ pub const JVM_CPU_TIME: &str = "jvm.cpu.time";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::JVM_GC_ACTION`] | `Recommended`
+/// | [`crate::attribute::JVM_GC_CAUSE`] | `Opt_in`
 /// | [`crate::attribute::JVM_GC_NAME`] | `Recommended`
 pub const JVM_GC_DURATION: &str = "jvm.gc.duration";
 
@@ -3840,8 +3852,8 @@ pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause.
-/// For exporters with partial success semantics (e.g. OTLP with `rejected_log_records`), rejected log records must count as failed and only non-rejected log records count as success.
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
+/// For exporters with partial success semantics (e.g. OTLP with `rejected_log_records`), rejected log records MUST count as failed and only non-rejected log records count as success.
 /// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
 /// ## Metadata
 /// | | |
@@ -3867,7 +3879,7 @@ pub const OTEL_SDK_EXPORTER_LOG_EXPORTED: &str = "otel.sdk.exporter.log.exported
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3887,12 +3899,94 @@ pub const OTEL_SDK_EXPORTER_LOG_INFLIGHT: &str = "otel.sdk.exporter.log.inflight
 
 /// ## Description
 ///
+/// The number of metric data points for which the export has finished, either successful or failed
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
+/// For exporters with partial success semantics (e.g. OTLP with `rejected_data_points`), rejected data points MUST count as failed and only non-rejected data points count as success.
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{data_point}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_EXPORTED: &str =
+    "otel.sdk.exporter.metric_data_point.exported";
+
+/// ## Description
+///
+/// The number of metric data points which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+///
+/// ## Notes
+///
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{data_point}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_INFLIGHT: &str =
+    "otel.sdk.exporter.metric_data_point.inflight";
+
+/// ## Description
+///
+/// The duration of exporting a batch of telemetry records.
+///
+/// ## Notes
+///
+/// This metric defines successful operations using the full success definitions for [http](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success-1)
+/// and [grpc](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success). Anything else is defined as an unsuccessful operation. For successful
+/// operations, `error.type` MUST NOT be set. For unsuccessful export operations, `error.type` MUST contain a relevant failure cause
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If operation has ended with an error
+/// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+/// | [`crate::attribute::RPC_GRPC_STATUS_CODE`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_OPERATION_DURATION: &str = "otel.sdk.exporter.operation.duration";
+
+/// ## Description
+///
 /// The number of spans for which the export has finished, either successful or failed
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause.
-/// For exporters with partial success semantics (e.g. OTLP with `rejected_spans`), rejected spans must count as failed and only non-rejected spans count as success.
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
+/// For exporters with partial success semantics (e.g. OTLP with `rejected_spans`), rejected spans MUST count as failed and only non-rejected spans count as success.
 /// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
 /// ## Metadata
 /// | | |
@@ -3910,6 +4004,19 @@ pub const OTEL_SDK_EXPORTER_LOG_INFLIGHT: &str = "otel.sdk.exporter.log.inflight
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
 /// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
 #[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED: &str = "otel.sdk.exporter.span.exported";
+
+/// ## Description
+///
+/// Deprecated, use `otel.sdk.exporter.span.exported` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `otel.sdk.exporter.span.exported`., reason: uncategorized}")]
 pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.exported.count";
 
 /// ## Description
@@ -3918,7 +4025,7 @@ pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` must contain the failure cause
+/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3934,6 +4041,19 @@ pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
 /// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
 #[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_EXPORTER_SPAN_INFLIGHT: &str = "otel.sdk.exporter.span.inflight";
+
+/// ## Description
+///
+/// Deprecated, use `otel.sdk.exporter.span.inflight` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `otel.sdk.exporter.span.inflight`., reason: uncategorized}")]
 pub const OTEL_SDK_EXPORTER_SPAN_INFLIGHT_COUNT: &str = "otel.sdk.exporter.span.inflight.count";
 
 /// ## Description
@@ -3950,11 +4070,36 @@ pub const OTEL_SDK_LOG_CREATED: &str = "otel.sdk.log.created";
 
 /// ## Description
 ///
+/// The duration of the collect operation of the metric reader.
+///
+/// ## Notes
+///
+/// For successful collections, `error.type` MUST NOT be set. For failed collections, `error.type` SHOULD contain the failure cause.
+/// It can happen that metrics collection is successful for some MetricProducers, while others fail. In that case `error.type` SHOULD be set to any of the failure causes
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
+/// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_METRIC_READER_COLLECTION_DURATION: &str =
+    "otel.sdk.metric_reader.collection.duration";
+
+/// ## Description
+///
 /// The number of log records for which the processing has finished, either successful or failed
 ///
 /// ## Notes
 ///
-/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` must contain the failure cause.
+/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` MUST contain the failure cause.
 /// For the SDK Simple and Batching Log Record Processor a log record is considered to be processed already when it has been submitted to the exporter,
 /// not when the corresponding export call has finished
 /// ## Metadata
@@ -4023,7 +4168,7 @@ pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_SIZE: &str = "otel.sdk.processor.log.queu
 ///
 /// ## Notes
 ///
-/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` must contain the failure cause.
+/// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` MUST contain the failure cause.
 /// For the SDK Simple and Batching Span Processor a span is considered to be processed already when it has been submitted to the exporter, not when the corresponding export call has finished
 /// ## Metadata
 /// | | |
@@ -4039,6 +4184,21 @@ pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_SIZE: &str = "otel.sdk.processor.log.queu
 /// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
 /// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED: &str = "otel.sdk.processor.span.processed";
+
+/// ## Description
+///
+/// Deprecated, use `otel.sdk.processor.span.processed` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Renamed to `otel.sdk.processor.span.processed`., reason: uncategorized}"
+)]
 pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED_COUNT: &str = "otel.sdk.processor.span.processed.count";
 
 /// ## Description
@@ -4091,8 +4251,8 @@ pub const OTEL_SDK_PROCESSOR_SPAN_QUEUE_SIZE: &str = "otel.sdk.processor.span.qu
 ///
 /// ## Notes
 ///
-/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live.count` and `otel.sdk.span.ended.count`.
-/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.live.count`
+/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live` and `otel.sdk.span.ended`.
+/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.live`
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4105,6 +4265,19 @@ pub const OTEL_SDK_PROCESSOR_SPAN_QUEUE_SIZE: &str = "otel.sdk.processor.span.qu
 /// |:-|:- |
 /// | [`crate::attribute::OTEL_SPAN_SAMPLING_RESULT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_SPAN_ENDED: &str = "otel.sdk.span.ended";
+
+/// ## Description
+///
+/// Deprecated, use `otel.sdk.span.ended` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `otel.sdk.span.ended`., reason: uncategorized}")]
 pub const OTEL_SDK_SPAN_ENDED_COUNT: &str = "otel.sdk.span.ended.count";
 
 /// ## Description
@@ -4113,8 +4286,8 @@ pub const OTEL_SDK_SPAN_ENDED_COUNT: &str = "otel.sdk.span.ended.count";
 ///
 /// ## Notes
 ///
-/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live.count` and `otel.sdk.span.ended.count`.
-/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.ended.count`
+/// For spans with `recording=true`: Implementations MUST record both `otel.sdk.span.live` and `otel.sdk.span.ended`.
+/// For spans with `recording=false`: If implementations decide to record this metric, they MUST also record `otel.sdk.span.ended`
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4127,6 +4300,19 @@ pub const OTEL_SDK_SPAN_ENDED_COUNT: &str = "otel.sdk.span.ended.count";
 /// |:-|:- |
 /// | [`crate::attribute::OTEL_SPAN_SAMPLING_RESULT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+pub const OTEL_SDK_SPAN_LIVE: &str = "otel.sdk.span.live";
+
+/// ## Description
+///
+/// Deprecated, use `otel.sdk.span.live` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{span}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Renamed to `otel.sdk.span.live`., reason: uncategorized}")]
 pub const OTEL_SDK_SPAN_LIVE_COUNT: &str = "otel.sdk.span.live.count";
 
 /// ## Description

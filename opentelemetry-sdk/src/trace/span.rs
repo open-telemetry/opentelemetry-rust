@@ -1032,7 +1032,7 @@ mod tests {
                 Ok(())
             }
 
-            fn shutdown(&self) -> crate::error::OTelSdkResult {
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
                 Ok(())
             }
         }
@@ -1067,7 +1067,7 @@ mod tests {
                 Ok(())
             }
 
-            fn shutdown(&self) -> crate::error::OTelSdkResult {
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
                 Ok(())
             }
         }

@@ -19,6 +19,7 @@ use opentelemetry_sdk::{
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
+use std::time::Duration;
 use std::{
     collections::HashMap,
     convert::Infallible,
@@ -120,7 +121,7 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::OTelSdkResult {
         Ok(())
     }
 
@@ -188,9 +189,10 @@ impl SpanProcessor for SpanObfuscationProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::OTelSdkResult {
         Ok(())
     }
+
     fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {}
 
     fn on_ending(&self, span: &mut opentelemetry_sdk::trace::Span) {
@@ -232,7 +234,7 @@ impl SpanProcessor for EnrichWithBaggageSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

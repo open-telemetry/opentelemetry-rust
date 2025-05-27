@@ -18,6 +18,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
 /// them at a preconfigured interval.
@@ -134,7 +135,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         })?
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {

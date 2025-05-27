@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     trace::{Span, Tracer, TracerProvider},
@@ -32,7 +34,7 @@ impl sdktrace::SpanProcessor for NoopSpanProcessor {
     fn force_flush(&self) -> opentelemetry_sdk::error::OTelSdkResult {
         Ok(())
     }
-    fn shutdown(&self) -> opentelemetry_sdk::error::OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> opentelemetry_sdk::error::OTelSdkResult {
         Ok(())
     }
 }
