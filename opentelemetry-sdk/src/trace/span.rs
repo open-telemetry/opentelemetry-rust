@@ -294,7 +294,7 @@ impl FinishedSpan {
     pub fn new(span_data: crate::trace::SpanData) -> Self {
         FinishedSpan {
             span: Some(span_data),
-            is_last_processor: false,
+            is_last_processor: true,
             is_consumed: false,
         }
     }
@@ -314,16 +314,22 @@ impl FinishedSpan {
         if self.is_consumed {
             opentelemetry::otel_error!(name: "FinishedSpan.ConsumeTwice", message = "consume called twice on FinishedSpan in the same span processor");
         }
+        self.try_consume()
+            .expect("Span data has already been consumed")
+    }
+
+    /// Takes ownership of the span data in the `FinishedSpan`.
+    ///
+    /// Returns `None` if the span data has already been consumed.
+    pub fn try_consume(&mut self) -> Option<crate::trace::SpanData> {
+        if self.is_consumed {
+            return None;
+        }
         self.is_consumed = true;
         if self.is_last_processor {
-            self.span
-                .take()
-                .expect("Span data has already been consumed")
+            self.span.take()
         } else {
-            self.span
-                .as_ref()
-                .expect("Span data has already been consumed")
-                .clone()
+            self.span.clone()
         }
     }
 }
