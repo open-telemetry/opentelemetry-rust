@@ -1143,15 +1143,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_finished_span_consume_twice() {
         #[derive(Debug)]
         struct TestSpanProcessor;
         impl SpanProcessor for TestSpanProcessor {
             fn on_end(&self, span: &mut FinishedSpan) {
                 let _ = span.consume();
-                // consume again to trigger panic
-                let _ = span.consume();
+                assert!(span.try_consume().is_none());
             }
 
             fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
