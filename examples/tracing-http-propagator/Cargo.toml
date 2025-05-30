@@ -25,7 +25,7 @@ hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 opentelemetry = { path = "../../opentelemetry" }
-opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["experimental_span_processor_on_ending"]}
 opentelemetry-http = { path = "../../opentelemetry-http" }
 opentelemetry-stdout = { workspace = true, features = ["trace", "logs"] }
 opentelemetry-semantic-conventions = { path = "../../opentelemetry-semantic-conventions" }
