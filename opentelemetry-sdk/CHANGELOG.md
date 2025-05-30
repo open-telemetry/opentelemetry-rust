@@ -2,6 +2,11 @@
 
 ## vNext
 
+- TODO: Placeholder for Span processor related things
+  - Add `on_ending` API on the span processor. This allows mutating spans while
+  they are teriminating.
+
+
 ## 0.30.0
 
 Released 2025-May-23
