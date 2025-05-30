@@ -15,7 +15,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider},
     propagation::{BaggagePropagator, TraceContextPropagator},
-    trace::{SdkTracerProvider, SpanProcessor},
+    trace::{SdkTracerProvider, SpanData, SpanProcessor},
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
@@ -105,6 +105,49 @@ async fn router(
     response
 }
 
+fn obfuscate_http_auth_url(s: &str) -> Option<String> {
+    #[allow(clippy::unnecessary_to_owned)]
+    let uri = hyper::http::Uri::from_maybe_shared(s.to_string()).ok()?;
+    let authority = uri.authority()?;
+    let (_, url) = authority.as_str().split_once('@')?;
+    let new_auth = format!("REDACTED_USERNAME:REDACTED_PASSWORD@{url}");
+    let mut parts = uri.into_parts();
+    parts.authority = Some(hyper::http::uri::Authority::from_maybe_shared(new_auth).ok()?);
+    Some(hyper::Uri::from_parts(parts).ok()?.to_string())
+}
+
+#[derive(Debug)]
+/// A custom span processor that uses on_ending to obfuscate sensitive information in span attributes.
+///
+/// Currently this only overrides http auth information in the URI.
+struct SpanObfuscationProcessor;
+
+impl SpanProcessor for SpanObfuscationProcessor {
+    fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::OTelSdkResult {
+        Ok(())
+    }
+
+    fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {}
+
+    fn on_ending(&self, span: &mut opentelemetry_sdk::trace::Span) {
+        let mut obfuscated_attributes = Vec::new();
+        let Some(span) = span.exported_data() else {
+            return;
+        };
+        for KeyValue { key, value, .. } in span.attributes {
+            if let Some(redacted_uri) = obfuscate_http_auth_url(value.as_str().as_ref()) {
+                obfuscated_attributes.push((key.clone(), KeyValue::new(key.clone(), redacted_uri)));
+            }
+        }
+    }
+
+    fn on_end(&self, _span: SpanData) {}
+}
+
 /// A custom log processor that enriches LogRecords with baggage attributes.
 /// Baggage information is not added automatically without this processor.
 #[derive(Debug)]
@@ -159,6 +202,7 @@ fn init_tracer() -> SdkTracerProvider {
     // that prints the spans to stdout.
     let provider = SdkTracerProvider::builder()
         .with_span_processor(EnrichWithBaggageSpanProcessor)
+        .with_span_processor(SpanObfuscationProcessor)
         .with_simple_exporter(SpanExporter::default())
         .build();
 
