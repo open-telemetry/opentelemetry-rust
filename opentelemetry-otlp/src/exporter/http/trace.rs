@@ -42,7 +42,7 @@ impl SpanExporter for OtlpHttpClient {
         }
 
         let request_uri = request.uri().to_string();
-        otel_debug!(name: "HttpTracesClient.CallingExport");
+        otel_debug!(name: "HttpTracesClient.ExportStarted");
         let response = client
             .send_bytes(request)
             .await
@@ -51,13 +51,15 @@ impl SpanExporter for OtlpHttpClient {
         if !response.status().is_success() {
             let error = format!(
                 "OpenTelemetry trace export failed. Url: {}, Status Code: {}, Response: {:?}",
-                response.status().as_u16(),
                 request_uri,
+                response.status().as_u16(),
                 response.body()
             );
+            otel_debug!(name: "HttpTracesClient.ExportFailed", error = &error);
             return Err(OTelSdkError::InternalFailure(error));
         }
 
+        otel_debug!(name: "HttpTracesClient.ExportSucceeded");
         Ok(())
     }
 
