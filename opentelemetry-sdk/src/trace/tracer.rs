@@ -13,7 +13,10 @@ use crate::trace::{
     IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt, TraceFlags},
+    trace::{
+        SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt,
+        TraceFlags,
+    },
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
