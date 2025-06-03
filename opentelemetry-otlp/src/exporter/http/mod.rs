@@ -365,7 +365,7 @@ fn resolve_http_endpoint(
     provided_endpoint: Option<&str>,
 ) -> Result<Uri, ExporterBuildError> {
     // programmatic configuration overrides any value set via environment variables
-    if let Some(provider_endpoint) = provided_endpoint {
+    if let Some(provider_endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
         provider_endpoint
             .parse()
             .map_err(|er: http::uri::InvalidUri| {
@@ -526,6 +526,15 @@ mod tests {
                 assert_eq!(endpoint, "http://localhost:4317");
             },
         );
+    }
+
+    #[test]
+    fn test_use_default_when_empty_string_for_option() {
+        run_env_test(vec![], || {
+            let endpoint =
+                super::resolve_http_endpoint("non_existent_var", "/v1/traces", Some("")).unwrap();
+            assert_eq!(endpoint, "http://localhost:4318/v1/traces");
+        });
     }
 
     #[test]

@@ -33,13 +33,30 @@ impl MetricsClient for OtlpHttpClient {
             request.headers_mut().insert(k.clone(), v.clone());
         }
 
-        otel_debug!(name: "HttpMetricsClient.CallingExport");
-        client
-            .send_bytes(request)
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
+        otel_debug!(name: "HttpMetricsClient.ExportStarted");
+        let result = client.send_bytes(request).await;
 
-        Ok(())
+        match result {
+            Ok(response) => {
+                if response.status().is_success() {
+                    otel_debug!(name: "HttpMetricsClient.ExportSucceeded");
+                    Ok(())
+                } else {
+                    let error = format!(
+                        "OpenTelemetry metrics export failed. Status Code: {}, Response: {:?}",
+                        response.status().as_u16(),
+                        response.body()
+                    );
+                    otel_debug!(name: "HttpMetricsClient.ExportFailed", error = &error);
+                    Err(OTelSdkError::InternalFailure(error))
+                }
+            }
+            Err(e) => {
+                let error = format!("{e:?}");
+                otel_debug!(name: "HttpMetricsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
+            }
+        }
     }
 
     fn shutdown(&self) -> OTelSdkResult {

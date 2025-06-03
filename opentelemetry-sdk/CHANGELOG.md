@@ -2,6 +2,9 @@
 
 ## vNext
 
+- TODO: Placeholder for Span processor related things
+  - *Fix* SpanProcessor::on_start is no longer called on non recording spans
+
 ## 0.30.0
 
 Released 2025-May-23

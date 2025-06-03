@@ -412,7 +412,7 @@ impl BaggageExt for Context {
     }
 
     fn with_cleared_baggage(&self) -> Self {
-        self.with_value(Baggage::new())
+        self.with_baggage(Baggage::new())
     }
 
     fn baggage(&self) -> &Baggage {
@@ -652,5 +652,29 @@ mod tests {
         // invalid ascii chars
         baggage.insert("(example)", "1");
         assert!(baggage.is_empty());
+    }
+
+    #[test]
+    fn test_context_clear_baggage() {
+        let ctx = Context::new();
+        let ctx = ctx.with_baggage([KeyValue::new("foo", 1)]);
+        let _guard = ctx.attach();
+
+        {
+            let ctx = Context::current();
+            let baggage = ctx.baggage();
+            // At this point baggage should still contain the inital value.
+            assert_eq!(baggage.len(), 1);
+
+            // Baggage gets cleared.
+            let ctx = ctx.with_cleared_baggage();
+            let _guard = ctx.attach();
+            {
+                let ctx = Context::current();
+                let baggage = ctx.baggage();
+                // Baggage should contain no entries.
+                assert_eq!(baggage.len(), 0);
+            }
+        }
     }
 }
