@@ -734,7 +734,7 @@ pub const DB_CLIENT_CONNECTION_WAIT_TIME: &str = "db.client.connection.wait_time
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `db.client.connection.create_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
+    note = "{note: Replaced by `db.client.connection.create_time` with unit `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.create_time";
 
@@ -753,7 +753,9 @@ pub const DB_CLIENT_CONNECTIONS_CREATE_TIME: &str = "db.client.connections.creat
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.client.connection.idle.max`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.idle.max`., reason: renamed, renamed_to: db.client.connection.idle.max}"
+)]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max";
 
 /// ## Description
@@ -771,7 +773,9 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MAX: &str = "db.client.connections.idle.max
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.client.connection.idle.min`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.idle.min`., reason: renamed, renamed_to: db.client.connection.idle.min}"
+)]
 pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min";
 
 /// ## Description
@@ -789,7 +793,9 @@ pub const DB_CLIENT_CONNECTIONS_IDLE_MIN: &str = "db.client.connections.idle.min
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.client.connection.max`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.max`., reason: renamed, renamed_to: db.client.connection.max}"
+)]
 pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 
 /// ## Description
@@ -808,7 +814,7 @@ pub const DB_CLIENT_CONNECTIONS_MAX: &str = "db.client.connections.max";
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `db.client.connection.pending_requests`., reason: uncategorized}"
+    note = "{note: Replaced by `db.client.connection.pending_requests`., reason: renamed, renamed_to: db.client.connection.pending_requests}"
 )]
 pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.pending_requests";
 
@@ -827,7 +833,9 @@ pub const DB_CLIENT_CONNECTIONS_PENDING_REQUESTS: &str = "db.client.connections.
 /// |:-|:- |
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.client.connection.timeouts`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.timeouts`., reason: renamed, renamed_to: db.client.connection.timeouts}"
+)]
 pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts";
 
 /// ## Description
@@ -846,7 +854,9 @@ pub const DB_CLIENT_CONNECTIONS_TIMEOUTS: &str = "db.client.connections.timeouts
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_STATE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `db.client.connection.count`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `db.client.connection.count`., reason: renamed, renamed_to: db.client.connection.count}"
+)]
 pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 
 /// ## Description
@@ -865,7 +875,7 @@ pub const DB_CLIENT_CONNECTIONS_USAGE: &str = "db.client.connections.usage";
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `db.client.connection.use_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
+    note = "{note: Replaced by `db.client.connection.use_time` with unit `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time";
 
@@ -885,7 +895,7 @@ pub const DB_CLIENT_CONNECTIONS_USE_TIME: &str = "db.client.connections.use_time
 /// | [`crate::attribute::DB_CLIENT_CONNECTIONS_POOL_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `db.client.connection.wait_time`. Note: the unit also changed from `ms` to `s`., reason: uncategorized}"
+    note = "{note: Replaced by `db.client.connection.wait_time` with unit `s`., reason: uncategorized}"
 )]
 pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_time";
 
@@ -906,7 +916,7 @@ pub const DB_CLIENT_CONNECTIONS_WAIT_TIME: &str = "db.client.connections.wait_ti
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If using a port other than the default port for this DBMS and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `azure.cosmosdb.client.active_instance.count`., reason: uncategorized}"
+    note = "{note: Replaced by `azure.cosmosdb.client.active_instance.count`., reason: renamed, renamed_to: azure.cosmosdb.client.active_instance.count}"
 )]
 pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
     "db.client.cosmosdb.active_instance.count";
@@ -932,7 +942,7 @@ pub const DB_CLIENT_COSMOSDB_ACTIVE_INSTANCE_COUNT: &str =
 /// | [`crate::attribute::DB_OPERATION_NAME`] | `Conditionally_required`: If readily available and if there is a single operation name that describes the database call. The operation name MAY be parsed from the query text, in which case it SHOULD be the single operation name found in the query.
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `azure.cosmosdb.client.operation.request_charge`., reason: uncategorized}"
+    note = "{note: Replaced by `azure.cosmosdb.client.operation.request_charge`., reason: renamed, renamed_to: azure.cosmosdb.client.operation.request_charge}"
 )]
 pub const DB_CLIENT_COSMOSDB_OPERATION_REQUEST_CHARGE: &str =
     "db.client.cosmosdb.operation.request_charge";
@@ -2235,7 +2245,9 @@ pub const JVM_BUFFER_MEMORY_LIMIT: &str = "jvm.buffer.memory.limit";
 /// |:-|:- |
 /// | [`crate::attribute::JVM_BUFFER_POOL_NAME`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `jvm.buffer.memory.used`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `jvm.buffer.memory.used`., reason: renamed, renamed_to: jvm.buffer.memory.used}"
+)]
 pub const JVM_BUFFER_MEMORY_USAGE: &str = "jvm.buffer.memory.usage";
 
 /// ## Description
@@ -3076,15 +3088,7 @@ pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
 
 /// ## Description
 ///
-/// Deprecated, use `k8s.replicationcontroller.available_pods` instead.
-///
-/// ## Notes
-///
-/// This metric aligns with the `availableReplicas` field of the
-/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
-///
-/// This metric SHOULD, at a minimum, be reported against a
-/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
+/// Deprecated, use `k8s.replicationcontroller.available_pods` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3093,22 +3097,14 @@ pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `k8s.replicationcontroller.available_pods`., reason: uncategorized}"
+    note = "{note: Replaced by `k8s.replicationcontroller.available_pods`., reason: renamed, renamed_to: k8s.replicationcontroller.available_pods}"
 )]
 pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
     "k8s.replication_controller.available_pods";
 
 /// ## Description
 ///
-/// Deprecated, use `k8s.replicationcontroller.desired_pods` instead.
-///
-/// ## Notes
-///
-/// This metric aligns with the `replicas` field of the
-/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
-///
-/// This metric SHOULD, at a minimum, be reported against a
-/// [`k8s.replicationcontroller`](../resource/k8s.md#replicationcontroller) resource
+/// Deprecated, use `k8s.replicationcontroller.desired_pods` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3117,7 +3113,7 @@ pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `k8s.replicationcontroller.desired_pods`., reason: uncategorized}"
+    note = "{note: Replaced by `k8s.replicationcontroller.desired_pods`., reason: renamed, renamed_to: k8s.replicationcontroller.desired_pods}"
 )]
 pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_controller.desired_pods";
 
@@ -3521,7 +3517,9 @@ pub const MESSAGING_CLIENT_OPERATION_DURATION: &str = "messaging.client.operatio
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `messaging.client.sent.messages`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `messaging.client.sent.messages`., reason: renamed, renamed_to: messaging.client.sent.messages}"
+)]
 pub const MESSAGING_CLIENT_PUBLISHED_MESSAGES: &str = "messaging.client.published.messages";
 
 /// ## Description
@@ -3601,7 +3599,7 @@ pub const MESSAGING_PROCESS_DURATION: &str = "messaging.process.duration";
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: uncategorized}"
+    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: renamed, renamed_to: messaging.client.consumed.messages}"
 )]
 pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 
@@ -3624,13 +3622,13 @@ pub const MESSAGING_PROCESS_MESSAGES: &str = "messaging.process.messages";
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `messaging.client.operation.duration`., reason: uncategorized}"
+    note = "{note: Replaced by `messaging.client.operation.duration`., reason: renamed, renamed_to: messaging.client.operation.duration}"
 )]
 pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 
 /// ## Description
 ///
-/// Deprecated. Use `messaging.client.produced.messages` instead
+/// Deprecated. Use `messaging.client.sent.messages` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3647,7 +3645,7 @@ pub const MESSAGING_PUBLISH_DURATION: &str = "messaging.publish.duration";
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `messaging.client.produced.messages`., reason: uncategorized}"
+    note = "{note: Replaced by `messaging.client.sent.messages`., reason: renamed, renamed_to: messaging.client.sent.messages}"
 )]
 pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 
@@ -3670,7 +3668,7 @@ pub const MESSAGING_PUBLISH_MESSAGES: &str = "messaging.publish.messages";
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `messaging.client.operation.duration`., reason: uncategorized}"
+    note = "{note: Replaced by `messaging.client.operation.duration`., reason: renamed, renamed_to: messaging.client.operation.duration}"
 )]
 pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 
@@ -3693,7 +3691,7 @@ pub const MESSAGING_RECEIVE_DURATION: &str = "messaging.receive.duration";
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: uncategorized}"
+    note = "{note: Replaced by `messaging.client.consumed.messages`., reason: renamed, renamed_to: messaging.client.consumed.messages}"
 )]
 pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
 
@@ -4016,7 +4014,9 @@ pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED: &str = "otel.sdk.exporter.span.export
 /// | Unit: | `{span}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Renamed to `otel.sdk.exporter.span.exported`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `otel.sdk.exporter.span.exported`., reason: renamed, renamed_to: otel.sdk.exporter.span.exported}"
+)]
 pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.exported.count";
 
 /// ## Description
@@ -4053,7 +4053,9 @@ pub const OTEL_SDK_EXPORTER_SPAN_INFLIGHT: &str = "otel.sdk.exporter.span.inflig
 /// | Unit: | `{span}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Renamed to `otel.sdk.exporter.span.inflight`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `otel.sdk.exporter.span.inflight`., reason: renamed, renamed_to: otel.sdk.exporter.span.inflight}"
+)]
 pub const OTEL_SDK_EXPORTER_SPAN_INFLIGHT_COUNT: &str = "otel.sdk.exporter.span.inflight.count";
 
 /// ## Description
@@ -4197,7 +4199,7 @@ pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED: &str = "otel.sdk.processor.span.pro
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Renamed to `otel.sdk.processor.span.processed`., reason: uncategorized}"
+    note = "{note: Replaced by `otel.sdk.processor.span.processed`., reason: renamed, renamed_to: otel.sdk.processor.span.processed}"
 )]
 pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED_COUNT: &str = "otel.sdk.processor.span.processed.count";
 
@@ -4277,7 +4279,9 @@ pub const OTEL_SDK_SPAN_ENDED: &str = "otel.sdk.span.ended";
 /// | Unit: | `{span}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Renamed to `otel.sdk.span.ended`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `otel.sdk.span.ended`., reason: renamed, renamed_to: otel.sdk.span.ended}"
+)]
 pub const OTEL_SDK_SPAN_ENDED_COUNT: &str = "otel.sdk.span.ended.count";
 
 /// ## Description
@@ -4312,7 +4316,9 @@ pub const OTEL_SDK_SPAN_LIVE: &str = "otel.sdk.span.live";
 /// | Unit: | `{span}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Renamed to `otel.sdk.span.live`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `otel.sdk.span.live`., reason: renamed, renamed_to: otel.sdk.span.live}"
+)]
 pub const OTEL_SDK_SPAN_LIVE_COUNT: &str = "otel.sdk.span.live.count";
 
 /// ## Description
@@ -4708,7 +4714,9 @@ pub const SIGNALR_SERVER_CONNECTION_DURATION: &str = "signalr.server.connection.
 /// | Unit: | `{Hz}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `cpu.frequency`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `cpu.frequency`., reason: renamed, renamed_to: cpu.frequency}"
+)]
 pub const SYSTEM_CPU_FREQUENCY: &str = "system.cpu.frequency";
 
 /// ## Description
@@ -4753,7 +4761,7 @@ pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 /// | Unit: | `s` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `cpu.time`., reason: uncategorized}")]
+#[deprecated(note = "{note: Replaced by `cpu.time`., reason: renamed, renamed_to: cpu.time}")]
 pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 
 /// ## Description
@@ -4766,7 +4774,9 @@ pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 /// | Unit: | `1` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-#[deprecated(note = "{note: Replaced by `cpu.utilization`., reason: uncategorized}")]
+#[deprecated(
+    note = "{note: Replaced by `cpu.utilization`., reason: renamed, renamed_to: cpu.utilization}"
+)]
 pub const SYSTEM_CPU_UTILIZATION: &str = "system.cpu.utilization";
 
 /// ## Description

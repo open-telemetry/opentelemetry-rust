@@ -44,6 +44,12 @@ pub use crate::attribute::APP_WIDGET_ID;
 pub use crate::attribute::APP_WIDGET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_BEDROCK_GUARDRAIL_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_BEDROCK_KNOWLEDGE_BASE_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -114,6 +120,9 @@ pub use crate::attribute::AWS_EXTENDED_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_LAMBDA_INVOKED_ARN;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_LAMBDA_RESOURCE_MAPPING_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_REQUEST_ID;
@@ -202,6 +211,9 @@ pub use crate::attribute::CICD_PIPELINE_TASK_RUN_URL_FULL;
 pub use crate::attribute::CLIENT_ADDRESS;
 
 pub use crate::attribute::CLIENT_PORT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUD_REGION;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_RESOURCE_ID;
@@ -296,6 +308,9 @@ pub use crate::attribute::FEATURE_FLAG_PROVIDER_NAME;
 pub use crate::attribute::FEATURE_FLAG_RESULT_REASON;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_RESULT_VALUE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_RESULT_VARIANT;
 
 #[cfg(feature = "semconv_experimental")]
@@ -312,6 +327,12 @@ pub use crate::attribute::GEN_AI_AGENT_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_AGENT_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_CONVERSATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_DATA_SOURCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_OPENAI_REQUEST_SERVICE_TIER;
