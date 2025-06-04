@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+
 ## 0.30.0
 
 Released 2025-May-23

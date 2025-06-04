@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Implementation of `Extractor::get_all` for `HeaderExtractor`
+
 ## 0.30.0
 
 Released 2025-May-23
