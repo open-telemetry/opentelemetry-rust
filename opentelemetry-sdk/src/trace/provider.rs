@@ -471,8 +471,8 @@ mod tests {
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::trace::provider::TracerProviderInner;
-    use crate::trace::{Config, Span, SpanProcessor};
-    use crate::trace::{SdkTracerProvider, SpanData};
+    use crate::trace::SdkTracerProvider;
+    use crate::trace::{Config, FinishedSpan, Span, SpanProcessor};
     use crate::Resource;
     use opentelemetry::trace::{Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
@@ -526,7 +526,7 @@ mod tests {
                 .fetch_add(1, Ordering::SeqCst);
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &mut FinishedSpan) {
             // ignore
         }
 
@@ -789,7 +789,7 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &mut FinishedSpan) {
             // No operation needed for this processor
         }
 

@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{FinishedSpan, ReadableSpan, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::pin_mut;
 use futures_util::{
@@ -103,10 +103,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: &mut FinishedSpan) {
+        if !span.context().is_sampled() {
             return;
         }
+        let span = span.consume();
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
@@ -432,7 +433,7 @@ mod tests {
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
-    use crate::trace::{SpanData, SpanExporter};
+    use crate::trace::{FinishedSpan, SpanData, SpanExporter};
     use futures_util::Future;
     use std::fmt::Debug;
     use std::time::Duration;
@@ -519,7 +520,7 @@ mod tests {
             }
         });
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
         let _shutdown_result = processor.shutdown();
@@ -546,7 +547,7 @@ mod tests {
         };
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
         let flush_res = processor.force_flush();
         if time_out {
             assert!(flush_res.is_err());
