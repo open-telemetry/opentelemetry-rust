@@ -1,10 +1,10 @@
 #[cfg(all(feature = "gen-tonic-messages", feature = "zpages"))]
 mod tonic {
-    use opentelemetry::trace::{Event, Status};
+    use opentelemetry::trace::Status;
     use opentelemetry_sdk::trace::SpanData;
 
     use crate::proto::tonic::{
-        trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
+        trace::v1::{span, span::Event as SpanEvent, Status as SpanStatus},
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };
     use crate::transform::common::{to_nanos, tonic::Attributes};
@@ -18,8 +18,30 @@ mod tonic {
                 starttime: to_nanos(span_data.start_time),
                 endtime: to_nanos(span_data.end_time),
                 attributes: Attributes::from(span_data.attributes).0,
-                events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
+                events: span_data
+                    .events
+                    .events
+                    .into_iter()
+                    .map(|e| SpanEvent {
+                        time_unix_nano: to_nanos(e.timestamp),
+                        name: e.name.to_string(),
+                        attributes: Attributes::from(e.attributes).0,
+                        dropped_attributes_count: span_data.dropped_attributes_count,
+                    })
+                    .collect(),
+                links: span_data
+                    .links
+                    .iter()
+                    .cloned()
+                    .map(|link| span::Link {
+                        trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: link.span_context.span_id().to_bytes().to_vec(),
+                        trace_state: link.span_context.trace_state().header(),
+                        attributes: Attributes::from(link.attributes).0,
+                        dropped_attributes_count: span_data.dropped_attributes_count,
+                        flags: link.span_context.trace_flags().to_u8() as u32,
+                    })
+                    .collect(),
             }
         }
     }
@@ -32,8 +54,30 @@ mod tonic {
                 parentid: span_data.parent_span_id.to_bytes().to_vec(),
                 starttime: to_nanos(span_data.start_time),
                 attributes: Attributes::from(span_data.attributes).0,
-                events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
+                events: span_data
+                    .events
+                    .events
+                    .into_iter()
+                    .map(|e| SpanEvent {
+                        time_unix_nano: to_nanos(e.timestamp),
+                        name: e.name.to_string(),
+                        attributes: Attributes::from(e.attributes).0,
+                        dropped_attributes_count: span_data.dropped_attributes_count,
+                    })
+                    .collect(),
+                links: span_data
+                    .links
+                    .iter()
+                    .cloned()
+                    .map(|link| span::Link {
+                        trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: link.span_context.span_id().to_bytes().to_vec(),
+                        trace_state: link.span_context.trace_state().header(),
+                        attributes: Attributes::from(link.attributes).0,
+                        dropped_attributes_count: span_data.dropped_attributes_count,
+                        flags: link.span_context.trace_flags().to_u8() as u32,
+                    })
+                    .collect(),
                 status: match span_data.status {
                     Status::Error { description } => Some(SpanStatus {
                         message: description.to_string(),
@@ -53,19 +97,30 @@ mod tonic {
                 parentid: span_data.parent_span_id.to_bytes().to_vec(),
                 starttime: to_nanos(span_data.start_time),
                 attributes: Attributes::from(span_data.attributes).0,
-                events: span_data.events.iter().cloned().map(Into::into).collect(),
-                links: span_data.links.iter().cloned().map(Into::into).collect(),
-            }
-        }
-    }
-
-    impl From<Event> for SpanEvent {
-        fn from(event: Event) -> Self {
-            SpanEvent {
-                time_unix_nano: to_nanos(event.timestamp),
-                name: event.name.to_string(),
-                attributes: Attributes::from(event.attributes).0,
-                dropped_attributes_count: event.dropped_attributes_count,
+                events: span_data
+                    .events
+                    .events
+                    .into_iter()
+                    .map(|e| SpanEvent {
+                        time_unix_nano: to_nanos(e.timestamp),
+                        name: e.name.to_string(),
+                        attributes: Attributes::from(e.attributes).0,
+                        dropped_attributes_count: span_data.dropped_attributes_count,
+                    })
+                    .collect(),
+                links: span_data
+                    .links
+                    .iter()
+                    .cloned()
+                    .map(|link| span::Link {
+                        trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                        span_id: link.span_context.span_id().to_bytes().to_vec(),
+                        trace_state: link.span_context.trace_state().header(),
+                        attributes: Attributes::from(link.attributes).0,
+                        dropped_attributes_count: span_data.links.dropped_count,
+                        flags: link.span_context.trace_flags().to_u8() as u32,
+                    })
+                    .collect(),
             }
         }
     }
