@@ -137,7 +137,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         if !span.context().is_sampled() {
             return;
         }
-        let span = span.consume();
+        let Some(span) = span.consume() else { return };
 
         let result = self
             .exporter
@@ -526,7 +526,9 @@ impl SpanProcessor for BatchSpanProcessor {
             );
             return;
         }
-        let span = span.consume();
+        let Some(span) = span.consume() else {
+            return;
+        };
         let result = self.span_sender.try_send(span);
 
         if result.is_err() {

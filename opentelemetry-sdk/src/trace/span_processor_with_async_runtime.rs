@@ -107,7 +107,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         if !span.context().is_sampled() {
             return;
         }
-        let span = span.consume();
+        let Some(span) = span.consume() else { return };
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 

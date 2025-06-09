@@ -288,23 +288,10 @@ impl FinishedSpan {
 
     /// Takes ownership of the span data in the `FinishedSpan`.
     ///
-    /// # Panics
-    ///
-    /// This function panics
-    /// * if it called twice in the same SpanProcessor::on_end
-    pub fn consume(&mut self) -> crate::trace::SpanData {
+    /// Returns `None` if the span data has already been consumed.
+    pub fn consume(&mut self) -> Option<crate::trace::SpanData> {
         if self.is_consumed {
             opentelemetry::otel_error!(name: "FinishedSpan.ConsumeTwice", message = "consume called twice on FinishedSpan in the same span processor");
-        }
-        self.try_consume()
-            .expect("Span data has already been consumed")
-    }
-
-    /// Takes ownership of the span data in the `FinishedSpan`.
-    ///
-    /// Returns `None` if the span data has already been consumed.
-    pub fn try_consume(&mut self) -> Option<crate::trace::SpanData> {
-        if self.is_consumed {
             return None;
         }
         self.is_consumed = true;
@@ -1162,7 +1149,7 @@ mod tests {
         impl SpanProcessor for TestSpanProcessor {
             fn on_end(&self, span: &mut FinishedSpan) {
                 let _ = span.consume();
-                assert!(span.try_consume().is_none());
+                assert!(span.consume().is_none());
             }
 
             fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
