@@ -600,14 +600,15 @@ You may observe up to 2 × 3 = 6 unique attribute sets.
 ##### Choosing the Right Limit for Delta Temporality
 
 Delta metrics reset their aggregation state after every export interval. This
-allows for more efficient memory usage based on per-interval needs rather than
-entire combinations.
+approach enables more efficient memory utilization by focusing on attributes
+observed during each interval rather than tracking all possible combinations.
 
-* If all combinations are known ahead of time (as in the fruit example), you can
-  apply the same calculation as with cumulative temporality.
-* However, delta really shines when handling high-cardinality dimensions like
-  `user_id`, where the set of active values changes over time and only a few are
-  active at a given interval.
+* For scenarios with predictable attribute combinations (as in the fruit
+  example), you can use the same calculation method as with cumulative
+  temporality.
+* Delta temporality particularly excels when dealing with high-cardinality
+  dimensions like `user_id`, where the active set changes dynamically over time
+  and only a subset is active during any given export interval.
 
 ###### Example - High Cardinality Attribute Scenario
 
