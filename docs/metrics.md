@@ -639,8 +639,8 @@ Shorter export intervals further reduce the required cardinality:
 * If your interval is halved (e.g., from 60 sec to 30 sec), the number of unique
   attribute sets seen per interval may also be halved.
 
-> [!Note] More frequent exports increase CPU/network overhead due to
-serialization and transmission costs.
+> [!NOTE] More frequent exports increase CPU/network overhead due to
+> serialization and transmission costs.
 
 ##### Choosing the Right Limit - Backend Considerations
 
