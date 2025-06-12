@@ -585,6 +585,8 @@ been observed since the start of the process.
 * You must account for the theoretical maximum number of attribute combinations.
 * This can be estimated by multiplying the number of possible values for each
   attribute.
+* If certain attribute combinations are invalid or will never occur in practice,
+  you can reduce the limit accordingly.
 
 ###### Example - Fruit Sales Scenario
 
@@ -593,9 +595,11 @@ Attributes:
 * `name` can be "apple" or "lemon" (2 values)
 * `color` can be "red", "yellow", or "green" (3 values)
 
-You may observe up to 2 × 3 = 6 unique attribute sets.
+The theoretical maximum is 2 × 3 = 6 unique attribute sets.
 
-**Set the cardinality limit to 6.**
+For this example, the simplest approach is to use the theoretical maximum and **set the cardinality limit to 6**.
+
+However, if you know that certain combinations will never occur (for example, if "red lemons" don't exist in your application domain), you could reduce the limit to only account for valid combinations. In this case, if only 5 combinations are valid, **setting the cardinality limit to 5** would be more memory-efficient.
 
 ##### Choosing the Right Limit for Delta Temporality
 
