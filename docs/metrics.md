@@ -604,15 +604,15 @@ However, if you know that certain combinations will never occur (for example, if
 ##### Choosing the Right Limit for Delta Temporality
 
 Delta metrics reset their aggregation state after every export interval. This
-approach enables more efficient memory utilization by focusing on attributes
-observed during each interval rather than tracking all possible combinations.
+approach enables more efficient memory utilization by focusing only on attributes
+observed during each interval rather than maintaining state for all combinations.
 
-* For scenarios with predictable attribute combinations (as in the fruit
-  example), you can use the same calculation method as with cumulative
-  temporality.
-* Delta temporality particularly excels when dealing with high-cardinality
-  dimensions like `user_id`, where the active set changes dynamically over time
-  and only a subset is active during any given export interval.
+* **When attributes are low-cardinality** (as in the fruit example), simply use the same
+  calculation method as with cumulative temporality.
+* **When high-cardinality attribute(s) exist** like `user_id`, leverage Delta temporality's
+  "forget state" nature to set a much lower limit based on active usage patterns.
+  This is where Delta temporality truly excels - when the set of active values
+  changes dynamically and only a small subset is active during any given interval.
 
 ###### Example - High Cardinality Attribute Scenario
 
