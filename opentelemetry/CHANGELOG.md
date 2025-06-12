@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+
+## 0.30.0
+
+Released 2025-May-23
+
 [#2821](https://github.com/open-telemetry/opentelemetry-rust/pull/2821) Context
 based suppression capabilities added: Added the ability to prevent recursive
 telemetry generation through new context-based suppression mechanisms. This

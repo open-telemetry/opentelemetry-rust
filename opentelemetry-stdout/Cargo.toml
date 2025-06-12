@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stdout"
-version = "0.29.0"
+version = "0.30.0"
 description = "An OpenTelemetry exporter for stdout"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
@@ -28,12 +28,12 @@ logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry_sdk/spec_
 
 [dependencies]
 chrono = { workspace = true, features = ["now"] }
-opentelemetry = { version = "0.29", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.29", path = "../opentelemetry-sdk" }
+opentelemetry = { version = "0.30", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.30", path = "../opentelemetry-sdk" }
 
 [dev-dependencies]
 opentelemetry = { path = "../opentelemetry", features = ["metrics"] }
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["rt-tokio", "metrics"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics"] }
 opentelemetry-appender-tracing = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }

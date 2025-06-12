@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-log"
-version = "0.29.0"
+version = "0.30.0"
 description = "An OpenTelemetry appender for the log crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
@@ -15,12 +15,12 @@ autobenches = false
 bench = false
 
 [dependencies]
-opentelemetry = { version = "0.29", path = "../opentelemetry", features = [
+opentelemetry = { version = "0.30", path = "../opentelemetry", features = [
   "logs",
 ] }
 log = { workspace = true, features = ["kv", "std"] }
 serde = { workspace = true, optional = true, features = ["std"] }
-opentelemetry-semantic-conventions = { version = "0.29", path = "../opentelemetry-semantic-conventions", optional = true, features = [
+opentelemetry-semantic-conventions = { version = "0.30", path = "../opentelemetry-semantic-conventions", optional = true, features = [
   "semconv_experimental",
 ] }
 

@@ -2,6 +2,14 @@
 
 ## vNext
 
+- Implementation of `Extractor::get_all` for `HeaderExtractor`
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` dependency to version 0.30.0.
+
 ## 0.29.0
 
 Released 2025-Mar-21
