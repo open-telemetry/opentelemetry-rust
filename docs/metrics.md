@@ -607,14 +607,17 @@ Delta metrics reset their aggregation state after every export interval. This
 approach enables more efficient memory utilization by focusing only on attributes
 observed during each interval rather than maintaining state for all combinations.
 
-* **When attributes are low-cardinality** (as in the fruit example), simply use the same
-  calculation method as with cumulative temporality.
-* **When high-cardinality attribute(s) exist** like `user_id`, leverage Delta temporality's
-  "forget state" nature to set a much lower limit based on active usage patterns.
-  This is where Delta temporality truly excels - when the set of active values
-  changes dynamically and only a small subset is active during any given interval.
+* **When attributes are low-cardinality** (as in the fruit example), use the
+  same calculation method as with cumulative temporality.
+* **When high-cardinality attribute(s) exist** like `user_id`, leverage Delta
+  temporality's "forget state" nature to set a much lower limit based on active
+  usage patterns. This is where Delta temporality truly excels - when the set of
+  active values changes dynamically and only a small subset is active during any
+  given interval.
 
 ###### Example - High Cardinality Attribute Scenario
+
+Export interval: 60 sec
 
 Attributes:
 
@@ -623,7 +626,7 @@ Attributes:
 
 Theoretical limit: 1 million users × 2 = 2 million attribute sets
 
-But if only 10,000 users are typically active during a 1-minute export interval:
+But if only 10,000 users are typically active during a 60 sec export interval:
 10,000 × 2 = 20,000
 
 **You can set the limit to 20,000, dramatically reducing memory usage during
@@ -633,10 +636,10 @@ normal operation.**
 
 Shorter export intervals further reduce the required cardinality:
 
-* If your interval is halved (e.g., from 60s to 30s), the number of unique
+* If your interval is halved (e.g., from 60 sec to 30 sec), the number of unique
   attribute sets seen per interval may also be halved.
 
-But beware: more frequent exports increase CPU/network overhead due to
+> [!Note] More frequent exports increase CPU/network overhead due to
 serialization and transmission costs.
 
 ##### Choosing the Right Limit - Backend Considerations
