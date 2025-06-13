@@ -485,9 +485,9 @@ practice is important:
   
   * **Delta Temporality**: The SDK "forgets" the state after each
     collection/export cycle. This means in each new interval, the SDK can track
-    up to the cardinality limit of distinct attribute combinations.
-    Over time, your metrics backend might see far more than the configured limit
-    of distinct combinations from a single process.
+    up to the cardinality limit of distinct attribute combinations. Over time,
+    your metrics backend might see far more than the configured limit of
+    distinct combinations from a single process.
   
   * **Cumulative Temporality**: Since the SDK maintains state across export
     intervals, once the cardinality limit is reached, new attribute combinations
@@ -560,7 +560,108 @@ The exported metrics would be:
   words, attributes used to create `Meter` or `Resource` attributes are not
   subject to this cap.
 
-// TODO: Document how to pick cardinality limit.
+#### Cardinality Limits - How to Choose the Right Limit
+
+Choosing the right cardinality limit is crucial for maintaining efficient memory
+usage and predictable performance in your metrics system. The optimal limit
+depends on your temporality choice and application characteristics.
+
+Setting the limit incorrectly can have consequences:
+
+* **Limit too high**: Due to the SDK's [memory
+  preallocation](#memory-preallocation) strategy, excess memory will be
+  allocated upfront and remain unused, leading to resource waste.
+* **Limit too low**: Measurements will be folded into the overflow bucket
+  (`{"otel.metric.overflow": true}`), losing granular attribute information and
+  making attribute-based queries unreliable.
+
+Consider these guidelines when determining the appropriate limit:
+
+##### Choosing the Right Limit for Cumulative Temporality
+
+Cumulative metrics retain every unique attribute combination that has *ever*
+been observed since the start of the process.
+
+* You must account for the theoretical maximum number of attribute combinations.
+* This can be estimated by multiplying the number of possible values for each
+  attribute.
+* If certain attribute combinations are invalid or will never occur in practice,
+  you can reduce the limit accordingly.
+
+###### Example - Fruit Sales Scenario
+
+Attributes:
+
+* `name` can be "apple" or "lemon" (2 values)
+* `color` can be "red", "yellow", or "green" (3 values)
+
+The theoretical maximum is 2 × 3 = 6 unique attribute sets.
+
+For this example, the simplest approach is to use the theoretical maximum and **set the cardinality limit to 6**.
+
+However, if you know that certain combinations will never occur (for example, if "red lemons" don't exist in your application domain), you could reduce the limit to only account for valid combinations. In this case, if only 5 combinations are valid, **setting the cardinality limit to 5** would be more memory-efficient.
+
+##### Choosing the Right Limit for Delta Temporality
+
+Delta metrics reset their aggregation state after every export interval. This
+approach enables more efficient memory utilization by focusing only on attributes
+observed during each interval rather than maintaining state for all combinations.
+
+* **When attributes are low-cardinality** (as in the fruit example), use the
+  same calculation method as with cumulative temporality.
+* **When high-cardinality attribute(s) exist** like `user_id`, leverage Delta
+  temporality's "forget state" nature to set a much lower limit based on active
+  usage patterns. This is where Delta temporality truly excels - when the set of
+  active values changes dynamically and only a small subset is active during any
+  given interval.
+
+###### Example - High Cardinality Attribute Scenario
+
+Export interval: 60 sec
+
+Attributes:
+
+* `user_id` (up to 1 million unique users)
+* `success` (true or false, 2 values)
+
+Theoretical limit: 1 million users × 2 = 2 million attribute sets
+
+But if only 10,000 users are typically active during a 60 sec export interval:
+10,000 × 2 = 20,000
+
+**You can set the limit to 20,000, dramatically reducing memory usage during
+normal operation.**
+
+###### Export Interval Tuning
+
+Shorter export intervals further reduce the required cardinality:
+
+* If your interval is halved (e.g., from 60 sec to 30 sec), the number of unique
+  attribute sets seen per interval may also be halved.
+
+> [!NOTE] More frequent exports increase CPU/network overhead due to
+> serialization and transmission costs.
+
+##### Choosing the Right Limit - Backend Considerations
+
+While delta temporality offers certain advantages for cardinality management,
+your choice may be constrained by backend support:
+
+* **Backend Restrictions:** Some metrics backends only support cumulative
+  temporality. For example, Prometheus requires cumulative temporality and
+  cannot directly consume delta metrics.
+* **Collector Conversion:** To leverage delta temporality's memory advantages
+  while maintaining backend compatibility, configure your SDK to use delta
+  temporality and deploy an OpenTelemetry Collector with a delta-to-cumulative
+  conversion processor. This approach pushes the memory overhead from your
+  application to the collector, which can be more easily scaled and managed
+  independently.
+
+TODO: Add the memory cost incurred by each data points, so users can know the
+memory impact of setting a higher limits.
+
+TODO: Add example of how query can be affected when overflow occurs, use
+[Aspire](https://github.com/dotnet/aspire/pull/7784) tool.
 
 ### Memory Preallocation
 
@@ -622,7 +723,7 @@ Follow these guidelines when deciding where to attach metric attributes:
   * **Meter-level attributes**: If the dimension applies only to a subset of
     metrics (e.g., library version), model it as meter-level attributes via
     `meter_with_scope`.
-    
+
     ```rust
     // Example: Setting meter-level attributes
     let scope = InstrumentationScope::builder("payment_library")
@@ -660,3 +761,7 @@ Common pitfalls that can result in missing metrics include:
    used, some metrics may be placed in the overflow bucket.
 
 // TODO: Add more specific examples
+
+## References
+
+[OTel Metrics Specification - Supplementary Guidelines](https://opentelemetry.io/docs/specs/otel/metrics/supplementary-guidelines/)
