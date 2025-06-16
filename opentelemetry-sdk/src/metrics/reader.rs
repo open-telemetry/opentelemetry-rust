@@ -1,9 +1,14 @@
 //! Interfaces for reading and producing metrics
-use crate::error::OTelSdkResult;
+use crate::error::{OTelSdkError, OTelSdkResult};
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
-use super::{data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, Temporality};
+use super::{
+    data::{ResourceMetrics, ScopeMetrics},
+    instrument::InstrumentKind,
+    pipeline::Pipeline,
+    Temporality,
+};
 
 /// The interface used between the SDK and an exporter.
 ///
@@ -64,4 +69,10 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
 pub(crate) trait SdkProducer: fmt::Debug + Send + Sync {
     /// Returns aggregated metrics from a single collection.
     fn produce(&self, rm: &mut ResourceMetrics) -> OTelSdkResult;
+}
+
+/// Produces metrics for a [MetricReader] from an external source.
+pub trait MetricProducer: fmt::Debug + Send + Sync {
+    /// Returns aggregated metrics from an external source.
+    fn produce(&self) -> Result<ScopeMetrics, OTelSdkError>;
 }
