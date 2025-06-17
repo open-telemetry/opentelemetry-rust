@@ -55,13 +55,6 @@ Check this example if you want to understand *how to create spans and
 propagate/restore context in OpenTelemetry* in an HTTP client-server
 application.
 
-## tracing-jaeger
+## opentelemetry-otlp
 
-This example uses following crates from this repo:
-
-- opentelemetry(tracing)
-- opentelemetry-otlp
-
-The application is built using `tokio`.
-
-Check this example if you want to understand *how to use OTLP Exporter to export traces to Jaeger*.
+Check [opentelemetry-rust/opentelemetry-otlp/examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples) for exporter to Jaeger examples using `opentelemetry-otlp`
