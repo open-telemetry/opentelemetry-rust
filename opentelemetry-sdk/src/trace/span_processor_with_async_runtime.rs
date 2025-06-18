@@ -194,7 +194,7 @@ struct BatchSpanProcessorInternal<E, R> {
     config: BatchConfig,
 }
 
-impl<E: SpanExporter + Send + Sync + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
+impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
     async fn flush(&mut self, res_channel: Option<oneshot::Sender<OTelSdkResult>>) {
         let export_result = Self::export(
             self.spans.split_off(0),
