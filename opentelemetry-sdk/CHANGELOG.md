@@ -2,6 +2,7 @@
 
 ## vNext
 
+- The `spec_unstable_logs_enabled` feature flag has been removed. All log features are now always enabled. Any code previously gated by this flag is now available by default. This is a breaking change for users who relied on the feature flag to disable log features.
 - TODO: Placeholder for Span processor related things
   - *Fix* SpanProcessor::on_start is no longer called on non recording spans
 

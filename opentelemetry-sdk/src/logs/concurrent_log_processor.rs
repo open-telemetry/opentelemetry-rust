@@ -48,7 +48,11 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         self.exporter.shutdown_with_timeout(timeout)
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+    fn set_resource(&mut self, resource: &Resource) {
+        self.exporter.set_resource(resource);
+    }
+
+    // event_enabled is now always enabled and delegates to exporter
     #[inline]
     fn event_enabled(
         &self,
@@ -57,9 +61,5 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         name: Option<&str>,
     ) -> bool {
         self.exporter.event_enabled(level, target, name)
-    }
-
-    fn set_resource(&mut self, resource: &Resource) {
-        self.exporter.set_resource(resource);
     }
 }

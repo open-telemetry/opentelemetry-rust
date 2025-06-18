@@ -135,7 +135,8 @@
 //! >   spans to OpenTelemetry in the future.
 //!
 //! ## Feature Flags
-//! `spec_unstable_logs_enabled`: TODO
+//!
+//! All log features are now always enabled. The previous `spec_unstable_logs_enabled` feature flag has been removed.
 //!
 //! `experimental_metadata_attributes`: TODO
 //!
