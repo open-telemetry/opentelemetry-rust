@@ -29,7 +29,6 @@
 use crate::error::OTelSdkResult;
 use crate::{logs::SdkLogRecord, Resource};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 
