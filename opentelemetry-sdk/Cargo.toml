@@ -55,7 +55,7 @@ spec_unstable_metrics_views = ["metrics"]
 experimental_metrics_custom_reader = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_logs_concurrent_log_processor = ["logs"]
-experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
+experimental_trace_batch_span_processor_with_async_runtime = ["rt-tokio", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
 
 [[bench]]
