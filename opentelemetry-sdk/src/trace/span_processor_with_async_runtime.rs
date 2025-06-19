@@ -190,8 +190,11 @@ struct BatchSpanProcessorInternal<E, R> {
     spans: Vec<SpanData>,
     export_tasks: FuturesUnordered<BoxFuture<'static, OTelSdkResult>>,
     runtime: R,
-    exporter: Arc<RwLock<E>>,
     config: BatchConfig,
+    // TODO: Redesign the `SpanExporter` trait to use immutable references (`&self`)
+    // for all methods. This would allow us to remove the `RwLock` and just use `Arc<E>`,
+    // similar to how `crate::logs::LogExporter` is implemented.
+    exporter: Arc<RwLock<E>>,
 }
 
 impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
