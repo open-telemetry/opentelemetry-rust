@@ -28,7 +28,7 @@ jobs:
     # If we're running on main, use the OTEL self-hosted runner pool. 
     #
     # TODO - temporarily use self-hosted to get shared-worker environment going
-    runs-on: 'self-hosted'
+    runs-on: 'oracle-bare-metal-64cpu-512gb-x86-64'
     # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
     env:
