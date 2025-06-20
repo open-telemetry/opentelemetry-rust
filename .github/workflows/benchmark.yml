@@ -49,23 +49,12 @@ jobs:
           apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
           cargo install cargo-criterion
 
-      - name: Make repo safe for Git inside container
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      # - name: Make repo safe for Git inside container
+        # run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0  # Fetch full history for git-based tools
-
-      - name: Run benchmark
-        run: |
-          cargo bench
-          echo 'Benchmark run complete'
-
-      - name: Debug Git state (optional)
-        run: |
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          ls -alh "$GITHUB_WORKSPACE/.git" || echo ".git not found"
-          git rev-parse HEAD || echo "Not a git repo"
 
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
