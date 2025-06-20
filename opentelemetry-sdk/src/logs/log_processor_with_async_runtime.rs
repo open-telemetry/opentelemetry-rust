@@ -628,10 +628,6 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
-
-        fn shutdown(&self) -> OTelSdkResult {
-            Ok(())
-        }
     }
 
     #[derive(Debug)]
@@ -656,10 +652,6 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }

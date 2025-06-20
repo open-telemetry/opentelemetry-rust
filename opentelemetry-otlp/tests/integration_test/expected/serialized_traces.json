@@ -10,7 +10,8 @@
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeSpans": [
         {

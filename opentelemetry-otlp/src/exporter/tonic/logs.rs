@@ -72,17 +72,27 @@ impl LogExporter for TonicLogsClient {
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        otel_debug!(name: "TonicsLogsClient.CallingExport");
+        otel_debug!(name: "TonicLogsClient.ExportStarted");
 
-        client
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
                 ExportLogsServiceRequest { resource_logs },
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("export error: {:?}", e)))?;
-        Ok(())
+            .await;
+
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicLogsClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                let error = format!("export error: {:?}", e);
+                otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
+            }
+        }
     }
 
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {

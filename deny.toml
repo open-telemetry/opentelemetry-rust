@@ -10,17 +10,19 @@ allow = [
 ]
 
 exceptions = [
-    { allow = ["MPL-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_collections" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_locid" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_locid_transform" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_locid_transform_data" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_locale_core" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_normalizer" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_normalizer_data" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_properties" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_properties_data" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_provider" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "icu_provider_macros" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "potential_utf" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "litemap" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "tinystr" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "writeable" }, # This crate gets used transitively by `reqwest`.
@@ -28,6 +30,7 @@ exceptions = [
     { allow = ["Unicode-3.0"], crate = "yoke" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "yoke-derive" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "zerovec" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerotrie" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "zerovec-derive" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "zerofrom" }, # This crate gets used transitively by `reqwest`.
     { allow = ["Unicode-3.0"], crate = "zerofrom-derive" }, # This crate gets used transitively by `reqwest`.

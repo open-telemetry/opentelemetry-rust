@@ -54,10 +54,6 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
     fn event_enabled(
         &self,
         _level: opentelemetry::logs::Severity,

@@ -5,7 +5,7 @@ use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support
@@ -43,8 +43,12 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
+    }
+    /// Shuts down the exporter with default timeout.
+    fn shutdown(&mut self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_nanos(5))
     }
 
     /// This is a hint to ensure that the export of any Spans the exporter

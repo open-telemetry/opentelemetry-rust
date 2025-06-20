@@ -11,6 +11,3 @@ Run the following, and the Metrics will be written out to stdout.
 ```shell
 $ cargo run
 ```
-
-
-

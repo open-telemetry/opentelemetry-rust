@@ -37,6 +37,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 
+/// A builder for creating a new [MetricExporter].
 #[derive(Debug, Default, Clone)]
 pub struct MetricExporterBuilder<C> {
     client: C,
@@ -44,12 +45,14 @@ pub struct MetricExporterBuilder<C> {
 }
 
 impl MetricExporterBuilder<NoExporterBuilderSet> {
+    /// Create a new [MetricExporterBuilder] with default settings.
     pub fn new() -> Self {
         MetricExporterBuilder::default()
     }
 }
 
 impl<C> MetricExporterBuilder<C> {
+    /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> MetricExporterBuilder<TonicExporterBuilderSet> {
         MetricExporterBuilder {
@@ -58,6 +61,7 @@ impl<C> MetricExporterBuilder<C> {
         }
     }
 
+    /// With the HTTP transport.
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     pub fn with_http(self) -> MetricExporterBuilder<HttpExporterBuilderSet> {
         MetricExporterBuilder {
@@ -66,6 +70,7 @@ impl<C> MetricExporterBuilder<C> {
         }
     }
 
+    /// Set the temporality for the metrics.
     pub fn with_temporality(self, temporality: Temporality) -> MetricExporterBuilder<C> {
         MetricExporterBuilder {
             client: self.client,
@@ -76,6 +81,7 @@ impl<C> MetricExporterBuilder<C> {
 
 #[cfg(feature = "grpc-tonic")]
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
+    /// Build the [MetricExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         opentelemetry::otel_debug!(name: "MetricExporterBuilt");
@@ -85,6 +91,7 @@ impl MetricExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl MetricExporterBuilder<HttpExporterBuilderSet> {
+    /// Build the [MetricExporter] with the HTTP transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let exporter = self.client.0.build_metrics_exporter(self.temporality)?;
         Ok(exporter)
@@ -123,7 +130,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
     fn export(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &ResourceMetrics,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
     fn shutdown(&self) -> OTelSdkResult;
 }
@@ -149,7 +156,7 @@ impl Debug for MetricExporter {
 }
 
 impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.export(metrics).await,
