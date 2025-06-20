@@ -12,7 +12,7 @@ on:
   push:
     branches:
       - main
-      - dependabot/scottgerring/benchmark-fix
+      # - dependabot/scottgerring/benchmark-fix
 name: benchmark pull requests
 permissions:
   contents: read
@@ -46,7 +46,10 @@ jobs:
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 10  # Fetch current commit and its parent
+          fetch-depth: 0  # Fetch full history for git-based tools
+
+      - name: Make repo safe for Git inside container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup container environment
         run: |
@@ -57,13 +60,22 @@ jobs:
         run: |
           cargo bench
           echo 'Benchmark run complete'
-            
+
+      - name: Debug Git state (optional)
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          ls -alh "$GITHUB_WORKSPACE/.git" || echo ".git not found"
+          git rev-parse HEAD || echo "Not a git repo"
+
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: stable
+
       - uses: boa-dev/criterion-compare-action@adfd3a94634fe2041ce5613eb7df09d247555b87 # v3.2.4
         with:
+          cwd: opentelemetry-appender-tracing # TEMP - make the run shorter for now
           branchName: ${{ env.BRANCH_NAME }}
