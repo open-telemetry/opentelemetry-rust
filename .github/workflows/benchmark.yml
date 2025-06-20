@@ -49,8 +49,8 @@ jobs:
           apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
           cargo install cargo-criterion
 
-      # - name: Make repo safe for Git inside container
-        # run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Make repo safe for Git inside container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
