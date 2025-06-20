@@ -13,7 +13,10 @@ use crate::trace::{
     IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{SamplingDecision, SpanBuilder, SpanContext, SpanKind, TraceContextExt, TraceFlags},
+    trace::{
+        SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt,
+        TraceFlags,
+    },
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
@@ -281,9 +284,11 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             }
         };
 
-        // Call `on_start` for all processors
-        for processor in provider.span_processors() {
-            processor.on_start(&mut span, parent_cx)
+        if span.is_recording() {
+            // Call `on_start` for all processors
+            for processor in provider.span_processors() {
+                processor.on_start(&mut span, parent_cx)
+            }
         }
 
         span

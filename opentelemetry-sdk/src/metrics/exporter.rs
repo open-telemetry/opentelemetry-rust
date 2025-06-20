@@ -18,7 +18,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     /// considered unrecoverable and will be logged.
     fn export(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &ResourceMetrics,
     ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
 
     /// Flushes any metric data held by an exporter.

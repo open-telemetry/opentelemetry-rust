@@ -15,4 +15,11 @@ pub struct Resource {
     /// no attributes were dropped.
     #[prost(uint32, tag = "2")]
     pub dropped_attributes_count: u32,
+    /// Set of entities that participate in this Resource.
+    ///
+    /// Note: keys in the references MUST exist in attributes of this message.
+    ///
+    /// Status: \[Development\]
+    #[prost(message, repeated, tag = "3")]
+    pub entity_refs: ::prost::alloc::vec::Vec<super::super::common::v1::EntityRef>,
 }

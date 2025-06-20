@@ -74,7 +74,7 @@ sysinfo = "0.32"
 tempfile = "3.3.0"
 testcontainers = "0.23.1"
 tracing-log = "0.2"
-tracing-opentelemetry = "0.30"
+tracing-opentelemetry = "0.31"
 typed-builder = "0.20"
 uuid = "1.3"
 

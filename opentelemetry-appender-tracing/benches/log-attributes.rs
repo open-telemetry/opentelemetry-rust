@@ -43,10 +43,6 @@ impl LogProcessor for NoopProcessor {
     fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
-
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
 }
 
 /// Creates a single benchmark for a specific number of attributes

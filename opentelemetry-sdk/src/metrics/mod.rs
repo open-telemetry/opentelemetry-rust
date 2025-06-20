@@ -3,7 +3,7 @@
 //! ## Configuration
 //!
 //! The metrics SDK configuration is stored with each [SdkMeterProvider].
-//! Configuration for [Resource]s, [View]s, and [ManualReader] or
+//! Configuration for [Resource]s, views, and [ManualReader] or
 //! [PeriodicReader] instances can be specified.
 //!
 //! ### Example
@@ -73,8 +73,6 @@ pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuild
 
 #[cfg(feature = "spec_unstable_metrics_views")]
 pub use aggregation::*;
-#[cfg(feature = "spec_unstable_metrics_views")]
-pub use error::{MetricError, MetricResult};
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
@@ -82,14 +80,7 @@ pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
 
-#[cfg(feature = "experimental_metrics_custom_reader")]
-pub use instrument::InstrumentKind;
-
-#[cfg(feature = "spec_unstable_metrics_views")]
-pub use instrument::*;
-
-#[cfg(feature = "spec_unstable_metrics_views")]
-pub use view::*;
+pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
 
 use std::hash::Hash;
 
@@ -378,14 +369,12 @@ mod tests {
     async fn counter_aggregation_overflow_delta() {
         counter_aggregation_overflow_helper(Temporality::Delta);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Delta);
-        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Delta);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_aggregation_overflow_cumulative() {
         counter_aggregation_overflow_helper(Temporality::Cumulative);
         counter_aggregation_overflow_helper_custom_limit(Temporality::Cumulative);
-        counter_aggregation_overflow_helper_custom_limit_via_advice(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -438,6 +427,14 @@ mod tests {
         // cargo test histogram_aggregation_with_custom_bounds --features=testing -- --nocapture
         histogram_aggregation_with_custom_bounds_helper(Temporality::Delta);
         histogram_aggregation_with_custom_bounds_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_with_empty_bounds() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_with_empty_bounds --features=testing -- --nocapture
+        histogram_aggregation_with_empty_bounds_helper(Temporality::Delta);
+        histogram_aggregation_with_empty_bounds_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -874,6 +871,7 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
@@ -881,17 +879,21 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let criteria = Instrument::new().name("test_histogram");
-        let stream_invalid_aggregation = Stream::new()
-            .aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
-                boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
-                record_min_max: false,
-            })
-            .name("test_histogram_renamed")
-            .unit("test_unit_renamed");
-
-        let view =
-            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let view = |i: &Instrument| {
+            if i.name == "test_histogram" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![0.9, 1.9, 1.2, 1.3, 1.4, 1.5], // invalid boundaries
+                        record_min_max: false,
+                    })
+                    .with_name("test_histogram_renamed")
+                    .with_unit("test_unit_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter.clone())
             .with_view(view)
@@ -923,6 +925,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
     async fn spatial_aggregation_when_view_drops_attributes_observable_counter() {
@@ -930,12 +933,17 @@ mod tests {
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let criteria = Instrument::new().name("my_observable_counter");
         // View drops all attributes.
-        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
-
-        let view =
-            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let view = |i: &Instrument| {
+            if i.name == "my_observable_counter" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter.clone())
             .with_view(view)
@@ -998,18 +1006,26 @@ mod tests {
         assert_eq!(data_point.value, 300);
     }
 
+    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn spatial_aggregation_when_view_drops_attributes_counter() {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
         let exporter = InMemoryMetricExporter::default();
-        let criteria = Instrument::new().name("my_counter");
         // View drops all attributes.
-        let stream_invalid_aggregation = Stream::new().allowed_attribute_keys(vec![]);
-
-        let view =
-            new_view(criteria, stream_invalid_aggregation).expect("Expected to create a new view");
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Some(
+                    Stream::builder()
+                        .with_allowed_attribute_keys(vec![])
+                        .build()
+                        .unwrap(),
+                )
+            } else {
+                None
+            }
+        };
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter.clone())
             .with_view(view)
@@ -1453,6 +1469,318 @@ mod tests {
             "updown_counter",
             false,
         );
+    }
+
+    #[test]
+    fn view_test_rename() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .build()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit",
+            "my_description",
+        )
+    }
+
+    #[test]
+    fn view_test_change_unit() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(Stream::builder().with_unit("my_unit_new").build().unwrap())
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+    }
+
+    #[test]
+    fn view_test_change_description() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::builder()
+                            .with_description("my_description_new")
+                            .build()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description_new",
+        )
+    }
+
+    #[test]
+    fn view_test_change_name_unit() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .with_unit("my_unit_new")
+                            .build()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description",
+        )
+    }
+
+    #[test]
+    fn view_test_change_name_unit_desc() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" {
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .with_unit("my_unit_new")
+                            .with_description("my_description_new")
+                            .build()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit_new",
+            "my_description_new",
+        )
+    }
+
+    #[test]
+    fn view_test_match_unit() {
+        test_view_customization(
+            |i| {
+                if i.unit == "my_unit" {
+                    Some(Stream::builder().with_unit("my_unit_new").build().unwrap())
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit_new",
+            "my_description",
+        )
+    }
+
+    #[test]
+    fn view_test_match_none() {
+        test_view_customization(
+            |i| {
+                if i.name == "not_expected_to_match" {
+                    Some(Stream::builder().build().unwrap())
+                } else {
+                    None
+                }
+            },
+            "my_counter",
+            "my_unit",
+            "my_description",
+        )
+    }
+
+    #[test]
+    fn view_test_match_multiple() {
+        test_view_customization(
+            |i| {
+                if i.name == "my_counter" && i.unit == "my_unit" {
+                    Some(
+                        Stream::builder()
+                            .with_name("my_counter_renamed")
+                            .build()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                }
+            },
+            "my_counter_renamed",
+            "my_unit",
+            "my_description",
+        )
+    }
+
+    /// Helper function to test view customizations
+    fn test_view_customization<F>(
+        view_function: F,
+        expected_name: &str,
+        expected_unit: &str,
+        expected_description: &str,
+    ) where
+        F: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
+        // Run this test with stdout enabled to see output.
+        // cargo test view_test_* --all-features -- --nocapture
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view_function)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter
+            .f64_counter("my_counter")
+            .with_unit("my_unit")
+            .with_description("my_description")
+            .build();
+
+        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(
+            metric.name, expected_name,
+            "Expected name: {}.",
+            expected_name
+        );
+        assert_eq!(
+            metric.unit, expected_unit,
+            "Expected unit: {}.",
+            expected_unit
+        );
+        assert_eq!(
+            metric.description, expected_description,
+            "Expected description: {}.",
+            expected_description
+        );
+    }
+
+    // Following are just a basic set of advanced View tests - Views bring a lot
+    // of permutations and combinations, and we need
+    // to expand coverage for more scenarios in future.
+    // It is best to first split this file into multiple files
+    // based on scenarios (eg: regular aggregation, cardinality, views, view_advanced, etc)
+    // and then add more tests for each of the scenarios.
+    #[test]
+    fn test_view_single_instrument_multiple_stream() {
+        // Run this test with stdout enabled to see output.
+        // cargo test test_view_multiple_stream --all-features
+
+        // Each of the views match the instrument name "my_counter" and create a
+        // new stream with a different name. In other words, View can be used to
+        // create multiple streams for the same instrument.
+
+        let view1 = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Some(Stream::builder().with_name("my_counter_1").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        let view2 = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Some(Stream::builder().with_name("my_counter_2").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view1)
+            .with_view(view2)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.f64_counter("my_counter").build();
+
+        counter.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metrics = &resource_metrics[0].scope_metrics[0].metrics;
+        assert_eq!(metrics.len(), 2);
+        assert_eq!(metrics[0].name, "my_counter_1");
+        assert_eq!(metrics[1].name, "my_counter_2");
+    }
+
+    #[test]
+    fn test_view_multiple_instrument_single_stream() {
+        // Run this test with stdout enabled to see output.
+        // cargo test test_view_multiple_instrument_single_stream --all-features
+
+        // The view matches the instrument name "my_counter1" and "my_counter1"
+        // and create a single new stream for both. In other words, View can be used to
+        // "merge" multiple instruments into a single stream.
+        let view = |i: &Instrument| {
+            if i.name() == "my_counter1" || i.name() == "my_counter2" {
+                Some(Stream::builder().with_name("my_counter").build().unwrap())
+            } else {
+                None
+            }
+        };
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter1 = meter.f64_counter("my_counter1").build();
+        let counter2 = meter.f64_counter("my_counter2").build();
+
+        counter1.add(1.5, &[KeyValue::new("key1", "value1")]);
+        counter2.add(1.5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert_eq!(resource_metrics.len(), 1);
+        assert_eq!(resource_metrics[0].scope_metrics.len(), 1);
+        let metrics = &resource_metrics[0].scope_metrics[0].metrics;
+        assert_eq!(metrics.len(), 1);
+        assert_eq!(metrics[0].name, "my_counter");
+        // TODO: Assert that the data points are aggregated correctly.
     }
 
     fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
@@ -2161,6 +2489,55 @@ mod tests {
         assert_eq!(vec![1.0, 2.5, 5.5], data_point.bounds);
         assert_eq!(vec![1, 1, 3, 0], data_point.bucket_counts);
     }
+
+    fn histogram_aggregation_with_empty_bounds_helper(temporality: Temporality) {
+        let mut test_context = TestContext::new(temporality);
+        let histogram = test_context
+            .meter()
+            .u64_histogram("test_histogram")
+            .with_boundaries(vec![])
+            .build();
+        histogram.record(1, &[KeyValue::new("key1", "value1")]);
+        histogram.record(2, &[KeyValue::new("key1", "value1")]);
+        histogram.record(3, &[KeyValue::new("key1", "value1")]);
+        histogram.record(4, &[KeyValue::new("key1", "value1")]);
+        histogram.record(5, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert
+        let MetricData::Histogram(histogram_data) =
+            test_context.get_aggregation::<u64>("test_histogram", None)
+        else {
+            unreachable!()
+        };
+        // Expecting 1 time-series.
+        assert_eq!(histogram_data.data_points.len(), 1);
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                histogram_data.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(
+                histogram_data.temporality,
+                Temporality::Delta,
+                "Should produce delta"
+            );
+        }
+
+        // find and validate key1=value1 datapoint
+        let data_point =
+            find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
+                .expect("datapoint with key1=value1 expected");
+
+        assert_eq!(data_point.count, 5);
+        assert_eq!(data_point.sum, 15);
+        assert!(data_point.bounds.is_empty());
+        assert!(data_point.bucket_counts.is_empty());
+    }
+
     fn gauge_aggregation_helper(temporality: Temporality) {
         // Arrange
         let mut test_context = TestContext::new(temporality);
@@ -2476,9 +2853,11 @@ mod tests {
         let view_change_cardinality = move |i: &Instrument| {
             if i.name == "my_counter" {
                 Some(
-                    Stream::new()
-                        .name("my_counter")
-                        .cardinality_limit(cardinality_limit),
+                    Stream::builder()
+                        .with_name("my_counter")
+                        .with_cardinality_limit(cardinality_limit)
+                        .build()
+                        .unwrap(),
                 )
             } else {
                 None
@@ -2486,103 +2865,6 @@ mod tests {
         };
         let mut test_context = TestContext::new_with_view(temporality, view_change_cardinality);
         let counter = test_context.u64_counter("test", "my_counter", None);
-
-        // Act
-        // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
-        for v in 0..cardinality_limit {
-            counter.add(100, &[KeyValue::new("A", v.to_string())]);
-        }
-
-        // Empty attributes is specially treated and does not count towards the limit.
-        counter.add(3, &[]);
-        counter.add(3, &[]);
-
-        // All of the below will now go into overflow.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
-        test_context.flush_metrics();
-
-        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
-            unreachable!()
-        };
-
-        // Expecting (cardinality_limit + 1 overflow + Empty attributes) data points.
-        assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
-
-        let data_point =
-            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
-        assert_eq!(data_point.value, 300);
-
-        // let empty_attrs_data_point = &sum.data_points[0];
-        let empty_attrs_data_point = find_sum_datapoint_with_no_attributes(&sum.data_points)
-            .expect("Empty attributes point expected");
-        assert!(
-            empty_attrs_data_point.attributes.is_empty(),
-            "Non-empty attribute set"
-        );
-        assert_eq!(
-            empty_attrs_data_point.value, 6,
-            "Empty attributes value should be 3+3=6"
-        );
-
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
-        test_context.reset_metrics();
-        // The following should be aggregated normally for Delta,
-        // and should go into overflow for Cumulative.
-        counter.add(100, &[KeyValue::new("A", "foo")]);
-        counter.add(100, &[KeyValue::new("A", "another")]);
-        counter.add(100, &[KeyValue::new("A", "yet_another")]);
-        test_context.flush_metrics();
-
-        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
-            unreachable!()
-        };
-
-        if temporality == Temporality::Delta {
-            assert_eq!(sum.data_points.len(), 3);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo")
-                .expect("point expected");
-            assert_eq!(data_point.value, 100);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
-                .expect("point expected");
-            assert_eq!(data_point.value, 100);
-
-            let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another")
-                    .expect("point expected");
-            assert_eq!(data_point.value, 100);
-        } else {
-            // For cumulative, overflow should still be there, and new points should not be added.
-            assert_eq!(sum.data_points.len(), cardinality_limit + 1 + 1);
-            let data_point =
-                find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
-            assert_eq!(data_point.value, 600);
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
-            assert!(data_point.is_none(), "point should not be present");
-
-            let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
-            assert!(data_point.is_none(), "point should not be present");
-
-            let data_point =
-                find_sum_datapoint_with_key_value(&sum.data_points, "A", "yet_another");
-            assert!(data_point.is_none(), "point should not be present");
-        }
-    }
-
-    fn counter_aggregation_overflow_helper_custom_limit_via_advice(temporality: Temporality) {
-        // Arrange
-        let cardinality_limit = 2300;
-        let mut test_context = TestContext::new(temporality);
-        let meter = test_context.meter();
-        let counter = meter
-            .u64_counter("my_counter")
-            .with_cardinality_limit(cardinality_limit)
-            .build();
 
         // Act
         // Record measurements with A:0, A:1,.......A:cardinality_limit, which just fits in the cardinality_limit
@@ -2929,7 +3211,10 @@ mod tests {
             }
         }
 
-        fn new_with_view<T: View>(temporality: Temporality, view: T) -> Self {
+        fn new_with_view<T>(temporality: Temporality, view: T) -> Self
+        where
+            T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+        {
             let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
             let exporter = exporter.build();
             let meter_provider = SdkMeterProvider::builder()

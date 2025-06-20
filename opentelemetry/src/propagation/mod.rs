@@ -40,6 +40,11 @@ pub trait Extractor {
 
     /// Collect all the keys from the underlying data.
     fn keys(&self) -> Vec<&str>;
+
+    /// Get all values from a key from the underlying data.
+    fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+        self.get(key).map(|value| vec![value])
+    }
 }
 
 impl<S: std::hash::BuildHasher> Injector for HashMap<String, String, S> {
@@ -74,6 +79,30 @@ mod tests {
             Extractor::get(&carrier, "HEADERNAME"),
             Some("value"),
             "case insensitive extraction"
+        );
+    }
+
+    #[test]
+    fn hash_map_get_all() {
+        let mut carrier = HashMap::new();
+        carrier.set("headerName", "value".to_string());
+
+        assert_eq!(
+            Extractor::get_all(&carrier, "HEADERNAME"),
+            Some(vec!["value"]),
+            "case insensitive get_all extraction"
+        );
+    }
+
+    #[test]
+    fn hash_map_get_all_missing_key() {
+        let mut carrier = HashMap::new();
+        carrier.set("headerName", "value".to_string());
+
+        assert_eq!(
+            Extractor::get_all(&carrier, "missing_key"),
+            None,
+            "case insensitive get_all extraction"
         );
     }
 
