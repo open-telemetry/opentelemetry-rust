@@ -31,6 +31,8 @@ jobs:
     runs-on: 'oracle-bare-metal-64cpu-512gb-x86-64'
     # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
+    container:
+      image: rust:slim-bullseye
     env:
       # For PRs, compare against the base branch - e.g., 'main'. 
       # For pushes to main, compare against the previous commit
@@ -45,22 +47,19 @@ jobs:
         with:
           fetch-depth: 10  # Fetch current commit and its parent
 
-      - name: Run benchmark inside Docker
+      - name: Setup container environment
         run: |
-          docker run --rm \
-            -v "$PWD":/workspace \
-            -w /workspace \
-            rust:slim-bullseye \
-            bash -c "
-              apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git && \
-              cargo install cargo-criterion && \
-              cargo bench && \
-              echo 'Benchmark run complete inside Docker container'
-            "
+          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
+          cargo install cargo-criterion
+
+      - name: Run benchmark
+        run: |
+          cargo bench
+          echo 'Benchmark run complete'
             
-      # - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
-      #   with:
-      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: stable
