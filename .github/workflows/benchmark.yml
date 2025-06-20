@@ -23,9 +23,8 @@ jobs:
     permissions:
       pull-requests: write
 
-    # If we're running on a PR, use ubuntu-latest - a shared runner. We can't use the self-hosted
-    # runners on arbitrary PRs, and we don't want to unleash that load on the pool anyway.     
-    # If we're running on main, use the OTEL self-hosted runner pool. 
+    # If we're running on main, use our oracle bare-metal runner for accuracy. 
+    # If we're running on a PR, use github's shared workers to save resources.
     #
     # TODO - temporarily use self-hosted to get shared-worker environment going
     runs-on: 'oracle-bare-metal-64cpu-512gb-x86-64'
@@ -66,5 +65,4 @@ jobs:
 
       - uses: boa-dev/criterion-compare-action@adfd3a94634fe2041ce5613eb7df09d247555b87 # v3.2.4
         with:
-          cwd: opentelemetry-appender-tracing # TEMP - make the run shorter for now
           branchName: ${{ env.BRANCH_NAME }}
