@@ -2,6 +2,7 @@
 
 ## vNext
 
+- The `spec_unstable_logs_enabled` feature flag has been removed. All log features are now always enabled. Any code previously gated by this flag is now available by default. This is a breaking change for users who relied on the feature flag to disable log features.
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
 
 ## 0.30.0
