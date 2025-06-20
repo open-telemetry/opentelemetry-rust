@@ -25,8 +25,8 @@ jobs:
 
     # If we're running on main, use our oracle bare-metal runner for accuracy. 
     # If we're running on a PR, use github's shared workers to save resources.
-    #
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'oracle-bare-metal-64cpu-512gb-x86-64' }}
+    runs-on: "ubuntu-latest"
+    # runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'oracle-bare-metal-64cpu-512gb-x86-64' }}
     if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
     container:
       image: rust:slim-bullseye
