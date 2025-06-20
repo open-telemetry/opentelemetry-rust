@@ -37,7 +37,7 @@ jobs:
       # For PRs, compare against the base branch - e.g., 'main'. 
       # For pushes to main, compare against the previous commit
       BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
-      GIT_DISCOVERY_ACROSS_FILESYSTEM: 2
+      GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
@@ -48,13 +48,13 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history for git-based tools
 
-      - name: Make repo safe for Git inside container
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Setup container environment
         run: |
           apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
           cargo install cargo-criterion
+
+      - name: Make repo safe for Git inside container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Run benchmark
         run: |
