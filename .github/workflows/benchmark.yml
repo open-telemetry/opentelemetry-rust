@@ -52,7 +52,7 @@ jobs:
             -w /workspace \
             rust:slim-bullseye \
             bash -c "
-              apt-get update && apt-get install -y unzip cmake build-essential pkg-config curl git && \
+              apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git && \
               cargo install cargo-criterion && \
               cargo bench && \
               echo 'Benchmark run complete inside Docker container'
