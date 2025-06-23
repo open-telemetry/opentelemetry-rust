@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** Remove `spec_unstable_logs_enabled` feature flag - logger.enabled functionality is now always available.
+
 ## 0.30.0
 
 Released 2025-May-23
