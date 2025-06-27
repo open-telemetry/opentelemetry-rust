@@ -291,7 +291,7 @@ fn bench_histogram(bound_count: usize) -> (SharedReader, Histogram<u64>) {
 
     let mtr = builder.build().meter("test_meter");
     let hist = mtr
-        .u64_histogram(format!("histogram_{}", bound_count))
+        .u64_histogram(format!("histogram_{bound_count}"))
         .build();
 
     (r, hist)
@@ -307,13 +307,13 @@ fn histograms(c: &mut Criterion) {
             let mut attributes: Vec<KeyValue> = Vec::new();
             for i in 0..*attr_size {
                 attributes.push(KeyValue::new(
-                    format!("K,{},{}", bound_size, attr_size),
-                    format!("V,{},{},{}", bound_size, attr_size, i),
+                    format!("K,{bound_size},{attr_size}"),
+                    format!("V,{bound_size},{attr_size},{i}"),
                 ))
             }
             let value: u64 = rng.random_range(0..MAX_BOUND).try_into().unwrap();
             group.bench_function(
-                format!("Record{}Attrs{}bounds", attr_size, bound_size),
+                format!("Record{attr_size}Attrs{bound_size}bounds"),
                 |b| b.iter(|| hist.record(value, &attributes)),
             );
         }

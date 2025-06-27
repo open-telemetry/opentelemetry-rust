@@ -411,10 +411,7 @@ mod tests {
         assert_eq!(
             result_schema_url.map(|s| s as &str),
             expected_schema_url,
-            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-            schema_url_a,
-            schema_url_b,
-            expected_schema_url
+            "Merging schema_url_a {schema_url_a:?} with schema_url_b {schema_url_b:?} did not yield expected result {expected_schema_url:?}"
         );
     }
 
@@ -510,10 +507,7 @@ mod tests {
         assert_eq!(
             resource.schema_url().map(|s| s as &str),
             expected_schema_url,
-            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-            schema_url_a,
-            schema_url_b,
-            expected_schema_url
+            "Merging schema_url_a {schema_url_a:?} with schema_url_b {schema_url_b:?} did not yield expected result {expected_schema_url:?}"
         );
     }
 

@@ -164,6 +164,6 @@ pub enum InMemoryExporterError {
 #[cfg(any(feature = "testing", test))]
 impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
     fn from(err: std::sync::PoisonError<T>) -> Self {
-        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {}", err))
+        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {err}"))
     }
 }

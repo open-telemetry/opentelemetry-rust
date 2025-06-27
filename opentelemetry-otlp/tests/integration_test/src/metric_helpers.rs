@@ -101,9 +101,7 @@ pub fn assert_metrics_results_contains(expected_content: &str) -> Result<()> {
     reader.read_to_string(&mut contents)?;
     assert!(
         contents.contains(expected_content),
-        "Expected content {} not found in actual content {}",
-        expected_content,
-        contents
+        "Expected content {expected_content} not found in actual content {contents}"
     );
     Ok(())
 }
@@ -164,8 +162,7 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
         })
         .with_context(|| {
             format!(
-                "No valid JSON line containing scope `{}` found.",
-                scope_name
+                "No valid JSON line containing scope `{scope_name}` found."
             )
         })?;
 
@@ -178,17 +175,16 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
 ///
 pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
     // Define the results file path
-    let results_file_path = format!("./expected/metrics/{}.json", scope_name);
+    let results_file_path = format!("./expected/metrics/{scope_name}.json");
 
     // Fetch the actual metrics for the given scope
     let actual_metrics = fetch_latest_metrics_for_scope(scope_name)
-        .context(format!("Failed to fetch metrics for scope: {}", scope_name))?;
+        .context(format!("Failed to fetch metrics for scope: {scope_name}"))?;
 
     // Read the expected metrics from the results file
     let expected_metrics = {
         let file = File::open(&results_file_path).context(format!(
-            "Failed to open results file: {}",
-            results_file_path
+            "Failed to open results file: {results_file_path}"
         ))?;
         read_metrics_from_json(file)
     }?;

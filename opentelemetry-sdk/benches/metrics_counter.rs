@@ -55,7 +55,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     counter_add_unsorted(c);
 
     let attribute_values: [String; 10] = (1..=10)
-        .map(|i| format!("value{}", i))
+        .map(|i| format!("value{i}"))
         .collect::<Vec<String>>()
         .try_into()
         .expect("Expected a Vec of length 10");

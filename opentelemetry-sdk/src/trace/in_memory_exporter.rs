@@ -136,7 +136,7 @@ impl SpanExporter for InMemorySpanExporter {
             .lock()
             .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
             .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to lock spans: {:?}", err))
+                OTelSdkError::InternalFailure(format!("Failed to lock spans: {err:?}"))
             });
         result
     }
