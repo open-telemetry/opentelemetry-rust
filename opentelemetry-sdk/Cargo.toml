@@ -26,6 +26,9 @@ tokio = { workspace = true, features = ["rt", "time"], optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
+[target.'cfg(any(target_arch = "xtensa"))'.dependencies]
+portable-atomic = {workspace = true}
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
