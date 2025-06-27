@@ -24,7 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = ["trace", "metrics", "logs"]
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry_sdk/spec_unstable_logs_enabled"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 
 [dependencies]
 chrono = { workspace = true, features = ["now"] }
