@@ -1635,10 +1635,7 @@ mod tests {
         assert_eq!(a.sum, b.sum, "{test_name}: {message} sum");
 
         assert_eq!(a.scale, b.scale, "{test_name}: {message} scale");
-        assert_eq!(
-            a.zero_count, b.zero_count,
-            "{test_name}: {message} zeros"
-        );
+        assert_eq!(a.zero_count, b.zero_count, "{test_name}: {message} zeros");
 
         assert_eq!(
             a.positive_bucket, b.positive_bucket,

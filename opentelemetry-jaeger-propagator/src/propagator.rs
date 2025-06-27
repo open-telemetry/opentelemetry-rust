@@ -641,10 +641,7 @@ mod tests {
         }
         for (trace_id, span_id, flag, expected) in get_extract_data() {
             let mut map: HashMap<String, String> = HashMap::new();
-            map.set(
-                JAEGER_HEADER,
-                format!("{trace_id}:{span_id}:0:{flag}"),
-            );
+            map.set(JAEGER_HEADER, format!("{trace_id}:{span_id}:0:{flag}"));
             let context = propagator.extract(&map);
             assert_eq!(context.span().span_context(), &expected);
         }

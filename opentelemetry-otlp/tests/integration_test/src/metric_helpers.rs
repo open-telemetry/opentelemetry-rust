@@ -160,11 +160,7 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
                     None
                 })
         })
-        .with_context(|| {
-            format!(
-                "No valid JSON line containing scope `{scope_name}` found."
-            )
-        })?;
+        .with_context(|| format!("No valid JSON line containing scope `{scope_name}` found."))?;
 
     Ok(json_line)
 }
@@ -183,9 +179,8 @@ pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
 
     // Read the expected metrics from the results file
     let expected_metrics = {
-        let file = File::open(&results_file_path).context(format!(
-            "Failed to open results file: {results_file_path}"
-        ))?;
+        let file = File::open(&results_file_path)
+            .context(format!("Failed to open results file: {results_file_path}"))?;
         read_metrics_from_json(file)
     }?;
 

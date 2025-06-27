@@ -312,10 +312,9 @@ fn histograms(c: &mut Criterion) {
                 ))
             }
             let value: u64 = rng.random_range(0..MAX_BOUND).try_into().unwrap();
-            group.bench_function(
-                format!("Record{attr_size}Attrs{bound_size}bounds"),
-                |b| b.iter(|| hist.record(value, &attributes)),
-            );
+            group.bench_function(format!("Record{attr_size}Attrs{bound_size}bounds"), |b| {
+                b.iter(|| hist.record(value, &attributes))
+            });
         }
     }
     group.bench_function("CollectOne", |b| benchmark_collect_histogram(b, 1));

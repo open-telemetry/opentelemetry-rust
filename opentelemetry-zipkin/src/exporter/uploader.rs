@@ -45,14 +45,13 @@ impl JsonV2Client {
             .uri(self.collector_endpoint.clone())
             .header(CONTENT_TYPE, "application/json")
             .body(body.into())
-            .map_err(|e| {
-                OTelSdkError::InternalFailure(format!("Failed to create request: {e}"))
-            })?;
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to create request: {e}")))?;
 
-        let response =
-            self.client.send_bytes(req).await.map_err(|e| {
-                OTelSdkError::InternalFailure(format!("HTTP request failed: {e}"))
-            })?;
+        let response = self
+            .client
+            .send_bytes(req)
+            .await
+            .map_err(|e| OTelSdkError::InternalFailure(format!("HTTP request failed: {e}")))?;
 
         response
             .error_for_status()
