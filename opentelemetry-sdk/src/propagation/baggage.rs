@@ -320,4 +320,167 @@ mod tests {
             }
         }
     }
+
+    #[rustfmt::skip]
+    fn malformed_baggage_test_data() -> Vec<(String, &'static str)> {
+        vec![
+            // Empty and whitespace
+            ("".to_string(), "empty header"),
+            ("   ".to_string(), "whitespace only header"),
+            
+            // Malformed key-value pairs
+            ("key_without_value".to_string(), "missing equals sign"),
+            ("=value_without_key".to_string(), "missing key"),
+            ("key=".to_string(), "empty value allowed"),
+            ("=".to_string(), "empty key and value"),
+            
+            // Multiple equals signs
+            ("key=value=extra".to_string(), "multiple equals signs"),
+            ("key=val=ue=more".to_string(), "many equals signs"),
+            
+            // Control characters and non-printable characters
+            ("key=val\x00ue".to_string(), "null character in value"),
+            ("key\x01=value".to_string(), "control character in key"),
+            ("key=value\x7F".to_string(), "DEL character in value"),
+            ("key\t=value".to_string(), "tab character in key"),
+            ("key=val\nue".to_string(), "newline in value"),
+            ("key=val\rue".to_string(), "carriage return in value"),
+            
+            // Invalid UTF-8 sequences (these will be handled by percent decoding)
+            ("key=%80".to_string(), "invalid UTF-8 start byte"),
+            ("key=%C2".to_string(), "incomplete UTF-8 sequence"),
+            ("key=%ED%A0%80".to_string(), "UTF-8 surrogate"),
+            
+            // Very long keys and values
+            (format!("{}=value", "a".repeat(1000)), "very long key"),
+            (format!("key={}", "v".repeat(1000)), "very long value"),
+            (format!("{}={}", "k".repeat(500), "v".repeat(500)), "long key and value"),
+            
+            // Many entries to test memory usage
+            ((0..1000).map(|i| format!("key{}=val{}", i, i)).collect::<Vec<_>>().join(","), "many entries"),
+            
+            // Malformed metadata
+            ("key=value;".to_string(), "empty metadata"),
+            ("key=value;;".to_string(), "double semicolon"),
+            ("key=value;meta;".to_string(), "trailing semicolon"),
+            ("key=value;meta=".to_string(), "metadata with empty value"),
+            
+            // Mixed valid and invalid entries
+            ("valid_key=valid_value,invalid_key,another_valid=value".to_string(), "mixed valid and invalid"),
+            ("key1=val1,=,key2=val2".to_string(), "empty entry in middle"),
+            
+            // Extreme whitespace
+            ("   key1   =   val1   ,   key2   =   val2   ".to_string(), "excessive whitespace"),
+            
+            // Special characters that might cause issues
+            ("key=value,".to_string(), "trailing comma"),
+            (",key=value".to_string(), "leading comma"),
+            ("key=value,,".to_string(), "double comma"),
+            ("key=val,ue,key2=val2".to_string(), "comma in entry"),
+            
+            // Unicode characters
+            ("café=bücher".to_string(), "unicode characters"),
+            ("key=🔥".to_string(), "emoji in value"),
+            ("🗝️=value".to_string(), "emoji in key"),
+        ]
+    }
+
+    #[test]
+    fn extract_baggage_defensive_parsing() {
+        let propagator = BaggagePropagator::new();
+
+        for (malformed_header, description) in malformed_baggage_test_data() {
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(BAGGAGE_HEADER.to_string(), malformed_header.clone());
+            
+            // The main requirement is that parsing doesn't crash or hang
+            let context = propagator.extract(&extractor);
+            let baggage = context.baggage();
+            
+            // Baggage should be created without crashing, regardless of content
+            // Invalid entries should be ignored or handled gracefully
+            assert!(
+                baggage.len() <= 1000, // Reasonable upper bound
+                "Too many baggage entries extracted from malformed header: {} ({})", 
+                description, baggage.len()
+            );
+            
+            // No entry should have an empty key (our validation should prevent this)
+            for (key, _) in baggage {
+                assert!(
+                    !key.as_str().is_empty(),
+                    "Empty key found in baggage from header: {} ({})",
+                    malformed_header, description
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn extract_baggage_memory_safety() {
+        let propagator = BaggagePropagator::new();
+        
+        // Test extremely long header to ensure no memory exhaustion
+        let very_long_header = format!("key={}", "x".repeat(100_000));
+        let mut extractor: HashMap<String, String> = HashMap::new();
+        extractor.insert(BAGGAGE_HEADER.to_string(), very_long_header);
+        
+        let context = propagator.extract(&extractor);
+        let baggage = context.baggage();
+        
+        // Should handle gracefully without crashing
+        assert!(baggage.len() <= 1);
+        
+        // Test header with many small entries
+        let many_entries: Vec<String> = (0..10_000)
+            .map(|i| format!("k{}=v{}", i, i))
+            .collect();
+        let large_header = many_entries.join(",");
+        
+        let mut extractor2: HashMap<String, String> = HashMap::new();
+        extractor2.insert(BAGGAGE_HEADER.to_string(), large_header);
+        
+        let context2 = propagator.extract(&extractor2);
+        let baggage2 = context2.baggage();
+        
+        // Should handle gracefully, possibly truncating or limiting entries
+        assert!(baggage2.len() <= 10_000);
+        
+        // Verify no extremely long keys or values made it through
+        for (key, (value, _)) in baggage2 {
+            assert!(
+                key.as_str().len() <= 1000,
+                "Key too long: {} chars", key.as_str().len()
+            );
+            assert!(
+                value.as_str().len() <= 1000,
+                "Value too long: {} chars", value.as_str().len()
+            );
+        }
+    }
+
+    #[test]
+    fn extract_baggage_percent_encoding_edge_cases() {
+        let propagator = BaggagePropagator::new();
+        
+        let test_cases = vec![
+            ("%", "lone percent sign"),
+            ("key=%", "percent at end"),
+            ("key=%2", "incomplete percent encoding"),
+            ("key=%ZZ", "invalid hex in percent encoding"),
+            ("key=%2G", "invalid hex digit"),
+            ("key=%%20", "double percent"),
+            ("key=%20%20%20", "multiple encoded spaces"),
+        ];
+        
+        for (header, _description) in test_cases {
+            let mut extractor: HashMap<String, String> = HashMap::new();
+            extractor.insert(BAGGAGE_HEADER.to_string(), header.to_string());
+            
+            // Should not crash on invalid percent encoding
+            let context = propagator.extract(&extractor);
+            let _baggage = context.baggage();
+            // Test passes if no panic occurs
+        }
+    }
 }
