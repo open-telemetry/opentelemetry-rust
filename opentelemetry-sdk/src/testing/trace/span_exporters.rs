@@ -45,7 +45,7 @@ impl SpanExporter for TokioSpanExporter {
         batch.into_iter().try_for_each(|span_data| {
             self.tx_export
                 .send(span_data)
-                .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {:?}", err)))
+                .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {err:?}")))
         })
     }
 

@@ -436,10 +436,7 @@ mod tests {
                 let err_str = err.to_string();
                 assert!(
                     err_str == expected_error,
-                    "For name '{}', expected error '{}', but got '{}'",
-                    name,
-                    expected_error,
-                    err_str
+                    "For name '{name}', expected error '{expected_error}', but got '{err_str}'"
                 );
             }
         }
@@ -478,10 +475,7 @@ mod tests {
                 let err_str = err.to_string();
                 assert!(
                     err_str == expected_error,
-                    "For unit '{}', expected error '{}', but got '{}'",
-                    unit,
-                    expected_error,
-                    err_str
+                    "For unit '{unit}', expected error '{expected_error}', but got '{err_str}'"
                 );
             }
         }

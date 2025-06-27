@@ -687,7 +687,7 @@ mod any_value {
         ) -> Result<(), Self::Error> {
             let key = match key.serialize(ValueSerializer)? {
                 Some(AnyValue::String(key)) => Key::from(String::from(key)),
-                key => Key::from(format!("{:?}", key)),
+                key => Key::from(format!("{key:?}")),
             };
 
             self.key = Some(key);

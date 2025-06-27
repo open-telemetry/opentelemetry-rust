@@ -615,17 +615,14 @@ mod tests {
             assert_eq!(
                 headers.len(),
                 expected_headers.len(),
-                "Failed on input: {}",
-                input_str
+                "Failed on input: {input_str}"
             );
 
             for (expected_key, expected_value) in expected_headers {
                 assert_eq!(
                     headers.get(&HeaderName::from_static(expected_key)),
                     Some(&HeaderValue::from_static(expected_value)),
-                    "Failed on key: {} with input: {}",
-                    expected_key,
-                    input_str
+                    "Failed on key: {expected_key} with input: {input_str}"
                 );
             }
         }
@@ -665,17 +662,14 @@ mod tests {
             assert_eq!(
                 headers.len(),
                 expected_headers.len(),
-                "Failed on input: {}",
-                input_str
+                "Failed on input: {input_str}"
             );
 
             for (expected_key, expected_value) in expected_headers {
                 assert_eq!(
                     headers.get(&HeaderName::from_static(expected_key)),
                     Some(&HeaderValue::from_static(expected_value)),
-                    "Failed on key: {} with input: {}",
-                    expected_key,
-                    input_str
+                    "Failed on key: {expected_key} with input: {input_str}"
                 );
             }
         }

@@ -545,7 +545,7 @@ mod tests {
         };
         // The Observable counter reports values[0], values[1],....values[n] on each flush.
         let values: Vec<u64> = (0..length).map(|i| start + i * increment).collect();
-        println!("Testing with observable values: {:?}", values);
+        println!("Testing with observable values: {values:?}");
         let values = Arc::new(values);
         let values_clone = values.clone();
         let i = Arc::new(Mutex::new(0));
@@ -834,7 +834,7 @@ mod tests {
         let resource_metrics = exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        println!("resource_metrics: {:?}", resource_metrics);
+        println!("resource_metrics: {resource_metrics:?}");
         assert!(
             resource_metrics[0].scope_metrics.len() == 1,
             "There should be a single scope as the meters are identical"
@@ -1272,7 +1272,7 @@ mod tests {
             .exporter
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
-        println!("resource_metrics: {:?}", resource_metrics);
+        println!("resource_metrics: {resource_metrics:?}");
         assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
     }
 
@@ -1666,18 +1666,15 @@ mod tests {
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(
             metric.name, expected_name,
-            "Expected name: {}.",
-            expected_name
+            "Expected name: {expected_name}."
         );
         assert_eq!(
             metric.unit, expected_unit,
-            "Expected unit: {}.",
-            expected_unit
+            "Expected unit: {expected_unit}."
         );
         assert_eq!(
             metric.description, expected_description,
-            "Expected description: {}.",
-            expected_description
+            "Expected description: {expected_description}."
         );
     }
 
@@ -3337,8 +3334,7 @@ mod tests {
             assert_eq!(
                 self.resource_metrics.len(),
                 invocation_count,
-                "Expected collect to be called {} times",
-                invocation_count
+                "Expected collect to be called {invocation_count} times"
             );
 
             let result = self
