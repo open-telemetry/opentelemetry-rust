@@ -309,7 +309,7 @@ fn encode(s: &str) -> String {
                 encoded_string.push(*byte as char)
             }
             b' ' => encoded_string.push_str("%20"),
-            _ => encoded_string.push_str(&format!("%{:02X}", byte)),
+            _ => encoded_string.push_str(&format!("%{byte:02X}")),
         }
     }
     encoded_string

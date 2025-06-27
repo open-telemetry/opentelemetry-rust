@@ -1505,8 +1505,7 @@ mod tests {
                 assert_eq!(
                     a.data_points.len(),
                     b.data_points.len(),
-                    "{} gauge counts",
-                    test_name
+                    "{test_name} gauge counts"
                 );
                 for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                     assert_gauge_data_points_eq(a, b, "mismatching gauge data points", test_name);
@@ -1515,19 +1514,16 @@ mod tests {
             (MetricData::Sum(a), MetricData::Sum(b)) => {
                 assert_eq!(
                     a.temporality, b.temporality,
-                    "{} mismatching sum temporality",
-                    test_name
+                    "{test_name} mismatching sum temporality"
                 );
                 assert_eq!(
                     a.is_monotonic, b.is_monotonic,
-                    "{} mismatching sum monotonicity",
-                    test_name,
+                    "{test_name} mismatching sum monotonicity",
                 );
                 assert_eq!(
                     a.data_points.len(),
                     b.data_points.len(),
-                    "{} sum counts",
-                    test_name
+                    "{test_name} sum counts"
                 );
                 for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                     assert_sum_data_points_eq(a, b, "mismatching sum data points", test_name);
@@ -1536,14 +1532,12 @@ mod tests {
             (MetricData::Histogram(a), MetricData::Histogram(b)) => {
                 assert_eq!(
                     a.temporality, b.temporality,
-                    "{}: mismatching hist temporality",
-                    test_name
+                    "{test_name}: mismatching hist temporality"
                 );
                 assert_eq!(
                     a.data_points.len(),
                     b.data_points.len(),
-                    "{} hist counts",
-                    test_name
+                    "{test_name} hist counts"
                 );
                 for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                     assert_hist_data_points_eq(a, b, "mismatching hist data points", test_name);
@@ -1552,14 +1546,12 @@ mod tests {
             (MetricData::ExponentialHistogram(a), MetricData::ExponentialHistogram(b)) => {
                 assert_eq!(
                     a.temporality, b.temporality,
-                    "{} mismatching hist temporality",
-                    test_name
+                    "{test_name} mismatching hist temporality"
                 );
                 assert_eq!(
                     a.data_points.len(),
                     b.data_points.len(),
-                    "{} hist counts",
-                    test_name
+                    "{test_name} hist counts"
                 );
                 for (a, b) in a.data_points.iter().zip(b.data_points.iter()) {
                     assert_exponential_hist_data_points_eq(
@@ -1574,8 +1566,7 @@ mod tests {
                 assert_eq!(
                     a.type_id(),
                     b.type_id(),
-                    "{} Aggregation types not equal",
-                    test_name
+                    "{test_name} Aggregation types not equal"
                 );
             }
         }
@@ -1589,10 +1580,9 @@ mod tests {
     ) {
         assert_eq!(
             a.attributes, b.attributes,
-            "{}: {} attributes",
-            test_name, message
+            "{test_name}: {message} attributes"
         );
-        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+        assert_eq!(a.value, b.value, "{test_name}: {message} value");
     }
 
     fn assert_gauge_data_points_eq<T: Number>(
@@ -1603,10 +1593,9 @@ mod tests {
     ) {
         assert_eq!(
             a.attributes, b.attributes,
-            "{}: {} attributes",
-            test_name, message
+            "{test_name}: {message} attributes"
         );
-        assert_eq!(a.value, b.value, "{}: {} value", test_name, message);
+        assert_eq!(a.value, b.value, "{test_name}: {message} value");
     }
 
     fn assert_hist_data_points_eq<T: Number>(
@@ -1617,19 +1606,17 @@ mod tests {
     ) {
         assert_eq!(
             a.attributes, b.attributes,
-            "{}: {} attributes",
-            test_name, message
+            "{test_name}: {message} attributes"
         );
-        assert_eq!(a.count, b.count, "{}: {} count", test_name, message);
-        assert_eq!(a.bounds, b.bounds, "{}: {} bounds", test_name, message);
+        assert_eq!(a.count, b.count, "{test_name}: {message} count");
+        assert_eq!(a.bounds, b.bounds, "{test_name}: {message} bounds");
         assert_eq!(
             a.bucket_counts, b.bucket_counts,
-            "{}: {} bucket counts",
-            test_name, message
+            "{test_name}: {message} bucket counts"
         );
-        assert_eq!(a.min, b.min, "{}: {} min", test_name, message);
-        assert_eq!(a.max, b.max, "{}: {} max", test_name, message);
-        assert_eq!(a.sum, b.sum, "{}: {} sum", test_name, message);
+        assert_eq!(a.min, b.min, "{test_name}: {message} min");
+        assert_eq!(a.max, b.max, "{test_name}: {message} max");
+        assert_eq!(a.sum, b.sum, "{test_name}: {message} sum");
     }
 
     fn assert_exponential_hist_data_points_eq<T: Number>(
@@ -1640,30 +1627,23 @@ mod tests {
     ) {
         assert_eq!(
             a.attributes, b.attributes,
-            "{}: {} attributes",
-            test_name, message
+            "{test_name}: {message} attributes"
         );
-        assert_eq!(a.count, b.count, "{}: {} count", test_name, message);
-        assert_eq!(a.min, b.min, "{}: {} min", test_name, message);
-        assert_eq!(a.max, b.max, "{}: {} max", test_name, message);
-        assert_eq!(a.sum, b.sum, "{}: {} sum", test_name, message);
+        assert_eq!(a.count, b.count, "{test_name}: {message} count");
+        assert_eq!(a.min, b.min, "{test_name}: {message} min");
+        assert_eq!(a.max, b.max, "{test_name}: {message} max");
+        assert_eq!(a.sum, b.sum, "{test_name}: {message} sum");
 
-        assert_eq!(a.scale, b.scale, "{}: {} scale", test_name, message);
-        assert_eq!(
-            a.zero_count, b.zero_count,
-            "{}: {} zeros",
-            test_name, message
-        );
+        assert_eq!(a.scale, b.scale, "{test_name}: {message} scale");
+        assert_eq!(a.zero_count, b.zero_count, "{test_name}: {message} zeros");
 
         assert_eq!(
             a.positive_bucket, b.positive_bucket,
-            "{}: {} pos",
-            test_name, message
+            "{test_name}: {message} pos"
         );
         assert_eq!(
             a.negative_bucket, b.negative_bucket,
-            "{}: {} neg",
-            test_name, message
+            "{test_name}: {message} neg"
         );
     }
 }

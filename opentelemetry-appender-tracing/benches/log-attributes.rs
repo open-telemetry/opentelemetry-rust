@@ -60,7 +60,7 @@ fn create_benchmark(c: &mut Criterion, num_attributes: usize) {
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
-        c.bench_function(&format!("otel_{}_attributes", num_attributes), |b| {
+        c.bench_function(&format!("otel_{num_attributes}_attributes"), |b| {
             b.iter(|| {
                 // Dynamically generate the error! macro call based on the number of attributes
                 match num_attributes {

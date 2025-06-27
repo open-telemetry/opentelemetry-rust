@@ -351,12 +351,7 @@ mod tests {
             let diff = (got - expectation).abs();
             assert!(
                 diff <= tolerance,
-                "{} got {:?} (diff: {}), expected {} (w/tolerance: {})",
-                name,
-                got,
-                diff,
-                expectation,
-                tolerance
+                "{name} got {got:?} (diff: {diff}), expected {expectation} (w/tolerance: {tolerance})"
             );
         }
     }

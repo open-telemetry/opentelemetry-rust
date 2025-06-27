@@ -187,14 +187,14 @@ impl InMemoryLogExporter {
             .logs
             .lock()
             .map(|mut logs_guard| logs_guard.clear())
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {}", e)));
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {e}")));
     }
 }
 
 impl LogExporter for InMemoryLogExporter {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
         let mut logs_guard = self.logs.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
+            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {e}"))
         })?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
