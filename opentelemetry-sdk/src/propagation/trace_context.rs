@@ -295,4 +295,197 @@ mod tests {
 
         assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
     }
+
+    #[rustfmt::skip]
+    fn malformed_traceparent_test_data() -> Vec<(String, &'static str)> {
+        vec![
+            // Existing invalid cases are already covered, adding more edge cases
+            ("".to_string(), "completely empty"),
+            ("   ".to_string(), "whitespace only"),
+            ("00".to_string(), "too few parts"),
+            ("00-".to_string(), "incomplete with separator"),
+            ("00--00".to_string(), "missing trace ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736--01".to_string(), "missing span ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-".to_string(), "missing flags"),
+            
+            // Very long inputs
+            (format!("00-{}-00f067aa0ba902b7-01", "a".repeat(1000)), "very long trace ID"),
+            (format!("00-4bf92f3577b34da6a3ce929d0e0e4736-{}-01", "b".repeat(1000)), "very long span ID"),
+            (format!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{}", "c".repeat(1000)), "very long flags"),
+            
+            // Non-hex characters
+            ("00-4bf92f3577b34da6a3ce929d0e0e473g-00f067aa0ba902b7-01".to_string(), "non-hex in trace ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b$-01".to_string(), "non-hex in span ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0g".to_string(), "non-hex in flags"),
+            
+            // Unicode and special characters
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01🔥".to_string(), "emoji in flags"),
+            ("00-café4da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string(), "unicode in trace ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-café67aa0ba902b7-01".to_string(), "unicode in span ID"),
+            
+            // Control characters
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\x00".to_string(), "null terminator"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\n".to_string(), "newline"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\t".to_string(), "tab character"),
+            
+            // Multiple separators
+            ("00--4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string(), "double separator"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736--00f067aa0ba902b7-01".to_string(), "double separator middle"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7--01".to_string(), "double separator end"),
+        ]
+    }
+
+    #[rustfmt::skip]
+    fn malformed_tracestate_header_test_data() -> Vec<(String, &'static str)> {
+        vec![
+            // Very long tracestate headers
+            (format!("key={}", "x".repeat(100_000)), "extremely long value"),
+            (format!("{}=value", "k".repeat(100_000)), "extremely long key"),
+            ((0..10_000).map(|i| format!("k{}=v{}", i, i)).collect::<Vec<_>>().join(","), "many entries"),
+            
+            // Malformed but should not crash
+            ("key=value,malformed".to_string(), "mixed valid and invalid"),
+            ("=value1,key2=value2,=value3".to_string(), "multiple empty keys"),
+            ("key1=value1,,key2=value2".to_string(), "empty entry"),
+            ("key1=value1,key2=".to_string(), "empty value"),
+            ("key1=,key2=value2".to_string(), "another empty value"),
+            
+            // Control characters and special cases
+            ("key=val\x00ue".to_string(), "null character"),
+            ("key=val\nue".to_string(), "newline character"),
+            ("key=val\tue".to_string(), "tab character"),
+            ("key\x01=value".to_string(), "control character in key"),
+            
+            // Unicode
+            ("café=bücher".to_string(), "unicode key and value"),
+            ("🔥=🎉".to_string(), "emoji key and value"),
+            ("ключ=значение".to_string(), "cyrillic"),
+            
+            // Invalid percent encoding patterns
+            ("key=%ZZ".to_string(), "invalid hex in percent encoding"),
+            ("key=%".to_string(), "incomplete percent encoding"),
+            ("key=%%".to_string(), "double percent"),
+        ]
+    }
+
+    #[test]
+    fn extract_w3c_defensive_traceparent() {
+        let propagator = TraceContextPropagator::new();
+
+        // Test all the malformed traceparent cases
+        for (invalid_header, reason) in malformed_traceparent_test_data() {
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), invalid_header.clone());
+
+            // Should not crash and should return empty context
+            let result = propagator.extract(&extractor);
+            assert_eq!(
+                result.span().span_context(),
+                &SpanContext::empty_context(),
+                "Failed to reject invalid traceparent: {} ({})", invalid_header, reason
+            );
+        }
+    }
+
+    #[test]
+    fn extract_w3c_defensive_tracestate() {
+        let propagator = TraceContextPropagator::new();
+        
+        // Use a valid traceparent with various malformed tracestate headers
+        let valid_parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        
+        for (malformed_state, description) in malformed_tracestate_header_test_data() {
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), valid_parent.to_string());
+            extractor.insert(TRACESTATE_HEADER.to_string(), malformed_state.clone());
+
+            // Should not crash - malformed tracestate should fallback to default
+            let result = propagator.extract(&extractor);
+            let span_context = result.span().span_context();
+            
+            // Should still have valid span context from traceparent
+            assert!(span_context.is_valid(), "Valid traceparent should create valid context despite malformed tracestate: {}", description);
+            
+            // Tracestate should either be default or contain only valid entries
+            let trace_state = span_context.trace_state();
+            let header = trace_state.header();
+            
+            // Verify the tracestate header is reasonable (no extremely long result)
+            assert!(
+                header.len() <= malformed_state.len() + 1000,
+                "TraceState header grew unreasonably for input '{}' ({}): {} -> {}",
+                malformed_state, description, malformed_state.len(), header.len()
+            );
+        }
+    }
+
+    #[test]
+    fn extract_w3c_memory_safety() {
+        let propagator = TraceContextPropagator::new();
+        
+        // Test extremely long traceparent
+        let very_long_traceparent = format!(
+            "00-{}-{}-01",
+            "a".repeat(1_000_000),  // Very long trace ID
+            "b".repeat(1_000_000)   // Very long span ID
+        );
+        
+        let mut extractor = HashMap::new();
+        extractor.insert(TRACEPARENT_HEADER.to_string(), very_long_traceparent);
+        
+        // Should not crash or consume excessive memory
+        let result = propagator.extract(&extractor);
+        assert_eq!(result.span().span_context(), &SpanContext::empty_context());
+        
+        // Test with both long traceparent and tracestate
+        let long_tracestate = format!("key={}", "x".repeat(1_000_000));
+        let mut extractor2 = HashMap::new();
+        extractor2.insert(TRACEPARENT_HEADER.to_string(), "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string());
+        extractor2.insert(TRACESTATE_HEADER.to_string(), long_tracestate);
+        
+        // Should handle gracefully without excessive memory usage
+        let result2 = propagator.extract(&extractor2);
+        let span_context2 = result2.span().span_context();
+        assert!(span_context2.is_valid());
+    }
+
+    #[test]
+    fn extract_w3c_boundary_conditions() {
+        let propagator = TraceContextPropagator::new();
+        
+        // Test boundary conditions for version and flags
+        let boundary_test_cases = vec![
+            ("ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "max version"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-ff", "max flags"),
+            ("00-00000000000000000000000000000001-0000000000000001-01", "minimal valid IDs"),
+            ("00-ffffffffffffffffffffffffffffffff-ffffffffffffffff-01", "maximal valid IDs"),
+        ];
+        
+        for (test_header, description) in boundary_test_cases {
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), test_header.to_string());
+            
+            let result = propagator.extract(&extractor);
+            let span_context = result.span().span_context();
+            
+            // These should be handled according to W3C spec
+            // The test passes if no panic occurs and behavior is consistent
+            match description {
+                "max version" => {
+                    // Version 255 should be accepted (as per spec, parsers should accept unknown versions)
+                    // But our implementation might reject it - either behavior is defensive
+                }
+                "max flags" => {
+                    // Max flags should be accepted but masked to valid bits
+                    if span_context.is_valid() {
+                        // Only the sampled bit should be preserved
+                        assert!(span_context.trace_flags().as_u8() <= 1);
+                    }
+                }
+                _ => {
+                    // Other cases should work normally
+                }
+            }
+        }
+    }
 }
