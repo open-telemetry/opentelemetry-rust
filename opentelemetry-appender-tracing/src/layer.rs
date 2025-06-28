@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental_valuable")]
+use opentelemetry::logs::serialize;
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     Key,
@@ -172,6 +174,17 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
         } else {
             self.log_record
                 .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+        }
+    }
+
+    #[cfg(feature = "experimental_valuable")]
+    fn record_value(&mut self, field: &tracing::field::Field, value: valuable::Value<'_>) {
+        match serialize(valuable_serde::Serializable::new(value)) {
+            Some(value) => self.log_record.add_attribute(Key::new(field.name()), value),
+            None => {
+                self.log_record
+                    .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
+            }
         }
     }
 
@@ -954,5 +967,112 @@ mod tests {
         // Name, Target and Severity are expected to be passed to the IsEnabled check
         // The validation is done in the LogProcessorWithIsEnabled struct.
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[cfg(all(tracing_unstable, feature = "experimental_valuable"))]
+    #[test]
+    fn valuable() {
+        use std::collections::HashMap;
+        use valuable::Valuable;
+
+        #[derive(Clone, Debug, Valuable)]
+        struct User {
+            name: String,
+            age: u32,
+        }
+
+        #[derive(Clone, Debug, Valuable)]
+        struct Parent {
+            child: User,
+        }
+
+        #[derive(Clone, Debug, Valuable)]
+        struct Grandparent {
+            parent: Parent,
+        }
+
+        // Arrange
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let subscriber = create_tracing_subscriber(&logger_provider);
+
+        // avoiding setting tracing subscriber as global as that does not
+        // play well with unit tests.
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let user = User {
+            name: "Arwen Undomiel".to_string(),
+            age: 3000,
+        };
+
+        error!(name: "my-event-name", target: "my-system", user = user.as_value());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+
+        let user_value = AnyValue::Map(Box::new(HashMap::from([
+            (Key::new("name"), AnyValue::String("Arwen Undomiel".into())),
+            (Key::new("age"), AnyValue::Int(3000)),
+        ])));
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user"),
+            &user_value
+        ));
+
+        exporter.reset();
+
+        let parent = Parent {
+            child: user.clone(),
+        };
+
+        error!(name: "my-event-name", target: "my-system", parent = parent.as_value());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+
+        let child_value = AnyValue::Map(Box::new(HashMap::from([(Key::new("child"), user_value)])));
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("parent"),
+            &child_value
+        ));
+
+        exporter.reset();
+
+        let grandparent = Grandparent {
+            parent: parent.clone(),
+        };
+
+        error!(name: "my-event-name", target: "my-system", grandparent = grandparent.as_value());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("grandparent"),
+            &AnyValue::Map(Box::new(HashMap::from([(Key::new("parent"), child_value)])))
+        ));
     }
 }

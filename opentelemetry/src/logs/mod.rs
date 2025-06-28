@@ -9,3 +9,8 @@ mod record;
 pub use logger::{Logger, LoggerProvider};
 pub use noop::NoopLoggerProvider;
 pub use record::{AnyValue, LogRecord, Severity};
+
+#[cfg(feature = "with-serde")]
+mod serde;
+#[cfg(feature = "with-serde")]
+pub use serde::serialize;

@@ -6,4 +6,5 @@ allowed_external_types = [
     "equivalent::Equivalent",
     "futures_sink::Sink", # TODO: This is a pre-1.0 crate, we can't easily stabilize with this in the public API
     "futures_core::stream::Stream",  # TODO: This is a pre-1.0 crate, we can't easily stabilize with this in the public API
+    "serde::ser::Serialize",
 ]

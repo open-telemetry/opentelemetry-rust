@@ -1,3 +1,7 @@
+[build]
+# https://github.com/open-telemetry/opentelemetry-rust/issues/2819
+rustflags = ["--cfg", "tracing_unstable"]
+
 [resolver]
 # https://doc.rust-lang.org/cargo/reference/config.html#resolverincompatible-rust-versions
 incompatible-rust-versions = "fallback"
