@@ -48,7 +48,6 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         self.exporter.shutdown_with_timeout(timeout)
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[inline]
     fn event_enabled(
         &self,
