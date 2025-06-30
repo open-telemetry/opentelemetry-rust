@@ -263,7 +263,7 @@ pub(crate) struct OtlpHttpClient {
     _timeout: Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: crate::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {

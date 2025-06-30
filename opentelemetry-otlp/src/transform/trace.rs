@@ -106,7 +106,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some((source_span.instrumentation_scope, None).into()),
+                    scope: Some(super::common::tonic::instrumentation_scope_from_scope_and_target(source_span.instrumentation_scope, None)),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),
@@ -169,7 +169,7 @@ pub mod tonic {
         let scope_spans = scope_map
             .into_iter()
             .map(|(instrumentation, span_records)| ScopeSpans {
-                scope: Some((instrumentation, None).into()),
+                scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(instrumentation, None)),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 spans: span_records
                     .into_iter()

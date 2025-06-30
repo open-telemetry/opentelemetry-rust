@@ -156,7 +156,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target().cloned()).into()),
+                    scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(instrumentation, log_record.target().cloned())),
                     log_records: vec![log_record.into()],
                 }],
             }

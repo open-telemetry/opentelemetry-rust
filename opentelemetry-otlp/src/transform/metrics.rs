@@ -38,40 +38,28 @@ pub mod tonic {
     };
     use crate::transform::common::to_nanos;
 
-    impl From<u64> for exemplar::Value {
-        fn from(value: u64) -> Self {
-            exemplar::Value::AsInt(i64::try_from(value).unwrap_or_default())
-        }
+    pub fn exemplar_value_from_u64(value: u64) -> exemplar::Value {
+        exemplar::Value::AsInt(i64::try_from(value).unwrap_or_default())
     }
 
-    impl From<i64> for exemplar::Value {
-        fn from(value: i64) -> Self {
-            exemplar::Value::AsInt(value)
-        }
+    pub fn exemplar_value_from_i64(value: i64) -> exemplar::Value {
+        exemplar::Value::AsInt(value)
     }
 
-    impl From<f64> for exemplar::Value {
-        fn from(value: f64) -> Self {
-            exemplar::Value::AsDouble(value)
-        }
+    pub fn exemplar_value_from_f64(value: f64) -> exemplar::Value {
+        exemplar::Value::AsDouble(value)
     }
 
-    impl From<u64> for number_data_point::Value {
-        fn from(value: u64) -> Self {
-            number_data_point::Value::AsInt(i64::try_from(value).unwrap_or_default())
-        }
+    pub fn number_data_point_value_from_u64(value: u64) -> number_data_point::Value {
+        number_data_point::Value::AsInt(i64::try_from(value).unwrap_or_default())
     }
 
-    impl From<i64> for number_data_point::Value {
-        fn from(value: i64) -> Self {
-            number_data_point::Value::AsInt(value)
-        }
+    pub fn number_data_point_value_from_i64(value: i64) -> number_data_point::Value {
+        number_data_point::Value::AsInt(value)
     }
 
-    impl From<f64> for number_data_point::Value {
-        fn from(value: f64) -> Self {
-            number_data_point::Value::AsDouble(value)
-        }
+    pub fn number_data_point_value_from_f64(value: f64) -> number_data_point::Value {
+        number_data_point::Value::AsDouble(value)
     }
 
     impl From<(&Key, &Value)> for KeyValue {
@@ -139,7 +127,7 @@ pub mod tonic {
     impl From<&SdkScopeMetrics> for TonicScopeMetrics {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
-                scope: Some((sm.scope(), None).into()),
+                scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
                 metrics: sm.metrics().map(Into::into).collect(),
                 schema_url: sm
                     .scope()
