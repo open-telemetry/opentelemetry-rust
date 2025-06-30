@@ -115,24 +115,22 @@ pub mod tonic {
         }
     }
 
-    impl From<Value> for AnyValue {
-        fn from(value: Value) -> Self {
-            AnyValue {
-                value: match value {
-                    Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
-                    Value::I64(val) => Some(any_value::Value::IntValue(val)),
-                    Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
-                    Value::String(val) => Some(any_value::Value::StringValue(val.to_string())),
-                    Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
-                        Array::Bool(vals) => array_into_proto(vals),
-                        Array::I64(vals) => array_into_proto(vals),
-                        Array::F64(vals) => array_into_proto(vals),
-                        Array::String(vals) => array_into_proto(vals),
-                        _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
-                    })),
-                    _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added
-                },
-            }
+    pub fn value_to_any_value(value: Value) -> AnyValue {
+        AnyValue {
+            value: match value {
+                Value::Bool(val) => Some(any_value::Value::BoolValue(val)),
+                Value::I64(val) => Some(any_value::Value::IntValue(val)),
+                Value::F64(val) => Some(any_value::Value::DoubleValue(val)),
+                Value::String(val) => Some(any_value::Value::StringValue(val.to_string())),
+                Value::Array(array) => Some(any_value::Value::ArrayValue(match array {
+                    Array::Bool(vals) => array_into_proto(vals),
+                    Array::I64(vals) => array_into_proto(vals),
+                    Array::F64(vals) => array_into_proto(vals),
+                    Array::String(vals) => array_into_proto(vals),
+                    _ => unreachable!("Nonexistent array type"), // Needs to be updated when new array types are added
+                })),
+                _ => unreachable!("Nonexistent value type"), // Needs to be updated when new value types are added
+            },
         }
     }
 
@@ -142,7 +140,7 @@ pub mod tonic {
     {
         let values = vals
             .into_iter()
-            .map(|val| AnyValue::from(Value::from(val)))
+            .map(|val| value_to_any_value(Value::from(val)))
             .collect();
 
         ArrayValue { values }

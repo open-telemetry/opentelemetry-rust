@@ -11,6 +11,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 
 use super::BoxInterceptor;
 use crate::metric::MetricsClient;
+use crate::transform::metrics::tonic::resource_metrics_to_export_request;
 
 pub(crate) struct TonicMetricsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -81,7 +82,7 @@ impl MetricsClient for TonicMetricsClient {
             .export(Request::from_parts(
                 metadata,
                 extensions,
-                ExportMetricsServiceRequest::from(metrics),
+                resource_metrics_to_export_request(metrics),
             ))
             .await;
 

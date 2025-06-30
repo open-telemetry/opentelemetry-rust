@@ -38,7 +38,7 @@ pub mod tonic {
     };
     use crate::transform::common::{
         to_nanos,
-        tonic::instrumentation_scope_from_scope_ref_and_target,
+        tonic::{instrumentation_scope_from_scope_ref_and_target, value_to_any_value},
     };
 
     pub fn exemplar_value_from_u64(value: u64) -> exemplar::Value {
@@ -65,110 +65,94 @@ pub mod tonic {
         number_data_point::Value::AsDouble(value)
     }
 
-    impl From<(&Key, &Value)> for KeyValue {
-        fn from(kv: (&Key, &Value)) -> Self {
-            KeyValue {
-                key: kv.0.to_string(),
-                value: Some(kv.1.clone().into()),
+    pub fn key_value_from_key_value_ref(kv: (&Key, &Value)) -> KeyValue {
+        KeyValue {
+            key: kv.0.to_string(),
+            value: Some(value_to_any_value(kv.1.clone())),
+        }
+    }
+
+    pub fn key_value_from_otel_key_value(kv: &opentelemetry::KeyValue) -> KeyValue {
+        KeyValue {
+            key: kv.key.to_string(),
+            value: Some(value_to_any_value(kv.value.clone())),
+        }
+    }
+
+    pub fn temporality_to_aggregation_temporality(temporality: Temporality) -> AggregationTemporality {
+        match temporality {
+            Temporality::Cumulative => AggregationTemporality::Cumulative,
+            Temporality::Delta => AggregationTemporality::Delta,
+            other => {
+                otel_debug!(
+                    name: "AggregationTemporality::Unknown",
+                    message = "Unknown temporality,using default instead.",
+                    unknown_temporality = format!("{:?}", other),
+                    default_temporality = format!("{:?}", Temporality::Cumulative)
+                );
+                AggregationTemporality::Cumulative
             }
         }
     }
 
-    impl From<&opentelemetry::KeyValue> for KeyValue {
-        fn from(kv: &opentelemetry::KeyValue) -> Self {
-            KeyValue {
-                key: kv.key.to_string(),
-                value: Some(kv.value.clone().into()),
-            }
-        }
-    }
-
-    impl From<Temporality> for AggregationTemporality {
-        fn from(temporality: Temporality) -> Self {
-            match temporality {
-                Temporality::Cumulative => AggregationTemporality::Cumulative,
-                Temporality::Delta => AggregationTemporality::Delta,
-                other => {
-                    otel_debug!(
-                        name: "AggregationTemporality::Unknown",
-                        message = "Unknown temporality,using default instead.",
-                        unknown_temporality = format!("{:?}", other),
-                        default_temporality = format!("{:?}", Temporality::Cumulative)
-                    );
-                    AggregationTemporality::Cumulative
-                }
-            }
-        }
-    }
-
-    impl From<&ResourceMetrics> for ExportMetricsServiceRequest {
-        fn from(rm: &ResourceMetrics) -> Self {
-            ExportMetricsServiceRequest {
-                resource_metrics: vec![TonicResourceMetrics {
-                    resource: Some((rm.resource()).into()),
-                    scope_metrics: rm.scope_metrics().map(Into::into).collect(),
-                    schema_url: rm
-                        .resource()
-                        .schema_url()
-                        .map(Into::into)
-                        .unwrap_or_default(),
-                }],
-            }
-        }
-    }
-
-    impl From<&SdkResource> for TonicResource {
-        fn from(resource: &SdkResource) -> Self {
-            TonicResource {
-                attributes: resource.iter().map(Into::into).collect(),
-                dropped_attributes_count: 0,
-                entity_refs: vec![], // internal and currently unused
-            }
-        }
-    }
-
-    impl From<&SdkScopeMetrics> for TonicScopeMetrics {
-        fn from(sm: &SdkScopeMetrics) -> Self {
-            TonicScopeMetrics {
-                scope: Some(instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
-                metrics: sm.metrics().map(Into::into).collect(),
-                schema_url: sm
-                    .scope()
+    pub fn resource_metrics_to_export_request(rm: &ResourceMetrics) -> ExportMetricsServiceRequest {
+        ExportMetricsServiceRequest {
+            resource_metrics: vec![TonicResourceMetrics {
+                resource: Some(sdk_resource_to_tonic_resource(rm.resource())),
+                scope_metrics: rm.scope_metrics().map(sdk_scope_metrics_to_tonic_scope_metrics).collect(),
+                schema_url: rm
+                    .resource()
                     .schema_url()
-                    .map(ToOwned::to_owned)
+                    .map(|s| s.to_string())
                     .unwrap_or_default(),
-            }
+            }],
         }
     }
 
-    impl From<&SdkMetric> for TonicMetric {
-        fn from(metric: &SdkMetric) -> Self {
-            TonicMetric {
-                name: metric.name().to_string(),
-                description: metric.description().to_string(),
-                unit: metric.unit().to_string(),
-                metadata: vec![], // internal and currently unused
-                data: Some(match metric.data() {
-                    AggregatedMetrics::F64(data) => data.into(),
-                    AggregatedMetrics::U64(data) => data.into(),
-                    AggregatedMetrics::I64(data) => data.into(),
-                }),
-            }
+    pub fn sdk_resource_to_tonic_resource(resource: &SdkResource) -> TonicResource {
+        TonicResource {
+            attributes: resource.iter().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+            dropped_attributes_count: 0,
+            entity_refs: vec![], // internal and currently unused
         }
     }
 
-    impl<T> From<&MetricData<T>> for TonicMetricData
+    pub fn sdk_scope_metrics_to_tonic_scope_metrics(sm: &SdkScopeMetrics) -> TonicScopeMetrics {
+        TonicScopeMetrics {
+            scope: Some(instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
+            metrics: sm.metrics().map(sdk_metric_to_tonic_metric).collect(),
+            schema_url: sm
+                .scope()
+                .schema_url()
+                .map(ToOwned::to_owned)
+                .unwrap_or_default(),
+        }
+    }
+
+    pub fn sdk_metric_to_tonic_metric(metric: &SdkMetric) -> TonicMetric {
+        TonicMetric {
+            name: metric.name().to_string(),
+            description: metric.description().to_string(),
+            unit: metric.unit().to_string(),
+            metadata: vec![], // internal and currently unused
+            data: Some(match metric.data() {
+                AggregatedMetrics::F64(data) => metric_data_to_tonic_metric_data(data),
+                AggregatedMetrics::U64(data) => metric_data_to_tonic_metric_data(data),
+                AggregatedMetrics::I64(data) => metric_data_to_tonic_metric_data(data),
+            }),
+        }
+    }
+
+    pub fn metric_data_to_tonic_metric_data<T>(data: &MetricData<T>) -> TonicMetricData
     where
         T: Numeric + Debug,
     {
-        fn from(data: &MetricData<T>) -> Self {
-            match data {
-                MetricData::Gauge(gauge) => TonicMetricData::Gauge(gauge.into()),
-                MetricData::Sum(sum) => TonicMetricData::Sum(sum.into()),
-                MetricData::Histogram(hist) => TonicMetricData::Histogram(hist.into()),
-                MetricData::ExponentialHistogram(hist) => {
-                    TonicMetricData::ExponentialHistogram(hist.into())
-                }
+        match data {
+            MetricData::Gauge(gauge) => TonicMetricData::Gauge(sdk_gauge_to_tonic_gauge(gauge)),
+            MetricData::Sum(sum) => TonicMetricData::Sum(sdk_sum_to_tonic_sum(sum)),
+            MetricData::Histogram(hist) => TonicMetricData::Histogram(sdk_histogram_to_tonic_histogram(hist)),
+            MetricData::ExponentialHistogram(hist) => {
+                TonicMetricData::ExponentialHistogram(sdk_exponential_histogram_to_tonic_exponential_histogram(hist))
             }
         }
     }
@@ -196,30 +180,28 @@ pub mod tonic {
         }
     }
 
-    impl<T> From<&SdkHistogram<T>> for TonicHistogram
+    pub fn sdk_histogram_to_tonic_histogram<T>(hist: &SdkHistogram<T>) -> TonicHistogram
     where
         T: Numeric,
     {
-        fn from(hist: &SdkHistogram<T>) -> Self {
-            TonicHistogram {
-                data_points: hist
-                    .data_points()
-                    .map(|dp| TonicHistogramDataPoint {
-                        attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(hist.start_time()),
-                        time_unix_nano: to_nanos(hist.time()),
-                        count: dp.count(),
-                        sum: Some(dp.sum().into_f64()),
-                        bucket_counts: dp.bucket_counts().collect(),
-                        explicit_bounds: dp.bounds().collect(),
-                        exemplars: dp.exemplars().map(Into::into).collect(),
-                        flags: TonicDataPointFlags::default() as u32,
-                        min: dp.min().map(Numeric::into_f64),
-                        max: dp.max().map(Numeric::into_f64),
-                    })
-                    .collect(),
-                aggregation_temporality: TonicTemporality::from(hist.temporality()).into(),
-            }
+        TonicHistogram {
+            data_points: hist
+                .data_points()
+                .map(|dp| TonicHistogramDataPoint {
+                    attributes: dp.attributes().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+                    start_time_unix_nano: to_nanos(hist.start_time()),
+                    time_unix_nano: to_nanos(hist.time()),
+                    count: dp.count(),
+                    sum: Some(dp.sum().into_f64()),
+                    bucket_counts: dp.bucket_counts().collect(),
+                    explicit_bounds: dp.bounds().collect(),
+                    exemplars: dp.exemplars().map(|ex| sdk_exemplar_to_tonic_exemplar(ex)).collect(),
+                    flags: TonicDataPointFlags::default() as u32,
+                    min: dp.min().map(Numeric::into_f64),
+                    max: dp.max().map(Numeric::into_f64),
+                })
+                .collect(),
+            aggregation_temporality: temporality_to_aggregation_temporality(hist.temporality()).into(),
         }
     }
 
@@ -254,7 +236,7 @@ pub mod tonic {
                         zero_threshold: dp.zero_threshold(),
                     })
                     .collect(),
-                aggregation_temporality: TonicTemporality::from(hist.temporality()).into(),
+                aggregation_temporality: temporality_to_aggregation_temporality(hist.temporality()).into(),
             }
         }
     }
