@@ -2,28 +2,28 @@
 pub mod tonic {
     use opentelemetry_proto::tonic::{
         common::v1::{
-            any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
+            any_value::Value, AnyValue, ArrayValue, KeyValue,
             KeyValueList,
         },
         logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
         resource::v1::Resource,
     };
-    use crate::transform::common::{to_nanos, tonic::ResourceAttributesWithSchema};
+    use crate::transform::common::{
+        to_nanos,
+        tonic::{ResourceAttributesWithSchema, instrumentation_scope_from_scope_ref_and_target},
+    };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
     use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
-    impl From<LogsAnyValue> for AnyValue {
-        fn from(value: LogsAnyValue) -> Self {
-            AnyValue {
-                value: Some(value.into()),
-            }
+    fn any_value_from_logs_any_value(value: LogsAnyValue) -> AnyValue {
+        AnyValue {
+            value: Some(value_from_logs_any_value(value)),
         }
     }
 
-    impl From<LogsAnyValue> for Value {
-        fn from(value: LogsAnyValue) -> Self {
+    fn value_from_logs_any_value(value: LogsAnyValue) -> Value {
             match value {
                 LogsAnyValue::Double(f) => Value::DoubleValue(f),
                 LogsAnyValue::Int(i) => Value::IntValue(i),
@@ -32,9 +32,7 @@ pub mod tonic {
                 LogsAnyValue::ListAny(v) => Value::ArrayValue(ArrayValue {
                     values: v
                         .into_iter()
-                        .map(|v| AnyValue {
-                            value: Some(v.into()),
-                        })
+                        .map(|v| any_value_from_logs_any_value(v))
                         .collect(),
                 }),
                 LogsAnyValue::Map(m) => Value::KvlistValue(KeyValueList {
@@ -42,16 +40,13 @@ pub mod tonic {
                         .into_iter()
                         .map(|(key, value)| KeyValue {
                             key: key.into(),
-                            value: Some(AnyValue {
-                                value: Some(value.into()),
-                            }),
+                            value: Some(any_value_from_logs_any_value(value)),
                         })
                         .collect(),
                 }),
                 LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
                 _ => unreachable!("Nonexistent value type"),
             }
-        }
     }
 
     impl From<&opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
@@ -93,9 +88,7 @@ pub mod tonic {
                         .attributes_iter()
                         .map(|kv| KeyValue {
                             key: kv.0.to_string(),
-                            value: Some(AnyValue {
-                                value: Some(kv.1.clone().into()),
-                            }),
+                            value: Some(any_value_from_logs_any_value(kv.1.clone())),
                         })
                         .collect()
                 },
@@ -156,7 +149,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(instrumentation, log_record.target().cloned())),
+                    scope: Some(instrumentation_scope_from_scope_ref_and_target(instrumentation, log_record.target().cloned())),
                     log_records: vec![log_record.into()],
                 }],
             }
@@ -193,10 +186,10 @@ pub mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(InstrumentationScope::from((
+                scope: Some(instrumentation_scope_from_scope_ref_and_target(
                     log_data.first().unwrap().1,
                     Some(key.into_owned().into()),
-                ))),
+                )),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 log_records: log_data
                     .into_iter()

@@ -4,7 +4,7 @@ pub mod tonic {
     use opentelemetry_proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
     use crate::transform::common::{
         to_nanos,
-        tonic::{Attributes, ResourceAttributesWithSchema},
+        tonic::{Attributes, ResourceAttributesWithSchema, instrumentation_scope_from_scope_and_target, instrumentation_scope_from_scope_ref_and_target},
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
@@ -90,8 +90,7 @@ pub mod tonic {
         }
     }
 
-    impl ResourceSpans {
-        pub fn new(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> Self {
+    pub fn new_resource_spans(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> ResourceSpans {
             let span_kind: span::SpanKind = source_span.span_kind.into();
             ResourceSpans {
                 resource: Some(Resource {
@@ -106,7 +105,7 @@ pub mod tonic {
                         .schema_url()
                         .map(ToOwned::to_owned)
                         .unwrap_or_default(),
-                    scope: Some(super::common::tonic::instrumentation_scope_from_scope_and_target(source_span.instrumentation_scope, None)),
+                    scope: Some(instrumentation_scope_from_scope_and_target(source_span.instrumentation_scope, None)),
                     spans: vec![Span {
                         trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
                         span_id: source_span.span_context.span_id().to_bytes().to_vec(),
@@ -149,7 +148,6 @@ pub mod tonic {
                 }],
             }
         }
-    }
 
     pub fn group_spans_by_resource_and_scope(
         spans: Vec<SpanData>,
@@ -169,7 +167,7 @@ pub mod tonic {
         let scope_spans = scope_map
             .into_iter()
             .map(|(instrumentation, span_records)| ScopeSpans {
-                scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(instrumentation, None)),
+                scope: Some(instrumentation_scope_from_scope_ref_and_target(instrumentation, None)),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 spans: span_records
                     .into_iter()
@@ -189,7 +187,8 @@ pub mod tonic {
             schema_url: resource.schema_url.clone().unwrap_or_default(),
         }]
     }
-}
+
+} // End of tonic module
 
 #[cfg(test)]
 mod tests {

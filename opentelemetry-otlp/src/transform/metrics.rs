@@ -36,7 +36,10 @@ pub mod tonic {
         },
         resource::v1::Resource as TonicResource,
     };
-    use crate::transform::common::to_nanos;
+    use crate::transform::common::{
+        to_nanos,
+        tonic::instrumentation_scope_from_scope_ref_and_target,
+    };
 
     pub fn exemplar_value_from_u64(value: u64) -> exemplar::Value {
         exemplar::Value::AsInt(i64::try_from(value).unwrap_or_default())
@@ -127,7 +130,7 @@ pub mod tonic {
     impl From<&SdkScopeMetrics> for TonicScopeMetrics {
         fn from(sm: &SdkScopeMetrics) -> Self {
             TonicScopeMetrics {
-                scope: Some(super::common::tonic::instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
+                scope: Some(instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
                 metrics: sm.metrics().map(Into::into).collect(),
                 schema_url: sm
                     .scope()
