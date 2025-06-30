@@ -94,7 +94,7 @@ pub mod tonic {
                 kvs.into_iter()
                     .map(|api_kv| KeyValue {
                         key: api_kv.key.as_str().to_string(),
-                        value: Some(api_kv.value.into()),
+                        value: Some(value_to_any_value(api_kv.value)),
                     })
                     .collect(),
             )

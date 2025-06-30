@@ -10,6 +10,8 @@ use opentelemetry_http::HttpClient;
 use crate::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
+#[cfg(feature = "metrics")]
+use crate::transform::metrics::tonic::resource_metrics_to_export_request;
 #[cfg(feature = "trace")]
 use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
@@ -330,7 +332,7 @@ impl OtlpHttpClient {
     ) -> Option<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
-        let req: ExportMetricsServiceRequest = metrics.into();
+        let req: ExportMetricsServiceRequest = resource_metrics_to_export_request(metrics);
 
         match self.protocol {
             #[cfg(feature = "http-json")]

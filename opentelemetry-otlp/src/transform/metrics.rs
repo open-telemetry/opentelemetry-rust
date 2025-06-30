@@ -25,7 +25,7 @@ pub mod tonic {
             exponential_histogram_data_point::Buckets as TonicBuckets,
             metric::Data as TonicMetricData, number_data_point,
             number_data_point::Value as TonicDataPointValue,
-            AggregationTemporality as TonicTemporality, AggregationTemporality,
+            AggregationTemporality,
             DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar,
             ExponentialHistogram as TonicExponentialHistogram,
             ExponentialHistogramDataPoint as TonicExponentialHistogramDataPoint,
@@ -111,7 +111,7 @@ pub mod tonic {
 
     pub fn sdk_resource_to_tonic_resource(resource: &SdkResource) -> TonicResource {
         TonicResource {
-            attributes: resource.iter().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+            attributes: resource.iter().map(key_value_from_key_value_ref).collect(),
             dropped_attributes_count: 0,
             entity_refs: vec![], // internal and currently unused
         }
@@ -157,14 +157,24 @@ pub mod tonic {
         }
     }
 
-    trait Numeric: Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy {
+    trait Numeric: Copy {
         // lossy at large values for u64 and i64 but otlp histograms only handle float values
         fn into_f64(self) -> f64;
+        fn to_data_point_value(self) -> TonicDataPointValue;
+        fn to_exemplar_value(self) -> TonicExemplarValue;
     }
 
     impl Numeric for u64 {
         fn into_f64(self) -> f64 {
             self as f64
+        }
+        
+        fn to_data_point_value(self) -> TonicDataPointValue {
+            number_data_point_value_from_u64(self)
+        }
+        
+        fn to_exemplar_value(self) -> TonicExemplarValue {
+            exemplar_value_from_u64(self)
         }
     }
 
@@ -172,11 +182,27 @@ pub mod tonic {
         fn into_f64(self) -> f64 {
             self as f64
         }
+        
+        fn to_data_point_value(self) -> TonicDataPointValue {
+            number_data_point_value_from_i64(self)
+        }
+        
+        fn to_exemplar_value(self) -> TonicExemplarValue {
+            exemplar_value_from_i64(self)
+        }
     }
 
     impl Numeric for f64 {
         fn into_f64(self) -> f64 {
             self
+        }
+        
+        fn to_data_point_value(self) -> TonicDataPointValue {
+            number_data_point_value_from_f64(self)
+        }
+        
+        fn to_exemplar_value(self) -> TonicExemplarValue {
+            exemplar_value_from_f64(self)
         }
     }
 
@@ -205,101 +231,93 @@ pub mod tonic {
         }
     }
 
-    impl<T> From<&SdkExponentialHistogram<T>> for TonicExponentialHistogram
+    pub fn sdk_exponential_histogram_to_tonic_exponential_histogram<T>(hist: &SdkExponentialHistogram<T>) -> TonicExponentialHistogram
     where
         T: Numeric,
     {
-        fn from(hist: &SdkExponentialHistogram<T>) -> Self {
-            TonicExponentialHistogram {
-                data_points: hist
-                    .data_points()
-                    .map(|dp| TonicExponentialHistogramDataPoint {
-                        attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(hist.start_time()),
-                        time_unix_nano: to_nanos(hist.time()),
-                        count: dp.count() as u64,
-                        sum: Some(dp.sum().into_f64()),
-                        scale: dp.scale().into(),
-                        zero_count: dp.zero_count(),
-                        positive: Some(TonicBuckets {
-                            offset: dp.positive_bucket().offset(),
-                            bucket_counts: dp.positive_bucket().counts().collect(),
-                        }),
-                        negative: Some(TonicBuckets {
-                            offset: dp.negative_bucket().offset(),
-                            bucket_counts: dp.negative_bucket().counts().collect(),
-                        }),
-                        flags: TonicDataPointFlags::default() as u32,
-                        exemplars: dp.exemplars().map(Into::into).collect(),
-                        min: dp.min().map(Numeric::into_f64),
-                        max: dp.max().map(Numeric::into_f64),
-                        zero_threshold: dp.zero_threshold(),
-                    })
-                    .collect(),
-                aggregation_temporality: temporality_to_aggregation_temporality(hist.temporality()).into(),
-            }
+        TonicExponentialHistogram {
+            data_points: hist
+                .data_points()
+                .map(|dp| TonicExponentialHistogramDataPoint {
+                    attributes: dp.attributes().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+                    start_time_unix_nano: to_nanos(hist.start_time()),
+                    time_unix_nano: to_nanos(hist.time()),
+                    count: dp.count() as u64,
+                    sum: Some(dp.sum().into_f64()),
+                    scale: dp.scale().into(),
+                    zero_count: dp.zero_count(),
+                    positive: Some(TonicBuckets {
+                        offset: dp.positive_bucket().offset(),
+                        bucket_counts: dp.positive_bucket().counts().collect(),
+                    }),
+                    negative: Some(TonicBuckets {
+                        offset: dp.negative_bucket().offset(),
+                        bucket_counts: dp.negative_bucket().counts().collect(),
+                    }),
+                    flags: TonicDataPointFlags::default() as u32,
+                    exemplars: dp.exemplars().map(|ex| sdk_exemplar_to_tonic_exemplar(ex)).collect(),
+                    min: dp.min().map(Numeric::into_f64),
+                    max: dp.max().map(Numeric::into_f64),
+                    zero_threshold: dp.zero_threshold(),
+                })
+                .collect(),
+            aggregation_temporality: temporality_to_aggregation_temporality(hist.temporality()).into(),
         }
     }
 
-    impl<T> From<&SdkSum<T>> for TonicSum
+    pub fn sdk_sum_to_tonic_sum<T>(sum: &SdkSum<T>) -> TonicSum
     where
-        T: Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
+        T: Numeric + Debug,
     {
-        fn from(sum: &SdkSum<T>) -> Self {
-            TonicSum {
-                data_points: sum
-                    .data_points()
-                    .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: to_nanos(sum.start_time()),
-                        time_unix_nano: to_nanos(sum.time()),
-                        exemplars: dp.exemplars().map(Into::into).collect(),
-                        flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value().into()),
-                    })
-                    .collect(),
-                aggregation_temporality: TonicTemporality::from(sum.temporality()).into(),
-                is_monotonic: sum.is_monotonic(),
-            }
+        TonicSum {
+            data_points: sum
+                .data_points()
+                .map(|dp| TonicNumberDataPoint {
+                    attributes: dp.attributes().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+                    start_time_unix_nano: to_nanos(sum.start_time()),
+                    time_unix_nano: to_nanos(sum.time()),
+                    exemplars: dp.exemplars().map(|ex| sdk_exemplar_to_tonic_exemplar(ex)).collect(),
+                    flags: TonicDataPointFlags::default() as u32,
+                    value: Some(dp.value().to_data_point_value()),
+                })
+                .collect(),
+            aggregation_temporality: temporality_to_aggregation_temporality(sum.temporality()).into(),
+            is_monotonic: sum.is_monotonic(),
         }
     }
 
-    impl<T> From<&SdkGauge<T>> for TonicGauge
+    pub fn sdk_gauge_to_tonic_gauge<T>(gauge: &SdkGauge<T>) -> TonicGauge
     where
-        T: Debug + Into<TonicExemplarValue> + Into<TonicDataPointValue> + Copy,
+        T: Numeric + Debug,
     {
-        fn from(gauge: &SdkGauge<T>) -> Self {
-            TonicGauge {
-                data_points: gauge
-                    .data_points()
-                    .map(|dp| TonicNumberDataPoint {
-                        attributes: dp.attributes().map(Into::into).collect(),
-                        start_time_unix_nano: gauge.start_time().map(to_nanos).unwrap_or_default(),
-                        time_unix_nano: to_nanos(gauge.time()),
-                        exemplars: dp.exemplars().map(Into::into).collect(),
-                        flags: TonicDataPointFlags::default() as u32,
-                        value: Some(dp.value().into()),
-                    })
-                    .collect(),
-            }
+        TonicGauge {
+            data_points: gauge
+                .data_points()
+                .map(|dp| TonicNumberDataPoint {
+                    attributes: dp.attributes().map(|kv| key_value_from_otel_key_value(kv)).collect(),
+                    start_time_unix_nano: gauge.start_time().map(to_nanos).unwrap_or_default(),
+                    time_unix_nano: to_nanos(gauge.time()),
+                    exemplars: dp.exemplars().map(|ex| sdk_exemplar_to_tonic_exemplar(ex)).collect(),
+                    flags: TonicDataPointFlags::default() as u32,
+                    value: Some(dp.value().to_data_point_value()),
+                })
+                .collect(),
         }
     }
 
-    impl<T> From<&SdkExemplar<T>> for TonicExemplar
+    pub fn sdk_exemplar_to_tonic_exemplar<T>(ex: &SdkExemplar<T>) -> TonicExemplar
     where
-        T: Into<TonicExemplarValue> + Copy,
+        T: Numeric,
     {
-        fn from(ex: &SdkExemplar<T>) -> Self {
-            TonicExemplar {
-                filtered_attributes: ex
-                    .filtered_attributes()
-                    .map(|kv| (&kv.key, &kv.value).into())
-                    .collect(),
-                time_unix_nano: to_nanos(ex.time()),
-                span_id: ex.span_id().into(),
-                trace_id: ex.trace_id().into(),
-                value: Some(ex.value.into()),
-            }
+        TonicExemplar {
+            filtered_attributes: ex
+                .filtered_attributes()
+                .map(|kv| key_value_from_key_value_ref((&kv.key, &kv.value)))
+                .collect(),
+            time_unix_nano: to_nanos(ex.time()),
+            span_id: ex.span_id().into(),
+            trace_id: ex.trace_id().into(),
+            value: Some(ex.value.to_exemplar_value()),
         }
     }
 }
