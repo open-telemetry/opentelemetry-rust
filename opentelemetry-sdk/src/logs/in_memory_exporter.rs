@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time;
 
-/// An in-memory logs exporter that stores logs data in memory..
+/// An in-memory logs exporter that stores logs data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes.
 /// It stores logs in a `Vec<OwnedLogData>`. Logs can be retrieved using
@@ -73,7 +73,7 @@ pub struct LogDataWithResource {
     pub resource: Cow<'static, Resource>,
 }
 
-///Builder for ['InMemoryLogExporter'].
+///Builder for [`InMemoryLogExporter`].
 /// # Example
 ///
 /// ```no_run
