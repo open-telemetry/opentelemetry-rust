@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+    metrics_service_client::MetricsServiceClient,
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
