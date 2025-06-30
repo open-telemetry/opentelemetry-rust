@@ -7,11 +7,11 @@ use http::{HeaderName, HeaderValue, Uri};
 #[cfg(feature = "http-json")]
 use opentelemetry::otel_debug;
 use opentelemetry_http::HttpClient;
-use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
+use crate::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]

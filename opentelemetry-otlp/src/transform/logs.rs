@@ -1,16 +1,14 @@
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub mod tonic {
-    use crate::{
-        tonic::{
-            common::v1::{
-                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
-                KeyValueList,
-            },
-            logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
-            resource::v1::Resource,
+    use opentelemetry_proto::tonic::{
+        common::v1::{
+            any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
+            KeyValueList,
         },
-        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
+        logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
+        resource::v1::Resource,
     };
+    use crate::transform::common::{to_nanos, tonic::ResourceAttributesWithSchema};
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
     use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
@@ -271,7 +269,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -291,7 +289,7 @@ mod tests {
         let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];

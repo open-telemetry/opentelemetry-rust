@@ -3,7 +3,7 @@ mod tonic {
     use opentelemetry::trace::{Event, Status};
     use opentelemetry_sdk::trace::SpanData;
 
-    use crate::proto::tonic::{
+    use opentelemetry_proto::tonic::{
         trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };

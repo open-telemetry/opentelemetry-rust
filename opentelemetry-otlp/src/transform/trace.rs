@@ -1,7 +1,7 @@
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub mod tonic {
-    use crate::proto::tonic::resource::v1::Resource;
-    use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
+    use opentelemetry_proto::tonic::resource::v1::Resource;
+    use opentelemetry_proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
     use crate::transform::common::{
         to_nanos,
         tonic::{Attributes, ResourceAttributesWithSchema},
@@ -193,7 +193,7 @@ pub mod tonic {
 
 #[cfg(test)]
 mod tests {
-    use crate::tonic::common::v1::any_value::Value;
+    use opentelemetry_proto::tonic::common::v1::any_value::Value;
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::time::now;
     use opentelemetry::trace::{
@@ -243,7 +243,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
+            super::group_spans_by_resource_and_scope(spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 
@@ -292,7 +292,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
+            super::group_spans_by_resource_and_scope(spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 

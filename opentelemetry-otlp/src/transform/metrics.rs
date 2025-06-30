@@ -3,7 +3,7 @@
 // We cannot ignore it as it's not an optional field.
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub mod tonic {
     use std::fmt::Debug;
 
@@ -17,7 +17,7 @@ pub mod tonic {
     use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::Resource as SdkResource;
 
-    use crate::proto::tonic::{
+    use opentelemetry_proto::tonic::{
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{

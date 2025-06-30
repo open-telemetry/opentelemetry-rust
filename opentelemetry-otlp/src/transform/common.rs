@@ -1,11 +1,11 @@
 #[cfg(all(
-    feature = "gen-tonic-messages",
+    any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"),
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(all(
-    feature = "gen-tonic-messages",
+    any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"),
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 pub(crate) fn to_nanos(time: SystemTime) -> u64 {
@@ -14,9 +14,9 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub mod tonic {
-    use crate::proto::tonic::common::v1::{
+    use opentelemetry_proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
     };
     use opentelemetry::{Array, Value};
@@ -42,71 +42,51 @@ pub mod tonic {
     #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
-    impl
-        From<(
-            opentelemetry::InstrumentationScope,
-            Option<Cow<'static, str>>,
-        )> for InstrumentationScope
-    {
-        fn from(
-            data: (
-                opentelemetry::InstrumentationScope,
-                Option<Cow<'static, str>>,
-            ),
-        ) -> Self {
-            let (library, target) = data;
-            if let Some(t) = target {
-                InstrumentationScope {
-                    name: t.to_string(),
-                    version: String::new(),
-                    attributes: vec![],
-                    ..Default::default()
-                }
-            } else {
-                InstrumentationScope {
-                    name: library.name().to_owned(),
-                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes().cloned()).0,
-                    ..Default::default()
-                }
+    pub fn instrumentation_scope_from_scope_and_target(
+        scope: opentelemetry::InstrumentationScope,
+        target: Option<Cow<'static, str>>,
+    ) -> InstrumentationScope {
+        if let Some(t) = target {
+            InstrumentationScope {
+                name: t.to_string(),
+                version: String::new(),
+                attributes: vec![],
+                ..Default::default()
+            }
+        } else {
+            InstrumentationScope {
+                name: scope.name().to_owned(),
+                version: scope.version().map(ToOwned::to_owned).unwrap_or_default(),
+                attributes: Attributes::from(scope.attributes().cloned()).0,
+                ..Default::default()
             }
         }
     }
 
-    impl
-        From<(
-            &opentelemetry::InstrumentationScope,
-            Option<Cow<'static, str>>,
-        )> for InstrumentationScope
-    {
-        fn from(
-            data: (
-                &opentelemetry::InstrumentationScope,
-                Option<Cow<'static, str>>,
-            ),
-        ) -> Self {
-            let (library, target) = data;
-            if let Some(t) = target {
-                InstrumentationScope {
-                    name: t.to_string(),
-                    version: String::new(),
-                    attributes: vec![],
-                    ..Default::default()
-                }
-            } else {
-                InstrumentationScope {
-                    name: library.name().to_owned(),
-                    version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                    attributes: Attributes::from(library.attributes().cloned()).0,
-                    ..Default::default()
-                }
+    pub fn instrumentation_scope_from_scope_ref_and_target(
+        scope: &opentelemetry::InstrumentationScope,
+        target: Option<Cow<'static, str>>,
+    ) -> InstrumentationScope {
+        if let Some(t) = target {
+            InstrumentationScope {
+                name: t.to_string(),
+                version: String::new(),
+                attributes: vec![],
+                ..Default::default()
+            }
+        } else {
+            InstrumentationScope {
+                name: scope.name().to_owned(),
+                version: scope.version().map(ToOwned::to_owned).unwrap_or_default(),
+                attributes: Attributes::from(scope.attributes().cloned()).0,
+                ..Default::default()
             }
         }
     }
 
     /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default, Debug)]
-    pub struct Attributes(pub ::std::vec::Vec<crate::proto::tonic::common::v1::KeyValue>);
+    pub struct Attributes(pub ::std::vec::Vec<opentelemetry_proto::tonic::common::v1::KeyValue>);
 
     impl<I: IntoIterator<Item = opentelemetry::KeyValue>> From<I> for Attributes {
         fn from(kvs: I) -> Self {

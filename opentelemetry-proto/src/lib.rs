@@ -32,7 +32,6 @@
 #[doc(hidden)]
 mod proto;
 
-#[cfg(feature = "gen-tonic-messages")]
+// Enable tonic module when prost is available for protobuf types
+#[cfg(feature = "prost")]
 pub use proto::tonic;
-
-pub mod transform;
