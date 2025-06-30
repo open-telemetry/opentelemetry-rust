@@ -56,6 +56,8 @@ tonic = { workspace = true, features = ["router", "server"] }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+zpages = ["trace", "opentelemetry-proto/zpages"]
+profiles = ["opentelemetry-proto/profiles"]
 internal-logs = ["tracing", "opentelemetry/internal-logs"]
 
 # add ons
