@@ -2,8 +2,23 @@
 
 ## vNext
 
-- Update `tonic` dependency version to 0.13
 - TLS configuration via environment variables for GRPC exporters.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Update `opentelemetry` dependency version to 0.30
+- Update `opentelemetry_sdk` dependency version to 0.30
+- Update `opentelemetry-http` dependency version to 0.30
+- Update `opentelemetry-proto` dependency version to 0.30
+- Update `tonic` dependency version to 0.13
+- Re-export `tonic` types under `tonic_types`
+  [2898](https://github.com/open-telemetry/opentelemetry-rust/pull/2898)
+- Publicly re-exported `MetricExporterBuilder`, `SpanExporterBuilder`, and
+  `LogExporterBuilder` types, enabling users to directly reference and use these
+  builder types for metrics, traces, and logs exporters.
+  [2966](https://github.com/open-telemetry/opentelemetry-rust/pull/2966)
 
 ## 0.29.0
 

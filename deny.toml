@@ -7,7 +7,33 @@ allow = [
     "Apache-2.0",
     "ISC",
     "BSD-3-Clause",
-    "OpenSSL"
+]
+
+exceptions = [
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" }, # This crate is a dependency of `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_collections" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_locid" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_locid_transform" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_locid_transform_data" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_locale_core" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_normalizer" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_normalizer_data" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_properties" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_properties_data" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_provider" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "icu_provider_macros" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "potential_utf" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "litemap" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "tinystr" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "writeable" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "unicode-ident" }, # This crate gets used transitively by `reqwest` and other crates.
+    { allow = ["Unicode-3.0"], crate = "yoke" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "yoke-derive" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerovec" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerotrie" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerovec-derive" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerofrom" }, # This crate gets used transitively by `reqwest`.
+    { allow = ["Unicode-3.0"], crate = "zerofrom-derive" }, # This crate gets used transitively by `reqwest`.
 ]
 
 [licenses.private]
@@ -21,6 +47,31 @@ license-files = [
     { path = "LICENSE", hash = 0xbd0eed23 }
 ]
 
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
 [advisories]
 unmaintained = "none"
-yanked = "allow"
+yanked = "deny"
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "warn"
+# The graph highlighting used when creating dotgraphs for crates
+# with multiple versions
+# * lowest-version - The path to the lowest versioned duplicate is highlighted
+# * simplest-path - The path to the version with the fewest edges is highlighted
+# * all - Both lowest-version and simplest-path are used
+highlight = "all"
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

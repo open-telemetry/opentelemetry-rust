@@ -4,9 +4,9 @@
 
 #[cfg(feature = "grpc-tonic")]
 use opentelemetry::otel_debug;
-use std::fmt::Debug;
-
 use opentelemetry_sdk::{error::OTelSdkResult, logs::LogBatch};
+use std::fmt::Debug;
+use std::time;
 
 use crate::{ExporterBuildError, HasExportConfig, NoExporterBuilderSet};
 
@@ -44,6 +44,7 @@ pub const OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_LOGS_CL
 #[cfg(feature = "tls")]
 pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSECURE";
 
+/// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,
@@ -51,10 +52,12 @@ pub struct LogExporterBuilder<C> {
 }
 
 impl LogExporterBuilder<NoExporterBuilderSet> {
+    /// Create a new [LogExporterBuilder] with default settings.
     pub fn new() -> Self {
         LogExporterBuilder::default()
     }
 
+    /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> LogExporterBuilder<TonicExporterBuilderSet> {
         LogExporterBuilder {
@@ -63,6 +66,7 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
         }
     }
 
+    /// With the HTTP transport.
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     pub fn with_http(self) -> LogExporterBuilder<HttpExporterBuilderSet> {
         LogExporterBuilder {
@@ -74,6 +78,7 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl LogExporterBuilder<TonicExporterBuilderSet> {
+    /// Build the [LogExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         let result = self.client.0.build_log_exporter();
         otel_debug!(name: "LogExporterBuilt", result = format!("{:?}", &result));
@@ -83,6 +88,7 @@ impl LogExporterBuilder<TonicExporterBuilderSet> {
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl LogExporterBuilder<HttpExporterBuilderSet> {
+    /// Build the [LogExporter] with the HTTP transport.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         self.client.0.build_log_exporter()
     }
@@ -170,7 +176,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.shutdown(),

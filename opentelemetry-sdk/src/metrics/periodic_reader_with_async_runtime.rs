@@ -20,7 +20,9 @@ use crate::{
     Resource,
 };
 
-use super::{data::ResourceMetrics, reader::MetricReader, InstrumentKind, Pipeline};
+use super::{
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
+};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -257,7 +259,7 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
             message = "Calling exporter's export method with collected metrics.",
             count = self.rm.scope_metrics.len(),
         );
-        let export = self.reader.exporter.export(&mut self.rm);
+        let export = self.reader.exporter.export(&self.rm);
         let timeout = self.runtime.delay(self.timeout);
         pin_mut!(export);
         pin_mut!(timeout);

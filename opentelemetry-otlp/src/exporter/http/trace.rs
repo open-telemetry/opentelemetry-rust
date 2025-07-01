@@ -13,7 +13,7 @@ impl SpanExporter for OtlpHttpClient {
         let client = match self
             .client
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {}", e)))
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {e}")))
             .and_then(|g| match &*g {
                 Some(client) => Ok(Arc::clone(client)),
                 _ => Err(OTelSdkError::AlreadyShutdown),
@@ -42,7 +42,7 @@ impl SpanExporter for OtlpHttpClient {
         }
 
         let request_uri = request.uri().to_string();
-        otel_debug!(name: "HttpTracesClient.CallingExport");
+        otel_debug!(name: "HttpTracesClient.ExportStarted");
         let response = client
             .send_bytes(request)
             .await
@@ -51,19 +51,21 @@ impl SpanExporter for OtlpHttpClient {
         if !response.status().is_success() {
             let error = format!(
                 "OpenTelemetry trace export failed. Url: {}, Status Code: {}, Response: {:?}",
-                response.status().as_u16(),
                 request_uri,
+                response.status().as_u16(),
                 response.body()
             );
+            otel_debug!(name: "HttpTracesClient.ExportFailed", error = &error);
             return Err(OTelSdkError::InternalFailure(error));
         }
 
+        otel_debug!(name: "HttpTracesClient.ExportSucceeded");
         Ok(())
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
+            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {e}"))
         })?;
 
         if client_guard.take().is_none() {

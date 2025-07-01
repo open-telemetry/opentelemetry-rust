@@ -326,11 +326,11 @@ impl OtlpHttpClient {
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
-        metrics: &mut ResourceMetrics,
+        metrics: &ResourceMetrics,
     ) -> Option<(Vec<u8>, &'static str)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
-        let req: ExportMetricsServiceRequest = (&*metrics).into();
+        let req: ExportMetricsServiceRequest = metrics.into();
 
         match self.protocol {
             #[cfg(feature = "http-json")]
@@ -365,7 +365,7 @@ fn resolve_http_endpoint(
     provided_endpoint: Option<&str>,
 ) -> Result<Uri, ExporterBuildError> {
     // programmatic configuration overrides any value set via environment variables
-    if let Some(provider_endpoint) = provided_endpoint {
+    if let Some(provider_endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
         provider_endpoint
             .parse()
             .map_err(|er: http::uri::InvalidUri| {
@@ -529,6 +529,15 @@ mod tests {
     }
 
     #[test]
+    fn test_use_default_when_empty_string_for_option() {
+        run_env_test(vec![], || {
+            let endpoint =
+                super::resolve_http_endpoint("non_existent_var", "/v1/traces", Some("")).unwrap();
+            assert_eq!(endpoint, "http://localhost:4318/v1/traces");
+        });
+    }
+
+    #[test]
     fn test_use_default_when_others_missing() {
         run_env_test(vec![], || {
             let endpoint =
@@ -606,17 +615,14 @@ mod tests {
             assert_eq!(
                 headers.len(),
                 expected_headers.len(),
-                "Failed on input: {}",
-                input_str
+                "Failed on input: {input_str}"
             );
 
             for (expected_key, expected_value) in expected_headers {
                 assert_eq!(
                     headers.get(&HeaderName::from_static(expected_key)),
                     Some(&HeaderValue::from_static(expected_value)),
-                    "Failed on key: {} with input: {}",
-                    expected_key,
-                    input_str
+                    "Failed on key: {expected_key} with input: {input_str}"
                 );
             }
         }
@@ -656,17 +662,14 @@ mod tests {
             assert_eq!(
                 headers.len(),
                 expected_headers.len(),
-                "Failed on input: {}",
-                input_str
+                "Failed on input: {input_str}"
             );
 
             for (expected_key, expected_value) in expected_headers {
                 assert_eq!(
                     headers.get(&HeaderName::from_static(expected_key)),
                     Some(&HeaderValue::from_static(expected_value)),
-                    "Failed on key: {} with input: {}",
-                    expected_key,
-                    input_str
+                    "Failed on key: {expected_key} with input: {input_str}"
                 );
             }
         }

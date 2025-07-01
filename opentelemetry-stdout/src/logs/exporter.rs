@@ -5,6 +5,7 @@ use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
+use std::time;
 
 /// An OpenTelemetry exporter that writes Logs to stdout on export.
 pub struct LogExporter {
@@ -45,10 +46,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
             } else {
                 println!("Resource");
                 if let Some(schema_url) = self.resource.schema_url() {
-                    println!("\t Resource SchemaUrl: {:?}", schema_url);
+                    println!("\t Resource SchemaUrl: {schema_url:?}");
                 }
                 self.resource.iter().for_each(|(k, v)| {
-                    println!("\t ->  {}={:?}", k, v);
+                    println!("\t ->  {k}={v:?}");
                 });
                 print_logs(batch);
             }
@@ -57,7 +58,7 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, atomic::Ordering::SeqCst);
         Ok(())
     }
@@ -69,22 +70,22 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 
 fn print_logs(batch: LogBatch<'_>) {
     for (i, log) in batch.iter().enumerate() {
-        println!("Log #{}", i);
+        println!("Log #{i}");
         let (record, library) = log;
 
-        println!("\t Instrumentation Scope: {:?}", library);
+        println!("\t Instrumentation Scope: {library:?}");
 
         if let Some(event_name) = record.event_name() {
-            println!("\t EventName: {:?}", event_name);
+            println!("\t EventName: {event_name:?}");
         }
         if let Some(target) = record.target() {
-            println!("\t Target (Scope): {:?}", target);
+            println!("\t Target (Scope): {target:?}");
         }
         if let Some(trace_context) = record.trace_context() {
             println!("\t TraceId: {:?}", trace_context.trace_id);
             println!("\t SpanId: {:?}", trace_context.span_id);
             if let Some(trace_flags) = trace_context.trace_flags {
-                println!("\t TraceFlags: {:?}", trace_flags);
+                println!("\t TraceFlags: {trace_flags:?}");
             }
         }
         if let Some(timestamp) = record.timestamp() {
@@ -99,18 +100,18 @@ fn print_logs(batch: LogBatch<'_>) {
             );
         }
         if let Some(severity) = record.severity_text() {
-            println!("\t SeverityText: {:?}", severity);
+            println!("\t SeverityText: {severity:?}");
         }
         if let Some(severity) = record.severity_number() {
-            println!("\t SeverityNumber: {:?}", severity);
+            println!("\t SeverityNumber: {severity:?}");
         }
         if let Some(body) = record.body() {
-            println!("\t Body: {:?}", body);
+            println!("\t Body: {body:?}");
         }
 
         println!("\t Attributes:");
         for (k, v) in record.attributes_iter() {
-            println!("\t\t ->  {}: {:?}", k, v);
+            println!("\t\t ->  {k}: {v:?}");
         }
     }
 }

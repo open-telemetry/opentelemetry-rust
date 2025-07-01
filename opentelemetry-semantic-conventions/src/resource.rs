@@ -9,7 +9,7 @@
 //! The [resource semantic conventions] define a set of standardized attributes
 //! to be used in `Resource`s.
 //!
-//! [resource semantic conventions]: https://github.com/open-telemetry/semantic-conventions/tree/main/model/resource
+//! [resource semantic conventions]: https://opentelemetry.io/docs/specs/semconv/resource/
 //!
 //! ## Usage
 //!
@@ -25,6 +25,9 @@
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ANDROID_OS_API_LEVEL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_INSTALLATION_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_ECS_CLUSTER_ARN;
@@ -73,6 +76,24 @@ pub use crate::attribute::BROWSER_MOBILE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::BROWSER_PLATFORM;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_RUN_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_RUN_URL_FULL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_URL_FULL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_ACCOUNT_ID;
@@ -183,6 +204,33 @@ pub use crate::attribute::FAAS_NAME;
 pub use crate::attribute::FAAS_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_CONTAINER;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_APPLICATION_LOCATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_SERVICE_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ENVIRONMENT_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GCP_APPHUB_WORKLOAD_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GCP_CLOUD_RUN_JOB_EXECUTION;
 
 #[cfg(feature = "semconv_experimental")]
@@ -264,16 +312,34 @@ pub use crate::attribute::K8S_CONTAINER_RESTART_COUNT;
 pub use crate::attribute::K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_CRONJOB_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_CRONJOB_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_CRONJOB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_CRONJOB_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DAEMONSET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DAEMONSET_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DAEMONSET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DAEMONSET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DEPLOYMENT_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DEPLOYMENT_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DEPLOYMENT_NAME;
@@ -288,13 +354,31 @@ pub use crate::attribute::K8S_HPA_NAME;
 pub use crate::attribute::K8S_HPA_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_JOB_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_JOB_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_JOB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_JOB_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NAMESPACE_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NAMESPACE_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_NAMESPACE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NODE_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NODE_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_NODE_NAME;
@@ -315,6 +399,12 @@ pub use crate::attribute::K8S_POD_NAME;
 pub use crate::attribute::K8S_POD_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICASET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICASET_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_REPLICASET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -331,6 +421,12 @@ pub use crate::attribute::K8S_RESOURCEQUOTA_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_RESOURCEQUOTA_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_STATEFULSET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_STATEFULSET_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_NAME;
@@ -419,6 +515,21 @@ pub use crate::attribute::TELEMETRY_SDK_NAME;
 pub use crate::attribute::TELEMETRY_SDK_VERSION;
 
 pub use crate::attribute::USER_AGENT_ORIGINAL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_HEAD_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_HEAD_REVISION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REPOSITORY_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REPOSITORY_URL_FULL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_DESCRIPTION;

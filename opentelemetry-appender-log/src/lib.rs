@@ -117,7 +117,7 @@ use opentelemetry::{
 };
 #[cfg(feature = "experimental_metadata_attributes")]
 use opentelemetry_semantic_conventions::attribute::{
-    CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+    CODE_FILE_PATH, CODE_FUNCTION_NAME, CODE_LINE_NUMBER,
 };
 
 pub struct OpenTelemetryLogBridge<P, L>
@@ -156,7 +156,7 @@ where
             {
                 if let Some(filepath) = record.file() {
                     log_record.add_attribute(
-                        Key::new(CODE_FILEPATH),
+                        Key::new(CODE_FILE_PATH),
                         AnyValue::from(filepath.to_string()),
                     );
                 }
@@ -167,7 +167,7 @@ where
 
                 if let Some(module) = record.module_path() {
                     log_record.add_attribute(
-                        Key::new(CODE_NAMESPACE),
+                        Key::new(CODE_FUNCTION_NAME),
                         AnyValue::from(module.to_string()),
                     );
                 }
@@ -687,7 +687,7 @@ mod any_value {
         ) -> Result<(), Self::Error> {
             let key = match key.serialize(ValueSerializer)? {
                 Some(AnyValue::String(key)) => Key::from(String::from(key)),
-                key => Key::from(format!("{:?}", key)),
+                key => Key::from(format!("{key:?}")),
             };
 
             self.key = Some(key);
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn logbridge_code_attributes() {
         use opentelemetry_semantic_conventions::attribute::{
-            CODE_FILEPATH, CODE_LINE_NUMBER, CODE_NAMESPACE,
+            CODE_FILE_PATH, CODE_FUNCTION_NAME, CODE_LINE_NUMBER,
         };
 
         let exporter = InMemoryLogExporter::default();
@@ -1219,11 +1219,11 @@ mod tests {
 
         assert_eq!(
             Some(AnyValue::String(StringValue::from("src/main.rs"))),
-            get(CODE_FILEPATH)
+            get(CODE_FILE_PATH)
         );
         assert_eq!(
             Some(AnyValue::String(StringValue::from("service"))),
-            get(CODE_NAMESPACE)
+            get(CODE_FUNCTION_NAME)
         );
         assert_eq!(Some(AnyValue::Int(101)), get(CODE_LINE_NUMBER));
     }

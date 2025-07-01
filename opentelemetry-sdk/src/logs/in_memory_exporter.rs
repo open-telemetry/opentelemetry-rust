@@ -7,8 +7,9 @@ use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time;
 
-/// An in-memory logs exporter that stores logs data in memory..
+/// An in-memory logs exporter that stores logs data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes.
 /// It stores logs in a `Vec<OwnedLogData>`. Logs can be retrieved using
@@ -72,7 +73,7 @@ pub struct LogDataWithResource {
     pub resource: Cow<'static, Resource>,
 }
 
-///Builder for ['InMemoryLogExporter'].
+///Builder for [`InMemoryLogExporter`].
 /// # Example
 ///
 /// ```no_run
@@ -186,14 +187,14 @@ impl InMemoryLogExporter {
             .logs
             .lock()
             .map(|mut logs_guard| logs_guard.clear())
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {}", e)));
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {e}")));
     }
 }
 
 impl LogExporter for InMemoryLogExporter {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
         let mut logs_guard = self.logs.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {}", e))
+            OTelSdkError::InternalFailure(format!("Failed to lock logs for export: {e}"))
         })?;
         for (log_record, instrumentation) in batch.iter() {
             let owned_log = OwnedLogData {
@@ -205,7 +206,7 @@ impl LogExporter for InMemoryLogExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {

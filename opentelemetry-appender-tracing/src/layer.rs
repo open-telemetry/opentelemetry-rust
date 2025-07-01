@@ -73,7 +73,7 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
             return;
         }
         if field.name() == "message" {
-            self.log_record.set_body(format!("{:?}", value).into());
+            self.log_record.set_body(format!("{value:?}").into());
         } else {
             self.log_record
                 .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
@@ -246,21 +246,24 @@ where
 
         #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
+            use opentelemetry::trace::TraceContextExt;
             use tracing_opentelemetry::OtelData;
-            let opt_span_id = span
-                .extensions()
-                .get::<OtelData>()
-                .and_then(|otd| otd.builder.span_id);
-
-            let opt_trace_id = span.scope().last().and_then(|root_span| {
-                root_span
-                    .extensions()
-                    .get::<OtelData>()
-                    .and_then(|otd| otd.builder.trace_id)
-            });
-
-            if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
-                log_record.set_trace_context(trace_id, span_id, None);
+            if let Some(otd) = span.extensions().get::<OtelData>() {
+                if let Some(span_id) = otd.builder.span_id {
+                    let opt_trace_id = if otd.parent_cx.has_active_span() {
+                        Some(otd.parent_cx.span().span_context().trace_id())
+                    } else {
+                        span.scope().last().and_then(|root_span| {
+                            root_span
+                                .extensions()
+                                .get::<OtelData>()
+                                .and_then(|otd| otd.builder.trace_id)
+                        })
+                    };
+                    if let Some(trace_id) = opt_trace_id {
+                        log_record.set_trace_context(trace_id, span_id, None);
+                    }
+                }
             }
         }
 
@@ -611,7 +614,9 @@ mod tests {
     #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
+        use opentelemetry::{trace::SpanContext, Context, SpanId, TraceId};
         use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
+        use tracing_opentelemetry::OpenTelemetrySpanExt;
 
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
@@ -655,6 +660,55 @@ mod tests {
         assert_eq!(spans.len(), 2);
 
         let trace_id = spans[0].span_context.trace_id();
+        assert_eq!(trace_id, spans[1].span_context.trace_id());
+        let inner_span_id = spans[0].span_context.span_id();
+        let outer_span_id = spans[1].span_context.span_id();
+        assert_eq!(outer_span_id, spans[0].parent_span_id);
+
+        let trace_ctx0 = logs[0].record.trace_context().unwrap();
+        let trace_ctx1 = logs[1].record.trace_context().unwrap();
+
+        assert_eq!(trace_ctx0.trace_id, trace_id);
+        assert_eq!(trace_ctx1.trace_id, trace_id);
+        assert_eq!(trace_ctx0.span_id, outer_span_id);
+        assert_eq!(trace_ctx1.span_id, inner_span_id);
+
+        // Set context from remote.
+        let remote_trace_id = TraceId::from_u128(233);
+        let remote_span_id = SpanId::from_u64(2333);
+        let remote_span_context = SpanContext::new(
+            remote_trace_id,
+            remote_span_id,
+            TraceFlags::SAMPLED,
+            true,
+            Default::default(),
+        );
+
+        // Act again.
+        tracing::error_span!("outer-span").in_scope(|| {
+            let span = tracing::Span::current();
+            let parent_context = Context::current().with_remote_span_context(remote_span_context);
+            span.set_parent(parent_context);
+
+            error!("first-event");
+
+            tracing::error_span!("inner-span").in_scope(|| {
+                error!("second-event");
+            });
+        });
+
+        assert!(logger_provider.force_flush().is_ok());
+
+        let logs = exporter.get_emitted_logs().expect("No emitted logs");
+        assert_eq!(logs.len(), 4, "Expected 4 logs, got: {logs:?}");
+        let logs = &logs[2..];
+
+        let spans = span_exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 4);
+        let spans = &spans[2..];
+
+        let trace_id = spans[0].span_context.trace_id();
+        assert_eq!(trace_id, remote_trace_id);
         assert_eq!(trace_id, spans[1].span_context.trace_id());
         let inner_span_id = spans[0].span_context.span_id();
         let outer_span_id = spans[1].span_context.span_id();
@@ -875,10 +929,6 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
     }

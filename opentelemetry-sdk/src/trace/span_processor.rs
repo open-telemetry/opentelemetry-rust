@@ -90,7 +90,11 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// opportunity for processors to do any cleanup required.
     ///
     /// Implementation should make sure shutdown can be called multiple times.
-    fn shutdown(&self) -> OTelSdkResult;
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult;
+    /// shutdown the processor with a default timeout.
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
     /// Set the resource for the span processor.
     fn set_resource(&mut self, _resource: &Resource) {}
 }
@@ -154,9 +158,9 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown()
+            exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
@@ -277,15 +281,12 @@ enum BatchMessage {
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-/// [`shutdown()`]: crate::trace::TracerProvider::shutdown
-/// [`force_flush()`]: crate::trace::TracerProvider::force_flush
 #[derive(Debug)]
 pub struct BatchSpanProcessor {
     span_sender: SyncSender<SpanData>, // Data channel to store spans
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages.
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
-    shutdown_timeout: Duration,
     is_shutdown: AtomicBool,
     dropped_span_count: Arc<AtomicUsize>,
     export_span_message_sent: Arc<AtomicBool>,
@@ -424,7 +425,6 @@ impl BatchSpanProcessor {
             message_sender,
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
-            shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
             is_shutdown: AtomicBool::new(false),
             dropped_span_count: Arc::new(AtomicUsize::new(0)),
             max_queue_size,
@@ -580,7 +580,7 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Shuts down the processor.
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         if self.is_shutdown.swap(true, Ordering::Relaxed) {
             return Err(OTelSdkError::AlreadyShutdown);
         }
@@ -601,13 +601,12 @@ impl SpanProcessor for BatchSpanProcessor {
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         let result = receiver
-            .recv_timeout(self.shutdown_timeout)
-            .map_err(|_| OTelSdkError::Timeout(self.shutdown_timeout))?;
+            .recv_timeout(timeout)
+            .map_err(|_| OTelSdkError::Timeout(timeout))?;
         if let Some(handle) = self.handle.lock().unwrap().take() {
             if let Err(err) = handle.join() {
                 return Err(OTelSdkError::InternalFailure(format!(
-                    "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {:?}",
-                    err
+                    "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {err:?}"
                 )));
             }
         }

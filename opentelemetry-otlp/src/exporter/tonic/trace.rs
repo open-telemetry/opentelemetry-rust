@@ -67,7 +67,7 @@ impl SpanExporter for TonicTracesClient {
                     .lock()
                     .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
                     .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
                     .into_parts();
                 (inner.client.clone(), m, e)
             }
@@ -76,17 +76,27 @@ impl SpanExporter for TonicTracesClient {
 
         let resource_spans = group_spans_by_resource_and_scope(batch, &self.resource);
 
-        otel_debug!(name: "TonicsTracesClient.CallingExport");
+        otel_debug!(name: "TonicTracesClient.ExportStarted");
 
-        client
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
                 ExportTraceServiceRequest { resource_spans },
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        Ok(())
+            .await;
+
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicTracesClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                let error = e.to_string();
+                otel_debug!(name: "TonicTracesClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
+            }
+        }
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {

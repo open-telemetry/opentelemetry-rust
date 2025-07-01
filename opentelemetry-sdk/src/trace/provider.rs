@@ -1,3 +1,4 @@
+use super::IdGenerator;
 use crate::error::{OTelSdkError, OTelSdkResult};
 /// # Trace Provider SDK
 ///
@@ -74,8 +75,7 @@ use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
-
-use super::IdGenerator;
+use std::time::Duration;
 
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
@@ -112,10 +112,10 @@ pub(crate) struct TracerProviderInner {
 impl TracerProviderInner {
     /// Crate-private shutdown method to be called both from explicit shutdown
     /// and from Drop when the last reference is released.
-    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+    pub(crate) fn shutdown_with_timeout(&self, timeout: Duration) -> Vec<OTelSdkResult> {
         let mut results = vec![];
         for processor in &self.processors {
-            let result = processor.shutdown();
+            let result = processor.shutdown_with_timeout(timeout);
             if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
@@ -127,6 +127,10 @@ impl TracerProviderInner {
             results.push(result);
         }
         results
+    }
+    /// shutdown with default timeout
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -232,14 +236,14 @@ impl SdkTracerProvider {
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
-            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+            Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
     }
 
     /// Shuts down the current `TracerProvider`.
     ///
     /// Note that shut down doesn't means the TracerProvider has dropped
-    pub fn shutdown(&self) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         if self
             .inner
             .is_shutdown
@@ -247,7 +251,7 @@ impl SdkTracerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let results = self.inner.shutdown();
+            let results = self.inner.shutdown_with_timeout(timeout);
 
             if results.iter().all(|res| res.is_ok()) {
                 Ok(())
@@ -263,6 +267,11 @@ impl SdkTracerProvider {
         } else {
             Err(OTelSdkError::AlreadyShutdown)
         }
+    }
+
+    /// shutdown with default timeout
+    pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -471,6 +480,7 @@ mod tests {
     use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::time::Duration;
 
     // fields below is wrapped with Arc so we can assert it
     #[derive(Default, Debug)]
@@ -528,7 +538,7 @@ mod tests {
             }
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             if self.assert_info.0.is_shutdown.load(Ordering::SeqCst) {
                 Ok(())
             } else {
@@ -787,7 +797,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             self.shutdown_count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }

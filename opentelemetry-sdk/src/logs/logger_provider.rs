@@ -3,6 +3,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
+use std::time::Duration;
 use std::{
     borrow::Cow,
     sync::{
@@ -91,12 +92,12 @@ impl SdkLoggerProvider {
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
-            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+            Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );
@@ -107,7 +108,7 @@ impl SdkLoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let result = self.inner.shutdown();
+            let result = self.inner.shutdown_with_timeout(timeout);
             if result.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
@@ -123,6 +124,11 @@ impl SdkLoggerProvider {
             Err(OTelSdkError::AlreadyShutdown)
         }
     }
+
+    /// Shuts down this `LoggerProvider` with default timeout
+    pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
 }
 
 #[derive(Debug)]
@@ -133,10 +139,10 @@ struct LoggerProviderInner {
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+    pub(crate) fn shutdown_with_timeout(&self, timeout: Duration) -> Vec<OTelSdkResult> {
         let mut results = vec![];
         for processor in &self.processors {
-            let result = processor.shutdown();
+            let result = processor.shutdown_with_timeout(timeout);
             if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
@@ -148,6 +154,11 @@ impl LoggerProviderInner {
             results.push(result);
         }
         results
+    }
+
+    /// Shuts down the `LoggerProviderInner` with default timeout and returns any errors.
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -291,7 +302,7 @@ mod tests {
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
     use std::sync::Mutex;
-    use std::thread;
+    use std::{thread, time};
 
     struct ShutdownTestLogProcessor {
         is_shutdown: Arc<Mutex<bool>>,
@@ -330,7 +341,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -364,7 +375,7 @@ mod tests {
             *res = resource.clone();
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -380,10 +391,6 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -791,7 +798,7 @@ mod tests {
 
             // Explicitly shut down the logger provider
             let shutdown_result = logger_provider1.shutdown();
-            println!("---->Result: {:?}", shutdown_result);
+            println!("---->Result: {shutdown_result:?}");
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
@@ -903,7 +910,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -934,7 +941,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())

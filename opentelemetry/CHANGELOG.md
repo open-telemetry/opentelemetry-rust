@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+
+## 0.30.0
+
+Released 2025-May-23
+
 [#2821](https://github.com/open-telemetry/opentelemetry-rust/pull/2821) Context
 based suppression capabilities added: Added the ability to prevent recursive
 telemetry generation through new context-based suppression mechanisms. This
@@ -24,8 +30,6 @@ disable telemetry generation during their internal operations, ensuring more
 predictable and efficient observability pipelines.
 
 - re-export `tracing` for `internal-logs` feature to remove the need of adding `tracing` as a dependency
-- Added ability to configure cardinality limits via Instrument
-  advisory. [#2903](https://github.com/open-telemetry/opentelemetry-rust/pull/2903)
 
 ## 0.29.1
 

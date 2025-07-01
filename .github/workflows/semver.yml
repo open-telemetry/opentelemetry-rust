@@ -1,7 +1,8 @@
 name: Semver compliance
 env:
   CI: true
-permissions: read-all
+permissions:
+  contents: read
 on:
   pull_request:
     types: [ labeled, synchronize, opened, reopened ]
@@ -12,7 +13,7 @@ jobs:
     if: ${{ github.event.label.name == 'semver-check' || contains(github.event.pull_request.labels.*.name, 'semver-check') }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
 
@@ -20,7 +21,7 @@ jobs:
         with:
           submodules: true
       - name: Install stable
-        uses: dtolnay/rust-toolchain@fcf085fcb4b4b8f63f96906cd713eb52181b5ea4
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
           components: rustfmt

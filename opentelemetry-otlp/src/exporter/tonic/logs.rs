@@ -5,6 +5,7 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
@@ -62,7 +63,7 @@ impl LogExporter for TonicLogsClient {
                 let (m, e, _) = inner
                     .interceptor
                     .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
                     .into_parts();
                 (inner.client.clone(), m, e)
             }
@@ -71,20 +72,30 @@ impl LogExporter for TonicLogsClient {
 
         let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
 
-        otel_debug!(name: "TonicsLogsClient.CallingExport");
+        otel_debug!(name: "TonicLogsClient.ExportStarted");
 
-        client
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
                 ExportLogsServiceRequest { resource_logs },
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("export error: {:?}", e)))?;
-        Ok(())
+            .await;
+
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicLogsClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                let error = format!("export error: {e:?}");
+                otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
+            }
+        }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         // TODO: Implement actual shutdown
         // Due to the use of tokio::sync::Mutex to guard
         // the inner client, we need to await the call to lock the mutex

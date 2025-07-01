@@ -181,7 +181,7 @@ impl TraceState {
             .as_ref()
             .map(|kvs| {
                 kvs.iter()
-                    .map(|(key, value)| format!("{}{}{}", key, entry_delimiter, value))
+                    .map(|(key, value)| format!("{key}{entry_delimiter}{value}"))
                     .collect::<Vec<String>>()
                     .join(list_delimiter)
             })
@@ -383,7 +383,7 @@ mod tests {
         ];
 
         for (key, expected) in test_data {
-            assert_eq!(TraceState::valid_key(key), expected, "test key: {:?}", key);
+            assert_eq!(TraceState::valid_key(key), expected, "test key: {key:?}");
         }
     }
 
@@ -399,12 +399,12 @@ mod tests {
     fn test_context_span_debug() {
         let cx = Context::current();
         assert_eq!(
-            format!("{:?}", cx),
+            format!("{cx:?}"),
             "Context { span: \"None\", entries count: 0, suppress_telemetry: false }"
         );
         let cx = Context::current().with_remote_span_context(SpanContext::NONE);
         assert_eq!(
-            format!("{:?}", cx),
+            format!("{cx:?}"),
             "Context { \
                span: SpanContext { \
                        trace_id: 00000000000000000000000000000000, \

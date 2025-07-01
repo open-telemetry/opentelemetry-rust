@@ -164,6 +164,7 @@ mod tests {
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -193,6 +194,9 @@ mod tests {
             for _ in batch.iter() {
                 self.export_count.fetch_add(1, Ordering::Acquire);
             }
+            Ok(())
+        }
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -336,8 +340,7 @@ mod tests {
         assert!(
             panic_message.contains("no reactor running")
                 || panic_message.contains("must be called from the context of a Tokio 1.x runtime"),
-            "Expected panic message about missing Tokio runtime, but got: {}",
-            panic_message
+            "Expected panic message about missing Tokio runtime, but got: {panic_message}"
         );
     }
 
@@ -460,10 +463,6 @@ mod tests {
     }
 
     impl LogExporter for ReentrantLogExporter {
-        fn shutdown(&self) -> OTelSdkResult {
-            Ok(())
-        }
-
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
             let logger = self.logger.lock().unwrap();
             if let Some(logger) = logger.as_ref() {

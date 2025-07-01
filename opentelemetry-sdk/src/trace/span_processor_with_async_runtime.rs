@@ -18,6 +18,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
 /// them at a preconfigured interval.
@@ -125,15 +126,15 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to send flush message: {}", err))
+                OTelSdkError::InternalFailure(format!("Failed to send flush message: {err}"))
             })?;
 
         futures_executor::block_on(res_receiver).map_err(|err| {
-            OTelSdkError::InternalFailure(format!("Flush response channel error: {}", err))
+            OTelSdkError::InternalFailure(format!("Flush response channel error: {err}"))
         })?
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
@@ -149,11 +150,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {}", err))
+                OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {err}"))
             })?;
 
         futures_executor::block_on(res_receiver).map_err(|err| {
-            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {}", err))
+            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {err}"))
         })?
     }
 

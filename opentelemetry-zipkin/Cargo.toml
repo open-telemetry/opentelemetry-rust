@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.29.0"
+version = "0.30.0"
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
@@ -28,9 +28,9 @@ reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { version = "0.29", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.29", path = "../opentelemetry-sdk", features = ["trace"] }
-opentelemetry-http = { version = "0.29", path = "../opentelemetry-http" }
+opentelemetry = { version = "0.30", path = "../opentelemetry" }
+opentelemetry_sdk = { version = "0.30", path = "../opentelemetry-sdk", features = ["trace"] }
+opentelemetry-http = { version = "0.30", path = "../opentelemetry-http" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = { workspace = true }

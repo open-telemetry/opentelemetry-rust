@@ -97,6 +97,7 @@ pub mod tonic {
                 resource: Some(Resource {
                     attributes: resource.attributes.0.clone(),
                     dropped_attributes_count: 0,
+                    entity_refs: vec![],
                 }),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 scope_spans: vec![ScopeSpans {
@@ -182,6 +183,7 @@ pub mod tonic {
             resource: Some(Resource {
                 attributes: resource.attributes.0.clone(),
                 dropped_attributes_count: 0,
+                entity_refs: vec![],
             }),
             scope_spans,
             schema_url: resource.schema_url.clone().unwrap_or_default(),

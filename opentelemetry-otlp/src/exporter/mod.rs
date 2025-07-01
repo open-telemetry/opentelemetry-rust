@@ -172,6 +172,25 @@ pub enum ExporterBuildError {
     InternalFailure(String),
 }
 
+impl From<crate::Error> for ExporterBuildError {
+    fn from(error: crate::Error) -> Self {
+        match error {
+            #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+            crate::Error::InvalidUri(uri) => {
+                ExporterBuildError::InvalidUri(uri.to_string(), "invalid format".to_string())
+            }
+            crate::Error::UnsupportedCompressionAlgorithm(alg) => {
+                ExporterBuildError::UnsupportedCompressionAlgorithm(alg)
+            }
+            #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+            crate::Error::FeatureRequiredForCompressionAlgorithm(feature, alg) => {
+                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(feature, alg)
+            }
+            _ => ExporterBuildError::InternalFailure(error.to_string()),
+        }
+    }
+}
+
 /// The compression algorithm to use when sending data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -475,8 +494,7 @@ mod tests {
                 exporter_result,
                 Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
             ),
-            "Expected InvalidUri error, but got {:?}",
-            exporter_result
+            "Expected InvalidUri error, but got {exporter_result:?}"
         );
     }
 

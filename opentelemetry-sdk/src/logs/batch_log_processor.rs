@@ -101,8 +101,6 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-/// [`shutdown()`]: crate::logs::LoggerProvider::shutdown
-/// [`force_flush()`]: crate::logs::LoggerProvider::force_flush
 ///
 /// ### Using a BatchLogProcessor:
 ///
@@ -132,7 +130,6 @@ pub struct BatchLogProcessor {
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages for the worker thread
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     forceflush_timeout: Duration,
-    shutdown_timeout: Duration,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
@@ -232,7 +229,7 @@ impl LogProcessor for BatchLogProcessor {
                     if err == RecvTimeoutError::Timeout {
                         OTelSdkError::Timeout(self.forceflush_timeout)
                     } else {
-                        OTelSdkError::InternalFailure(format!("{}", err))
+                        OTelSdkError::InternalFailure(format!("{err}"))
                     }
                 })?,
             Err(mpsc::TrySendError::Full(_)) => {
@@ -256,7 +253,7 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -272,7 +269,7 @@ impl LogProcessor for BatchLogProcessor {
         match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
             Ok(_) => {
                 receiver
-                    .recv_timeout(self.shutdown_timeout)
+                    .recv_timeout(timeout)
                     .map(|_| {
                         // join the background thread after receiving back the
                         // shutdown signal
@@ -287,14 +284,14 @@ impl LogProcessor for BatchLogProcessor {
                                 name: "BatchLogProcessor.Shutdown.Timeout",
                                 message = "BatchLogProcessor shutdown timing out."
                             );
-                            OTelSdkError::Timeout(self.shutdown_timeout)
+                            OTelSdkError::Timeout(timeout)
                         }
                         _ => {
                             otel_error!(
                                 name: "BatchLogProcessor.Shutdown.Error",
                                 error = format!("{}", err)
                             );
-                            OTelSdkError::InternalFailure(format!("{}", err))
+                            OTelSdkError::InternalFailure(format!("{err}"))
                         }
                     })?
             }
@@ -489,7 +486,6 @@ impl BatchLogProcessor {
             message_sender,
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
-            shutdown_timeout: Duration::from_secs(5),   // TODO: make this configurable
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),

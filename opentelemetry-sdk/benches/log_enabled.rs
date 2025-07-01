@@ -29,10 +29,6 @@ impl LogExporter for NoopExporter {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
     #[inline]
     fn event_enabled(
         &self,

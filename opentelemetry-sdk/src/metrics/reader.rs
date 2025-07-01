@@ -3,7 +3,7 @@ use crate::error::OTelSdkResult;
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
-use super::{data::ResourceMetrics, pipeline::Pipeline, InstrumentKind, Temporality};
+use super::{data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, Temporality};
 
 /// The interface used between the SDK and an exporter.
 ///

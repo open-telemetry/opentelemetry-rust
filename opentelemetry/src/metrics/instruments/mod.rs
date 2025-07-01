@@ -45,9 +45,6 @@ pub struct HistogramBuilder<'a, T> {
     /// Unit of the Histogram.
     pub unit: Option<Cow<'static, str>>,
 
-    /// Cardinality limit for the Histogram.
-    pub cardinality_limit: Option<usize>,
-
     /// Bucket boundaries for the histogram.
     pub boundaries: Option<Vec<f64>>,
 
@@ -63,7 +60,6 @@ impl<'a, T> HistogramBuilder<'a, T> {
             name,
             description: None,
             unit: None,
-            cardinality_limit: None,
             boundaries: None,
             _marker: marker::PhantomData,
         }
@@ -84,14 +80,6 @@ impl<'a, T> HistogramBuilder<'a, T> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
-        self
-    }
-
-    /// Set the cardinality limit for this Histogram.
-    /// Setting cardinality limit is optional. By default, the limit will be set
-    /// to 2000.
-    pub fn with_cardinality_limit(mut self, limit: usize) -> Self {
-        self.cardinality_limit = Some(limit);
         self
     }
 
@@ -162,9 +150,6 @@ pub struct InstrumentBuilder<'a, T> {
     /// Unit of the instrument.
     pub unit: Option<Cow<'static, str>>,
 
-    /// Cardinality limit for the instrument.
-    pub cardinality_limit: Option<usize>,
-
     _marker: marker::PhantomData<T>,
 }
 
@@ -176,7 +161,6 @@ impl<'a, T> InstrumentBuilder<'a, T> {
             name,
             description: None,
             unit: None,
-            cardinality_limit: None,
             _marker: marker::PhantomData,
         }
     }
@@ -196,14 +180,6 @@ impl<'a, T> InstrumentBuilder<'a, T> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
-        self
-    }
-
-    /// Set the cardinality limit for this instrument.
-    /// Setting cardinality limit is optional. By default, the limit will be set
-    /// to 2000.
-    pub fn with_cardinality_limit(mut self, limit: usize) -> Self {
-        self.cardinality_limit = Some(limit);
         self
     }
 }
@@ -235,7 +211,6 @@ impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
-            .field("cardinality_limit", &self.cardinality_limit)
             .field("kind", &std::any::type_name::<T>())
             .finish()
     }
@@ -247,7 +222,6 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
-            .field("cardinality_limit", &self.cardinality_limit)
             .field("boundaries", &self.boundaries)
             .field(
                 "kind",
@@ -281,9 +255,6 @@ pub struct AsyncInstrumentBuilder<'a, I, M> {
     /// Unit of the instrument.
     pub unit: Option<Cow<'static, str>>,
 
-    /// Cardinality limit for the instrument.
-    pub cardinality_limit: Option<usize>,
-
     /// Callbacks to be called for this instrument.
     pub callbacks: Vec<Callback<M>>,
 
@@ -298,7 +269,6 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
             name,
             description: None,
             unit: None,
-            cardinality_limit: None,
             _inst: marker::PhantomData,
             callbacks: Vec::new(),
         }
@@ -319,14 +289,6 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
-        self
-    }
-
-    /// Set the cardinality limit for this async instrument.
-    /// Setting cardinality limit is optional. By default, the limit will be set
-    /// to 2000.
-    pub fn with_cardinality_limit(mut self, limit: usize) -> Self {
-        self.cardinality_limit = Some(limit);
         self
     }
 
@@ -378,7 +340,6 @@ where
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
-            .field("cardinality_limit", &self.cardinality_limit)
             .field("kind", &std::any::type_name::<I>())
             .field("callbacks_len", &self.callbacks.len())
             .finish()

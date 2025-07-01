@@ -39,9 +39,12 @@
 //!         .build()?;
 //!
 //!     // Create a tracer provider with the exporter
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
 //!
 //!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
@@ -62,24 +65,29 @@
 //! $ docker run -p 4317:4317 otel/opentelemetry-collector:latest
 //! ```
 //!
-//! Configure your application to export traces via gRPC:
+//! Configure your application to export traces via gRPC (the tonic client requires a Tokio runtime):
+//!
+//! - With `[tokio::main]`
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//! use opentelemetry::global;
-//! use opentelemetry::trace::Tracer;
+//! use opentelemetry::{global, trace::Tracer};
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
 //!     // Initialize OTLP exporter using gRPC (Tonic)
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
 //!         .with_tonic()
 //!         .build()?;
 //!
 //!     // Create a tracer provider with the exporter
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_simple_exporter(otlp_exporter)
 //!         .build();
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
 //!
 //!     // Get a tracer and create spans
 //!     let tracer = global::tracer("my_tracer");
@@ -87,6 +95,41 @@
 //!         // Your application logic here...
 //!     });
 //!
+//!     Ok(())
+//! # }
+//! }
+//! ```
+//!
+//! - Without `[tokio::main]`
+//!
+//!  ```no_run
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry::{global, trace::Tracer};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+//!     // Initialize OTLP exporter using gRPC (Tonic)
+//!     let rt = tokio::runtime::Runtime::new()?;
+//!     let tracer_provider = rt.block_on(async {
+//!         let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!             .with_tonic()
+//!             .build()
+//!             .expect("Failed to create span exporter");
+//!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
+//!             .with_simple_exporter(exporter)
+//!             .build()
+//!     });
+//!
+//!     // Set it as the global provider
+//!     global::set_tracer_provider(tracer_provider);
+//!
+//!     // Get a tracer and create spans
+//!     let tracer = global::tracer("my_tracer");
+//!     tracer.in_span("doing_work", |_cx| {
+//!         // Your application logic here...
+//!     });
+//!
+//!     // Ensure the runtime (`rt`) remains active until the program ends
 //!     Ok(())
 //! # }
 //! }
@@ -331,8 +374,9 @@ pub use crate::exporter::ExporterBuildError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{
-    SpanExporter, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-    OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
 #[cfg(all(feature = "trace", feature = "tls"))]
@@ -344,8 +388,9 @@ pub use crate::span::{
 #[cfg(feature = "metrics")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
-    MetricExporter, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-    OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 #[cfg(all(feature = "metrics", feature = "tls"))]
 pub use crate::metric::{
@@ -356,8 +401,9 @@ pub use crate::metric::{
 #[cfg(feature = "logs")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::logs::{
-    LogExporter, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-    OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+    LogExporter, LogExporterBuilder, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+    OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
 };
 #[cfg(all(feature = "metrics", feature = "tls"))]
 pub use crate::logs::{
@@ -511,6 +557,28 @@ impl From<tonic::Status> for Error {
     }
 }
 
+impl From<crate::exporter::ExporterBuildError> for Error {
+    fn from(error: crate::exporter::ExporterBuildError) -> Error {
+        match error {
+            crate::exporter::ExporterBuildError::UnsupportedCompressionAlgorithm(alg) => {
+                Error::UnsupportedCompressionAlgorithm(alg)
+            }
+            #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
+            crate::exporter::ExporterBuildError::FeatureRequiredForCompressionAlgorithm(feature, alg) => {
+                Error::FeatureRequiredForCompressionAlgorithm(feature, alg)
+            }
+            crate::exporter::ExporterBuildError::InvalidUri(uri, _reason) => {
+                // Try to parse the URI to create a proper InvalidUri error
+                match uri.parse::<http::Uri>() {
+                    Err(invalid_uri_err) => Error::InvalidUri(invalid_uri_err),
+                    Ok(_) => Error::TLSConfigError(format!("Invalid URI '{}'", uri)),
+                }
+            }
+            _ => Error::TLSConfigError(error.to_string()),
+        }
+    }
+}
+
 impl ExportError for Error {
     fn exporter_name(&self) -> &'static str {
         "otlp"
@@ -533,3 +601,20 @@ pub enum Protocol {
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+/// Re-exported types from the `tonic` crate.
+#[cfg(feature = "grpc-tonic")]
+pub mod tonic_types {
+    /// Re-exported types from `tonic::metadata`.
+    pub mod metadata {
+        #[doc(no_inline)]
+        pub use tonic::metadata::MetadataMap;
+    }
+
+    /// Re-exported types from `tonic::transport`.
+    #[cfg(feature = "tls")]
+    pub mod transport {
+        #[doc(no_inline)]
+        pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
+    }
+}

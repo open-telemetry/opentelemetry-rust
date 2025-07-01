@@ -102,7 +102,7 @@ async fn smoke_tracer() {
                 opentelemetry_otlp::SpanExporter::builder()
                     .with_tonic()
                     .with_compression(opentelemetry_otlp::Compression::Gzip)
-                    .with_endpoint(format!("http://{}", addr))
+                    .with_endpoint(format!("http://{addr}"))
                     .with_insecure()
                     .with_metadata(metadata)
                     .build()

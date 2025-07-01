@@ -255,8 +255,7 @@ mod tests {
             assert_eq!(
                 propagator.extract(&extractor).span().span_context(),
                 &SpanContext::empty_context(),
-                "{}",
-                reason
+                "{reason}"
             )
         }
     }

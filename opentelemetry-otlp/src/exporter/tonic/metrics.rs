@@ -52,7 +52,7 @@ impl TonicMetricsClient {
 }
 
 impl MetricsClient for TonicMetricsClient {
-    async fn export(&self, metrics: &mut ResourceMetrics) -> OTelSdkResult {
+    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         let (mut client, metadata, extensions) = self
             .inner
             .lock()
@@ -75,24 +75,33 @@ impl MetricsClient for TonicMetricsClient {
                 )),
             })?;
 
-        otel_debug!(name: "TonicsMetricsClient.CallingExport");
+        otel_debug!(name: "TonicMetricsClient.ExportStarted");
 
-        client
+        let result = client
             .export(Request::from_parts(
                 metadata,
                 extensions,
-                ExportMetricsServiceRequest::from(&*metrics),
+                ExportMetricsServiceRequest::from(metrics),
             ))
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
+            .await;
 
-        Ok(())
+        match result {
+            Ok(_) => {
+                otel_debug!(name: "TonicMetricsClient.ExportSucceeded");
+                Ok(())
+            }
+            Err(e) => {
+                let error = format!("{e:?}");
+                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = &error);
+                Err(OTelSdkError::InternalFailure(error))
+            }
+        }
     }
 
     fn shutdown(&self) -> OTelSdkResult {
         self.inner
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?
             .take();
 
         Ok(())
