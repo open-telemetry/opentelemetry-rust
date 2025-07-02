@@ -236,7 +236,7 @@ impl SdkTracerProvider {
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
-            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+            Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
     }
 

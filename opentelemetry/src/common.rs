@@ -177,7 +177,7 @@ impl fmt::Display for Array {
                     if i > 0 {
                         write!(fmt, ",")?;
                     }
-                    write!(fmt, "\"{}\"", t)?;
+                    write!(fmt, "\"{t}\"")?;
                 }
                 write!(fmt, "]")
             }
@@ -191,7 +191,7 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
         if i > 0 {
             write!(fmt, ",")?;
         }
-        write!(fmt, "{}", t)?;
+        write!(fmt, "{t}")?;
     }
     write!(fmt, "]")
 }
@@ -305,11 +305,11 @@ impl From<Cow<'static, str>> for StringValue {
 impl From<Value> for StringValue {
     fn from(s: Value) -> Self {
         match s {
-            Value::Bool(v) => format!("{}", v).into(),
-            Value::I64(v) => format!("{}", v).into(),
-            Value::F64(v) => format!("{}", v).into(),
+            Value::Bool(v) => format!("{v}").into(),
+            Value::I64(v) => format!("{v}").into(),
+            Value::F64(v) => format!("{v}").into(),
             Value::String(v) => v,
-            Value::Array(v) => format!("{}", v).into(),
+            Value::Array(v) => format!("{v}").into(),
         }
     }
 }
@@ -320,11 +320,11 @@ impl Value {
     /// This will allocate if the underlying value is not a `String`.
     pub fn as_str(&self) -> Cow<'_, str> {
         match self {
-            Value::Bool(v) => format!("{}", v).into(),
-            Value::I64(v) => format!("{}", v).into(),
-            Value::F64(v) => format!("{}", v).into(),
+            Value::Bool(v) => format!("{v}").into(),
+            Value::I64(v) => format!("{v}").into(),
+            Value::F64(v) => format!("{v}").into(),
             Value::String(v) => Cow::Borrowed(v.as_str()),
-            Value::Array(v) => format!("{}", v).into(),
+            Value::Array(v) => format!("{v}").into(),
         }
     }
 }

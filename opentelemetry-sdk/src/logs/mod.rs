@@ -110,8 +110,8 @@ mod tests {
         assert_eq!(log.record.attributes_len(), 10);
         for i in 1..=10 {
             assert!(log.record.attributes_contains(
-                &Key::new(format!("key{}", i)),
-                &AnyValue::String(format!("value{}", i).into())
+                &Key::new(format!("key{i}")),
+                &AnyValue::String(format!("value{i}").into())
             ));
         }
 

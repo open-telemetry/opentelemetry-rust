@@ -62,7 +62,7 @@ impl MetricsClient for OtlpHttpClient {
     fn shutdown(&self) -> OTelSdkResult {
         self.client
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?
             .take();
 
         Ok(())

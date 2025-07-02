@@ -827,7 +827,7 @@ mod tests {
         let mut initial_attributes = Vec::new();
         let mut expected_dropped_count = 1;
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_SPAN + 1) {
-            initial_attributes.push(KeyValue::new(format!("key {}", i), i.to_string()))
+            initial_attributes.push(KeyValue::new(format!("key {i}"), i.to_string()))
         }
         let span_builder = SpanBuilder::from_name("test_span").with_attributes(initial_attributes);
 
@@ -867,7 +867,7 @@ mod tests {
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
             event1
                 .attributes
-                .push(KeyValue::new(format!("key {}", i), i.to_string()))
+                .push(KeyValue::new(format!("key {i}"), i.to_string()))
         }
         let event2 = event1.clone();
 
@@ -908,7 +908,7 @@ mod tests {
         ));
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
             link.attributes
-                .push(KeyValue::new(format!("key {}", i), i.to_string()));
+                .push(KeyValue::new(format!("key {i}"), i.to_string()));
         }
 
         let span_builder = tracer.span_builder("test").with_links(vec![link]);
@@ -1084,7 +1084,7 @@ mod tests {
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());
         let res = provider.shutdown();
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped

@@ -13,7 +13,7 @@ impl SpanExporter for OtlpHttpClient {
         let client = match self
             .client
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {}", e)))
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {e}")))
             .and_then(|g| match &*g {
                 Some(client) => Ok(Arc::clone(client)),
                 _ => Err(OTelSdkError::AlreadyShutdown),
@@ -65,7 +65,7 @@ impl SpanExporter for OtlpHttpClient {
 
     fn shutdown(&mut self) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
+            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {e}"))
         })?;
 
         if client_guard.take().is_none() {

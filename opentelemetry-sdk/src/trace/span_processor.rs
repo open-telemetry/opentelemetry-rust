@@ -613,8 +613,7 @@ impl SpanProcessor for BatchSpanProcessor {
         if let Some(handle) = self.handle.lock().unwrap().take() {
             if let Err(err) = handle.join() {
                 return Err(OTelSdkError::InternalFailure(format!(
-                    "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {:?}",
-                    err
+                    "Background thread failed to join during shutdown. This may indicate a panic or unexpected termination: {err:?}"
                 )));
             }
         }
