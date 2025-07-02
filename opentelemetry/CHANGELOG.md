@@ -3,6 +3,7 @@
 ## vNext
 
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+- **Breaking** Remove `spec_unstable_logs_enabled` feature flag - logger.enabled functionality is now always available.
 
 ## 0.30.0
 
