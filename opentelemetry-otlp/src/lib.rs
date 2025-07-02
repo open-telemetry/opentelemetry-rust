@@ -368,6 +368,9 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+// Transform logic moved from opentelemetry-proto for SDK decoupling
+pub mod transform;
+
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 pub use crate::exporter::ExporterBuildError;

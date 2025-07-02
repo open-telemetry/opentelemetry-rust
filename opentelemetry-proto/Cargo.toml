@@ -34,14 +34,13 @@ path = "tests/json_serde.rs"
 default = ["full"]
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
 
-# crates used to generate rs files
-gen-tonic = ["gen-tonic-messages", "tonic/channel"]
-gen-tonic-messages = ["tonic", "prost"]
+# crates used to generate rs files  
+gen-tonic = ["tonic", "prost", "tonic/channel"]
 
 # telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
-metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
+trace = ["opentelemetry/trace"]
+metrics = ["opentelemetry/metrics"]
+logs = ["opentelemetry/logs"]
 zpages = ["trace"]
 profiles = []
 testing = ["opentelemetry/testing"]
@@ -55,9 +54,8 @@ with-serde = ["serde", "hex", "base64"]
 tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
 prost = { workspace = true, optional = true }
 opentelemetry = { version = "0.30", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.30", default-features = false, path = "../opentelemetry-sdk" }
 schemars = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["serde_derive"] }
+serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 

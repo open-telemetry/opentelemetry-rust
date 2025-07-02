@@ -1,31 +1,29 @@
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub mod tonic {
-    use crate::{
-        tonic::{
-            common::v1::{
-                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
-                KeyValueList,
-            },
-            logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
-            resource::v1::Resource,
+    use opentelemetry_proto::tonic::{
+        common::v1::{
+            any_value::Value, AnyValue, ArrayValue, KeyValue,
+            KeyValueList,
         },
-        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
+        logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
+        resource::v1::Resource,
+    };
+    use crate::transform::common::{
+        to_nanos,
+        tonic::{ResourceAttributesWithSchema, instrumentation_scope_from_scope_ref_and_target},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
     use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
-    impl From<LogsAnyValue> for AnyValue {
-        fn from(value: LogsAnyValue) -> Self {
-            AnyValue {
-                value: Some(value.into()),
-            }
+    fn any_value_from_logs_any_value(value: LogsAnyValue) -> AnyValue {
+        AnyValue {
+            value: Some(value_from_logs_any_value(value)),
         }
     }
 
-    impl From<LogsAnyValue> for Value {
-        fn from(value: LogsAnyValue) -> Self {
+    fn value_from_logs_any_value(value: LogsAnyValue) -> Value {
             match value {
                 LogsAnyValue::Double(f) => Value::DoubleValue(f),
                 LogsAnyValue::Int(i) => Value::IntValue(i),
@@ -34,9 +32,7 @@ pub mod tonic {
                 LogsAnyValue::ListAny(v) => Value::ArrayValue(ArrayValue {
                     values: v
                         .into_iter()
-                        .map(|v| AnyValue {
-                            value: Some(v.into()),
-                        })
+                        .map(|v| any_value_from_logs_any_value(v))
                         .collect(),
                 }),
                 LogsAnyValue::Map(m) => Value::KvlistValue(KeyValueList {
@@ -44,124 +40,101 @@ pub mod tonic {
                         .into_iter()
                         .map(|(key, value)| KeyValue {
                             key: key.into(),
-                            value: Some(AnyValue {
-                                value: Some(value.into()),
-                            }),
+                            value: Some(any_value_from_logs_any_value(value)),
                         })
                         .collect(),
                 }),
                 LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
                 _ => unreachable!("Nonexistent value type"),
             }
-        }
     }
 
-    impl From<&opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
-        fn from(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> Self {
-            let trace_context = log_record.trace_context();
-            let severity_number = match log_record.severity_number() {
-                Some(Severity::Trace) => SeverityNumber::Trace,
-                Some(Severity::Trace2) => SeverityNumber::Trace2,
-                Some(Severity::Trace3) => SeverityNumber::Trace3,
-                Some(Severity::Trace4) => SeverityNumber::Trace4,
-                Some(Severity::Debug) => SeverityNumber::Debug,
-                Some(Severity::Debug2) => SeverityNumber::Debug2,
-                Some(Severity::Debug3) => SeverityNumber::Debug3,
-                Some(Severity::Debug4) => SeverityNumber::Debug4,
-                Some(Severity::Info) => SeverityNumber::Info,
-                Some(Severity::Info2) => SeverityNumber::Info2,
-                Some(Severity::Info3) => SeverityNumber::Info3,
-                Some(Severity::Info4) => SeverityNumber::Info4,
-                Some(Severity::Warn) => SeverityNumber::Warn,
-                Some(Severity::Warn2) => SeverityNumber::Warn2,
-                Some(Severity::Warn3) => SeverityNumber::Warn3,
-                Some(Severity::Warn4) => SeverityNumber::Warn4,
-                Some(Severity::Error) => SeverityNumber::Error,
-                Some(Severity::Error2) => SeverityNumber::Error2,
-                Some(Severity::Error3) => SeverityNumber::Error3,
-                Some(Severity::Error4) => SeverityNumber::Error4,
-                Some(Severity::Fatal) => SeverityNumber::Fatal,
-                Some(Severity::Fatal2) => SeverityNumber::Fatal2,
-                Some(Severity::Fatal3) => SeverityNumber::Fatal3,
-                Some(Severity::Fatal4) => SeverityNumber::Fatal4,
-                None => SeverityNumber::Unspecified,
-            };
+    pub fn sdk_log_record_to_proto_log_record(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> LogRecord {
+        let trace_context = log_record.trace_context();
+        let severity_number = match log_record.severity_number() {
+            Some(Severity::Trace) => SeverityNumber::Trace,
+            Some(Severity::Trace2) => SeverityNumber::Trace2,
+            Some(Severity::Trace3) => SeverityNumber::Trace3,
+            Some(Severity::Trace4) => SeverityNumber::Trace4,
+            Some(Severity::Debug) => SeverityNumber::Debug,
+            Some(Severity::Debug2) => SeverityNumber::Debug2,
+            Some(Severity::Debug3) => SeverityNumber::Debug3,
+            Some(Severity::Debug4) => SeverityNumber::Debug4,
+            Some(Severity::Info) => SeverityNumber::Info,
+            Some(Severity::Info2) => SeverityNumber::Info2,
+            Some(Severity::Info3) => SeverityNumber::Info3,
+            Some(Severity::Info4) => SeverityNumber::Info4,
+            Some(Severity::Warn) => SeverityNumber::Warn,
+            Some(Severity::Warn2) => SeverityNumber::Warn2,
+            Some(Severity::Warn3) => SeverityNumber::Warn3,
+            Some(Severity::Warn4) => SeverityNumber::Warn4,
+            Some(Severity::Error) => SeverityNumber::Error,
+            Some(Severity::Error2) => SeverityNumber::Error2,
+            Some(Severity::Error3) => SeverityNumber::Error3,
+            Some(Severity::Error4) => SeverityNumber::Error4,
+            Some(Severity::Fatal) => SeverityNumber::Fatal,
+            Some(Severity::Fatal2) => SeverityNumber::Fatal2,
+            Some(Severity::Fatal3) => SeverityNumber::Fatal3,
+            Some(Severity::Fatal4) => SeverityNumber::Fatal4,
+            None => SeverityNumber::Unspecified,
+        };
 
-            LogRecord {
-                time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
-                attributes: {
-                    log_record
-                        .attributes_iter()
-                        .map(|kv| KeyValue {
-                            key: kv.0.to_string(),
-                            value: Some(AnyValue {
-                                value: Some(kv.1.clone().into()),
-                            }),
-                        })
-                        .collect()
-                },
-                event_name: log_record.event_name().unwrap_or_default().into(),
-                severity_number: severity_number.into(),
-                severity_text: log_record
-                    .severity_text()
-                    .map(Into::into)
-                    .unwrap_or_default(),
-                body: log_record.body().cloned().map(Into::into),
-                dropped_attributes_count: 0,
-                flags: trace_context
-                    .map(|ctx| {
-                        ctx.trace_flags
-                            .map(|flags| flags.to_u8() as u32)
-                            .unwrap_or_default()
+        LogRecord {
+            time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
+            observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
+            attributes: {
+                log_record
+                    .attributes_iter()
+                    .map(|kv| KeyValue {
+                        key: kv.0.to_string(),
+                        value: Some(any_value_from_logs_any_value(kv.1.clone())),
                     })
-                    .unwrap_or_default(),
-                span_id: trace_context
-                    .map(|ctx| ctx.span_id.to_bytes().to_vec())
-                    .unwrap_or_default(),
-                trace_id: trace_context
-                    .map(|ctx| ctx.trace_id.to_bytes().to_vec())
-                    .unwrap_or_default(),
-            }
+                    .collect()
+            },
+            event_name: log_record.event_name().unwrap_or_default().into(),
+            severity_number: severity_number.into(),
+            severity_text: log_record
+                .severity_text()
+                .map(Into::into)
+                .unwrap_or_default(),
+            body: log_record.body().cloned().map(any_value_from_logs_any_value),
+            dropped_attributes_count: 0,
+            flags: trace_context
+                .map(|ctx| {
+                    ctx.trace_flags
+                        .map(|flags| flags.to_u8() as u32)
+                        .unwrap_or_default()
+                })
+                .unwrap_or_default(),
+            span_id: trace_context
+                .map(|ctx| ctx.span_id.to_bytes().to_vec())
+                .unwrap_or_default(),
+            trace_id: trace_context
+                .map(|ctx| ctx.trace_id.to_bytes().to_vec())
+                .unwrap_or_default(),
         }
     }
 
-    impl
-        From<(
-            (
-                &opentelemetry_sdk::logs::SdkLogRecord,
-                &opentelemetry::InstrumentationScope,
-            ),
-            &ResourceAttributesWithSchema,
-        )> for ResourceLogs
-    {
-        fn from(
-            data: (
-                (
-                    &opentelemetry_sdk::logs::SdkLogRecord,
-                    &opentelemetry::InstrumentationScope,
-                ),
-                &ResourceAttributesWithSchema,
-            ),
-        ) -> Self {
-            let ((log_record, instrumentation), resource) = data;
-
-            ResourceLogs {
-                resource: Some(Resource {
-                    attributes: resource.attributes.0.clone(),
-                    dropped_attributes_count: 0,
-                    entity_refs: vec![],
-                }),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
-                scope_logs: vec![ScopeLogs {
-                    schema_url: instrumentation
-                        .schema_url()
-                        .map(ToOwned::to_owned)
-                        .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target().cloned()).into()),
-                    log_records: vec![log_record.into()],
-                }],
-            }
+    pub fn log_data_to_resource_logs(
+        log_record: &opentelemetry_sdk::logs::SdkLogRecord,
+        instrumentation: &opentelemetry::InstrumentationScope,
+        resource: &ResourceAttributesWithSchema,
+    ) -> ResourceLogs {
+        ResourceLogs {
+            resource: Some(Resource {
+                attributes: resource.attributes.0.clone(),
+                dropped_attributes_count: 0,
+                entity_refs: vec![],
+            }),
+            schema_url: resource.schema_url.clone().unwrap_or_default(),
+            scope_logs: vec![ScopeLogs {
+                schema_url: instrumentation
+                    .schema_url()
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_default(),
+                scope: Some(instrumentation_scope_from_scope_ref_and_target(instrumentation, log_record.target().cloned())),
+                log_records: vec![sdk_log_record_to_proto_log_record(log_record)],
+            }],
         }
     }
 
@@ -195,14 +168,14 @@ pub mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(InstrumentationScope::from((
+                scope: Some(instrumentation_scope_from_scope_ref_and_target(
                     log_data.first().unwrap().1,
                     Some(key.into_owned().into()),
-                ))),
+                )),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 log_records: log_data
                     .into_iter()
-                    .map(|(log_record, _)| log_record.into())
+                    .map(|(log_record, _)| sdk_log_record_to_proto_log_record(log_record))
                     .collect(),
             })
             .collect();
@@ -271,7 +244,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -291,7 +264,7 @@ mod tests {
         let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];

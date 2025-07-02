@@ -10,7 +10,7 @@ autobenches = false
 [dependencies]
 opentelemetry = { path = "../../../opentelemetry", features = [] }
 opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio", "testing"] }
-opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "metrics", "with-serde"] }
+opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["prost", "trace", "logs", "metrics", "with-serde"] }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
 testcontainers = { workspace = true, features = ["http_wait"] }
