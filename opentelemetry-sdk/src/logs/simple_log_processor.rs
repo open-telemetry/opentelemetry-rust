@@ -134,7 +134,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+    // event_enabled is now always enabled and delegates to exporter
     #[inline]
     fn event_enabled(
         &self,
