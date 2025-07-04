@@ -12,7 +12,7 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{exporter::PushMetricExporter, reader::MetricProducer, reader::SdkProducer},
     Resource,
 };
 
@@ -30,6 +30,7 @@ const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
     exporter: E,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E> PeriodicReaderBuilder<E>
@@ -42,7 +43,11 @@ where
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
             .unwrap_or(DEFAULT_INTERVAL);
 
-        PeriodicReaderBuilder { interval, exporter }
+        PeriodicReaderBuilder {
+            interval,
+            exporter,
+            producers: Vec::new(),
+        }
     }
 
     /// Configures the intervening time between exports for a [PeriodicReader].
@@ -56,6 +61,15 @@ where
         if !interval.is_zero() {
             self.interval = interval;
         }
+        self
+    }
+
+    /// Registers a an external [MetricProducer] with this reader.
+    ///
+    /// The producer is used as a source of aggregated metric data which is
+    /// incorporated into metrics collected from the SDK.
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
         self
     }
 
@@ -152,6 +166,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                 message_sender,
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
+                external_producers: Vec::new(),
             }),
         };
         let cloned_reader = reader.clone();
@@ -351,6 +366,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    external_producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
@@ -364,12 +380,12 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+        let mut errs = vec![];
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
             p.upgrade()
                 .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
-            Ok(())
         } else {
             otel_warn!(
             name: "PeriodReader.MeterProviderNotRegistered",
@@ -377,9 +393,22 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
                    This occurs when a periodic reader is created but not associated with a MeterProvider \
                    by calling `.with_reader(reader)` on MeterProviderBuilder."
             );
-            Err(OTelSdkError::InternalFailure(
+            errs.push(OTelSdkError::InternalFailure(
                 "MeterProvider is not registered".into(),
             ))
+        }
+
+        for producer in &self.external_producers {
+            match producer.produce() {
+                Ok(metrics) => rm.scope_metrics.push(metrics),
+                Err(err) => errs.push(err),
+            }
+        }
+
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(OTelSdkError::InternalFailure(format!("{errs:?}")))
         }
     }
 
