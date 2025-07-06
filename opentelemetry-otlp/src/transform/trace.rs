@@ -195,7 +195,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            super::group_spans_by_resource_and_scope(spans, &resource);
+            super::tonic::group_spans_by_resource_and_scope(spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 
@@ -244,7 +244,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            super::group_spans_by_resource_and_scope(spans, &resource);
+            super::tonic::group_spans_by_resource_and_scope(spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 

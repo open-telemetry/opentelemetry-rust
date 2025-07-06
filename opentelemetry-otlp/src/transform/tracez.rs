@@ -8,6 +8,7 @@ mod tonic {
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };
     use crate::transform::common::{to_nanos, tonic::Attributes};
+    use crate::transform::trace::tonic::link_to_proto_link;
 
     pub fn span_data_to_latency_data(span_data: SpanData) -> LatencyData {
         LatencyData {
@@ -18,7 +19,7 @@ mod tonic {
             endtime: to_nanos(span_data.end_time),
             attributes: Attributes::from(span_data.attributes).0,
             events: span_data.events.iter().cloned().map(event_to_span_event).collect(),
-            links: span_data.links.iter().cloned().map(Into::into).collect(),
+            links: span_data.links.iter().cloned().map(link_to_proto_link).collect(),
         }
     }
 
@@ -30,7 +31,7 @@ mod tonic {
             starttime: to_nanos(span_data.start_time),
             attributes: Attributes::from(span_data.attributes).0,
             events: span_data.events.iter().cloned().map(event_to_span_event).collect(),
-            links: span_data.links.iter().cloned().map(Into::into).collect(),
+            links: span_data.links.iter().cloned().map(link_to_proto_link).collect(),
             status: match span_data.status {
                 Status::Error { description } => Some(SpanStatus {
                     message: description.to_string(),
@@ -49,7 +50,7 @@ mod tonic {
             starttime: to_nanos(span_data.start_time),
             attributes: Attributes::from(span_data.attributes).0,
             events: span_data.events.iter().cloned().map(event_to_span_event).collect(),
-            links: span_data.links.iter().cloned().map(Into::into).collect(),
+            links: span_data.links.iter().cloned().map(link_to_proto_link).collect(),
         }
     }
 

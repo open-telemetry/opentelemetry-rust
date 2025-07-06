@@ -244,7 +244,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            super::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -264,7 +264,7 @@ mod tests {
         let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            super::group_logs_by_resource_and_scope(log_batch, &resource);
+            super::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
