@@ -56,6 +56,8 @@ tonic = { workspace = true, features = ["router", "server"] }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+zpages = ["trace", "opentelemetry-proto/zpages"]
+profiles = ["opentelemetry-proto/profiles"]
 internal-logs = ["tracing", "opentelemetry/internal-logs"]
 
 # add ons
@@ -71,9 +73,9 @@ tls = ["tonic/tls-ring"]
 tls-roots = ["tls", "tonic/tls-native-roots"]
 tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 
-# http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
-http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
+# http binary  
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/prost", "http", "trace", "metrics"]
+http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/prost", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]

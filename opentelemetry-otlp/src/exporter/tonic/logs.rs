@@ -9,7 +9,7 @@ use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
 
@@ -17,7 +17,7 @@ pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: crate::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
