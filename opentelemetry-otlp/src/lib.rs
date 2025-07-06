@@ -369,6 +369,7 @@ mod metric;
 mod span;
 
 // Transform logic moved from opentelemetry-proto for SDK decoupling
+/// Transformation utilities for converting SDK types to protobuf types.
 pub mod transform;
 
 pub use crate::exporter::Compression;

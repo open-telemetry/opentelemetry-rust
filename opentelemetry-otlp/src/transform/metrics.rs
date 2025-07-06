@@ -4,6 +4,7 @@
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+/// Tonic-specific transformation utilities for metrics.
 pub mod tonic {
     use std::fmt::Debug;
 
@@ -41,30 +42,37 @@ pub mod tonic {
         tonic::{instrumentation_scope_from_scope_ref_and_target, value_to_any_value},
     };
 
+    /// Converts u64 value to exemplar value.
     pub fn exemplar_value_from_u64(value: u64) -> exemplar::Value {
         exemplar::Value::AsInt(i64::try_from(value).unwrap_or_default())
     }
 
+    /// Converts i64 value to exemplar value.
     pub fn exemplar_value_from_i64(value: i64) -> exemplar::Value {
         exemplar::Value::AsInt(value)
     }
 
+    /// Converts f64 value to exemplar value.
     pub fn exemplar_value_from_f64(value: f64) -> exemplar::Value {
         exemplar::Value::AsDouble(value)
     }
 
+    /// Converts u64 value to number data point value.
     pub fn number_data_point_value_from_u64(value: u64) -> number_data_point::Value {
         number_data_point::Value::AsInt(i64::try_from(value).unwrap_or_default())
     }
 
+    /// Converts i64 value to number data point value.
     pub fn number_data_point_value_from_i64(value: i64) -> number_data_point::Value {
         number_data_point::Value::AsInt(value)
     }
 
+    /// Converts f64 value to number data point value.
     pub fn number_data_point_value_from_f64(value: f64) -> number_data_point::Value {
         number_data_point::Value::AsDouble(value)
     }
 
+    /// Converts key-value reference to protobuf key-value.
     pub fn key_value_from_key_value_ref(kv: (&Key, &Value)) -> KeyValue {
         KeyValue {
             key: kv.0.to_string(),
@@ -72,6 +80,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts OpenTelemetry key-value to protobuf key-value.
     pub fn key_value_from_otel_key_value(kv: &opentelemetry::KeyValue) -> KeyValue {
         KeyValue {
             key: kv.key.to_string(),
@@ -79,6 +88,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK temporality to protobuf aggregation temporality.
     pub fn temporality_to_aggregation_temporality(temporality: Temporality) -> AggregationTemporality {
         match temporality {
             Temporality::Cumulative => AggregationTemporality::Cumulative,
@@ -95,6 +105,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts resource metrics to export request.
     pub fn resource_metrics_to_export_request(rm: &ResourceMetrics) -> ExportMetricsServiceRequest {
         ExportMetricsServiceRequest {
             resource_metrics: vec![TonicResourceMetrics {
@@ -109,6 +120,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK resource to protobuf resource.
     pub fn sdk_resource_to_tonic_resource(resource: &SdkResource) -> TonicResource {
         TonicResource {
             attributes: resource.iter().map(key_value_from_key_value_ref).collect(),
@@ -117,6 +129,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK scope metrics to protobuf scope metrics.
     pub fn sdk_scope_metrics_to_tonic_scope_metrics(sm: &SdkScopeMetrics) -> TonicScopeMetrics {
         TonicScopeMetrics {
             scope: Some(instrumentation_scope_from_scope_ref_and_target(sm.scope(), None)),
@@ -129,6 +142,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK metric to protobuf metric.
     pub fn sdk_metric_to_tonic_metric(metric: &SdkMetric) -> TonicMetric {
         TonicMetric {
             name: metric.name().to_string(),
@@ -143,6 +157,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK metric data to protobuf metric data.
     pub fn metric_data_to_tonic_metric_data<T>(data: &MetricData<T>) -> TonicMetricData
     where
         T: Numeric + Debug,
@@ -157,10 +172,14 @@ pub mod tonic {
         }
     }
 
-    trait Numeric: Copy {
+    /// Trait for numeric values that can be converted to protobuf values.
+    pub trait Numeric: Copy {
         // lossy at large values for u64 and i64 but otlp histograms only handle float values
+        /// Converts the numeric value to f64.
         fn into_f64(self) -> f64;
+        /// Converts the numeric value to protobuf data point value.
         fn to_data_point_value(self) -> TonicDataPointValue;
+        /// Converts the numeric value to protobuf exemplar value.
         fn to_exemplar_value(self) -> TonicExemplarValue;
     }
 
@@ -206,6 +225,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK histogram to protobuf histogram.
     pub fn sdk_histogram_to_tonic_histogram<T>(hist: &SdkHistogram<T>) -> TonicHistogram
     where
         T: Numeric,
@@ -231,6 +251,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK exponential histogram to protobuf exponential histogram.
     pub fn sdk_exponential_histogram_to_tonic_exponential_histogram<T>(hist: &SdkExponentialHistogram<T>) -> TonicExponentialHistogram
     where
         T: Numeric,
@@ -265,6 +286,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK sum to protobuf sum.
     pub fn sdk_sum_to_tonic_sum<T>(sum: &SdkSum<T>) -> TonicSum
     where
         T: Numeric + Debug,
@@ -286,6 +308,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK gauge to protobuf gauge.
     pub fn sdk_gauge_to_tonic_gauge<T>(gauge: &SdkGauge<T>) -> TonicGauge
     where
         T: Numeric + Debug,
@@ -305,6 +328,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK exemplar to protobuf exemplar.
     pub fn sdk_exemplar_to_tonic_exemplar<T>(ex: &SdkExemplar<T>) -> TonicExemplar
     where
         T: Numeric,

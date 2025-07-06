@@ -1,4 +1,5 @@
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+/// Tonic-specific transformation utilities for traces.
 pub mod tonic {
     use opentelemetry_proto::tonic::resource::v1::Resource;
     use opentelemetry_proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
@@ -11,6 +12,7 @@ pub mod tonic {
     use opentelemetry_sdk::trace::SpanData;
     use std::collections::HashMap;
 
+    /// Converts SDK span kind to protobuf span kind.
     pub fn span_kind_to_proto_span_kind(span_kind: SpanKind) -> span::SpanKind {
         match span_kind {
             SpanKind::Client => span::SpanKind::Client,
@@ -21,6 +23,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK trace status to protobuf status code.
     pub fn trace_status_to_proto_status_code(status: &trace::Status) -> status::StatusCode {
         match status {
             trace::Status::Ok => status::StatusCode::Ok,
@@ -29,6 +32,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts SDK link to protobuf link.
     pub fn link_to_proto_link(link: Link) -> span::Link {
         span::Link {
             trace_id: link.span_context.trace_id().to_bytes().to_vec(),
@@ -39,6 +43,8 @@ pub mod tonic {
             flags: link.span_context.trace_flags().to_u8() as u32,
         }
     }
+
+    /// Converts SDK span data to protobuf span.
     pub fn span_data_to_proto_span(source_span: opentelemetry_sdk::trace::SpanData) -> Span {
         let span_kind: span::SpanKind = span_kind_to_proto_span_kind(source_span.span_kind);
         Span {
@@ -82,6 +88,7 @@ pub mod tonic {
         }
     }
 
+    /// Creates a new resource spans from span data and resource.
     pub fn new_resource_spans(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> ResourceSpans {
         ResourceSpans {
             resource: Some(Resource {
@@ -102,6 +109,7 @@ pub mod tonic {
         }
     }
 
+    /// Groups spans by resource and instrumentation scope.
     pub fn group_spans_by_resource_and_scope(
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,

@@ -1,4 +1,5 @@
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+/// Tonic-specific transformation utilities for logs.
 pub mod tonic {
     use opentelemetry_proto::tonic::{
         common::v1::{
@@ -49,6 +50,7 @@ pub mod tonic {
             }
     }
 
+    /// Converts SDK log record to protobuf log record.
     pub fn sdk_log_record_to_proto_log_record(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> LogRecord {
         let trace_context = log_record.trace_context();
         let severity_number = match log_record.severity_number() {
@@ -115,6 +117,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts log data to resource logs.
     pub fn log_data_to_resource_logs(
         log_record: &opentelemetry_sdk::logs::SdkLogRecord,
         instrumentation: &opentelemetry::InstrumentationScope,
@@ -138,6 +141,7 @@ pub mod tonic {
         }
     }
 
+    /// Groups logs by resource and instrumentation scope.
     pub fn group_logs_by_resource_and_scope(
         logs: LogBatch<'_>,
         resource: &ResourceAttributesWithSchema,

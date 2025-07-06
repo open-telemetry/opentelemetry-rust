@@ -15,6 +15,7 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+/// Tonic-specific common transformation utilities.
 pub mod tonic {
     use opentelemetry_proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
@@ -24,8 +25,11 @@ pub mod tonic {
 
     #[cfg(any(feature = "trace", feature = "logs"))]
     #[derive(Debug, Default)]
+    /// Resource attributes with schema information.
     pub struct ResourceAttributesWithSchema {
+        /// Resource attributes.
         pub attributes: Attributes,
+        /// Schema URL for the resource.
         pub schema_url: Option<String>,
     }
 
@@ -42,6 +46,7 @@ pub mod tonic {
     #[cfg(any(feature = "trace", feature = "logs"))]
     use opentelemetry_sdk::Resource;
 
+    /// Creates instrumentation scope from scope and target.
     pub fn instrumentation_scope_from_scope_and_target(
         scope: opentelemetry::InstrumentationScope,
         target: Option<Cow<'static, str>>,
@@ -63,6 +68,7 @@ pub mod tonic {
         }
     }
 
+    /// Creates instrumentation scope from scope reference and target.
     pub fn instrumentation_scope_from_scope_ref_and_target(
         scope: &opentelemetry::InstrumentationScope,
         target: Option<Cow<'static, str>>,
@@ -115,6 +121,7 @@ pub mod tonic {
         }
     }
 
+    /// Converts OpenTelemetry value to protobuf any value.
     pub fn value_to_any_value(value: Value) -> AnyValue {
         AnyValue {
             value: match value {
