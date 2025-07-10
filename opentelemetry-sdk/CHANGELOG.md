@@ -4,6 +4,8 @@
 
 - TODO: Placeholder for Span processor related things
   - *Fix* SpanProcessor::on_start is no longer called on non recording spans
+- Revert removal of `MetricProducer` which allowed metrics from
+  external sources to be sent through OpenTelemetry.
 
 ## 0.30.0
 
