@@ -5,7 +5,7 @@ use opentelemetry::{trace::TraceContextExt, Context, InstrumentationScope};
 use opentelemetry::logs::Severity;
 use opentelemetry::time::now;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// The object for emitting [`LogRecord`]s.
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
@@ -62,5 +62,26 @@ impl opentelemetry::logs::Logger for SdkLogger {
             .log_processors()
             .iter()
             .any(|processor| processor.event_enabled(level, target, name))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::logs::SdkLoggerProvider;
+    use opentelemetry::InstrumentationScope;
+
+    #[test]
+    fn test_sdk_logger_clone() {
+        let scope = InstrumentationScope::builder("test").build();
+        let provider = SdkLoggerProvider::builder().build();
+        let logger = SdkLogger::new(scope, provider);
+
+        // Test that clone works - this is the main goal
+        #[allow(clippy::redundant_clone)]
+        let cloned_logger = logger.clone();
+
+        // Verify that both loggers are valid by checking they have the same scope name
+        assert_eq!(logger.scope.name(), cloned_logger.scope.name());
     }
 }
