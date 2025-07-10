@@ -22,7 +22,7 @@ serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
 url = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["rt", "time"], optional = true }
+tokio = { workspace = true, default-features = false, optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
@@ -47,15 +47,15 @@ spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"
 metrics = ["opentelemetry/metrics"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 experimental_async_runtime = []
-rt-tokio = ["tokio", "tokio-stream", "experimental_async_runtime"]
-rt-tokio-current-thread = ["tokio", "tokio-stream", "experimental_async_runtime"]
+rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
+rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 internal-logs = ["opentelemetry/internal-logs"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
 experimental_metrics_custom_reader = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_logs_concurrent_log_processor = ["logs"]
-experimental_trace_batch_span_processor_with_async_runtime = ["trace", "experimental_async_runtime"]
+experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
 
 [[bench]]
