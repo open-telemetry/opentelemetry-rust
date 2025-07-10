@@ -4,10 +4,10 @@ use opentelemetry::trace::{
     SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
 };
 use opentelemetry_sdk::testing::trace::NoopSpanExporter;
-use opentelemetry_sdk::trace::SpanData;
 use opentelemetry_sdk::trace::{
     BatchConfigBuilder, BatchSpanProcessor, SpanEvents, SpanLinks, SpanProcessor,
 };
+use opentelemetry_sdk::trace::{FinishedSpan, SpanData};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -62,7 +62,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                             let spans = get_span_data();
                             handles.push(tokio::spawn(async move {
                                 for span in spans {
-                                    span_processor.on_end(span);
+                                    let mut span = FinishedSpan::new(span);
+                                    span_processor.on_end(&mut span);
                                     tokio::task::yield_now().await;
                                 }
                             }));
