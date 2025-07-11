@@ -340,8 +340,7 @@ mod tests {
         assert!(
             panic_message.contains("no reactor running")
                 || panic_message.contains("must be called from the context of a Tokio 1.x runtime"),
-            "Expected panic message about missing Tokio runtime, but got: {}",
-            panic_message
+            "Expected panic message about missing Tokio runtime, but got: {panic_message}"
         );
     }
 

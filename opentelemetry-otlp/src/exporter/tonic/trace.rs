@@ -67,7 +67,7 @@ impl SpanExporter for TonicTracesClient {
                     .lock()
                     .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
                     .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
                     .into_parts();
                 (inner.client.clone(), m, e)
             }

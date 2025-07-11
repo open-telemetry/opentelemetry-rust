@@ -179,7 +179,11 @@ pub mod hyper {
     }
 
     #[async_trait]
-    impl HttpClient for HyperClient {
+    impl<C> HttpClient for HyperClient<C>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+        HyperClient<C>: Debug,
+    {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "HyperClient.Send");
             let (parts, body) = request.into_parts();

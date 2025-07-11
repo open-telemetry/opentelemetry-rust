@@ -8,7 +8,7 @@ use std::time::Duration;
 /// An in-memory span exporter that stores span data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes. It stores
-/// metric data in a `Vec<SpanData>`. Metrics can be retrieved
+/// span data in a `Vec<SpanData>`. Spans can be retrieved
 /// using the `get_finished_spans` method.
 /// # Example
 /// ```
@@ -135,9 +135,7 @@ impl SpanExporter for InMemorySpanExporter {
             .spans
             .lock()
             .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
-            .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to lock spans: {:?}", err))
-            });
+            .map_err(|err| OTelSdkError::InternalFailure(format!("Failed to lock spans: {err:?}")));
         result
     }
 

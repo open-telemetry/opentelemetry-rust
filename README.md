@@ -186,20 +186,26 @@ you're more than welcome to participate!
 * [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
+For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
+
 ### Approvers
 
 * [Anton Grübel](https://github.com/gruebel), Baz
 * [Björn Antonsson](https://github.com/bantonsson), Datadog
-* [Shaun Cox](https://github.com/shaun-cox), Microsoft
 * [Scott Gerring](https://github.com/scottgerring), Datadog
+* [Shaun Cox](https://github.com/shaun-cox), Microsoft
+
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 
 * [Dirkjan Ochtman](https://github.com/djc)
+* [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Jan Kühle](https://github.com/frigus02)
 * [Julian Tescher](https://github.com/jtescher)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Mike Goldsmith](https://github.com/MikeGoldsmith)
+
+For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 
 ### Thanks to all the people who have contributed
 

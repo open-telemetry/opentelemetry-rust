@@ -42,7 +42,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     for task_num in [1, 2, 4, 8, 16, 32].iter() {
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("with {} concurrent task", task_num)),
+            BenchmarkId::from_parameter(format!("with {task_num} concurrent task")),
             task_num,
             |b, &task_num| {
                 b.iter(|| {
