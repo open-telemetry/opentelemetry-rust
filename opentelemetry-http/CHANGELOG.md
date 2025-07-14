@@ -3,6 +3,7 @@
 ## vNext
 
 - Implementation of `Extractor::get_all` for `HeaderExtractor`
+- Support `HttpClient` implementation for `HyperClient<C>` with custom connectors beyond `HttpConnector`, enabling Unix Domain Socket connections and other custom transports
 
 ## 0.30.0
 
@@ -53,7 +54,7 @@ Released 2024-Sep-30
 
 ## v0.12.0
 
-- Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
+- Add `reqwest-rustls-webpki-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webpki-roots`.
 - Update `opentelemetry` dependency version to 0.23
 
 ## v0.11.1

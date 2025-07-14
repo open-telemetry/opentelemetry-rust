@@ -396,8 +396,7 @@ mod tests {
                 exporter_result,
                 Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
             ),
-            "Expected InvalidUri error, but got {:?}",
-            exporter_result
+            "Expected InvalidUri error, but got {exporter_result:?}"
         );
     }
 

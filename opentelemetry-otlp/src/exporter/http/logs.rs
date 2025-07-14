@@ -10,7 +10,7 @@ impl LogExporter for OtlpHttpClient {
         let client = self
             .client
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {e}")))?
             .clone()
             .ok_or(OTelSdkError::AlreadyShutdown)?;
 
@@ -53,7 +53,7 @@ impl LogExporter for OtlpHttpClient {
 
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {}", e))
+            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {e}"))
         })?;
 
         if client_guard.take().is_none() {

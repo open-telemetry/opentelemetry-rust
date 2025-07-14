@@ -73,7 +73,7 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
             return;
         }
         if field.name() == "message" {
-            self.log_record.set_body(format!("{:?}", value).into());
+            self.log_record.set_body(format!("{value:?}").into());
         } else {
             self.log_record
                 .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));

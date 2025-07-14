@@ -92,7 +92,7 @@ impl SdkLoggerProvider {
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
-            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+            Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
     }
 
@@ -798,7 +798,7 @@ mod tests {
 
             // Explicitly shut down the logger provider
             let shutdown_result = logger_provider1.shutdown();
-            println!("---->Result: {:?}", shutdown_result);
+            println!("---->Result: {shutdown_result:?}");
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once

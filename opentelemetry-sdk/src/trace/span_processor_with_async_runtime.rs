@@ -128,11 +128,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to send flush message: {}", err))
+                OTelSdkError::InternalFailure(format!("Failed to send flush message: {err}"))
             })?;
 
         futures_executor::block_on(res_receiver).map_err(|err| {
-            OTelSdkError::InternalFailure(format!("Flush response channel error: {}", err))
+            OTelSdkError::InternalFailure(format!("Flush response channel error: {err}"))
         })?
     }
 
@@ -152,11 +152,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| {
-                OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {}", err))
+                OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {err}"))
             })?;
 
         futures_executor::block_on(res_receiver).map_err(|err| {
-            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {}", err))
+            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {err}"))
         })?
     }
 

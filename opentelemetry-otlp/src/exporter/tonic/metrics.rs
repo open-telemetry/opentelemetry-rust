@@ -101,7 +101,7 @@ impl MetricsClient for TonicMetricsClient {
     fn shutdown(&self) -> OTelSdkResult {
         self.inner
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?
             .take();
 
         Ok(())

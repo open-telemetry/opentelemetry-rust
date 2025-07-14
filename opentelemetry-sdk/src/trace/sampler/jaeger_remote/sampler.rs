@@ -236,7 +236,7 @@ impl JaegerRemoteSampler {
         let resp = client
             .send_bytes(request)
             .await
-            .map_err(|err| format!("the request is failed to send {}", err))?;
+            .map_err(|err| format!("the request is failed to send {err}"))?;
 
         // process failures
         if resp.status() != http::StatusCode::OK {
@@ -248,7 +248,7 @@ impl JaegerRemoteSampler {
 
         // deserialize the response
         serde_json::from_slice(&resp.body()[..])
-            .map_err(|err| format!("cannot deserialize the response, {}", err))
+            .map_err(|err| format!("cannot deserialize the response, {err}"))
     }
 }
 

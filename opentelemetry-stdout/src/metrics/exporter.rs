@@ -49,11 +49,11 @@ impl PushMetricExporter for MetricExporter {
             println!("Metrics");
             println!("Resource");
             if let Some(schema_url) = metrics.resource().schema_url() {
-                println!("\tResource SchemaUrl: {:?}", schema_url);
+                println!("\tResource SchemaUrl: {schema_url:?}");
             }
 
             metrics.resource().iter().for_each(|(k, v)| {
-                println!("\t ->  {}={:?}", k, v);
+                println!("\t ->  {k}={v:?}");
             });
             print_metrics(metrics.scope_metrics());
             Ok(())
@@ -81,14 +81,14 @@ impl PushMetricExporter for MetricExporter {
 
 fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
     for (i, metric) in metrics.enumerate() {
-        println!("\tInstrumentation Scope #{}", i);
+        println!("\tInstrumentation Scope #{i}");
         let scope = metric.scope();
         println!("\t\tName         : {}", scope.name());
         if let Some(version) = scope.version() {
-            println!("\t\tVersion  : {:?}", version);
+            println!("\t\tVersion  : {version:?}");
         }
         if let Some(schema_url) = scope.schema_url() {
-            println!("\t\tSchemaUrl: {:?}", schema_url);
+            println!("\t\tSchemaUrl: {schema_url:?}");
         }
         scope.attributes().enumerate().for_each(|(index, kv)| {
             if index == 0 {
@@ -98,7 +98,7 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
         });
 
         metric.metrics().enumerate().for_each(|(i, metric)| {
-            println!("Metric #{}", i);
+            println!("Metric #{i}");
             println!("\t\tName         : {}", metric.name());
             println!("\t\tDescription  : {}", metric.description());
             println!("\t\tUnit         : {}", metric.unit());
@@ -197,7 +197,7 @@ fn print_sum_data_points<'a, T: Debug + Copy + 'a>(
     data_points: impl Iterator<Item = &'a SumDataPoint<T>>,
 ) {
     for (i, data_point) in data_points.enumerate() {
-        println!("\t\tDataPoint #{}", i);
+        println!("\t\tDataPoint #{i}");
         println!("\t\t\tValue        : {:#?}", data_point.value());
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
@@ -210,7 +210,7 @@ fn print_gauge_data_points<'a, T: Debug + Copy + 'a>(
     data_points: impl Iterator<Item = &'a GaugeDataPoint<T>>,
 ) {
     for (i, data_point) in data_points.enumerate() {
-        println!("\t\tDataPoint #{}", i);
+        println!("\t\tDataPoint #{i}");
         println!("\t\t\tValue        : {:#?}", data_point.value());
         println!("\t\t\tAttributes   :");
         for kv in data_point.attributes() {
@@ -223,15 +223,15 @@ fn print_hist_data_points<'a, T: Debug + Copy + 'a>(
     data_points: impl Iterator<Item = &'a HistogramDataPoint<T>>,
 ) {
     for (i, data_point) in data_points.enumerate() {
-        println!("\t\tDataPoint #{}", i);
+        println!("\t\tDataPoint #{i}");
         println!("\t\t\tCount        : {}", data_point.count());
         println!("\t\t\tSum          : {:?}", data_point.sum());
         if let Some(min) = &data_point.min() {
-            println!("\t\t\tMin          : {:?}", min);
+            println!("\t\t\tMin          : {min:?}");
         }
 
         if let Some(max) = &data_point.max() {
-            println!("\t\t\tMax          : {:?}", max);
+            println!("\t\t\tMax          : {max:?}");
         }
 
         println!("\t\t\tAttributes   :");
@@ -254,14 +254,14 @@ fn print_hist_data_points<'a, T: Debug + Copy + 'a>(
 
             // Get the count for this bucket, or 0 if not available
             let count = bucket_counts_iter.next().unwrap_or(0);
-            println!("\t\t\t\t {} to {} : {}", lower_bound, upper_bound, count);
+            println!("\t\t\t\t {lower_bound} to {upper_bound} : {count}");
             lower_bound = upper_bound;
         }
 
         // Handle the final +Infinity bucket if we processed any buckets
         if header_printed {
             let last_count = bucket_counts_iter.next().unwrap_or(0);
-            println!("\t\t\t\t{} to +Infinity : {}", lower_bound, last_count);
+            println!("\t\t\t\t{lower_bound} to +Infinity : {last_count}");
         }
     }
 }

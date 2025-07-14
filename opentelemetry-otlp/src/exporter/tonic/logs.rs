@@ -63,7 +63,7 @@ impl LogExporter for TonicLogsClient {
                 let (m, e, _) = inner
                     .interceptor
                     .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {:?}", e)))?
+                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
                     .into_parts();
                 (inner.client.clone(), m, e)
             }
@@ -88,7 +88,7 @@ impl LogExporter for TonicLogsClient {
                 Ok(())
             }
             Err(e) => {
-                let error = format!("export error: {:?}", e);
+                let error = format!("export error: {e:?}");
                 otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
                 Err(OTelSdkError::InternalFailure(error))
             }

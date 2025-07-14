@@ -229,7 +229,7 @@ impl LogProcessor for BatchLogProcessor {
                     if err == RecvTimeoutError::Timeout {
                         OTelSdkError::Timeout(self.forceflush_timeout)
                     } else {
-                        OTelSdkError::InternalFailure(format!("{}", err))
+                        OTelSdkError::InternalFailure(format!("{err}"))
                     }
                 })?,
             Err(mpsc::TrySendError::Full(_)) => {
@@ -291,7 +291,7 @@ impl LogProcessor for BatchLogProcessor {
                                 name: "BatchLogProcessor.Shutdown.Error",
                                 error = format!("{}", err)
                             );
-                            OTelSdkError::InternalFailure(format!("{}", err))
+                            OTelSdkError::InternalFailure(format!("{err}"))
                         }
                     })?
             }

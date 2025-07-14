@@ -237,7 +237,7 @@ impl TextMapPropagator for Propagator {
                     } else {
                         "0"
                     };
-                    value = format!("{}-{:01}", value, flag)
+                    value = format!("{value}-{flag:01}")
                 }
 
                 injector.set(B3_SINGLE_HEADER, value);
