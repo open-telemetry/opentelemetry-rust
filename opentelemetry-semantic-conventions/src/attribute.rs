@@ -12,7 +12,7 @@
 ///
 /// ## Notes
 ///
-/// The Android lifecycle states are defined in [Activity lifecycle callbacks](<https://developer.android.com/guide/components/activities/activity-lifecycle#lc),> and from which the `OS identifiers` are derived.
+/// The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
 ///
 /// # Examples
 ///
@@ -20,7 +20,7 @@
 #[cfg(feature = "semconv_experimental")]
 pub const ANDROID_APP_STATE: &str = "android.app.state";
 
-/// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](<https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).>
+/// Uniquely identifies the framework API revision offered by a version (`os.version`) of the android operating system. More information can be found [here](https://developer.android.com/guide/topics/manifest/uses-sdk-element#ApiLevels).
 ///
 /// ## Notes
 ///
@@ -49,16 +49,16 @@ pub const ANDROID_STATE: &str = "android.state";
 /// If multiple OpenTelemetry SDKs are used within the same application, they SHOULD use the same value for `app.installation.id`.
 /// Hardware IDs (e.g. serial number, IMEI, MAC address) MUST NOT be used as the `app.installation.id`.
 ///
-/// For iOS, this value SHOULD be equal to the [vendor identifier](<https://developer.apple.com/documentation/uikit/uidevice/identifierforvendor).>
+/// For iOS, this value SHOULD be equal to the [vendor identifier](https://developer.apple.com/documentation/uikit/uidevice/identifierforvendor).
 ///
 /// For Android, examples of `app.installation.id` implementations include:
 ///
-/// - [Firebase Installation ID](<https://firebase.google.com/docs/projects/manage-installations).>
+/// - [Firebase Installation ID](https://firebase.google.com/docs/projects/manage-installations).
 /// - A globally unique UUID which is persisted across sessions in your application.
-/// - [App set ID](<https://developer.android.com/identity/app-set-id).>
-/// - [`Settings.getString(Settings.Secure.ANDROID_ID)`](<https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID).>
+/// - [App set ID](https://developer.android.com/identity/app-set-id).
+/// - [`Settings.getString(Settings.Secure.ANDROID_ID)`](https://developer.android.com/reference/android/provider/Settings.Secure#ANDROID_ID).
 ///
-/// More information about Android identifier best practices can be found [here](<https://developer.android.com/training/articles/user-data-ids).>
+/// More information about Android identifier best practices can be found [here](https://developer.android.com/training/articles/user-data-ids).
 ///
 /// # Examples
 ///
@@ -115,7 +115,7 @@ pub const APP_WIDGET_ID: &str = "app.widget.id";
 #[cfg(feature = "semconv_experimental")]
 pub const APP_WIDGET_NAME: &str = "app.widget.name";
 
-/// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](<https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations)> specification for more information.
+/// The provenance filename of the built attestation which directly relates to the build artifact filename. This filename SHOULD accompany the artifact at publish time. See the [SLSA Relationship](https://slsa.dev/spec/v1.0/distributing-provenance#relationship-between-artifacts-and-attestations) specification for more information.
 ///
 /// ## Notes
 ///
@@ -128,7 +128,7 @@ pub const APP_WIDGET_NAME: &str = "app.widget.name";
 #[cfg(feature = "semconv_experimental")]
 pub const ARTIFACT_ATTESTATION_FILENAME: &str = "artifact.attestation.filename";
 
-/// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), of the built attestation. Some envelopes in the [software attestation space](<https://github.com/in-toto/attestation/tree/main/spec)> also refer to this as the **digest**.
+/// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), of the built attestation. Some envelopes in the [software attestation space](https://github.com/in-toto/attestation/tree/main/spec) also refer to this as the **digest**.
 ///
 /// ## Notes
 ///
@@ -138,7 +138,7 @@ pub const ARTIFACT_ATTESTATION_FILENAME: &str = "artifact.attestation.filename";
 #[cfg(feature = "semconv_experimental")]
 pub const ARTIFACT_ATTESTATION_HASH: &str = "artifact.attestation.hash";
 
-/// The id of the build [software attestation](<https://slsa.dev/attestation-model).>
+/// The id of the build [software attestation](https://slsa.dev/attestation-model).
 ///
 /// ## Notes
 ///
@@ -152,9 +152,9 @@ pub const ARTIFACT_ATTESTATION_ID: &str = "artifact.attestation.id";
 ///
 /// ## Notes
 ///
-/// This file name can also act as the [Package Name](<https://slsa.dev/spec/v1.0/terminology#package-model)>
+/// This file name can also act as the [Package Name](https://slsa.dev/spec/v1.0/terminology#package-model)
 /// in cases where the package ecosystem maps accordingly.
-/// Additionally, the artifact [can be published](<https://slsa.dev/spec/v1.0/terminology#software-supply-chain)>
+/// Additionally, the artifact [can be published](https://slsa.dev/spec/v1.0/terminology#software-supply-chain)
 /// for others, but that is not a guarantee.
 ///
 /// # Examples
@@ -166,7 +166,7 @@ pub const ARTIFACT_ATTESTATION_ID: &str = "artifact.attestation.id";
 #[cfg(feature = "semconv_experimental")]
 pub const ARTIFACT_FILENAME: &str = "artifact.filename";
 
-/// The full [hash value (see glossary)](<https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),> often found in checksum.txt on a release of the artifact and used to verify package integrity.
+/// The full [hash value (see glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf), often found in checksum.txt on a release of the artifact and used to verify package integrity.
 ///
 /// ## Notes
 ///
@@ -185,7 +185,7 @@ pub const ARTIFACT_FILENAME: &str = "artifact.filename";
 #[cfg(feature = "semconv_experimental")]
 pub const ARTIFACT_HASH: &str = "artifact.hash";
 
-/// The [Package URL](https://github.com/package-url/purl-spec) of the [package artifact](<https://slsa.dev/spec/v1.0/terminology#package-model)> provides a standard way to identify and locate the packaged artifact.
+/// The [Package URL](https://github.com/package-url/purl-spec) of the [package artifact](https://slsa.dev/spec/v1.0/terminology#package-model) provides a standard way to identify and locate the packaged artifact.
 ///
 /// ## Notes
 ///
@@ -218,7 +218,7 @@ pub const ARTIFACT_VERSION: &str = "artifact.version";
 /// - `"unhandled"`
 pub const ASPNETCORE_DIAGNOSTICS_EXCEPTION_RESULT: &str = "aspnetcore.diagnostics.exception.result";
 
-/// Full type name of the [`IExceptionHandler`](<https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.diagnostics.iexceptionhandler)> implementation that handled the exception.
+/// Full type name of the [`IExceptionHandler`](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.diagnostics.iexceptionhandler) implementation that handled the exception.
 ///
 /// ## Notes
 ///
@@ -276,7 +276,7 @@ pub const ASPNETCORE_ROUTING_IS_FALLBACK: &str = "aspnetcore.routing.is_fallback
 /// - `"failure"`
 pub const ASPNETCORE_ROUTING_MATCH_STATUS: &str = "aspnetcore.routing.match_status";
 
-/// The unique identifier of the AWS Bedrock Guardrail. A [guardrail](<https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html)> helps safeguard and prevent unwanted behavior from model responses or user messages.
+/// The unique identifier of the AWS Bedrock Guardrail. A [guardrail](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html) helps safeguard and prevent unwanted behavior from model responses or user messages.
 ///
 /// ## Notes
 ///
@@ -286,7 +286,7 @@ pub const ASPNETCORE_ROUTING_MATCH_STATUS: &str = "aspnetcore.routing.match_stat
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_BEDROCK_GUARDRAIL_ID: &str = "aws.bedrock.guardrail.id";
 
-/// The unique identifier of the AWS Bedrock Knowledge base. A [knowledge base](<https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html)> is a bank of information that can be queried by models to generate more relevant responses and augment prompts.
+/// The unique identifier of the AWS Bedrock Knowledge base. A [knowledge base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html) is a bank of information that can be queried by models to generate more relevant responses and augment prompts.
 ///
 /// ## Notes
 ///
@@ -531,7 +531,7 @@ pub const AWS_DYNAMODB_TABLE_NAMES: &str = "aws.dynamodb.table_names";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_DYNAMODB_TOTAL_SEGMENTS: &str = "aws.dynamodb.total_segments";
 
-/// The ARN of an [ECS cluster](<https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).>
+/// The ARN of an [ECS cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html).
 ///
 /// ## Notes
 ///
@@ -541,7 +541,7 @@ pub const AWS_DYNAMODB_TOTAL_SEGMENTS: &str = "aws.dynamodb.total_segments";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_CLUSTER_ARN: &str = "aws.ecs.cluster.arn";
 
-/// The Amazon Resource Name (ARN) of an [ECS container instance](<https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).>
+/// The Amazon Resource Name (ARN) of an [ECS container instance](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
 ///
 /// ## Notes
 ///
@@ -551,13 +551,13 @@ pub const AWS_ECS_CLUSTER_ARN: &str = "aws.ecs.cluster.arn";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_CONTAINER_ARN: &str = "aws.ecs.container.arn";
 
-/// The [launch type](<https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html)> for an ECS task.
+/// The [launch type](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch_types.html) for an ECS task.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_LAUNCHTYPE: &str = "aws.ecs.launchtype";
 
-/// The ARN of a running [ECS task](<https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html#ecs-resource-ids).>
+/// The ARN of a running [ECS task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html#ecs-resource-ids).
 ///
 /// ## Notes
 ///
@@ -568,7 +568,7 @@ pub const AWS_ECS_LAUNCHTYPE: &str = "aws.ecs.launchtype";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_ECS_TASK_ARN: &str = "aws.ecs.task.arn";
 
-/// The family name of the [ECS task definition](<https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html)> used to create the ECS task.
+/// The family name of the [ECS task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html) used to create the ECS task.
 ///
 /// ## Notes
 ///
@@ -620,7 +620,7 @@ pub const AWS_EKS_CLUSTER_ARN: &str = "aws.eks.cluster.arn";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_EXTENDED_REQUEST_ID: &str = "aws.extended_request_id";
 
-/// The name of the AWS Kinesis [stream](https://docs.aws.amazon.com/streams/latest/dev/introduction.html) the request refers to. Corresponds to the `--stream-name` parameter of the Kinesis [describe-stream](<https://docs.aws.amazon.com/cli/latest/reference/kinesis/describe-stream.html)> operation.
+/// The name of the AWS Kinesis [stream](https://docs.aws.amazon.com/streams/latest/dev/introduction.html) the request refers to. Corresponds to the `--stream-name` parameter of the Kinesis [describe-stream](https://docs.aws.amazon.com/cli/latest/reference/kinesis/describe-stream.html) operation.
 ///
 /// ## Notes
 ///
@@ -642,7 +642,7 @@ pub const AWS_KINESIS_STREAM_NAME: &str = "aws.kinesis.stream_name";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_LAMBDA_INVOKED_ARN: &str = "aws.lambda.invoked_arn";
 
-/// The UUID of the [AWS Lambda EvenSource Mapping](<https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-eventsourcemapping.html).> An event source is mapped to a lambda function. It's contents are read by Lambda and used to trigger a function. This isn't available in the lambda execution context or the lambda runtime environtment. This is going to be populated by the AWS SDK for each language when that UUID is present. Some of these operations are Create/Delete/Get/List/Update EventSourceMapping.
+/// The UUID of the [AWS Lambda EvenSource Mapping](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-eventsourcemapping.html). An event source is mapped to a lambda function. It's contents are read by Lambda and used to trigger a function. This isn't available in the lambda execution context or the lambda runtime environtment. This is going to be populated by the AWS SDK for each language when that UUID is present. Some of these operations are Create/Delete/Get/List/Update EventSourceMapping.
 ///
 /// ## Notes
 ///
@@ -656,7 +656,7 @@ pub const AWS_LAMBDA_RESOURCE_MAPPING_ID: &str = "aws.lambda.resource_mapping.id
 ///
 /// ## Notes
 ///
-/// See the [log group ARN format documentation](<https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format).>
+/// See the [log group ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format).
 ///
 /// # Examples
 ///
@@ -685,7 +685,7 @@ pub const AWS_LOG_GROUP_NAMES: &str = "aws.log.group.names";
 ///
 /// ## Notes
 ///
-/// See the [log stream ARN format documentation](<https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format).> One log group can contain several log streams, so these ARNs necessarily identify both a log group and a log stream.
+/// See the [log stream ARN format documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/iam-access-control-overview-cwl.html#CWL_ARN_Format). One log group can contain several log streams, so these ARNs necessarily identify both a log group and a log stream.
 ///
 /// # Examples
 ///
@@ -718,7 +718,7 @@ pub const AWS_LOG_STREAM_NAMES: &str = "aws.log.stream.names";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_REQUEST_ID: &str = "aws.request_id";
 
-/// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html)> operations.
+/// The S3 bucket name the request refers to. Corresponds to the `--bucket` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
 ///
 /// ## Notes
 ///
@@ -736,11 +736,11 @@ pub const AWS_S3_BUCKET: &str = "aws.s3.bucket";
 /// ## Notes
 ///
 /// The `copy_source` attribute applies to S3 copy operations and corresponds to the `--copy-source` parameter
-/// of the [copy-object operation within the S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html).>
+/// of the [copy-object operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html).
 /// This applies in particular to the following operations:
 ///
-/// - [copy-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)>
-/// - [upload-part-copy](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)>
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
 ///
 /// # Examples
 ///
@@ -752,9 +752,9 @@ pub const AWS_S3_COPY_SOURCE: &str = "aws.s3.copy_source";
 ///
 /// ## Notes
 ///
-/// The `delete` attribute is only applicable to the [delete-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)> operation.
+/// The `delete` attribute is only applicable to the [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html) operation.
 /// The `delete` attribute corresponds to the `--delete` parameter of the
-/// [delete-objects operation within the S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-objects.html).>
+/// [delete-objects operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-objects.html).
 ///
 /// # Examples
 ///
@@ -762,26 +762,26 @@ pub const AWS_S3_COPY_SOURCE: &str = "aws.s3.copy_source";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_S3_DELETE: &str = "aws.s3.delete";
 
-/// The S3 object key the request refers to. Corresponds to the `--key` parameter of the [S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html)> operations.
+/// The S3 object key the request refers to. Corresponds to the `--key` parameter of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) operations.
 ///
 /// ## Notes
 ///
 /// The `key` attribute is applicable to all object-related S3 operations, i.e. that require the object key as a mandatory parameter.
 /// This applies in particular to the following operations:
 ///
-/// - [copy-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)>
-/// - [delete-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)>
-/// - [get-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/get-object.html)>
-/// - [head-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/head-object.html)>
-/// - [put-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html)>
-/// - [restore-object](<https://docs.aws.amazon.com/cli/latest/reference/s3api/restore-object.html)>
-/// - [select-object-content](<https://docs.aws.amazon.com/cli/latest/reference/s3api/select-object-content.html)>
-/// - [abort-multipart-upload](<https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)>
-/// - [complete-multipart-upload](<https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)>
-/// - [create-multipart-upload](<https://docs.aws.amazon.com/cli/latest/reference/s3api/create-multipart-upload.html)>
-/// - [list-parts](<https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)>
-/// - [upload-part](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)>
-/// - [upload-part-copy](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)>
+/// - [copy-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/copy-object.html)
+/// - [delete-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/delete-object.html)
+/// - [get-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/get-object.html)
+/// - [head-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/head-object.html)
+/// - [put-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html)
+/// - [restore-object](https://docs.aws.amazon.com/cli/latest/reference/s3api/restore-object.html)
+/// - [select-object-content](https://docs.aws.amazon.com/cli/latest/reference/s3api/select-object-content.html)
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [create-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/create-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
 ///
 /// # Examples
 ///
@@ -793,10 +793,10 @@ pub const AWS_S3_KEY: &str = "aws.s3.key";
 ///
 /// ## Notes
 ///
-/// The `part_number` attribute is only applicable to the [upload-part](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)>
-/// and [upload-part-copy](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)> operations.
+/// The `part_number` attribute is only applicable to the [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// and [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html) operations.
 /// The `part_number` attribute corresponds to the `--part-number` parameter of the
-/// [upload-part operation within the S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html).>
+/// [upload-part operation within the S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html).
 ///
 /// # Examples
 ///
@@ -809,14 +809,14 @@ pub const AWS_S3_PART_NUMBER: &str = "aws.s3.part_number";
 /// ## Notes
 ///
 /// The `upload_id` attribute applies to S3 multipart-upload operations and corresponds to the `--upload-id` parameter
-/// of the [S3 API](<https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html)> multipart operations.
+/// of the [S3 API](https://docs.aws.amazon.com/cli/latest/reference/s3api/index.html) multipart operations.
 /// This applies in particular to the following operations:
 ///
-/// - [abort-multipart-upload](<https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)>
-/// - [complete-multipart-upload](<https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)>
-/// - [list-parts](<https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)>
-/// - [upload-part](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)>
-/// - [upload-part-copy](<https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)>
+/// - [abort-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/abort-multipart-upload.html)
+/// - [complete-multipart-upload](https://docs.aws.amazon.com/cli/latest/reference/s3api/complete-multipart-upload.html)
+/// - [list-parts](https://docs.aws.amazon.com/cli/latest/reference/s3api/list-parts.html)
+/// - [upload-part](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part.html)
+/// - [upload-part-copy](https://docs.aws.amazon.com/cli/latest/reference/s3api/upload-part-copy.html)
 ///
 /// # Examples
 ///
@@ -834,7 +834,7 @@ pub const AWS_S3_UPLOAD_ID: &str = "aws.s3.upload_id";
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_SECRETSMANAGER_SECRET_ARN: &str = "aws.secretsmanager.secret.arn";
 
-/// The ARN of the AWS SNS Topic. An Amazon SNS [topic](<https://docs.aws.amazon.com/sns/latest/dg/sns-create-topic.html)> is a logical access point that acts as a communication channel.
+/// The ARN of the AWS SNS Topic. An Amazon SNS [topic](https://docs.aws.amazon.com/sns/latest/dg/sns-create-topic.html) is a logical access point that acts as a communication channel.
 ///
 /// ## Notes
 ///
@@ -850,7 +850,7 @@ pub const AWS_SNS_TOPIC_ARN: &str = "aws.sns.topic.arn";
 ///
 /// # Examples
 ///
-/// - `"<https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue"`>
+/// - `"https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue"`
 #[cfg(feature = "semconv_experimental")]
 pub const AWS_SQS_QUEUE_URL: &str = "aws.sqs.queue.url";
 
@@ -919,7 +919,7 @@ pub const AZURE_CLIENT_ID: &str = "azure.client.id";
 #[cfg(feature = "semconv_experimental")]
 pub const AZURE_COSMOSDB_CONNECTION_MODE: &str = "azure.cosmosdb.connection.mode";
 
-/// Account or request [consistency level](<https://learn.microsoft.com/azure/cosmos-db/consistency-levels).>
+/// Account or request [consistency level](https://learn.microsoft.com/azure/cosmos-db/consistency-levels).
 ///
 /// ## Notes
 ///
@@ -937,7 +937,7 @@ pub const AZURE_COSMOSDB_CONSISTENCY_LEVEL: &str = "azure.cosmosdb.consistency.l
 ///
 /// ## Notes
 ///
-/// Region name matches the format of `displayName` in [Azure Location API](<https://learn.microsoft.com/rest/api/subscription/subscriptions/list-locations?view=rest-subscription-2021-10-01&tabs=HTTP#location)>
+/// Region name matches the format of `displayName` in [Azure Location API](https://learn.microsoft.com/rest/api/subscription/subscriptions/list-locations?view=rest-subscription-2021-10-01&tabs=HTTP#location)
 ///
 /// # Examples
 ///
@@ -978,7 +978,7 @@ pub const AZURE_COSMOSDB_REQUEST_BODY_SIZE: &str = "azure.cosmosdb.request.body.
 #[cfg(feature = "semconv_experimental")]
 pub const AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE: &str = "azure.cosmosdb.response.sub_status_code";
 
-/// [Azure Resource Provider Namespace](<https://learn.microsoft.com/azure/azure-resource-manager/management/azure-services-resource-providers)> as recognized by the client.
+/// [Azure Resource Provider Namespace](https://learn.microsoft.com/azure/azure-resource-manager/management/azure-services-resource-providers) as recognized by the client.
 ///
 /// ## Notes
 ///
@@ -1004,7 +1004,7 @@ pub const AZURE_SERVICE_REQUEST_ID: &str = "azure.service.request.id";
 ///
 /// ## Notes
 ///
-/// This value is intended to be taken from the [UA client hints API](<https://wicg.github.io/ua-client-hints/#interface)> (`navigator.userAgentData.brands`).
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.brands`).
 ///
 /// # Examples
 ///
@@ -1035,7 +1035,7 @@ pub const BROWSER_LANGUAGE: &str = "browser.language";
 ///
 /// ## Notes
 ///
-/// This value is intended to be taken from the [UA client hints API](<https://wicg.github.io/ua-client-hints/#interface)> (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset
 #[cfg(feature = "semconv_experimental")]
 pub const BROWSER_MOBILE: &str = "browser.mobile";
 
@@ -1043,8 +1043,8 @@ pub const BROWSER_MOBILE: &str = "browser.mobile";
 ///
 /// ## Notes
 ///
-/// This value is intended to be taken from the [UA client hints API](<https://wicg.github.io/ua-client-hints/#interface)> (`navigator.userAgentData.platform`). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent.
-/// The list of possible values is defined in the [W3C User-Agent Client Hints specification](<https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform).> Note that some (but not all) of these values can overlap with values in the [`os.type` and `os.name` attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.
+/// This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.platform`). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent.
+/// The list of possible values is defined in the [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform). Note that some (but not all) of these values can overlap with values in the [`os.type` and `os.name` attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.
 ///
 /// # Examples
 ///
@@ -1054,7 +1054,7 @@ pub const BROWSER_MOBILE: &str = "browser.mobile";
 #[cfg(feature = "semconv_experimental")]
 pub const BROWSER_PLATFORM: &str = "browser.platform";
 
-/// The consistency level of the query. Based on consistency values from [CQL](<https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).>
+/// The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
@@ -1167,17 +1167,17 @@ pub const CICD_PIPELINE_RUN_ID: &str = "cicd.pipeline.run.id";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_RUN_STATE: &str = "cicd.pipeline.run.state";
 
-/// The [URL](<https://wikipedia.org/wiki/URL)> of the pipeline run, providing the complete address in order to locate and identify the pipeline run.
+/// The [URL](https://wikipedia.org/wiki/URL) of the pipeline run, providing the complete address in order to locate and identify the pipeline run.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
-/// - `"<https://github.com/open-telemetry/semantic-conventions/actions/runs/9753949763?pr=1075"`>
+/// - `"https://github.com/open-telemetry/semantic-conventions/actions/runs/9753949763?pr=1075"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_RUN_URL_FULL: &str = "cicd.pipeline.run.url.full";
 
-/// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](<https://wikipedia.org/wiki/Pipeline_(computing))> in a pipeline. Other terms for tasks include commands, steps, and procedures.
+/// The human readable name of a task within a pipeline. Task here most closely aligns with a [computing process](https://wikipedia.org/wiki/Pipeline_(computing)) in a pipeline. Other terms for tasks include commands, steps, and procedures.
 ///
 /// ## Notes
 ///
@@ -1213,13 +1213,13 @@ pub const CICD_PIPELINE_TASK_RUN_ID: &str = "cicd.pipeline.task.run.id";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_TASK_RUN_RESULT: &str = "cicd.pipeline.task.run.result";
 
-/// The [URL](<https://wikipedia.org/wiki/URL)> of the pipeline task run, providing the complete address in order to locate and identify the pipeline task run.
+/// The [URL](https://wikipedia.org/wiki/URL) of the pipeline task run, providing the complete address in order to locate and identify the pipeline task run.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
-/// - `"<https://github.com/open-telemetry/semantic-conventions/actions/runs/9753949763/job/26920038674?pr=1075"`>
+/// - `"https://github.com/open-telemetry/semantic-conventions/actions/runs/9753949763/job/26920038674?pr=1075"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_PIPELINE_TASK_RUN_URL_FULL: &str = "cicd.pipeline.task.run.url.full";
 
@@ -1283,13 +1283,13 @@ pub const CICD_WORKER_NAME: &str = "cicd.worker.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_WORKER_STATE: &str = "cicd.worker.state";
 
-/// The [URL](<https://wikipedia.org/wiki/URL)> of the worker, providing the complete address in order to locate and identify the worker.
+/// The [URL](https://wikipedia.org/wiki/URL) of the worker, providing the complete address in order to locate and identify the worker.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
-/// - `"<https://cicd.example.org/worker/abc123"`>
+/// - `"https://cicd.example.org/worker/abc123"`
 #[cfg(feature = "semconv_experimental")]
 pub const CICD_WORKER_URL_FULL: &str = "cicd.worker.url.full";
 
@@ -1358,7 +1358,7 @@ pub const CLOUD_PROVIDER: &str = "cloud.provider";
 ///
 /// ## Notes
 ///
-/// Refer to your provider's docs to see the available regions, for example [Alibaba Cloud regions](https://www.alibabacloud.com/help/doc-detail/40654.htm), [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/global-infrastructure/geographies/), [Google Cloud regions](https://cloud.google.com/about/locations), or [Tencent Cloud regions](<https://www.tencentcloud.com/document/product/213/6091).>
+/// Refer to your provider's docs to see the available regions, for example [Alibaba Cloud regions](https://www.alibabacloud.com/help/doc-detail/40654.htm), [AWS regions](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Azure regions](https://azure.microsoft.com/global-infrastructure/geographies/), [Google Cloud regions](https://cloud.google.com/about/locations), or [Tencent Cloud regions](https://www.tencentcloud.com/document/product/213/6091).
 ///
 /// # Examples
 ///
@@ -1367,7 +1367,7 @@ pub const CLOUD_PROVIDER: &str = "cloud.provider";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUD_REGION: &str = "cloud.region";
 
-/// Cloud provider-specific native identifier of the monitored cloud resource (e.g. an [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) on AWS, a [fully qualified resource ID](https://learn.microsoft.com/rest/api/resources/resources/get-by-id) on Azure, a [full resource name](<https://google.aip.dev/122#full-resource-names)> on GCP)
+/// Cloud provider-specific native identifier of the monitored cloud resource (e.g. an [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) on AWS, a [fully qualified resource ID](https://learn.microsoft.com/rest/api/resources/resources/get-by-id) on Azure, a [full resource name](https://google.aip.dev/122#full-resource-names) on GCP)
 ///
 /// ## Notes
 ///
@@ -1377,13 +1377,13 @@ pub const CLOUD_REGION: &str = "cloud.region";
 /// The exact value to use for `cloud.resource_id` depends on the cloud provider.
 /// The following well-known definitions MUST be used if you set this attribute and they apply:
 ///
-/// - **AWS Lambda:** The function [ARN](<https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).>
+/// - **AWS Lambda:** The function [ARN](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html).
 ///   Take care not to use the "invoked ARN" directly but replace any
-///   [alias suffix](<https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)>
+///   [alias suffix](https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html)
 ///   with the resolved function version, as the same runtime instance may be invocable with
 ///   multiple different aliases.
-/// - **GCP:** The [URI of the resource](<https://cloud.google.com/iam/docs/full-resource-names)>
-/// - **Azure:** The [Fully Qualified Resource ID](<https://learn.microsoft.com/rest/api/resources/resources/get-by-id)> of the invoked function,
+/// - **GCP:** The [URI of the resource](https://cloud.google.com/iam/docs/full-resource-names)
+/// - **Azure:** The [Fully Qualified Resource ID](https://learn.microsoft.com/rest/api/resources/resources/get-by-id) of the invoked function,
 ///   *not* the function app, having the form
 ///   `/subscriptions/[SUBSCRIPTION_GUID]/resourceGroups/[RG]/providers/Microsoft.Web/sites/[FUNCAPP]/functions/[FUNC]`.
 ///   This means that a span attribute MUST be used, as an Azure function app can host multiple functions that would usually share
@@ -1397,7 +1397,7 @@ pub const CLOUD_REGION: &str = "cloud.region";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUD_RESOURCE_ID: &str = "cloud.resource_id";
 
-/// The [event_id](<https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id)> uniquely identifies the event.
+/// The [event_id](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#id) uniquely identifies the event.
 ///
 /// ## Notes
 ///
@@ -1408,19 +1408,19 @@ pub const CLOUD_RESOURCE_ID: &str = "cloud.resource_id";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDEVENTS_EVENT_ID: &str = "cloudevents.event_id";
 
-/// The [source](<https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1)> identifies the context in which an event happened.
+/// The [source](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#source-1) identifies the context in which an event happened.
 ///
 /// ## Notes
 ///
 /// # Examples
 ///
-/// - `"<https://github.com/cloudevents"`>
+/// - `"https://github.com/cloudevents"`
 /// - `"/cloudevents/spec/pull/123"`
 /// - `"my-service"`
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDEVENTS_EVENT_SOURCE: &str = "cloudevents.event_source";
 
-/// The [version of the CloudEvents specification](<https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion)> which the event uses.
+/// The [version of the CloudEvents specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
 ///
 /// ## Notes
 ///
@@ -1430,7 +1430,7 @@ pub const CLOUDEVENTS_EVENT_SOURCE: &str = "cloudevents.event_source";
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDEVENTS_EVENT_SPEC_VERSION: &str = "cloudevents.event_spec_version";
 
-/// The [subject](<https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject)> of the event in the context of the event producer (identified by source).
+/// The [subject](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#subject) of the event in the context of the event producer (identified by source).
 ///
 /// ## Notes
 ///
@@ -1440,7 +1440,7 @@ pub const CLOUDEVENTS_EVENT_SPEC_VERSION: &str = "cloudevents.event_spec_version
 #[cfg(feature = "semconv_experimental")]
 pub const CLOUDEVENTS_EVENT_SUBJECT: &str = "cloudevents.event_subject";
 
-/// The [event_type](<https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type)> contains a value describing the type of event related to the originating occurrence.
+/// The [event_type](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type) contains a value describing the type of event related to the originating occurrence.
 ///
 /// ## Notes
 ///
@@ -1469,7 +1469,7 @@ pub const CLOUDFOUNDRY_APP_ID: &str = "cloudfoundry.app.id";
 ///
 /// ## Notes
 ///
-/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](<https://github.com/cloudfoundry/loggregator-api#v2-envelope).>
+/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
 /// It is used for logs and metrics emitted by CloudFoundry. It is
 /// supposed to contain the application instance index for applications
 /// deployed on the runtime.
@@ -1587,13 +1587,13 @@ pub const CLOUDFOUNDRY_SPACE_NAME: &str = "cloudfoundry.space.name";
 ///
 /// ## Notes
 ///
-/// CloudFoundry defines the `source_id` in the [Loggregator v2 envelope](<https://github.com/cloudfoundry/loggregator-api#v2-envelope).>
+/// CloudFoundry defines the `source_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
 /// It is used for logs and metrics emitted by CloudFoundry. It is
 /// supposed to contain the component name, e.g. "gorouter", for
 /// CloudFoundry components.
 ///
 /// When system components are instrumented, values from the
-/// [Bosh spec](<https://bosh.io/docs/jobs/#properties-spec)>
+/// [Bosh spec](https://bosh.io/docs/jobs/#properties-spec)
 /// should be used. The `system.id` should be set to
 /// `spec.deployment/spec.name`.
 ///
@@ -1607,12 +1607,12 @@ pub const CLOUDFOUNDRY_SYSTEM_ID: &str = "cloudfoundry.system.id";
 ///
 /// ## Notes
 ///
-/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](<https://github.com/cloudfoundry/loggregator-api#v2-envelope).>
+/// CloudFoundry defines the `instance_id` in the [Loggregator v2 envelope](https://github.com/cloudfoundry/loggregator-api#v2-envelope).
 /// It is used for logs and metrics emitted by CloudFoundry. It is
 /// supposed to contain the vm id for CloudFoundry components.
 ///
 /// When system components are instrumented, values from the
-/// [Bosh spec](<https://bosh.io/docs/jobs/#properties-spec)>
+/// [Bosh spec](https://bosh.io/docs/jobs/#properties-spec)
 /// should be used. The `system.instance.id` should be set to `spec.id`.
 ///
 /// # Examples
@@ -1797,7 +1797,7 @@ pub const CONTAINER_COMMAND_LINE: &str = "container.command_line";
 #[deprecated(note = "{note: Replaced by `cpu.mode`., reason: renamed, renamed_to: cpu.mode}")]
 pub const CONTAINER_CPU_STATE: &str = "container.cpu.state";
 
-/// The name of the CSI ([Container Storage Interface](<https://github.com/container-storage-interface/spec))> plugin used by the volume.
+/// The name of the CSI ([Container Storage Interface](https://github.com/container-storage-interface/spec)) plugin used by the volume.
 ///
 /// ## Notes
 ///
@@ -1809,7 +1809,7 @@ pub const CONTAINER_CPU_STATE: &str = "container.cpu.state";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_CSI_PLUGIN_NAME: &str = "container.csi.plugin.name";
 
-/// The unique volume ID returned by the CSI ([Container Storage Interface](<https://github.com/container-storage-interface/spec))> plugin.
+/// The unique volume ID returned by the CSI ([Container Storage Interface](https://github.com/container-storage-interface/spec)) plugin.
 ///
 /// ## Notes
 ///
@@ -1821,7 +1821,7 @@ pub const CONTAINER_CSI_PLUGIN_NAME: &str = "container.csi.plugin.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_CSI_VOLUME_ID: &str = "container.csi.volume.id";
 
-/// Container ID. Usually a UUID, as for example used to [identify Docker containers](<https://docs.docker.com/engine/containers/run/#container-identification).> The UUID might be abbreviated.
+/// Container ID. Usually a UUID, as for example used to [identify Docker containers](https://docs.docker.com/engine/containers/run/#container-identification). The UUID might be abbreviated.
 ///
 /// ## Notes
 ///
@@ -1835,7 +1835,7 @@ pub const CONTAINER_ID: &str = "container.id";
 ///
 /// ## Notes
 ///
-/// Docker defines a sha256 of the image id; `container.image.id` corresponds to the `Image` field from the Docker container inspect [API](<https://docs.docker.com/engine/api/v1.43/#tag/Container/operation/ContainerInspect)> endpoint.
+/// Docker defines a sha256 of the image id; `container.image.id` corresponds to the `Image` field from the Docker container inspect [API](https://docs.docker.com/engine/api/v1.43/#tag/Container/operation/ContainerInspect) endpoint.
 /// K8s defines a link to the container registry repository with digest `"imageID": "registry.azurecr.io /namespace/service/dockerfile@sha256:bdeabd40c3a8a492eaf9e8e44d0ebbb84bac7ee25ac0cf8a7159d25f62555625"`.
 /// The ID is assigned by the container runtime and can vary in different environments. Consider using `oci.manifest.digest` if it is important to identify the same image in different environments/runtimes.
 ///
@@ -1859,7 +1859,7 @@ pub const CONTAINER_IMAGE_NAME: &str = "container.image.name";
 ///
 /// ## Notes
 ///
-/// [Docker](https://docs.docker.com/engine/api/v1.43/#tag/Image/operation/ImageInspect) and [CRI](<https://github.com/kubernetes/cri-api/blob/c75ef5b473bbe2d0a4fc92f82235efd665ea8e9f/pkg/apis/runtime/v1/api.proto#L1237-L1238)> report those under the `RepoDigests` field.
+/// [Docker](https://docs.docker.com/engine/api/v1.43/#tag/Image/operation/ImageInspect) and [CRI](https://github.com/kubernetes/cri-api/blob/c75ef5b473bbe2d0a4fc92f82235efd665ea8e9f/pkg/apis/runtime/v1/api.proto#L1237-L1238) report those under the `RepoDigests` field.
 ///
 /// # Examples
 ///
@@ -1870,7 +1870,7 @@ pub const CONTAINER_IMAGE_NAME: &str = "container.image.name";
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_IMAGE_REPO_DIGESTS: &str = "container.image.repo_digests";
 
-/// Container image tags. An example can be found in [Docker Image Inspect](<https://docs.docker.com/engine/api/v1.43/#tag/Image/operation/ImageInspect).> Should be only the `<tag>` section of the full name for example from `registry.example.com/my-org/my-image:<tag>`.
+/// Container image tags. An example can be found in [Docker Image Inspect](https://docs.docker.com/engine/api/v1.43/#tag/Image/operation/ImageInspect). Should be only the `<tag>` section of the full name for example from `registry.example.com/my-org/my-image:<tag>`.
 ///
 /// ## Notes
 ///
@@ -2629,7 +2629,7 @@ pub const DB_USER: &str = "db.user";
 )]
 pub const DEPLOYMENT_ENVIRONMENT: &str = "deployment.environment";
 
-/// Name of the [deployment environment](<https://wikipedia.org/wiki/Deployment_environment)> (aka deployment tier).
+/// Name of the [deployment environment](https://wikipedia.org/wiki/Deployment_environment) (aka deployment tier).
 ///
 /// ## Notes
 ///
@@ -2708,7 +2708,7 @@ pub const DESTINATION_PORT: &str = "destination.port";
 /// However, it might be resettable by the user for all apps on a device.
 /// Hardware IDs (e.g. vendor-specific serial number, IMEI or MAC address) MAY be used as values.
 ///
-/// More information about Android identifier best practices can be found [here](<https://developer.android.com/training/articles/user-data-ids).>
+/// More information about Android identifier best practices can be found [here](https://developer.android.com/training/articles/user-data-ids).
 ///
 /// \] \[!WARNING\]
 /// \]
@@ -2732,7 +2732,7 @@ pub const DEVICE_ID: &str = "device.id";
 ///
 /// ## Notes
 ///
-/// The Android OS provides this field via [Build](<https://developer.android.com/reference/android/os/Build#MANUFACTURER).> iOS apps SHOULD hardcode the value `Apple`.
+/// The Android OS provides this field via [Build](https://developer.android.com/reference/android/os/Build#MANUFACTURER). iOS apps SHOULD hardcode the value `Apple`.
 ///
 /// # Examples
 ///
@@ -2982,7 +2982,7 @@ pub const EXCEPTION_TYPE: &str = "exception.type";
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_COLDSTART: &str = "faas.coldstart";
 
-/// A string containing the schedule period as [Cron Expression](<https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).>
+/// A string containing the schedule period as [Cron Expression](https://docs.oracle.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
 ///
 /// ## Notes
 ///
@@ -3020,7 +3020,7 @@ pub const FAAS_DOCUMENT_NAME: &str = "faas.document.name";
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_DOCUMENT_OPERATION: &str = "faas.document.operation";
 
-/// A string containing the time when the data was accessed in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](<https://www.w3.org/TR/NOTE-datetime).>
+/// A string containing the time when the data was accessed in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
 /// ## Notes
 ///
@@ -3124,7 +3124,7 @@ pub const FAAS_MAX_MEMORY: &str = "faas.max_memory";
 #[cfg(feature = "semconv_experimental")]
 pub const FAAS_NAME: &str = "faas.name";
 
-/// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](<https://www.w3.org/TR/NOTE-datetime).>
+/// A string containing the function invocation time in the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
 ///
 /// ## Notes
 ///
@@ -3146,12 +3146,12 @@ pub const FAAS_TRIGGER: &str = "faas.trigger";
 ///
 /// Depending on the cloud provider and platform, use:
 ///
-/// - **AWS Lambda:** The [function version](<https://docs.aws.amazon.com/lambda/latest/dg/configuration-versions.html)>
+/// - **AWS Lambda:** The [function version](https://docs.aws.amazon.com/lambda/latest/dg/configuration-versions.html)
 ///   (an integer represented as a decimal string).
-/// - **Google Cloud Run (Services):** The [revision](<https://cloud.google.com/run/docs/managing/revisions)>
+/// - **Google Cloud Run (Services):** The [revision](https://cloud.google.com/run/docs/managing/revisions)
 ///   (i.e., the function name plus the revision suffix).
 /// - **Google Cloud Functions:** The value of the
-///   [`K_REVISION` environment variable](<https://cloud.google.com/functions/docs/env-var#runtime_environment_variables_set_automatically).>
+///   [`K_REVISION` environment variable](https://cloud.google.com/functions/docs/env-var#runtime_environment_variables_set_automatically).
 /// - **Azure Functions:** Not applicable. Do not set this attribute.
 ///
 /// # Examples
@@ -3268,7 +3268,7 @@ pub const FEATURE_FLAG_RESULT_VALUE: &str = "feature_flag.result.value";
 #[cfg(feature = "semconv_experimental")]
 pub const FEATURE_FLAG_RESULT_VARIANT: &str = "feature_flag.result.variant";
 
-/// The identifier of the [flag set](<https://openfeature.dev/specification/glossary/#flag-set)> to which the feature flag belongs.
+/// The identifier of the [flag set](https://openfeature.dev/specification/glossary/#flag-set) to which the feature flag belongs.
 ///
 /// ## Notes
 ///
@@ -3537,7 +3537,7 @@ pub const GCP_APPHUB_APPLICATION_LOCATION: &str = "gcp.apphub.application.locati
 ///
 /// ## Notes
 ///
-/// [See AppHub type enum](<https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)>
+/// [See AppHub type enum](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_APPHUB_SERVICE_CRITICALITY_TYPE: &str = "gcp.apphub.service.criticality_type";
 
@@ -3545,7 +3545,7 @@ pub const GCP_APPHUB_SERVICE_CRITICALITY_TYPE: &str = "gcp.apphub.service.critic
 ///
 /// ## Notes
 ///
-/// [See AppHub environment type](<https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)>
+/// [See AppHub environment type](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_APPHUB_SERVICE_ENVIRONMENT_TYPE: &str = "gcp.apphub.service.environment_type";
 
@@ -3563,7 +3563,7 @@ pub const GCP_APPHUB_SERVICE_ID: &str = "gcp.apphub.service.id";
 ///
 /// ## Notes
 ///
-/// [See AppHub type enum](<https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)>
+/// [See AppHub type enum](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type)
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE: &str = "gcp.apphub.workload.criticality_type";
 
@@ -3571,7 +3571,7 @@ pub const GCP_APPHUB_WORKLOAD_CRITICALITY_TYPE: &str = "gcp.apphub.workload.crit
 ///
 /// ## Notes
 ///
-/// [See AppHub environment type](<https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)>
+/// [See AppHub environment type](https://cloud.google.com/app-hub/docs/reference/rest/v1/Attributes#type_1)
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_APPHUB_WORKLOAD_ENVIRONMENT_TYPE: &str = "gcp.apphub.workload.environment_type";
 
@@ -3601,7 +3601,7 @@ pub const GCP_APPHUB_WORKLOAD_ID: &str = "gcp.apphub.workload.id";
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_CLIENT_SERVICE: &str = "gcp.client.service";
 
-/// The name of the Cloud Run [execution](https://cloud.google.com/run/docs/managing/job-executions) being run for the Job, as set by the [`CLOUD_RUN_EXECUTION`](<https://cloud.google.com/run/docs/container-contract#jobs-env-vars)> environment variable.
+/// The name of the Cloud Run [execution](https://cloud.google.com/run/docs/managing/job-executions) being run for the Job, as set by the [`CLOUD_RUN_EXECUTION`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
 ///
 /// ## Notes
 ///
@@ -3612,7 +3612,7 @@ pub const GCP_CLIENT_SERVICE: &str = "gcp.client.service";
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_CLOUD_RUN_JOB_EXECUTION: &str = "gcp.cloud_run.job.execution";
 
-/// The index for a task within an execution as provided by the [`CLOUD_RUN_TASK_INDEX`](<https://cloud.google.com/run/docs/container-contract#jobs-env-vars)> environment variable.
+/// The index for a task within an execution as provided by the [`CLOUD_RUN_TASK_INDEX`](https://cloud.google.com/run/docs/container-contract#jobs-env-vars) environment variable.
 ///
 /// ## Notes
 ///
@@ -3623,7 +3623,7 @@ pub const GCP_CLOUD_RUN_JOB_EXECUTION: &str = "gcp.cloud_run.job.execution";
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_CLOUD_RUN_JOB_TASK_INDEX: &str = "gcp.cloud_run.job.task_index";
 
-/// The hostname of a GCE instance. This is the full value of the default or [custom hostname](<https://cloud.google.com/compute/docs/instances/custom-hostname-vm).>
+/// The hostname of a GCE instance. This is the full value of the default or [custom hostname](https://cloud.google.com/compute/docs/instances/custom-hostname-vm).
 ///
 /// ## Notes
 ///
@@ -3634,7 +3634,7 @@ pub const GCP_CLOUD_RUN_JOB_TASK_INDEX: &str = "gcp.cloud_run.job.task_index";
 #[cfg(feature = "semconv_experimental")]
 pub const GCP_GCE_INSTANCE_HOSTNAME: &str = "gcp.gce.instance.hostname";
 
-/// The instance name of a GCE instance. This is the value provided by `host.name`, the visible name of the instance in the Cloud Console UI, and the prefix for the default hostname of the instance as defined by the [default internal DNS name](<https://cloud.google.com/compute/docs/internal-dns#instance-fully-qualified-domain-names).>
+/// The instance name of a GCE instance. This is the value provided by `host.name`, the visible name of the instance in the Cloud Console UI, and the prefix for the default hostname of the instance as defined by the [default internal DNS name](https://cloud.google.com/compute/docs/internal-dns#instance-fully-qualified-domain-names).
 ///
 /// ## Notes
 ///
@@ -4084,7 +4084,7 @@ pub const GEN_AI_USAGE_PROMPT_TOKENS: &str = "gen_ai.usage.prompt_tokens";
 #[cfg(feature = "semconv_experimental")]
 pub const GEO_CONTINENT_CODE: &str = "geo.continent.code";
 
-/// Two-letter ISO Country Code ([ISO 3166-1 alpha2](<https://wikipedia.org/wiki/ISO_3166-1#Codes)).>
+/// Two-letter ISO Country Code ([ISO 3166-1 alpha2](https://wikipedia.org/wiki/ISO_3166-1#Codes)).
 ///
 /// ## Notes
 ///
@@ -4105,7 +4105,7 @@ pub const GEO_COUNTRY_ISO_CODE: &str = "geo.country.iso_code";
 #[cfg(feature = "semconv_experimental")]
 pub const GEO_LOCALITY_NAME: &str = "geo.locality.name";
 
-/// Latitude of the geo location in [WGS84](<https://wikipedia.org/wiki/World_Geodetic_System#WGS84).>
+/// Latitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
 ///
 /// ## Notes
 ///
@@ -4115,7 +4115,7 @@ pub const GEO_LOCALITY_NAME: &str = "geo.locality.name";
 #[cfg(feature = "semconv_experimental")]
 pub const GEO_LOCATION_LAT: &str = "geo.location.lat";
 
-/// Longitude of the geo location in [WGS84](<https://wikipedia.org/wiki/World_Geodetic_System#WGS84).>
+/// Longitude of the geo location in [WGS84](https://wikipedia.org/wiki/World_Geodetic_System#WGS84).
 ///
 /// ## Notes
 ///
@@ -4135,7 +4135,7 @@ pub const GEO_LOCATION_LON: &str = "geo.location.lon";
 #[cfg(feature = "semconv_experimental")]
 pub const GEO_POSTAL_CODE: &str = "geo.postal_code";
 
-/// Region ISO code ([ISO 3166-2](<https://wikipedia.org/wiki/ISO_3166-2)).>
+/// Region ISO code ([ISO 3166-2](https://wikipedia.org/wiki/ISO_3166-2)).
 ///
 /// ## Notes
 ///
@@ -4283,7 +4283,7 @@ pub const HOST_CPU_STEPPING: &str = "host.cpu.stepping";
 ///
 /// ## Notes
 ///
-/// [CPUID](<https://wiki.osdev.org/CPUID)> command returns the vendor ID string in EBX, EDX and ECX registers. Writing these to memory in this order results in a 12-character string.
+/// [CPUID](https://wiki.osdev.org/CPUID) command returns the vendor ID string in EBX, EDX and ECX registers. Writing these to memory in this order results in a 12-character string.
 ///
 /// # Examples
 ///
@@ -4336,7 +4336,7 @@ pub const HOST_IMAGE_VERSION: &str = "host.image.version";
 ///
 /// ## Notes
 ///
-/// IPv4 Addresses MUST be specified in dotted-quad notation. IPv6 addresses MUST be specified in the [RFC 5952](<https://www.rfc-editor.org/rfc/rfc5952.html)> format.
+/// IPv4 Addresses MUST be specified in dotted-quad notation. IPv6 addresses MUST be specified in the [RFC 5952](https://www.rfc-editor.org/rfc/rfc5952.html) format.
 ///
 /// # Examples
 ///
@@ -4351,7 +4351,7 @@ pub const HOST_IP: &str = "host.ip";
 ///
 /// ## Notes
 ///
-/// MAC Addresses MUST be represented in [IEEE RA hexadecimal form](<https://standards.ieee.org/wp-content/uploads/import/documents/tutorials/eui.pdf):> as hyphen-separated octets in uppercase hexadecimal form from most to least significant.
+/// MAC Addresses MUST be represented in [IEEE RA hexadecimal form](https://standards.ieee.org/wp-content/uploads/import/documents/tutorials/eui.pdf): as hyphen-separated octets in uppercase hexadecimal form from most to least significant.
 ///
 /// # Examples
 ///
@@ -4443,7 +4443,7 @@ pub const HTTP_HOST: &str = "http.host";
 )]
 pub const HTTP_METHOD: &str = "http.method";
 
-/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size.
+/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// ## Notes
 ///
@@ -4490,8 +4490,8 @@ pub const HTTP_REQUEST_HEADER: &str = "http.request.header";
 /// ## Notes
 ///
 /// HTTP request method value SHOULD be "known" to the instrumentation.
-/// By default, this convention defines "known" methods as the ones listed in [RFC9110](<https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)>
-/// and the PATCH method defined in [RFC5789](<https://www.rfc-editor.org/rfc/rfc5789.html).>
+/// By default, this convention defines "known" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
+/// and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
 ///
 /// If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.
 ///
@@ -4570,7 +4570,7 @@ pub const HTTP_REQUEST_CONTENT_LENGTH: &str = "http.request_content_length";
 pub const HTTP_REQUEST_CONTENT_LENGTH_UNCOMPRESSED: &str =
     "http.request_content_length_uncompressed";
 
-/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size.
+/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 ///
 /// ## Notes
 ///
@@ -4621,7 +4621,7 @@ pub const HTTP_RESPONSE_HEADER: &str = "http.response.header";
 #[cfg(feature = "semconv_experimental")]
 pub const HTTP_RESPONSE_SIZE: &str = "http.response.size";
 
-/// [HTTP response status code](<https://tools.ietf.org/html/rfc7231#section-6).>
+/// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 ///
 /// ## Notes
 ///
@@ -4725,7 +4725,7 @@ pub const HTTP_TARGET: &str = "http.target";
 ///
 /// # Examples
 ///
-/// - `"<https://www.foo.bar/search?q=OpenTelemetry#SemConv"`>
+/// - `"https://www.foo.bar/search?q=OpenTelemetry#SemConv"`
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(note = "{note: Replaced by `url.full`., reason: renamed, renamed_to: url.full}")]
 pub const HTTP_URL: &str = "http.url";
@@ -4792,13 +4792,13 @@ pub const HW_TYPE: &str = "hw.type";
 ///
 /// ## Notes
 ///
-/// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](<https://developer.apple.com/documentation/uikit/uiapplicationdelegate),> and from which the `OS terminology` column values are derived
+/// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate), and from which the `OS terminology` column values are derived
 #[cfg(feature = "semconv_experimental")]
 pub const IOS_APP_STATE: &str = "ios.app.state";
 
 /// ## Notes
 ///
-/// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](<https://developer.apple.com/documentation/uikit/uiapplicationdelegate),> and from which the `OS terminology` column values are derived
+/// The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate), and from which the `OS terminology` column values are derived
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
     note = "{note: Replaced by the `ios.app.state` event body field., reason: uncategorized}"
@@ -4809,7 +4809,7 @@ pub const IOS_STATE: &str = "ios.state";
 ///
 /// ## Notes
 ///
-/// Pool names are generally obtained via [BufferPoolMXBean#getName()](<https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()).>
+/// Pool names are generally obtained via [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()).
 ///
 /// # Examples
 ///
@@ -4822,7 +4822,7 @@ pub const JVM_BUFFER_POOL_NAME: &str = "jvm.buffer.pool.name";
 ///
 /// ## Notes
 ///
-/// Garbage collector action is generally obtained via [GarbageCollectionNotificationInfo#getGcAction()](<https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).>
+/// Garbage collector action is generally obtained via [GarbageCollectionNotificationInfo#getGcAction()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).
 ///
 /// # Examples
 ///
@@ -4834,7 +4834,7 @@ pub const JVM_GC_ACTION: &str = "jvm.gc.action";
 ///
 /// ## Notes
 ///
-/// Garbage collector cause is generally obtained via [GarbageCollectionNotificationInfo#getGcCause()](<https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcCause()).>
+/// Garbage collector cause is generally obtained via [GarbageCollectionNotificationInfo#getGcCause()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcCause()).
 ///
 /// # Examples
 ///
@@ -4847,7 +4847,7 @@ pub const JVM_GC_CAUSE: &str = "jvm.gc.cause";
 ///
 /// ## Notes
 ///
-/// Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](<https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).>
+/// Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
 ///
 /// # Examples
 ///
@@ -4859,7 +4859,7 @@ pub const JVM_GC_NAME: &str = "jvm.gc.name";
 ///
 /// ## Notes
 ///
-/// Pool names are generally obtained via [MemoryPoolMXBean#getName()](<https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).>
+/// Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
 ///
 /// # Examples
 ///
@@ -4919,7 +4919,7 @@ pub const K8S_CLUSTER_NAME: &str = "k8s.cluster.name";
 /// namespace is a reasonable proxy for the K8s ClusterID as it will only
 /// change if the cluster is rebuilt. Furthermore, Kubernetes UIDs are
 /// UUIDs as standardized by
-/// [ISO/IEC 9834-8 and ITU-T X.667](<https://www.itu.int/ITU-T/studygroups/com17/oid.html).>
+/// [ISO/IEC 9834-8 and ITU-T X.667](https://www.itu.int/ITU-T/studygroups/com17/oid.html).
 /// Which states:
 ///
 /// \] If generated according to one of the mechanisms defined in Rec.
@@ -4964,7 +4964,7 @@ pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart_count";
 pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
     "k8s.container.status.last_terminated_reason";
 
-/// The reason for the container state. Corresponds to the `reason` field of the: [K8s ContainerStateWaiting](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstatewaiting-v1-core) or [K8s ContainerStateTerminated](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstateterminated-v1-core)>
+/// The reason for the container state. Corresponds to the `reason` field of the: [K8s ContainerStateWaiting](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstatewaiting-v1-core) or [K8s ContainerStateTerminated](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstateterminated-v1-core)
 ///
 /// ## Notes
 ///
@@ -4982,7 +4982,7 @@ pub const K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON: &str =
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_CONTAINER_STATUS_REASON: &str = "k8s.container.status.reason";
 
-/// The state of the container. [K8s ContainerState](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstate-v1-core)>
+/// The state of the container. [K8s ContainerState](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstate-v1-core)
 ///
 /// ## Notes
 ///
@@ -5351,7 +5351,7 @@ pub const K8S_NAMESPACE_NAME: &str = "k8s.namespace.name";
 /// ## Notes
 ///
 /// This attribute aligns with the `phase` field of the
-/// [K8s NamespaceStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#namespacestatus-v1-core)>
+/// [K8s NamespaceStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#namespacestatus-v1-core)
 ///
 /// # Examples
 ///
@@ -5383,7 +5383,7 @@ pub const K8S_NODE_ANNOTATION: &str = "k8s.node.annotation";
 /// ## Notes
 ///
 /// This attribute aligns with the `status` field of the
-/// [NodeCondition](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#nodecondition-v1-core)>
+/// [NodeCondition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#nodecondition-v1-core)
 ///
 /// # Examples
 ///
@@ -5398,10 +5398,10 @@ pub const K8S_NODE_CONDITION_STATUS: &str = "k8s.node.condition.status";
 /// ## Notes
 ///
 /// K8s Node conditions as described
-/// by [K8s documentation](<https://v1-32.docs.kubernetes.io/docs/reference/node/node-status/#condition).>
+/// by [K8s documentation](https://v1-32.docs.kubernetes.io/docs/reference/node/node-status/#condition).
 ///
 /// This attribute aligns with the `type` field of the
-/// [NodeCondition](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#nodecondition-v1-core)>
+/// [NodeCondition](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#nodecondition-v1-core)
 ///
 /// The set of possible values is not limited to those listed here. Managed Kubernetes environments,
 /// or custom controllers MAY introduce additional node condition types.
@@ -5617,7 +5617,7 @@ pub const K8S_RESOURCEQUOTA_NAME: &str = "k8s.resourcequota.name";
 ///
 /// ## Notes
 ///
-/// The value for this attribute can be either the full `count/[resource][.[group]]` string (e.g., count/deployments.apps, count/pods), or, for certain core Kubernetes resources, just the resource name (e.g., pods, services, configmaps). Both forms are supported by Kubernetes for object count quotas. See [Kubernetes Resource Quotas documentation](<https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota)> for more details.
+/// The value for this attribute can be either the full `count/[resource][.[group]]` string (e.g., count/deployments.apps, count/pods), or, for certain core Kubernetes resources, just the resource name (e.g., pods, services, configmaps). Both forms are supported by Kubernetes for object count quotas. See [Kubernetes Resource Quotas documentation](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota) for more details.
 ///
 /// # Examples
 ///
@@ -5691,7 +5691,7 @@ pub const K8S_STATEFULSET_NAME: &str = "k8s.statefulset.name";
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_STATEFULSET_UID: &str = "k8s.statefulset.uid";
 
-/// The name of K8s [StorageClass](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#storageclass-v1-storage-k8s-io)> object.
+/// The name of K8s [StorageClass](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#storageclass-v1-storage-k8s-io) object.
 ///
 /// ## Notes
 ///
@@ -5797,7 +5797,7 @@ pub const LOG_RECORD_ORIGINAL: &str = "log.record.original";
 /// ## Notes
 ///
 /// If an id is provided, other log records with the same id will be considered duplicates and can be removed safely. This means, that two distinguishable log records MUST have different values.
-/// The id MAY be an [Universally Unique Lexicographically Sortable Identifier (ULID)](<https://github.com/ulid/spec),> but other identifiers (e.g. UUID) may be used as needed.
+/// The id MAY be an [Universally Unique Lexicographically Sortable Identifier (ULID)](https://github.com/ulid/spec), but other identifiers (e.g. UUID) may be used as needed.
 ///
 /// # Examples
 ///
@@ -6308,7 +6308,7 @@ pub const MESSAGING_ROCKETMQ_NAMESPACE: &str = "messaging.rocketmq.namespace";
 pub const MESSAGING_SERVICEBUS_DESTINATION_SUBSCRIPTION_NAME: &str =
     "messaging.servicebus.destination.subscription_name";
 
-/// Describes the [settlement type](<https://learn.microsoft.com/azure/service-bus-messaging/message-transfers-locks-settlement#peeklock).>
+/// Describes the [settlement type](https://learn.microsoft.com/azure/service-bus-messaging/message-transfers-locks-settlement#peeklock).
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
@@ -6573,7 +6573,7 @@ pub const NETWORK_CARRIER_NAME: &str = "network.carrier.name";
 ///
 /// ## Notes
 ///
-/// Connection states are defined as part of the [rfc9293](<https://datatracker.ietf.org/doc/html/rfc9293#section-3.3.2)>
+/// Connection states are defined as part of the [rfc9293](https://datatracker.ietf.org/doc/html/rfc9293#section-3.3.2)
 ///
 /// # Examples
 ///
@@ -6660,7 +6660,7 @@ pub const NETWORK_PEER_ADDRESS: &str = "network.peer.address";
 /// - `65123`
 pub const NETWORK_PEER_PORT: &str = "network.peer.port";
 
-/// [OSI application layer](<https://wikipedia.org/wiki/Application_layer)> or non-OSI equivalent.
+/// [OSI application layer](https://wikipedia.org/wiki/Application_layer) or non-OSI equivalent.
 ///
 /// ## Notes
 ///
@@ -6677,7 +6677,7 @@ pub const NETWORK_PROTOCOL_NAME: &str = "network.protocol.name";
 ///
 /// ## Notes
 ///
-/// If protocol version is subject to negotiation (for example using [ALPN](<https://www.rfc-editor.org/rfc/rfc7301.html)),> this attribute SHOULD be set to the negotiated version. If the actual protocol version is not known, this attribute SHOULD NOT be set.
+/// If protocol version is subject to negotiation (for example using [ALPN](https://www.rfc-editor.org/rfc/rfc7301.html)), this attribute SHOULD be set to the negotiated version. If the actual protocol version is not known, this attribute SHOULD NOT be set.
 ///
 /// # Examples
 ///
@@ -6685,7 +6685,7 @@ pub const NETWORK_PROTOCOL_NAME: &str = "network.protocol.name";
 /// - `"2"`
 pub const NETWORK_PROTOCOL_VERSION: &str = "network.protocol.version";
 
-/// [OSI transport layer](https://wikipedia.org/wiki/Transport_layer) or [inter-process communication method](<https://wikipedia.org/wiki/Inter-process_communication).>
+/// [OSI transport layer](https://wikipedia.org/wiki/Transport_layer) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
 ///
 /// ## Notes
 ///
@@ -6701,7 +6701,7 @@ pub const NETWORK_PROTOCOL_VERSION: &str = "network.protocol.version";
 /// - `"udp"`
 pub const NETWORK_TRANSPORT: &str = "network.transport";
 
-/// [OSI network layer](<https://wikipedia.org/wiki/Network_layer)> or non-OSI equivalent.
+/// [OSI network layer](https://wikipedia.org/wiki/Network_layer) or non-OSI equivalent.
 ///
 /// ## Notes
 ///
@@ -6723,8 +6723,8 @@ pub const NODEJS_EVENTLOOP_STATE: &str = "nodejs.eventloop.state";
 ///
 /// ## Notes
 ///
-/// Follows [OCI Image Manifest Specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md), and specifically the [Digest property](<https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests).>
-/// An example can be found in [Example Image Manifest](<https://github.com/opencontainers/image-spec/blob/main/manifest.md#example-image-manifest).>
+/// Follows [OCI Image Manifest Specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md), and specifically the [Digest property](https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests).
+/// An example can be found in [Example Image Manifest](https://github.com/opencontainers/image-spec/blob/main/manifest.md#example-image-manifest).
 ///
 /// # Examples
 ///
@@ -6875,7 +6875,7 @@ pub const OTEL_SCOPE_NAME: &str = "otel.scope.name";
 /// - `"1.0.0"`
 pub const OTEL_SCOPE_VERSION: &str = "otel.scope.version";
 
-/// Determines whether the span has a parent span, and if so, [whether it is a remote parent](<https://opentelemetry.io/docs/specs/otel/trace/api/#isremote)>
+/// Determines whether the span has a parent span, and if so, [whether it is a remote parent](https://opentelemetry.io/docs/specs/otel/trace/api/#isremote)
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
@@ -7127,7 +7127,7 @@ pub const PROCESS_INTERACTIVE: &str = "process.interactive";
 ///
 /// ## Notes
 ///
-/// Control groups (cgroups) are a kernel feature used to organize and manage process resources. This attribute provides the path(s) to the cgroup(s) associated with the process, which should match the contents of the [/proc/\[PID\]/cgroup](<https://man7.org/linux/man-pages/man7/cgroups.7.html)> file.
+/// Control groups (cgroups) are a kernel feature used to organize and manage process resources. This attribute provides the path(s) to the cgroup(s) associated with the process, which should match the contents of the [/proc/\[PID\]/cgroup](https://man7.org/linux/man-pages/man7/cgroups.7.html) file.
 ///
 /// # Examples
 ///
@@ -7318,7 +7318,7 @@ pub const PROCESS_WORKING_DIRECTORY: &str = "process.working_directory";
 #[cfg(feature = "semconv_experimental")]
 pub const PROFILE_FRAME_TYPE: &str = "profile.frame.type";
 
-/// The [error codes](<https://connectrpc.com//docs/protocol/#error-codes)> of the Connect request. Error codes are always string values.
+/// The [error codes](https://connectrpc.com//docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
@@ -7398,7 +7398,7 @@ pub const RPC_GRPC_REQUEST_METADATA: &str = "rpc.grpc.request.metadata";
 #[cfg(feature = "semconv_experimental")]
 pub const RPC_GRPC_RESPONSE_METADATA: &str = "rpc.grpc.response.metadata";
 
-/// The [numeric status code](<https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md)> of the gRPC request.
+/// The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
@@ -7553,7 +7553,7 @@ pub const SECURITY_RULE_NAME: &str = "security_rule.name";
 ///
 /// # Examples
 ///
-/// - `"<https://en.wikipedia.org/wiki/DNS_over_TLS"`>
+/// - `"https://en.wikipedia.org/wiki/DNS_over_TLS"`
 #[cfg(feature = "semconv_experimental")]
 pub const SECURITY_RULE_REFERENCE: &str = "security_rule.reference";
 
@@ -7624,13 +7624,13 @@ pub const SERVER_PORT: &str = "server.port";
 /// service).
 ///
 /// Implementations, such as SDKs, are recommended to generate a random Version 1 or Version 4 [RFC
-/// 4122](<https://www.ietf.org/rfc/rfc4122.txt)> UUID, but are free to use an inherent unique ID as the source of
+/// 4122](https://www.ietf.org/rfc/rfc4122.txt) UUID, but are free to use an inherent unique ID as the source of
 /// this value if stability is desirable. In that case, the ID SHOULD be used as source of a UUID Version 5 and
 /// SHOULD use the following UUID as the namespace: `4d63009a-8d0f-11ee-aad7-4c796ed8e320`.
 ///
 /// UUIDs are typically recommended, as only an opaque value for the purposes of identifying a service instance is
 /// needed. Similar to what can be seen in the man page for the
-/// [`/etc/machine-id`](<https://www.freedesktop.org/software/systemd/man/latest/machine-id.html)> file, the underlying
+/// [`/etc/machine-id`](https://www.freedesktop.org/software/systemd/man/latest/machine-id.html) file, the underlying
 /// data, such as pod name and namespace should be treated as confidential, being the user's choice to expose it
 /// or not via another resource attribute.
 ///
@@ -7714,7 +7714,7 @@ pub const SESSION_PREVIOUS_ID: &str = "session.previous_id";
 /// - `"timeout"`
 pub const SIGNALR_CONNECTION_STATUS: &str = "signalr.connection.status";
 
-/// [SignalR transport type](<https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md)>
+/// [SignalR transport type](https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/TransportProtocols.md)
 ///
 /// ## Notes
 ///
@@ -7875,7 +7875,7 @@ pub const SYSTEM_PAGING_STATE: &str = "system.paging.state";
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PAGING_TYPE: &str = "system.paging.type";
 
-/// The process state, e.g., [Linux Process State Codes](<https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES)>
+/// The process state, e.g., [Linux Process State Codes](https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES)
 ///
 /// ## Notes
 ///
@@ -7951,7 +7951,7 @@ pub const TELEMETRY_SDK_NAME: &str = "telemetry.sdk.name";
 /// - `"1.2.3"`
 pub const TELEMETRY_SDK_VERSION: &str = "telemetry.sdk.version";
 
-/// The fully qualified human readable name of the [test case](<https://wikipedia.org/wiki/Test_case).>
+/// The fully qualified human readable name of the [test case](https://wikipedia.org/wiki/Test_case).
 ///
 /// ## Notes
 ///
@@ -7974,7 +7974,7 @@ pub const TEST_CASE_NAME: &str = "test.case.name";
 #[cfg(feature = "semconv_experimental")]
 pub const TEST_CASE_RESULT_STATUS: &str = "test.case.result.status";
 
-/// The human readable name of a [test suite](<https://wikipedia.org/wiki/Test_suite).>
+/// The human readable name of a [test suite](https://wikipedia.org/wiki/Test_suite).
 ///
 /// ## Notes
 ///
@@ -8019,11 +8019,11 @@ pub const THREAD_ID: &str = "thread.id";
 #[cfg(feature = "semconv_experimental")]
 pub const THREAD_NAME: &str = "thread.name";
 
-/// String indicating the [cipher](<https://datatracker.ietf.org/doc/html/rfc5246#appendix-A.5)> used during the current connection.
+/// String indicating the [cipher](https://datatracker.ietf.org/doc/html/rfc5246#appendix-A.5) used during the current connection.
 ///
 /// ## Notes
 ///
-/// The values allowed for `tls.cipher` MUST be one of the `Descriptions` of the [registered TLS Cipher Suits](<https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#table-tls-parameters-4).>
+/// The values allowed for `tls.cipher` MUST be one of the `Descriptions` of the [registered TLS Cipher Suits](https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#table-tls-parameters-4).
 ///
 /// # Examples
 ///
@@ -8085,7 +8085,7 @@ pub const TLS_CLIENT_HASH_SHA1: &str = "tls.client.hash.sha1";
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_CLIENT_HASH_SHA256: &str = "tls.client.hash.sha256";
 
-/// Distinguished name of [subject](<https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6)> of the issuer of the x.509 certificate presented by the client.
+/// Distinguished name of [subject](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6) of the issuer of the x.509 certificate presented by the client.
 ///
 /// ## Notes
 ///
@@ -8181,7 +8181,7 @@ pub const TLS_CURVE: &str = "tls.curve";
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_ESTABLISHED: &str = "tls.established";
 
-/// String indicating the protocol being tunneled. Per the values in the [IANA registry](<https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids),> this string should be lower case.
+/// String indicating the protocol being tunneled. Per the values in the [IANA registry](https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids), this string should be lower case.
 ///
 /// ## Notes
 ///
@@ -8191,13 +8191,13 @@ pub const TLS_ESTABLISHED: &str = "tls.established";
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_NEXT_PROTOCOL: &str = "tls.next_protocol";
 
-/// Normalized lowercase protocol name parsed from original string of the negotiated [SSL/TLS protocol version](<https://docs.openssl.org/1.1.1/man3/SSL_get_version/#return-values)>
+/// Normalized lowercase protocol name parsed from original string of the negotiated [SSL/TLS protocol version](https://docs.openssl.org/1.1.1/man3/SSL_get_version/#return-values)
 ///
 /// ## Notes
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_PROTOCOL_NAME: &str = "tls.protocol.name";
 
-/// Numeric part of the version parsed from the original string of the negotiated [SSL/TLS protocol version](<https://docs.openssl.org/1.1.1/man3/SSL_get_version/#return-values)>
+/// Numeric part of the version parsed from the original string of the negotiated [SSL/TLS protocol version](https://docs.openssl.org/1.1.1/man3/SSL_get_version/#return-values)
 ///
 /// ## Notes
 ///
@@ -8271,7 +8271,7 @@ pub const TLS_SERVER_HASH_SHA1: &str = "tls.server.hash.sha1";
 #[cfg(feature = "semconv_experimental")]
 pub const TLS_SERVER_HASH_SHA256: &str = "tls.server.hash.sha256";
 
-/// Distinguished name of [subject](<https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6)> of the issuer of the x.509 certificate presented by the client.
+/// Distinguished name of [subject](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6) of the issuer of the x.509 certificate presented by the client.
 ///
 /// ## Notes
 ///
@@ -8325,7 +8325,7 @@ pub const TLS_SERVER_SUBJECT: &str = "tls.server.subject";
 ///
 /// ## Notes
 ///
-/// In some cases a URL may refer to an IP and/or port directly, without a domain name. In this case, the IP address would go to the domain field. If the URL contains a [literal IPv6 address](<https://www.rfc-editor.org/rfc/rfc2732#section-2)> enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field.
+/// In some cases a URL may refer to an IP and/or port directly, without a domain name. In this case, the IP address would go to the domain field. If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2) enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field.
 ///
 /// # Examples
 ///
@@ -8349,7 +8349,7 @@ pub const URL_DOMAIN: &str = "url.domain";
 #[cfg(feature = "semconv_experimental")]
 pub const URL_EXTENSION: &str = "url.extension";
 
-/// The [URI fragment](<https://www.rfc-editor.org/rfc/rfc3986#section-3.5)> component
+/// The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component
 ///
 /// ## Notes
 ///
@@ -8358,15 +8358,15 @@ pub const URL_EXTENSION: &str = "url.extension";
 /// - `"SemConv"`
 pub const URL_FRAGMENT: &str = "url.fragment";
 
-/// Absolute URL describing a network resource according to [RFC3986](<https://www.rfc-editor.org/rfc/rfc3986)>
+/// Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
 ///
 /// ## Notes
 ///
 /// For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment
 /// is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
 ///
-/// `url.full` MUST NOT contain credentials passed via URL in form of `<https://username:password@www.example.com/`.>
-/// In such case username and password SHOULD be redacted and attribute's value SHOULD be `<https://REDACTED:REDACTED@www.example.com/`.>
+/// `url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`.
+/// In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
 ///
 /// `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 ///
@@ -8376,19 +8376,19 @@ pub const URL_FRAGMENT: &str = "url.fragment";
 /// Query string values for the following keys SHOULD be redacted by default and replaced by the
 /// value `REDACTED`:
 ///
-/// - [`AWSAccessKeyId`](<https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)>
-/// - [`Signature`](<https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)>
-/// - [`sig`](<https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)>
-/// - [`X-Goog-Signature`](<https://cloud.google.com/storage/docs/access-control/signed-urls)>
+/// - [`AWSAccessKeyId`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`Signature`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`sig`](https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)
+/// - [`X-Goog-Signature`](https://cloud.google.com/storage/docs/access-control/signed-urls)
 ///
 /// This list is subject to change over time.
 ///
 /// When a query string value is redacted, the query string key SHOULD still be preserved, e.g.
-/// `<https://www.example.com/path?color=blue&sig=REDACTED`.>
+/// `https://www.example.com/path?color=blue&sig=REDACTED`.
 ///
 /// # Examples
 ///
-/// - `"<https://www.foo.bar/search?q=OpenTelemetry#SemConv"`>
+/// - `"https://www.foo.bar/search?q=OpenTelemetry#SemConv"`
 /// - `"//localhost"`
 pub const URL_FULL: &str = "url.full";
 
@@ -8397,16 +8397,16 @@ pub const URL_FULL: &str = "url.full";
 /// ## Notes
 ///
 /// In network monitoring, the observed URL may be a full URL, whereas in access logs, the URL is often just represented as a path. This field is meant to represent the URL as it was observed, complete or not.
-/// `url.original` might contain credentials passed via URL in form of `<https://username:password@www.example.com/`.> In such case password and username SHOULD NOT be redacted and attribute's value SHOULD remain the same.
+/// `url.original` might contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case password and username SHOULD NOT be redacted and attribute's value SHOULD remain the same.
 ///
 /// # Examples
 ///
-/// - `"<https://www.foo.bar/search?q=OpenTelemetry#SemConv"`>
+/// - `"https://www.foo.bar/search?q=OpenTelemetry#SemConv"`
 /// - `"search?q=OpenTelemetry"`
 #[cfg(feature = "semconv_experimental")]
 pub const URL_ORIGINAL: &str = "url.original";
 
-/// The [URI path](<https://www.rfc-editor.org/rfc/rfc3986#section-3.3)> component
+/// The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component
 ///
 /// ## Notes
 ///
@@ -8427,7 +8427,7 @@ pub const URL_PATH: &str = "url.path";
 #[cfg(feature = "semconv_experimental")]
 pub const URL_PORT: &str = "url.port";
 
-/// The [URI query](<https://www.rfc-editor.org/rfc/rfc3986#section-3.4)> component
+/// The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component
 ///
 /// ## Notes
 ///
@@ -8436,10 +8436,10 @@ pub const URL_PORT: &str = "url.port";
 ///
 /// Query string values for the following keys SHOULD be redacted by default and replaced by the value `REDACTED`:
 ///
-/// - [`AWSAccessKeyId`](<https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)>
-/// - [`Signature`](<https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)>
-/// - [`sig`](<https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)>
-/// - [`X-Goog-Signature`](<https://cloud.google.com/storage/docs/access-control/signed-urls)>
+/// - [`AWSAccessKeyId`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`Signature`](https://docs.aws.amazon.com/AmazonS3/latest/userguide/RESTAuthentication.html#RESTAuthenticationQueryStringAuth)
+/// - [`sig`](https://learn.microsoft.com/azure/storage/common/storage-sas-overview#sas-token)
+/// - [`X-Goog-Signature`](https://cloud.google.com/storage/docs/access-control/signed-urls)
 ///
 /// This list is subject to change over time.
 ///
@@ -8455,7 +8455,7 @@ pub const URL_QUERY: &str = "url.query";
 ///
 /// ## Notes
 ///
-/// This value can be determined precisely with the [public suffix list](<https://publicsuffix.org/).> For example, the registered domain for `foo.example.com` is `example.com`. Trying to approximate this by simply taking the last two labels will not work well for TLDs such as `co.uk`.
+/// This value can be determined precisely with the [public suffix list](https://publicsuffix.org/). For example, the registered domain for `foo.example.com` is `example.com`. Trying to approximate this by simply taking the last two labels will not work well for TLDs such as `co.uk`.
 ///
 /// # Examples
 ///
@@ -8464,7 +8464,7 @@ pub const URL_QUERY: &str = "url.query";
 #[cfg(feature = "semconv_experimental")]
 pub const URL_REGISTERED_DOMAIN: &str = "url.registered_domain";
 
-/// The [URI scheme](<https://www.rfc-editor.org/rfc/rfc3986#section-3.1)> component identifying the used protocol.
+/// The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
 ///
 /// ## Notes
 ///
@@ -8488,7 +8488,7 @@ pub const URL_SCHEME: &str = "url.scheme";
 #[cfg(feature = "semconv_experimental")]
 pub const URL_SUBDOMAIN: &str = "url.subdomain";
 
-/// The low-cardinality template of an [absolute path reference](<https://www.rfc-editor.org/rfc/rfc3986#section-4.2).>
+/// The low-cardinality template of an [absolute path reference](https://www.rfc-editor.org/rfc/rfc3986#section-4.2).
 ///
 /// ## Notes
 ///
@@ -8504,7 +8504,7 @@ pub const URL_TEMPLATE: &str = "url.template";
 ///
 /// ## Notes
 ///
-/// This value can be determined precisely with the [public suffix list](<https://publicsuffix.org/).>
+/// This value can be determined precisely with the [public suffix list](https://publicsuffix.org/).
 ///
 /// # Examples
 ///
@@ -8582,7 +8582,7 @@ pub const USER_ROLES: &str = "user.roles";
 ///
 /// ## Notes
 ///
-/// [Example](<https://www.whatsmyua.info)> of extracting browser's name from original string. In the case of using a user-agent for non-browser products, such as microservices with multiple names/versions inside the `user_agent.original`, the most significant name SHOULD be selected. In such a scenario it should align with `user_agent.version`
+/// [Example](https://www.whatsmyua.info) of extracting browser's name from original string. In the case of using a user-agent for non-browser products, such as microservices with multiple names/versions inside the `user_agent.original`, the most significant name SHOULD be selected. In such a scenario it should align with `user_agent.version`
 ///
 /// # Examples
 ///
@@ -8591,7 +8591,7 @@ pub const USER_ROLES: &str = "user.roles";
 #[cfg(feature = "semconv_experimental")]
 pub const USER_AGENT_NAME: &str = "user_agent.name";
 
-/// Value of the [HTTP User-Agent](<https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent)> header sent by the client.
+/// Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
 ///
 /// ## Notes
 ///
@@ -8606,7 +8606,7 @@ pub const USER_AGENT_ORIGINAL: &str = "user_agent.original";
 ///
 /// ## Notes
 ///
-/// For mapping user agent strings to OS names, libraries such as [ua-parser](<https://github.com/ua-parser)> can be utilized.
+/// For mapping user agent strings to OS names, libraries such as [ua-parser](https://github.com/ua-parser) can be utilized.
 ///
 /// # Examples
 ///
@@ -8620,7 +8620,7 @@ pub const USER_AGENT_OS_NAME: &str = "user_agent.os.name";
 ///
 /// ## Notes
 ///
-/// For mapping user agent strings to OS versions, libraries such as [ua-parser](<https://github.com/ua-parser)> can be utilized.
+/// For mapping user agent strings to OS versions, libraries such as [ua-parser](https://github.com/ua-parser) can be utilized.
 ///
 /// # Examples
 ///
@@ -8641,7 +8641,7 @@ pub const USER_AGENT_SYNTHETIC_TYPE: &str = "user_agent.synthetic.type";
 ///
 /// ## Notes
 ///
-/// [Example](<https://www.whatsmyua.info)> of extracting browser's version from original string. In the case of using a user-agent for non-browser products, such as microservices with multiple names/versions inside the `user_agent.original`, the most significant version SHOULD be selected. In such a scenario it should align with `user_agent.name`
+/// [Example](https://www.whatsmyua.info) of extracting browser's version from original string. In the case of using a user-agent for non-browser products, such as microservices with multiple names/versions inside the `user_agent.original`, the most significant version SHOULD be selected. In such a scenario it should align with `user_agent.name`
 ///
 /// # Examples
 ///
@@ -8660,7 +8660,7 @@ pub const V8JS_GC_TYPE: &str = "v8js.gc.type";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](<https://nodejs.org/api/v8.html#v8getheapspacestatistics)>
+/// Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
 #[cfg(feature = "semconv_experimental")]
 pub const V8JS_HEAP_SPACE_NAME: &str = "v8js.heap.space.name";
 
@@ -8734,7 +8734,7 @@ pub const VCS_OWNER_NAME: &str = "vcs.owner.name";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_PROVIDER_NAME: &str = "vcs.provider.name";
 
-/// The name of the [reference](<https://git-scm.com/docs/gitglossary#def_ref)> such as **branch** or **tag** in the repository.
+/// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
 ///
 /// ## Notes
 ///
@@ -8749,7 +8749,7 @@ pub const VCS_PROVIDER_NAME: &str = "vcs.provider.name";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_BASE_NAME: &str = "vcs.ref.base.name";
 
-/// The revision, literally [revised version](<https://www.merriam-webster.com/dictionary/revision),> The revision most often refers to a commit object in Git, or a revision number in SVN.
+/// The revision, literally [revised version](https://www.merriam-webster.com/dictionary/revision), The revision most often refers to a commit object in Git, or a revision number in SVN.
 ///
 /// ## Notes
 ///
@@ -8757,11 +8757,11 @@ pub const VCS_REF_BASE_NAME: &str = "vcs.ref.base.name";
 /// would be the base reference of type branch if you've created a new
 /// reference of type branch from it and created new commits. The
 /// revision can be a full [hash value (see
-/// glossary)](<https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),>
+/// glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
 /// of the recorded change to a ref within a repository pointing to a
-/// commit [commit](<https://git-scm.com/docs/git-commit)> object. It does
+/// commit [commit](https://git-scm.com/docs/git-commit) object. It does
 /// not necessarily have to be a hash; it can simply define a [revision
-/// number](<https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)>
+/// number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
 /// which is an integer that is monotonically increasing. In cases where
 /// it is identical to the `ref.base.name`, it SHOULD still be included.
 /// It is up to the implementer to decide which value to set as the
@@ -8776,7 +8776,7 @@ pub const VCS_REF_BASE_NAME: &str = "vcs.ref.base.name";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 
-/// The type of the [reference](<https://git-scm.com/docs/gitglossary#def_ref)> in the repository.
+/// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
 /// ## Notes
 ///
@@ -8791,7 +8791,7 @@ pub const VCS_REF_BASE_REVISION: &str = "vcs.ref.base.revision";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_BASE_TYPE: &str = "vcs.ref.base.type";
 
-/// The name of the [reference](<https://git-scm.com/docs/gitglossary#def_ref)> such as **branch** or **tag** in the repository.
+/// The name of the [reference](https://git-scm.com/docs/gitglossary#def_ref) such as **branch** or **tag** in the repository.
 ///
 /// ## Notes
 ///
@@ -8805,17 +8805,17 @@ pub const VCS_REF_BASE_TYPE: &str = "vcs.ref.base.type";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_HEAD_NAME: &str = "vcs.ref.head.name";
 
-/// The revision, literally [revised version](<https://www.merriam-webster.com/dictionary/revision),> The revision most often refers to a commit object in Git, or a revision number in SVN.
+/// The revision, literally [revised version](https://www.merriam-webster.com/dictionary/revision), The revision most often refers to a commit object in Git, or a revision number in SVN.
 ///
 /// ## Notes
 ///
 /// `head` refers to where you are right now; the current reference at a
 /// given time.The revision can be a full [hash value (see
-/// glossary)](<https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),>
+/// glossary)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf),
 /// of the recorded change to a ref within a repository pointing to a
-/// commit [commit](<https://git-scm.com/docs/git-commit)> object. It does
+/// commit [commit](https://git-scm.com/docs/git-commit) object. It does
 /// not necessarily have to be a hash; it can simply define a [revision
-/// number](<https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)>
+/// number](https://svnbook.red-bean.com/en/1.7/svn.tour.revs.specifiers.html)
 /// which is an integer that is monotonically increasing. In cases where
 /// it is identical to the `ref.head.name`, it SHOULD still be included.
 /// It is up to the implementer to decide which value to set as the
@@ -8830,7 +8830,7 @@ pub const VCS_REF_HEAD_NAME: &str = "vcs.ref.head.name";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
 
-/// The type of the [reference](<https://git-scm.com/docs/gitglossary#def_ref)> in the repository.
+/// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
 /// ## Notes
 ///
@@ -8844,7 +8844,7 @@ pub const VCS_REF_HEAD_REVISION: &str = "vcs.ref.head.revision";
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REF_HEAD_TYPE: &str = "vcs.ref.head.type";
 
-/// The type of the [reference](<https://git-scm.com/docs/gitglossary#def_ref)> in the repository.
+/// The type of the [reference](https://git-scm.com/docs/gitglossary#def_ref) in the repository.
 ///
 /// ## Notes
 ///
@@ -8942,7 +8942,7 @@ pub const VCS_REPOSITORY_REF_REVISION: &str = "vcs.repository.ref.revision";
 )]
 pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 
-/// The [canonical URL](<https://support.google.com/webmasters/answer/10347851?hl=en#:~:text=A%20canonical%20URL%20is%20the,Google%20chooses%20one%20as%20canonical.)> of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.
+/// The [canonical URL](https://support.google.com/webmasters/answer/10347851?hl=en#:~:text=A%20canonical%20URL%20is%20the,Google%20chooses%20one%20as%20canonical.) of the repository providing the complete HTTP(S) address in order to locate and identify the repository through a browser.
 ///
 /// ## Notes
 ///
@@ -8951,8 +8951,8 @@ pub const VCS_REPOSITORY_REF_TYPE: &str = "vcs.repository.ref.type";
 ///
 /// # Examples
 ///
-/// - `"<https://github.com/opentelemetry/open-telemetry-collector-contrib"`>
-/// - `"<https://gitlab.com/my-org/my-project/my-projects-project/repo"`>
+/// - `"https://github.com/opentelemetry/open-telemetry-collector-contrib"`
+/// - `"https://gitlab.com/my-org/my-project/my-projects-project/repo"`
 #[cfg(feature = "semconv_experimental")]
 pub const VCS_REPOSITORY_URL_FULL: &str = "vcs.repository.url.full";
 

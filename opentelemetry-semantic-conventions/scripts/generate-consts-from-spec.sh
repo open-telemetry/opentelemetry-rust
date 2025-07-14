@@ -58,8 +58,9 @@ expression='
 # TODO: This workaround should be removed once the upstream generator handles this correctly.
 "${SED[@]}" 's/<key>/`key`/g' src/attribute.rs
 
-# Fix bare URLs in doc comments: replace 'https://...' or 'http://...' with '<https://...>'
-"${SED[@]}" -E 's|(///.*)(https?://[^ ]*)|\1<\2>|g' src/metric.rs
-"${SED[@]}" -E 's|(///.*)(https?://[^ ]*)|\1<\2>|g' src/attribute.rs
+# Patch: rustdoc warns about bare URLs in doc comments. 
+# The following line wraps the specific Kubernetes ResourceRequirements URL with <...> 
+# as suggested by rustdoc warnings, so it becomes a clickable link and the warning goes away.
+"${SED[@]}" -E 's|(/// See )(https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)( for details)|\1<\2>\3|g' src/metric.rs
 
 cargo fmt
