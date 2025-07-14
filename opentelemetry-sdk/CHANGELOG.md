@@ -189,7 +189,7 @@ Released 2025-Mar-21
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
 - *Breaking (Affects custom Exporter/Processor authors only)* Removed
- `opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
+ `opentelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
  intended to be public. If you are authoring custom processor/exporters, use
  `opentelemetry_sdk::error::OTelSdkError` and
  `opentelemetry_sdk::error::OTelSdkResult`.

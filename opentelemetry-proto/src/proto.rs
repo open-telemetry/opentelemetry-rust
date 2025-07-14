@@ -16,7 +16,7 @@ pub(crate) mod serializers {
     where
         S: Serializer,
     {
-        let hex_string = hex::encode(bytes);
+        let hex_string = const_hex::encode(bytes);
         serializer.serialize_str(&hex_string)
     }
 
@@ -37,7 +37,7 @@ pub(crate) mod serializers {
             where
                 E: de::Error,
             {
-                hex::decode(value).map_err(E::custom)
+                const_hex::decode(value).map_err(E::custom)
             }
         }
 

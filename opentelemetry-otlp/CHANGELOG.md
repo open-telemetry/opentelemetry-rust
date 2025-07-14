@@ -27,7 +27,7 @@ Released 2025-Mar-21
 - Update `opentelemetry-http` dependency version to 0.29
 - Update `opentelemetry-proto` dependency version to 0.29
 
-- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
+- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to milliseconds.
 - Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
 - Fixed
   [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
@@ -199,7 +199,7 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 ### Added
 
 - Added `DeltaTemporalitySelector` ([#1568])
-- Add `webkpi-roots` features to `reqwest` and `tonic` backends
+- Add `webpki-roots` features to `reqwest` and `tonic` backends
 
 [#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
 

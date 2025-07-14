@@ -35,7 +35,7 @@ predictable and efficient observability pipelines.
 
 Release 2025-Apr-01
 
-- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatability
+- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatibility
   - The new path for `WithContext` and `FutureExt` are in  `opentelemetry::context` as they are independent of the trace signal. Users should prefer this path.
 
 ## 0.29.0
@@ -504,7 +504,7 @@ and SDK are still unstable.
 - Use current span for SDK-less context propagation #510
 - Always export span batch when limit reached #519
 - Rename message events to events #530
-- Update resource merge behaviour #537
+- Update resource merge behavior #537
 - Ignore links with invalid context #538
 
 ## Removed
@@ -529,7 +529,7 @@ use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
 
 ## Changed
 
-- Pull configrations from environment variables by default when creating BatchSpanProcessor #445
+- Pull configurations from environment variables by default when creating BatchSpanProcessor #445
 - Convert doc links to intra-doc #466
 - Switch to Cow for event names #471
 - Use API to configure async runtime instead of features #481
@@ -826,7 +826,7 @@ use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
 - Make trace and metrics features optional
 - ExportResult as specified in the specification
 - Add Futures compatibility API
-- Added serde serialise support to SpanData
+- Added serde serialize support to SpanData
 - Separate OpenTelemetry Jaeger crate
 
 ### Changed
