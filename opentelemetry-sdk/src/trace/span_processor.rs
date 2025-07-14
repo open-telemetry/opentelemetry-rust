@@ -159,7 +159,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        if let Ok(mut exporter) = self.exporter.lock() {
+        if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
@@ -1089,7 +1089,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
         fn set_resource(&mut self, resource: &Resource) {
@@ -1372,5 +1372,69 @@ mod tests {
         // Verify exported spans
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 10);
+    }
+
+    #[test]
+    fn test_span_exporter_immutable_reference() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use crate::error::OTelSdkError;
+        
+        // Simple test exporter that demonstrates the &self pattern
+        #[derive(Debug)]
+        struct TestExporter {
+            is_shutdown: AtomicBool,
+        }
+
+        impl TestExporter {
+            fn new() -> Self {
+                Self {
+                    is_shutdown: AtomicBool::new(false),
+                }
+            }
+            
+            fn is_shutdown(&self) -> bool {
+                self.is_shutdown.load(Ordering::Relaxed)
+            }
+        }
+
+        impl SpanExporter for TestExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                if self.is_shutdown() {
+                    return Err(OTelSdkError::AlreadyShutdown);
+                }
+                Ok(())
+            }
+            
+            fn shutdown(&self) -> OTelSdkResult {
+                self.is_shutdown.store(true, Ordering::Relaxed);
+                Ok(())
+            }
+            
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                self.shutdown()
+            }
+            
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let exporter = TestExporter::new();
+        
+        // These methods now work with &self
+        assert!(!exporter.is_shutdown());
+        
+        let result = exporter.shutdown();
+        assert!(result.is_ok());
+        
+        assert!(exporter.is_shutdown());
+        
+        // Test that export fails after shutdown
+        let export_result = futures_executor::block_on(exporter.export(vec![]));
+        assert!(export_result.is_err());
+        
+        // Test force_flush
+        let flush_result = exporter.force_flush();
+        assert!(flush_result.is_ok());
     }
 }
