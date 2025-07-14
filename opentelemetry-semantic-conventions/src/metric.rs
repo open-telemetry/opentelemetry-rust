@@ -204,7 +204,7 @@ pub const AZURE_COSMOSDB_CLIENT_ACTIVE_INSTANCE_COUNT: &str =
 
 /// ## Description
 ///
-/// [Request units](https://learn.microsoft.com/azure/cosmos-db/request-units) consumed by the operation
+/// [Request units](<https://learn.microsoft.com/azure/cosmos-db/request-units)> consumed by the operation
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -511,7 +511,7 @@ pub const CPU_UTILIZATION: &str = "cpu.utilization";
 ///
 /// ## Notes
 ///
-/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// This metric reports data from [`gc.stats()`](<https://docs.python.org/3/library/gc.html#gc.get_stats)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -532,7 +532,7 @@ pub const CPYTHON_GC_COLLECTED_OBJECTS: &str = "cpython.gc.collected_objects";
 ///
 /// ## Notes
 ///
-/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// This metric reports data from [`gc.stats()`](<https://docs.python.org/3/library/gc.html#gc.get_stats)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -553,7 +553,7 @@ pub const CPYTHON_GC_COLLECTIONS: &str = "cpython.gc.collections";
 ///
 /// ## Notes
 ///
-/// This metric reports data from [`gc.stats()`](https://docs.python.org/3/library/gc.html#gc.get_stats)
+/// This metric reports data from [`gc.stats()`](<https://docs.python.org/3/library/gc.html#gc.get_stats)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1036,7 +1036,7 @@ pub const DNS_LOOKUP_DURATION: &str = "dns.lookup.duration";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`AppDomain.CurrentDomain.GetAssemblies().Length`](https://learn.microsoft.com/dotnet/api/system.appdomain.getassemblies)
+/// This metric reports the same values as calling [`AppDomain.CurrentDomain.GetAssemblies().Length`](<https://learn.microsoft.com/dotnet/api/system.appdomain.getassemblies)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1052,7 +1052,7 @@ pub const DOTNET_ASSEMBLY_COUNT: &str = "dotnet.assembly.count";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as counting calls to [`AppDomain.CurrentDomain.FirstChanceException`](https://learn.microsoft.com/dotnet/api/system.appdomain.firstchanceexception)
+/// This metric reports the same values as counting calls to [`AppDomain.CurrentDomain.FirstChanceException`](<https://learn.microsoft.com/dotnet/api/system.appdomain.firstchanceexception)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1073,7 +1073,7 @@ pub const DOTNET_EXCEPTIONS: &str = "dotnet.exceptions";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric uses the [`GC.CollectionCount(int generation)`](https://learn.microsoft.com/dotnet/api/system.gc.collectioncount) API to calculate exclusive collections per generation
+/// This metric uses the [`GC.CollectionCount(int generation)`](<https://learn.microsoft.com/dotnet/api/system.gc.collectioncount)> API to calculate exclusive collections per generation
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1094,7 +1094,7 @@ pub const DOTNET_GC_COLLECTIONS: &str = "dotnet.gc.collections";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`GC.GetTotalAllocatedBytes()`](https://learn.microsoft.com/dotnet/api/system.gc.gettotalallocatedbytes)
+/// This metric reports the same values as calling [`GC.GetTotalAllocatedBytes()`](<https://learn.microsoft.com/dotnet/api/system.gc.gettotalallocatedbytes)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1110,7 +1110,7 @@ pub const DOTNET_GC_HEAP_TOTAL_ALLOCATED: &str = "dotnet.gc.heap.total_allocated
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.FragmentationAfterBytes`](https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.fragmentationafterbytes)
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.FragmentationAfterBytes`](<https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.fragmentationafterbytes)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1132,7 +1132,7 @@ pub const DOTNET_GC_LAST_COLLECTION_HEAP_FRAGMENTATION_SIZE: &str =
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.SizeAfterBytes`](https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.sizeafterbytes)
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().GenerationInfo.SizeAfterBytes`](<https://learn.microsoft.com/dotnet/api/system.gcgenerationinfo.sizeafterbytes)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1153,7 +1153,7 @@ pub const DOTNET_GC_LAST_COLLECTION_HEAP_SIZE: &str = "dotnet.gc.last_collection
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().TotalCommittedBytes`](https://learn.microsoft.com/dotnet/api/system.gcmemoryinfo.totalcommittedbytes). Committed virtual memory may be larger than the heap size because it includes both memory for storing existing objects (the heap size) and some extra memory that is ready to handle newly allocated objects in the future
+/// This metric reports the same values as calling [`GC.GetGCMemoryInfo().TotalCommittedBytes`](<https://learn.microsoft.com/dotnet/api/system.gcmemoryinfo.totalcommittedbytes).> Committed virtual memory may be larger than the heap size because it includes both memory for storing existing objects (the heap size) and some extra memory that is ready to handle newly allocated objects in the future
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1170,7 +1170,7 @@ pub const DOTNET_GC_LAST_COLLECTION_MEMORY_COMMITTED_SIZE: &str =
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`GC.GetTotalPauseDuration()`](https://learn.microsoft.com/dotnet/api/system.gc.gettotalpauseduration)
+/// This metric reports the same values as calling [`GC.GetTotalPauseDuration()`](<https://learn.microsoft.com/dotnet/api/system.gc.gettotalpauseduration)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1186,7 +1186,7 @@ pub const DOTNET_GC_PAUSE_TIME: &str = "dotnet.gc.pause.time";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`JitInfo.GetCompilationTime()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompilationtime)
+/// This metric reports the same values as calling [`JitInfo.GetCompilationTime()`](<https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompilationtime)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1202,7 +1202,7 @@ pub const DOTNET_JIT_COMPILATION_TIME: &str = "dotnet.jit.compilation.time";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`JitInfo.GetCompiledILBytes()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledilbytes)
+/// This metric reports the same values as calling [`JitInfo.GetCompiledILBytes()`](<https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledilbytes)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1218,7 +1218,7 @@ pub const DOTNET_JIT_COMPILED_IL_SIZE: &str = "dotnet.jit.compiled_il.size";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`JitInfo.GetCompiledMethodCount()`](https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledmethodcount)
+/// This metric reports the same values as calling [`JitInfo.GetCompiledMethodCount()`](<https://learn.microsoft.com/dotnet/api/system.runtime.jitinfo.getcompiledmethodcount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1234,7 +1234,7 @@ pub const DOTNET_JIT_COMPILED_METHODS: &str = "dotnet.jit.compiled_methods";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`Monitor.LockContentionCount`](https://learn.microsoft.com/dotnet/api/system.threading.monitor.lockcontentioncount)
+/// This metric reports the same values as calling [`Monitor.LockContentionCount`](<https://learn.microsoft.com/dotnet/api/system.threading.monitor.lockcontentioncount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1250,7 +1250,7 @@ pub const DOTNET_MONITOR_LOCK_CONTENTIONS: &str = "dotnet.monitor.lock_contentio
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as accessing [`Environment.ProcessorCount`](https://learn.microsoft.com/dotnet/api/system.environment.processorcount)
+/// This metric reports the same values as accessing [`Environment.ProcessorCount`](<https://learn.microsoft.com/dotnet/api/system.environment.processorcount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1266,7 +1266,7 @@ pub const DOTNET_PROCESS_CPU_COUNT: &str = "dotnet.process.cpu.count";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as accessing the corresponding processor time properties on [`System.Diagnostics.Process`](https://learn.microsoft.com/dotnet/api/system.diagnostics.process)
+/// This metric reports the same values as accessing the corresponding processor time properties on [`System.Diagnostics.Process`](<https://learn.microsoft.com/dotnet/api/system.diagnostics.process)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1287,7 +1287,7 @@ pub const DOTNET_PROCESS_CPU_TIME: &str = "dotnet.process.cpu.time";
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`Environment.WorkingSet`](https://learn.microsoft.com/dotnet/api/system.environment.workingset)
+/// This metric reports the same values as calling [`Environment.WorkingSet`](<https://learn.microsoft.com/dotnet/api/system.environment.workingset)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1303,7 +1303,7 @@ pub const DOTNET_PROCESS_MEMORY_WORKING_SET: &str = "dotnet.process.memory.worki
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`ThreadPool.PendingWorkItemCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.pendingworkitemcount)
+/// This metric reports the same values as calling [`ThreadPool.PendingWorkItemCount`](<https://learn.microsoft.com/dotnet/api/system.threading.threadpool.pendingworkitemcount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1319,7 +1319,7 @@ pub const DOTNET_THREAD_POOL_QUEUE_LENGTH: &str = "dotnet.thread_pool.queue.leng
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`ThreadPool.ThreadCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.threadcount)
+/// This metric reports the same values as calling [`ThreadPool.ThreadCount`](<https://learn.microsoft.com/dotnet/api/system.threading.threadpool.threadcount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1335,7 +1335,7 @@ pub const DOTNET_THREAD_POOL_THREAD_COUNT: &str = "dotnet.thread_pool.thread.cou
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`ThreadPool.CompletedWorkItemCount`](https://learn.microsoft.com/dotnet/api/system.threading.threadpool.completedworkitemcount)
+/// This metric reports the same values as calling [`ThreadPool.CompletedWorkItemCount`](<https://learn.microsoft.com/dotnet/api/system.threading.threadpool.completedworkitemcount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1351,7 +1351,7 @@ pub const DOTNET_THREAD_POOL_WORK_ITEM_COUNT: &str = "dotnet.thread_pool.work_it
 /// ## Notes
 ///
 /// Meter name: `System.Runtime`; Added in: .NET 9.0.
-/// This metric reports the same values as calling [`Timer.ActiveCount`](https://learn.microsoft.com/dotnet/api/system.threading.timer.activecount)
+/// This metric reports the same values as calling [`Timer.ActiveCount`](<https://learn.microsoft.com/dotnet/api/system.threading.timer.activecount)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1845,7 +1845,7 @@ pub const HTTP_CLIENT_OPEN_CONNECTIONS: &str = "http.client.open_connections";
 ///
 /// ## Notes
 ///
-/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size
+/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1898,7 +1898,7 @@ pub const HTTP_CLIENT_REQUEST_DURATION: &str = "http.client.request.duration";
 ///
 /// ## Notes
 ///
-/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size
+/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1947,7 +1947,7 @@ pub const HTTP_SERVER_ACTIVE_REQUESTS: &str = "http.server.active_requests";
 ///
 /// ## Notes
 ///
-/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size
+/// The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2002,7 +2002,7 @@ pub const HTTP_SERVER_REQUEST_DURATION: &str = "http.server.request.duration";
 ///
 /// ## Notes
 ///
-/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size
+/// The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](<https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)> header. For requests using transport encoding, this should be the compressed size
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2181,7 +2181,7 @@ pub const HW_POWER: &str = "hw.power";
 ///
 /// ## Notes
 ///
-/// `hw.status` is currently specified as an *UpDownCounter* but would ideally be represented using a [*StateSet* as defined in OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#stateset). This semantic convention will be updated once *StateSet* is specified in OpenTelemetry. This planned change is not expected to have any consequence on the way users query their timeseries backend to retrieve the values of `hw.status` over time
+/// `hw.status` is currently specified as an *UpDownCounter* but would ideally be represented using a [*StateSet* as defined in OpenMetrics](<https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#stateset).> This semantic convention will be updated once *StateSet* is specified in OpenTelemetry. This planned change is not expected to have any consequence on the way users query their timeseries backend to retrieve the values of `hw.status` over time
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2321,7 +2321,7 @@ pub const JVM_CPU_COUNT: &str = "jvm.cpu.count";
 ///
 /// ## Notes
 ///
-/// The value range is \\[0.0,1.0\\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad())
+/// The value range is \\[0.0,1.0\\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](<https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad())>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2463,7 +2463,7 @@ pub const JVM_MEMORY_USED_AFTER_LAST_GC: &str = "jvm.memory.used_after_last_gc";
 ///
 /// ## Notes
 ///
-/// The value range is \\[0,n\\], where n is the number of CPU cores - or a negative number if the value is not available. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/OperatingSystemMXBean.html#getSystemLoadAverage())
+/// The value range is \\[0,n\\], where n is the number of CPU cores - or a negative number if the value is not available. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](<https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/OperatingSystemMXBean.html#getSystemLoadAverage())>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2479,7 +2479,7 @@ pub const JVM_SYSTEM_CPU_LOAD_1M: &str = "jvm.system.cpu.load_1m";
 ///
 /// ## Notes
 ///
-/// The value range is \\[0.0,1.0\\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getCpuLoad())
+/// The value range is \\[0.0,1.0\\]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](<https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getCpuLoad())>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2512,7 +2512,7 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2528,7 +2528,7 @@ pub const K8S_CONTAINER_CPU_LIMIT: &str = "k8s.container.cpu.limit";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2544,7 +2544,7 @@ pub const K8S_CONTAINER_CPU_REQUEST: &str = "k8s.container.cpu.request";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2560,7 +2560,7 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_LIMIT: &str = "k8s.container.ephemeral
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2576,7 +2576,7 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_REQUEST: &str = "k8s.container.ephemer
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2592,7 +2592,7 @@ pub const K8S_CONTAINER_MEMORY_LIMIT: &str = "k8s.container.memory.limit";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2609,7 +2609,7 @@ pub const K8S_CONTAINER_MEMORY_REQUEST: &str = "k8s.container.memory.request";
 /// ## Notes
 ///
 /// This metric SHOULD reflect the value of the `ready` field in the
-/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstatus-v1-core)
+/// [K8s ContainerStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2689,7 +2689,7 @@ pub const K8S_CONTAINER_STATUS_STATE: &str = "k8s.container.status.state";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2705,7 +2705,7 @@ pub const K8S_CONTAINER_STORAGE_LIMIT: &str = "k8s.container.storage.limit";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2722,7 +2722,7 @@ pub const K8S_CONTAINER_STORAGE_REQUEST: &str = "k8s.container.storage.request";
 /// ## Notes
 ///
 /// This metric aligns with the `active` field of the
-/// [K8s CronJobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#cronjobstatus-v1-batch)
+/// [K8s CronJobStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#cronjobstatus-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2739,7 +2739,7 @@ pub const K8S_CRONJOB_ACTIVE_JOBS: &str = "k8s.cronjob.active_jobs";
 /// ## Notes
 ///
 /// This metric aligns with the `currentNumberScheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2756,7 +2756,7 @@ pub const K8S_DAEMONSET_CURRENT_SCHEDULED_NODES: &str = "k8s.daemonset.current_s
 /// ## Notes
 ///
 /// This metric aligns with the `desiredNumberScheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2773,7 +2773,7 @@ pub const K8S_DAEMONSET_DESIRED_SCHEDULED_NODES: &str = "k8s.daemonset.desired_s
 /// ## Notes
 ///
 /// This metric aligns with the `numberMisscheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2790,7 +2790,7 @@ pub const K8S_DAEMONSET_MISSCHEDULED_NODES: &str = "k8s.daemonset.misscheduled_n
 /// ## Notes
 ///
 /// This metric aligns with the `numberReady` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2807,7 +2807,7 @@ pub const K8S_DAEMONSET_READY_NODES: &str = "k8s.daemonset.ready_nodes";
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
-/// [K8s DeploymentStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstatus-v1-apps)
+/// [K8s DeploymentStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2824,7 +2824,7 @@ pub const K8S_DEPLOYMENT_AVAILABLE_PODS: &str = "k8s.deployment.available_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s DeploymentSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentspec-v1-apps)
+/// [K8s DeploymentSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentspec-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2841,7 +2841,7 @@ pub const K8S_DEPLOYMENT_DESIRED_PODS: &str = "k8s.deployment.desired_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `currentReplicas` field of the
-/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2858,7 +2858,7 @@ pub const K8S_HPA_CURRENT_PODS: &str = "k8s.hpa.current_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `desiredReplicas` field of the
-/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2875,7 +2875,7 @@ pub const K8S_HPA_DESIRED_PODS: &str = "k8s.hpa.desired_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `maxReplicas` field of the
-/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2892,8 +2892,8 @@ pub const K8S_HPA_MAX_PODS: &str = "k8s.hpa.max_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `averageUtilization` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
-/// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
+/// [K8s HPA MetricTarget](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).>
+/// If the type of the metric is [`ContainerResource`](<https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),>
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
 /// | | |
@@ -2918,8 +2918,8 @@ pub const K8S_HPA_METRIC_TARGET_CPU_AVERAGE_UTILIZATION: &str =
 /// ## Notes
 ///
 /// This metric aligns with the `averageValue` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
-/// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
+/// [K8s HPA MetricTarget](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).>
+/// If the type of the metric is [`ContainerResource`](<https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),>
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
 /// | | |
@@ -2943,8 +2943,8 @@ pub const K8S_HPA_METRIC_TARGET_CPU_AVERAGE_VALUE: &str = "k8s.hpa.metric.target
 /// ## Notes
 ///
 /// This metric aligns with the `value` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
-/// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
+/// [K8s HPA MetricTarget](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).>
+/// If the type of the metric is [`ContainerResource`](<https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),>
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
 /// | | |
@@ -2968,7 +2968,7 @@ pub const K8S_HPA_METRIC_TARGET_CPU_VALUE: &str = "k8s.hpa.metric.target.cpu.val
 /// ## Notes
 ///
 /// This metric aligns with the `minReplicas` field of the
-/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2985,7 +2985,7 @@ pub const K8S_HPA_MIN_PODS: &str = "k8s.hpa.min_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `active` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// [K8s JobStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3002,7 +3002,7 @@ pub const K8S_JOB_ACTIVE_PODS: &str = "k8s.job.active_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `completions` field of the
-/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)
+/// [K8s JobSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3019,7 +3019,7 @@ pub const K8S_JOB_DESIRED_SUCCESSFUL_PODS: &str = "k8s.job.desired_successful_po
 /// ## Notes
 ///
 /// This metric aligns with the `failed` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// [K8s JobStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3036,7 +3036,7 @@ pub const K8S_JOB_FAILED_PODS: &str = "k8s.job.failed_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `parallelism` field of the
-/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)
+/// [K8s JobSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3053,7 +3053,7 @@ pub const K8S_JOB_MAX_PARALLEL_PODS: &str = "k8s.job.max_parallel_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `succeeded` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// [K8s JobStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3359,7 +3359,7 @@ pub const K8S_POD_UPTIME: &str = "k8s.pod.uptime";
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
-/// [K8s ReplicaSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetstatus-v1-apps)
+/// [K8s ReplicaSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3376,7 +3376,7 @@ pub const K8S_REPLICASET_AVAILABLE_PODS: &str = "k8s.replicaset.available_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s ReplicaSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetspec-v1-apps)
+/// [K8s ReplicaSetSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetspec-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3424,7 +3424,7 @@ pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_contr
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
-/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
+/// [K8s ReplicationControllerStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3442,7 +3442,7 @@ pub const K8S_REPLICATIONCONTROLLER_AVAILABLE_PODS: &str =
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
+/// [K8s ReplicationControllerSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3460,7 +3460,7 @@ pub const K8S_REPLICATIONCONTROLLER_DESIRED_PODS: &str = "k8s.replicationcontrol
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3478,7 +3478,7 @@ pub const K8S_RESOURCEQUOTA_CPU_LIMIT_HARD: &str = "k8s.resourcequota.cpu.limit.
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3496,7 +3496,7 @@ pub const K8S_RESOURCEQUOTA_CPU_LIMIT_USED: &str = "k8s.resourcequota.cpu.limit.
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3514,7 +3514,7 @@ pub const K8S_RESOURCEQUOTA_CPU_REQUEST_HARD: &str = "k8s.resourcequota.cpu.requ
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3532,7 +3532,7 @@ pub const K8S_RESOURCEQUOTA_CPU_REQUEST_USED: &str = "k8s.resourcequota.cpu.requ
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3551,7 +3551,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_LIMIT_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3570,7 +3570,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_LIMIT_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3589,7 +3589,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_REQUEST_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3608,7 +3608,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_REQUEST_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3632,7 +3632,7 @@ pub const K8S_RESOURCEQUOTA_HUGEPAGE_COUNT_REQUEST_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3656,7 +3656,7 @@ pub const K8S_RESOURCEQUOTA_HUGEPAGE_COUNT_REQUEST_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3674,7 +3674,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_LIMIT_HARD: &str = "k8s.resourcequota.memory.
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3692,7 +3692,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_LIMIT_USED: &str = "k8s.resourcequota.memory.
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3710,7 +3710,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_REQUEST_HARD: &str = "k8s.resourcequota.memor
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3728,7 +3728,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_REQUEST_USED: &str = "k8s.resourcequota.memor
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3751,7 +3751,7 @@ pub const K8S_RESOURCEQUOTA_OBJECT_COUNT_HARD: &str = "k8s.resourcequota.object_
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3774,7 +3774,7 @@ pub const K8S_RESOURCEQUOTA_OBJECT_COUNT_USED: &str = "k8s.resourcequota.object_
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).>
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3801,7 +3801,7 @@ pub const K8S_RESOURCEQUOTA_PERSISTENTVOLUMECLAIM_COUNT_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).>
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3828,7 +3828,7 @@ pub const K8S_RESOURCEQUOTA_PERSISTENTVOLUMECLAIM_COUNT_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).>
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3854,7 +3854,7 @@ pub const K8S_RESOURCEQUOTA_STORAGE_REQUEST_HARD: &str = "k8s.resourcequota.stor
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).>
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3879,7 +3879,7 @@ pub const K8S_RESOURCEQUOTA_STORAGE_REQUEST_USED: &str = "k8s.resourcequota.stor
 /// ## Notes
 ///
 /// This metric aligns with the `currentReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3896,7 +3896,7 @@ pub const K8S_STATEFULSET_CURRENT_PODS: &str = "k8s.statefulset.current_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s StatefulSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetspec-v1-apps)
+/// [K8s StatefulSetSpec](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetspec-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3913,7 +3913,7 @@ pub const K8S_STATEFULSET_DESIRED_PODS: &str = "k8s.statefulset.desired_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `readyReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3930,7 +3930,7 @@ pub const K8S_STATEFULSET_READY_PODS: &str = "k8s.statefulset.ready_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `updatedReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](<https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4403,7 +4403,7 @@ pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.max` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.max` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4419,7 +4419,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MAX: &str = "nodejs.eventloop.delay.max";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.mean` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.mean` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4435,7 +4435,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MEAN: &str = "nodejs.eventloop.delay.mean";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.min` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.min` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4451,7 +4451,7 @@ pub const NODEJS_EVENTLOOP_DELAY_MIN: &str = "nodejs.eventloop.delay.min";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.percentile(50)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.percentile(50)` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4467,7 +4467,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P50: &str = "nodejs.eventloop.delay.p50";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.percentile(90)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.percentile(90)` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4483,7 +4483,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P90: &str = "nodejs.eventloop.delay.p90";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.percentile(99)` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.percentile(99)` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4499,7 +4499,7 @@ pub const NODEJS_EVENTLOOP_DELAY_P99: &str = "nodejs.eventloop.delay.p99";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `histogram.stddev` of [`perf_hooks.monitorEventLoopDelay([options])`](https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)
+/// Value can be retrieved from value `histogram.stddev` of [`perf_hooks.monitorEventLoopDelay([options])`](<https://nodejs.org/api/perf_hooks.html#perf_hooksmonitoreventloopdelayoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4515,7 +4515,7 @@ pub const NODEJS_EVENTLOOP_DELAY_STDDEV: &str = "nodejs.eventloop.delay.stddev";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
+/// Value can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](<https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4536,7 +4536,7 @@ pub const NODEJS_EVENTLOOP_TIME: &str = "nodejs.eventloop.time";
 ///
 /// ## Notes
 ///
-/// The value range is \[0.0, 1.0\] and can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)
+/// The value range is \[0.0, 1.0\] and can be retrieved from [`performance.eventLoopUtilization([utilization1[, utilization2]])`](<https://nodejs.org/api/perf_hooks.html#performanceeventlooputilizationutilization1-utilization2)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4656,8 +4656,8 @@ pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_INFLIGHT: &str =
 ///
 /// ## Notes
 ///
-/// This metric defines successful operations using the full success definitions for [http](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success-1)
-/// and [grpc](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success). Anything else is defined as an unsuccessful operation. For successful
+/// This metric defines successful operations using the full success definitions for [http](<https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success-1)>
+/// and [grpc](<https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success).> Anything else is defined as an unsuccessful operation. For successful
 /// operations, `error.type` MUST NOT be set. For unsuccessful export operations, `error.type` MUST contain a relevant failure cause
 /// ## Metadata
 /// | | |
@@ -5521,9 +5521,9 @@ pub const SYSTEM_DISK_IO: &str = "system.disk.io";
 ///
 /// The real elapsed time ("wall clock") used in the I/O path (time from operations running in parallel are not counted). Measured as:
 ///
-/// - Linux: Field 13 from [procfs-diskstats](https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)
+/// - Linux: Field 13 from [procfs-diskstats](<https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)>
 /// - Windows: The complement of
-///   ["Disk% Idle Time"](https://learn.microsoft.com/archive/blogs/askcore/windows-performance-monitor-disk-counters-explained#windows-performance-monitor-disk-counters-explained)
+///   ["Disk% Idle Time"](<https://learn.microsoft.com/archive/blogs/askcore/windows-performance-monitor-disk-counters-explained#windows-performance-monitor-disk-counters-explained)>
 ///   performance counter: `uptime * (100 - "Disk\% Idle Time") / 100`
 /// ## Metadata
 /// | | |
@@ -5580,7 +5580,7 @@ pub const SYSTEM_DISK_MERGED: &str = "system.disk.merged";
 ///
 /// Because it is the sum of time each request took, parallel-issued requests each contribute to make the count grow. Measured as:
 ///
-/// - Linux: Fields 7 & 11 from [procfs-diskstats](https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)
+/// - Linux: Fields 7 & 11 from [procfs-diskstats](<https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)>
 /// - Windows: "Avg. Disk sec/Read" perf counter multiplied by "Disk Reads/sec" perf counter (similar for Writes)
 /// ## Metadata
 /// | | |
@@ -5687,8 +5687,8 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 /// This is an alternative to `system.memory.usage` metric with `state=free`.
 /// Linux starting from 3.14 exports "available" memory. It takes "free" memory as a baseline, and then factors in kernel-specific values.
 /// This is supposed to be more accurate than just "free" memory.
-/// For reference, see the calculations [here](https://superuser.com/a/980821).
-/// See also `MemAvailable` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html)
+/// For reference, see the calculations [here](<https://superuser.com/a/980821).>
+/// See also `MemAvailable` in [/proc/meminfo](<https://man7.org/linux/man-pages/man5/proc.5.html)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5706,7 +5706,7 @@ pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
 ///
 /// The sum over the `reclaimable` and `unreclaimable` state values in `linux.memory.slab.usage` SHOULD be equal to the total slab memory available on the system.
 /// Note that the total slab memory is not constant and may vary over time.
-/// See also the [Slab allocator](https://blogs.oracle.com/linux/post/understanding-linux-kernel-memory-statistics) and `Slab` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html)
+/// See also the [Slab allocator](https://blogs.oracle.com/linux/post/understanding-linux-kernel-memory-statistics) and `Slab` in [/proc/meminfo](<https://man7.org/linux/man-pages/man5/proc.5.html)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5743,8 +5743,8 @@ pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 ///
 /// ## Notes
 ///
-/// Equivalent of `shared` from [`free` command](https://man7.org/linux/man-pages/man1/free.1.html) or
-/// `Shmem` from [`/proc/meminfo`](https://man7.org/linux/man-pages/man5/proc.5.html)"
+/// Equivalent of `shared` from [`free` command](<https://man7.org/linux/man-pages/man1/free.1.html)> or
+/// `Shmem` from [`/proc/meminfo`](<https://man7.org/linux/man-pages/man5/proc.5.html)">
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5838,9 +5838,9 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 ///
 /// Measured as:
 ///
-/// - Linux: the `drop` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html))
-/// - Windows: [`InDiscards`/`OutDiscards`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
-///   from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)
+/// - Linux: the `drop` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/<http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html))>
+/// - Windows: [`InDiscards`/`OutDiscards`](<https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)>
+///   from [`GetIfEntry2`](<https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5864,9 +5864,9 @@ pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 ///
 /// Measured as:
 ///
-/// - Linux: the `errs` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html)).
-/// - Windows: [`InErrors`/`OutErrors`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
-///   from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)
+/// - Linux: the `errs` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/<http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html)).>
+/// - Windows: [`InErrors`/`OutErrors`](<https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)>
+///   from [`GetIfEntry2`](<https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -6031,7 +6031,7 @@ pub const SYSTEM_UPTIME: &str = "system.uptime";
 ///
 /// ## Notes
 ///
-/// The values can be retrieved from [`perf_hooks.PerformanceObserver(...).observe({ entryTypes: ['gc'] })`](https://nodejs.org/api/perf_hooks.html#performanceobserverobserveoptions)
+/// The values can be retrieved from [`perf_hooks.PerformanceObserver(...).observe({ entryTypes: ['gc'] })`](<https://nodejs.org/api/perf_hooks.html#performanceobserverobserveoptions)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -6052,7 +6052,7 @@ pub const V8JS_GC_DURATION: &str = "v8js.gc.duration";
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `space_available_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// Value can be retrieved from value `space_available_size` of [`v8.getHeapSpaceStatistics()`](<https://nodejs.org/api/v8.html#v8getheapspacestatistics)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -6073,7 +6073,7 @@ pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size
 ///
 /// ## Notes
 ///
-/// Value can be retrieved from value `physical_space_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// Value can be retrieved from value `physical_space_size` of [`v8.getHeapSpaceStatistics()`](<https://nodejs.org/api/v8.html#v8getheapspacestatistics)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -6094,7 +6094,7 @@ pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
 ///
 /// ## Notes
 ///
-/// The value can be retrieved from value `space_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// The value can be retrieved from value `space_size` of [`v8.getHeapSpaceStatistics()`](<https://nodejs.org/api/v8.html#v8getheapspacestatistics)>
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -6115,7 +6115,7 @@ pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
 ///
 /// ## Notes
 ///
-/// The value can be retrieved from value `space_used_size` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)
+/// The value can be retrieved from value `space_used_size` of [`v8.getHeapSpaceStatistics()`](<https://nodejs.org/api/v8.html#v8getheapspacestatistics)>
 /// ## Metadata
 /// | | |
 /// |:-|:-

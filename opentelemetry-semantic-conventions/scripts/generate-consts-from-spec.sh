@@ -58,4 +58,8 @@ expression='
 # TODO: This workaround should be removed once the upstream generator handles this correctly.
 "${SED[@]}" 's/<key>/`key`/g' src/attribute.rs
 
+# Fix bare URLs in doc comments: replace 'https://...' or 'http://...' with '<https://...>'
+"${SED[@]}" -E 's|(///.*)(https?://[^ ]*)|\1<\2>|g' src/metric.rs
+"${SED[@]}" -E 's|(///.*)(https?://[^ ]*)|\1<\2>|g' src/attribute.rs
+
 cargo fmt
