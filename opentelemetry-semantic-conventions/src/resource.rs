@@ -351,6 +351,15 @@ pub use crate::attribute::K8S_DEPLOYMENT_UID;
 pub use crate::attribute::K8S_HPA_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_API_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_KIND;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_NAME;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_HPA_UID;
 
 #[cfg(feature = "semconv_experimental")]
@@ -433,6 +442,9 @@ pub use crate::attribute::K8S_STATEFULSET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::MAINFRAME_LPAR_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::OCI_MANIFEST_DIGEST;
@@ -539,3 +551,9 @@ pub use crate::attribute::WEBENGINE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ZOS_SMF_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ZOS_SYSPLEX_NAME;
