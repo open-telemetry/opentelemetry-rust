@@ -331,7 +331,7 @@ impl BatchSpanProcessor {
                                 );
                                 let _ = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -342,7 +342,7 @@ impl BatchSpanProcessor {
                                 otel_debug!(name: "BatchSpanProcessor.ExportingDueToForceFlush");
                                 let result = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -354,7 +354,7 @@ impl BatchSpanProcessor {
                                 otel_debug!(name: "BatchSpanProcessor.ExportingDueToShutdown");
                                 let result = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -382,7 +382,7 @@ impl BatchSpanProcessor {
 
                             let _ = Self::get_spans_and_export(
                                 &span_receiver,
-                                &mut exporter,
+                                &exporter,
                                 &mut spans,
                                 &mut last_export_time,
                                 &current_batch_size,
@@ -437,7 +437,7 @@ impl BatchSpanProcessor {
     #[inline]
     fn get_spans_and_export<E>(
         spans_receiver: &Receiver<SpanData>,
-        exporter: &mut E,
+        exporter: &E,
         spans: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
@@ -463,7 +463,7 @@ impl BatchSpanProcessor {
 
     #[allow(clippy::vec_box)]
     fn export_batch_sync<E>(
-        exporter: &mut E,
+        exporter: &E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
     ) -> OTelSdkResult
