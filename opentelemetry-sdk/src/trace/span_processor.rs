@@ -116,15 +116,13 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 ///   emitted from a tokio runtime thread.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor<T: SpanExporter> {
-    exporter: Mutex<T>,
+    exporter: T,
 }
 
 impl<T: SpanExporter> SimpleSpanProcessor<T> {
     /// Create a new [SimpleSpanProcessor] using the provided exporter.
     pub fn new(exporter: T) -> Self {
-        Self {
-            exporter: Mutex::new(exporter),
-        }
+        Self { exporter }
     }
 }
 
@@ -138,11 +136,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span])));
+        let result = futures_executor::block_on(self.exporter.export(vec![span]));
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -159,19 +153,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown_with_timeout(timeout)
-        } else {
-            Err(OTelSdkError::InternalFailure(
-                "SimpleSpanProcessor mutex poison at shutdown".into(),
-            ))
-        }
+        self.exporter.shutdown_with_timeout(timeout)
     }
 
     fn set_resource(&mut self, resource: &Resource) {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.set_resource(resource);
-        }
+        self.exporter.set_resource(resource);
     }
 }
 
