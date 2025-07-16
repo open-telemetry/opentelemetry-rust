@@ -1362,9 +1362,9 @@ mod tests {
 
     #[test]
     fn test_span_exporter_immutable_reference() {
-        use std::sync::atomic::{AtomicBool, Ordering};
         use crate::error::OTelSdkError;
-        
+        use std::sync::atomic::{AtomicBool, Ordering};
+
         // Simple test exporter that demonstrates the &self pattern
         #[derive(Debug)]
         struct TestExporter {
@@ -1377,7 +1377,7 @@ mod tests {
                     is_shutdown: AtomicBool::new(false),
                 }
             }
-            
+
             fn is_shutdown(&self) -> bool {
                 self.is_shutdown.load(Ordering::Relaxed)
             }
@@ -1390,35 +1390,35 @@ mod tests {
                 }
                 Ok(())
             }
-            
+
             fn shutdown(&self) -> OTelSdkResult {
                 self.is_shutdown.store(true, Ordering::Relaxed);
                 Ok(())
             }
-            
+
             fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
                 self.shutdown()
             }
-            
+
             fn force_flush(&self) -> OTelSdkResult {
                 Ok(())
             }
         }
 
         let exporter = TestExporter::new();
-        
+
         // These methods now work with &self
         assert!(!exporter.is_shutdown());
-        
+
         let result = exporter.shutdown();
         assert!(result.is_ok());
-        
+
         assert!(exporter.is_shutdown());
-        
+
         // Test that export fails after shutdown
         let export_result = futures_executor::block_on(exporter.export(vec![]));
         assert!(export_result.is_err());
-        
+
         // Test force_flush
         let flush_result = exporter.force_flush();
         assert!(flush_result.is_ok());
