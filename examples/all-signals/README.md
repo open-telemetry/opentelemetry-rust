@@ -51,7 +51,7 @@ This will:
 
 ![Jaeger trace list](jaeger-traces.png)
 
-Click on a trace to open Trace Details view, which show the span hierarchy and timing:
+Click on a trace to open Trace Details view, which shows the span hierarchy and timing:
 
 ![Jaeger trace details](jaeger-trace-details.png)
 
