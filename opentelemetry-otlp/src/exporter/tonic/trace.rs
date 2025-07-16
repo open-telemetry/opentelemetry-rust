@@ -16,7 +16,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use super::BoxInterceptor;
 
 pub(crate) struct TonicTracesClient {
-    inner: Option<ClientInner>,
+    inner: Mutex<Option<ClientInner>>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -49,10 +49,10 @@ impl TonicTracesClient {
         otel_debug!(name: "TonicsTracesClientBuilt");
 
         TonicTracesClient {
-            inner: Some(ClientInner {
+            inner: Mutex::new(Some(ClientInner {
                 client,
                 interceptor: Mutex::new(interceptor),
-            }),
+            })),
             resource: Default::default(),
         }
     }
@@ -60,7 +60,7 @@ impl TonicTracesClient {
 
 impl SpanExporter for TonicTracesClient {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = match &self.inner {
+        let (mut client, metadata, extensions) = match self.inner.lock().await.as_ref() {
             Some(inner) => {
                 let (m, e, _) = inner
                     .interceptor
@@ -100,9 +100,15 @@ impl SpanExporter for TonicTracesClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        // For tonic client, we don't need to do anything special for shutdown
-        // as it's already using atomic operations for state management
-        Ok(())
+        match self.inner.try_lock() {
+            Ok(mut guard) => match guard.take() {
+                Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
+                None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
+            },
+            Err(_) => Err(OTelSdkError::InternalFailure(
+                "Failed to acquire lock for shutdown".to_string(),
+            )),
+        }
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
