@@ -189,6 +189,14 @@ impl InMemoryLogExporter {
             .map(|mut logs_guard| logs_guard.clear())
             .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to reset logs: {e}")));
     }
+
+    /// Returns a clone of the current resource set for the exporter.
+    pub fn resource(&self) -> Resource {
+        self.resource
+            .lock()
+            .map(|res_guard| res_guard.clone())
+            .expect("Resource lock poisoned")
+    }
 }
 
 impl LogExporter for InMemoryLogExporter {
@@ -218,5 +226,25 @@ impl LogExporter for InMemoryLogExporter {
     fn set_resource(&mut self, resource: &Resource) {
         let mut res_guard = self.resource.lock().expect("Resource lock poisoned");
         *res_guard = resource.clone();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use opentelemetry::KeyValue;
+
+    use super::*;
+
+    #[test]
+    fn test_in_memory_log_exporter_resource() {
+        let mut exporter = InMemoryLogExporter::default();
+        let custom_resource = Resource::builder()
+            .with_attribute(KeyValue::new("key", "value"))
+            .build();
+
+        assert_ne!(exporter.resource(), custom_resource);
+
+        exporter.set_resource(&custom_resource);
+        assert_eq!(exporter.resource(), custom_resource);
     }
 }
