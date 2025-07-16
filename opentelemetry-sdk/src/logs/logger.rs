@@ -5,7 +5,7 @@ use opentelemetry::{trace::TraceContextExt, Context, InstrumentationScope};
 use opentelemetry::logs::Severity;
 use opentelemetry::time::now;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// The object for emitting [`LogRecord`]s.
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
