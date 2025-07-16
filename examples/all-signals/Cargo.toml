@@ -1,0 +1,11 @@
+[package]
+name = "all-signals"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+opentelemetry = { path = "../../opentelemetry" }
+opentelemetry_sdk = { path = "../../opentelemetry-sdk" }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
+tokio = { workspace = true, features = ["full"] }
+
