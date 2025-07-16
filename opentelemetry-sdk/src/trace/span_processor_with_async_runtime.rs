@@ -191,9 +191,6 @@ struct BatchSpanProcessorInternal<E, R> {
     export_tasks: FuturesUnordered<BoxFuture<'static, OTelSdkResult>>,
     runtime: R,
     config: BatchConfig,
-    // TODO: Redesign the `SpanExporter` trait to use immutable references (`&self`)
-    // for all methods. This would allow us to remove the `RwLock` and just use `Arc<E>`,
-    // similar to how `crate::logs::LogExporter` is implemented.
     exporter: Arc<RwLock<E>>,
 }
 
@@ -306,7 +303,7 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
             // Stream has terminated or processor is shutdown, return to finish execution.
             BatchMessage::Shutdown(ch) => {
                 self.flush(Some(ch)).await;
-                let _ = self.exporter.write().await.shutdown();
+                let _ = self.exporter.read().await.shutdown();
                 return false;
             }
             // propagate the resource
