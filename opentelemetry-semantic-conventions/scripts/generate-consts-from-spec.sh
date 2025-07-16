@@ -5,8 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CRATE_DIR="${SCRIPT_DIR}/../"
 
 # freeze the spec version and generator version to make generation reproducible
-SPEC_VERSION=1.34.0
-WEAVER_VERSION=v0.15.2
+SPEC_VERSION=1.36.0
+WEAVER_VERSION=v0.16.1
 
 cd "$CRATE_DIR"
 
@@ -57,5 +57,10 @@ expression='
 # We replace <key> with Markdown code formatting `key` to prevent the error.
 # TODO: This workaround should be removed once the upstream generator handles this correctly.
 "${SED[@]}" 's/<key>/`key`/g' src/attribute.rs
+
+# Patch: rustdoc warns about bare URLs in doc comments. 
+# The following line wraps the specific Kubernetes ResourceRequirements URL with <...> 
+# as suggested by rustdoc warnings, so it becomes a clickable link and the warning goes away.
+"${SED[@]}" -E 's|(/// See )(https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)( for details)|\1<\2>\3|g' src/metric.rs
 
 cargo fmt
