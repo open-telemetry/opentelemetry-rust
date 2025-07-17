@@ -2,6 +2,14 @@
 name = "all-signals"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.75.0"
+publish = false
+
+[[bin]]
+name = "all-signals"
+path = "src/main.rs"
+bench = false
 
 [dependencies]
 opentelemetry = { path = "../../opentelemetry" }
