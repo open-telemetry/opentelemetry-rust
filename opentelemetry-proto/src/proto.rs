@@ -1,7 +1,7 @@
 /// provide serde support for proto traceIds and spanIds.
 /// Those are hex encoded strings in the jsons but they are byte arrays in the proto.
 /// See https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding for more details
-#[cfg(all(feature = "with-serde", feature = "gen-tonic-messages"))]
+#[cfg(all(feature = "with-serde", feature = "prost"))]
 pub(crate) mod serializers {
     use crate::tonic::common::v1::any_value::{self, Value};
     use crate::tonic::common::v1::AnyValue;
@@ -215,7 +215,7 @@ pub(crate) mod serializers {
     }
 }
 
-#[cfg(feature = "gen-tonic-messages")]
+#[cfg(feature = "prost")]
 #[path = "proto/tonic"]
 /// Generated files using [`tonic`](https://docs.rs/crate/tonic) and [`prost`](https://docs.rs/crate/prost)
 pub mod tonic {
@@ -297,6 +297,4 @@ pub mod tonic {
         #[path = "opentelemetry.proto.profiles.v1development.rs"]
         pub mod v1;
     }
-
-    pub use crate::transform::common::tonic::Attributes;
 }
