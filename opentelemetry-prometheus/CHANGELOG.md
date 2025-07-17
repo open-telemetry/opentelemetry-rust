@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Update `opentelemetry` dependency version to 0.30
+- Update `opentelemetry_sdk` dependency version to 0.30
+- Update `opentelemetry-semantic-conventions` dependency version to 0.30
+
 ## 0.29.1
 
 Released 2025-April-11

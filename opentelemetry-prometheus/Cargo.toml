@@ -21,13 +21,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 once_cell = { version = "1.13" }
-opentelemetry = { version = "0.29", default-features = false, features = ["metrics"] }
-opentelemetry_sdk = { version = "0.29", default-features = false, features = ["metrics"] }
+opentelemetry = { version = "0.30", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.30", default-features = false, features = ["metrics", "experimental_metrics_custom_reader"] }
 prometheus = "0.14"
 tracing = { version = ">=0.1.40", default-features = false, optional = true } # optional for opentelemetry internal logging
 
 [dev-dependencies]
-opentelemetry-semantic-conventions = { version = "0.29" }
+opentelemetry-semantic-conventions = { version = "0.30" }
 http-body-util = { version = "0.1" }
 hyper = { version = "1.3", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
