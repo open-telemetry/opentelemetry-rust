@@ -127,6 +127,14 @@ impl InMemorySpanExporter {
     pub fn reset(&self) {
         let _ = self.spans.lock().map(|mut spans_guard| spans_guard.clear());
     }
+
+    /// Returns a clone of the current resource set for the exporter.
+    pub fn resource(&self) -> Resource {
+        self.resource
+            .lock()
+            .map(|res_guard| res_guard.clone())
+            .expect("Resource lock poisoned")
+    }
 }
 
 impl SpanExporter for InMemorySpanExporter {
@@ -149,5 +157,25 @@ impl SpanExporter for InMemorySpanExporter {
             .lock()
             .map(|mut res_guard| *res_guard = resource.clone())
             .expect("Resource lock poisoned");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use opentelemetry::KeyValue;
+
+    use super::*;
+
+    #[test]
+    fn test_in_memory_span_exporter_resource() {
+        let mut exporter = InMemorySpanExporter::default();
+        let custom_resource = Resource::builder()
+            .with_attribute(KeyValue::new("key", "value"))
+            .build();
+
+        assert_ne!(exporter.resource(), custom_resource);
+
+        exporter.set_resource(&custom_resource);
+        assert_eq!(exporter.resource(), custom_resource);
     }
 }

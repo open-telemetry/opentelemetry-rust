@@ -3,6 +3,7 @@
 ## vNext
 
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+- Add `InMemorySpanExporter::resource` and `InMemoryLogExporter::resource` accessor methods.
 
 ## 0.30.0
 
@@ -104,10 +105,10 @@ let counter = meter.u64_counter("my_counter").build();
   - Replaced `global::meter_with_version` with `global::meter_with_scope`
   - Added `global::tracer_with_scope`
   - Refer to PR description for migration guide.
-- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)  
+- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)
 
 - **Breaking change**: [#2260](https://github.com/open-telemetry/opentelemetry-rust/pull/2260)
-  - Removed `global::set_error_handler` and `global::handle_error`. 
+  - Removed `global::set_error_handler` and `global::handle_error`.
   - `global::handle_error` usage inside the opentelemetry crates has been replaced with `global::otel_info`, `otel_warn`, `otel_debug` and `otel_error` macros based on the severity of the internal logs.
   - The default behavior of `global::handle_error` was to log the error using `eprintln!`. With otel macros, the internal logs get emitted via `tracing` macros of matching severity. Users now need to configure a `tracing` layer/subscriber to capture these logs.
   - Refer to PR description for migration guide. Also refer to [self-diagnostics](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/self-diagnostics) example to learn how to view internal logs in stdout using `tracing::fmt` layer.
@@ -207,7 +208,7 @@ to learn how to provide Observable callbacks.
   opaque string. Migration: Replace `.with_unit(Unit::new("myunit"))` with
   `.with_unit("myunit")`.
 
-- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Introduced the `LogRecord::set_target()` method in the log bridge API. 
+- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Introduced the `LogRecord::set_target()` method in the log bridge API.
 This method allows appenders to set the target/component emitting the logs.
 
 ## v0.23.0
@@ -228,7 +229,7 @@ This method allows appenders to set the target/component emitting the logs.
         - opentelemetry::global::shutdown_logger_provider
         - opentelemetry::global::logger_provider
         - opentelemetry::global::GlobalLoggerProvider
-        - opentelemetry::global::ObjectSafeLoggerProvider 
+        - opentelemetry::global::ObjectSafeLoggerProvider
     For creating appenders using Logging bridge API, refer to the opentelemetry-tracing-appender [example](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/examples/basic.rs)
 
 ### Changed
