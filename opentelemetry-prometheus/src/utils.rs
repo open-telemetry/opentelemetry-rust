@@ -98,7 +98,7 @@ fn get_prom_per_unit(unit: &str) -> Option<&'static str> {
 }
 
 #[allow(clippy::ptr_arg)]
-pub(crate) fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
+pub(crate) fn sanitize_name<'a>(s: &'a str) -> Cow<'a, str> {
     // prefix chars to add in case name starts with number
     let mut prefix = "";
 
@@ -129,7 +129,7 @@ pub(crate) fn sanitize_name(s: &Cow<'static, str>) -> Cow<'static, str> {
                 .collect(),
         )
     } else {
-        s.clone() // no invalid chars found, return existing
+        Cow::Borrowed(s) // no invalid chars found, return existing
     }
 }
 
@@ -171,7 +171,7 @@ mod tests {
         ];
 
         for (input, want) in tests {
-            assert_eq!(want, sanitize_name(&input.into()), "input: {input}")
+            assert_eq!(want, sanitize_name(input), "input: {input}")
         }
     }
 
