@@ -3,6 +3,7 @@
 ## vNext
 
 - Update proto definitions to v1.7.0.
+- Added Rust generated protos for profiles collector. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
 
 ## 0.30.0
 
