@@ -442,10 +442,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
     /// GRPC protocol
+    #[cfg_attr(feature = "serialize", serde(rename = "grpc"))]
     Grpc,
     /// HTTP protocol with binary protobuf
+    #[cfg_attr(feature = "serialize", serde(rename = "http/protobuf"))]
     HttpBinary,
     /// HTTP protocol with JSON payload
+    #[cfg_attr(feature = "serialize", serde(rename = "http/json"))]
     HttpJson,
 }
 
@@ -468,5 +471,27 @@ pub mod tonic_types {
     pub mod transport {
         #[doc(no_inline)]
         pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[cfg(feature = "serialize")]
+    #[test]
+    fn test_protocol_serialization() {
+        use super::Protocol;
+
+        for (protocol, expected) in [
+            (Protocol::Grpc, r#""grpc""#),
+            (Protocol::HttpBinary, r#""http/protobuf""#),
+            (Protocol::HttpJson, r#""http/json""#),
+        ] {
+            let serialized = serde_json::to_string(&protocol).unwrap();
+            assert_eq!(serialized, expected);
+
+            let deserialized: Protocol = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(deserialized, protocol);
+        }
     }
 }
