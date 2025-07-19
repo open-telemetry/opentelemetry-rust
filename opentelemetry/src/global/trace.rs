@@ -372,7 +372,7 @@ fn global_tracer_provider() -> &'static RwLock<GlobalTracerProvider> {
 /// [`TracerProvider`]: crate::trace::TracerProvider
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub fn tracer_provider() -> GlobalTracerProvider {
-    // Try to get the global tracer provider. If the RwLock is poisoned, we'll log an error and return a NoopMeterProvider.
+    // Try to get the global tracer provider. If the RwLock is poisoned, we'll log an error and return a NoopTracerProvider.
     let global_provider = global_tracer_provider().read();
     if let Ok(provider) = global_provider {
         provider.clone()
