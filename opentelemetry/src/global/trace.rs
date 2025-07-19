@@ -378,9 +378,7 @@ pub fn tracer_provider() -> GlobalTracerProvider {
         provider.clone()
     } else {
         otel_error!(name: "TracerProvider.GlobalGetFailed", message = "Getting global tracer provider failed. Traces created using global::tracer() or global::tracer_with_scope() will not function. Report this issue in OpenTelemetry repo.");
-        GlobalTracerProvider {
-            provider: Arc::new(crate::trace::noop::NoopTracerProvider::new()),
-        }
+        GlobalTracerProvider::new(NoopTracerProvider::new())
     }
 }
 
