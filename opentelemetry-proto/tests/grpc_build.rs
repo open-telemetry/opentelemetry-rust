@@ -13,6 +13,7 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/profiles/v1development/profiles.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
