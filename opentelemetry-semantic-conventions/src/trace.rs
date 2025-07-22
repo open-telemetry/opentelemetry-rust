@@ -146,9 +146,7 @@ pub use crate::attribute::AWS_S3_PART_NUMBER;
 pub use crate::attribute::AWS_S3_UPLOAD_ID;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::AZ_NAMESPACE;
-
-#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::AZ_SERVICE_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
@@ -171,6 +169,12 @@ pub use crate::attribute::AZURE_COSMOSDB_REQUEST_BODY_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_RESOURCE_PROVIDER_NAMESPACE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_SERVICE_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CASSANDRA_CONSISTENCY_LEVEL;
@@ -244,6 +248,12 @@ pub use crate::attribute::DB_RESPONSE_STATUS_CODE;
 pub use crate::attribute::DB_STORED_PROCEDURE_NAME;
 
 pub use crate::attribute::DB_SYSTEM_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DNS_ANSWERS;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DNS_QUESTION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
@@ -508,6 +518,12 @@ pub use crate::attribute::SESSION_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::SESSION_PREVIOUS_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::TLS_PROTOCOL_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::TLS_PROTOCOL_VERSION;
 
 pub use crate::attribute::URL_FULL;
 
