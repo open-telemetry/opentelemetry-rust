@@ -263,6 +263,31 @@ impl StringValue {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
+
+    /// Shortens this `StringValue` to the specified character length.
+    pub fn truncate(&mut self, new_len: usize) {
+        let s = self.as_ref();
+        if s.len() > new_len {
+            let new_value = truncate_str(s, new_len).to_string();
+
+            match &self.0 {
+                OtelString::Owned(_) | OtelString::Static(_) => {
+                    self.0 = OtelString::Owned(new_value.into_boxed_str());
+                }
+                OtelString::RefCounted(_) => {
+                    self.0 = OtelString::RefCounted(Arc::from(new_value.as_str()))
+                }
+            }
+        }
+    }
+}
+
+/// Returns a str truncated to the specified character length.
+fn truncate_str(s: &str, new_len: usize) -> &str {
+    match s.char_indices().nth(new_len) {
+        None => s,
+        Some((idx, _)) => &s[..idx],
+    }
 }
 
 impl From<StringValue> for String {
@@ -325,6 +350,17 @@ impl Value {
             Value::F64(v) => format!("{v}").into(),
             Value::String(v) => Cow::Borrowed(v.as_str()),
             Value::Array(v) => format!("{v}").into(),
+        }
+    }
+
+    /// Shortens this `Value` to the specified length.
+    ///
+    /// Only [Value::String] and [Array::String] values are truncated.
+    pub fn truncate(&mut self, new_len: usize) {
+        match self {
+            Value::Array(Array::String(v)) => v.iter_mut().for_each(|s| s.truncate(new_len)),
+            Value::String(s) => s.truncate(new_len),
+            _ => (),
         }
     }
 }
@@ -628,7 +664,7 @@ impl InstrumentationScopeBuilder {
 mod tests {
     use std::hash::{Hash, Hasher};
 
-    use crate::{InstrumentationScope, KeyValue};
+    use crate::{Array, InstrumentationScope, KeyValue, Value};
 
     use rand::random;
     use std::collections::hash_map::DefaultHasher;
@@ -692,6 +728,81 @@ mod tests {
             let kv1 = KeyValue::new("key", random_value);
             let kv2 = KeyValue::new("key", random_value);
             assert_eq!(hash_helper(&kv1), hash_helper(&kv2));
+        }
+    }
+
+    #[test]
+    fn value_truncate() {
+        for test in [
+            (0, Value::from(true), Value::from(true)),
+            (
+                0,
+                Value::Array(Array::Bool(vec![true, false])),
+                Value::Array(Array::Bool(vec![true, false])),
+            ),
+            (0, Value::from(42), Value::from(42)),
+            (
+                0,
+                Value::Array(Array::I64(vec![42, -1])),
+                Value::Array(Array::I64(vec![42, -1])),
+            ),
+            (0, Value::from(42.0), Value::from(42.0)),
+            (
+                0,
+                Value::Array(Array::F64(vec![42.0, -1.0])),
+                Value::Array(Array::F64(vec![42.0, -1.0])),
+            ),
+            (0, Value::from("value"), Value::from("")),
+            (
+                0,
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+                Value::Array(Array::String(vec!["".into(), "".into()])),
+            ),
+            (1, Value::from("value"), Value::from("v")),
+            (
+                1,
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+                Value::Array(Array::String(vec!["v".into(), "v".into()])),
+            ),
+            (5, Value::from("value"), Value::from("value")),
+            (
+                7,
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+            ),
+            (
+                6,
+                Value::Array(Array::String(vec!["value".into(), "value-1".into()])),
+                Value::Array(Array::String(vec!["value".into(), "value-".into()])),
+            ),
+            (128, Value::from("value"), Value::from("value")),
+            (
+                128,
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+                Value::Array(Array::String(vec!["value-0".into(), "value-1".into()])),
+            ),
+        ]
+        .iter_mut()
+        {
+            test.1.truncate(test.0);
+            assert_eq!(test.1, test.2)
+        }
+    }
+
+    #[test]
+    fn truncate_str() {
+        for test in [
+            (5, "", ""),
+            (0, "Zero", ""),
+            (10, "Short text", "Short text"),
+            (1, "Hello World!", "H"),
+            (6, "hello€€", "hello€"),
+            (2, "££££££", "££"),
+            (8, "hello€world", "hello€wo"),
+        ]
+        .iter()
+        {
+            assert_eq!(super::truncate_str(test.1, test.0), test.2);
         }
     }
 

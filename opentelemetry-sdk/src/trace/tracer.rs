@@ -73,6 +73,14 @@ impl SdkTracer {
             .saturating_sub(span_attributes_limit);
         attribute_options.truncate(span_attributes_limit);
         let dropped_attributes_count = dropped_attributes_count as u32;
+        let span_attribute_value_limit = span_limits.max_attribute_value_length;
+        if span_attribute_value_limit > -1 {
+            for attribute in attribute_options.iter_mut() {
+                attribute
+                    .value
+                    .truncate(span_attribute_value_limit as usize);
+            }
+        }
 
         // Links are available as Option<Vec<Link>> in the builder
         // If it is None, then there are no links to process.

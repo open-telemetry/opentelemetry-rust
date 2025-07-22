@@ -43,6 +43,13 @@ impl Default for Config {
             config.span_limits.max_attributes_per_span = max_attributes_per_span;
         }
 
+        if let Some(max_attribute_value_length) = env::var("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT")
+            .ok()
+            .and_then(|count_limit| i32::from_str(&count_limit).ok())
+        {
+            config.span_limits.max_attribute_value_length = max_attribute_value_length;
+        }
+
         if let Some(max_events_per_span) = env::var("OTEL_SPAN_EVENT_COUNT_LIMIT")
             .ok()
             .and_then(|max_events| u32::from_str(&max_events).ok())

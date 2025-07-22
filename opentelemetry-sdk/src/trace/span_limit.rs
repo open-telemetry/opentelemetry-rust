@@ -14,6 +14,7 @@
 /// index in the collection. The one added to collections later will be dropped first.
 pub(crate) const DEFAULT_MAX_EVENT_PER_SPAN: u32 = 128;
 pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_SPAN: u32 = 128;
+pub(crate) const DEFAULT_MAX_ATTRIBUTE_VALUE_LENGTH: i32 = -1;
 pub(crate) const DEFAULT_MAX_LINKS_PER_SPAN: u32 = 128;
 pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_EVENT: u32 = 128;
 pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LINK: u32 = 128;
@@ -25,6 +26,8 @@ pub struct SpanLimits {
     pub max_events_per_span: u32,
     /// The max attributes that can be added to a `Span`.
     pub max_attributes_per_span: u32,
+    /// The max length of attribute values added to a `Span`.
+    pub max_attribute_value_length: i32,
     /// The max links that can be added to a `Span`.
     pub max_links_per_span: u32,
     /// The max attributes that can be added into an `Event`
@@ -38,6 +41,7 @@ impl Default for SpanLimits {
         SpanLimits {
             max_events_per_span: DEFAULT_MAX_EVENT_PER_SPAN,
             max_attributes_per_span: DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
+            max_attribute_value_length: DEFAULT_MAX_ATTRIBUTE_VALUE_LENGTH,
             max_links_per_span: DEFAULT_MAX_LINKS_PER_SPAN,
             max_attributes_per_link: DEFAULT_MAX_ATTRIBUTES_PER_LINK,
             max_attributes_per_event: DEFAULT_MAX_ATTRIBUTES_PER_EVENT,
