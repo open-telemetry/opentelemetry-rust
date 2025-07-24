@@ -1,6 +1,6 @@
 use core::fmt;
 use once_cell::sync::OnceCell;
-use opentelemetry_sdk::metrics::{ManualReaderBuilder, MetricError, MetricResult};
+use opentelemetry_sdk::{error::OTelSdkError, metrics::ManualReaderBuilder};
 use std::sync::{Arc, Mutex};
 
 use crate::{Collector, PrometheusExporter, ResourceSelector};
@@ -115,7 +115,7 @@ impl ExporterBuilder {
     }
 
     /// Creates a new [PrometheusExporter] from this configuration.
-    pub fn build(self) -> MetricResult<PrometheusExporter> {
+    pub fn build(self) -> Result<PrometheusExporter, OTelSdkError> {
         let reader = Arc::new(self.reader.build());
 
         let collector = Collector {
@@ -134,7 +134,7 @@ impl ExporterBuilder {
         let registry = self.registry.unwrap_or_default();
         registry
             .register(Box::new(collector))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
+            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
         Ok(PrometheusExporter { reader })
     }
