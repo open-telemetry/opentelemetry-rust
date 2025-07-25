@@ -139,7 +139,7 @@ impl SpanExporter for InMemorySpanExporter {
         result
     }
 
-    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.reset();
         Ok(())
     }

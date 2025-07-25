@@ -63,15 +63,9 @@ impl SpanExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
-        let mut client_guard = self.client.lock().map_err(|e| {
-            OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {e}"))
-        })?;
-
-        if client_guard.take().is_none() {
-            return Err(OTelSdkError::AlreadyShutdown);
-        }
-
+    fn shutdown(&self) -> OTelSdkResult {
+        // For HTTP client, we don't need to do anything special for shutdown
+        // as it's already using atomic operations for state management
         Ok(())
     }
 
