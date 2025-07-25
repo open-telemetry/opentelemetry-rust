@@ -1,12 +1,13 @@
 use opentelemetry::trace::{TraceContextExt, Tracer};
-use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
+use opentelemetry::{Context, KeyValue};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
+use std::cell::RefCell;
 use std::error::Error;
 use std::sync::OnceLock;
 use tracing::info;
@@ -59,32 +60,36 @@ fn init_logs() -> SdkLoggerProvider {
         .build()
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let logger_provider = init_logs();
+thread_local! {
+    static SUPPRESS_GUARD: RefCell<Option<opentelemetry::ContextGuard>> = RefCell::new(None);
+}
+
+// #[tokio::main]
+fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1) // Don't think this matters as no matter how many threads
+        // are created, we intercept the thread start to set suppress guard.
+        .enable_all()
+        .on_thread_start(|| {
+            let suppress_guard = Context::enter_telemetry_suppressed_scope();
+            SUPPRESS_GUARD.with(|guard| {
+                *guard.borrow_mut() = Some(suppress_guard);
+            });
+        })
+        .on_thread_stop(|| {
+            // Cleanup thread-local resources
+            SUPPRESS_GUARD.with(|guard| {
+                if let Some(suppress_guard) = guard.borrow_mut().take() {
+                    drop(suppress_guard);
+                }
+            });
+        })
+        .build()
+        .expect("Failed to create tokio runtime");
+    let logger_provider = rt.block_on(async { init_logs() });
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
-
-    // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
-    // logging is properly suppressed. However, logs emitted by external components
-    // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
-    // OpenTelemetry context. Until this issue is addressed
-    // (https://github.com/open-telemetry/opentelemetry-rust/issues/2877),
-    // filtering like this is the best way to suppress such logs.
-    //
-    // The filter levels are set as follows:
-    // - Allow `info` level and above by default.
-    // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
-    //
-    // Note: This filtering will also drop logs from these components even when
-    // they are used outside of the OTLP Exporter.
-    let filter_otel = EnvFilter::new("info")
-        .add_directive("hyper=off".parse().unwrap())
-        .add_directive("tonic=off".parse().unwrap())
-        .add_directive("h2=off".parse().unwrap())
-        .add_directive("reqwest=off".parse().unwrap());
-    let otel_layer = otel_layer.with_filter(filter_otel);
 
     // Create a new tracing::Fmt layer to print the logs to stdout. It has a
     // default filter of `info` level and above, and `debug` and above for logs
@@ -104,7 +109,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // At this point Logs (OTel Logs and Fmt Logs) are initialized, which will
     // allow internal-logs from Tracing/Metrics initializer to be captured.
 
-    let tracer_provider = init_traces();
+    let tracer_provider = rt.block_on(async { init_traces() });
     // Set the global tracer provider using a clone of the tracer_provider.
     // Setting global tracer provider is required if other parts of the application
     // uses global::tracer() or global::tracer_with_version() to get a tracer.
@@ -113,7 +118,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // shutdown on it when application ends.
     global::set_tracer_provider(tracer_provider.clone());
 
-    let meter_provider = init_metrics();
+    let meter_provider = rt.block_on(async { init_metrics() });
     // Set the global meter provider using a clone of the meter_provider.
     // Setting global meter provider is required if other parts of the application
     // uses global::meter() or global::meter_with_version() to get a meter.
