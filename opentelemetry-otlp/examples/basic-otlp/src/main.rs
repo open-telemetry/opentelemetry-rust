@@ -61,7 +61,7 @@ fn init_logs() -> SdkLoggerProvider {
 }
 
 thread_local! {
-    static SUPPRESS_GUARD: RefCell<Option<opentelemetry::ContextGuard>> = RefCell::new(None);
+    static SUPPRESS_GUARD: RefCell<Option<opentelemetry::ContextGuard>> = const { RefCell::new(None) };
 }
 
 // #[tokio::main]
