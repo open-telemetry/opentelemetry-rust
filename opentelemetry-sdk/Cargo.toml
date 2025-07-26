@@ -121,6 +121,12 @@ name = "log"
 harness = false
 required-features = ["logs"]
 
+[[bench]]
+name = "span_processor_api"
+harness = false
+required-features = ["testing"]
+
+
 [lib]
 bench = false
 
