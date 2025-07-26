@@ -11,8 +11,8 @@ rust-version = "1.75.0"
 autobenches = false
 
 [dependencies]
-opentelemetry = { version = "0.30", path = "../opentelemetry/" }
-opentelemetry-http = { version = "0.30", path = "../opentelemetry-http", optional = true }
+opentelemetry = { workspace = true }
+opentelemetry-http = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-executor = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }

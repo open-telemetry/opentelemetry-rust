@@ -27,10 +27,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.30", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.30", default-features = false, path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.30", path = "../opentelemetry-http", optional = true }
-opentelemetry-proto = { version = "0.30", path = "../opentelemetry-proto", default-features = false }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-http = { workspace = true, optional = true }
+opentelemetry-proto = { workspace = true }
 tracing = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
@@ -45,7 +45,7 @@ serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
-opentelemetry_sdk = { features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { workspace = true, features = ["trace", "testing"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
