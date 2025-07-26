@@ -1,4 +1,4 @@
-#[cfg(all(feature = "with-serde", feature = "gen-tonic-messages"))]
+#[cfg(all(feature = "with-serde", feature = "gen-tonic"))]
 mod json_serde {
     #[cfg(feature = "logs")]
     use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
