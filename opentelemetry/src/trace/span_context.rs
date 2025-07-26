@@ -22,7 +22,7 @@ impl TraceState {
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#key
     fn valid_key(key: &str) -> bool {
-        if key.len() > 256 {
+        if key.is_empty() || key.len() > 256 {
             return false;
         }
 
@@ -36,7 +36,8 @@ impl TraceState {
             if i == 0 && (!b.is_ascii_lowercase() && !b.is_ascii_digit()) {
                 return false;
             } else if b == b'@' {
-                if vendor_start.is_some() || i + 14 < key.len() {
+                // @ must not be at the end, and must have enough space for vendor (at least 1 char)
+                if vendor_start.is_some() || i + 1 >= key.len() || key.len() - i - 1 > 13 {
                     return false;
                 }
                 vendor_start = Some(i);
@@ -416,5 +417,240 @@ mod tests {
                entries count: 1, suppress_telemetry: false \
              }"
         );
+    }
+
+    #[rustfmt::skip]
+    fn malformed_tracestate_test_data() -> Vec<(String, &'static str)> {
+        vec![
+            // Empty and whitespace
+            ("".to_string(), "empty string"),
+            ("   ".to_string(), "whitespace only"),
+            
+            // Missing equals signs
+            ("key".to_string(), "key without value"),
+            ("key,other=value".to_string(), "mixed missing equals"),
+            
+            // Multiple equals signs
+            ("key=value=extra".to_string(), "multiple equals signs"),
+            ("key=val=ue=more".to_string(), "many equals signs"),
+            
+            // Empty keys and values
+            ("=value".to_string(), "empty key"),
+            ("key=".to_string(), "empty value"),
+            ("=".to_string(), "empty key and value"),
+            ("key1=val1,=value2".to_string(), "empty key in list"),
+            ("key1=val1,key2=".to_string(), "empty value in list"),
+            
+            // Invalid characters in keys
+            ("Key=value".to_string(), "uppercase in key"),
+            ("key@toolong1234567890=value".to_string(), "key with @ too close to end"),
+            ("key with spaces=value".to_string(), "spaces in key"),
+            ("key(test)=value".to_string(), "parentheses in key"),
+            ("key[test]=value".to_string(), "brackets in key"),
+            ("key{test}=value".to_string(), "braces in key"),
+            ("key<test>=value".to_string(), "angle brackets in key"),
+            ("key\t=value".to_string(), "tab in key"),
+            ("key\n=value".to_string(), "newline in key"),
+            
+            // Invalid characters in values
+            ("key=val,ue".to_string(), "comma in value"),
+            ("key=val=ue".to_string(), "equals in value"),
+            ("key=val\x00ue".to_string(), "null character in value"),
+            ("key=val\nue".to_string(), "newline in value"),
+            
+            // Very long keys and values (over 256 chars)
+            (format!("{}=value", "a".repeat(300)), "very long key"),
+            (format!("key={}", "v".repeat(300)), "very long value"),
+            (format!("{}={}", "k".repeat(200), "v".repeat(200)), "long key and value"),
+            
+            // Many entries to test limits
+            ((0..1000).map(|i| format!("k{}=v{}", i, i)).collect::<Vec<_>>().join(","), "many entries"),
+            
+            // Malformed list structure
+            ("key=value,".to_string(), "trailing comma"),
+            (",key=value".to_string(), "leading comma"),
+            ("key=value,,".to_string(), "double comma"),
+            ("key=value,,,other=val".to_string(), "multiple consecutive commas"),
+            
+            // Unicode and non-ASCII
+            ("café=bücher".to_string(), "unicode characters"),
+            ("key=🔥".to_string(), "emoji in value"),
+            ("🗝️=value".to_string(), "emoji in key"),
+            ("ключ=значение".to_string(), "cyrillic characters"),
+            
+            // Control characters
+            ("key=val\x01ue".to_string(), "control character in value"),
+            ("key\x7F=value".to_string(), "DEL character in key"),
+            ("key=val\rue".to_string(), "carriage return in value"),
+            
+            // Edge cases with vendor format (key@vendor)
+            ("key@=value".to_string(), "empty vendor"),
+            ("key@@vendor=value".to_string(), "double at sign"),
+            ("key@vendor@extra=value".to_string(), "multiple at signs"),
+            ("@vendor=value".to_string(), "key starting with at"),
+            ("key@1234567890123456789012345678901234567890=value".to_string(), "vendor part too long"),
+        ]
+    }
+
+    #[test]
+    fn test_tracestate_defensive_parsing() {
+        for (malformed_input, description) in malformed_tracestate_test_data() {
+            // The main requirement is that parsing doesn't crash or hang
+            let result = TraceState::from_str(&malformed_input);
+            
+            // For invalid inputs, parsing should return an error
+            // The key requirement is that it doesn't panic or hang
+            match result {
+                Ok(trace_state) => {
+                    // If parsing succeeded, verify the result is reasonable
+                    let header = trace_state.header();
+                    assert!(
+                        header.len() <= malformed_input.len() + 1000, // Reasonable bound
+                        "TraceState header grew unreasonably: {} -> {} ({})",
+                        malformed_input.len(), header.len(), description
+                    );
+                    
+                    // Verify no invalid keys or values made it through
+                    if let Some(ref entries) = trace_state.0 {
+                        for (key, value) in entries {
+                            assert!(
+                                TraceState::valid_key(key),
+                                "Invalid key '{}' in parsed TraceState: {}",
+                                key, description
+                            );
+                            assert!(
+                                TraceState::valid_value(value),
+                                "Invalid value '{}' in parsed TraceState: {}",
+                                value, description
+                            );
+                        }
+                    }
+                }
+                Err(_) => {
+                    // Error is expected for most malformed inputs
+                    // The test passes as long as no panic occurred
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_tracestate_memory_safety() {
+        // Test extremely long input to ensure no memory exhaustion
+        let very_long_input = format!("key={}", "x".repeat(100_000));
+        let result = TraceState::from_str(&very_long_input);
+        
+        // Should either error or handle gracefully
+        match result {
+            Ok(_) => {}, // If it parses, that's fine (validation should have caught length)
+            Err(_) => {}, // Error is expected due to length validation
+        }
+        
+        // Test input with many entries
+        let many_entries: Vec<String> = (0..10_000)
+            .map(|i| format!("k{}=v{}", i, i))
+            .collect();
+        let large_input = many_entries.join(",");
+        
+        let result2 = TraceState::from_str(&large_input);
+        match result2 {
+            Ok(trace_state) => {
+                // If parsing succeeded, ensure reasonable bounds
+                if let Some(ref entries) = trace_state.0 {
+                    assert!(
+                        entries.len() <= 10_000,
+                        "Too many entries in TraceState: {}",
+                        entries.len()
+                    );
+                }
+            }
+            Err(_) => {}, // Error is acceptable
+        }
+    }
+
+    #[test]
+    fn test_tracestate_key_validation_edge_cases() {
+        let long_key_256 = "a".repeat(256);
+        let long_key_257 = "a".repeat(257);
+        
+        let test_cases = vec![
+            ("", false, "empty key"),
+            ("a", true, "single char key"),
+            (&long_key_256, true, "256 char key (max allowed)"),
+            (&long_key_257, false, "257 char key (too long)"),
+            ("A", false, "uppercase letter"),
+            ("0", true, "single digit"),
+            ("test_key", true, "key with underscore"),
+            ("test-key", true, "key with hyphen"),
+            ("test*key", true, "key with asterisk"),
+            ("test/key", true, "key with slash"),
+            ("test@vendor", true, "key with vendor"),
+            ("test@", false, "key with @ at end"),
+            ("@test", false, "key starting with @"),
+            ("test@@vendor", false, "key with double @"),
+            ("test@vendor@extra", false, "key with multiple @"),
+            ("test@1234567890abcdef", false, "vendor too long"),
+            ("test@vendor", true, "valid vendor format"),
+            ("test key", false, "key with space"),
+            ("test\tkey", false, "key with tab"),
+            ("test\nkey", false, "key with newline"),
+            ("test(key)", false, "key with parentheses"),
+            ("test[key]", false, "key with brackets"),
+            ("test{key}", false, "key with braces"),
+            ("test<key>", false, "key with angle brackets"),
+            ("test.key", false, "key with dot"),
+            ("test,key", false, "key with comma"),
+            ("test=key", false, "key with equals"),
+            ("test;key", false, "key with semicolon"),
+            ("café", false, "non-ASCII characters"),
+            ("тест", false, "cyrillic characters"),
+        ];
+        
+        for (key, expected_valid, description) in test_cases {
+            let result = TraceState::valid_key(key);
+            assert_eq!(
+                result, expected_valid,
+                "Key validation mismatch for '{}' ({}): expected {}, got {}",
+                key, description, expected_valid, result
+            );
+        }
+    }
+
+    #[test]
+    fn test_tracestate_value_validation_edge_cases() {
+        let long_value_256 = "a".repeat(256);
+        let long_value_257 = "a".repeat(257);
+        
+        let test_cases = vec![
+            ("", true, "empty value"),
+            ("a", true, "single char value"),
+            (&long_value_256, true, "256 char value (max allowed)"),
+            (&long_value_257, false, "257 char value (too long)"),
+            ("simple_value", true, "simple value"),
+            ("value with spaces", true, "value with spaces"),
+            ("value\twith\ttabs", true, "value with tabs"),
+            ("value\nwith\nnewlines", true, "value with newlines"),
+            ("value,with,commas", false, "value with commas"),
+            ("value=with=equals", false, "value with equals"),
+            ("value;with;semicolons", true, "value with semicolons"),
+            ("value(with)parens", true, "value with parentheses"),
+            ("value[with]brackets", true, "value with brackets"),
+            ("value{with}braces", true, "value with braces"),
+            ("value<with>angles", true, "value with angle brackets"),
+            ("café bücher", true, "unicode value"),
+            ("значение", true, "cyrillic value"),
+            ("🔥🎉", true, "emoji value"),
+            ("value\x00null", true, "value with null char"),
+            ("value\x7Fdel", true, "value with DEL char"),
+        ];
+        
+        for (value, expected_valid, description) in test_cases {
+            let result = TraceState::valid_value(value);
+            assert_eq!(
+                result, expected_valid,
+                "Value validation mismatch for '{}' ({}): expected {}, got {}",
+                value, description, expected_valid, result
+            );
+        }
     }
 }
