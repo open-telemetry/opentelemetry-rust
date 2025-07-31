@@ -854,6 +854,35 @@ mod tests {
             assert_ne!(compressed_body, test_data.to_vec());
         }
 
+        #[cfg(feature = "zstd-http")]
+        #[test]
+        fn test_zstd_compression_and_decompression() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Zstd),
+            );
+
+            // Test with some sample data
+            let test_data = b"Hello, world! This is test data for zstd compression.";
+            let result = client.compress_body(test_data.to_vec()).unwrap();
+            let (compressed_body, content_encoding) = result;
+
+            // Verify encoding header is set
+            assert_eq!(content_encoding, Some("zstd"));
+
+            // Verify we can decompress the body
+            let decompressed = zstd::bulk::decompress(&compressed_body, test_data.len()).unwrap();
+            
+            // Verify decompressed data matches original
+            assert_eq!(decompressed, test_data);
+            // Verify compression actually happened (compressed should be different)
+            assert_ne!(compressed_body, test_data.to_vec());
+        }
+
         #[test]
         fn test_no_compression_when_disabled() {
             let client = OtlpHttpClient::new(
@@ -892,6 +921,26 @@ mod tests {
             // Should return error when gzip requested but feature not enabled
             assert!(result.is_err());
             assert!(result.unwrap_err().contains("gzip-http feature not enabled"));
+        }
+
+        #[cfg(not(feature = "zstd-http"))]
+        #[test]
+        fn test_zstd_error_when_feature_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Zstd),
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.compress_body(body);
+            
+            // Should return error when zstd requested but feature not enabled
+            assert!(result.is_err());
+            assert!(result.unwrap_err().contains("zstd-http feature not enabled"));
         }
 
         // Mock HTTP client for testing
