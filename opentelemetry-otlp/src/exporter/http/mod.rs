@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
-#[cfg(feature = "http-json")]
 use opentelemetry::otel_debug;
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
@@ -278,7 +277,6 @@ pub(crate) struct OtlpHttpClient {
     headers: HashMap<HeaderName, HeaderValue>,
     protocol: Protocol,
     _timeout: Duration,
-    #[allow(dead_code)] // TODO: Remove when compression implementation is added
     compression: Option<crate::Compression>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
@@ -286,6 +284,30 @@ pub(crate) struct OtlpHttpClient {
 }
 
 impl OtlpHttpClient {
+    /// Compress data using gzip if compression is enabled and the feature is available
+    fn compress_body(&self, body: Vec<u8>) -> Result<(Vec<u8>, Option<&'static str>), String> {
+        match self.compression {
+            #[cfg(feature = "gzip-http")]
+            Some(crate::Compression::Gzip) => {
+                use std::io::Write;
+                use flate2::{write::GzEncoder, Compression};
+                
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                encoder.write_all(&body).map_err(|e| e.to_string())?;
+                let compressed = encoder.finish().map_err(|e| e.to_string())?;
+                Ok((compressed, Some("gzip")))
+            }
+            #[cfg(not(feature = "gzip-http"))]
+            Some(crate::Compression::Gzip) => {
+                Err("gzip compression requested but gzip-http feature not enabled".to_string())
+            }
+            Some(crate::Compression::Zstd) => {
+                Err("zstd compression not implemented yet".to_string())
+            }
+            None => Ok((body, None)),
+        }
+    }
+
     #[allow(clippy::mutable_key_type)] // http headers are not mutated
     fn new(
         client: Arc<dyn HttpClient>,
@@ -310,59 +332,73 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
-    ) -> Result<(Vec<u8>, &'static str), String> {
+    ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
         let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
 
         let req = ExportTraceServiceRequest { resource_spans };
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into_bytes(), "application/json")),
-                Err(e) => Err(e.to_string()),
+                Ok(json) => (json.into_bytes(), "application/json"),
+                Err(e) => return Err(e.to_string()),
             },
-            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
-        }
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+        
+        let (compressed_body, content_encoding) = self.compress_body(body)?;
+        Ok((compressed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "logs")]
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> Result<(Vec<u8>, &'static str), String> {
+    ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
 
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(e.to_string()),
+                Ok(json) => (json.into_bytes(), "application/json"),
+                Err(e) => return Err(e.to_string()),
             },
-            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
-        }
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+        
+        let (compressed_body, content_encoding) = self.compress_body(body)?;
+        Ok((compressed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
         metrics: &ResourceMetrics,
-    ) -> Option<(Vec<u8>, &'static str)> {
+    ) -> Option<(Vec<u8>, &'static str, Option<&'static str>)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = metrics.into();
 
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Some((json.into(), "application/json")),
+                Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => {
                     otel_debug!(name: "JsonSerializationFaied", error = e.to_string());
-                    None
+                    return None;
                 }
             },
-            _ => Some((req.encode_to_vec(), "application/x-protobuf")),
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+        
+        match self.compress_body(body) {
+            Ok((compressed_body, content_encoding)) => Some((compressed_body, content_type, content_encoding)),
+            Err(e) => {
+                otel_debug!(name: "CompressionFailed", error = e);
+                None
+            }
         }
     }
 }

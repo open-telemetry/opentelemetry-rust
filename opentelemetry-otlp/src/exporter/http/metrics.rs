@@ -19,13 +19,20 @@ impl MetricsClient for OtlpHttpClient {
                 _ => Err(OTelSdkError::AlreadyShutdown),
             })?;
 
-        let (body, content_type) = self.build_metrics_export_body(metrics).ok_or_else(|| {
+        let (body, content_type, content_encoding) = self.build_metrics_export_body(metrics).ok_or_else(|| {
             OTelSdkError::InternalFailure("Failed to serialize metrics".to_string())
         })?;
-        let mut request = http::Request::builder()
+        
+        let mut request_builder = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
-            .header(CONTENT_TYPE, content_type)
+            .header(CONTENT_TYPE, content_type);
+            
+        if let Some(encoding) = content_encoding {
+            request_builder = request_builder.header("Content-Encoding", encoding);
+        }
+
+        let mut request = request_builder
             .body(body.into())
             .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
 
