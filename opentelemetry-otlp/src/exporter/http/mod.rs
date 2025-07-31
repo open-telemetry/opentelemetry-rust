@@ -966,4 +966,238 @@ mod tests {
             }
         }
     }
+
+    mod export_body_tests {
+        use super::super::OtlpHttpClient;
+        use opentelemetry_http::{Bytes, HttpClient};
+        use std::collections::HashMap;
+
+        #[derive(Debug)]
+        struct MockHttpClient;
+
+        #[async_trait::async_trait]
+        impl HttpClient for MockHttpClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                Ok(http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap())
+            }
+        }
+
+        fn create_test_client(
+            protocol: crate::Protocol,
+            compression: Option<crate::Compression>,
+        ) -> OtlpHttpClient {
+            OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                HashMap::new(),
+                protocol,
+                std::time::Duration::from_secs(10),
+                compression,
+            )
+        }
+
+        fn create_test_span_data() -> opentelemetry_sdk::trace::SpanData {
+            use opentelemetry::trace::Status;
+            use opentelemetry::trace::{
+                SpanContext, SpanId, SpanKind, TraceFlags, TraceId, TraceState,
+            };
+            use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
+            use std::borrow::Cow;
+            use std::time::{Duration, SystemTime};
+
+            let span_context = SpanContext::new(
+                TraceId::from_u128(123),
+                SpanId::from_u64(456),
+                TraceFlags::default(),
+                false,
+                TraceState::default(),
+            );
+            SpanData {
+                span_context,
+                parent_span_id: SpanId::from_u64(0),
+                span_kind: SpanKind::Internal,
+                name: Cow::Borrowed("test_span"),
+                start_time: SystemTime::UNIX_EPOCH,
+                end_time: SystemTime::UNIX_EPOCH + Duration::from_secs(1),
+                attributes: vec![],
+                dropped_attributes_count: 0,
+                events: SpanEvents::default(),
+                links: SpanLinks::default(),
+                status: Status::Unset,
+                instrumentation_scope: opentelemetry::InstrumentationScope::default(),
+            }
+        }
+
+        #[cfg(feature = "trace")]
+        #[test]
+        fn test_build_trace_export_body_binary_protocol() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "trace", feature = "http-json"))]
+        #[test]
+        fn test_build_trace_export_body_json_protocol() {
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "trace", feature = "gzip-http"))]
+        #[test]
+        fn test_build_trace_export_body_with_compression() {
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(feature = "logs")]
+        fn create_test_log_batch() -> opentelemetry_sdk::logs::LogBatch<'static> {
+            use opentelemetry_sdk::logs::LogBatch;
+
+            // Use empty batch for simplicity - the method should still handle protocol/compression correctly
+            LogBatch::new(&[])
+        }
+
+        #[cfg(feature = "logs")]
+        #[test]
+        fn test_build_logs_export_body_binary_protocol() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "logs", feature = "http-json"))]
+        #[test]
+        fn test_build_logs_export_body_json_protocol() {
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "logs", feature = "gzip-http"))]
+        #[test]
+        fn test_build_logs_export_body_with_compression() {
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(feature = "metrics")]
+        #[test]
+        fn test_build_metrics_export_body_binary_protocol() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "metrics", feature = "http-json"))]
+        #[test]
+        fn test_build_metrics_export_body_json_protocol() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "metrics", feature = "gzip-http"))]
+        #[test]
+        fn test_build_metrics_export_body_with_compression() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(all(feature = "metrics", not(feature = "gzip-http")))]
+        #[test]
+        fn test_build_metrics_export_body_compression_error_returns_none() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let metrics = ResourceMetrics::default();
+
+            // Should return None when compression fails (feature not enabled)
+            let result = client.build_metrics_export_body(&metrics);
+            assert!(result.is_none());
+        }
+
+        #[test]
+        fn test_resolve_compression_uses_generic_env_fallback() {
+            use super::super::HttpExporterBuilder;
+            use crate::exporter::tests::run_env_test;
+
+            // Test that generic OTEL_EXPORTER_OTLP_COMPRESSION is used when signal-specific env var is not set
+            run_env_test(
+                vec![(crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip")],
+                || {
+                    let builder = HttpExporterBuilder::default();
+                    let result = builder
+                        .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
+                        .unwrap();
+                    assert_eq!(result, Some(crate::Compression::Gzip));
+                },
+            );
+        }
+    }
 }

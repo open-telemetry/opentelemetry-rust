@@ -174,6 +174,7 @@ impl FromStr for Compression {
 /// 2. Signal-specific environment variable
 /// 3. Generic OTEL_EXPORTER_OTLP_COMPRESSION
 /// 4. None (default)
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 fn resolve_compression_from_env(
     config_compression: Option<Compression>,
     signal_env_var: &str,

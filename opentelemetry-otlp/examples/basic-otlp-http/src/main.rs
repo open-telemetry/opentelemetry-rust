@@ -29,7 +29,13 @@ fn get_resource() -> Resource {
 }
 
 fn init_logs() -> SdkLoggerProvider {
+    #[cfg(any(feature = "gzip", feature = "zstd"))]
     let mut exporter_builder = LogExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary);
+
+    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
+    let exporter_builder = LogExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary);
 
@@ -56,7 +62,13 @@ fn init_logs() -> SdkLoggerProvider {
 }
 
 fn init_traces() -> SdkTracerProvider {
+    #[cfg(any(feature = "gzip", feature = "zstd"))]
     let mut exporter_builder = SpanExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
+
+    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
+    let exporter_builder = SpanExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
 
@@ -83,7 +95,13 @@ fn init_traces() -> SdkTracerProvider {
 }
 
 fn init_metrics() -> SdkMeterProvider {
+    #[cfg(any(feature = "gzip", feature = "zstd"))]
     let mut exporter_builder = MetricExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
+
+    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
+    let exporter_builder = MetricExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
 
