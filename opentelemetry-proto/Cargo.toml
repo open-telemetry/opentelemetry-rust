@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.86.0"
 autotests = false
 autobenches = false
 
@@ -36,7 +36,7 @@ full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "intern
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/channel"]
-gen-tonic-messages = ["tonic", "prost"]
+gen-tonic-messages = ["tonic", "tonic-prost", "prost"]
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
@@ -52,7 +52,8 @@ with-schemars = ["schemars"]
 with-serde = ["serde", "const-hex", "base64", "serde_json"]
 
 [dependencies]
-tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
+tonic = { workspace = true, optional = true, features = ["codegen"] }
+tonic-prost = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
@@ -64,7 +65,7 @@ base64 = { workspace = true, optional = true }
 
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
-tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
