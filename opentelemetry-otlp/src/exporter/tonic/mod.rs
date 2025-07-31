@@ -513,7 +513,7 @@ mod tests {
         run_env_test(
             vec![
                 (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "zstd"),
-                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+                (crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
             ],
             || {
                 let builder = TonicExporterBuilder::default();
@@ -532,7 +532,7 @@ mod tests {
         run_env_test(
             vec![
                 (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "gzip"),
-                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+                (crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
             ],
             || {
                 let builder = TonicExporterBuilder::default().with_compression(Compression::Zstd);
