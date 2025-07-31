@@ -810,4 +810,99 @@ mod tests {
             assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
         });
     }
+
+    #[cfg(feature = "gzip-http")]
+    mod compression_tests {
+        use super::super::OtlpHttpClient;
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+        use opentelemetry_http::{HttpClient, Bytes};
+
+        #[test]
+        fn test_gzip_compression_and_decompression() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+            );
+
+            // Test with some sample data
+            let test_data = b"Hello, world! This is test data for compression.";
+            let result = client.compress_body(test_data.to_vec()).unwrap();
+            let (compressed_body, content_encoding) = result;
+
+            // Verify encoding header is set
+            assert_eq!(content_encoding, Some("gzip"));
+
+            // Verify we can decompress the body
+            let mut decoder = GzDecoder::new(&compressed_body[..]);
+            let mut decompressed = Vec::new();
+            decoder.read_to_end(&mut decompressed).unwrap();
+            
+            // Verify decompressed data matches original
+            assert_eq!(decompressed, test_data);
+            // Verify compression actually happened (compressed should be different)
+            assert_ne!(compressed_body, test_data.to_vec());
+        }
+
+        #[test]
+        fn test_no_compression_when_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None, // No compression
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.compress_body(body.clone()).unwrap();
+            let (result_body, content_encoding) = result;
+
+            // Body should be unchanged and no encoding header
+            assert_eq!(result_body, body);
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(not(feature = "gzip-http"))]
+        #[test]
+        fn test_gzip_error_when_feature_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.compress_body(body);
+            
+            // Should return error when gzip requested but feature not enabled
+            assert!(result.is_err());
+            assert!(result.unwrap_err().contains("gzip-http feature not enabled"));
+        }
+
+        // Mock HTTP client for testing
+        #[derive(Debug)]
+        struct MockHttpClient;
+
+        #[async_trait::async_trait]
+        impl HttpClient for MockHttpClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                Ok(http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap())
+            }
+        }
+    }
 }
