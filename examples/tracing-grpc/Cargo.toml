@@ -3,7 +3,7 @@ name = "tracing-grpc"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.75.0"
+rust-version = "1.86.0"
 publish = false
 autobenches = false
 
@@ -23,12 +23,14 @@ opentelemetry_sdk = { workspace = true, features = ["rt-tokio"] }
 opentelemetry-stdout = { workspace = true, features = ["trace"] }
 prost = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tonic = { workspace = true, features = ["server", "codegen", "channel", "prost", "router"] }
+tonic = { workspace = true, features = ["server", "codegen", "channel", "router"] }
+tonic-prost = { workspace = true }
 
 [build-dependencies]
-tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = [
-    "prost" # needed for `tonic-build`
+    "prost", # needed for `tonic-prost-build`
+    "tonic-prost" # needed for `tonic-prost-build`
 ]
