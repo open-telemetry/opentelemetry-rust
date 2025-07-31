@@ -213,8 +213,8 @@ impl HttpExporterBuilder {
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -232,8 +232,8 @@ impl HttpExporterBuilder {
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -254,8 +254,8 @@ impl HttpExporterBuilder {
         temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -289,9 +289,9 @@ impl OtlpHttpClient {
         match self.compression {
             #[cfg(feature = "gzip-http")]
             Some(crate::Compression::Gzip) => {
-                use std::io::Write;
                 use flate2::{write::GzEncoder, Compression};
-                
+                use std::io::Write;
+
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
                 encoder.write_all(&body).map_err(|e| e.to_string())?;
                 let compressed = encoder.finish().map_err(|e| e.to_string())?;
@@ -351,7 +351,7 @@ impl OtlpHttpClient {
             },
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
-        
+
         let (compressed_body, content_encoding) = self.compress_body(body)?;
         Ok((compressed_body, content_type, content_encoding))
     }
@@ -373,7 +373,7 @@ impl OtlpHttpClient {
             },
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
-        
+
         let (compressed_body, content_encoding) = self.compress_body(body)?;
         Ok((compressed_body, content_type, content_encoding))
     }
@@ -398,9 +398,11 @@ impl OtlpHttpClient {
             },
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
-        
+
         match self.compress_body(body) {
-            Ok((compressed_body, content_encoding)) => Some((compressed_body, content_type, content_encoding)),
+            Ok((compressed_body, content_encoding)) => {
+                Some((compressed_body, content_type, content_encoding))
+            }
             Err(e) => {
                 otel_debug!(name: "CompressionFailed", error = e);
                 None
@@ -821,8 +823,8 @@ mod tests {
     mod compression_tests {
         use super::super::OtlpHttpClient;
         use flate2::read::GzDecoder;
+        use opentelemetry_http::{Bytes, HttpClient};
         use std::io::Read;
-        use opentelemetry_http::{HttpClient, Bytes};
 
         #[test]
         fn test_gzip_compression_and_decompression() {
@@ -847,7 +849,7 @@ mod tests {
             let mut decoder = GzDecoder::new(&compressed_body[..]);
             let mut decompressed = Vec::new();
             decoder.read_to_end(&mut decompressed).unwrap();
-            
+
             // Verify decompressed data matches original
             assert_eq!(decompressed, test_data);
             // Verify compression actually happened (compressed should be different)
@@ -876,7 +878,7 @@ mod tests {
 
             // Verify we can decompress the body
             let decompressed = zstd::bulk::decompress(&compressed_body, test_data.len()).unwrap();
-            
+
             // Verify decompressed data matches original
             assert_eq!(decompressed, test_data);
             // Verify compression actually happened (compressed should be different)
@@ -917,10 +919,12 @@ mod tests {
 
             let body = vec![1, 2, 3, 4];
             let result = client.compress_body(body);
-            
+
             // Should return error when gzip requested but feature not enabled
             assert!(result.is_err());
-            assert!(result.unwrap_err().contains("gzip-http feature not enabled"));
+            assert!(result
+                .unwrap_err()
+                .contains("gzip-http feature not enabled"));
         }
 
         #[cfg(not(feature = "zstd-http"))]
@@ -937,10 +941,12 @@ mod tests {
 
             let body = vec![1, 2, 3, 4];
             let result = client.compress_body(body);
-            
+
             // Should return error when zstd requested but feature not enabled
             assert!(result.is_err());
-            assert!(result.unwrap_err().contains("zstd-http feature not enabled"));
+            assert!(result
+                .unwrap_err()
+                .contains("zstd-http feature not enabled"));
         }
 
         // Mock HTTP client for testing

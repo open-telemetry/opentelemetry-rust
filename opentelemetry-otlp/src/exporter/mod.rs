@@ -171,11 +171,11 @@ impl FromStr for Compression {
 
 /// Resolve compression from environment variables with priority:
 /// 1. Provided config value
-/// 2. Signal-specific environment variable 
+/// 2. Signal-specific environment variable
 /// 3. Generic OTEL_EXPORTER_OTLP_COMPRESSION
 /// 4. None (default)
 fn resolve_compression_from_env(
-    config_compression: Option<Compression>, 
+    config_compression: Option<Compression>,
     signal_env_var: &str,
 ) -> Result<Option<Compression>, ExporterBuildError> {
     if let Some(compression) = config_compression {

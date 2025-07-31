@@ -14,10 +14,7 @@ use tonic::transport::ClientTlsConfig;
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
-use crate::{
-    ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_HEADERS,
-};
+use crate::{ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 
 #[cfg(feature = "logs")]
 pub(crate) mod logs;

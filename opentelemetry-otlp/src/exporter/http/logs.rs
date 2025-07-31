@@ -22,7 +22,7 @@ impl LogExporter for OtlpHttpClient {
             .method(Method::POST)
             .uri(&self.collector_endpoint)
             .header(CONTENT_TYPE, content_type);
-            
+
         if let Some(encoding) = content_encoding {
             request_builder = request_builder.header("Content-Encoding", encoding);
         }
