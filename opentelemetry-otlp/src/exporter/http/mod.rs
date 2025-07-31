@@ -50,6 +50,9 @@ pub struct HttpConfig {
 
     /// Additional headers to send to the collector.
     headers: Option<HashMap<String, String>>,
+
+    /// The compression algorithm to use when communicating with the collector.
+    compression: Option<crate::Compression>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -107,12 +110,15 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
+        signal_compression_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
             self.exporter_config.endpoint.as_deref(),
         )?;
+
+        let compression = self.resolve_compression(signal_compression_var)?;
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
@@ -193,7 +199,15 @@ impl HttpExporterBuilder {
             headers,
             self.exporter_config.protocol,
             timeout,
+            compression,
         ))
+    }
+
+    fn resolve_compression(
+        &self,
+        env_override: &str,
+    ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
+        super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
     /// Create a log exporter with the current configuration
@@ -201,7 +215,7 @@ impl HttpExporterBuilder {
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
         };
 
         let client = self.build_client(
@@ -209,6 +223,7 @@ impl HttpExporterBuilder {
             "/v1/traces",
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -219,7 +234,7 @@ impl HttpExporterBuilder {
     pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
         };
 
         let client = self.build_client(
@@ -227,6 +242,7 @@ impl HttpExporterBuilder {
             "/v1/logs",
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -240,7 +256,7 @@ impl HttpExporterBuilder {
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
         };
 
         let client = self.build_client(
@@ -248,6 +264,7 @@ impl HttpExporterBuilder {
             "/v1/metrics",
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))
@@ -261,6 +278,8 @@ pub(crate) struct OtlpHttpClient {
     headers: HashMap<HeaderName, HeaderValue>,
     protocol: Protocol,
     _timeout: Duration,
+    #[allow(dead_code)] // TODO: Remove when compression implementation is added
+    compression: Option<crate::Compression>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -274,6 +293,7 @@ impl OtlpHttpClient {
         headers: HashMap<HeaderName, HeaderValue>,
         protocol: Protocol,
         timeout: Duration,
+        compression: Option<crate::Compression>,
     ) -> Self {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
@@ -281,6 +301,7 @@ impl OtlpHttpClient {
             headers,
             protocol,
             _timeout: timeout,
+            compression,
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -432,6 +453,9 @@ pub trait WithHttpConfig {
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
+
+    /// Set the compression algorithm to use when communicating with the collector.
+    fn with_compression(self, compression: crate::Compression) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -449,6 +473,11 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
         headers.into_iter().for_each(|(key, value)| {
             http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
         });
+        self
+    }
+
+    fn with_compression(mut self, compression: crate::Compression) -> Self {
+        self.http_client_config().compression = Some(compression);
         self
     }
 }
@@ -695,6 +724,7 @@ mod tests {
             http_config: HttpConfig {
                 client: None,
                 headers: Some(initial_headers),
+                compression: None,
             },
             exporter_config: crate::ExportConfig::default(),
         };

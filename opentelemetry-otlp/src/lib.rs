@@ -281,7 +281,9 @@
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::Temporality;
-//! use opentelemetry_otlp::{Protocol, WithExportConfig, WithTonicConfig};
+//! use opentelemetry_otlp::{Protocol, WithExportConfig};
+//! # #[cfg(feature = "grpc-tonic")]
+//! use opentelemetry_otlp::WithTonicConfig;
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;

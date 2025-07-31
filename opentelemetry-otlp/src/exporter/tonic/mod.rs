@@ -15,7 +15,7 @@ use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOI
 use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
 use crate::{
-    ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
+    ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_HEADERS,
 };
 
@@ -240,15 +240,9 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        if let Some(compression) = self.tonic_config.compression {
-            Ok(Some(compression.try_into()?))
-        } else if let Ok(compression) = env::var(env_override) {
-            Ok(Some(compression.parse::<Compression>()?.try_into()?))
-        } else if let Ok(compression) = env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-            Ok(Some(compression.parse::<Compression>()?.try_into()?))
-        } else {
-            Ok(None)
-        }
+        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
+            .map(|c| c.try_into())
+            .transpose()
     }
 
     /// Build a new tonic log exporter
