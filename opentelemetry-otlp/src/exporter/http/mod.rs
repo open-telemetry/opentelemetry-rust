@@ -301,8 +301,14 @@ impl OtlpHttpClient {
             Some(crate::Compression::Gzip) => {
                 Err("gzip compression requested but gzip-http feature not enabled".to_string())
             }
+            #[cfg(feature = "zstd-http")]
             Some(crate::Compression::Zstd) => {
-                Err("zstd compression not implemented yet".to_string())
+                let compressed = zstd::bulk::compress(&body, 0).map_err(|e| e.to_string())?;
+                Ok((compressed, Some("zstd")))
+            }
+            #[cfg(not(feature = "zstd-http"))]
+            Some(crate::Compression::Zstd) => {
+                Err("zstd compression requested but zstd-http feature not enabled".to_string())
             }
             None => Ok((body, None)),
         }
