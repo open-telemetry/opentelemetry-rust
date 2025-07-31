@@ -86,6 +86,10 @@ name = "trace"
 harness = false
 
 [[bench]]
+name = "span"
+harness = false
+
+[[bench]]
 name = "log_processor"
 harness = false
 
