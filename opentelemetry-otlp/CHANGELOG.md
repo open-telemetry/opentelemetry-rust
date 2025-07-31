@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Bump MSRV to 1.86.0
+
 ## 0.30.0
 
 Released 2025-May-23
