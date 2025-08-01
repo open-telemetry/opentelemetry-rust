@@ -1,8 +1,7 @@
 use crate::growable_array::GrowableArray;
 use opentelemetry::{
     logs::{AnyValue, Severity},
-    trace::{SpanContext, SpanId, TraceFlags, TraceId},
-    Key,
+    Key, SpanId, TraceFlags, TraceId,
 };
 use std::{borrow::Cow, time::SystemTime};
 
@@ -216,8 +215,9 @@ pub struct TraceContext {
     pub trace_flags: Option<TraceFlags>,
 }
 
-impl From<&SpanContext> for TraceContext {
-    fn from(span_context: &SpanContext) -> Self {
+#[cfg(feature = "trace")]
+impl From<&opentelemetry::trace::SpanContext> for TraceContext {
+    fn from(span_context: &opentelemetry::trace::SpanContext) -> Self {
         TraceContext {
             trace_id: span_context.trace_id(),
             span_id: span_context.span_id(),

@@ -1,5 +1,7 @@
-use super::{SdkLogRecord, SdkLoggerProvider, TraceContext};
-use opentelemetry::{trace::TraceContextExt, Context, InstrumentationScope};
+use super::{SdkLogRecord, SdkLoggerProvider};
+#[cfg(feature = "trace")]
+use super::TraceContext;
+use opentelemetry::{Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
@@ -37,11 +39,15 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
         //let mut log_record = record;
         if record.trace_context.is_none() {
-            Context::map_current(|cx| {
-                cx.has_active_span().then(|| {
-                    record.trace_context = Some(TraceContext::from(cx.span().span_context()))
-                })
-            });
+            #[cfg(feature = "trace")]
+            {
+                use opentelemetry::trace::TraceContextExt;
+                Context::map_current(|cx| {
+                    cx.has_active_span().then(|| {
+                        record.trace_context = Some(TraceContext::from(cx.span().span_context()))
+                    })
+                });
+            }
         }
         if record.observed_timestamp.is_none() {
             record.observed_timestamp = Some(now());
