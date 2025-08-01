@@ -15,7 +15,7 @@ bench = false
 [dependencies]
 opentelemetry = { workspace = true, features = ["trace", "metrics", "logs"] }
 opentelemetry_sdk = { workspace = true, features = ["trace", "metrics", "logs"] }
-opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "trace", "metrics", "logs"] }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "trace", "metrics", "logs", "internal-logs"] }
 tokio = { workspace = true, features = ["full"] }
 opentelemetry-appender-tracing = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
