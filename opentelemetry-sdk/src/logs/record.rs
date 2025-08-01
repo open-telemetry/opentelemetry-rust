@@ -1,11 +1,10 @@
 use crate::growable_array::GrowableArray;
-use opentelemetry::{
-    logs::{AnyValue, Severity},
-    SpanId, TraceFlags, TraceId,
-    Key,
-};
 #[cfg(feature = "trace")]
 use opentelemetry::trace::SpanContext;
+use opentelemetry::{
+    logs::{AnyValue, Severity},
+    Key, SpanId, TraceFlags, TraceId,
+};
 use std::{borrow::Cow, time::SystemTime};
 
 // According to a Go-specific study mentioned on https://go.dev/blog/slog,

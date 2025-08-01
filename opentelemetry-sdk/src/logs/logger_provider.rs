@@ -283,6 +283,10 @@ impl LoggerProviderBuilder {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "trace")]
+    use crate::logs::TraceContext;
+    #[cfg(feature = "trace")]
+    use crate::trace::SdkTracerProvider;
     use crate::{
         logs::{InMemoryLogExporter, LogBatch, SdkLogRecord},
         resource::{
@@ -290,19 +294,13 @@ mod tests {
         },
         Resource,
     };
-    #[cfg(feature = "trace")]
-    use crate::logs::TraceContext;
-    #[cfg(feature = "trace")]
-    use crate::trace::SdkTracerProvider;
 
     use super::*;
-    #[cfg(feature = "trace")]
-    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
-    use opentelemetry::{
-        logs::{AnyValue, LogRecord as _, Logger, LoggerProvider},
-    };
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
     #[cfg(feature = "trace")]
     use opentelemetry::trace::TraceContextExt;
+    #[cfg(feature = "trace")]
+    use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;

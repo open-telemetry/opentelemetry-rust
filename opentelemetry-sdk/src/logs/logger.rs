@@ -1,9 +1,9 @@
-use super::{SdkLogRecord, SdkLoggerProvider};
 #[cfg(feature = "trace")]
 use super::TraceContext;
-use opentelemetry::{Context, InstrumentationScope};
+use super::{SdkLogRecord, SdkLoggerProvider};
 #[cfg(feature = "trace")]
 use opentelemetry::trace::TraceContextExt;
+use opentelemetry::{Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
