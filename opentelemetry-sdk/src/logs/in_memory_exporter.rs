@@ -132,7 +132,6 @@ impl InMemoryLogExporterBuilder {
 
     /// If set, the records will not be [`InMemoryLogExporter::reset`] on shutdown.
     #[cfg(test)]
-    #[allow(dead_code)]
     pub(crate) fn keep_records_on_shutdown(self) -> Self {
         Self {
             reset_on_shutdown: false,
