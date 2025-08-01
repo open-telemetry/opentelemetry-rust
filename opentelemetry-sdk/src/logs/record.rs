@@ -1,9 +1,11 @@
 use crate::growable_array::GrowableArray;
 use opentelemetry::{
     logs::{AnyValue, Severity},
-    trace::{SpanContext, SpanId, TraceFlags, TraceId},
+    SpanId, TraceFlags, TraceId,
     Key,
 };
+#[cfg(feature = "trace")]
+use opentelemetry::trace::SpanContext;
 use std::{borrow::Cow, time::SystemTime};
 
 // According to a Go-specific study mentioned on https://go.dev/blog/slog,
@@ -216,6 +218,7 @@ pub struct TraceContext {
     pub trace_flags: Option<TraceFlags>,
 }
 
+#[cfg(feature = "trace")]
 impl From<&SpanContext> for TraceContext {
     fn from(span_context: &SpanContext) -> Self {
         TraceContext {
