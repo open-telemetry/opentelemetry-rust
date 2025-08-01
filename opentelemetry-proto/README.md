@@ -15,7 +15,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.86.0. The current OpenTelemetry version is not guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

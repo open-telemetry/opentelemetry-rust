@@ -5,6 +5,8 @@
 - Update proto definitions to v1.7.0.
 - Added Rust generated protos for profiles collector. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
 - **Breaking change**: package opentelemetry_proto::tonic::profiles::v1 renamed to opentelemetry_proto::tonic::profiles::v1development. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
+- Update `tonic` and `prost` dependency version to 0.14
+- Bump MSRV to 1.86.0
 
 ## 0.30.0
 
