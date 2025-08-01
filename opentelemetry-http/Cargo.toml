@@ -24,7 +24,7 @@ http = { workspace = true }
 http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, optional = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"], optional = true }
-opentelemetry = { version = "0.30", path = "../opentelemetry", features = ["trace"] }
+opentelemetry = { workspace = true, features = ["trace"] }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
