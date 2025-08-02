@@ -116,15 +116,13 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 ///   emitted from a tokio runtime thread.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor<T: SpanExporter> {
-    exporter: Mutex<T>,
+    exporter: T,
 }
 
 impl<T: SpanExporter> SimpleSpanProcessor<T> {
     /// Create a new [SimpleSpanProcessor] using the provided exporter.
     pub fn new(exporter: T) -> Self {
-        Self {
-            exporter: Mutex::new(exporter),
-        }
+        Self { exporter }
     }
 }
 
@@ -138,11 +136,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span])));
+        let result = futures_executor::block_on(self.exporter.export(vec![span]));
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -159,19 +153,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown_with_timeout(timeout)
-        } else {
-            Err(OTelSdkError::InternalFailure(
-                "SimpleSpanProcessor mutex poison at shutdown".into(),
-            ))
-        }
+        self.exporter.shutdown_with_timeout(timeout)
     }
 
     fn set_resource(&mut self, resource: &Resource) {
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.set_resource(resource);
-        }
+        self.exporter.set_resource(resource);
     }
 }
 
@@ -345,7 +331,7 @@ impl BatchSpanProcessor {
                                 );
                                 let _ = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -356,7 +342,7 @@ impl BatchSpanProcessor {
                                 otel_debug!(name: "BatchSpanProcessor.ExportingDueToForceFlush");
                                 let result = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -368,7 +354,7 @@ impl BatchSpanProcessor {
                                 otel_debug!(name: "BatchSpanProcessor.ExportingDueToShutdown");
                                 let result = Self::get_spans_and_export(
                                     &span_receiver,
-                                    &mut exporter,
+                                    &exporter,
                                     &mut spans,
                                     &mut last_export_time,
                                     &current_batch_size,
@@ -396,7 +382,7 @@ impl BatchSpanProcessor {
 
                             let _ = Self::get_spans_and_export(
                                 &span_receiver,
-                                &mut exporter,
+                                &exporter,
                                 &mut spans,
                                 &mut last_export_time,
                                 &current_batch_size,
@@ -451,7 +437,7 @@ impl BatchSpanProcessor {
     #[inline]
     fn get_spans_and_export<E>(
         spans_receiver: &Receiver<SpanData>,
-        exporter: &mut E,
+        exporter: &E,
         spans: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
@@ -477,7 +463,7 @@ impl BatchSpanProcessor {
 
     #[allow(clippy::vec_box)]
     fn export_batch_sync<E>(
-        exporter: &mut E,
+        exporter: &E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
     ) -> OTelSdkResult
@@ -1089,7 +1075,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&mut self) -> OTelSdkResult {
+        fn shutdown(&self) -> OTelSdkResult {
             Ok(())
         }
         fn set_resource(&mut self, resource: &Resource) {
@@ -1372,5 +1358,69 @@ mod tests {
         // Verify exported spans
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 10);
+    }
+
+    #[test]
+    fn test_span_exporter_immutable_reference() {
+        use crate::error::OTelSdkError;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        // Simple test exporter that demonstrates the &self pattern
+        #[derive(Debug)]
+        struct TestExporter {
+            is_shutdown: AtomicBool,
+        }
+
+        impl TestExporter {
+            fn new() -> Self {
+                Self {
+                    is_shutdown: AtomicBool::new(false),
+                }
+            }
+
+            fn is_shutdown(&self) -> bool {
+                self.is_shutdown.load(Ordering::Relaxed)
+            }
+        }
+
+        impl SpanExporter for TestExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                if self.is_shutdown() {
+                    return Err(OTelSdkError::AlreadyShutdown);
+                }
+                Ok(())
+            }
+
+            fn shutdown(&self) -> OTelSdkResult {
+                self.is_shutdown.store(true, Ordering::Relaxed);
+                Ok(())
+            }
+
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                self.shutdown()
+            }
+
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let exporter = TestExporter::new();
+
+        // These methods now work with &self
+        assert!(!exporter.is_shutdown());
+
+        let result = exporter.shutdown();
+        assert!(result.is_ok());
+
+        assert!(exporter.is_shutdown());
+
+        // Test that export fails after shutdown
+        let export_result = futures_executor::block_on(exporter.export(vec![]));
+        assert!(export_result.is_err());
+
+        // Test force_flush
+        let flush_result = exporter.force_flush();
+        assert!(flush_result.is_ok());
     }
 }
