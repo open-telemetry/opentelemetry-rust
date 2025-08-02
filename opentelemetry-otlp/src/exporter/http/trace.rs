@@ -22,17 +22,21 @@ impl SpanExporter for OtlpHttpClient {
             Err(err) => return Err(err),
         };
 
-        let (body, content_type) = match self.build_trace_export_body(batch) {
-            Ok(body) => body,
+        let (body, content_type, content_encoding) = match self.build_trace_export_body(batch) {
+            Ok(result) => result,
             Err(e) => return Err(OTelSdkError::InternalFailure(e.to_string())),
         };
 
-        let mut request = match http::Request::builder()
+        let mut request_builder = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
-            .header(CONTENT_TYPE, content_type)
-            .body(body.into())
-        {
+            .header(CONTENT_TYPE, content_type);
+
+        if let Some(encoding) = content_encoding {
+            request_builder = request_builder.header("Content-Encoding", encoding);
+        }
+
+        let mut request = match request_builder.body(body.into()) {
             Ok(req) => req,
             Err(e) => return Err(OTelSdkError::InternalFailure(e.to_string())),
         };
