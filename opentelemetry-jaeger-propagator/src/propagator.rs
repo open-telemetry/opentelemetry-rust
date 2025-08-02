@@ -550,10 +550,7 @@ mod tests {
     #[test]
     fn test_extract_span_id() {
         let propgator = Propagator::new();
-        assert_eq!(
-            propgator.extract_span_id("12345"),
-            Ok(SpanId::from(74565))
-        );
+        assert_eq!(propgator.extract_span_id("12345"), Ok(SpanId::from(74565)));
 
         // Fail to extract span id with an invalid hex-string
         assert_eq!(propgator.extract_span_id("invalid"), Err(()));
