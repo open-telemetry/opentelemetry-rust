@@ -96,6 +96,7 @@ rust_2024_compatibility = { level = "warn", priority = -1 }
 edition_2024_expr_fragment_specifier = "allow"
 if_let_rescope = "allow"
 tail_expr_drop_order = "allow"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tracing_unstable)"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = 1 }
