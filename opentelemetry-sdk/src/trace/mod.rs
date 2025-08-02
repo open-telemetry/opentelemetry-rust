@@ -39,7 +39,7 @@ pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, ShouldSample};
-pub use span::Span;
+pub use span::{FinishedSpan, ReadableSpan, Span};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
@@ -137,7 +137,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &mut FinishedSpan) {
             // TODO: Accessing Context::current() will panic today and hence commented out.
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             // let _c = Context::current();
