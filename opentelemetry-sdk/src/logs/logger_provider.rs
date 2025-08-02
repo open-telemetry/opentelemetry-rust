@@ -607,8 +607,8 @@ mod tests {
         tracer.in_span("test-span", |cx| {
             let ambient_ctxt = cx.span().span_context().clone();
             let explicit_ctxt = TraceContext {
-                trace_id: TraceId::from_u128(13),
-                span_id: SpanId::from_u64(14),
+                trace_id: TraceId::from(13),
+                span_id: SpanId::from(14),
                 trace_flags: None,
             };
 

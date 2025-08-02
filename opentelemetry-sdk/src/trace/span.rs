@@ -285,7 +285,7 @@ mod tests {
         let provider = crate::trace::SdkTracerProvider::default();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
-            parent_span_id: SpanId::from_u64(0),
+            parent_span_id: SpanId::from(0),
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
@@ -611,8 +611,8 @@ mod tests {
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut link = Link::with_context(SpanContext::new(
-            TraceId::from_u128(12),
-            SpanId::from_u64(12),
+            TraceId::from(12),
+            SpanId::from(12),
             TraceFlags::default(),
             false,
             Default::default(),
@@ -645,8 +645,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -659,8 +659,8 @@ mod tests {
         // add links using span api after building the span
         span.add_link(
             SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),

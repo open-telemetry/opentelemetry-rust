@@ -352,8 +352,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -422,8 +422,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),
@@ -475,8 +475,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),

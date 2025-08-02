@@ -239,8 +239,8 @@ mod tests {
                 SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -251,8 +251,8 @@ mod tests {
                 SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -263,8 +263,8 @@ mod tests {
                 SHORT_SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -275,8 +275,8 @@ mod tests {
                 SPAN_ID_STR,
                 3,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -287,8 +287,8 @@ mod tests {
                 SPAN_ID_STR,
                 0,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::default(),
                     true,
                     TraceState::default(),
@@ -319,8 +319,8 @@ mod tests {
         vec![
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -329,8 +329,8 @@ mod tests {
             ),
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::default(),
                     true,
                     TraceState::default(),
@@ -339,8 +339,8 @@ mod tests {
             ),
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -550,10 +550,7 @@ mod tests {
     #[test]
     fn test_extract_span_id() {
         let propgator = Propagator::new();
-        assert_eq!(
-            propgator.extract_span_id("12345"),
-            Ok(SpanId::from_u64(74565))
-        );
+        assert_eq!(propgator.extract_span_id("12345"), Ok(SpanId::from(74565)));
 
         // Fail to extract span id with an invalid hex-string
         assert_eq!(propgator.extract_span_id("invalid"), Err(()));
@@ -683,8 +680,8 @@ mod tests {
         assert_eq!(
             context.span().span_context(),
             &SpanContext::new(
-                TraceId::from_u128(TRACE_ID),
-                SpanId::from_u64(SPAN_ID),
+                TraceId::from(TRACE_ID),
+                SpanId::from(SPAN_ID),
                 TraceFlags::SAMPLED,
                 true,
                 TraceState::default(),
