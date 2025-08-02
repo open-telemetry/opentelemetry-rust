@@ -67,7 +67,15 @@ impl SpanExporter for TonicTracesClient {
                     .lock()
                     .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
                     .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
+                    .map_err(|e| {
+                        otel_debug!(
+                            name: "TonicTracesClient.InterceptorFailed",
+                            grpc_code = format!("{:?}", e.code()),
+                            grpc_message = e.message(),
+                            grpc_details = format!("{:?}", e.details())
+                        );
+                        OTelSdkError::InternalFailure("Traces export failed in interceptor".into())
+                    })?
                     .into_parts();
                 (inner.client.clone(), m, e)
             }
@@ -92,9 +100,13 @@ impl SpanExporter for TonicTracesClient {
                 Ok(())
             }
             Err(e) => {
-                let error = e.to_string();
-                otel_debug!(name: "TonicTracesClient.ExportFailed", error = &error);
-                Err(OTelSdkError::InternalFailure(error))
+                otel_debug!(
+                    name: "TonicTracesClient.ExportFailed",
+                    grpc_code = format!("{:?}", e.code()),
+                    grpc_message = e.message(),
+                    grpc_details = format!("{:?}", e.details())
+                );
+                Err(OTelSdkError::InternalFailure("Traces export failed".into()))
             }
         }
     }

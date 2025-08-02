@@ -63,9 +63,15 @@ impl MetricsClient for TonicMetricsClient {
                         .interceptor
                         .call(Request::new(()))
                         .map_err(|e| {
-                            OTelSdkError::InternalFailure(format!(
-                                "unexpected status while exporting {e:?}"
-                            ))
+                            otel_debug!(
+                                name: "TonicMetricsClient.InterceptorFailed",
+                                grpc_code = format!("{:?}", e.code()),
+                                grpc_message = e.message(),
+                                grpc_details = format!("{:?}", e.details())
+                            );
+                            OTelSdkError::InternalFailure(
+                                "Metrics export failed in interceptor".into(),
+                            )
                         })?
                         .into_parts();
                     Ok((inner.client.clone(), m, e))
@@ -91,9 +97,15 @@ impl MetricsClient for TonicMetricsClient {
                 Ok(())
             }
             Err(e) => {
-                let error = format!("{e:?}");
-                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = &error);
-                Err(OTelSdkError::InternalFailure(error))
+                otel_debug!(
+                    name: "TonicMetricsClient.ExportFailed",
+                    grpc_code = format!("{:?}", e.code()),
+                    grpc_message = e.message(),
+                    grpc_details = format!("{:?}", e.details())
+                );
+                Err(OTelSdkError::InternalFailure(
+                    "Metrics export failed".into(),
+                ))
             }
         }
     }
