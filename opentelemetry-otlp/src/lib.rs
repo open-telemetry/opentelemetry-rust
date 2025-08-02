@@ -40,7 +40,7 @@
 //!
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_simple_exporter(otlp_exporter)
+//!         .with_batch_exporter(otlp_exporter)
 //!         .build();
 //!
 //!     // Set it as the global provider
@@ -83,7 +83,7 @@
 //!
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_simple_exporter(otlp_exporter)
+//!         .with_batch_exporter(otlp_exporter)
 //!         .build();
 //!
 //!     // Set it as the global provider
@@ -116,7 +116,7 @@
 //!             .build()
 //!             .expect("Failed to create span exporter");
 //!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!             .with_simple_exporter(exporter)
+//!             .with_batch_exporter(exporter)
 //!             .build()
 //!     });
 //!
@@ -202,40 +202,6 @@
 //! After running your application configured with the OTLP exporter, view metrics at:
 //! `http://localhost:9090`
 //! ## Show Logs, Metrics too (TODO)
-//!
-//! ## Performance
-//!
-//! For optimal performance, a batch exporting processor is recommended as the simple
-//! processor will export each span synchronously on dropping, and is only good
-//! for test/debug purposes.
-//!
-//! ```toml
-//! [dependencies]
-//! opentelemetry-otlp = { version = "*", features = ["grpc-tonic"] }
-//! ```
-//!
-//! ```no_run
-//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
-//! # {
-//! use opentelemetry::global;
-//! use opentelemetry::trace::Tracer;
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // First, create a OTLP exporter builder. Configure it as you need.
-//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
-//!     // Then pass it into provider builder
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_batch_exporter(otlp_exporter)
-//!         .build();
-//!     let tracer = global::tracer("my_tracer");
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//!
-//!     Ok(())
-//!   # }
-//! }
-//! ```
 //!
 //! [`tokio`]: https://tokio.rs
 //!
