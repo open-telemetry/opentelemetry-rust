@@ -1,5 +1,5 @@
 use core::fmt;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::metrics::v1::{
@@ -53,27 +53,25 @@ impl TonicMetricsClient {
 
 impl MetricsClient for TonicMetricsClient {
     async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = self
-            .inner
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e:?}")))
-            .and_then(|mut inner| match &mut *inner {
-                Some(inner) => {
-                    let (m, e, _) = inner
-                        .interceptor
-                        .call(Request::new(()))
-                        .map_err(|e| {
-                            OTelSdkError::InternalFailure(format!(
-                                "unexpected status while exporting {e:?}"
-                            ))
-                        })?
-                        .into_parts();
-                    Ok((inner.client.clone(), m, e))
-                }
-                None => Err(OTelSdkError::InternalFailure(
+        let (mut client, metadata, extensions) = match self.inner.lock().await.as_mut() {
+            Some(inner) => {
+                let (m, e, _) = inner
+                    .interceptor
+                    .call(Request::new(()))
+                    .map_err(|e| {
+                        OTelSdkError::InternalFailure(format!(
+                            "unexpected status while exporting {e:?}"
+                        ))
+                    })?
+                    .into_parts();
+                (inner.client.clone(), m, e)
+            }
+            None => {
+                return Err(OTelSdkError::InternalFailure(
                     "exporter is already shut down".into(),
-                )),
-            })?;
+                ))
+            }
+        };
 
         otel_debug!(name: "TonicMetricsClient.ExportStarted");
 
@@ -99,11 +97,13 @@ impl MetricsClient for TonicMetricsClient {
     }
 
     fn shutdown(&self) -> OTelSdkResult {
-        self.inner
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?
-            .take();
-
+        // TODO: Implement actual shutdown
+        // Due to the use of tokio::sync::Mutex to guard
+        // the inner client, we need to await the call to lock the mutex
+        // and that requires async runtime.
+        // It is possible to fix this by using
+        // a dedicated thread just to handle shutdown.
+        // But for now, we just return Ok.
         Ok(())
     }
 }
