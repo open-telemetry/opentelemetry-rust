@@ -104,7 +104,6 @@ impl opentelemetry::trace::Span for Span {
                 let dropped_attributes_count =
                     attributes.len().saturating_sub(event_attributes_limit);
                 attributes.truncate(event_attributes_limit);
-
                 data.events.add_event(Event::new(
                     name,
                     timestamp,
@@ -134,10 +133,16 @@ impl opentelemetry::trace::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, mut attribute: KeyValue) {
         let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
+        let span_attribute_value_limit = self.span_limits.max_attribute_value_length;
         self.with_data(|data| {
             if data.attributes.len() < span_attribute_limit {
+                if span_attribute_value_limit > -1 {
+                    attribute
+                        .value
+                        .truncate(span_attribute_value_limit as usize);
+                }
                 data.attributes.push(attribute);
             } else {
                 data.dropped_attributes_count += 1;
@@ -278,6 +283,7 @@ mod tests {
     use crate::trace::{SpanEvents, SpanLinks};
     use opentelemetry::trace::{self, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider};
+    use opentelemetry::{Array, StringValue, Value};
     use std::time::Duration;
     use std::vec;
 
@@ -564,6 +570,57 @@ mod tests {
             actual_span.dropped_attributes_count, expected_dropped_count,
             "Dropped count should match the actual count of attributes dropped"
         );
+    }
+
+    #[test]
+    fn exceed_span_attributes_value_length_limit() {
+        let max_attribute_value_length = 4;
+        let exporter = NoopSpanExporter::new();
+        let provider_builder = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .with_max_attribute_value_length(max_attribute_value_length);
+        let provider = provider_builder.build();
+        let tracer = provider.tracer("opentelemetry-test");
+
+        let initial_attributes = vec![
+            KeyValue::new("first", String::from("test")),
+            KeyValue::new("second", String::from("test data")),
+            KeyValue::new(
+                "third",
+                Value::Array(
+                    [
+                        StringValue::from("t"),
+                        StringValue::from("test"),
+                        StringValue::from("test data"),
+                        StringValue::from("test data, once again"),
+                    ]
+                    .to_vec()
+                    .into(),
+                ),
+            ),
+        ];
+        let span_builder = SpanBuilder::from_name("test_span").with_attributes(initial_attributes);
+
+        let mut span = tracer.build(span_builder);
+        span.set_attribute(KeyValue::new("fourth", "test data, after span builder"));
+
+        span.with_data(|data| {
+            for attribute in &data.attributes {
+                if let Value::String(_) = &attribute.value {
+                    assert!(
+                        attribute.value.as_str().len() <= max_attribute_value_length as usize,
+                        "Span attribute values should be truncated to the max length"
+                    );
+                } else if let Value::Array(Array::String(elems)) = &attribute.value {
+                    for elem in elems {
+                        assert!(
+                            elem.as_str().len() <= max_attribute_value_length as usize,
+                            "Span attribute values should be truncated to the max length"
+                        );
+                    }
+                }
+            }
+        });
     }
 
     #[test]
