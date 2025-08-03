@@ -1,5 +1,7 @@
 use std::env;
 use std::fmt::{Debug, Formatter};
+#[cfg(feature = "tls")]
+use std::fs;
 use std::str::FromStr;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -9,7 +11,7 @@ use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
 #[cfg(feature = "tls")]
-use tonic::transport::ClientTlsConfig;
+use tonic::transport::{Certificate, ClientTlsConfig, Identity};
 
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use super::{resolve_timeout, ExporterBuildError};
@@ -17,6 +19,12 @@ use crate::exporter::Compression;
 use crate::{
     ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_HEADERS,
+};
+
+#[cfg(feature = "tls")]
+use crate::{
+    OTEL_EXPORTER_OTLP_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_INSECURE,
 };
 
 #[cfg(feature = "logs")]
@@ -153,7 +161,11 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
-    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), ExporterBuildError> {
+        #[cfg(feature = "tls")] signal_insecure_var: &str,
+        #[cfg(feature = "tls")] signal_certificate_var: &str,
+        #[cfg(feature = "tls")] signal_client_cert_var: &str,
+        #[cfg(feature = "tls")] signal_client_key_var: &str,
+    ) -> Result<(Channel, BoxInterceptor, Option<CompressionEncoding>), crate::Error> {
         let compression = self.resolve_compression(signal_compression_var)?;
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
@@ -201,20 +213,107 @@ impl TonicExporterBuilder {
         let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
 
         #[cfg(feature = "tls")]
-        let channel = match self.tonic_config.tls_config {
-            Some(tls_config) => endpoint
-                .tls_config(tls_config)
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
-            None => endpoint,
+        {
+            let insecure = config.insecure.unwrap_or_else(|| {
+                env::var(signal_insecure_var)
+                    .or_else(|_| env::var(OTEL_EXPORTER_OTLP_INSECURE))
+                    .is_ok_and(|x| {
+                        if x == "1" {
+                            true
+                        } else if x == "0" || x != "true" || x != "false" {
+                            false
+                        } else {
+                            bool::from_str(&x).unwrap_or(false)
+                        }
+                    })
+            });
+
+            let channel = match self.tonic_config.tls_config {
+                Some(tls_config) => endpoint
+                    .tls_config(tls_config)
+                    .map_err(crate::Error::from)?,
+                None => {
+                    if !insecure {
+                        let tls_config = Self::resolve_tls_config(
+                            signal_certificate_var,
+                            signal_client_cert_var,
+                            signal_client_key_var,
+                            self.tonic_config.tls_config,
+                            config.certificate,
+                            config.client_certificate,
+                            config.client_key,
+                        )?;
+                        endpoint
+                            .tls_config(tls_config)
+                            .map_err(crate::Error::from)?
+                    } else {
+                        endpoint
+                    }
+                }
+            }
+            .timeout(timeout)
+            .connect_lazy();
+            otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
+            Ok((channel, interceptor, compression))
         }
-        .timeout(timeout)
-        .connect_lazy();
 
         #[cfg(not(feature = "tls"))]
-        let channel = endpoint.timeout(timeout).connect_lazy();
+        {
+            otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
+            let channel = endpoint.timeout(timeout).connect_lazy();
+            Ok((channel, interceptor, compression))
+        }
+    }
 
-        otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
-        Ok((channel, interceptor, compression))
+    #[cfg(feature = "tls")]
+    fn resolve_tls_config(
+        signal_certificate_var: &str,
+        signal_client_cert_var: &str,
+        signal_client_key_var: &str,
+        provided_tls_config: Option<ClientTlsConfig>,
+        provided_certificate: Option<String>,
+        provided_client_cert: Option<String>,
+        provided_client_key: Option<String>,
+    ) -> Result<ClientTlsConfig, crate::Error> {
+        // User provided tls config. Use it.
+        if let Some(tls_config) = provided_tls_config {
+            return Ok(tls_config);
+        }
+
+        // No user provided tls config. Try to build one from env vars.
+        let mut client_tls_config = ClientTlsConfig::new();
+
+        let ca_file = provided_certificate.or_else(|| {
+            env::var(signal_certificate_var)
+                .or_else(|_| env::var(OTEL_EXPORTER_OTLP_CERTIFICATE))
+                .ok()
+        });
+        let client_cert_file = provided_client_cert.or_else(|| {
+            env::var(signal_client_cert_var)
+                .or_else(|_| env::var(OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE))
+                .ok()
+        });
+        let client_key_file = provided_client_key.or_else(|| {
+            env::var(signal_client_key_var)
+                .or_else(|_| env::var(OTEL_EXPORTER_OTLP_CLIENT_KEY))
+                .ok()
+        });
+        if let Some(ca_path) = ca_file {
+            let ca_cert =
+                std::fs::read(ca_path).map_err(|x| crate::Error::TLSConfigError(x.to_string()))?;
+            client_tls_config = client_tls_config.ca_certificate(Certificate::from_pem(ca_cert));
+        }
+
+        if let (Some(cert_path), Some(key_path)) = (client_cert_file, client_key_file) {
+            let cert =
+                fs::read(cert_path).map_err(|x| crate::Error::TLSConfigError(x.to_string()))?;
+            let key =
+                fs::read(key_path).map_err(|x| crate::Error::TLSConfigError(x.to_string()))?;
+
+            let identity = Identity::from_pem(cert, key);
+            client_tls_config = client_tls_config.identity(identity);
+        }
+        Ok(client_tls_config)
     }
 
     fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
@@ -257,17 +356,35 @@ impl TonicExporterBuilder {
         use crate::exporter::tonic::logs::TonicLogsClient;
 
         otel_debug!(name: "LogsTonicChannelBuilding");
+        #[cfg(not(feature = "tls"))]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            )?;
+            let client = TonicLogsClient::new(channel, interceptor, compression);
 
-        let (channel, interceptor, compression) = self.build_channel(
-            crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-            crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
-            crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
-            crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-        )?;
+            Ok(crate::logs::LogExporter::from_tonic(client))
+        }
 
-        let client = TonicLogsClient::new(channel, interceptor, compression);
+        #[cfg(feature = "tls")]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_INSECURE,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+                crate::logs::OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY,
+            )?;
 
-        Ok(crate::logs::LogExporter::from_tonic(client))
+            let client = TonicLogsClient::new(channel, interceptor, compression);
+            Ok(crate::logs::LogExporter::from_tonic(client))
+        }
     }
 
     /// Build a new tonic metrics exporter
@@ -281,16 +398,36 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "MetricsTonicChannelBuilding");
 
-        let (channel, interceptor, compression) = self.build_channel(
-            crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
-            crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
-            crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-        )?;
+        #[cfg(not(feature = "tls"))]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            )?;
 
-        let client = TonicMetricsClient::new(channel, interceptor, compression);
+            let client = TonicMetricsClient::new(channel, interceptor, compression);
+            Ok(MetricExporter::from_tonic(client, temporality))
+        }
 
-        Ok(MetricExporter::from_tonic(client, temporality))
+        #[cfg(feature = "tls")]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+                crate::metric::OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY,
+            )?;
+
+            let client = TonicMetricsClient::new(channel, interceptor, compression);
+
+            Ok(MetricExporter::from_tonic(client, temporality))
+        }
     }
 
     /// Build a new tonic span exporter
@@ -300,16 +437,37 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "TracesTonicChannelBuilding");
 
-        let (channel, interceptor, compression) = self.build_channel(
-            crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
-            crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
-            crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-        )?;
+        #[cfg(not(feature = "tls"))]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            )?;
 
-        let client = TonicTracesClient::new(channel, interceptor, compression);
+            let client = TonicTracesClient::new(channel, interceptor, compression);
 
-        Ok(crate::SpanExporter::from_tonic(client))
+            Ok(crate::SpanExporter::from_tonic(client))
+        }
+
+        #[cfg(feature = "tls")]
+        {
+            let (channel, interceptor, compression) = self.build_channel(
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+                crate::span::OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+            )?;
+
+            let client = TonicTracesClient::new(channel, interceptor, compression);
+
+            Ok(crate::SpanExporter::from_tonic(client))
+        }
     }
 }
 

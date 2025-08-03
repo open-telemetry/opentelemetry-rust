@@ -2,6 +2,8 @@
 
 ## vNext
 
+- TLS configuration via environment variables for GRPC exporters.
+
 ## 0.30.0
 
 Released 2025-May-23
@@ -33,16 +35,16 @@ Released 2025-Mar-21
   [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
   partially to properly handle `shutdown()` when using `http`. (`tonic` still
   does not do proper shutdown)
-- *Breaking*
- ExporterBuilder's build() method now Result with `ExporterBuildError` being the
- Error variant. Previously it returned signal specific errors like `LogError`
- from the `opentelemetry_sdk`, which are no longer part of the sdk. No changes
- required if you were using unwrap/expect. If you were matching on the returning
- Error enum, replace with the enum `ExporterBuildError`. Unlike the previous
- `Error` which contained many variants unrelated to building an exporter, the
- new one returns specific variants applicable to building an exporter. Some
- variants might be applicable only on select features.
- Also, now unused `Error` enum is removed.
+- _Breaking_
+  ExporterBuilder's build() method now Result with `ExporterBuildError` being the
+  Error variant. Previously it returned signal specific errors like `LogError`
+  from the `opentelemetry_sdk`, which are no longer part of the sdk. No changes
+  required if you were using unwrap/expect. If you were matching on the returning
+  Error enum, replace with the enum `ExporterBuildError`. Unlike the previous
+  `Error` which contained many variants unrelated to building an exporter, the
+  new one returns specific variants applicable to building an exporter. Some
+  variants might be applicable only on select features.
+  Also, now unused `Error` enum is removed.
 - **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
 - **Breaking** Export configuration done via code is final. ENV variables cannot be used to override the code config.
   Do not use code based config, if there is desire to control the settings via ENV variables.
@@ -72,10 +74,10 @@ Released 2025-Feb-10
 - The HTTP clients (reqwest, reqwest-blocking, hyper) now support the
   export timeout interval configured in below order
   - Signal specific env variable `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`,
-  `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` or `OTEL_EXPORTER_OTLP_TIMEOUT`.
+    `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` or `OTEL_EXPORTER_OTLP_TIMEOUT`.
   - `OTEL_EXPORTER_OTLP_TIMEOUT` env variable.
   - `with_http().with_timeout()` API method of
-`LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
+    `LogExporterBuilder` and `SpanExporterBuilder` and `MetricsExporterBuilder`.
   - The default interval of 10 seconds is used if none is configured.
 
 ## 0.27.0
@@ -88,6 +90,7 @@ Released 2024-Nov-11
 - Update `opentelemetry-proto` dependency version to 0.27
 
 - **BREAKING**:
+
   - ([#2217](https://github.com/open-telemetry/opentelemetry-rust/pull/2217)) **Replaced**: The `MetricsExporterBuilder` interface is modified from `with_temporality_selector` to `with_temporality` example can be seen below:
     Previous Signature:
     ```rust
@@ -98,6 +101,7 @@ Released 2024-Nov-11
     MetricsExporterBuilder::default().with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
     ```
   - ([#2221](https://github.com/open-telemetry/opentelemetry-rust/pull/2221)) **Replaced**:
+
     - The `opentelemetry_otlp::new_pipeline().{trace,logging,metrics}()` interface is now replaced with `{TracerProvider,SdkMeterProvider,LoggerProvider}::builder()`.
     - The `opentelemetry_otlp::new_exporter()` interface is now replaced with `{SpanExporter,MetricsExporter,LogExporter}::builder()`.
 
@@ -105,6 +109,7 @@ Released 2024-Nov-11
     and [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) for more details:
 
     Previous Signature:
+
     ```rust
     let logger_provider: LoggerProvider = opentelemetry_otlp::new_pipeline()
       .logging()
@@ -116,7 +121,9 @@ Released 2024-Nov-11
       )
       .install_batch(runtime::Tokio)?;
     ```
+
     Updated Signature:
+
     ```rust
     let exporter = LogExporter::builder()
         .with_tonic()
@@ -128,16 +135,19 @@ Released 2024-Nov-11
         .with_batch_exporter(exporter, runtime::Tokio)
         .build())
     ```
+
   - **Renamed**
+
     - ([#2255](https://github.com/open-telemetry/opentelemetry-rust/pull/2255)): de-pluralize Metric types.
       - `MetricsExporter` -> `MetricExporter`
       - `MetricsExporterBuilder` -> `MetricExporterBuilder`
 
   - [#2263](https://github.com/open-telemetry/opentelemetry-rust/pull/2263)
-  Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`.
-  Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
+    Support `hyper` client for opentelemetry-otlp. This can be enabled using flag `hyper-client`.
+    Refer example: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp/examples/basic-otlp-http
 
 ## v0.26.0
+
 Released 2024-Sep-30
 
 - Update `opentelemetry` dependency version to 0.26
@@ -155,11 +165,11 @@ Released 2024-Sep-30
 - Starting with this version, this crate will align with `opentelemetry` crate
   on major,minor versions.
 - **Breaking**
-The logrecord event-name is added as an attribute only if the feature flag
-`populate-logs-event-name` is enabled. The name of the attribute is changed from
-"name" to "event.name".
-[1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994),
-[2050](https://github.com/open-telemetry/opentelemetry-rust/pull/2050)
+  The logrecord event-name is added as an attribute only if the feature flag
+  `populate-logs-event-name` is enabled. The name of the attribute is changed from
+  "name" to "event.name".
+  [1994](https://github.com/open-telemetry/opentelemetry-rust/pull/1994),
+  [2050](https://github.com/open-telemetry/opentelemetry-rust/pull/2050)
 
 ## v0.17.0
 
@@ -169,10 +179,10 @@ The logrecord event-name is added as an attribute only if the feature flag
   `global::set_meter_provider`. User who setup the pipeline must do it
   themselves using `global::set_meter_provider(meter_provider.clone());`.
 - Add `with_resource` on `OtlpLogPipeline`, replacing the `with_config` method.
-Instead of using
-`.with_config(Config::default().with_resource(RESOURCE::default()))` users must
-now use `.with_resource(RESOURCE::default())` to configure Resource when using
-`OtlpLogPipeline`.
+  Instead of using
+  `.with_config(Config::default().with_resource(RESOURCE::default()))` users must
+  now use `.with_resource(RESOURCE::default())` to configure Resource when using
+  `OtlpLogPipeline`.
 - **Breaking** The methods `OtlpTracePipeline::install_simple()` and `OtlpTracePipeline::install_batch()` would now return `TracerProvider` instead of `Tracer`.
   These methods would also no longer set the global tracer provider. It would now be the responsibility of users to set it by calling `global::set_tracer_provider(tracer_provider.clone());`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples on how to initialize OTLP Trace Exporter.
 - **Breaking** Correct the misspelling of "webkpi" to "webpki" in features [#1842](https://github.com/open-telemetry/opentelemetry-rust/pull/1842)
@@ -204,9 +214,10 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 [#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
 
 ### Changed
- - **Breaking** Remove global provider for Logs [#1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691/)
-      - The method OtlpLogPipeline::install_simple() and OtlpLogPipeline::install_batch() now return `LoggerProvider` instead of
-      `Logger`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples for how to initialize OTLP Log Exporter to use with OpenTelemetryLogBridge and OpenTelemetryTracingBridge respectively.
+
+- **Breaking** Remove global provider for Logs [#1691](https://github.com/open-telemetry/opentelemetry-rust/pull/1691/)
+  - The method OtlpLogPipeline::install_simple() and OtlpLogPipeline::install_batch() now return `LoggerProvider` instead of
+    `Logger`. Refer to the [basic-otlp](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp/src/main.rs) and [basic-otlp-http](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-otlp/examples/basic-otlp-http/src/main.rs) examples for how to initialize OTLP Log Exporter to use with OpenTelemetryLogBridge and OpenTelemetryTracingBridge respectively.
 - Update `opentelemetry` dependency version to 0.23
 - Update `opentelemetry_sdk` dependency version to 0.23
 - Update `opentelemetry-http` dependency version to 0.12
@@ -216,16 +227,19 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 
 ### Added
 
-- Support custom channels in topic exporters  [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
+- Support custom channels in topic exporters [#1335](https://github.com/open-telemetry/opentelemetry-rust/pull/1335)
 - Allow specifying OTLP Tonic metadata from env variable [#1377](https://github.com/open-telemetry/opentelemetry-rust/pull/1377)
 
 ### Changed
+
 - Update to tonic 0.11 and prost 0.12 [#1536](https://github.com/open-telemetry/opentelemetry-rust/pull/1536)
 
 ### Fixed
+
 - Fix `tonic()` to the use correct port. [#1556](https://github.com/open-telemetry/opentelemetry-rust/pull/1556)
 
 ### Removed
+
 - **Breaking** Remove support for surf HTTP client [#1537](https://github.com/open-telemetry/opentelemetry-rust/pull/1537)
 - **Breaking** Remove support for grpcio transport [#1534](https://github.com/open-telemetry/opentelemetry-rust/pull/1534)
 
@@ -282,7 +296,6 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 - Change to export using v0.19.0 protobuf definitions. [#989](https://github.com/open-telemetry/opentelemetry-rust/pull/989).
 - Update dependencies and bump MSRV to 1.60 [#969](https://github.com/open-telemetry/opentelemetry-rust/pull/969).
 
-
 ## v0.11.0
 
 ### Changed
@@ -335,13 +348,14 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 
 ### Changed
 
-- Allow users to bring their own tonic channel  #515
+- Allow users to bring their own tonic channel #515
 - Remove default surf features #546
 - Update to opentelemetry v0.14.0
 
 ### v0.6.0
 
 ### Added
+
 - Examples on how to connect to an external otlp using tonic, tls and tokio #449
 - Examples on how to connect to an external otlp using grpcio and tls #450
 - `with_env` method for `OtlpPipelineBuilder` to use environment variables to config otlp pipeline #451
@@ -349,12 +363,14 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 - Mentioned `service.name` resource in README #476
 
 ### Changed
+
 - Update to opentelemetry v0.13.0
 - Update `tonic-build` dependency to 0.4 #463
 - Update the opentelemetry pipeline to use API to choose grpc layer instead of feature #467
 - Rename trace config with_default_sampler to with_sampler #482
 
 ### Removed
+
 - Removed `from_env` and use environment variables to initialize the configurations by default #459
 - Removed support for running tonic without tokio runtime #483
 

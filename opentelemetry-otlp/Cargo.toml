@@ -50,6 +50,8 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
+rcgen = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 # telemetry pillars and functions

@@ -35,6 +35,19 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
+/// Certificate file to validate the OTLP server connection when sending traces.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE";
+/// Path to the certificate file to use for client authentication (mTLS) when sending traces.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE: &str =
+    "OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE";
+/// Path to the key file to use for client authentication (mTLS) when sending traces.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY";
+/// Use insecure connection when sending trace. Disable TLS.
+#[cfg(feature = "tls")]
+pub const OTEL_EXPORTER_OTLP_TRACES_INSECURE: &str = "OTEL_EXPORTER_OTLP_TRACES_INSECURE";
 
 /// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]
