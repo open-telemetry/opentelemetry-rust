@@ -108,6 +108,7 @@ mod reqwest {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "reqwest-blocking")]
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
