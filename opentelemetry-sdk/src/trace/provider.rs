@@ -526,7 +526,7 @@ mod tests {
                 .fetch_add(1, Ordering::SeqCst);
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &mut SpanData) {
             // ignore
         }
 
@@ -789,7 +789,7 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &mut SpanData) {
             // No operation needed for this processor
         }
 

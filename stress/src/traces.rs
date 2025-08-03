@@ -37,7 +37,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         // No-op
     }
 
-    fn on_end(&self, _span: SpanData) {
+    fn on_end(&self, _span: &mut SpanData) {
         // No-op
     }
 
