@@ -206,7 +206,7 @@ fn default_headers() -> std::collections::HashMap<String, String> {
     let mut headers = std::collections::HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
-        format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
+        format!("OTel-OTLP-Exporter-Rust/{}", env!("CARGO_PKG_VERSION")),
     );
     headers
 }
