@@ -310,8 +310,8 @@ mod tests {
     #[test]
     fn compare_trace_context() {
         let trace_context = TraceContext {
-            trace_id: TraceId::from_u128(1),
-            span_id: SpanId::from_u64(1),
+            trace_id: TraceId::from(1),
+            span_id: SpanId::from(1),
             trace_flags: Some(TraceFlags::default()),
         };
 
@@ -320,8 +320,8 @@ mod tests {
         assert_eq!(trace_context, trace_context_cloned);
 
         let trace_context_different = TraceContext {
-            trace_id: TraceId::from_u128(2),
-            span_id: SpanId::from_u64(2),
+            trace_id: TraceId::from(2),
+            span_id: SpanId::from(2),
             trace_flags: Some(TraceFlags::default()),
         };
 
@@ -340,8 +340,8 @@ mod tests {
             body: Some(AnyValue::String("Test body".into())),
             attributes: LogRecordAttributes::new(),
             trace_context: Some(TraceContext {
-                trace_id: TraceId::from_u128(1),
-                span_id: SpanId::from_u64(1),
+                trace_id: TraceId::from(1),
+                span_id: SpanId::from(1),
                 trace_flags: Some(TraceFlags::default()),
             }),
         };
