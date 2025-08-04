@@ -1038,15 +1038,15 @@ mod tests {
             use std::time::{Duration, SystemTime};
 
             let span_context = SpanContext::new(
-                TraceId::from_u128(123),
-                SpanId::from_u64(456),
+                TraceId::from(123),
+                SpanId::from(456),
                 TraceFlags::default(),
                 false,
                 TraceState::default(),
             );
             SpanData {
                 span_context,
-                parent_span_id: SpanId::from_u64(0),
+                parent_span_id: SpanId::from(0),
                 span_kind: SpanKind::Internal,
                 name: Cow::Borrowed("test_span"),
                 start_time: SystemTime::UNIX_EPOCH,
