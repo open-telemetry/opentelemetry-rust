@@ -43,6 +43,10 @@ serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
+# compression dependencies
+flate2 = { version = "1.1.2", optional = true }
+zstd = { version = "0.13", optional = true }
+
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
 opentelemetry_sdk = { workspace = true, features = ["trace", "testing"] }
@@ -50,6 +54,7 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
+async-trait = { workspace = true }
 
 [features]
 # telemetry pillars and functions
@@ -67,6 +72,10 @@ default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", 
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
+
+# http compression
+gzip-http = ["flate2"]
+zstd-http = ["zstd"]
 tls = ["tonic/tls-ring"]
 tls-roots = ["tls", "tonic/tls-native-roots"]
 tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]

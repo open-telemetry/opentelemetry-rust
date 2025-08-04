@@ -1,4 +1,5 @@
 use super::OtlpHttpClient;
+use http::header::CONTENT_ENCODING;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
@@ -14,14 +15,20 @@ impl LogExporter for OtlpHttpClient {
             .clone()
             .ok_or(OTelSdkError::AlreadyShutdown)?;
 
-        let (body, content_type) = self
+        let (body, content_type, content_encoding) = self
             .build_logs_export_body(batch)
             .map_err(OTelSdkError::InternalFailure)?;
 
-        let mut request = http::Request::builder()
+        let mut request_builder = http::Request::builder()
             .method(Method::POST)
             .uri(&self.collector_endpoint)
-            .header(CONTENT_TYPE, content_type)
+            .header(CONTENT_TYPE, content_type);
+
+        if let Some(encoding) = content_encoding {
+            request_builder = request_builder.header(CONTENT_ENCODING, encoding);
+        }
+
+        let mut request = request_builder
             .body(body.into())
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
