@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
-#[cfg(feature = "http-json")]
 use opentelemetry::otel_debug;
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
@@ -48,8 +47,11 @@ pub struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
-    /// Additional headers to send to the collector.
+    /// Additional headers to send to the OTLP endpoint.
     headers: Option<HashMap<String, String>>,
+
+    /// The compression algorithm to use when communicating with the OTLP endpoint.
+    compression: Option<crate::Compression>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -107,12 +109,39 @@ impl HttpExporterBuilder {
         signal_endpoint_path: &str,
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
+        signal_compression_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
             self.exporter_config.endpoint.as_deref(),
         )?;
+
+        let compression = self.resolve_compression(signal_compression_var)?;
+
+        // Validate compression is supported at build time
+        if let Some(compression_alg) = &compression {
+            match compression_alg {
+                crate::Compression::Gzip => {
+                    #[cfg(not(feature = "gzip-http"))]
+                    {
+                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                            "gzip compression requested but gzip-http feature not enabled"
+                                .to_string(),
+                        ));
+                    }
+                }
+                crate::Compression::Zstd => {
+                    #[cfg(not(feature = "zstd-http"))]
+                    {
+                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                            "zstd compression requested but zstd-http feature not enabled"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+        }
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
@@ -193,15 +222,23 @@ impl HttpExporterBuilder {
             headers,
             self.exporter_config.protocol,
             timeout,
+            compression,
         ))
+    }
+
+    fn resolve_compression(
+        &self,
+        env_override: &str,
+    ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
+        super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -209,6 +246,7 @@ impl HttpExporterBuilder {
             "/v1/traces",
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -218,8 +256,8 @@ impl HttpExporterBuilder {
     #[cfg(feature = "logs")]
     pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -227,6 +265,7 @@ impl HttpExporterBuilder {
             "/v1/logs",
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -239,8 +278,8 @@ impl HttpExporterBuilder {
         temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
-            OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -248,6 +287,7 @@ impl HttpExporterBuilder {
             "/v1/metrics",
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))
@@ -261,12 +301,45 @@ pub(crate) struct OtlpHttpClient {
     headers: HashMap<HeaderName, HeaderValue>,
     protocol: Protocol,
     _timeout: Duration,
+    compression: Option<crate::Compression>,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
+    /// Compress data using gzip or zstd if the user has requested it and the relevant feature
+    /// has been enabled. If the user has requested it but the feature has not been enabled,
+    /// we should catch this at exporter build time and never get here.
+    fn process_body(&self, body: Vec<u8>) -> Result<(Vec<u8>, Option<&'static str>), String> {
+        match self.compression {
+            #[cfg(feature = "gzip-http")]
+            Some(crate::Compression::Gzip) => {
+                use flate2::{write::GzEncoder, Compression};
+                use std::io::Write;
+
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                encoder.write_all(&body).map_err(|e| e.to_string())?;
+                let compressed = encoder.finish().map_err(|e| e.to_string())?;
+                Ok((compressed, Some("gzip")))
+            }
+            #[cfg(not(feature = "gzip-http"))]
+            Some(crate::Compression::Gzip) => {
+                Err("gzip compression requested but gzip-http feature not enabled".to_string())
+            }
+            #[cfg(feature = "zstd-http")]
+            Some(crate::Compression::Zstd) => {
+                let compressed = zstd::bulk::compress(&body, 0).map_err(|e| e.to_string())?;
+                Ok((compressed, Some("zstd")))
+            }
+            #[cfg(not(feature = "zstd-http"))]
+            Some(crate::Compression::Zstd) => {
+                Err("zstd compression requested but zstd-http feature not enabled".to_string())
+            }
+            None => Ok((body, None)),
+        }
+    }
+
     #[allow(clippy::mutable_key_type)] // http headers are not mutated
     fn new(
         client: Arc<dyn HttpClient>,
@@ -274,6 +347,7 @@ impl OtlpHttpClient {
         headers: HashMap<HeaderName, HeaderValue>,
         protocol: Protocol,
         timeout: Duration,
+        compression: Option<crate::Compression>,
     ) -> Self {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
@@ -281,6 +355,7 @@ impl OtlpHttpClient {
             headers,
             protocol,
             _timeout: timeout,
+            compression,
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -289,59 +364,75 @@ impl OtlpHttpClient {
     fn build_trace_export_body(
         &self,
         spans: Vec<SpanData>,
-    ) -> Result<(Vec<u8>, &'static str), String> {
+    ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
         let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
 
         let req = ExportTraceServiceRequest { resource_spans };
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into_bytes(), "application/json")),
-                Err(e) => Err(e.to_string()),
+                Ok(json) => (json.into_bytes(), "application/json"),
+                Err(e) => return Err(e.to_string()),
             },
-            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
-        }
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+
+        let (processed_body, content_encoding) = self.process_body(body)?;
+        Ok((processed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "logs")]
     fn build_logs_export_body(
         &self,
         logs: LogBatch<'_>,
-    ) -> Result<(Vec<u8>, &'static str), String> {
+    ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
         let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
 
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Ok((json.into(), "application/json")),
-                Err(e) => Err(e.to_string()),
+                Ok(json) => (json.into_bytes(), "application/json"),
+                Err(e) => return Err(e.to_string()),
             },
-            _ => Ok((req.encode_to_vec(), "application/x-protobuf")),
-        }
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+
+        let (processed_body, content_encoding) = self.process_body(body)?;
+        Ok((processed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "metrics")]
     fn build_metrics_export_body(
         &self,
         metrics: &ResourceMetrics,
-    ) -> Option<(Vec<u8>, &'static str)> {
+    ) -> Option<(Vec<u8>, &'static str, Option<&'static str>)> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = metrics.into();
 
-        match self.protocol {
+        let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => Some((json.into(), "application/json")),
+                Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => {
                     otel_debug!(name: "JsonSerializationFaied", error = e.to_string());
-                    None
+                    return None;
                 }
             },
-            _ => Some((req.encode_to_vec(), "application/x-protobuf")),
+            _ => (req.encode_to_vec(), "application/x-protobuf"),
+        };
+
+        match self.process_body(body) {
+            Ok((processed_body, content_encoding)) => {
+                Some((processed_body, content_type, content_encoding))
+            }
+            Err(e) => {
+                otel_debug!(name: "CompressionFailed", error = e);
+                None
+            }
         }
     }
 }
@@ -432,6 +523,9 @@ pub trait WithHttpConfig {
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
+
+    /// Set the compression algorithm to use when communicating with the collector.
+    fn with_compression(self, compression: crate::Compression) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -449,6 +543,11 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
         headers.into_iter().for_each(|(key, value)| {
             http_client_headers.insert(key, super::url_decode(&value).unwrap_or(value));
         });
+        self
+    }
+
+    fn with_compression(mut self, compression: crate::Compression) -> Self {
+        self.http_client_config().compression = Some(compression);
         self
     }
 }
@@ -695,6 +794,7 @@ mod tests {
             http_config: HttpConfig {
                 client: None,
                 headers: Some(initial_headers),
+                compression: None,
             },
             exporter_config: crate::ExportConfig::default(),
         };
@@ -743,5 +843,419 @@ mod tests {
 
             assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
         });
+    }
+
+    #[cfg(feature = "gzip-http")]
+    mod compression_tests {
+        use super::super::OtlpHttpClient;
+        use flate2::read::GzDecoder;
+        use opentelemetry_http::{Bytes, HttpClient};
+        use std::io::Read;
+
+        #[test]
+        fn test_gzip_compression_and_decompression() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+            );
+
+            // Test with some sample data
+            let test_data = b"Hello, world! This is test data for compression.";
+            let result = client.process_body(test_data.to_vec()).unwrap();
+            let (compressed_body, content_encoding) = result;
+
+            // Verify encoding header is set
+            assert_eq!(content_encoding, Some("gzip"));
+
+            // Verify we can decompress the body
+            let mut decoder = GzDecoder::new(&compressed_body[..]);
+            let mut decompressed = Vec::new();
+            decoder.read_to_end(&mut decompressed).unwrap();
+
+            // Verify decompressed data matches original
+            assert_eq!(decompressed, test_data);
+            // Verify compression actually happened (compressed should be different)
+            assert_ne!(compressed_body, test_data.to_vec());
+        }
+
+        #[cfg(feature = "zstd-http")]
+        #[test]
+        fn test_zstd_compression_and_decompression() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Zstd),
+            );
+
+            // Test with some sample data
+            let test_data = b"Hello, world! This is test data for zstd compression.";
+            let result = client.process_body(test_data.to_vec()).unwrap();
+            let (compressed_body, content_encoding) = result;
+
+            // Verify encoding header is set
+            assert_eq!(content_encoding, Some("zstd"));
+
+            // Verify we can decompress the body
+            let decompressed = zstd::bulk::decompress(&compressed_body, test_data.len()).unwrap();
+
+            // Verify decompressed data matches original
+            assert_eq!(decompressed, test_data);
+            // Verify compression actually happened (compressed should be different)
+            assert_ne!(compressed_body, test_data.to_vec());
+        }
+
+        #[test]
+        fn test_no_compression_when_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None, // No compression
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.process_body(body.clone()).unwrap();
+            let (result_body, content_encoding) = result;
+
+            // Body should be unchanged and no encoding header
+            assert_eq!(result_body, body);
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(not(feature = "gzip-http"))]
+        #[test]
+        fn test_gzip_error_when_feature_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.process_body(body);
+
+            // Should return error when gzip requested but feature not enabled
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .contains("gzip-http feature not enabled"));
+        }
+
+        #[cfg(not(feature = "zstd-http"))]
+        #[test]
+        fn test_zstd_error_when_feature_disabled() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Zstd),
+            );
+
+            let body = vec![1, 2, 3, 4];
+            let result = client.process_body(body);
+
+            // Should return error when zstd requested but feature not enabled
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .contains("zstd-http feature not enabled"));
+        }
+
+        // Mock HTTP client for testing
+        #[derive(Debug)]
+        struct MockHttpClient;
+
+        #[async_trait::async_trait]
+        impl HttpClient for MockHttpClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                Ok(http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap())
+            }
+        }
+    }
+
+    mod export_body_tests {
+        use super::super::OtlpHttpClient;
+        use opentelemetry_http::{Bytes, HttpClient};
+        use std::collections::HashMap;
+
+        #[derive(Debug)]
+        struct MockHttpClient;
+
+        #[async_trait::async_trait]
+        impl HttpClient for MockHttpClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                Ok(http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap())
+            }
+        }
+
+        fn create_test_client(
+            protocol: crate::Protocol,
+            compression: Option<crate::Compression>,
+        ) -> OtlpHttpClient {
+            OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                HashMap::new(),
+                protocol,
+                std::time::Duration::from_secs(10),
+                compression,
+            )
+        }
+
+        fn create_test_span_data() -> opentelemetry_sdk::trace::SpanData {
+            use opentelemetry::trace::Status;
+            use opentelemetry::trace::{
+                SpanContext, SpanId, SpanKind, TraceFlags, TraceId, TraceState,
+            };
+            use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
+            use std::borrow::Cow;
+            use std::time::{Duration, SystemTime};
+
+            let span_context = SpanContext::new(
+                TraceId::from(123),
+                SpanId::from(456),
+                TraceFlags::default(),
+                false,
+                TraceState::default(),
+            );
+            SpanData {
+                span_context,
+                parent_span_id: SpanId::from(0),
+                span_kind: SpanKind::Internal,
+                name: Cow::Borrowed("test_span"),
+                start_time: SystemTime::UNIX_EPOCH,
+                end_time: SystemTime::UNIX_EPOCH + Duration::from_secs(1),
+                attributes: vec![],
+                dropped_attributes_count: 0,
+                events: SpanEvents::default(),
+                links: SpanLinks::default(),
+                status: Status::Unset,
+                instrumentation_scope: opentelemetry::InstrumentationScope::default(),
+            }
+        }
+
+        #[cfg(feature = "trace")]
+        #[test]
+        fn test_build_trace_export_body_binary_protocol() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "trace", feature = "http-json"))]
+        #[test]
+        fn test_build_trace_export_body_json_protocol() {
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "trace", feature = "gzip-http"))]
+        #[test]
+        fn test_build_trace_export_body_with_compression() {
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let span_data = create_test_span_data();
+
+            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(feature = "logs")]
+        fn create_test_log_batch() -> opentelemetry_sdk::logs::LogBatch<'static> {
+            use opentelemetry_sdk::logs::LogBatch;
+
+            // Use empty batch for simplicity - the method should still handle protocol/compression correctly
+            LogBatch::new(&[])
+        }
+
+        #[cfg(feature = "logs")]
+        #[test]
+        fn test_build_logs_export_body_binary_protocol() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "logs", feature = "http-json"))]
+        #[test]
+        fn test_build_logs_export_body_json_protocol() {
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "logs", feature = "gzip-http"))]
+        #[test]
+        fn test_build_logs_export_body_with_compression() {
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let batch = create_test_log_batch();
+
+            let result = client.build_logs_export_body(batch).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(feature = "metrics")]
+        #[test]
+        fn test_build_metrics_export_body_binary_protocol() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "metrics", feature = "http-json"))]
+        #[test]
+        fn test_build_metrics_export_body_json_protocol() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/json");
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "metrics", feature = "gzip-http"))]
+        #[test]
+        fn test_build_metrics_export_body_with_compression() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let metrics = ResourceMetrics::default();
+
+            let result = client.build_metrics_export_body(&metrics).unwrap();
+            let (_body, content_type, content_encoding) = result;
+
+            assert_eq!(content_type, "application/x-protobuf");
+            assert_eq!(content_encoding, Some("gzip"));
+        }
+
+        #[cfg(all(feature = "metrics", not(feature = "gzip-http")))]
+        #[test]
+        fn test_build_metrics_export_body_compression_error_returns_none() {
+            use opentelemetry_sdk::metrics::data::ResourceMetrics;
+
+            let client =
+                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let metrics = ResourceMetrics::default();
+
+            // Should return None when compression fails (feature not enabled)
+            let result = client.build_metrics_export_body(&metrics);
+            assert!(result.is_none());
+        }
+
+        #[test]
+        fn test_resolve_compression_uses_generic_env_fallback() {
+            use super::super::HttpExporterBuilder;
+            use crate::exporter::tests::run_env_test;
+
+            // Test that generic OTEL_EXPORTER_OTLP_COMPRESSION is used when signal-specific env var is not set
+            run_env_test(
+                vec![(crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip")],
+                || {
+                    let builder = HttpExporterBuilder::default();
+                    let result = builder
+                        .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
+                        .unwrap();
+                    assert_eq!(result, Some(crate::Compression::Gzip));
+                },
+            );
+        }
+
+        #[cfg(all(feature = "trace", not(feature = "gzip-http")))]
+        #[test]
+        fn test_build_span_exporter_with_gzip_without_feature() {
+            use super::super::HttpExporterBuilder;
+            use crate::{ExporterBuildError, WithHttpConfig};
+
+            let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Gzip);
+
+            let result = builder.build_span_exporter();
+            // This test will fail until the issue is fixed: compression validation should happen at build time
+            assert!(matches!(
+                result,
+                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+            ));
+        }
+
+        #[cfg(all(feature = "trace", not(feature = "zstd-http")))]
+        #[test]
+        fn test_build_span_exporter_with_zstd_without_feature() {
+            use super::super::HttpExporterBuilder;
+            use crate::{ExporterBuildError, WithHttpConfig};
+
+            let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Zstd);
+
+            let result = builder.build_span_exporter();
+            // This test will fail until the issue is fixed: compression validation should happen at build time
+            assert!(matches!(
+                result,
+                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+            ));
+        }
     }
 }
