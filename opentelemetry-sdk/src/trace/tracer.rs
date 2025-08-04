@@ -347,8 +347,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(128),
-            SpanId::from_u64(64),
+            TraceId::from(128),
+            SpanId::from(64),
             TraceFlags::SAMPLED,
             true,
             trace_state,
@@ -389,8 +389,8 @@ mod tests {
 
         let context = Context::map_current(|cx| {
             cx.with_remote_span_context(SpanContext::new(
-                TraceId::from_u128(1),
-                SpanId::from_u64(1),
+                TraceId::from(1),
+                SpanId::from(1),
                 TraceFlags::default(),
                 true,
                 Default::default(),
