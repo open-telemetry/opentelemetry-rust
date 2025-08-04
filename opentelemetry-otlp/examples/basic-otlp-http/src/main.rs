@@ -5,8 +5,6 @@ use opentelemetry::{
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::WithExportConfig;
-#[cfg(any(feature = "gzip", feature = "zstd"))]
-use opentelemetry_otlp::{Compression, WithHttpConfig};
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
@@ -29,29 +27,9 @@ fn get_resource() -> Resource {
 }
 
 fn init_logs() -> SdkLoggerProvider {
-    #[cfg(any(feature = "gzip", feature = "zstd"))]
-    let mut exporter_builder = LogExporter::builder()
+    let exporter = LogExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary);
-
-    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
-    let exporter_builder = LogExporter::builder()
-        .with_http()
-        .with_protocol(Protocol::HttpBinary);
-
-    #[cfg(feature = "gzip")]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Gzip);
-        println!("Using gzip compression for logs");
-    }
-
-    #[cfg(all(feature = "zstd", not(feature = "gzip")))]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Zstd);
-        println!("Using zstd compression for logs");
-    }
-
-    let exporter = exporter_builder
+        .with_protocol(Protocol::HttpBinary)
         .build()
         .expect("Failed to create log exporter");
 
@@ -62,29 +40,9 @@ fn init_logs() -> SdkLoggerProvider {
 }
 
 fn init_traces() -> SdkTracerProvider {
-    #[cfg(any(feature = "gzip", feature = "zstd"))]
-    let mut exporter_builder = SpanExporter::builder()
+    let exporter = SpanExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
-
-    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
-    let exporter_builder = SpanExporter::builder()
-        .with_http()
-        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
-
-    #[cfg(feature = "gzip")]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Gzip);
-        println!("Using gzip compression for traces");
-    }
-
-    #[cfg(all(feature = "zstd", not(feature = "gzip")))]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Zstd);
-        println!("Using zstd compression for traces");
-    }
-
-    let exporter = exporter_builder
+        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
         .build()
         .expect("Failed to create trace exporter");
 
@@ -95,29 +53,9 @@ fn init_traces() -> SdkTracerProvider {
 }
 
 fn init_metrics() -> SdkMeterProvider {
-    #[cfg(any(feature = "gzip", feature = "zstd"))]
-    let mut exporter_builder = MetricExporter::builder()
+    let exporter = MetricExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
-
-    #[cfg(not(any(feature = "gzip", feature = "zstd")))]
-    let exporter_builder = MetricExporter::builder()
-        .with_http()
-        .with_protocol(Protocol::HttpBinary); //can be changed to `Protocol::HttpJson` to export in JSON format
-
-    #[cfg(feature = "gzip")]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Gzip);
-        println!("Using gzip compression for metrics");
-    }
-
-    #[cfg(all(feature = "zstd", not(feature = "gzip")))]
-    {
-        exporter_builder = exporter_builder.with_compression(Compression::Zstd);
-        println!("Using zstd compression for metrics");
-    }
-
-    let exporter = exporter_builder
+        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
         .build()
         .expect("Failed to create metric exporter");
 

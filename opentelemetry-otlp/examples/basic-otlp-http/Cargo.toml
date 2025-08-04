@@ -15,8 +15,6 @@ bench = false
 [features]
 default = ["reqwest-blocking"]
 reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
-gzip = ["opentelemetry-otlp/gzip-http"]
-zstd = ["opentelemetry-otlp/zstd-http"]
 
 [dependencies]
 opentelemetry = { path = "../../../opentelemetry" }

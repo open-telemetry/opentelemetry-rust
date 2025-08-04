@@ -47,10 +47,10 @@ pub struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
-    /// Additional headers to send to the collector.
+    /// Additional headers to send to the OTLP endpoint.
     headers: Option<HashMap<String, String>>,
 
-    /// The compression algorithm to use when communicating with the collector.
+    /// The compression algorithm to use when communicating with the OTLP endpoint.
     compression: Option<crate::Compression>,
 }
 
@@ -118,6 +118,30 @@ impl HttpExporterBuilder {
         )?;
 
         let compression = self.resolve_compression(signal_compression_var)?;
+
+        // Validate compression is supported at build time
+        if let Some(compression_alg) = &compression {
+            match compression_alg {
+                crate::Compression::Gzip => {
+                    #[cfg(not(feature = "gzip-http"))]
+                    {
+                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                            "gzip compression requested but gzip-http feature not enabled"
+                                .to_string(),
+                        ));
+                    }
+                }
+                crate::Compression::Zstd => {
+                    #[cfg(not(feature = "zstd-http"))]
+                    {
+                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                            "zstd compression requested but zstd-http feature not enabled"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+        }
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
@@ -284,8 +308,10 @@ pub(crate) struct OtlpHttpClient {
 }
 
 impl OtlpHttpClient {
-    /// Compress data using gzip if compression is enabled and the feature is available
-    fn compress_body(&self, body: Vec<u8>) -> Result<(Vec<u8>, Option<&'static str>), String> {
+    /// Compress data using gzip or zstd if the user has requested it and the relevant feature
+    /// has been enabled. If the user has requested it but the feature has not been enabled,
+    /// we should catch this at exporter build time and never get here.
+    fn process_body(&self, body: Vec<u8>) -> Result<(Vec<u8>, Option<&'static str>), String> {
         match self.compression {
             #[cfg(feature = "gzip-http")]
             Some(crate::Compression::Gzip) => {
@@ -352,8 +378,8 @@ impl OtlpHttpClient {
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
 
-        let (compressed_body, content_encoding) = self.compress_body(body)?;
-        Ok((compressed_body, content_type, content_encoding))
+        let (processed_body, content_encoding) = self.process_body(body)?;
+        Ok((processed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "logs")]
@@ -374,8 +400,8 @@ impl OtlpHttpClient {
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
 
-        let (compressed_body, content_encoding) = self.compress_body(body)?;
-        Ok((compressed_body, content_type, content_encoding))
+        let (processed_body, content_encoding) = self.process_body(body)?;
+        Ok((processed_body, content_type, content_encoding))
     }
 
     #[cfg(feature = "metrics")]
@@ -399,9 +425,9 @@ impl OtlpHttpClient {
             _ => (req.encode_to_vec(), "application/x-protobuf"),
         };
 
-        match self.compress_body(body) {
-            Ok((compressed_body, content_encoding)) => {
-                Some((compressed_body, content_type, content_encoding))
+        match self.process_body(body) {
+            Ok((processed_body, content_encoding)) => {
+                Some((processed_body, content_type, content_encoding))
             }
             Err(e) => {
                 otel_debug!(name: "CompressionFailed", error = e);
@@ -839,7 +865,7 @@ mod tests {
 
             // Test with some sample data
             let test_data = b"Hello, world! This is test data for compression.";
-            let result = client.compress_body(test_data.to_vec()).unwrap();
+            let result = client.process_body(test_data.to_vec()).unwrap();
             let (compressed_body, content_encoding) = result;
 
             // Verify encoding header is set
@@ -870,7 +896,7 @@ mod tests {
 
             // Test with some sample data
             let test_data = b"Hello, world! This is test data for zstd compression.";
-            let result = client.compress_body(test_data.to_vec()).unwrap();
+            let result = client.process_body(test_data.to_vec()).unwrap();
             let (compressed_body, content_encoding) = result;
 
             // Verify encoding header is set
@@ -897,7 +923,7 @@ mod tests {
             );
 
             let body = vec![1, 2, 3, 4];
-            let result = client.compress_body(body.clone()).unwrap();
+            let result = client.process_body(body.clone()).unwrap();
             let (result_body, content_encoding) = result;
 
             // Body should be unchanged and no encoding header
@@ -918,7 +944,7 @@ mod tests {
             );
 
             let body = vec![1, 2, 3, 4];
-            let result = client.compress_body(body);
+            let result = client.process_body(body);
 
             // Should return error when gzip requested but feature not enabled
             assert!(result.is_err());
@@ -940,7 +966,7 @@ mod tests {
             );
 
             let body = vec![1, 2, 3, 4];
-            let result = client.compress_body(body);
+            let result = client.process_body(body);
 
             // Should return error when zstd requested but feature not enabled
             assert!(result.is_err());
@@ -1198,6 +1224,38 @@ mod tests {
                     assert_eq!(result, Some(crate::Compression::Gzip));
                 },
             );
+        }
+
+        #[cfg(all(feature = "trace", not(feature = "gzip-http")))]
+        #[test]
+        fn test_build_span_exporter_with_gzip_without_feature() {
+            use super::super::HttpExporterBuilder;
+            use crate::{ExporterBuildError, WithHttpConfig};
+
+            let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Gzip);
+
+            let result = builder.build_span_exporter();
+            // This test will fail until the issue is fixed: compression validation should happen at build time
+            assert!(matches!(
+                result,
+                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+            ));
+        }
+
+        #[cfg(all(feature = "trace", not(feature = "zstd-http")))]
+        #[test]
+        fn test_build_span_exporter_with_zstd_without_feature() {
+            use super::super::HttpExporterBuilder;
+            use crate::{ExporterBuildError, WithHttpConfig};
+
+            let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Zstd);
+
+            let result = builder.build_span_exporter();
+            // This test will fail until the issue is fixed: compression validation should happen at build time
+            assert!(matches!(
+                result,
+                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+            ));
         }
     }
 }

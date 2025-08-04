@@ -261,6 +261,8 @@
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format. This feature is enabled by default.
+//! * `gzip-http`: Use gzip compression for HTTP transport.
+//! * `zstd-http`: Use zstd compression for HTTP transport.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client. This feature is enabled by default.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
@@ -281,9 +283,11 @@
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::Temporality;
-//! use opentelemetry_otlp::{Protocol, WithExportConfig};
+//! use opentelemetry_otlp::{Protocol, WithExportConfig, Compression};
 //! # #[cfg(feature = "grpc-tonic")]
 //! use opentelemetry_otlp::WithTonicConfig;
+//! # #[cfg(any(feature = "http-proto", feature = "http-json"))]
+//! use opentelemetry_otlp::WithHttpConfig;
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
@@ -316,6 +320,19 @@
 //!         # tracer
 //!     # };
 //!
+//!     // HTTP exporter example with compression
+//!     # #[cfg(all(feature = "trace", feature = "http-proto"))]
+//!     # let _http_tracer = {
+//!     let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_http()
+//!         .with_endpoint("http://localhost:4318/v1/traces")
+//!         .with_timeout(Duration::from_secs(3))
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_compression(Compression::Gzip)  // Requires gzip-http feature
+//!         .build()?;
+//!         # exporter
+//!     # };
+//!
 //!     # #[cfg(all(feature = "metrics", feature = "grpc-tonic"))]
 //!     # {
 //!     let exporter = opentelemetry_otlp::MetricExporter::builder()
@@ -330,6 +347,19 @@
 //!         .with_periodic_exporter(exporter)
 //!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
 //!         .build();
+//!     # }
+//!
+//!     // HTTP metrics exporter example with compression
+//!     # #[cfg(all(feature = "metrics", feature = "http-proto"))]
+//!     # {
+//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
+//!        .with_http()
+//!        .with_endpoint("http://localhost:4318/v1/metrics")
+//!        .with_protocol(Protocol::HttpBinary)
+//!        .with_timeout(Duration::from_secs(3))
+//!        .with_compression(Compression::Zstd)  // Requires zstd-http feature
+//!        .build()
+//!        .unwrap();
 //!     # }
 //!
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]

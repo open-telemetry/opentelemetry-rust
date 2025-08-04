@@ -1,4 +1,5 @@
 use super::OtlpHttpClient;
+use http::header::CONTENT_ENCODING;
 use http::{header::CONTENT_TYPE, Method};
 use opentelemetry::otel_debug;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
@@ -24,7 +25,7 @@ impl LogExporter for OtlpHttpClient {
             .header(CONTENT_TYPE, content_type);
 
         if let Some(encoding) = content_encoding {
-            request_builder = request_builder.header("Content-Encoding", encoding);
+            request_builder = request_builder.header(CONTENT_ENCODING, encoding);
         }
 
         let mut request = request_builder
