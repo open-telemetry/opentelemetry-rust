@@ -14,10 +14,7 @@ use tonic::transport::ClientTlsConfig;
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
-use crate::{
-    ExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_HEADERS,
-};
+use crate::{ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 
 #[cfg(feature = "logs")]
 pub(crate) mod logs;
@@ -240,15 +237,9 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        if let Some(compression) = self.tonic_config.compression {
-            Ok(Some(compression.try_into()?))
-        } else if let Ok(compression) = env::var(env_override) {
-            Ok(Some(compression.parse::<Compression>()?.try_into()?))
-        } else if let Ok(compression) = env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-            Ok(Some(compression.parse::<Compression>()?.try_into()?))
-        } else {
-            Ok(None)
-        }
+        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
+            .map(|c| c.try_into())
+            .transpose()
     }
 
     /// Build a new tonic log exporter
@@ -605,7 +596,7 @@ mod tests {
         run_env_test(
             vec![
                 (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "zstd"),
-                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+                (crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
             ],
             || {
                 let builder = TonicExporterBuilder::default();
@@ -624,7 +615,7 @@ mod tests {
         run_env_test(
             vec![
                 (crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, "gzip"),
-                (super::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+                (crate::OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
             ],
             || {
                 let builder = TonicExporterBuilder::default().with_compression(Compression::Zstd);
