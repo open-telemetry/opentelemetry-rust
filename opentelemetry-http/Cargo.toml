@@ -13,8 +13,10 @@ autobenches = false
 [features]
 default = ["internal-logs"]
 hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
-reqwest-rustls-webpki-roots = ["reqwest", "reqwest/rustls-tls-webpki-roots"]
+reqwest = ["dep:reqwest"]
+reqwest-blocking = ["dep:reqwest", "reqwest/blocking"]
+reqwest-rustls = ["dep:reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-rustls-webpki-roots = ["dep:reqwest", "reqwest/rustls-tls-webpki-roots"]
 internal-logs = ["opentelemetry/internal-logs"]
 
 [dependencies]
@@ -24,8 +26,8 @@ http = { workspace = true }
 http-body-util = { workspace = true, optional = true }
 hyper = { workspace = true, optional = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"], optional = true }
-opentelemetry = { version = "0.30", path = "../opentelemetry", features = ["trace"] }
-reqwest = { workspace = true, features = ["blocking"], optional = true }
+opentelemetry = { workspace = true, features = ["trace"] }
+reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
 [lints]

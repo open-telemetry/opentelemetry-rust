@@ -147,13 +147,13 @@ mod tests {
         for (status, status_tag_val, status_msg_tag_val) in get_set_status_test_data() {
             let span_data = SpanData {
                 span_context: SpanContext::new(
-                    TraceId::from_u128(1),
-                    SpanId::from_u64(1),
+                    TraceId::from(1),
+                    SpanId::from(1),
                     TraceFlags::default(),
                     false,
                     Default::default(),
                 ),
-                parent_span_id: SpanId::from_u64(1),
+                parent_span_id: SpanId::from(1),
                 span_kind: SpanKind::Client,
                 name: "".into(),
                 start_time: now(),

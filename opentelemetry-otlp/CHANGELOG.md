@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
+
 ## 0.30.0
 
 Released 2025-May-23

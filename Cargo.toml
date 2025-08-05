@@ -63,9 +63,16 @@ const-hex = "1.14.1"
 lazy_static = "1.4.0"
 num-format = "0.4.4"
 num_cpus = "1.15.0"
+opentelemetry = { path = "opentelemetry", default-features = false }
+opentelemetry_sdk = { path = "opentelemetry-sdk", default-features = false }
+opentelemetry-appender-log = { path = "opentelemetry-appender-log", default-features = false }
 opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", default-features = false }
-opentelemetry-otlp = { path = "opentelemetry-otlp" }
-opentelemetry-stdout = { path = "opentelemetry-stdout" }
+opentelemetry-http = { path = "opentelemetry-http", default-features = false }
+opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", default-features = false }
+opentelemetry-otlp = { path = "opentelemetry-otlp", default-features = false }
+opentelemetry-proto = { path = "opentelemetry-proto", default-features = false }
+opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", default-features = false }
+opentelemetry-stdout = { path = "opentelemetry-stdout", default-features = false }
 percent-encoding = "2.0"
 rstest = "0.23.0"
 schemars = "0.8"

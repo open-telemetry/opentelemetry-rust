@@ -27,10 +27,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-opentelemetry = { version = "0.30", default-features = false, path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.30", default-features = false, path = "../opentelemetry-sdk" }
-opentelemetry-http = { version = "0.30", path = "../opentelemetry-http", optional = true }
-opentelemetry-proto = { version = "0.30", path = "../opentelemetry-proto", default-features = false }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-http = { workspace = true, optional = true }
+opentelemetry-proto = { workspace = true }
 tracing = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
@@ -43,20 +43,25 @@ serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
+# compression dependencies
+flate2 = { version = "1.1.2", optional = true }
+zstd = { version = "0.13", optional = true }
+
 [dev-dependencies]
 tokio-stream = { workspace = true, features = ["net"] }
-opentelemetry_sdk = { features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { workspace = true, features = ["trace", "testing"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
+async-trait = { workspace = true }
 
 [features]
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-internal-logs = ["tracing", "opentelemetry/internal-logs"]
+internal-logs = ["tracing", "opentelemetry_sdk/internal-logs", "opentelemetry-http/internal-logs"]
 
 # add ons
 serialize = ["serde", "serde_json"]
@@ -67,6 +72,10 @@ default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", 
 grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
+
+# http compression
+gzip-http = ["flate2"]
+zstd-http = ["zstd"]
 tls = ["tonic/tls-ring"]
 tls-roots = ["tls", "tonic/tls-native-roots"]
 tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
@@ -74,7 +83,7 @@ tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
 reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]

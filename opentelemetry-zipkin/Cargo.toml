@@ -22,15 +22,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["reqwest-blocking-client", "reqwest/native-tls"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { version = "0.30", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.30", path = "../opentelemetry-sdk", features = ["trace"] }
-opentelemetry-http = { version = "0.30", path = "../opentelemetry-http" }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true, features = ["trace"] }
+opentelemetry-http = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = { workspace = true }
@@ -44,7 +44,7 @@ bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
-opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { workspace = true, features = ["trace", "testing"] }
 temp-env = { workspace = true }
 
 [lints]

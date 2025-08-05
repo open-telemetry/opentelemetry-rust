@@ -674,8 +674,8 @@ mod tests {
         assert_eq!(trace_ctx1.span_id, inner_span_id);
 
         // Set context from remote.
-        let remote_trace_id = TraceId::from_u128(233);
-        let remote_span_id = SpanId::from_u64(2333);
+        let remote_trace_id = TraceId::from(233);
+        let remote_span_id = SpanId::from(2333);
         let remote_span_context = SpanContext::new(
             remote_trace_id,
             remote_span_id,

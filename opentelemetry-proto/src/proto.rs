@@ -242,6 +242,13 @@ pub mod tonic {
             #[path = "opentelemetry.proto.collector.trace.v1.rs"]
             pub mod v1;
         }
+
+        #[cfg(feature = "profiles")]
+        #[path = ""]
+        pub mod profiles {
+            #[path = "opentelemetry.proto.collector.profiles.v1development.rs"]
+            pub mod v1development;
+        }
     }
 
     /// Common types used across all signals
@@ -295,7 +302,7 @@ pub mod tonic {
     #[path = ""]
     pub mod profiles {
         #[path = "opentelemetry.proto.profiles.v1development.rs"]
-        pub mod v1;
+        pub mod v1development;
     }
 
     pub use crate::transform::common::tonic::Attributes;

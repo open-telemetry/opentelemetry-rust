@@ -169,6 +169,27 @@ impl FromStr for Compression {
     }
 }
 
+/// Resolve compression from environment variables with priority:
+/// 1. Provided config value
+/// 2. Signal-specific environment variable
+/// 3. Generic OTEL_EXPORTER_OTLP_COMPRESSION
+/// 4. None (default)
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+fn resolve_compression_from_env(
+    config_compression: Option<Compression>,
+    signal_env_var: &str,
+) -> Result<Option<Compression>, ExporterBuildError> {
+    if let Some(compression) = config_compression {
+        Ok(Some(compression))
+    } else if let Ok(compression) = std::env::var(signal_env_var) {
+        Ok(Some(compression.parse::<Compression>()?))
+    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
+        Ok(Some(compression.parse::<Compression>()?))
+    } else {
+        Ok(None)
+    }
+}
+
 /// default protocol based on enabled features
 fn default_protocol() -> Protocol {
     match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
@@ -185,7 +206,7 @@ fn default_headers() -> std::collections::HashMap<String, String> {
     let mut headers = std::collections::HashMap::new();
     headers.insert(
         "User-Agent".to_string(),
-        format!("OTel OTLP Exporter Rust/{}", env!("CARGO_PKG_VERSION")),
+        format!("OTel-OTLP-Exporter-Rust/{}", env!("CARGO_PKG_VERSION")),
     );
     headers
 }
