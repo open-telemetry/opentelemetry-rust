@@ -361,7 +361,7 @@ impl HasTonicConfig for TonicExporterBuilder {
 /// ```
 /// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 /// # {
-/// use crate::opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+/// use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 /// let exporter_builder = opentelemetry_otlp::SpanExporter::builder()
 ///     .with_tonic()
 ///     .with_compression(opentelemetry_otlp::Compression::Gzip);
@@ -383,7 +383,7 @@ pub trait WithTonicConfig {
     /// # #[cfg(feature = "grpc-tonic")]
     /// # {
     /// use tonic::metadata::MetadataMap;
-    /// use crate::opentelemetry_otlp::WithTonicConfig;
+    /// use opentelemetry_otlp::WithTonicConfig;
     ///
     /// let mut metadata1 = MetadataMap::new();
     /// metadata1.insert("key1", "value1".parse().unwrap());
@@ -427,7 +427,7 @@ pub trait WithTonicConfig {
     /// # #[cfg(feature = "grpc-tonic")]
     /// # {
     /// use tonic::{Request, Status};
-    /// use crate::opentelemetry_otlp::WithTonicConfig;
+    /// use opentelemetry_otlp::WithTonicConfig;
     ///
     /// fn auth_interceptor(mut req: Request<()>) -> Result<Request<()>, Status> {
     ///     req.metadata_mut().insert("authorization", "Bearer token".parse().unwrap());
@@ -447,7 +447,7 @@ pub trait WithTonicConfig {
     /// # #[cfg(feature = "grpc-tonic")]
     /// # {
     /// use tonic::{Request, Status};
-    /// use crate::opentelemetry_otlp::WithTonicConfig;
+    /// use opentelemetry_otlp::WithTonicConfig;
     ///
     /// fn auth_interceptor(mut req: Request<()>) -> Result<Request<()>, Status> {
     ///     req.metadata_mut().insert("authorization", "Bearer token".parse().unwrap());
