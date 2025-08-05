@@ -673,9 +673,9 @@ impl SpanProcessor for BatchSpanProcessor {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
                     name: "BatchSpanProcessor.Shutdown.ControlChannelFull",
-                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call."
+                    message = "Control message to shutdown the worker thread could not be sent as the control channel is full. This can occur if user repeatedly calls force_flush/shutdown without finishing the previous call."
                 );
-                Err(OTelSdkError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedily calls force_flush/shutdown without finishing the previous call.".into()))
+                Err(OTelSdkError::InternalFailure("Shutdown cannot be performed as Control channel is full. This can occur if user repeatedly calls force_flush/shutdown without finishing the previous call.".into()))
             }
             Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
