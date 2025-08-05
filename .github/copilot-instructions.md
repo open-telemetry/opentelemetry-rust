@@ -45,7 +45,7 @@ When making changes, consider the impact across the entire workspace.
 - Follow the OpenTelemetry specification
 - Prioritize functionality over structural compliance with spec
 - Use Rust idioms rather than forcing spec API patterns
-- Configuration priority: Environment variables > compile-time config
+- Configuration priority: compile-time config > Environment variables
 - Use `#[cfg(feature = "otel_unstable")]` for experimental features
 
 ## Build Requirements
