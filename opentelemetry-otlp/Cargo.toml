@@ -83,7 +83,7 @@ tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
 reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]
