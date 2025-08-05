@@ -9,10 +9,15 @@ This repository contains the OpenTelemetry implementation for Rust. When working
    - Run `cargo fmt --all` to format code consistently
    - Run `cargo check --workspace` to verify compilation
 
-2. **Use the provided development scripts:**
+2. **For individual crate development:**
+   - Use `cargo build`, `cargo test`, `cargo clippy` within specific crates for focused development
+   - This is more efficient when working on features for a single crate
+
+3. **Use the provided scripts for final validation:**
    - Run `./scripts/precommit.sh` before committing (runs format, lint, and test)
    - Run `./scripts/lint.sh` for comprehensive linting across all features
    - Run `./scripts/test.sh` for running tests
+   - These scripts run in CI, so use them as final checks rather than with each change
 
 ## Workspace Structure
 
