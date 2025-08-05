@@ -26,7 +26,7 @@ impl TraceState {
             return false;
         }
 
-        let allowed_special = |b: u8| (b == b'_' || b == b'-' || b == b'*' || b == b'/');
+        let allowed_special = |b: u8| b == b'_' || b == b'-' || b == b'*' || b == b'/';
         let mut vendor_start = None;
         for (i, &b) in key.as_bytes().iter().enumerate() {
             if !(b.is_ascii_lowercase() || b.is_ascii_digit() || allowed_special(b) || b == b'@') {
