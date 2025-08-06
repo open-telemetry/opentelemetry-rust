@@ -360,7 +360,7 @@ impl BatchLogProcessor {
                     logs: &mut Vec<LogsData>,
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
-                    config: &BatchConfig,
+                    max_export_size: usize,
                 ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
@@ -373,7 +373,7 @@ impl BatchLogProcessor {
                         // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
                             logs.push(log);
-                            if logs.len() == config.max_export_batch_size {
+                            if logs.len() == max_export_size {
                                 break;
                             }
                         }
@@ -409,7 +409,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
@@ -420,7 +420,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                             let _ = sender.send(result);
                         }
@@ -432,7 +432,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                             let _ = exporter.shutdown();
                             let _ = sender.send(result);
@@ -460,7 +460,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {

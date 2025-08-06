@@ -361,7 +361,7 @@ impl HasTonicConfig for TonicExporterBuilder {
 /// ```
 /// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 /// # {
-/// use crate::opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+/// use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 /// let exporter_builder = opentelemetry_otlp::SpanExporter::builder()
 ///     .with_tonic()
 ///     .with_compression(opentelemetry_otlp::Compression::Gzip);
@@ -373,6 +373,32 @@ pub trait WithTonicConfig {
     fn with_tls_config(self, tls_config: ClientTlsConfig) -> Self;
 
     /// Set custom metadata entries to send to the collector.
+    ///
+    /// **Note**: This method is additive - calling it multiple times will merge
+    /// the metadata entries. If the same key is provided in multiple calls,
+    /// the last value will override previous ones.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # #[cfg(feature = "grpc-tonic")]
+    /// # {
+    /// use tonic::metadata::MetadataMap;
+    /// use opentelemetry_otlp::WithTonicConfig;
+    ///
+    /// let mut metadata1 = MetadataMap::new();
+    /// metadata1.insert("key1", "value1".parse().unwrap());
+    ///
+    /// let mut metadata2 = MetadataMap::new();
+    /// metadata2.insert("key2", "value2".parse().unwrap());
+    ///
+    /// let exporter = opentelemetry_otlp::SpanExporter::builder()
+    ///     .with_tonic()
+    ///     .with_metadata(metadata1)  // Adds key1=value1
+    ///     .with_metadata(metadata2)  // Adds key2=value2 (both are present)
+    ///     .build()?;
+    /// # }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     fn with_metadata(self, metadata: MetadataMap) -> Self;
 
     /// Set the compression algorithm to use when communicating with the collector.
@@ -387,8 +413,65 @@ pub trait WithTonicConfig {
     fn with_channel(self, channel: tonic::transport::Channel) -> Self;
 
     /// Use a custom `interceptor` to modify each outbound request.
-    /// this can be used to modify the grpc metadata, for example
+    /// This can be used to modify the gRPC metadata, for example
     /// to inject auth tokens.
+    ///
+    /// **Note**: Calling this method multiple times will replace the previous
+    /// interceptor. If you need multiple interceptors, chain them together
+    /// before passing to this method.
+    ///
+    /// # Examples
+    ///
+    /// ## Single interceptor
+    /// ```no_run
+    /// # #[cfg(feature = "grpc-tonic")]
+    /// # {
+    /// use tonic::{Request, Status};
+    /// use opentelemetry_otlp::WithTonicConfig;
+    ///
+    /// fn auth_interceptor(mut req: Request<()>) -> Result<Request<()>, Status> {
+    ///     req.metadata_mut().insert("authorization", "Bearer token".parse().unwrap());
+    ///     Ok(req)
+    /// }
+    ///
+    /// let exporter = opentelemetry_otlp::SpanExporter::builder()
+    ///     .with_tonic()
+    ///     .with_interceptor(auth_interceptor)
+    ///     .build()?;
+    /// # }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// ## Multiple interceptors (chaining)
+    /// ```no_run
+    /// # #[cfg(feature = "grpc-tonic")]
+    /// # {
+    /// use tonic::{Request, Status};
+    /// use opentelemetry_otlp::WithTonicConfig;
+    ///
+    /// fn auth_interceptor(mut req: Request<()>) -> Result<Request<()>, Status> {
+    ///     req.metadata_mut().insert("authorization", "Bearer token".parse().unwrap());
+    ///     Ok(req)
+    /// }
+    ///
+    /// fn logging_interceptor(req: Request<()>) -> Result<Request<()>, Status> {
+    ///     println!("Sending gRPC request with metadata: {:?}", req.metadata());
+    ///     Ok(req)
+    /// }
+    ///
+    /// // Chain interceptors by wrapping them
+    /// fn combined_interceptor(req: Request<()>) -> Result<Request<()>, Status> {
+    ///     let req = logging_interceptor(req)?;
+    ///     auth_interceptor(req)
+    /// }
+    ///
+    /// let exporter = opentelemetry_otlp::SpanExporter::builder()
+    ///     .with_tonic()
+    ///     .with_interceptor(combined_interceptor)
+    ///     .build()?;
+    /// # }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     fn with_interceptor<I>(self, interceptor: I) -> Self
     where
         I: tonic::service::Interceptor + Clone + Send + Sync + 'static;
