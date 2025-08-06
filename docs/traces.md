@@ -23,12 +23,13 @@ in Rust applications.
 
 3. **In-proc contextual enrichment for logs/events**
 
-   This is not something OTel has a spec-ed out solution for. This is very
-   specific to the logging library (tracing) and its bridge.
-
    Use `tracing::span!` macros to add contextual metadata (e.g., filename) that
    applies to a group of logs. The `otel-appender-tracing` crate will be
    enhanced to extract span attributes and attach them to logs automatically.
+
+   OpenTelemetry does not have a spec-ed out solution for in-process contextual
+   enrichment. This is very specific to the logging library (tracing) and its
+   bridge.
 
 4. **If using tracing::span! to create spans**
 
@@ -47,6 +48,11 @@ in Rust applications.
 
    TODO: Should we make a recommendation about
    avoiding this extension APIs for instrumentation?
+
+   If you are creating spans to track in-proc work (what OTel calls "internal" spans),
+   `tracing:span` API is sufficient with `tracing-opentelemetry` bridge converting the
+   `tracing` Span to OTel Span, and properly activating/de-activating OTel's context,
+   to ensure correlation.
 
 5. **Use instrumentation libraries when possible**
 
