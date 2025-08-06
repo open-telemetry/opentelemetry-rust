@@ -37,10 +37,11 @@ in Rust applications.
    `tracing-opentelemetry` bridge to convert tracing spans into OTel spans.
 
    There are some limitations with this approach arising due to `tracing`s lack of support for
-   creating Spans following OpenTelemetry specification. Examples include
-   - Cannot set remote parent
-   - Cannot specify span kind (e.g., server/client)
-   - Cannot add span links
+   creating Spans following OpenTelemetry specification. For example,
+   `tracing` is unable to:
+   - Set remote parent
+   - Specify span kind (e.g., server/client/producer/consumer).
+   - Add span links
 
    The bridge offers extension APIs to support some of these, but they are not
    standard and are maintained outside the OpenTelemetry and Tracing project and
