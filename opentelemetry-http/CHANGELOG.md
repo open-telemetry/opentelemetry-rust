@@ -4,6 +4,8 @@
 
 - Implementation of `Extractor::get_all` for `HeaderExtractor`
 - Support `HttpClient` implementation for `HyperClient<C>` with custom connectors beyond `HttpConnector`, enabling Unix Domain Socket connections and other custom transports
+- Add `reqwest` and `reqwest-blocking` features to enable async and blocking
+  reqwest HTTP clients
 
 ## 0.30.0
 
