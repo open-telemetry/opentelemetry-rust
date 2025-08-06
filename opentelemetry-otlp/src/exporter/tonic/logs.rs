@@ -66,7 +66,7 @@ impl LogExporter for TonicLogsClient {
                     .map_err(|e| {
                         otel_debug!(
                             name: "TonicLogsClient.InterceptorFailed",
-                            grpc_code = format!("{:?}", e.code()),
+                            grpc_code = e.code(),
                             grpc_message = e.message(),
                             grpc_details = format!("{:?}", e.details())
                         );
