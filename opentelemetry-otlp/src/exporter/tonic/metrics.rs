@@ -65,7 +65,7 @@ impl MetricsClient for TonicMetricsClient {
                         .map_err(|e| {
                             otel_debug!(
                                 name: "TonicMetricsClient.InterceptorFailed",
-                                grpc_code = format!("{:?}", e.code()),
+                                grpc_code = e.code(),
                                 grpc_message = e.message(),
                                 grpc_details = format!("{:?}", e.details())
                             );
@@ -99,7 +99,7 @@ impl MetricsClient for TonicMetricsClient {
             Err(e) => {
                 otel_debug!(
                     name: "TonicMetricsClient.ExportFailed",
-                    grpc_code = format!("{:?}", e.code()),
+                    grpc_code = e.code(),
                     grpc_message = e.message(),
                     grpc_details = format!("{:?}", e.details())
                 );
