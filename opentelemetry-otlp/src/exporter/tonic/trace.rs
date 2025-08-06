@@ -70,7 +70,7 @@ impl SpanExporter for TonicTracesClient {
                     .map_err(|e| {
                         otel_debug!(
                             name: "TonicTracesClient.InterceptorFailed",
-                            grpc_code = e.code(),
+                            grpc_code = format!("{:?}", e.code()),
                             grpc_message = e.message(),
                             grpc_details = format!("{:?}", e.details())
                         );
@@ -102,7 +102,7 @@ impl SpanExporter for TonicTracesClient {
             Err(e) => {
                 otel_debug!(
                     name: "TonicTracesClient.ExportFailed",
-                    grpc_code = e.code(),
+                    grpc_code = format!("{:?}", e.code()),
                     grpc_message = e.message(),
                     grpc_details = format!("{:?}", e.details())
                 );

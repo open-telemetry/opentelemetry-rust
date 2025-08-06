@@ -98,7 +98,7 @@ impl LogExporter for TonicLogsClient {
             Err(e) => {
                 otel_debug!(
                     name: "TonicLogsClient.ExportFailed",
-                    grpc_code = e.code(),
+                    grpc_code = format!("{:?}", e.code()),
                     grpc_message = e.message(),
                     grpc_details = format!("{:?}", e.details())
                 );
