@@ -497,11 +497,14 @@ impl BatchSpanProcessor {
             return OTelSdkResult::Ok(());
         }
 
+        // Splitting off batch clears the existing batch capacity, and is ready
+        // for re-use in the next export. The newly returned vec! from split_off
+        // is passed to the exporter.
+        // TODO: Compared to Logs, this requires new allocation for vec for
+        // every export. See if this can be optimized by
+        // *not* requiring ownership in the exporter.
         let export = exporter.export(batch.split_off(0));
         let export_result = futures_executor::block_on(export);
-
-        // Clear the batch vec after exporting
-        batch.clear();
 
         match export_result {
             Ok(_) => OTelSdkResult::Ok(()),
