@@ -27,6 +27,7 @@ futures-sink = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true}
 tracing = {workspace = true, optional = true} # optional for opentelemetry internal logging
+serde = { workspace = true, optional = true, features = ["std"] }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 js-sys = "0.3.63"
@@ -40,6 +41,7 @@ testing = ["trace"]
 logs = []
 spec_unstable_logs_enabled = ["logs"]
 internal-logs = ["tracing"]
+with-serde = ["serde"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
