@@ -6,6 +6,7 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
@@ -117,7 +118,7 @@ impl LogExporter for TonicLogsClient {
         .await
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         // TODO: Implement actual shutdown
         // Due to the use of tokio::sync::Mutex to guard
         // the inner client, we need to await the call to lock the mutex
