@@ -35,6 +35,7 @@ tracing = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
+tonic-types = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
@@ -69,7 +70,7 @@ serialize = ["serde", "serde_json"]
 default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
-grpc-tonic = ["tonic", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic", "opentelemetry_sdk/rt-tokio", "opentelemetry_sdk/experimental_async_runtime"]
+grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic", "opentelemetry_sdk/rt-tokio", "opentelemetry_sdk/experimental_async_runtime"]
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
 
