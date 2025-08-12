@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use core::fmt;
 use opentelemetry::otel_debug;
 use opentelemetry_proto::tonic::collector::logs::v1::{
@@ -6,6 +5,7 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use std::sync::Arc;
 use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
@@ -15,6 +15,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 use super::BoxInterceptor;
 
 use opentelemetry_sdk::retry::{retry_with_exponential_backoff, RetryPolicy};
+use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -70,7 +71,7 @@ impl LogExporter for TonicLogsClient {
 
         let batch = Arc::new(batch);
 
-        retry_with_exponential_backoff::<_, _, _, _, tokio::time::Sleep>(policy, "TonicLogsClient.Export", {
+        retry_with_exponential_backoff(Tokio, policy, "TonicLogsClient.Export", {
             let batch = Arc::clone(&batch);
             let inner = &self.inner;
             let resource = &self.resource;
@@ -82,7 +83,9 @@ impl LogExporter for TonicLogsClient {
                             let (m, e, _) = inner
                                 .interceptor
                                 .call(Request::new(()))
-                                .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
+                                .map_err(|e| {
+                                    OTelSdkError::InternalFailure(format!("error: {e:?}"))
+                                })?
                                 .into_parts();
                             (inner.client.clone(), m, e)
                         }
