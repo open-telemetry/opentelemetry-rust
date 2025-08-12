@@ -366,7 +366,7 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(feature = "grpc-tonic")]
+#[cfg(any(feature = "grpc-tonic", feature = "http-retry"))]
 pub mod retry_classification;
 
 pub use crate::exporter::Compression;

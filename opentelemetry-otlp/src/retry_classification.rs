@@ -60,14 +60,14 @@ pub mod http {
     fn parse_retry_after(retry_after: &str) -> Option<Duration> {
         // Try parsing as seconds first
         if let Ok(seconds) = retry_after.trim().parse::<u64>() {
-            // Cap at 10 minutes for safety
+            // Cap at 10 minutes. TODO - what's sensible here?
             let capped_seconds = seconds.min(600);
             return Some(Duration::from_secs(capped_seconds));
         }
 
         // Try parsing as HTTP date
         if let Ok(delay_seconds) = parse_http_date_to_delay(retry_after) {
-            // Cap at 10 minutes for safety
+            // Cap at 10 minutes. TODO - what's sensible here?
             let capped_seconds = delay_seconds.min(600);
             return Some(Duration::from_secs(capped_seconds));
         }
@@ -78,7 +78,7 @@ pub mod http {
     /// Parses HTTP date format and returns delay in seconds from now.
     ///
     /// This is a simplified parser for the most common HTTP date format.
-    /// In production, you might want to use a proper HTTP date parsing library.
+    /// TODO - should we use a library here?
     fn parse_http_date_to_delay(date_str: &str) -> Result<u64, ()> {
         // For now, return error - would need proper HTTP date parsing
         // This could be implemented with chrono or similar
@@ -88,6 +88,7 @@ pub mod http {
 }
 
 /// gRPC-specific error classification with RetryInfo support.
+#[cfg(feature = "grpc-tonic")]
 pub mod grpc {
     use super::*;
 
@@ -122,7 +123,7 @@ pub mod grpc {
             tonic::Code::ResourceExhausted => {
                 if let Some(seconds) = retry_info_seconds {
                     // Server signals recovery is possible - use throttled retry
-                    let capped_seconds = seconds.min(600); // Cap at 10 minutes for safety
+                    let capped_seconds = seconds.min(600); // Cap at 10 minutes. TODO - what's sensible here?
                     return RetryErrorType::Throttled(std::time::Duration::from_secs(
                         capped_seconds,
                     ));
