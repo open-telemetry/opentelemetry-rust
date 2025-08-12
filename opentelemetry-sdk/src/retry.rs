@@ -34,7 +34,7 @@ pub struct RetryPolicy {
 /// A runtime stub for when experimental_async_runtime is not enabled.
 /// This allows retry policy to be configured but no actual retries occur.
 #[cfg(not(feature = "experimental_async_runtime"))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NoOpRuntime;
 
 #[cfg(not(feature = "experimental_async_runtime"))]
