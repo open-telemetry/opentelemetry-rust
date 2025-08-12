@@ -12,11 +12,24 @@
 use opentelemetry::otel_warn;
 #[cfg(feature = "experimental_async_runtime")]
 use std::future::Future;
+use std::time::Duration;
 #[cfg(feature = "experimental_async_runtime")]
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 #[cfg(feature = "experimental_async_runtime")]
 use crate::runtime::Runtime;
+
+/// Classification of errors for retry purposes.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RetryErrorType {
+    /// Error is not retryable (e.g., authentication failure, bad request).
+    NonRetryable,
+    /// Error is retryable with exponential backoff (e.g., server error, network timeout).
+    Retryable,
+    /// Error indicates throttling - wait for the specified duration before retrying.
+    /// This overrides exponential backoff timing.
+    Throttled(Duration),
+}
 
 /// Configuration for retry policy.
 #[derive(Debug)]
@@ -73,7 +86,7 @@ pub async fn retry_with_exponential_backoff<R, F, Fut, T, E>(
     runtime: R,
     policy: RetryPolicy,
     operation_name: &str,
-    mut operation: F,
+    operation: F,
 ) -> Result<T, E>
 where
     R: Runtime,
@@ -81,24 +94,91 @@ where
     E: std::fmt::Debug,
     Fut: Future<Output = Result<T, E>>,
 {
+    // Use a simple classifier that treats all errors as retryable
+    let simple_classifier = |_: &E| RetryErrorType::Retryable;
+
+    retry_with_exponential_backoff_classified(
+        runtime,
+        policy,
+        simple_classifier,
+        operation_name,
+        operation,
+    )
+    .await
+}
+
+/// Enhanced retry with exponential backoff, jitter, and error classification.
+///
+/// This function provides sophisticated retry behavior by classifying errors
+/// and honoring server-provided throttling hints (e.g., HTTP Retry-After, gRPC RetryInfo).
+///
+/// # Arguments
+///
+/// * `runtime` - The async runtime to use for delays.
+/// * `policy` - The retry policy configuration.
+/// * `error_classifier` - Function to classify errors for retry decisions.
+/// * `operation_name` - The name of the operation being retried.
+/// * `operation` - The operation to be retried.
+///
+/// # Returns
+///
+/// A `Result` containing the operation's result or an error if max retries are reached
+/// or a non-retryable error occurs.
+#[cfg(feature = "experimental_async_runtime")]
+pub async fn retry_with_exponential_backoff_classified<R, F, Fut, T, E, C>(
+    runtime: R,
+    policy: RetryPolicy,
+    error_classifier: C,
+    operation_name: &str,
+    mut operation: F,
+) -> Result<T, E>
+where
+    R: Runtime,
+    F: FnMut() -> Fut,
+    E: std::fmt::Debug,
+    Fut: Future<Output = Result<T, E>>,
+    C: Fn(&E) -> RetryErrorType,
+{
     let mut attempt = 0;
     let mut delay = policy.initial_delay_ms;
 
     loop {
         match operation().await {
             Ok(result) => return Ok(result), // Return the result if the operation succeeds
-            Err(err) if attempt < policy.max_retries => {
-                attempt += 1;
-                // Log the error and retry after a delay with jitter
-                otel_warn!(name: "OtlpRetry", message = format!("Retrying operation {:?} due to error: {:?}", operation_name, err));
-                let jitter = generate_jitter(policy.jitter_ms);
-                let delay_with_jitter = std::cmp::min(delay + jitter, policy.max_delay_ms);
-                runtime
-                    .delay(Duration::from_millis(delay_with_jitter))
-                    .await;
-                delay = std::cmp::min(delay * 2, policy.max_delay_ms); // Exponential backoff
+            Err(err) => {
+                // Classify the error
+                let error_type = error_classifier(&err);
+
+                match error_type {
+                    RetryErrorType::NonRetryable => {
+                        otel_warn!(name: "OtlpRetry", message = format!("Operation {:?} failed with non-retryable error: {:?}", operation_name, err));
+                        return Err(err);
+                    }
+                    RetryErrorType::Retryable if attempt < policy.max_retries => {
+                        attempt += 1;
+                        // Use exponential backoff with jitter
+                        otel_warn!(name: "OtlpRetry", message = format!("Retrying operation {:?} due to retryable error: {:?}", operation_name, err));
+                        let jitter = generate_jitter(policy.jitter_ms);
+                        let delay_with_jitter = std::cmp::min(delay + jitter, policy.max_delay_ms);
+                        runtime
+                            .delay(Duration::from_millis(delay_with_jitter))
+                            .await;
+                        delay = std::cmp::min(delay * 2, policy.max_delay_ms); // Exponential backoff
+                    }
+                    RetryErrorType::Throttled(server_delay) if attempt < policy.max_retries => {
+                        attempt += 1;
+                        // Use server-specified delay (overrides exponential backoff)
+                        otel_warn!(name: "OtlpRetry", message = format!("Retrying operation {:?} after server-specified throttling delay: {:?}", operation_name, server_delay));
+                        runtime.delay(server_delay).await;
+                        // Don't update exponential backoff delay for next attempt since server provided specific timing
+                    }
+                    _ => {
+                        // Max retries reached
+                        otel_warn!(name: "OtlpRetry", message = format!("Operation {:?} failed after {} attempts: {:?}", operation_name, attempt, err));
+                        return Err(err);
+                    }
+                }
             }
-            Err(err) => return Err(err), // Return the error if max retries are reached
         }
     }
 }
@@ -227,5 +307,200 @@ mod tests {
         .await;
 
         assert!(result.is_err()); // Ensure the operation times out
+    }
+
+    // Tests for error classification (Phase 1)
+    #[test]
+    fn test_retry_error_type_equality() {
+        assert_eq!(RetryErrorType::NonRetryable, RetryErrorType::NonRetryable);
+        assert_eq!(RetryErrorType::Retryable, RetryErrorType::Retryable);
+        assert_eq!(
+            RetryErrorType::Throttled(Duration::from_secs(30)),
+            RetryErrorType::Throttled(Duration::from_secs(30))
+        );
+        assert_ne!(RetryErrorType::Retryable, RetryErrorType::NonRetryable);
+    }
+
+    // Tests for enhanced retry function (Phase 3)
+    #[tokio::test]
+    async fn test_retry_with_throttling_non_retryable_error() {
+        let runtime = Tokio;
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        };
+
+        let attempts = AtomicUsize::new(0);
+
+        // Classifier that returns non-retryable
+        let classifier = |_: &()| RetryErrorType::NonRetryable;
+
+        let result = retry_with_exponential_backoff_classified(
+            runtime,
+            policy,
+            classifier,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) }) // Always fail
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(attempts.load(Ordering::SeqCst), 1); // Should only try once
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_throttling_retryable_error() {
+        let runtime = Tokio;
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 10, // Short delay for test
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+
+        let attempts = AtomicUsize::new(0);
+
+        // Classifier that returns retryable
+        let classifier = |_: &()| RetryErrorType::Retryable;
+
+        let result = retry_with_exponential_backoff_classified(
+            runtime,
+            policy,
+            classifier,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 1 {
+                        Err::<&str, ()>(()) // Fail first attempt
+                    } else {
+                        Ok("success") // Succeed on retry
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Should try twice
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_throttling_throttled_error() {
+        let runtime = Tokio;
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        };
+
+        let attempts = AtomicUsize::new(0);
+
+        // Classifier that returns throttled with short delay
+        let classifier = |_: &()| RetryErrorType::Throttled(Duration::from_millis(10));
+
+        let start_time = std::time::Instant::now();
+
+        let result = retry_with_exponential_backoff_classified(
+            runtime,
+            policy,
+            classifier,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 1 {
+                        Err::<&str, ()>(()) // Fail first attempt (will be throttled)
+                    } else {
+                        Ok("success") // Succeed on retry
+                    }
+                })
+            },
+        )
+        .await;
+
+        let elapsed = start_time.elapsed();
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Should try twice
+        assert!(elapsed >= Duration::from_millis(10)); // Should have waited for throttle delay
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_throttling_max_attempts_exceeded() {
+        let runtime = Tokio;
+        let policy = RetryPolicy {
+            max_retries: 1, // Only 1 retry
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+
+        let attempts = AtomicUsize::new(0);
+
+        // Classifier that returns retryable
+        let classifier = |_: &()| RetryErrorType::Retryable;
+
+        let result = retry_with_exponential_backoff_classified(
+            runtime,
+            policy,
+            classifier,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) }) // Always fail
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Initial attempt + 1 retry
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_throttling_mixed_error_types() {
+        let runtime = Tokio;
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+
+        let attempts = AtomicUsize::new(0);
+
+        // Classifier that returns different types based on attempt number
+        let classifier = |err: &usize| match *err {
+            0 => RetryErrorType::Retryable,
+            1 => RetryErrorType::Throttled(Duration::from_millis(10)),
+            _ => RetryErrorType::Retryable,
+        };
+
+        let result = retry_with_exponential_backoff_classified(
+            runtime,
+            policy,
+            classifier,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err(attempt) // Return attempt number as error
+                    } else {
+                        Ok("success") // Succeed on third attempt
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 3); // Should try three times
     }
 }
