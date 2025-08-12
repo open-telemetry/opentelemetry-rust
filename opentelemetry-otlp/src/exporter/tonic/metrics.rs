@@ -12,6 +12,10 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use super::BoxInterceptor;
 use crate::metric::MetricsClient;
 
+use crate::retry_classification::grpc::classify_tonic_status;
+use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
+use opentelemetry_sdk::runtime::Tokio;
+
 pub(crate) struct TonicMetricsClient {
     inner: Mutex<Option<ClientInner>>,
 }
@@ -53,48 +57,62 @@ impl TonicMetricsClient {
 
 impl MetricsClient for TonicMetricsClient {
     async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = self
-            .inner
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e:?}")))
-            .and_then(|mut inner| match &mut *inner {
-                Some(inner) => {
-                    let (m, e, _) = inner
-                        .interceptor
-                        .call(Request::new(()))
-                        .map_err(|e| {
-                            OTelSdkError::InternalFailure(format!(
-                                "unexpected status while exporting {e:?}"
-                            ))
-                        })?
-                        .into_parts();
-                    Ok((inner.client.clone(), m, e))
-                }
-                None => Err(OTelSdkError::InternalFailure(
-                    "exporter is already shut down".into(),
-                )),
-            })?;
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        };
 
-        otel_debug!(name: "TonicMetricsClient.ExportStarted");
+        match retry_with_backoff(
+            Tokio,
+            policy,
+            classify_tonic_status,
+            "TonicMetricsClient.Export",
+            || async {
+                // Execute the export operation
+                let (mut client, metadata, extensions) = self
+                    .inner
+                    .lock()
+                    .map_err(|e| tonic::Status::internal(format!("Failed to acquire lock: {e:?}")))
+                    .and_then(|mut inner| match &mut *inner {
+                        Some(inner) => {
+                            let (m, e, _) = inner
+                                .interceptor
+                                .call(Request::new(()))
+                                .map_err(|e| {
+                                    tonic::Status::internal(format!(
+                                        "unexpected status while exporting {e:?}"
+                                    ))
+                                })?
+                                .into_parts();
+                            Ok((inner.client.clone(), m, e))
+                        }
+                        None => Err(tonic::Status::failed_precondition(
+                            "exporter is already shut down",
+                        )),
+                    })?;
 
-        let result = client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportMetricsServiceRequest::from(metrics),
-            ))
-            .await;
+                otel_debug!(name: "TonicMetricsClient.ExportStarted");
 
-        match result {
-            Ok(_) => {
-                otel_debug!(name: "TonicMetricsClient.ExportSucceeded");
-                Ok(())
-            }
-            Err(e) => {
-                let error = format!("{e:?}");
-                otel_debug!(name: "TonicMetricsClient.ExportFailed", error = &error);
-                Err(OTelSdkError::InternalFailure(error))
-            }
+                client
+                    .export(Request::from_parts(
+                        metadata,
+                        extensions,
+                        ExportMetricsServiceRequest::from(metrics),
+                    ))
+                    .await
+                    .map(|_| {
+                        otel_debug!(name: "TonicMetricsClient.ExportSucceeded");
+                    })
+            },
+        )
+        .await
+        {
+            Ok(_) => Ok(()),
+            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
+                "export error: {tonic_status:?}"
+            ))),
         }
     }
 

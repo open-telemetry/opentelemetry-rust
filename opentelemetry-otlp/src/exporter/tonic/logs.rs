@@ -5,6 +5,7 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+use std::sync::Arc;
 use std::time;
 use tokio::sync::Mutex;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
@@ -12,6 +13,10 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
+
+use crate::retry_classification::grpc::classify_tonic_status;
+use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
+use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -58,40 +63,65 @@ impl TonicLogsClient {
 
 impl LogExporter for TonicLogsClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
-        let (mut client, metadata, extensions) = match self.inner.lock().await.as_mut() {
-            Some(inner) => {
-                let (m, e, _) = inner
-                    .interceptor
-                    .call(Request::new(()))
-                    .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
-                    .into_parts();
-                (inner.client.clone(), m, e)
-            }
-            None => return Err(OTelSdkError::AlreadyShutdown),
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
         };
 
-        let resource_logs = group_logs_by_resource_and_scope(batch, &self.resource);
+        let batch = Arc::new(batch);
 
-        otel_debug!(name: "TonicLogsClient.ExportStarted");
+        match retry_with_backoff(
+            Tokio,
+            policy,
+            classify_tonic_status,
+            "TonicLogsClient.Export",
+            || async {
+                let batch_clone = Arc::clone(&batch);
 
-        let result = client
-            .export(Request::from_parts(
-                metadata,
-                extensions,
-                ExportLogsServiceRequest { resource_logs },
-            ))
-            .await;
+                // Execute the export operation
+                let (mut client, metadata, extensions) = match self.inner.lock().await.as_mut() {
+                    Some(inner) => {
+                        let (m, e, _) = inner
+                            .interceptor
+                            .call(Request::new(()))
+                            .map_err(|e| {
+                                // Convert interceptor errors to tonic::Status for retry classification
+                                tonic::Status::internal(format!("interceptor error: {e:?}"))
+                            })?
+                            .into_parts();
+                        (inner.client.clone(), m, e)
+                    }
+                    None => {
+                        return Err(tonic::Status::failed_precondition(
+                            "exporter already shutdown",
+                        ))
+                    }
+                };
 
-        match result {
-            Ok(_) => {
-                otel_debug!(name: "TonicLogsClient.ExportSucceeded");
-                Ok(())
-            }
-            Err(e) => {
-                let error = format!("export error: {e:?}");
-                otel_debug!(name: "TonicLogsClient.ExportFailed", error = &error);
-                Err(OTelSdkError::InternalFailure(error))
-            }
+                let resource_logs = group_logs_by_resource_and_scope(&batch_clone, &self.resource);
+
+                otel_debug!(name: "TonicLogsClient.ExportStarted");
+
+                client
+                    .export(Request::from_parts(
+                        metadata,
+                        extensions,
+                        ExportLogsServiceRequest { resource_logs },
+                    ))
+                    .await
+                    .map(|_| {
+                        otel_debug!(name: "TonicLogsClient.ExportSucceeded");
+                    })
+            },
+        )
+        .await
+        {
+            Ok(_) => Ok(()),
+            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
+                "export error: {tonic_status:?}"
+            ))),
         }
     }
 
