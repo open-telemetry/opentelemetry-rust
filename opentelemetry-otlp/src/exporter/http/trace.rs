@@ -8,7 +8,138 @@ use opentelemetry_sdk::{
     trace::{SpanData, SpanExporter},
 };
 
+#[cfg(feature = "http-retry")]
+use crate::retry_classification::http::classify_http_error;
+#[cfg(feature = "http-retry")]
+use opentelemetry_sdk::retry::{retry_with_backoff, RetryErrorType, RetryPolicy};
+#[cfg(feature = "http-retry")]
+use opentelemetry_sdk::runtime::Tokio;
+
+#[cfg(feature = "http-retry")]
+/// HTTP-specific error wrapper for retry classification
+#[derive(Debug)]
+struct HttpExportError {
+    status_code: u16,
+    retry_after: Option<String>,
+    message: String,
+}
+
+#[cfg(feature = "http-retry")]
+/// Classify HTTP export errors for retry decisions
+fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
+    classify_http_error(error.status_code, error.retry_after.as_deref())
+}
+
 impl SpanExporter for OtlpHttpClient {
+    #[cfg(feature = "http-retry")]
+    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        };
+
+        let batch = Arc::new(batch);
+
+        retry_with_backoff(
+            Tokio,
+            policy,
+            classify_http_export_error,
+            "HttpTracesClient.Export",
+            || async {
+                let batch_clone = Arc::clone(&batch);
+
+                // Get client
+                let client = self
+                    .client
+                    .lock()
+                    .map_err(|e| HttpExportError {
+                        status_code: 500,
+                        retry_after: None,
+                        message: format!("Mutex lock failed: {e}"),
+                    })?
+                    .as_ref()
+                    .ok_or_else(|| HttpExportError {
+                        status_code: 500,
+                        retry_after: None,
+                        message: "Exporter already shutdown".to_string(),
+                    })?
+                    .clone();
+
+                // Build request body
+                let (body, content_type, content_encoding) = self
+                    .build_trace_export_body((*batch_clone).clone())
+                    .map_err(|e| HttpExportError {
+                        status_code: 400,
+                        retry_after: None,
+                        message: format!("Failed to build request body: {e}"),
+                    })?;
+
+                // Build HTTP request
+                let mut request_builder = http::Request::builder()
+                    .method(Method::POST)
+                    .uri(&self.collector_endpoint)
+                    .header(CONTENT_TYPE, content_type);
+
+                if let Some(encoding) = content_encoding {
+                    request_builder = request_builder.header("Content-Encoding", encoding);
+                }
+
+                let mut request =
+                    request_builder
+                        .body(body.into())
+                        .map_err(|e| HttpExportError {
+                            status_code: 400,
+                            retry_after: None,
+                            message: format!("Failed to build HTTP request: {e}"),
+                        })?;
+
+                for (k, v) in &self.headers {
+                    request.headers_mut().insert(k.clone(), v.clone());
+                }
+
+                let request_uri = request.uri().to_string();
+                otel_debug!(name: "HttpTracesClient.ExportStarted");
+
+                // Send request
+                let response = client.send_bytes(request).await.map_err(|e| {
+                    HttpExportError {
+                        status_code: 0, // Network error
+                        retry_after: None,
+                        message: format!("Network error: {e:?}"),
+                    }
+                })?;
+
+                let status_code = response.status().as_u16();
+                let retry_after = response
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string());
+
+                if !response.status().is_success() {
+                    return Err(HttpExportError {
+                        status_code,
+                        retry_after,
+                        message: format!(
+                            "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
+                            request_uri,
+                            status_code,
+                            response.body()
+                        ),
+                    });
+                }
+
+                otel_debug!(name: "HttpTracesClient.ExportSucceeded");
+                Ok(())
+            },
+        )
+        .await
+        .map_err(|e| OTelSdkError::InternalFailure(e.message))
+    }
+
+    #[cfg(not(feature = "http-retry"))]
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         let client = match self
             .client

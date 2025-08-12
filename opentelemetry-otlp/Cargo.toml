@@ -83,6 +83,11 @@ tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
+
+# http with retry support.
+# What should we do with this? We need the async_runtime. gRPC exporters already need it.
+http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio"]
+
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
