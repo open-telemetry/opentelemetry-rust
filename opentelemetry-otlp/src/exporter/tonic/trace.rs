@@ -16,7 +16,8 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 
 use super::BoxInterceptor;
 
-use opentelemetry_sdk::retry::{retry_with_exponential_backoff, RetryPolicy};
+use crate::retry_classification::grpc::classify_tonic_status;
+use opentelemetry_sdk::retry::{retry_with_exponential_backoff_classified, RetryPolicy};
 use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicTracesClient {
@@ -73,54 +74,60 @@ impl SpanExporter for TonicTracesClient {
 
         let batch = Arc::new(batch);
 
-        retry_with_exponential_backoff(Tokio, policy, "TonicTracesClient.Export", {
-            let batch = Arc::clone(&batch);
-            let inner = &self.inner;
-            let resource = &self.resource;
-            move || {
-                let batch = Arc::clone(&batch);
-                Box::pin(async move {
-                    let (mut client, metadata, extensions) = match inner {
-                        Some(inner) => {
-                            let (m, e, _) = inner
-                                .interceptor
-                                .lock()
-                                .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
-                                .call(Request::new(()))
-                                .map_err(|e| OTelSdkError::InternalFailure(format!("error: {e:?}")))?
-                                .into_parts();
-                            (inner.client.clone(), m, e)
-                        }
-                        None => return Err(OTelSdkError::AlreadyShutdown),
-                    };
+        match retry_with_exponential_backoff_classified(
+            Tokio,
+            policy,
+            classify_tonic_status,
+            "TonicTracesClient.Export",
+            || async {
+                let batch_clone = Arc::clone(&batch);
 
-                    let resource_spans = group_spans_by_resource_and_scope((*batch).clone(), resource);
-
-                    otel_debug!(name: "TonicTracesClient.ExportStarted");
-
-                    let result = client
-                        .export(Request::from_parts(
-                            metadata,
-                            extensions,
-                            ExportTraceServiceRequest { resource_spans },
-                        ))
-                        .await;
-
-                    match result {
-                        Ok(_) => {
-                            otel_debug!(name: "TonicTracesClient.ExportSucceeded");
-                            Ok(())
-                        }
-                        Err(e) => {
-                            let error = format!("export error: {e:?}");
-                            otel_debug!(name: "TonicTracesClient.ExportFailed", error = &error);
-                            Err(OTelSdkError::InternalFailure(error))
-                        }
+                // Execute the export operation
+                let (mut client, metadata, extensions) = match &self.inner {
+                    Some(inner) => {
+                        let (m, e, _) = inner
+                            .interceptor
+                            .lock()
+                            .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
+                            .call(Request::new(()))
+                            .map_err(|e| {
+                                // Convert interceptor errors to tonic::Status for retry classification
+                                tonic::Status::internal(format!("interceptor error: {e:?}"))
+                            })?
+                            .into_parts();
+                        (inner.client.clone(), m, e)
                     }
-                })
-            }
-        })
+                    None => {
+                        return Err(tonic::Status::failed_precondition(
+                            "exporter already shutdown",
+                        ))
+                    }
+                };
+
+                let resource_spans =
+                    group_spans_by_resource_and_scope((*batch_clone).clone(), &self.resource);
+
+                otel_debug!(name: "TonicTracesClient.ExportStarted");
+
+                client
+                    .export(Request::from_parts(
+                        metadata,
+                        extensions,
+                        ExportTraceServiceRequest { resource_spans },
+                    ))
+                    .await
+                    .map(|_| {
+                        otel_debug!(name: "TonicTracesClient.ExportSucceeded");
+                    })
+            },
+        )
         .await
+        {
+            Ok(_) => Ok(()),
+            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
+                "export error: {tonic_status:?}"
+            ))),
+        }
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
