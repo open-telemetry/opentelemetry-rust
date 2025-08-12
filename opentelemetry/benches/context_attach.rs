@@ -98,7 +98,7 @@ fn dummy_work() -> i32 {
     black_box(1 + 1)
 }
 
-fn group(c: &mut Criterion) -> BenchmarkGroup<WallTime> {
+fn group(c: &mut Criterion) -> BenchmarkGroup<'_, WallTime> {
     c.benchmark_group("context_attach")
 }
 
