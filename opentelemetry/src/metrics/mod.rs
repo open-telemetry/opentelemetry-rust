@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 mod instruments;
 mod meter;
-pub(crate) mod noop;
+pub mod noop;
 pub use instruments::{
     counter::{Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},
@@ -14,6 +14,7 @@ pub use instruments::{
     SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
+pub use noop::NoopMeterProvider;
 
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {
