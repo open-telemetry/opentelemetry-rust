@@ -9,26 +9,11 @@ use opentelemetry_sdk::{
 };
 
 #[cfg(feature = "http-retry")]
-use crate::retry_classification::http::classify_http_error;
+use super::{classify_http_export_error, HttpExportError, HttpRetryData};
 #[cfg(feature = "http-retry")]
-use opentelemetry_sdk::retry::{retry_with_backoff, RetryErrorType, RetryPolicy};
+use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
 #[cfg(feature = "http-retry")]
 use opentelemetry_sdk::runtime::Tokio;
-
-#[cfg(feature = "http-retry")]
-/// HTTP-specific error wrapper for retry classification
-#[derive(Debug)]
-struct HttpExportError {
-    status_code: u16,
-    retry_after: Option<String>,
-    message: String,
-}
-
-#[cfg(feature = "http-retry")]
-/// Classify HTTP export errors for retry decisions
-fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
-    classify_http_error(error.status_code, error.retry_after.as_deref())
-}
 
 impl SpanExporter for OtlpHttpClient {
     #[cfg(feature = "http-retry")]
@@ -40,7 +25,17 @@ impl SpanExporter for OtlpHttpClient {
             jitter_ms: 100,
         };
 
-        let batch = Arc::new(batch);
+        // Build request body once before retry loop
+        let (body, content_type, content_encoding) =
+            self.build_trace_export_body(batch).map_err(|e| {
+                OTelSdkError::InternalFailure(format!("Failed to build request body: {e}"))
+            })?;
+
+        let retry_data = Arc::new(HttpRetryData {
+            body,
+            headers: self.headers.clone(),
+            endpoint: self.collector_endpoint.to_string(),
+        });
 
         retry_with_backoff(
             Tokio,
@@ -48,8 +43,6 @@ impl SpanExporter for OtlpHttpClient {
             classify_http_export_error,
             "HttpTracesClient.Export",
             || async {
-                let batch_clone = Arc::clone(&batch);
-
                 // Get client
                 let client = self
                     .client
@@ -67,35 +60,25 @@ impl SpanExporter for OtlpHttpClient {
                     })?
                     .clone();
 
-                // Build request body
-                let (body, content_type, content_encoding) = self
-                    .build_trace_export_body((*batch_clone).clone())
-                    .map_err(|e| HttpExportError {
-                        status_code: 400,
-                        retry_after: None,
-                        message: format!("Failed to build request body: {e}"),
-                    })?;
-
                 // Build HTTP request
                 let mut request_builder = http::Request::builder()
                     .method(Method::POST)
-                    .uri(&self.collector_endpoint)
+                    .uri(&retry_data.endpoint)
                     .header(CONTENT_TYPE, content_type);
 
                 if let Some(encoding) = content_encoding {
                     request_builder = request_builder.header("Content-Encoding", encoding);
                 }
 
-                let mut request =
-                    request_builder
-                        .body(body.into())
-                        .map_err(|e| HttpExportError {
-                            status_code: 400,
-                            retry_after: None,
-                            message: format!("Failed to build HTTP request: {e}"),
-                        })?;
+                let mut request = request_builder
+                    .body(retry_data.body.clone().into())
+                    .map_err(|e| HttpExportError {
+                        status_code: 400,
+                        retry_after: None,
+                        message: format!("Failed to build HTTP request: {e}"),
+                    })?;
 
-                for (k, v) in &self.headers {
+                for (k, v) in &retry_data.headers {
                     request.headers_mut().insert(k.clone(), v.clone());
                 }
 

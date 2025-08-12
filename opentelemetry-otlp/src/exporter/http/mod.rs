@@ -22,6 +22,37 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+#[cfg(feature = "http-retry")]
+use crate::retry_classification::http::classify_http_error;
+#[cfg(feature = "http-retry")]
+use opentelemetry_sdk::retry::RetryErrorType;
+
+// Shared HTTP retry functionality
+#[cfg(feature = "http-retry")]
+/// HTTP-specific error wrapper for retry classification
+#[derive(Debug)]
+pub(crate) struct HttpExportError {
+    pub status_code: u16,
+    pub retry_after: Option<String>,
+    pub message: String,
+}
+
+#[cfg(feature = "http-retry")]
+/// Classify HTTP export errors for retry decisions
+pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
+    classify_http_error(error.status_code, error.retry_after.as_deref())
+}
+
+#[cfg(feature = "http-retry")]
+/// Shared HTTP request data for retry attempts - optimizes Arc usage by bundling all data
+/// we need to pass into the retry handler
+#[derive(Debug)]
+pub(crate) struct HttpRetryData {
+    pub body: Vec<u8>,
+    pub headers: HashMap<HeaderName, HeaderValue>,
+    pub endpoint: String,
+}
+
 #[cfg(feature = "metrics")]
 mod metrics;
 
