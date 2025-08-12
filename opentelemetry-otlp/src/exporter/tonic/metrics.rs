@@ -13,7 +13,7 @@ use super::BoxInterceptor;
 use crate::metric::MetricsClient;
 
 use crate::retry_classification::grpc::classify_tonic_status;
-use opentelemetry_sdk::retry::{retry_with_exponential_backoff_classified, RetryPolicy};
+use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
 use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicMetricsClient {
@@ -64,7 +64,7 @@ impl MetricsClient for TonicMetricsClient {
             jitter_ms: 100,
         };
 
-        match retry_with_exponential_backoff_classified(
+        match retry_with_backoff(
             Tokio,
             policy,
             classify_tonic_status,

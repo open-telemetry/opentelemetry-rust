@@ -3,10 +3,10 @@
 //! The `RetryPolicy` struct defines the configuration for the retry behavior, including the maximum
 //! number of retries, initial delay, maximum delay, and jitter.
 //!
-//! The `retry_with_exponential_backoff` function retries the given operation according to the
+//! The `retry_with_backoff` function retries the given operation according to the
 //! specified retry policy, using exponential backoff and jitter to determine the delay between
-//! retries. The function logs errors and retries the operation until it succeeds or the maximum
-//! number of retries is reached.
+//! retries. The function uses error classification to determine retry behavior and can honor
+//! server-provided throttling hints.
 
 #[cfg(feature = "experimental_async_runtime")]
 use opentelemetry::otel_warn;
@@ -69,45 +69,7 @@ fn generate_jitter(max_jitter: u64) -> u64 {
     nanos as u64 % (max_jitter + 1)
 }
 
-/// Retries the given operation with exponential backoff and jitter.
-///
-/// # Arguments
-///
-/// * `runtime` - The async runtime to use for delays.
-/// * `policy` - The retry policy configuration.
-/// * `operation_name` - The name of the operation being retried.
-/// * `operation` - The operation to be retried.
-///
-/// # Returns
-///
-/// A `Result` containing the operation's result or an error if the maximum retries are reached.
-#[cfg(feature = "experimental_async_runtime")]
-pub async fn retry_with_exponential_backoff<R, F, Fut, T, E>(
-    runtime: R,
-    policy: RetryPolicy,
-    operation_name: &str,
-    operation: F,
-) -> Result<T, E>
-where
-    R: Runtime,
-    F: FnMut() -> Fut,
-    E: std::fmt::Debug,
-    Fut: Future<Output = Result<T, E>>,
-{
-    // Use a simple classifier that treats all errors as retryable
-    let simple_classifier = |_: &E| RetryErrorType::Retryable;
-
-    retry_with_exponential_backoff_classified(
-        runtime,
-        policy,
-        simple_classifier,
-        operation_name,
-        operation,
-    )
-    .await
-}
-
-/// Enhanced retry with exponential backoff, jitter, and error classification.
+/// Retries the given operation with exponential backoff, jitter, and error classification.
 ///
 /// This function provides sophisticated retry behavior by classifying errors
 /// and honoring server-provided throttling hints (e.g., HTTP Retry-After, gRPC RetryInfo).
@@ -125,7 +87,7 @@ where
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
 #[cfg(feature = "experimental_async_runtime")]
-pub async fn retry_with_exponential_backoff_classified<R, F, Fut, T, E, C>(
+pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
     runtime: R,
     policy: RetryPolicy,
     error_classifier: C,
@@ -186,9 +148,10 @@ where
 /// No-op retry function for when experimental_async_runtime is not enabled.
 /// This function will execute the operation exactly once without any retries.
 #[cfg(not(feature = "experimental_async_runtime"))]
-pub async fn retry_with_exponential_backoff<R, F, Fut, T, E>(
+pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
     _runtime: R,
     _policy: RetryPolicy,
+    _error_classifier: C,
     _operation_name: &str,
     mut operation: F,
 ) -> Result<T, E>
@@ -227,9 +190,13 @@ mod tests {
             jitter_ms: 100,
         };
 
-        let result = retry_with_exponential_backoff(runtime, policy, "test_operation", || {
-            Box::pin(async { Ok::<_, ()>("success") })
-        })
+        let result = retry_with_backoff(
+            runtime,
+            policy,
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            || Box::pin(async { Ok::<_, ()>("success") }),
+        )
         .await;
 
         assert_eq!(result, Ok("success"));
@@ -248,16 +215,22 @@ mod tests {
 
         let attempts = AtomicUsize::new(0);
 
-        let result = retry_with_exponential_backoff(runtime, policy, "test_operation", || {
-            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async move {
-                if attempt < 2 {
-                    Err::<&str, &str>("error") // Fail the first two attempts
-                } else {
-                    Ok::<&str, &str>("success") // Succeed on the third attempt
-                }
-            })
-        })
+        let result = retry_with_backoff(
+            runtime,
+            policy,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err::<&str, &str>("error") // Fail the first two attempts
+                    } else {
+                        Ok::<&str, &str>("success") // Succeed on the third attempt
+                    }
+                })
+            },
+        )
         .await;
 
         assert_eq!(result, Ok("success"));
@@ -277,10 +250,16 @@ mod tests {
 
         let attempts = AtomicUsize::new(0);
 
-        let result = retry_with_exponential_backoff(runtime, policy, "test_operation", || {
-            attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async { Err::<(), _>("error") }) // Always fail
-        })
+        let result = retry_with_backoff(
+            runtime,
+            policy,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>("error") }) // Always fail
+            },
+        )
         .await;
 
         assert_eq!(result, Err("error"));
@@ -300,9 +279,15 @@ mod tests {
 
         let result = timeout(
             Duration::from_secs(1),
-            retry_with_exponential_backoff(runtime, policy, "test_operation", || {
-                Box::pin(async { Err::<(), _>("error") }) // Always fail
-            }),
+            retry_with_backoff(
+                runtime,
+                policy,
+                |_: &&str| RetryErrorType::Retryable,
+                "test_operation",
+                || {
+                    Box::pin(async { Err::<(), _>("error") }) // Always fail
+                },
+            ),
         )
         .await;
 
@@ -337,16 +322,10 @@ mod tests {
         // Classifier that returns non-retryable
         let classifier = |_: &()| RetryErrorType::NonRetryable;
 
-        let result = retry_with_exponential_backoff_classified(
-            runtime,
-            policy,
-            classifier,
-            "test_operation",
-            || {
-                attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async { Err::<(), _>(()) }) // Always fail
-            },
-        )
+        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
+            attempts.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Err::<(), _>(()) }) // Always fail
+        })
         .await;
 
         assert!(result.is_err());
@@ -368,22 +347,16 @@ mod tests {
         // Classifier that returns retryable
         let classifier = |_: &()| RetryErrorType::Retryable;
 
-        let result = retry_with_exponential_backoff_classified(
-            runtime,
-            policy,
-            classifier,
-            "test_operation",
-            || {
-                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 1 {
-                        Err::<&str, ()>(()) // Fail first attempt
-                    } else {
-                        Ok("success") // Succeed on retry
-                    }
-                })
-            },
-        )
+        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
+            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                if attempt < 1 {
+                    Err::<&str, ()>(()) // Fail first attempt
+                } else {
+                    Ok("success") // Succeed on retry
+                }
+            })
+        })
         .await;
 
         assert_eq!(result, Ok("success"));
@@ -407,22 +380,16 @@ mod tests {
 
         let start_time = std::time::Instant::now();
 
-        let result = retry_with_exponential_backoff_classified(
-            runtime,
-            policy,
-            classifier,
-            "test_operation",
-            || {
-                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 1 {
-                        Err::<&str, ()>(()) // Fail first attempt (will be throttled)
-                    } else {
-                        Ok("success") // Succeed on retry
-                    }
-                })
-            },
-        )
+        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
+            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                if attempt < 1 {
+                    Err::<&str, ()>(()) // Fail first attempt (will be throttled)
+                } else {
+                    Ok("success") // Succeed on retry
+                }
+            })
+        })
         .await;
 
         let elapsed = start_time.elapsed();
@@ -447,16 +414,10 @@ mod tests {
         // Classifier that returns retryable
         let classifier = |_: &()| RetryErrorType::Retryable;
 
-        let result = retry_with_exponential_backoff_classified(
-            runtime,
-            policy,
-            classifier,
-            "test_operation",
-            || {
-                attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async { Err::<(), _>(()) }) // Always fail
-            },
-        )
+        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
+            attempts.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Err::<(), _>(()) }) // Always fail
+        })
         .await;
 
         assert!(result.is_err());
@@ -482,22 +443,16 @@ mod tests {
             _ => RetryErrorType::Retryable,
         };
 
-        let result = retry_with_exponential_backoff_classified(
-            runtime,
-            policy,
-            classifier,
-            "test_operation",
-            || {
-                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 2 {
-                        Err(attempt) // Return attempt number as error
-                    } else {
-                        Ok("success") // Succeed on third attempt
-                    }
-                })
-            },
-        )
+        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
+            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                if attempt < 2 {
+                    Err(attempt) // Return attempt number as error
+                } else {
+                    Ok("success") // Succeed on third attempt
+                }
+            })
+        })
         .await;
 
         assert_eq!(result, Ok("success"));
