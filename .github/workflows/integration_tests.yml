@@ -18,11 +18,8 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Free disk space
+      - name: Check disk space
         run: |
-          df -h
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
           df -h
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -36,3 +33,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
         run: ./scripts/integration_tests.sh
+      - name: Check disk space
+        run: |
+          df -h
