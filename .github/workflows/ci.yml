@@ -36,10 +36,6 @@ jobs:
       with:
         egress-policy: audit
 
-    - name: Check disk space
-      if: ${{ matrix.os == 'ubuntu-latest'}}
-      run: |
-        df -h
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
         submodules: true
@@ -54,10 +50,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
-    - name: Check disk space
-      if: ${{ matrix.os == 'ubuntu-latest'}}
-      run: |
-        df -h
   lint:
     runs-on: ubuntu-latest
     steps:
