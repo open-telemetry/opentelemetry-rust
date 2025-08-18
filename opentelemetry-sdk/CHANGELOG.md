@@ -13,6 +13,8 @@
   The logs functionality now operates independently, while automatic correlation
   between logs and traces continues to work when the "trace" feature is
   explicitly enabled.
+- **Feature**: Add support for `OTEL_SDK_DISABLED` environment variable ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
+
 
 ## 0.30.0
 
