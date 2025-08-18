@@ -5,7 +5,10 @@
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
 This crate contains an [OpenTelemetry](https://opentelemetry.io/) exporter that
-prints telemetry (logs, metrics and traces) to the standard output.
+outputs telemetry data (logs, metrics, and traces) to standard output in a
+human-readable format. It is designed for educational purposes, debugging, and
+development workflows where you want to quickly inspect telemetry data without
+setting up external observability infrastructure.
 
 [![Crates.io: opentelemetry-stdout](https://img.shields.io/crates/v/opentelemetry-stdout.svg)](https://crates.io/crates/opentelemetry-stdout)
 [![Documentation](https://docs.rs/opentelemetry-stdout/badge.svg)](https://docs.rs/opentelemetry-stdout)
@@ -36,11 +39,20 @@ of telemetry is intentionally left to other tools.
 
 ### What does this crate contain?
 
-This crate includes exporters that support all three signals - Logs, Metrics,
-and Traces — to standard output. It is intended solely for educational and
-debugging purposes. Please note, this crate is not optimized for performance,
-and the format of the output may change, making it unsuitable for production
-environments
+This crate provides exporters that support all three OpenTelemetry signals:
+
+- **Trace Exporter**: Outputs distributed tracing data showing request flows
+  and timing information across services.
+- **Metrics Exporter**: Outputs measurement data such as counters, gauges, and
+  histograms for monitoring application performance.
+- **Logs Exporter**: Outputs structured log data with OpenTelemetry context
+  information.
+
+All exporters format the telemetry data in a human-readable way and write it to
+standard output. This crate is intended solely for educational and debugging
+purposes. Please note, this crate is not optimized for performance, and the
+format of the output may change, making it unsuitable for production
+environments.
 
 ## Getting started
 
