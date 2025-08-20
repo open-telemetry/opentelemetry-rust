@@ -57,9 +57,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
-        Ok(())
-    }
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult;
     /// Shuts down the processor with default timeout.
     fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(Duration::from_secs(5))
@@ -140,6 +138,10 @@ pub(crate) mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]
@@ -164,6 +166,10 @@ pub(crate) mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
