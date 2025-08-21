@@ -26,6 +26,8 @@ pub enum InstrumentKind {
     /// A group of instruments that record a distribution of values synchronously with
     /// the code path they are measuring.
     Histogram,
+    /// A group of instruments that record a distribution of values in an asynchronously callback.
+    ObservableHistogram,
     /// A group of instruments that record increasing values in an asynchronous
     /// callback.
     ObservableCounter,
@@ -51,6 +53,7 @@ impl InstrumentKind {
             Temporality::Delta => match self {
                 Self::Counter
                 | Self::Histogram
+                | Self::ObservableHistogram
                 | Self::ObservableCounter
                 | Self::Gauge
                 | Self::ObservableGauge => Temporality::Delta,
@@ -60,7 +63,8 @@ impl InstrumentKind {
             },
             Temporality::LowMemory => match self {
                 Self::Counter | InstrumentKind::Histogram => Temporality::Delta,
-                Self::ObservableCounter
+                Self::ObservableHistogram
+                | Self::ObservableCounter
                 | Self::Gauge
                 | Self::ObservableGauge
                 | Self::UpDownCounter

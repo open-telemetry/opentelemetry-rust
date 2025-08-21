@@ -33,3 +33,32 @@ impl<T> Histogram<T> {
         self.0.measure(value, attributes)
     }
 }
+
+/// An async instrument that records a distribution of values.
+#[derive(Clone)]
+#[non_exhaustive]
+pub struct ObservableHistogram<T> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T> fmt::Debug for ObservableHistogram<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "ObservableHistogram<{}>",
+            std::any::type_name::<T>()
+        ))
+    }
+}
+
+impl<T> ObservableHistogram<T> {
+    /// Create a new gauge
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        ObservableHistogram {
+            _marker: std::marker::PhantomData,
+        }
+    }
+}

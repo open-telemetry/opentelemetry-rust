@@ -8,10 +8,10 @@ pub(crate) mod noop;
 pub use instruments::{
     counter::{Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},
-    histogram::Histogram,
+    histogram::{Histogram, ObservableHistogram},
     up_down_counter::{ObservableUpDownCounter, UpDownCounter},
-    AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
-    SyncInstrument,
+    AsyncHistogramBuilder, AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder,
+    InstrumentBuilder, SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
 
@@ -122,5 +122,21 @@ pub trait InstrumentProvider {
     /// creates an instrument for recording a distribution of values.
     fn u64_histogram(&self, _builder: HistogramBuilder<'_, Histogram<u64>>) -> Histogram<u64> {
         Histogram::new(Arc::new(noop::NoopSyncInstrument::new()))
+    }
+
+    /// creates an instrument for recording a distribution of values via callback.
+    fn f64_observable_histogram(
+        &self,
+        _builder: AsyncHistogramBuilder<'_, ObservableHistogram<f64>, f64>,
+    ) -> ObservableHistogram<f64> {
+        ObservableHistogram::new()
+    }
+
+    /// creates an instrument for recording a distribution of values via callback.
+    fn u64_observable_histogram(
+        &self,
+        _builder: AsyncHistogramBuilder<'_, ObservableHistogram<u64>, u64>,
+    ) -> ObservableHistogram<u64> {
+        ObservableHistogram::new()
     }
 }

@@ -4,9 +4,9 @@ use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
     metrics::{
-        AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
-        InstrumentProvider, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
-        UpDownCounter,
+        AsyncHistogramBuilder, AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder,
+        InstrumentBuilder, InstrumentProvider, ObservableCounter, ObservableGauge,
+        ObservableHistogram, ObservableUpDownCounter, UpDownCounter,
     },
     otel_error, InstrumentationScope,
 };
@@ -124,7 +124,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(
-                name: "InstrumentCreationFailed", 
+                name: "InstrumentCreationFailed",
                 meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableCounter will not be invoked.",
@@ -183,7 +183,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(
-                name: "InstrumentCreationFailed", 
+                name: "InstrumentCreationFailed",
                 meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableUpDownCounter will not be invoked.",
@@ -242,7 +242,7 @@ impl SdkMeter {
         let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
         if let Err(err) = validation_result {
             otel_error!(
-                name: "InstrumentCreationFailed", 
+                name: "InstrumentCreationFailed",
                 meter_name = self.scope.name(),
                 instrument_name = builder.name.as_ref(),
                 message = "Callbacks for this ObservableGauge will not be invoked.",
@@ -286,6 +286,65 @@ impl SdkMeter {
                     message = "Callbacks for this ObservableGauge will not be invoked.",
                     reason = format!("{}", err));
                 ObservableGauge::new()
+            }
+        }
+    }
+
+    fn create_observable_histogram<T>(
+        &self,
+        builder: AsyncHistogramBuilder<'_, ObservableHistogram<T>, T>,
+        resolver: &InstrumentResolver<'_, T>,
+    ) -> ObservableHistogram<T>
+    where
+        T: Number,
+    {
+        let validation_result = validate_instrument_config(builder.name.as_ref(), &builder.unit);
+        if let Err(err) = validation_result {
+            otel_error!(
+                name: "InstrumentCreationFailed",
+                meter_name = self.scope.name(),
+                instrument_name = builder.name.as_ref(),
+                message = "Callbacks for this ObservableHistogram will not be invoked.",
+                reason = format!("{}", err));
+            return ObservableHistogram::new();
+        }
+
+        match resolver.measures(
+            InstrumentKind::ObservableHistogram,
+            builder.name.clone(),
+            builder.description,
+            builder.unit,
+            None,
+        ) {
+            Ok(ms) => {
+                if ms.is_empty() {
+                    otel_error!(
+                        name: "InstrumentCreationFailed",
+                        meter_name = self.scope.name(),
+                        instrument_name = builder.name.as_ref(),
+                        message = "Callbacks for this ObservableHistogram will not be invoked. Check View Configuration."
+                    );
+                    return ObservableHistogram::new();
+                }
+
+                let observable = Arc::new(Observable::new(ms));
+
+                for callback in builder.callbacks {
+                    let cb_inst = Arc::clone(&observable);
+                    self.pipes
+                        .register_callback(move || callback(cb_inst.as_ref()));
+                }
+
+                ObservableHistogram::new()
+            }
+            Err(err) => {
+                otel_error!(
+                    name: "InstrumentCreationFailed",
+                    meter_name = self.scope.name(),
+                    instrument_name = builder.name.as_ref(),
+                    message = "Callbacks for this ObservableHistogram will not be invoked.",
+                    reason = format!("{}", err));
+                ObservableHistogram::new()
             }
         }
     }
@@ -547,6 +606,22 @@ impl InstrumentProvider for SdkMeter {
     fn u64_histogram(&self, builder: HistogramBuilder<'_, Histogram<u64>>) -> Histogram<u64> {
         let resolver = InstrumentResolver::new(self, &self.u64_resolver);
         self.create_histogram(builder, &resolver)
+    }
+
+    fn f64_observable_histogram(
+        &self,
+        builder: AsyncHistogramBuilder<'_, ObservableHistogram<f64>, f64>,
+    ) -> ObservableHistogram<f64> {
+        let resolver = InstrumentResolver::new(self, &self.f64_resolver);
+        self.create_observable_histogram(builder, &resolver)
+    }
+
+    fn u64_observable_histogram(
+        &self,
+        builder: AsyncHistogramBuilder<'_, ObservableHistogram<u64>, u64>,
+    ) -> ObservableHistogram<u64> {
+        let resolver = InstrumentResolver::new(self, &self.u64_resolver);
+        self.create_observable_histogram(builder, &resolver)
     }
 }
 

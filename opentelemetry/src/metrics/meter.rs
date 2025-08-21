@@ -3,8 +3,9 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::metrics::{
-    AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider, ObservableCounter,
-    ObservableGauge, ObservableUpDownCounter, UpDownCounter,
+    AsyncHistogramBuilder, AsyncInstrumentBuilder, Gauge, InstrumentBuilder, InstrumentProvider,
+    ObservableCounter, ObservableGauge, ObservableHistogram, ObservableUpDownCounter,
+    UpDownCounter,
 };
 use crate::InstrumentationScope;
 
@@ -471,6 +472,30 @@ impl Meter {
         name: impl Into<Cow<'static, str>>,
     ) -> HistogramBuilder<'_, Histogram<u64>> {
         HistogramBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument builder for recording a distribution of values via callback.
+    ///
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
+    pub fn f64_observable_histogram(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> AsyncHistogramBuilder<'_, ObservableHistogram<f64>, f64> {
+        AsyncHistogramBuilder::new(self, name.into())
+    }
+
+    /// creates an instrument builder for recording a distribution of values via callback.
+    ///
+    /// [`Histogram`] can be cloned to create multiple handles to the same instrument. If a [`Histogram`] needs to be shared,
+    /// users are recommended to clone the [`Histogram`] instead of creating duplicate [`Histogram`]s for the same metric. Creating
+    /// duplicate [`Histogram`]s for the same metric could lower SDK performance.
+    pub fn u64_observable_histogram(
+        &self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> AsyncHistogramBuilder<'_, ObservableHistogram<u64>, u64> {
+        AsyncHistogramBuilder::new(self, name.into())
     }
 }
 

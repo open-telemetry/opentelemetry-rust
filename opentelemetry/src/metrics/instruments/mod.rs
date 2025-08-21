@@ -1,6 +1,6 @@
 use gauge::{Gauge, ObservableGauge};
 
-use crate::metrics::Meter;
+use crate::metrics::{Meter, ObservableHistogram};
 use crate::KeyValue;
 use core::fmt;
 use std::borrow::Cow;
@@ -132,6 +132,124 @@ impl HistogramBuilder<'_, Histogram<u64>> {
     /// and an error is logged using internal logging.
     pub fn build(self) -> Histogram<u64> {
         self.instrument_provider.u64_histogram(self)
+    }
+}
+
+/// Configuration for building a Histogram.
+#[non_exhaustive] // We expect to add more configuration fields in the future
+pub struct AsyncHistogramBuilder<'a, T, M> {
+    /// Instrument provider is used to create the instrument.
+    pub instrument_provider: &'a dyn InstrumentProvider,
+
+    /// Name of the Histogram.
+    pub name: Cow<'static, str>,
+
+    /// Description of the Histogram.
+    pub description: Option<Cow<'static, str>>,
+
+    /// Unit of the Histogram.
+    pub unit: Option<Cow<'static, str>>,
+
+    /// Bucket boundaries for the histogram.
+    pub boundaries: Option<Vec<f64>>,
+
+    /// Callbacks to be called for this instrument.
+    pub callbacks: Vec<Callback<M>>,
+
+    // boundaries: Vec<T>,
+    _marker: marker::PhantomData<T>,
+}
+
+impl<'a, T, M> AsyncHistogramBuilder<'a, T, M> {
+    /// Create a new instrument builder
+    pub(crate) fn new(meter: &'a Meter, name: Cow<'static, str>) -> Self {
+        AsyncHistogramBuilder {
+            instrument_provider: meter.instrument_provider.as_ref(),
+            name,
+            description: None,
+            unit: None,
+            boundaries: None,
+            callbacks: Vec::default(),
+            _marker: marker::PhantomData,
+        }
+    }
+
+    /// Set the description for this instrument
+    pub fn with_description<S: Into<Cow<'static, str>>>(mut self, description: S) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    /// Set the unit for this instrument.
+    ///
+    /// Unit is case sensitive(`kb` is not the same as `kB`).
+    ///
+    /// Unit must be:
+    /// - ASCII string
+    /// - No longer than 63 characters
+    pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
+        self.unit = Some(unit.into());
+        self
+    }
+
+    /// Set the boundaries for this histogram.
+    ///
+    /// Setting boundaries is optional. By default, the boundaries are set to:
+    ///
+    /// `[0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0,
+    /// 2500.0, 5000.0, 7500.0, 10000.0]`
+    ///
+    /// # Notes
+    /// - Boundaries must not contain `f64::NAN`, `f64::INFINITY` or
+    ///   `f64::NEG_INFINITY`
+    /// - Values must be in strictly increasing order (e.g., each value must be
+    ///   greater than the previous).
+    /// - Boundaries must not contain duplicate values.
+    ///
+    /// If invalid boundaries are provided, the instrument will not report
+    /// measurements.
+    /// Providing an empty `vec![]` means no bucket information will be
+    /// calculated.
+    ///
+    /// # Warning
+    /// Using more buckets can improve the accuracy of percentile calculations in backends.
+    /// However, this comes at a cost, including increased memory, CPU, and network usage.
+    /// Choose the number of buckets carefully, considering your application's performance
+    /// and resource requirements.
+    pub fn with_boundaries(mut self, boundaries: Vec<f64>) -> Self {
+        self.boundaries = Some(boundaries);
+        self
+    }
+
+    /// Set the callback to be called for this instrument.
+    pub fn with_callback<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&dyn AsyncInstrument<M>) + Send + Sync + 'static,
+    {
+        self.callbacks.push(Box::new(callback));
+        self
+    }
+}
+
+impl AsyncHistogramBuilder<'_, ObservableHistogram<f64>, f64> {
+    /// Creates a new instrument.
+    ///
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, a no-op instrument is returned
+    /// and an error is logged using internal logging.
+    pub fn build(self) -> ObservableHistogram<f64> {
+        self.instrument_provider.f64_observable_histogram(self)
+    }
+}
+
+impl AsyncHistogramBuilder<'_, ObservableHistogram<u64>, u64> {
+    /// Creates a new instrument.
+    ///
+    /// Validates the instrument configuration and creates a new instrument. In
+    /// case of invalid configuration, a no-op instrument is returned
+    /// and an error is logged using internal logging.
+    pub fn build(self) -> ObservableHistogram<u64> {
+        self.instrument_provider.u64_observable_histogram(self)
     }
 }
 
@@ -341,6 +459,22 @@ where
             .field("description", &self.description)
             .field("unit", &self.unit)
             .field("kind", &std::any::type_name::<I>())
+            .field("callbacks_len", &self.callbacks.len())
+            .finish()
+    }
+}
+
+impl<I, M> fmt::Debug for AsyncHistogramBuilder<'_, I, M>
+where
+    I: AsyncInstrument<M>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AsyncHistogramBuilder")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("unit", &self.unit)
+            .field("kind", &std::any::type_name::<I>())
+            .field("boundaries", &self.boundaries)
             .field("callbacks_len", &self.callbacks.len())
             .finish()
     }

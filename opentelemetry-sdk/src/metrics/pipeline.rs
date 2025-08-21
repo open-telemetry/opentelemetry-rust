@@ -482,6 +482,7 @@ where
 /// * Gauge ⇨ LastValue
 /// * Observable Gauge ⇨ LastValue
 /// * Histogram ⇨ ExplicitBucketHistogram
+/// * Observable Histogram ⇨ ExplicitBucketHistogram
 ///
 /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/metrics/sdk.md#default-aggregation
 fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
@@ -492,13 +493,15 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
         | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
         InstrumentKind::Gauge => Aggregation::LastValue,
         InstrumentKind::ObservableGauge => Aggregation::LastValue,
-        InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
-            boundaries: vec![
-                0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
-                5000.0, 7500.0, 10000.0,
-            ],
-            record_min_max: true,
-        },
+        InstrumentKind::Histogram | InstrumentKind::ObservableHistogram => {
+            Aggregation::ExplicitBucketHistogram {
+                boundaries: vec![
+                    0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
+                    5000.0, 7500.0, 10000.0,
+                ],
+                record_min_max: true,
+            }
+        }
     }
 }
 
@@ -529,6 +532,7 @@ fn aggregate_fn<T: Number>(
                 // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
                 InstrumentKind::ObservableCounter => b.precomputed_sum(true),
                 InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
+                InstrumentKind::ObservableHistogram => b.precomputed_sum(false),
                 InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),
                 _ => b.sum(false),
             };
@@ -583,6 +587,7 @@ fn aggregate_fn<T: Number>(
 /// | Counter                  | ✓    |           | ✓   | ✓         | ✓                     |
 /// | UpDownCounter            | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Histogram                | ✓    |           | ✓   | ✓         | ✓                     |
+/// | Observable Histogram     | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Observable Counter       | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Observable UpDownCounter | ✓    |           | ✓   | ✓         | ✓                     |
 /// | Gauge                    | ✓    | ✓         |     | ✓         | ✓                     |
@@ -601,6 +606,7 @@ fn is_aggregator_compatible(
                     | InstrumentKind::UpDownCounter
                     | InstrumentKind::Gauge
                     | InstrumentKind::Histogram
+                    | InstrumentKind::ObservableHistogram
                     | InstrumentKind::ObservableCounter
                     | InstrumentKind::ObservableUpDownCounter
                     | InstrumentKind::ObservableGauge
@@ -615,6 +621,7 @@ fn is_aggregator_compatible(
                 | InstrumentKind::ObservableUpDownCounter
                 | InstrumentKind::Counter
                 | InstrumentKind::Histogram
+                | InstrumentKind::ObservableHistogram
                 | InstrumentKind::UpDownCounter => Ok(()),
                 _ => {
                     // TODO: review need for aggregation check after
