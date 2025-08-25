@@ -93,11 +93,13 @@ thread_local! {
 /// assert_eq!(current.get::<ValueB>(), None);
 /// ```
 #[derive(Clone, Default)]
+// 8-byte alignment for performance, which should be ok on 32-bit systems too
+#[repr(align(8))]
 pub struct Context {
     #[cfg(feature = "trace")]
     pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
-    suppress_telemetry: bool,
+    flags: ContextFlags,
 }
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
@@ -245,7 +247,7 @@ impl Context {
             entries,
             #[cfg(feature = "trace")]
             span: self.span.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+            flags: self.flags,
         }
     }
 
@@ -335,7 +337,7 @@ impl Context {
     /// Returns whether telemetry is suppressed in this context.
     #[inline]
     pub fn is_telemetry_suppressed(&self) -> bool {
-        self.suppress_telemetry
+        self.flags.is_telemetry_suppressed()
     }
 
     /// Returns a new context with telemetry suppression enabled.
@@ -344,7 +346,7 @@ impl Context {
             entries: self.entries.clone(),
             #[cfg(feature = "trace")]
             span: self.span.clone(),
-            suppress_telemetry: true,
+            flags: self.flags.with_telemetry_suppressed(),
         }
     }
 
@@ -413,7 +415,7 @@ impl Context {
         Self::map_current(|cx| Context {
             span: Some(Arc::new(value)),
             entries: cx.entries.clone(),
-            suppress_telemetry: cx.suppress_telemetry,
+            flags: cx.flags,
         })
     }
 
@@ -422,7 +424,7 @@ impl Context {
         Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+            flags: self.flags,
         }
     }
 }
@@ -446,7 +448,7 @@ impl fmt::Debug for Context {
         let entries = self.entries.as_ref().map_or(0, |e| e.len());
 
         dbg.field("entries count", &entries)
-            .field("suppress_telemetry", &self.suppress_telemetry)
+            .field("suppress_telemetry", &self.flags.is_telemetry_suppressed())
             .finish()
     }
 }
@@ -602,6 +604,23 @@ impl Default for ContextStack {
             stack: Vec::with_capacity(ContextStack::INITIAL_CAPACITY),
             _marker: PhantomData,
         }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct ContextFlags(usize);
+
+impl ContextFlags {
+    const TELEMETRY_SUPPRESSED: usize = 1;
+
+    #[inline(always)]
+    fn is_telemetry_suppressed(&self) -> bool {
+        self.0 & Self::TELEMETRY_SUPPRESSED != 0
+    }
+
+    #[inline(always)]
+    fn with_telemetry_suppressed(&self) -> Self {
+        Self(self.0 | Self::TELEMETRY_SUPPRESSED)
     }
 }
 
