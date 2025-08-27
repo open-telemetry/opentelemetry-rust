@@ -1479,6 +1479,89 @@ mod tests {
     }
 
     #[test]
+    fn integration_test_export_unsampled_feature_demo() {
+        println!("\n🧪 Integration Test: export_unsampled feature demonstration\n");
+
+        // Test 1: Default behavior (export_unsampled = false)
+        println!("=== Test 1: Default behavior (unsampled spans should NOT be exported) ===");
+        let exporter1 = MockSpanExporter::new();
+        let exporter_shared1 = exporter1.exported_spans.clone();
+        let processor1 = BatchSpanProcessor::new(exporter1, BatchConfig::default());
+        
+        let unsampled_span = SpanData {
+            span_context: SpanContext::new(
+                TraceId::from(1),
+                SpanId::from(1),
+                TraceFlags::NOT_SAMPLED,
+                false,
+                TraceState::default(),
+            ),
+            parent_span_id: SpanId::INVALID,
+            span_kind: SpanKind::Internal,
+            name: "unsampled_demo_1".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope: Default::default(),
+        };
+        
+        processor1.on_end(unsampled_span);
+        processor1.force_flush().unwrap();
+        
+        let exported_spans1 = exporter_shared1.lock().unwrap();
+        println!("✅ Exported spans count: {} (expected: 0)", exported_spans1.len());
+        assert_eq!(exported_spans1.len(), 0);
+        drop(exported_spans1);
+
+        // Test 2: export_unsampled enabled
+        println!("\n=== Test 2: export_unsampled enabled (unsampled spans SHOULD be exported) ===");
+        let exporter2 = MockSpanExporter::new();
+        let exporter_shared2 = exporter2.exported_spans.clone();
+        let config = BatchConfigBuilder::default()
+            .with_export_unsampled(true)
+            .build();
+        let processor2 = BatchSpanProcessor::new(exporter2, config);
+        
+        let unsampled_span = SpanData {
+            span_context: SpanContext::new(
+                TraceId::from(2),
+                SpanId::from(2),
+                TraceFlags::NOT_SAMPLED,
+                false,
+                TraceState::default(),
+            ),
+            parent_span_id: SpanId::INVALID,
+            span_kind: SpanKind::Internal,
+            name: "unsampled_demo_2".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope: Default::default(),
+        };
+        
+        processor2.on_end(unsampled_span);
+        processor2.force_flush().unwrap();
+        
+        let exported_spans2 = exporter_shared2.lock().unwrap();
+        println!("✅ Exported spans count: {} (expected: 1)", exported_spans2.len());
+        println!("✅ Exported span name: {}", exported_spans2[0].name);
+        println!("✅ Span is sampled: {} (expected: false)", exported_spans2[0].span_context.is_sampled());
+        assert_eq!(exported_spans2.len(), 1);
+        assert_eq!(exported_spans2[0].name, "unsampled_demo_2");
+        assert!(!exported_spans2[0].span_context.is_sampled());
+
+        println!("\n🎉 Integration test passed! export_unsampled feature working correctly!");
+    }
+
+    #[test]
     fn validate_span_attributes_exported_correctly() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
