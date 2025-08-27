@@ -91,8 +91,8 @@ pub struct BatchSpanProcessor<R: RuntimeChannel> {
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
 
-    // Configuration for the processor
-    config: BatchConfig,
+    // Whether to export unsampled spans that are recording
+    export_unsampled: bool,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -110,7 +110,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
     fn on_end(&self, span: SpanData) {
         // Check if span should be exported based on sampling and config
-        if !span.span_context.is_sampled() && !self.config.export_unsampled {
+        if !span.span_context.is_sampled() && !self.export_unsampled {
             return;
         }
 
@@ -407,7 +407,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             message_sender,
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
-            config,
+            export_unsampled: config.export_unsampled,
         }
     }
 
