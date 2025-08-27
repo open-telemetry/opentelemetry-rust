@@ -13,8 +13,8 @@
   The logs functionality now operates independently, while automatic correlation
   between logs and traces continues to work when the "trace" feature is
   explicitly enabled.
-
-- *Breaking* default implementation of `LogProcessor::shutdown_with_timeout()` method is removed. Implementors must now provide this to guarantee shutdown is performed properly.
+- **Fix**: Fix shutdown of `SimpleLogProcessor` and async `BatchLogProcessor`.
+- Default implementation of `LogProcessor::shutdown_with_timeout()` will now warn to encourage users to implement proper shutdown.
 
 ## 0.30.0
 
