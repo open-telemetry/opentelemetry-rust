@@ -767,7 +767,7 @@ pub struct BatchConfig {
     pub(crate) max_concurrent_exports: usize,
 
     /// Whether to export unsampled spans that are recording.
-    /// If true, spans with is_recording() == true but TraceFlags::SAMPLED == false 
+    /// If true, spans with is_recording() == true but TraceFlags::SAMPLED == false
     /// will be exported. Defaults to false for backward compatibility.
     pub(crate) export_unsampled: bool,
 }
@@ -972,7 +972,9 @@ mod tests {
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use crate::trace::{SpanData, SpanExporter};
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState};
+    use opentelemetry::trace::{
+        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+    };
     use std::fmt::Debug;
     use std::time::Duration;
 
@@ -1479,7 +1481,7 @@ mod tests {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
         let processor = BatchSpanProcessor::new(exporter, BatchConfig::default());
-        
+
         let unsampled_span = SpanData {
             span_context: SpanContext::new(
                 TraceId::from(1),
@@ -1500,12 +1502,16 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        
+
         processor.on_end(unsampled_span);
         processor.force_flush().unwrap();
-        
+
         let exported_spans = exporter_shared.lock().unwrap();
-        assert_eq!(exported_spans.len(), 0, "Unsampled spans should not be exported by default");
+        assert_eq!(
+            exported_spans.len(),
+            0,
+            "Unsampled spans should not be exported by default"
+        );
     }
 
     #[test]
@@ -1516,7 +1522,7 @@ mod tests {
             .with_export_unsampled(true)
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
-        
+
         let unsampled_span = SpanData {
             span_context: SpanContext::new(
                 TraceId::from(1),
@@ -1537,12 +1543,16 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        
+
         processor.on_end(unsampled_span);
         processor.force_flush().unwrap();
-        
+
         let exported_spans = exporter_shared.lock().unwrap();
-        assert_eq!(exported_spans.len(), 1, "Unsampled spans should be exported when export_unsampled is enabled");
+        assert_eq!(
+            exported_spans.len(),
+            1,
+            "Unsampled spans should be exported when export_unsampled is enabled"
+        );
         assert_eq!(exported_spans[0].name, "unsampled_span");
         assert!(!exported_spans[0].span_context.is_sampled());
     }
@@ -1555,7 +1565,7 @@ mod tests {
             .with_export_unsampled(true)
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
-        
+
         // Add a sampled span
         let sampled_span = SpanData {
             span_context: SpanContext::new(
@@ -1577,7 +1587,7 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        
+
         // Add an unsampled span
         let unsampled_span = SpanData {
             span_context: SpanContext::new(
@@ -1599,14 +1609,18 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        
+
         processor.on_end(sampled_span);
         processor.on_end(unsampled_span);
         processor.force_flush().unwrap();
-        
+
         let exported_spans = exporter_shared.lock().unwrap();
-        assert_eq!(exported_spans.len(), 2, "Both sampled and unsampled spans should be exported when export_unsampled is enabled");
-        
+        assert_eq!(
+            exported_spans.len(),
+            2,
+            "Both sampled and unsampled spans should be exported when export_unsampled is enabled"
+        );
+
         let span_names: Vec<&str> = exported_spans.iter().map(|s| s.name.as_ref()).collect();
         assert!(span_names.contains(&"sampled_span"));
         assert!(span_names.contains(&"unsampled_span"));

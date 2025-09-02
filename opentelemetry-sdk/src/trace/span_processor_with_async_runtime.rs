@@ -385,9 +385,10 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
-            let ticker = to_interval_stream(inner_runtime.clone(), config_for_worker.scheduled_delay)
-                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                .map(|_| BatchMessage::Flush(None));
+            let ticker =
+                to_interval_stream(inner_runtime.clone(), config_for_worker.scheduled_delay)
+                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                    .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
 
             let messages = Box::pin(stream::select(message_receiver, ticker));
