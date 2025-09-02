@@ -47,16 +47,10 @@ impl MetricsClient for OtlpHttpClient {
                 let client = self
                     .client
                     .lock()
-                    .map_err(|e| HttpExportError {
-                        status_code: 500,
-                        retry_after: None,
-                        message: format!("Mutex lock failed: {e}"),
-                    })?
+                    .map_err(|e| HttpExportError::new(500, format!("Mutex lock failed: {e}")))?
                     .as_ref()
-                    .ok_or_else(|| HttpExportError {
-                        status_code: 500,
-                        retry_after: None,
-                        message: "Exporter already shutdown".to_string(),
+                    .ok_or_else(|| {
+                        HttpExportError::new(500, "Exporter already shutdown".to_string())
                     })?
                     .clone();
 
@@ -72,10 +66,8 @@ impl MetricsClient for OtlpHttpClient {
 
                 let mut request = request_builder
                     .body(retry_data.body.clone().into())
-                    .map_err(|e| HttpExportError {
-                        status_code: 400,
-                        retry_after: None,
-                        message: format!("Failed to build HTTP request: {e}"),
+                    .map_err(|e| {
+                        HttpExportError::new(400, format!("Failed to build HTTP request: {e}"))
                     })?;
 
                 for (k, v) in retry_data.headers.iter() {
@@ -87,11 +79,7 @@ impl MetricsClient for OtlpHttpClient {
 
                 // Send request
                 let response = client.send_bytes(request).await.map_err(|e| {
-                    HttpExportError {
-                        status_code: 0, // Network error
-                        retry_after: None,
-                        message: format!("Network error: {e:?}"),
-                    }
+                    HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
                 })?;
 
                 let status_code = response.status().as_u16();
@@ -102,15 +90,17 @@ impl MetricsClient for OtlpHttpClient {
                     .map(|s| s.to_string());
 
                 if !response.status().is_success() {
-                    return Err(HttpExportError {
+                    let message = format!(
+                        "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
+                        request_uri,
                         status_code,
-                        retry_after,
-                        message: format!(
-                            "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
-                            request_uri,
-                            status_code,
-                            response.body()
-                        ),
+                        response.body()
+                    );
+                    return Err(match retry_after {
+                        Some(retry_after) => {
+                            HttpExportError::with_retry_after(status_code, retry_after, message)
+                        }
+                        None => HttpExportError::new(status_code, message),
                     });
                 }
 
