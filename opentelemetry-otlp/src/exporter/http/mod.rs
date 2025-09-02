@@ -28,31 +28,39 @@ use crate::retry_classification::http::classify_http_error;
 use opentelemetry_sdk::retry::RetryErrorType;
 
 // Shared HTTP retry functionality
-#[cfg(feature = "http-retry")]
 /// HTTP-specific error wrapper for retry classification
 #[derive(Debug)]
 pub(crate) struct HttpExportError {
+    #[cfg(feature = "http-retry")]
     pub status_code: u16,
+    #[cfg(feature = "http-retry")]
     pub retry_after: Option<String>,
     pub message: String,
 }
 
-#[cfg(feature = "http-retry")]
 impl HttpExportError {
     /// Create a new HttpExportError without retry-after header
-    pub(crate) fn new(status_code: u16, message: String) -> Self {
+    pub(crate) fn new(_status_code: u16, message: String) -> Self {
         Self {
-            status_code,
+            #[cfg(feature = "http-retry")]
+            status_code: _status_code,
+            #[cfg(feature = "http-retry")]
             retry_after: None,
             message,
         }
     }
 
     /// Create a new HttpExportError with retry-after header
-    pub(crate) fn with_retry_after(status_code: u16, retry_after: String, message: String) -> Self {
+    pub(crate) fn with_retry_after(
+        _status_code: u16,
+        _retry_after: String,
+        message: String,
+    ) -> Self {
         Self {
-            status_code,
-            retry_after: Some(retry_after),
+            #[cfg(feature = "http-retry")]
+            status_code: _status_code,
+            #[cfg(feature = "http-retry")]
+            retry_after: Some(_retry_after),
             message,
         }
     }
@@ -64,7 +72,6 @@ pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorT
     classify_http_error(error.status_code, error.retry_after.as_deref())
 }
 
-#[cfg(feature = "http-retry")]
 /// Shared HTTP request data for retry attempts - optimizes Arc usage by bundling all data
 /// we need to pass into the retry handler
 #[derive(Debug)]
@@ -360,6 +367,143 @@ pub(crate) struct OtlpHttpClient {
 }
 
 impl OtlpHttpClient {
+    /// Shared HTTP export logic used by all exporters with retry support
+    async fn export_http_with_retry<F, T>(
+        &self,
+        data: T,
+        build_body_fn: F,
+        operation_name: &'static str,
+    ) -> opentelemetry_sdk::error::OTelSdkResult
+    where
+        F: Fn(&Self, T) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String>,
+    {
+        #[cfg(feature = "http-retry")]
+        {
+            use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
+            use opentelemetry_sdk::runtime::Tokio;
+
+            let policy = RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 100,
+                max_delay_ms: 1600,
+                jitter_ms: 100,
+            };
+
+            // Build request body once before retry loop
+            let (body, content_type, content_encoding) = build_body_fn(self, data)
+                .map_err(opentelemetry_sdk::error::OTelSdkError::InternalFailure)?;
+
+            let retry_data = Arc::new(HttpRetryData {
+                body,
+                headers: self.headers.clone(),
+                endpoint: self.collector_endpoint.to_string(),
+            });
+
+            retry_with_backoff(
+                Tokio,
+                policy,
+                classify_http_export_error,
+                operation_name,
+                || async {
+                    self.export_http_once(
+                        &retry_data,
+                        content_type,
+                        content_encoding,
+                        operation_name,
+                    )
+                    .await
+                },
+            )
+            .await
+            .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))
+        }
+
+        #[cfg(not(feature = "http-retry"))]
+        {
+            let (body, content_type, content_encoding) = build_body_fn(self, data)
+                .map_err(opentelemetry_sdk::error::OTelSdkError::InternalFailure)?;
+
+            let retry_data = HttpRetryData {
+                body,
+                headers: self.headers.clone(),
+                endpoint: self.collector_endpoint.to_string(),
+            };
+
+            self.export_http_once(&retry_data, content_type, content_encoding, operation_name)
+                .await
+                .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))
+        }
+    }
+
+    /// Single HTTP export attempt - shared between retry and no-retry paths
+    async fn export_http_once(
+        &self,
+        retry_data: &HttpRetryData,
+        content_type: &'static str,
+        content_encoding: Option<&'static str>,
+        _operation_name: &'static str,
+    ) -> Result<(), HttpExportError> {
+        // Get client
+        let client = self
+            .client
+            .lock()
+            .map_err(|e| HttpExportError::new(500, format!("Mutex lock failed: {e}")))?
+            .as_ref()
+            .ok_or_else(|| HttpExportError::new(500, "Exporter already shutdown".to_string()))?
+            .clone();
+
+        // Build HTTP request
+        let mut request_builder = http::Request::builder()
+            .method(http::Method::POST)
+            .uri(&retry_data.endpoint)
+            .header(http::header::CONTENT_TYPE, content_type);
+
+        if let Some(encoding) = content_encoding {
+            request_builder = request_builder.header("Content-Encoding", encoding);
+        }
+
+        let mut request = request_builder
+            .body(retry_data.body.clone().into())
+            .map_err(|e| HttpExportError::new(400, format!("Failed to build HTTP request: {e}")))?;
+
+        for (k, v) in retry_data.headers.iter() {
+            request.headers_mut().insert(k.clone(), v.clone());
+        }
+
+        let request_uri = request.uri().to_string();
+        otel_debug!(name: "HttpClient.ExportStarted");
+
+        // Send request
+        let response = client.send_bytes(request).await.map_err(|e| {
+            HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
+        })?;
+
+        let status_code = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        if !response.status().is_success() {
+            let message = format!(
+                "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
+                request_uri,
+                status_code,
+                response.body()
+            );
+            return Err(match retry_after {
+                Some(retry_after) => {
+                    HttpExportError::with_retry_after(status_code, retry_after, message)
+                }
+                None => HttpExportError::new(status_code, message),
+            });
+        }
+
+        otel_debug!(name: "HttpClient.ExportSucceeded");
+        Ok(())
+    }
+
     /// Compress data using gzip or zstd if the user has requested it and the relevant feature
     /// has been enabled. If the user has requested it but the feature has not been enabled,
     /// we should catch this at exporter build time and never get here.
