@@ -38,6 +38,27 @@ pub(crate) struct HttpExportError {
 }
 
 #[cfg(feature = "http-retry")]
+impl HttpExportError {
+    /// Create a new HttpExportError without retry-after header
+    pub(crate) fn new(status_code: u16, message: String) -> Self {
+        Self {
+            status_code,
+            retry_after: None,
+            message,
+        }
+    }
+
+    /// Create a new HttpExportError with retry-after header
+    pub(crate) fn with_retry_after(status_code: u16, retry_after: String, message: String) -> Self {
+        Self {
+            status_code,
+            retry_after: Some(retry_after),
+            message,
+        }
+    }
+}
+
+#[cfg(feature = "http-retry")]
 /// Classify HTTP export errors for retry decisions
 pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
     classify_http_error(error.status_code, error.retry_after.as_deref())
