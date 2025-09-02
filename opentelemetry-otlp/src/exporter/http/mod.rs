@@ -49,7 +49,7 @@ pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorT
 #[derive(Debug)]
 pub(crate) struct HttpRetryData {
     pub body: Vec<u8>,
-    pub headers: HashMap<HeaderName, HeaderValue>,
+    pub headers: Arc<HashMap<HeaderName, HeaderValue>>,
     pub endpoint: String,
 }
 
@@ -329,7 +329,7 @@ impl HttpExporterBuilder {
 pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
-    headers: HashMap<HeaderName, HeaderValue>,
+    headers: Arc<HashMap<HeaderName, HeaderValue>>,
     protocol: Protocol,
     _timeout: Duration,
     compression: Option<crate::Compression>,
@@ -383,7 +383,7 @@ impl OtlpHttpClient {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
             collector_endpoint,
-            headers,
+            headers: Arc::new(headers),
             protocol,
             _timeout: timeout,
             compression,
