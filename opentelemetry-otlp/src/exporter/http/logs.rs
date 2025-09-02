@@ -77,7 +77,7 @@ impl LogExporter for OtlpHttpClient {
                         message: format!("Failed to build HTTP request: {e}"),
                     })?;
 
-                for (k, v) in &retry_data.headers {
+                for (k, v) in retry_data.headers.iter() {
                     request.headers_mut().insert(k.clone(), v.clone());
                 }
 
@@ -147,7 +147,7 @@ impl LogExporter for OtlpHttpClient {
             .body(body.into())
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        for (k, v) in &self.headers {
+        for (k, v) in self.headers.iter() {
             request.headers_mut().insert(k.clone(), v.clone());
         }
 
