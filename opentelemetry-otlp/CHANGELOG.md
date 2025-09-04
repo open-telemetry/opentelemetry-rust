@@ -3,6 +3,7 @@
 ## vNext
 
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
+- Update `tonic` dependency version to 0.14
 
 ## 0.30.0
 

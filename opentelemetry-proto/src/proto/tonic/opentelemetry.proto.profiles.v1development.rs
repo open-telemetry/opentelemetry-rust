@@ -116,9 +116,9 @@ pub struct ScopeProfiles {
 pub struct Profile {
     /// A description of the samples associated with each Sample.value.
     /// For a cpu profile this might be:
-    ///    \[["cpu","nanoseconds"]\] or \[["wall","seconds"]\] or \[["syscall","count"]\]
+    /// ["cpu","nanoseconds"]("cpu","nanoseconds") or ["wall","seconds"]("wall","seconds") or ["syscall","count"]("syscall","count")
     /// For a heap profile, this might be:
-    ///    \[["allocations","count"\], \["space","bytes"]\],
+    /// \["allocations","count"\], ["space","bytes"](<"allocations","count"], ["space","bytes">),
     /// If one of the values represents the number of events represented
     /// by the sample, by convention it should be at index 0 and use
     /// sample_type.unit == "count".
@@ -195,10 +195,12 @@ pub struct Profile {
     /// It is a collection of key/value pairs. Note, global attributes
     /// like server name can be set using the resource API. Examples of attributes:
     ///
-    ///      "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
-    ///      "/http/server_latency": 300
-    ///      "abc.com/myattribute": true
-    ///      "abc.com/score": 10.239
+    /// ```text
+    /// "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+    /// "/http/server_latency": 300
+    /// "abc.com/myattribute": true
+    /// "abc.com/score": 10.239
+    /// ```
     ///
     /// The OpenTelemetry API specification further restricts the allowed value types:
     /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute>
@@ -211,7 +213,7 @@ pub struct Profile {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AttributeUnit {
     /// Index into string table.
     #[prost(int32, tag = "1")]
@@ -225,7 +227,7 @@ pub struct AttributeUnit {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Link {
     /// A unique identifier of a trace that this linked span is part of. The ID is a
     /// 16-byte array.
@@ -239,7 +241,7 @@ pub struct Link {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ValueType {
     /// Index into ProfilesDictionary.string_table.
     #[prost(int32, tag = "1")]
@@ -257,7 +259,7 @@ pub struct ValueType {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Sample {
     /// locations_start_index along with locations_length refers to to a slice of locations in Profile.location_indices.
     #[prost(int32, tag = "1")]
@@ -297,7 +299,7 @@ pub struct Sample {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Mapping {
     /// Address at which the binary (or DLL) is loaded into memory.
     #[prost(uint64, tag = "1")]
@@ -351,8 +353,8 @@ pub struct Location {
     /// preceding entries were inlined.
     ///
     /// E.g., if memcpy() is inlined into printf:
-    ///     line\[0\].function_name == "memcpy"
-    ///     line\[1\].function_name == "printf"
+    /// line\[0\].function_name == "memcpy"
+    /// line\[1\].function_name == "printf"
     #[prost(message, repeated, tag = "3")]
     pub line: ::prost::alloc::vec::Vec<Line>,
     /// Provides an indication that multiple symbols map to this location's
@@ -370,7 +372,7 @@ pub struct Location {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Line {
     /// Reference to function in ProfilesDictionary.function_table.
     #[prost(int32, tag = "1")]
@@ -388,7 +390,7 @@ pub struct Line {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Function {
     /// Function name. Empty string if not available.
     #[prost(int32, tag = "1")]
@@ -415,8 +417,8 @@ pub enum AggregationTemporality {
     /// UNSPECIFIED is the default AggregationTemporality, it MUST not be used.
     Unspecified = 0,
     /// * DELTA is an AggregationTemporality for a profiler which reports
-    /// changes since last report time. Successive metrics contain aggregation of
-    /// values from continuous and non-overlapping intervals.
+    ///   changes since last report time. Successive metrics contain aggregation of
+    ///   values from continuous and non-overlapping intervals.
     ///
     /// The values for a DELTA metric are based only on the time interval
     /// associated with one measurement cycle. There is no dependency on
@@ -427,48 +429,48 @@ pub enum AggregationTemporality {
     /// DELTA metric:
     ///
     /// 1. The system starts receiving at time=t_0.
-    /// 2. A request is received, the system measures 1 request.
-    /// 3. A request is received, the system measures 1 request.
-    /// 4. A request is received, the system measures 1 request.
-    /// 5. The 1 second collection cycle ends. A metric is exported for the
-    /// number of requests received over the interval of time t_0 to
-    /// t_0+1 with a value of 3.
-    /// 6. A request is received, the system measures 1 request.
-    /// 7. A request is received, the system measures 1 request.
-    /// 8. The 1 second collection cycle ends. A metric is exported for the
-    /// number of requests received over the interval of time t_0+1 to
-    /// t_0+2 with a value of 2.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. The 1 second collection cycle ends. A metric is exported for the
+    ///    number of requests received over the interval of time t_0 to
+    ///    t_0+1 with a value of 3.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. The 1 second collection cycle ends. A metric is exported for the
+    ///    number of requests received over the interval of time t_0+1 to
+    ///    t_0+2 with a value of 2.
     Delta = 1,
     /// * CUMULATIVE is an AggregationTemporality for a profiler which
-    /// reports changes since a fixed start time. This means that current values
-    /// of a CUMULATIVE metric depend on all previous measurements since the
-    /// start time. Because of this, the sender is required to retain this state
-    /// in some form. If this state is lost or invalidated, the CUMULATIVE metric
-    /// values MUST be reset and a new fixed start time following the last
-    /// reported measurement time sent MUST be used.
+    ///   reports changes since a fixed start time. This means that current values
+    ///   of a CUMULATIVE metric depend on all previous measurements since the
+    ///   start time. Because of this, the sender is required to retain this state
+    ///   in some form. If this state is lost or invalidated, the CUMULATIVE metric
+    ///   values MUST be reset and a new fixed start time following the last
+    ///   reported measurement time sent MUST be used.
     ///
     /// For example, consider a system measuring the number of requests that
     /// it receives and reports the sum of these requests every second as a
     /// CUMULATIVE metric:
     ///
     /// 1. The system starts receiving at time=t_0.
-    /// 2. A request is received, the system measures 1 request.
-    /// 3. A request is received, the system measures 1 request.
-    /// 4. A request is received, the system measures 1 request.
-    /// 5. The 1 second collection cycle ends. A metric is exported for the
-    /// number of requests received over the interval of time t_0 to
-    /// t_0+1 with a value of 3.
-    /// 6. A request is received, the system measures 1 request.
-    /// 7. A request is received, the system measures 1 request.
-    /// 8. The 1 second collection cycle ends. A metric is exported for the
-    /// number of requests received over the interval of time t_0 to
-    /// t_0+2 with a value of 5.
-    /// 9. The system experiences a fault and loses state.
-    /// 10. The system recovers and resumes receiving at time=t_1.
-    /// 11. A request is received, the system measures 1 request.
-    /// 12. The 1 second collection cycle ends. A metric is exported for the
-    /// number of requests received over the interval of time t_1 to
-    /// t_1+1 with a value of 1.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. The 1 second collection cycle ends. A metric is exported for the
+    ///    number of requests received over the interval of time t_0 to
+    ///    t_0+1 with a value of 3.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. The 1 second collection cycle ends. A metric is exported for the
+    ///    number of requests received over the interval of time t_0 to
+    ///    t_0+2 with a value of 5.
+    /// 1. The system experiences a fault and loses state.
+    /// 1. The system recovers and resumes receiving at time=t_1.
+    /// 1. A request is received, the system measures 1 request.
+    /// 1. The 1 second collection cycle ends. A metric is exported for the
+    ///    number of requests received over the interval of time t_1 to
+    ///    t_1+1 with a value of 1.
     ///
     /// Note: Even though, when reporting changes since last report time, using
     /// CUMULATIVE is valid, it is not recommended.
