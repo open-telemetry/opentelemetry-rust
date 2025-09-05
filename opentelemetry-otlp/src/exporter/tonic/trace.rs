@@ -22,6 +22,7 @@ use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicTracesClient {
     inner: Option<ClientInner>,
+    retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -43,6 +44,7 @@ impl TonicTracesClient {
         channel: Channel,
         interceptor: BoxInterceptor,
         compression: Option<CompressionEncoding>,
+        retry_policy: Option<RetryPolicy>,
     ) -> Self {
         let mut client = TraceServiceClient::new(channel);
         if let Some(compression) = compression {
@@ -58,6 +60,12 @@ impl TonicTracesClient {
                 client,
                 interceptor: Mutex::new(interceptor),
             }),
+            retry_policy: retry_policy.unwrap_or(RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 100,
+                max_delay_ms: 1600,
+                jitter_ms: 100,
+            }),
             resource: Default::default(),
         }
     }
@@ -65,18 +73,11 @@ impl TonicTracesClient {
 
 impl SpanExporter for TonicTracesClient {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
         let batch = Arc::new(batch);
 
         match retry_with_backoff(
             Tokio,
-            policy,
+            self.retry_policy.clone(),
             classify_tonic_status,
             "TonicTracesClient.Export",
             || async {
