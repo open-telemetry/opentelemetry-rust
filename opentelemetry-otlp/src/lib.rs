@@ -409,6 +409,9 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
+#[cfg(feature = "http-retry")]
+pub use opentelemetry_sdk::retry::RetryPolicy;
+
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
 pub struct NoExporterBuilderSet;

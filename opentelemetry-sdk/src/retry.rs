@@ -32,7 +32,7 @@ pub enum RetryErrorType {
 }
 
 /// Configuration for retry policy.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RetryPolicy {
     /// Maximum number of retry attempts.
     pub max_retries: usize,

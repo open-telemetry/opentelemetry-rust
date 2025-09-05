@@ -18,6 +18,7 @@ use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicMetricsClient {
     inner: Mutex<Option<ClientInner>>,
+    retry_policy: RetryPolicy,
 }
 
 struct ClientInner {
@@ -36,6 +37,7 @@ impl TonicMetricsClient {
         channel: Channel,
         interceptor: BoxInterceptor,
         compression: Option<CompressionEncoding>,
+        retry_policy: Option<RetryPolicy>,
     ) -> Self {
         let mut client = MetricsServiceClient::new(channel);
         if let Some(compression) = compression {
@@ -51,22 +53,21 @@ impl TonicMetricsClient {
                 client,
                 interceptor,
             })),
+            retry_policy: retry_policy.unwrap_or(RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 100,
+                max_delay_ms: 1600,
+                jitter_ms: 100,
+            }),
         }
     }
 }
 
 impl MetricsClient for TonicMetricsClient {
     async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
         match retry_with_backoff(
             Tokio,
-            policy,
+            self.retry_policy.clone(),
             classify_tonic_status,
             "TonicMetricsClient.Export",
             || async {
