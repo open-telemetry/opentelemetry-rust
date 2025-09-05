@@ -16,8 +16,8 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 
 use super::BoxInterceptor;
 
-use crate::retry_classification::grpc::classify_tonic_status;
-use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
+use opentelemetry_sdk::retry::RetryPolicy;
+#[cfg(feature = "experimental-grpc-retry")]
 use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicTracesClient {
@@ -75,10 +75,13 @@ impl SpanExporter for TonicTracesClient {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         let batch = Arc::new(batch);
 
-        match retry_with_backoff(
+        match super::tonic_retry_with_backoff(
+            #[cfg(feature = "experimental-grpc-retry")]
             Tokio,
+            #[cfg(not(feature = "experimental-grpc-retry"))]
+            (),
             self.retry_policy.clone(),
-            classify_tonic_status,
+            crate::retry_classification::grpc::classify_tonic_status,
             "TonicTracesClient.Export",
             || async {
                 let batch_clone = Arc::clone(&batch);
