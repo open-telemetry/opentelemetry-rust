@@ -87,7 +87,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -628,6 +628,10 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]
@@ -652,6 +656,10 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
