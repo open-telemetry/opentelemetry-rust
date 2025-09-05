@@ -22,7 +22,7 @@ opentelemetry-semantic-conventions = { workspace = true, optional = true, featur
 
 [features]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
-with-serde = ["log/kv_serde", "serde"]
+with-serde = ["log/kv_serde", "opentelemetry/with-serde", "serde"]
 experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 
 [dev-dependencies]

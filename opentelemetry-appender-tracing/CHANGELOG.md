@@ -2,6 +2,9 @@
 
 ## vNext
 
+- [#3033](https://github.com/open-telemetry/opentelemetry-rust/pull/3033) Support the [experimental `valuable` feature](https://github.com/tokio-rs/tracing/discussions/1906) in tracing.
+  The feature is named `experimental_valuable` and must be enabled with the `tracing_unstable` build configuration.
+
 ## 0.30.1
 
 Released 2025-June-05
