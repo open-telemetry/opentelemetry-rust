@@ -366,7 +366,7 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-retry"))]
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
 pub mod retry_classification;
 
 pub use crate::exporter::Compression;
@@ -409,7 +409,7 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-#[cfg(feature = "http-retry")]
+#[cfg(feature = "experimental-http-retry")]
 pub use opentelemetry_sdk::retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.

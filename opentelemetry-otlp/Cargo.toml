@@ -70,9 +70,12 @@ serialize = ["serde", "serde_json"]
 default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
-grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic", "opentelemetry_sdk/rt-tokio", "opentelemetry_sdk/experimental_async_runtime"]
+grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
+
+# grpc with retry support
+experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio"]
 
 # http compression
 gzip-http = ["flate2"]
@@ -85,8 +88,7 @@ tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 
 # http with retry support.
-# What should we do with this? We need the async_runtime. gRPC exporters already need it.
-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio"]
+experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio"]
 
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
