@@ -78,6 +78,11 @@ impl Resource {
         }
     }
 
+    /// Returns a [ResourceBuilder] initialized from this resource.
+    pub fn into_builder(self) -> ResourceBuilder {
+        ResourceBuilder { resource: self }
+    }
+
     /// Creates an empty resource.
     /// This is the basic constructor that initializes a resource with no attributes and no schema URL.
     pub(crate) fn empty() -> Self {
@@ -227,6 +232,12 @@ impl Resource {
     /// Retrieve the value from resource associate with given key.
     pub fn get(&self, key: &Key) -> Option<Value> {
         self.inner.attrs.get(key).cloned()
+    }
+}
+
+impl From<Resource> for ResourceBuilder {
+    fn from(resource: Resource) -> Self {
+        resource.into_builder()
     }
 }
 
@@ -548,5 +559,52 @@ mod tests {
                 )
             },
         )
+    }
+
+    #[test]
+    fn into_builder() {
+        // Create a resource with some attributes and schema URL
+        let original_resource = Resource::from_schema_url(
+            [
+                KeyValue::new("service.name", "test-service"),
+                KeyValue::new("service.version", "1.0.0"),
+                KeyValue::new("environment", "test"),
+            ],
+            "http://example.com/schema",
+        );
+
+        // Get a builder from the resource
+        let builder: ResourceBuilder = original_resource.clone().into();
+        let rebuilt_resource = builder.build();
+
+        // The rebuilt resource should be identical to the original
+        assert_eq!(original_resource, rebuilt_resource);
+        assert_eq!(
+            original_resource.schema_url(),
+            rebuilt_resource.schema_url()
+        );
+        assert_eq!(original_resource.len(), rebuilt_resource.len());
+
+        // Verify we can modify the builder and get a different resource
+        let modified_resource = original_resource
+            .clone()
+            .into_builder()
+            .with_attribute(KeyValue::new("new_key", "new_value"))
+            .build();
+
+        // The modified resource should have the original attributes plus the new one
+        assert_eq!(modified_resource.len(), original_resource.len() + 1);
+        assert_eq!(
+            modified_resource.get(&Key::new("new_key")),
+            Some(Value::from("new_value"))
+        );
+        assert_eq!(
+            modified_resource.get(&Key::new("service.name")),
+            Some(Value::from("test-service"))
+        );
+        assert_eq!(
+            modified_resource.schema_url(),
+            original_resource.schema_url()
+        );
     }
 }
