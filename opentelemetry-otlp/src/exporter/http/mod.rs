@@ -25,7 +25,7 @@ use std::time::Duration;
 #[cfg(feature = "http-retry")]
 use crate::retry_classification::http::classify_http_error;
 #[cfg(feature = "http-retry")]
-use opentelemetry_sdk::retry::RetryErrorType;
+use opentelemetry_sdk::retry::{RetryErrorType, RetryPolicy};
 
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
@@ -111,6 +111,10 @@ pub struct HttpConfig {
 
     /// The compression algorithm to use when communicating with the OTLP endpoint.
     compression: Option<crate::Compression>,
+
+    /// The retry policy to use for HTTP requests.
+    #[cfg(feature = "http-retry")]
+    retry_policy: Option<RetryPolicy>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -282,6 +286,8 @@ impl HttpExporterBuilder {
             self.exporter_config.protocol,
             timeout,
             compression,
+            #[cfg(feature = "http-retry")]
+            self.http_config.retry_policy.take(),
         ))
     }
 
@@ -361,6 +367,8 @@ pub(crate) struct OtlpHttpClient {
     protocol: Protocol,
     _timeout: Duration,
     compression: Option<crate::Compression>,
+    #[cfg(feature = "http-retry")]
+    retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -379,15 +387,8 @@ impl OtlpHttpClient {
     {
         #[cfg(feature = "http-retry")]
         {
-            use opentelemetry_sdk::retry::{retry_with_backoff, RetryPolicy};
+            use opentelemetry_sdk::retry::retry_with_backoff;
             use opentelemetry_sdk::runtime::Tokio;
-
-            let policy = RetryPolicy {
-                max_retries: 3,
-                initial_delay_ms: 100,
-                max_delay_ms: 1600,
-                jitter_ms: 100,
-            };
 
             // Build request body once before retry loop
             let (body, content_type, content_encoding) = build_body_fn(self, data)
@@ -401,7 +402,7 @@ impl OtlpHttpClient {
 
             retry_with_backoff(
                 Tokio,
-                policy,
+                self.retry_policy.clone(),
                 classify_http_export_error,
                 operation_name,
                 || async {
@@ -544,6 +545,7 @@ impl OtlpHttpClient {
         protocol: Protocol,
         timeout: Duration,
         compression: Option<crate::Compression>,
+        #[cfg(feature = "http-retry")] retry_policy: Option<RetryPolicy>,
     ) -> Self {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
@@ -552,6 +554,13 @@ impl OtlpHttpClient {
             protocol,
             _timeout: timeout,
             compression,
+            #[cfg(feature = "http-retry")]
+            retry_policy: retry_policy.unwrap_or(RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 100,
+                max_delay_ms: 1600,
+                jitter_ms: 100,
+            }),
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -722,6 +731,10 @@ pub trait WithHttpConfig {
 
     /// Set the compression algorithm to use when communicating with the collector.
     fn with_compression(self, compression: crate::Compression) -> Self;
+
+    /// Set the retry policy for HTTP requests.
+    #[cfg(feature = "http-retry")]
+    fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -744,6 +757,12 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_compression(mut self, compression: crate::Compression) -> Self {
         self.http_client_config().compression = Some(compression);
+        self
+    }
+
+    #[cfg(feature = "http-retry")]
+    fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.http_client_config().retry_policy = Some(policy);
         self
     }
 }
@@ -991,6 +1010,8 @@ mod tests {
                 client: None,
                 headers: Some(initial_headers),
                 compression: None,
+                #[cfg(feature = "http-retry")]
+                retry_policy: None,
             },
             exporter_config: crate::ExportConfig::default(),
         };
@@ -1057,6 +1078,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
+                #[cfg(feature = "http-retry")]
+                None,
             );
 
             // Test with some sample data
@@ -1088,6 +1111,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
+                #[cfg(feature = "http-retry")]
+                None,
             );
 
             // Test with some sample data
@@ -1116,6 +1141,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 None, // No compression
+                #[cfg(feature = "http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -1137,6 +1164,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
+                #[cfg(feature = "http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -1159,6 +1188,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
+                #[cfg(feature = "http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -1221,6 +1252,8 @@ mod tests {
                 protocol,
                 std::time::Duration::from_secs(10),
                 compression,
+                #[cfg(feature = "http-retry")]
+                None,
             )
         }
 
@@ -1453,6 +1486,71 @@ mod tests {
                 result,
                 Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
             ));
+        }
+
+        #[cfg(feature = "http-retry")]
+        #[test]
+        fn test_with_retry_policy() {
+            use super::super::HttpExporterBuilder;
+            use crate::WithHttpConfig;
+            use opentelemetry_sdk::retry::RetryPolicy;
+
+            let custom_policy = RetryPolicy {
+                max_retries: 5,
+                initial_delay_ms: 200,
+                max_delay_ms: 3200,
+                jitter_ms: 50,
+            };
+
+            let builder = HttpExporterBuilder::default().with_retry_policy(custom_policy);
+
+            // Verify the retry policy was set
+            let retry_policy = builder.http_config.retry_policy.as_ref().unwrap();
+            assert_eq!(retry_policy.max_retries, 5);
+            assert_eq!(retry_policy.initial_delay_ms, 200);
+            assert_eq!(retry_policy.max_delay_ms, 3200);
+            assert_eq!(retry_policy.jitter_ms, 50);
+        }
+
+        #[cfg(feature = "http-retry")]
+        #[test]
+        fn test_default_retry_policy_when_none_configured() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            
+            // Verify default values are used
+            assert_eq!(client.retry_policy.max_retries, 3);
+            assert_eq!(client.retry_policy.initial_delay_ms, 100);
+            assert_eq!(client.retry_policy.max_delay_ms, 1600);
+            assert_eq!(client.retry_policy.jitter_ms, 100);
+        }
+
+        #[cfg(feature = "http-retry")]
+        #[test]
+        fn test_custom_retry_policy_used() {
+            use opentelemetry_sdk::retry::RetryPolicy;
+            
+            let custom_policy = RetryPolicy {
+                max_retries: 7,
+                initial_delay_ms: 500,
+                max_delay_ms: 5000,
+                jitter_ms: 200,
+            };
+
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None,
+                Some(custom_policy),
+            );
+            
+            // Verify custom values are used
+            assert_eq!(client.retry_policy.max_retries, 7);
+            assert_eq!(client.retry_policy.initial_delay_ms, 500);
+            assert_eq!(client.retry_policy.max_delay_ms, 5000);
+            assert_eq!(client.retry_policy.jitter_ms, 200);
         }
     }
 }
