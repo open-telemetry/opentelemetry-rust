@@ -1,3 +1,4 @@
+#[cfg(feature = "gen-tonic-messages")]
 /// Builds span flags based on the parent span context's remote property.
 /// This follows the OTLP specification for span flags.
 pub fn build_span_flags(
@@ -217,7 +218,7 @@ pub mod tonic {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gen-tonic-messages"))]
 mod span_flags_tests {
     use crate::proto::tonic::trace::v1::{Span, SpanFlags};
     use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState};
