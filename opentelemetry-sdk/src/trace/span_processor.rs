@@ -968,6 +968,7 @@ mod tests {
         let unsampled = SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
+            parent_span_context: None,
             span_kind: SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
@@ -1129,6 +1130,7 @@ mod tests {
         SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
+            parent_span_context: None,
             span_kind: SpanKind::Internal,
             name: name.to_string().into(),
             start_time: opentelemetry::time::now(),

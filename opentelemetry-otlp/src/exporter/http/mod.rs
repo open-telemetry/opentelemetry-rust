@@ -1047,6 +1047,7 @@ mod tests {
             SpanData {
                 span_context,
                 parent_span_id: SpanId::from(0),
+                parent_span_context: None,
                 span_kind: SpanKind::Internal,
                 name: Cow::Borrowed("test_span"),
                 start_time: SystemTime::UNIX_EPOCH,

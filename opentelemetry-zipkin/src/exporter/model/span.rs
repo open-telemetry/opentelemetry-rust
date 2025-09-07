@@ -154,6 +154,7 @@ mod tests {
                     Default::default(),
                 ),
                 parent_span_id: SpanId::from(1),
+                parent_span_context: None,
                 span_kind: SpanKind::Client,
                 name: "".into(),
                 start_time: now(),
