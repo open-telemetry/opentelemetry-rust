@@ -82,6 +82,8 @@ pub struct SpanData {
     pub span_context: SpanContext,
     /// Span parent id
     pub parent_span_id: SpanId,
+    /// Parent span context (for span flags)
+    pub parent_span_context: Option<SpanContext>,
     /// Span kind
     pub span_kind: SpanKind,
     /// Span name
