@@ -1,10 +1,7 @@
 #[cfg(feature = "gen-tonic-messages")]
 /// Builds span flags based on the parent span's remote property.
 /// This follows the OTLP specification for span flags.
-pub fn build_span_flags(
-    parent_span_is_remote: bool,
-    base_flags: u32,
-) -> u32 {
+pub fn build_span_flags(parent_span_is_remote: bool, base_flags: u32) -> u32 {
     use crate::proto::tonic::trace::v1::SpanFlags;
     let mut flags = base_flags;
     flags |= SpanFlags::ContextHasIsRemoteMask as u32;
