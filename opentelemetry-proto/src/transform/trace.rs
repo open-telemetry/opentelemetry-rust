@@ -250,14 +250,6 @@ mod span_flags_tests {
 
     #[test]
     fn test_span_transformation_with_flags() {
-        let local_parent = SpanContext::new(
-            TraceId::from(123),
-            SpanId::from(456),
-            TraceFlags::default(),
-            false,
-            TraceState::default(),
-        );
-
         let span_data = SpanData {
             span_context: SpanContext::new(
                 TraceId::from(789),
@@ -286,14 +278,6 @@ mod span_flags_tests {
 
     #[test]
     fn test_span_transformation_with_remote_parent() {
-        let remote_parent = SpanContext::new(
-            TraceId::from(123),
-            SpanId::from(456),
-            TraceFlags::default(),
-            true, // is_remote = true
-            TraceState::default(),
-        );
-
         let span_data = SpanData {
             span_context: SpanContext::new(
                 TraceId::from(789),
