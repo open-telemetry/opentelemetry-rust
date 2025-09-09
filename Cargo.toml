@@ -89,6 +89,7 @@ uuid = "1.3"
 [patch.crates-io]
 opentelemetry = { path = "opentelemetry" }
 opentelemetry_sdk = { path = "opentelemetry-sdk" }
+opentelemetry-proto = { path = "opentelemetry-proto" }
 opentelemetry-stdout = { path = "opentelemetry-stdout" }
 
 [workspace.lints.rust]
