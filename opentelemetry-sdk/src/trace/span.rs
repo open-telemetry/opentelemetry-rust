@@ -27,8 +27,8 @@ pub struct Span {
 pub(crate) struct SpanData {
     /// Span parent id
     pub(crate) parent_span_id: SpanId,
-    /// Parent span context (for span flags)
-    pub(crate) parent_span_context: Option<SpanContext>,
+    /// Parent span is remote flag (for span flags)
+    pub(crate) parent_span_is_remote: bool,
     /// Span kind
     pub(crate) span_kind: SpanKind,
     /// Span name
@@ -256,7 +256,7 @@ fn build_export_data(
     crate::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
-        parent_span_context: data.parent_span_context,
+        parent_span_is_remote: data.parent_span_is_remote,
         span_kind: data.span_kind,
         name: data.name,
         start_time: data.start_time,
@@ -289,7 +289,7 @@ mod tests {
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
             parent_span_id: SpanId::from(0),
-            parent_span_context: None,
+            parent_span_is_remote: false,
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),

@@ -137,11 +137,7 @@ impl SdkTracer {
             sc,
             Some(SpanData {
                 parent_span_id: psc.span_id(),
-                parent_span_context: if psc.is_valid() {
-                    Some(psc.clone())
-                } else {
-                    None
-                },
+                parent_span_is_remote: psc.is_valid() && psc.is_remote(),
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
                 name,
                 start_time,

@@ -3,7 +3,7 @@
 ## vNext
 
 - **Feature**: Add span flags support for `isRemote` property in OTLP exporter ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
-  - Added `parent_span_context` field to `SpanData` to store parent span context information
+  - Added `parent_span_is_remote` field to `SpanData` to store parent span remote flag
   - Implemented `build_span_flags` function that sets OTLP span flags based on parent span's `isRemote` property
   - Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
   - Added comprehensive tests for span flags functionality

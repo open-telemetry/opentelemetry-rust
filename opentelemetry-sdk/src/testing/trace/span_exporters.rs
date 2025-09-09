@@ -21,7 +21,7 @@ pub fn new_test_export_span_data() -> SpanData {
             TraceState::default(),
         ),
         parent_span_id: SpanId::INVALID,
-        parent_span_context: None,
+        parent_span_is_remote: false,
         span_kind: SpanKind::Internal,
         name: "opentelemetry".into(),
         start_time: opentelemetry::time::now(),
