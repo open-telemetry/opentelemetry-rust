@@ -17,7 +17,7 @@ pub struct ExportMetricsServiceRequest {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportMetricsServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -31,7 +31,7 @@ pub struct ExportMetricsServiceResponse {
     /// In such cases, the `rejected_<signal>` MUST have a value of `0` and
     /// the `error_message` MUST be non-empty.
     ///
-    /// A `partial_success` message with an empty value (rejected_<signal> = 0 and
+    /// A `partial_success` message with an empty value (rejected\_<signal> = 0 and
     /// `error_message` = "") is equivalent to it not being set/present. Senders
     /// SHOULD interpret it the same way as in the full success case.
     #[prost(message, optional, tag = "1")]
@@ -40,7 +40,7 @@ pub struct ExportMetricsServiceResponse {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportMetricsPartialSuccess {
     /// The number of rejected data points.
     ///
