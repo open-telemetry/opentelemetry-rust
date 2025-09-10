@@ -3,9 +3,8 @@
 ## vNext
 
 - **Feature**: Add span flags support for `isRemote` property in OTLP trace transformation ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
-  - Implemented `build_span_flags` function that sets OTLP span flags based on parent span's `isRemote` property
-  - Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
-  - Added comprehensive tests for span flags functionality
+- Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
+
 - Update proto definitions to v1.7.0.
 - Added Rust generated protos for profiles collector. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
 - **Breaking change**: package opentelemetry_proto::tonic::profiles::v1 renamed to opentelemetry_proto::tonic::profiles::v1development. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)

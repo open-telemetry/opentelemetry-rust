@@ -3,10 +3,8 @@
 ## vNext
 
 - **Feature**: Add span flags support for `isRemote` property in OTLP exporter ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
-  - Added `parent_span_is_remote` field to `SpanData` to store parent span remote flag
-  - Implemented `build_span_flags` function that sets OTLP span flags based on parent span's `isRemote` property
-  - Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
-  - Added comprehensive tests for span flags functionality
+- Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
+
 - TODO: Placeholder for Span processor related things
   - *Fix* SpanProcessor::on_start is no longer called on non recording spans
 - **Fix**: Restore true parallel exports in the async-native `BatchSpanProcessor` by honoring `OTEL_BSP_MAX_CONCURRENT_EXPORTS` ([#2959](https://github.com/open-telemetry/opentelemetry-rust/pull/3028)). A regression in [#2685](https://github.com/open-telemetry/opentelemetry-rust/pull/2685) inadvertently awaited the `export()` future directly in `opentelemetry-sdk/src/trace/span_processor_with_async_runtime.rs` instead of spawning it on the runtime, forcing all exports to run sequentially.
