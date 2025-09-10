@@ -99,7 +99,8 @@ pub struct LogRecord {
     /// For converting OpenTelemetry log data to formats that support only one timestamp or
     /// when receiving OpenTelemetry log data by recipients that support only one timestamp
     /// internally the following logic is recommended:
-    ///    - Use time_unix_nano if it is present, otherwise use observed_time_unix_nano.
+    ///
+    /// * Use time_unix_nano if it is present, otherwise use observed_time_unix_nano.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
@@ -148,8 +149,9 @@ pub struct LogRecord {
     ///
     /// The receivers SHOULD assume that the log record is not associated with a
     /// trace if any of the following is true:
-    ///    - the field is not present,
-    ///    - the field contains an invalid value.
+    ///
+    /// * the field is not present,
+    /// * the field contains an invalid value.
     #[prost(bytes = "vec", tag = "9")]
     #[cfg_attr(
         feature = "with-serde",
@@ -169,8 +171,9 @@ pub struct LogRecord {
     ///
     /// The receivers SHOULD assume that the log record is not associated with a
     /// span if any of the following is true:
-    ///    - the field is not present,
-    ///    - the field contains an invalid value.
+    ///
+    /// * the field is not present,
+    /// * the field contains an invalid value.
     #[prost(bytes = "vec", tag = "10")]
     #[cfg_attr(
         feature = "with-serde",
@@ -299,8 +302,7 @@ impl SeverityNumber {
 /// a bit-mask.  To extract the bit-field, for example, use an
 /// expression like:
 ///
-///    (logRecord.flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
-///
+/// (logRecord.flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
