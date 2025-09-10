@@ -6,7 +6,7 @@
 
 Released 2025-Jan-06
 
-- Update `opentelemetry-proto` dependency version to 0.31
+- Update `opentelemetry-proto` dependency version to 0.30.1
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
 
 ## 0.30.0
