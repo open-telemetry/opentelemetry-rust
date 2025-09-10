@@ -129,6 +129,10 @@ impl SdkLoggerProvider {
     pub fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(Duration::from_secs(5))
     }
+
+    pub(crate) fn is_shutdown(&self) -> bool {
+        self.inner.is_shutdown.load(Ordering::SeqCst)
+    }
 }
 
 #[derive(Debug)]
