@@ -4,7 +4,7 @@
 
 ## 0.30.1
 
-Released 2025-Jan-06
+Released 2025-Sep-11
 
 - Update proto definitions to v1.8.0.
 - Added Rust generated protos for profiles collector. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
