@@ -33,7 +33,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
-        if Context::is_current_telemetry_suppressed() {
+        if Context::is_current_telemetry_suppressed() || self.provider.is_shutdown() {
             return;
         }
         let provider = &self.provider;
