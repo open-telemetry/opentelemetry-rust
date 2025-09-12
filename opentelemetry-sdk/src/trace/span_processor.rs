@@ -1256,8 +1256,11 @@ mod tests {
     fn batchspanprocessor_handles_dropped_spans() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
+        // Note: Explicitly set max_export_batch_size to avoid environment variable override
+        // that could cause the test to fail when OTEL_BSP_MAX_EXPORT_BATCH_SIZE is set to 2
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(2) // Small queue size to test span dropping
+            .with_max_export_batch_size(512) // Explicitly set to default to avoid env var override
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
@@ -1272,7 +1275,7 @@ mod tests {
         processor.on_end(span3.clone()); // This span exceeds the queue size
 
         // Wait for the scheduled delay to expire
-        std::thread::sleep(Duration::from_secs(3));
+        std::thread::sleep(Duration::from_secs(6));
 
         let exported_spans = exporter_shared.lock().unwrap();
 
