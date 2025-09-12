@@ -113,7 +113,7 @@ pub struct InstrumentationScope {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct EntityRef {
     /// The Schema URL, if known. This is the identifier of the Schema that the entity data
     /// is recorded in. To learn more about Schema URL see

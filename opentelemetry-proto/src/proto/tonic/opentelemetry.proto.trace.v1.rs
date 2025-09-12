@@ -197,15 +197,25 @@ pub struct Span {
     /// attributes is a collection of key/value pairs. Note, global attributes
     /// like server name can be set using the resource API. Examples of attributes:
     ///
-    ///      "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
-    ///      "/http/server_latency": 300
-    ///      "example.com/myattribute": true
-    ///      "example.com/score": 10.239
+    /// ```text
+    /// "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+    /// "/http/server_latency": 300
+    /// "example.com/myattribute": true
+    /// "example.com/score": 10.239
+    /// ```
     ///
-    /// The OpenTelemetry API specification further restricts the allowed value types:
-    /// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute>
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
+    ///
+    /// The attribute values SHOULD NOT contain empty values.
+    /// The attribute values SHOULD NOT contain bytes values.
+    /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
+    /// double values.
+    /// The attribute values SHOULD NOT contain kvlist values.
+    /// The behavior of software that receives attributes containing such values can be unpredictable.
+    /// These restrictions can change in a minor release.
+    /// The restrictions take origin from the OpenTelemetry specification:
+    /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
     #[prost(message, repeated, tag = "9")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// dropped_attributes_count is the number of attributes that were discarded. Attributes
@@ -260,6 +270,16 @@ pub mod span {
         /// attributes is a collection of attribute key/value pairs on the event.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
+        ///
+        /// The attribute values SHOULD NOT contain empty values.
+        /// The attribute values SHOULD NOT contain bytes values.
+        /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
+        /// double values.
+        /// The attribute values SHOULD NOT contain kvlist values.
+        /// The behavior of software that receives attributes containing such values can be unpredictable.
+        /// These restrictions can change in a minor release.
+        /// The restrictions take origin from the OpenTelemetry specification:
+        /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
         #[prost(message, repeated, tag = "3")]
         pub attributes: ::prost::alloc::vec::Vec<
             super::super::super::common::v1::KeyValue,
@@ -306,6 +326,16 @@ pub mod span {
         /// attributes is a collection of attribute key/value pairs on the link.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
+        ///
+        /// The attribute values SHOULD NOT contain empty values.
+        /// The attribute values SHOULD NOT contain bytes values.
+        /// The attribute values SHOULD NOT contain array values different than array of string values, bool values, int values,
+        /// double values.
+        /// The attribute values SHOULD NOT contain kvlist values.
+        /// The behavior of software that receives attributes containing such values can be unpredictable.
+        /// These restrictions can change in a minor release.
+        /// The restrictions take origin from the OpenTelemetry specification:
+        /// <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.47.0/specification/common/README.md#attribute.>
         #[prost(message, repeated, tag = "4")]
         pub attributes: ::prost::alloc::vec::Vec<
             super::super::super::common::v1::KeyValue,
@@ -408,7 +438,7 @@ pub mod span {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Status {
     /// A developer-facing human readable error message.
     #[prost(string, tag = "2")]
@@ -474,7 +504,7 @@ pub mod status {
 /// a bit-mask.  To extract the bit-field, for example, use an
 /// expression like:
 ///
-///    (span.flags & SPAN_FLAGS_TRACE_FLAGS_MASK)
+/// (span.flags & SPAN_FLAGS_TRACE_FLAGS_MASK)
 ///
 /// See <https://www.w3.org/TR/trace-context-2/#trace-flags> for the flag definitions.
 ///
