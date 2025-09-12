@@ -1256,7 +1256,7 @@ mod tests {
     fn batchspanprocessor_handles_dropped_spans() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
-        // Note: Explicitly set max_export_batch_size to avoid environment variable override
+        // Explicitly set max_export_batch_size to avoid environment variable override
         // that could cause the test to fail when OTEL_BSP_MAX_EXPORT_BATCH_SIZE is set to 2
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(2) // Small queue size to test span dropping
