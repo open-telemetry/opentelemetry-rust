@@ -22,6 +22,7 @@ fn get_span_data() -> Vec<SpanData> {
                 TraceState::default(),
             ),
             parent_span_id: SpanId::from(12),
+            parent_span_is_remote: false,
             span_kind: SpanKind::Client,
             name: Default::default(),
             start_time: now(),

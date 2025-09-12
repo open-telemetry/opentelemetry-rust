@@ -82,6 +82,8 @@ pub struct SpanData {
     pub span_context: SpanContext,
     /// Span parent id
     pub parent_span_id: SpanId,
+    /// Parent span is remote flag (for span flags)
+    pub parent_span_is_remote: bool,
     /// Span kind
     pub span_kind: SpanKind,
     /// Span name
