@@ -167,3 +167,6 @@ impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
         InMemoryExporterError::InternalFailure(format!("Mutex poison error: {err}"))
     }
 }
+
+/// Retry logic for exporting telemetry data.
+pub mod retry;
