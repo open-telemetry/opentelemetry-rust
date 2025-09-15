@@ -89,10 +89,7 @@ impl SdkTracer {
             links.truncate(spans_links_limit);
             let link_attributes_limit = span_limits.max_attributes_per_link as usize;
             for link in links.iter_mut() {
-                let dropped_attributes_count =
-                    link.attributes.len().saturating_sub(link_attributes_limit);
                 link.attributes.truncate(link_attributes_limit);
-                link.dropped_attributes_count = dropped_attributes_count as u32;
             }
             SpanLinks {
                 links,
@@ -119,12 +116,7 @@ impl SdkTracer {
             events.truncate(spans_events_limit);
             let event_attributes_limit = span_limits.max_attributes_per_event as usize;
             for event in events.iter_mut() {
-                let dropped_attributes_count = event
-                    .attributes
-                    .len()
-                    .saturating_sub(event_attributes_limit);
                 event.attributes.truncate(event_attributes_limit);
-                event.dropped_attributes_count = dropped_attributes_count as u32;
             }
             SpanEvents {
                 events,

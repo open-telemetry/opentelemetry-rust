@@ -101,16 +101,10 @@ impl opentelemetry::trace::Span for Span {
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
             if data.events.len() < span_events_limit {
-                let dropped_attributes_count =
-                    attributes.len().saturating_sub(event_attributes_limit);
                 attributes.truncate(event_attributes_limit);
 
-                data.events.add_event(Event::new(
-                    name,
-                    timestamp,
-                    attributes,
-                    dropped_attributes_count as u32,
-                ));
+                data.events
+                    .add_event(Event::new(name, timestamp, attributes));
             } else {
                 data.events.dropped_count += 1;
             }
@@ -175,15 +169,9 @@ impl opentelemetry::trace::Span for Span {
         let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
         self.with_data(|data| {
             if data.links.links.len() < span_links_limit {
-                let dropped_attributes_count =
-                    attributes.len().saturating_sub(link_attributes_limit);
                 let mut attributes = attributes;
                 attributes.truncate(link_attributes_limit);
-                data.links.add_link(Link::new(
-                    span_context,
-                    attributes,
-                    dropped_attributes_count as u32,
-                ));
+                data.links.add_link(Link::new(span_context, attributes));
             } else {
                 data.links.dropped_count += 1;
             }
