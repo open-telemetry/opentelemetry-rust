@@ -235,7 +235,7 @@ impl<'a> Iterator for TraceStateIter<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for TraceStateIter<'a> {
+impl ExactSizeIterator for TraceStateIter<'_> {
     fn len(&self) -> usize {
         match &self.inner {
             Some(iter) => iter.len(),
