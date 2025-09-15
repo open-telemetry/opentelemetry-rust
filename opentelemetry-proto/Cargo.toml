@@ -58,7 +58,7 @@ prost = { workspace = true, optional = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 schemars = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["serde_derive"] }
+serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 serde_json = { workspace = true, optional = true }
 const-hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
