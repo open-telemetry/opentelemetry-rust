@@ -68,7 +68,7 @@ opentelemetry = { path = "opentelemetry", default-features = false }
 opentelemetry_sdk = { path = "opentelemetry-sdk", default-features = false }
 opentelemetry-appender-log = { path = "opentelemetry-appender-log", default-features = false }
 opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", default-features = false }
-opentelemetry-http = { path = "opentelemetry-http", version = "0.30.1", default-features = false }
+opentelemetry-http = { path = "opentelemetry-http", default-features = false }
 opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", default-features = false }
 opentelemetry-otlp = { path = "opentelemetry-otlp", default-features = false }
 opentelemetry-proto = { path = "opentelemetry-proto", default-features = false }
