@@ -25,7 +25,7 @@ fn build_tonic() {
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
     // build the generated files into OUT_DIR for now so we don't have to touch the src unless we have to
-    let mut builder = tonic_build::configure()
+    let mut builder = tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
