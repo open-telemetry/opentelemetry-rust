@@ -55,8 +55,8 @@ with-serde = ["serde", "const-hex", "base64", "serde_json"]
 tonic = { workspace = true, optional = true, features = ["codegen"] }
 tonic-prost = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true }
+opentelemetry = { path = "../opentelemetry", version = "0.30.0", default-features = false }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", version = "0.30.0", default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 serde_json = { workspace = true, optional = true }
