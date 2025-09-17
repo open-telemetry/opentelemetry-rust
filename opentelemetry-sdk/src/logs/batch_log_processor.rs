@@ -151,6 +151,8 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        let _guard = Context::enter_telemetry_suppressed_scope();
+
         let result = self
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
