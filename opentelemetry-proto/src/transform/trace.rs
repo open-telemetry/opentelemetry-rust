@@ -192,7 +192,10 @@ pub mod tonic {
             .into_iter()
             .map(|(instrumentation, span_records)| ScopeSpans {
                 scope: Some((instrumentation, None).into()),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
+                schema_url: instrumentation
+                    .schema_url()
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_default(),
                 spans: span_records
                     .into_iter()
                     .map(|span_data| span_data.clone().into())
@@ -469,5 +472,52 @@ mod tests {
             lib2_scope_span.spans[0].trace_id,
             span_data3.span_context.trace_id().to_bytes().to_vec()
         );
+    }
+
+    #[test]
+    fn test_scope_spans_uses_instrumentation_schema_url_not_resource() {
+        let resource = Resource::builder_empty()
+            .with_schema_url(vec![], "http://resource-schema")
+            .build();
+
+        let instrumentation_scope = InstrumentationScope::builder("test-lib")
+            .with_schema_url("http://instrumentation-schema")
+            .build();
+
+        let span_data = SpanData {
+            span_context: SpanContext::new(
+                TraceId::from(123),
+                SpanId::from(456),
+                TraceFlags::default(),
+                false,
+                TraceState::default(),
+            ),
+            parent_span_id: SpanId::from(0),
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Internal,
+            name: Cow::Borrowed("test_span"),
+            start_time: now(),
+            end_time: now() + Duration::from_secs(1),
+            attributes: vec![],
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope,
+        };
+
+        let resource: ResourceAttributesWithSchema = (&resource).into();
+        let grouped_spans = crate::transform::trace::tonic::group_spans_by_resource_and_scope(
+            vec![span_data],
+            &resource,
+        );
+
+        assert_eq!(grouped_spans.len(), 1);
+        let resource_spans = &grouped_spans[0];
+        assert_eq!(resource_spans.schema_url, "http://resource-schema");
+
+        let scope_spans = &resource_spans.scope_spans;
+        assert_eq!(scope_spans.len(), 1);
+        assert_eq!(scope_spans[0].schema_url, "http://instrumentation-schema");
     }
 }
