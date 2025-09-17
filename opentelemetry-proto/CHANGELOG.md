@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Feature**: Add span flags support for `isRemote` property in OTLP trace transformation ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
+- Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
+
 ## 0.30.1
 
 Released 2025-Sep-11
