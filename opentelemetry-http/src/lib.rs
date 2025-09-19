@@ -22,6 +22,11 @@ impl Injector for HeaderInjector<'_> {
             }
         }
     }
+
+    /// Reserves capacity for at least `additional` more entries to be inserted.
+    fn reserve(&mut self, additional: usize) {
+        self.0.reserve(additional);
+    }
 }
 
 /// Helper for extracting headers from HTTP Requests. This is used for OpenTelemetry context
@@ -302,5 +307,53 @@ mod tests {
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
+    }
+
+    #[test]
+    fn http_headers_reserve() {
+        let mut carrier = http::HeaderMap::new();
+
+        // Test that reserve doesn't panic and works correctly
+        {
+            let mut injector = HeaderInjector(&mut carrier);
+            injector.reserve(10);
+
+            // Verify the HeaderMap still works after reserve
+            injector.set("test-header", "test-value".to_string());
+        }
+        assert_eq!(
+            HeaderExtractor(&carrier).get("test-header"),
+            Some("test-value")
+        );
+
+        // Test reserve with zero capacity
+        {
+            let mut injector = HeaderInjector(&mut carrier);
+            injector.reserve(0);
+            injector.set("another-header", "another-value".to_string());
+        }
+        assert_eq!(
+            HeaderExtractor(&carrier).get("another-header"),
+            Some("another-value")
+        );
+
+        // Test that capacity is actually reserved (at least the requested amount)
+        let mut new_carrier = http::HeaderMap::new();
+        {
+            let mut new_injector = HeaderInjector(&mut new_carrier);
+            new_injector.reserve(5);
+        }
+        let initial_capacity = new_carrier.capacity();
+
+        // Add some headers and verify capacity doesn't decrease
+        {
+            let mut new_injector = HeaderInjector(&mut new_carrier);
+            for i in 0..3 {
+                new_injector.set(&format!("header-{}", i), format!("value-{}", i));
+            }
+        }
+
+        assert!(new_carrier.capacity() >= initial_capacity);
+        assert!(new_carrier.capacity() >= 5);
     }
 }
