@@ -31,7 +31,7 @@ use crate::{logs::SdkLogRecord, Resource};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::InstrumentationScope;
+use opentelemetry::{otel_warn, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::time::Duration;
@@ -57,10 +57,21 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
+    ///
+    /// All implementors should implement this method.
     fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        // It would have been better to make this method required, but that ship
+        // sailed when the logs API was declared stable.
+        otel_warn!(
+            name: "LogProcessor.DefaultShutdownWithTimeout",
+            message = format!("LogProcessor::shutdown_with_timeout should be implemented by all LogProcessor types")
+        );
         Ok(())
     }
     /// Shuts down the processor with default timeout.
+    ///
+    /// Implementors typically do not need to change this method, and can just
+    /// implement `shutdown_with_timeout`.
     fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(Duration::from_secs(5))
     }
@@ -140,6 +151,10 @@ pub(crate) mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]
@@ -164,6 +179,10 @@ pub(crate) mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
