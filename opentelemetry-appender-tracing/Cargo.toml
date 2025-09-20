@@ -19,6 +19,8 @@ tracing-core = { workspace = true }
 tracing-log = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 tracing-opentelemetry = { workspace = true, optional = true }
+valuable = { version = "0.1", optional = true }
+valuable-serde = { version = "0.1", optional = true }
 
 [dev-dependencies]
 log = { workspace = true }
@@ -29,6 +31,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter","registry", "s
 tracing-log = { workspace = true }
 criterion = { workspace = true }
 tokio = { workspace = true, features = ["full"]}
+valuable = { version = "0.1", features = ["derive"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
@@ -38,7 +41,7 @@ default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 experimental_use_tracing_span_context = ["tracing-opentelemetry"]
-
+experimental_valuable = ["opentelemetry/with-serde", "tracing-core/valuable", "dep:valuable", "valuable-serde"]
 
 [[bench]]
 name = "logs"
