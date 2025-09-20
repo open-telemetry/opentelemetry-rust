@@ -20,6 +20,9 @@ cargo test --manifest-path=opentelemetry/Cargo.toml --no-default-features --lib
 echo "Running tests for opentelemetry-prometheus with --all-features"
 (cd opentelemetry-prometheus && cargo test --all-features --lib)
 
+# Run test which set environment variable `OTEL_SDK_DISABLED`
+cargo test --package opentelemetry_sdk --lib --all-features -- otel_sdk_disabled_env --ignored
+
 # Run global tracer provider test in single thread
 # //TODO: This tests were not running for a while. Need to find out how to run
 # run them. Using --ignored will run other tests as well, so that cannot be used.
