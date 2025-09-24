@@ -1,0 +1,13 @@
+[package]
+name = "batch-span-processor-hang-repro"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+opentelemetry = { workspace = true, features = ["trace"] }
+opentelemetry_sdk = { workspace = true, features = ["trace", "experimental_trace_batch_span_processor_with_async_runtime", "rt-tokio"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+futures-util = { workspace = true, features = ["std"] }
+
+[lints]
+workspace = true

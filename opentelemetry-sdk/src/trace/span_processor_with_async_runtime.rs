@@ -703,4 +703,84 @@ mod tests {
             "exports overlapped even though max_concurrent_exports was 1"
         );
     }
+
+    #[test]
+    #[cfg(feature = "rt-tokio")]
+    fn batch_span_processor_force_flush_deadlocks_helper() {
+        if std::env::var_os("OTEL_RUN_BSP_DEADLOCK_HELPER").is_none() {
+            // Running under the normal test harness: skip so the suite does not hang.
+            return;
+        }
+
+        run_force_flush_deadlock();
+    }
+
+    #[test]
+    #[cfg(feature = "rt-tokio")]
+    fn batch_span_processor_force_flush_deadlocks_current_thread_runtime() {
+        use std::{process::Command, thread, time::Duration};
+
+        let mut child = Command::new(
+            std::env::current_exe().expect("failed to locate current test binary"),
+        )
+            .arg("--exact")
+            .arg(
+                "trace::span_processor_with_async_runtime::tests::batch_span_processor_force_flush_deadlocks_helper",
+            )
+            .env("OTEL_RUN_BSP_DEADLOCK_HELPER", "1")
+            .spawn()
+            .expect("failed to spawn helper test");
+
+        // Give the helper a short window to reach the blocking call.
+        thread::sleep(Duration::from_millis(200));
+
+        let still_running = child
+            .try_wait()
+            .expect("failed to query helper status")
+            .is_none();
+
+        // Always terminate the helper before making assertions to avoid leaking child processes.
+        let _ = child.kill();
+        let _ = child.wait();
+
+        assert!(
+            still_running,
+            "helper process exited unexpectedly; force_flush no longer blocks on the current-thread runtime"
+        );
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    fn run_force_flush_deadlock() -> ! {
+        use crate::error::OTelSdkResult;
+        use crate::testing::trace::new_test_export_span_data;
+        use crate::trace::{SpanData, SpanExporter};
+
+        #[derive(Debug)]
+        struct ReadyExporter;
+
+        impl SpanExporter for ReadyExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to build current-thread runtime");
+
+        runtime.block_on(async {
+            // Building the processor inside the runtime ensures the worker task is spawned via
+            // `tokio::spawn`, matching application usage.
+            let processor = BatchSpanProcessor::builder(ReadyExporter, runtime::Tokio).build();
+
+            processor.on_end(new_test_export_span_data());
+
+            // Calling force_flush from within the same current-thread runtime blocks forever.
+            let _ = processor.force_flush();
+            panic!("force_flush unexpectedly returned");
+        });
+
+        unreachable!("the helper should never return once force_flush blocks");
+    }
 }
