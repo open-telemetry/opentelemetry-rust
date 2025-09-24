@@ -241,8 +241,6 @@ impl<T> ResponseExt for Response<T> {
 
 #[cfg(test)]
 mod tests {
-    use http::HeaderValue;
-
     use super::*;
 
     #[test]
