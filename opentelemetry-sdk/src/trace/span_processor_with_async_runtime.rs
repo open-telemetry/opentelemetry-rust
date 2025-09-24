@@ -366,6 +366,54 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
 }
 
 impl<R: RuntimeChannel> BatchSpanProcessor<R> {
+    #[cfg(feature = "rt-tokio")]
+    fn should_spawn_tokio_current_thread_worker<T: RuntimeChannel>() -> bool {
+        if std::any::TypeId::of::<T>() != std::any::TypeId::of::<crate::runtime::Tokio>() {
+            return false;
+        }
+
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => matches!(
+                handle.runtime_flavor(),
+                tokio::runtime::RuntimeFlavor::CurrentThread
+            ),
+            Err(_) => false,
+        }
+    }
+
+    #[cfg(not(feature = "rt-tokio"))]
+    fn should_spawn_tokio_current_thread_worker<T: RuntimeChannel>() -> bool {
+        let _ = std::any::TypeId::of::<T>();
+        false
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    fn spawn_tokio_current_thread_worker<F>(worker: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        std::thread::Builder::new()
+            .name("OpenTelemetry.Traces.BatchProcessor.TokioCurrentThread".to_string())
+            .spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to create Tokio current thread runtime for OpenTelemetry batch processing");
+                rt.block_on(worker);
+            })
+            .expect("failed to spawn dedicated Tokio current thread for OpenTelemetry batch processing");
+    }
+
+    #[cfg(not(feature = "rt-tokio"))]
+    fn spawn_tokio_current_thread_worker<F>(_worker: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        unreachable!(
+            "tokio current-thread worker spawn should not be called without rt-tokio feature"
+        );
+    }
+
     pub(crate) fn new<E>(exporter: E, config: BatchConfig, runtime: R) -> Self
     where
         E: SpanExporter + Send + Sync + 'static,
@@ -376,8 +424,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         let max_queue_size = config.max_queue_size;
 
         let inner_runtime = runtime.clone();
-        // Spawn worker process via user-defined spawn function.
-        runtime.spawn(async move {
+        let worker = async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
@@ -395,7 +442,21 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             };
 
             processor.run(messages).await
-        });
+        };
+
+        #[cfg(feature = "rt-tokio")]
+        {
+            if Self::should_spawn_tokio_current_thread_worker::<R>() {
+                Self::spawn_tokio_current_thread_worker(worker);
+            } else {
+                runtime.spawn(worker);
+            }
+        }
+
+        #[cfg(not(feature = "rt-tokio"))]
+        {
+            runtime.spawn(worker);
+        }
 
         // Return batch processor with link to worker
         BatchSpanProcessor {
@@ -706,18 +767,18 @@ mod tests {
 
     #[test]
     #[cfg(feature = "rt-tokio")]
-    fn batch_span_processor_force_flush_deadlocks_helper() {
+    fn batch_span_processor_force_flush_current_thread_helper() {
         if std::env::var_os("OTEL_RUN_BSP_DEADLOCK_HELPER").is_none() {
             // Running under the normal test harness: skip so the suite does not hang.
             return;
         }
 
-        run_force_flush_deadlock();
+        run_force_flush_current_thread();
     }
 
     #[test]
     #[cfg(feature = "rt-tokio")]
-    fn batch_span_processor_force_flush_deadlocks_current_thread_runtime() {
+    fn batch_span_processor_force_flush_current_thread_runtime() {
         use std::{process::Command, thread, time::Duration};
 
         let mut child = Command::new(
@@ -725,32 +786,33 @@ mod tests {
         )
             .arg("--exact")
             .arg(
-                "trace::span_processor_with_async_runtime::tests::batch_span_processor_force_flush_deadlocks_helper",
+                "trace::span_processor_with_async_runtime::tests::batch_span_processor_force_flush_current_thread_helper",
             )
             .env("OTEL_RUN_BSP_DEADLOCK_HELPER", "1")
             .spawn()
             .expect("failed to spawn helper test");
 
-        // Give the helper a short window to reach the blocking call.
-        thread::sleep(Duration::from_millis(200));
+        let start = std::time::Instant::now();
+        loop {
+            if let Some(status) = child.try_wait().expect("failed to query helper status") {
+                assert!(
+                    status.success(),
+                    "helper process exited with failure status"
+                );
+                break;
+            }
 
-        let still_running = child
-            .try_wait()
-            .expect("failed to query helper status")
-            .is_none();
+            if start.elapsed() > Duration::from_secs(2) {
+                let _ = child.kill();
+                panic!("force_flush still hangs on Tokio current-thread runtime");
+            }
 
-        // Always terminate the helper before making assertions to avoid leaking child processes.
-        let _ = child.kill();
-        let _ = child.wait();
-
-        assert!(
-            still_running,
-            "helper process exited unexpectedly; force_flush no longer blocks on the current-thread runtime"
-        );
+            thread::sleep(Duration::from_millis(50));
+        }
     }
 
     #[cfg(feature = "rt-tokio")]
-    fn run_force_flush_deadlock() -> ! {
+    fn run_force_flush_current_thread() {
         use crate::error::OTelSdkResult;
         use crate::testing::trace::new_test_export_span_data;
         use crate::trace::{SpanData, SpanExporter};
@@ -770,17 +832,13 @@ mod tests {
             .expect("failed to build current-thread runtime");
 
         runtime.block_on(async {
-            // Building the processor inside the runtime ensures the worker task is spawned via
-            // `tokio::spawn`, matching application usage.
             let processor = BatchSpanProcessor::builder(ReadyExporter, runtime::Tokio).build();
 
             processor.on_end(new_test_export_span_data());
 
-            // Calling force_flush from within the same current-thread runtime blocks forever.
-            let _ = processor.force_flush();
-            panic!("force_flush unexpectedly returned");
+            processor
+                .force_flush()
+                .expect("force_flush should complete on Tokio current-thread runtime");
         });
-
-        unreachable!("the helper should never return once force_flush blocks");
     }
 }
