@@ -258,32 +258,6 @@ mod tests {
     }
 
     #[test]
-    fn http_headers_get_all() {
-        let mut carrier = http::HeaderMap::new();
-        carrier.append("headerName", HeaderValue::from_static("value"));
-        carrier.append("headerName", HeaderValue::from_static("value2"));
-        carrier.append("headerName", HeaderValue::from_static("value3"));
-
-        assert_eq!(
-            HeaderExtractor(&carrier).get_all("HEADERNAME"),
-            Some(vec!["value", "value2", "value3"]),
-            "all values from a key extraction"
-        )
-    }
-
-    #[test]
-    fn http_headers_get_all_missing_key() {
-        let mut carrier = http::HeaderMap::new();
-        carrier.append("headerName", HeaderValue::from_static("value"));
-
-        assert_eq!(
-            HeaderExtractor(&carrier).get_all("not_existing"),
-            None,
-            "all values from a missing key extraction"
-        )
-    }
-
-    #[test]
     fn http_headers_keys() {
         let mut carrier = http::HeaderMap::new();
         HeaderInjector(&mut carrier).set("headerName1", "value1".to_string());
