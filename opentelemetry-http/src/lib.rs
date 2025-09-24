@@ -44,15 +44,6 @@ impl Extractor for HeaderExtractor<'_> {
             .collect::<Vec<_>>()
     }
 
-    /// Get all the values for a key from the HeaderMap
-    fn get_all(&self, key: &str) -> Option<Vec<&str>> {
-        let all_iter = self.0.get_all(key).iter();
-        if let (0, Some(0)) = all_iter.size_hint() {
-            return None;
-        }
-
-        Some(all_iter.filter_map(|value| value.to_str().ok()).collect())
-    }
 }
 
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
