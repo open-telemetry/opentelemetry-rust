@@ -43,7 +43,6 @@ impl Extractor for HeaderExtractor<'_> {
             .map(|value| value.as_str())
             .collect::<Vec<_>>()
     }
-
 }
 
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
