@@ -6,7 +6,7 @@
 
 Released 2025-Sep-25
 
-- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.30.1.
+- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.31.0.
 
 ## 0.30.0
 
