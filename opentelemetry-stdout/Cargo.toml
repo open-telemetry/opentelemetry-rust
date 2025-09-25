@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-stdout"
-version = "0.30.0"
+version = "0.31.0"
 description = "An OpenTelemetry exporter for stdout"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-stdout"

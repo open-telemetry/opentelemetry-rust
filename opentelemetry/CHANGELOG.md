@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.31.0
+
+Released 2025-Sep-25
+
 - *Breaking* Change return type of `opentelemetry::global::set_tracer_provider` to Unit to align with metrics counterpart
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
 
