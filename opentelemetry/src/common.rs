@@ -413,6 +413,55 @@ impl KeyValue {
     }
 }
 
+/// Create a new `KeyValue` from a key and value tuple.
+impl<K, V> From<(K, V)> for KeyValue
+where
+    K: Into<Key>,
+    V: Into<Value>,
+{
+    fn from(tuple: (K, V)) -> Self {
+        KeyValue::new(tuple.0, tuple.1)
+    }
+}
+
+/// Represents a collector for `KeyValue` attributes.
+#[derive(Default, Debug)]
+pub struct KeyValueCollector {
+    vec: Vec<KeyValue>,
+}
+
+impl KeyValueCollector {
+    /// Adds a key-value pair to the collector.
+    pub fn add<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<Key>,
+        V: Into<Value>,
+    {
+        self.add_kv((key, value));
+    }
+
+    /// Adds a `KeyValue` to the collector.
+    pub fn add_kv<KV>(&mut self, kv: KV)
+    where
+        KV: Into<KeyValue>,
+    {
+        self.vec.push(kv.into());
+    }
+}
+
+/// A trait for types that can be converted to a set of `KeyValue` attributes.
+pub trait AsKeyValues {
+    /// Returns a vector of `KeyValue` attributes.
+    fn as_key_values(&self) -> Vec<KeyValue> {
+        let mut collector = KeyValueCollector::default();
+        self.collect_key_values(&mut collector);
+        collector.vec
+    }
+
+    /// Collects key-value pairs into the provided `KeyValueCollector`.
+    fn collect_key_values(&self, collector: &mut KeyValueCollector);
+}
+
 struct F64Hashable(f64);
 
 impl PartialEq for F64Hashable {
@@ -628,7 +677,7 @@ impl InstrumentationScopeBuilder {
 mod tests {
     use std::hash::{Hash, Hasher};
 
-    use crate::{InstrumentationScope, KeyValue};
+    use crate::{AsKeyValues, InstrumentationScope, KeyValue, KeyValueCollector};
 
     use rand::random;
     use std::collections::hash_map::DefaultHasher;
@@ -699,6 +748,33 @@ mod tests {
         let mut hasher = DefaultHasher::new();
         item.hash(&mut hasher);
         hasher.finish()
+    }
+
+    #[test]
+    fn kv_from_tuple() {
+        let kv: KeyValue = ("key", "value").into();
+        assert_eq!(kv.key.as_str(), "key");
+        assert_eq!(kv.value.as_str(), "value");
+    }
+
+    struct HelperStruct;
+
+    impl AsKeyValues for HelperStruct {
+        fn collect_key_values(&self, collector: &mut KeyValueCollector) {
+            collector.add("key1", "value1");
+            collector.add_kv(("key2", "value2"));
+        }
+    }
+
+    #[test]
+    fn kv_collector() {
+        let helper = HelperStruct;
+        let kvs = helper.as_key_values();
+        assert_eq!(kvs.len(), 2);
+        assert_eq!(kvs[0].key.as_str(), "key1");
+        assert_eq!(kvs[0].value.as_str(), "value1");
+        assert_eq!(kvs[1].key.as_str(), "key2");
+        assert_eq!(kvs[1].value.as_str(), "value2");
     }
 
     #[test]
