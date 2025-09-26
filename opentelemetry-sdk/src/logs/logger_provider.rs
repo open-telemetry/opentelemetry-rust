@@ -402,6 +402,10 @@ mod tests {
             *res = resource.clone();
             self.exporter.set_resource(resource);
         }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
     impl TestProcessorForResource {
         fn new(exporter: TestExporterForResource) -> Self {
