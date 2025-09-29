@@ -81,8 +81,8 @@ impl fmt::Debug for Key {
 impl From<Key> for String {
     fn from(key: Key) -> Self {
         match key.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }
