@@ -268,8 +268,8 @@ impl StringValue {
 impl From<StringValue> for String {
     fn from(s: StringValue) -> Self {
         match s.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }
