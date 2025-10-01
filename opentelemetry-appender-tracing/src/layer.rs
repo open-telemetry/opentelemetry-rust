@@ -685,17 +685,20 @@ mod tests {
         );
 
         // Act again.
-        tracing::error_span!("outer-span").in_scope(|| {
-            let span = tracing::Span::current();
+        {
             let parent_context = Context::current().with_remote_span_context(remote_span_context);
-            let _ = span.set_parent(parent_context);
+            let outer_span = tracing::error_span!("outer-span");
+            let _ = outer_span.set_parent(parent_context);
 
-            error!("first-event");
+            outer_span.in_scope(|| {
+                error!("first-event");
 
-            tracing::error_span!("inner-span").in_scope(|| {
-                error!("second-event");
+                let inner_span = tracing::error_span!("inner-span");
+                inner_span.in_scope(|| {
+                    error!("second-event");
+                });
             });
-        });
+        }
 
         assert!(logger_provider.force_flush().is_ok());
 
