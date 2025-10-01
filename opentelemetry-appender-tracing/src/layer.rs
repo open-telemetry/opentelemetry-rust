@@ -246,21 +246,21 @@ where
 
         #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
-            use opentelemetry::trace::TraceContextExt;
             use tracing_opentelemetry::OtelData;
             if let Some(otd) = span.extensions().get::<OtelData>() {
-                if let Some(span_id) = otd.builder.span_id {
-                    let opt_trace_id = if otd.parent_cx.has_active_span() {
-                        Some(otd.parent_cx.span().span_context().trace_id())
-                    } else {
+                if let Some(span_id) = otd.span_id() {
+                    // Try the trace_id of the current span first;
+                    // If it is not already established (still in the Builder state), try rooting the span.
+                    let opt_trace_id = otd.trace_id().or_else(|| {
                         span.scope().last().and_then(|root_span| {
                             root_span
                                 .extensions()
                                 .get::<OtelData>()
-                                .and_then(|otd| otd.builder.trace_id)
+                                .and_then(|root_otd| root_otd.trace_id())
                         })
-                    };
+                    });
                     if let Some(trace_id) = opt_trace_id {
+                        // Unable to reliably obtain TraceFlags (old implementation also passed None)
                         log_record.set_trace_context(trace_id, span_id, None);
                     }
                 }
