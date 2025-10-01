@@ -688,7 +688,7 @@ mod tests {
         tracing::error_span!("outer-span").in_scope(|| {
             let span = tracing::Span::current();
             let parent_context = Context::current().with_remote_span_context(remote_span_context);
-            span.set_parent(parent_context);
+            let _ = span.set_parent(parent_context);
 
             error!("first-event");
 
