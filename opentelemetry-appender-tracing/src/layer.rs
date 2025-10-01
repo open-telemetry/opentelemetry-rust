@@ -244,7 +244,7 @@ where
         // Visit fields.
         event.record(&mut visitor);
 
-        /*#[cfg(feature = "experimental_use_tracing_span_context")]
+        #[cfg(feature = "experimental_use_tracing_span_context")]
         if let Some(span) = _ctx.event_span(event) {
             use opentelemetry::trace::TraceContextExt;
             use tracing_opentelemetry::OtelData;
@@ -265,7 +265,7 @@ where
                     }
                 }
             }
-        }*/
+        }
 
         //emit record
         self.logger.emit(log_record);
@@ -611,7 +611,7 @@ mod tests {
         }
     }
 
-    /*#[cfg(feature = "experimental_use_tracing_span_context")]
+    #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
     fn tracing_appender_inside_tracing_crate_context() {
         use opentelemetry::{trace::SpanContext, Context, SpanId, TraceId};
@@ -722,7 +722,6 @@ mod tests {
         assert_eq!(trace_ctx0.span_id, outer_span_id);
         assert_eq!(trace_ctx1.span_id, inner_span_id);
     }
-    */
 
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
