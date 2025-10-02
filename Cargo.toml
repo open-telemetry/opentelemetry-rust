@@ -64,16 +64,16 @@ const-hex = "1.14.1"
 lazy_static = "1.4.0"
 num-format = "0.4.4"
 num_cpus = "1.15.0"
-opentelemetry = { path = "opentelemetry", default-features = false }
-opentelemetry_sdk = { path = "opentelemetry-sdk", default-features = false }
-opentelemetry-appender-log = { path = "opentelemetry-appender-log", default-features = false }
-opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", default-features = false }
-opentelemetry-http = { path = "opentelemetry-http", default-features = false }
-opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", default-features = false }
-opentelemetry-otlp = { path = "opentelemetry-otlp", default-features = false }
-opentelemetry-proto = { path = "opentelemetry-proto", default-features = false }
-opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", default-features = false }
-opentelemetry-stdout = { path = "opentelemetry-stdout", default-features = false }
+opentelemetry = { path = "opentelemetry", version = "0.31", default-features = false }
+opentelemetry_sdk = { path = "opentelemetry-sdk", version = "0.31", default-features = false }
+opentelemetry-appender-log = { path = "opentelemetry-appender-log", version = "0.31", default-features = false }
+opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", version = "0.31.1", default-features = false }
+opentelemetry-http = { path = "opentelemetry-http", version = "0.31", default-features = false }
+opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", version = "0.31", default-features = false }
+opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.31", default-features = false }
+opentelemetry-proto = { path = "opentelemetry-proto", version= "0.31", default-features = false }
+opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.31", default-features = false }
+opentelemetry-stdout = { path = "opentelemetry-stdout", version = "0.31", default-features = false }
 percent-encoding = "2.0"
 rstest = "0.23.0"
 schemars = "0.8"
@@ -81,7 +81,7 @@ sysinfo = "0.32"
 tempfile = "3.3.0"
 testcontainers = "0.23.1"
 tracing-log = "0.2"
-tracing-opentelemetry = "0.31"
+tracing-opentelemetry = "0.32"
 typed-builder = "0.20"
 uuid = "1.3"
 

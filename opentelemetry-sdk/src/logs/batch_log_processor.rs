@@ -207,6 +207,10 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
+                // The following `otel_warn!` may cause an infinite feedback loop of
+                // 'telemetry-induced-telemetry', potentially causing a stack overflow
+                let _guard = Context::enter_telemetry_suppressed_scope();
+
                 // Given background thread is the only receiver, and it's
                 // disconnected, it indicates the thread is shutdown
                 otel_warn!(
