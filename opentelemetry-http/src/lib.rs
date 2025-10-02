@@ -251,9 +251,8 @@ impl<T> ResponseExt for Response<T> {
 
 #[cfg(test)]
 mod tests {
-    use http::HeaderValue;
-
     use super::*;
+    use http::HeaderValue;
 
     #[test]
     fn http_headers_get() {
@@ -266,7 +265,6 @@ mod tests {
             "case insensitive extraction"
         )
     }
-
     #[test]
     fn http_headers_get_all() {
         let mut carrier = http::HeaderMap::new();

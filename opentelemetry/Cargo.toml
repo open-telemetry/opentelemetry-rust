@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.30.0"
+version = "0.31.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
