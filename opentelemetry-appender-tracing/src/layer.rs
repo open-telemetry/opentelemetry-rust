@@ -250,7 +250,7 @@ where
             if let Some(otd) = span.extensions().get::<OtelData>() {
                 if let Some(span_id) = otd.span_id() {
                     // Try the trace_id of the current span first;
-                    // If it is not already established (still in the Builder state), try rooting the span.
+                    // If it is not already established (still in the Builder state), try finding the root span.
                     let opt_trace_id = otd.trace_id().or_else(|| {
                         span.scope().last().and_then(|root_span| {
                             root_span
