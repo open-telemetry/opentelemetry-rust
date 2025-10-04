@@ -31,13 +31,14 @@ criterion = { workspace = true }
 #tokio = { workspace = true, features = ["full"]}
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+pprof = { workspace = true }
 
 [features]
 default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 experimental_use_tracing_span_context = ["tracing-opentelemetry"]
+bench_profiling = []
 
 
 [[bench]]
