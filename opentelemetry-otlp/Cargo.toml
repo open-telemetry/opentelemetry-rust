@@ -76,7 +76,9 @@ zstd-tonic = ["tonic/zstd"]
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-tls = ["tonic/tls-ring"]
+tls = []
+tls-aws-lc = ["tls", "tonic/tls-aws-lc"]
+tls-ring = ["tls", "tonic/tls-ring"]
 tls-roots = ["tls", "tonic/tls-native-roots"]
 tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 
