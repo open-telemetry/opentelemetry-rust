@@ -61,7 +61,7 @@ async-trait = { workspace = true }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-internal-logs = ["tracing", "opentelemetry_sdk/internal-logs", "opentelemetry-http/internal-logs"]
+internal-logs = ["tracing", "opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
 
 # add ons
 serialize = ["serde", "serde_json"]
