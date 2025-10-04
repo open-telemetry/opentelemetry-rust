@@ -260,7 +260,8 @@ mod common;
 pub mod testing;
 
 pub use common::{
-    Array, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue, StringValue, Value,
+    Array, AsKeyValues, InstrumentationScope, InstrumentationScopeBuilder, Key, KeyValue,
+    KeyValueCollector, StringValue, Value,
 };
 
 #[cfg(feature = "metrics")]
