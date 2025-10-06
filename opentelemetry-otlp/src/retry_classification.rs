@@ -4,7 +4,7 @@
 //! supporting server-provided throttling hints like HTTP Retry-After headers and
 //! gRPC RetryInfo metadata.
 
-use opentelemetry_sdk::retry::RetryErrorType;
+use crate::retry::RetryErrorType;
 use std::time::Duration;
 
 #[cfg(feature = "grpc-tonic")]
@@ -222,7 +222,7 @@ mod tests {
     #[cfg(feature = "grpc-tonic")]
     mod grpc_tests {
         use crate::retry_classification::grpc::classify_tonic_status;
-        use opentelemetry_sdk::retry::RetryErrorType;
+        use crate::retry::RetryErrorType;
         use tonic_types::{ErrorDetails, StatusExt};
 
         #[test]

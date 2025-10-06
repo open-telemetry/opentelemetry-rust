@@ -25,7 +25,7 @@ use std::time::Duration;
 #[cfg(feature = "experimental-http-retry")]
 use crate::retry_classification::http::classify_http_error;
 #[cfg(feature = "experimental-http-retry")]
-use opentelemetry_sdk::retry::{RetryErrorType, RetryPolicy};
+use crate::retry::{RetryErrorType, RetryPolicy};
 
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
@@ -387,7 +387,7 @@ impl OtlpHttpClient {
     {
         #[cfg(feature = "experimental-http-retry")]
         {
-            use opentelemetry_sdk::retry::retry_with_backoff;
+            use crate::retry::retry_with_backoff;
             use opentelemetry_sdk::runtime::Tokio;
 
             // Build request body once before retry loop
@@ -1493,7 +1493,7 @@ mod tests {
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
             use crate::WithHttpConfig;
-            use opentelemetry_sdk::retry::RetryPolicy;
+            use crate::retry::RetryPolicy;
 
             let custom_policy = RetryPolicy {
                 max_retries: 5,
@@ -1527,7 +1527,7 @@ mod tests {
         #[cfg(feature = "experimental-http-retry")]
         #[test]
         fn test_custom_retry_policy_used() {
-            use opentelemetry_sdk::retry::RetryPolicy;
+            use crate::retry::RetryPolicy;
 
             let custom_policy = RetryPolicy {
                 max_retries: 7,

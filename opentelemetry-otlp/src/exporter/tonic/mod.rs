@@ -20,9 +20,9 @@ use crate::{ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADER
     feature = "experimental-grpc-retry",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
-use opentelemetry_sdk::retry::retry_with_backoff;
+use crate::retry::retry_with_backoff;
 #[cfg(feature = "grpc-tonic")]
-use opentelemetry_sdk::retry::RetryPolicy;
+use crate::retry::RetryPolicy;
 #[cfg(all(
     feature = "experimental-grpc-retry",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -366,7 +366,7 @@ impl TonicExporterBuilder {
 async fn tonic_retry_with_backoff<R, F, Fut, T>(
     runtime: R,
     policy: RetryPolicy,
-    classify_fn: fn(&tonic::Status) -> opentelemetry_sdk::retry::RetryErrorType,
+    classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
     operation_name: &'static str,
     operation: F,
 ) -> Result<T, tonic::Status>
@@ -387,7 +387,7 @@ where
 async fn tonic_retry_with_backoff<F, Fut, T>(
     _runtime: (),
     _policy: RetryPolicy,
-    _classify_fn: fn(&tonic::Status) -> opentelemetry_sdk::retry::RetryErrorType,
+    _classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
     _operation_name: &'static str,
     operation: F,
 ) -> Result<T, tonic::Status>
@@ -857,7 +857,7 @@ mod tests {
     #[test]
     fn test_with_retry_policy() {
         use crate::WithTonicConfig;
-        use opentelemetry_sdk::retry::RetryPolicy;
+        use crate::retry::RetryPolicy;
 
         let custom_policy = RetryPolicy {
             max_retries: 5,

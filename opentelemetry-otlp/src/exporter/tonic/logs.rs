@@ -14,7 +14,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 
 use super::BoxInterceptor;
 
-use opentelemetry_sdk::retry::RetryPolicy;
+use crate::retry::RetryPolicy;
 #[cfg(feature = "experimental-grpc-retry")]
 use opentelemetry_sdk::runtime::Tokio;
 

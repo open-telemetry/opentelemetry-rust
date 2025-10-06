@@ -369,6 +369,10 @@ mod span;
 #[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
 pub mod retry_classification;
 
+/// Retry logic for exporting telemetry data.
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+pub mod retry;
+
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 pub use crate::exporter::ExporterBuildError;
@@ -410,7 +414,7 @@ pub use crate::exporter::{
 };
 
 #[cfg(feature = "experimental-http-retry")]
-pub use opentelemetry_sdk::retry::RetryPolicy;
+pub use retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]

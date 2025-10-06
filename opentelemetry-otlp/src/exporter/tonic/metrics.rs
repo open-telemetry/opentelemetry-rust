@@ -12,7 +12,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use super::BoxInterceptor;
 use crate::metric::MetricsClient;
 
-use opentelemetry_sdk::retry::RetryPolicy;
+use crate::retry::RetryPolicy;
 #[cfg(feature = "experimental-grpc-retry")]
 use opentelemetry_sdk::runtime::Tokio;
 

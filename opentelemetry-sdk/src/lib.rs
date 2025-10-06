@@ -168,5 +168,3 @@ impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
     }
 }
 
-/// Retry logic for exporting telemetry data.
-pub mod retry;
