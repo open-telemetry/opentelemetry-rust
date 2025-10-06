@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.31.1
+
+Released 2025-Oct-1
+
+- Bump `tracing-opentelemetry` to 0.32
+
 ## 0.31.0
 
 Released 2025-Sep-25
