@@ -856,8 +856,8 @@ mod tests {
     #[cfg(feature = "experimental-grpc-retry")]
     #[test]
     fn test_with_retry_policy() {
-        use crate::WithTonicConfig;
         use crate::retry::RetryPolicy;
+        use crate::WithTonicConfig;
 
         let custom_policy = RetryPolicy {
             max_retries: 5,

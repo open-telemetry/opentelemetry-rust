@@ -8,16 +8,32 @@
 //! retries. The function uses error classification to determine retry behavior and can honor
 //! server-provided throttling hints.
 
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 use opentelemetry::otel_warn;
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 use std::future::Future;
-use std::hash::DefaultHasher;
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
+use std::hash::{DefaultHasher, Hasher};
 use std::time::Duration;
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 use std::time::SystemTime;
 
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 use opentelemetry_sdk::runtime::Runtime;
 
 /// Classification of errors for retry purposes.
@@ -47,11 +63,17 @@ pub struct RetryPolicy {
 
 /// A runtime stub for when experimental_async_runtime is not enabled.
 /// This allows retry policy to be configured but no actual retries occur.
-#[cfg(not(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry")))]
+#[cfg(not(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+)))]
 #[derive(Debug, Clone, Default)]
 pub struct NoOpRuntime;
 
-#[cfg(not(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry")))]
+#[cfg(not(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+)))]
 impl NoOpRuntime {
     /// Creates a new no-op runtime.
     pub fn new() -> Self {
@@ -60,17 +82,19 @@ impl NoOpRuntime {
 }
 
 // Generates a random jitter value up to max_jitter
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 fn generate_jitter(max_jitter: u64) -> u64 {
-    let now = SystemTime::now();
-    let nanos = now
+    let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .subsec_nanos();
 
-    let hasher = DefaultHasher::default();
-
-    nanos as u64 % (max_jitter + 1)
+    let mut hasher = DefaultHasher::default();
+    hasher.write_u32(nanos);
+    hasher.finish() % (max_jitter + 1)
 }
 
 /// Retries the given operation with exponential backoff, jitter, and error classification.
@@ -90,7 +114,10 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 ///
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
-#[cfg(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry"))]
+#[cfg(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+))]
 pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
     runtime: R,
     policy: RetryPolicy,
@@ -151,7 +178,10 @@ where
 
 /// No-op retry function for when experimental_async_runtime is not enabled.
 /// This function will execute the operation exactly once without any retries.
-#[cfg(not(any(feature = "experimental-grpc-retry", feature = "experimental-http-retry")))]
+#[cfg(not(any(
+    feature = "experimental-grpc-retry",
+    feature = "experimental-http-retry"
+)))]
 pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
     _runtime: R,
     _policy: RetryPolicy,

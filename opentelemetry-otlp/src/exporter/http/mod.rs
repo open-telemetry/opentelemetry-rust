@@ -23,9 +23,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 #[cfg(feature = "experimental-http-retry")]
-use crate::retry_classification::http::classify_http_error;
-#[cfg(feature = "experimental-http-retry")]
 use crate::retry::{RetryErrorType, RetryPolicy};
+#[cfg(feature = "experimental-http-retry")]
+use crate::retry_classification::http::classify_http_error;
 
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
@@ -1492,8 +1492,8 @@ mod tests {
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
-            use crate::WithHttpConfig;
             use crate::retry::RetryPolicy;
+            use crate::WithHttpConfig;
 
             let custom_policy = RetryPolicy {
                 max_retries: 5,

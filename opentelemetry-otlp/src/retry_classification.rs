@@ -221,8 +221,8 @@ mod tests {
     // Tests for gRPC error classification using public interface
     #[cfg(feature = "grpc-tonic")]
     mod grpc_tests {
-        use crate::retry_classification::grpc::classify_tonic_status;
         use crate::retry::RetryErrorType;
+        use crate::retry_classification::grpc::classify_tonic_status;
         use tonic_types::{ErrorDetails, StatusExt};
 
         #[test]
