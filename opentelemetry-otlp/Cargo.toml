@@ -40,6 +40,7 @@ tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+httpdate = { version = "1.0.3", optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
@@ -88,7 +89,7 @@ tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 
 # http with retry support.
-experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio"]
+experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio", "httpdate"]
 
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]

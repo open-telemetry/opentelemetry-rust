@@ -5,7 +5,6 @@
 //! gRPC RetryInfo metadata.
 
 use crate::retry::RetryErrorType;
-use std::time::Duration;
 
 #[cfg(feature = "grpc-tonic")]
 use tonic;
@@ -14,8 +13,10 @@ use tonic;
 use tonic_types::StatusExt;
 
 /// HTTP-specific error classification with Retry-After header support.
+#[cfg(feature = "experimental-http-retry")]
 pub mod http {
     use super::*;
+    use std::time::Duration;
 
     /// Classifies HTTP errors based on status code and headers.
     ///
@@ -76,14 +77,17 @@ pub mod http {
     }
 
     /// Parses HTTP date format and returns delay in seconds from now.
-    ///
-    /// This is a simplified parser for the most common HTTP date format.
-    /// TODO - should we use a library here?
     fn parse_http_date_to_delay(date_str: &str) -> Result<u64, ()> {
-        // For now, return error - would need proper HTTP date parsing
-        // This could be implemented with chrono or similar
-        let _ = date_str;
-        Err(())
+        use std::time::SystemTime;
+
+        // Try parse the date; if we fail, propagate an () error up to the caller.
+        let target_time = httpdate::parse_http_date(date_str).map_err(|_| ())?;
+
+        let now = SystemTime::now();
+        let delay = target_time
+            .duration_since(now)
+            .unwrap_or(std::time::Duration::ZERO);
+        Ok(delay.as_secs())
     }
 }
 
@@ -160,6 +164,7 @@ pub mod grpc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     // Tests for HTTP error classification
     mod http_tests {
@@ -215,6 +220,42 @@ mod tests {
             assert_eq!(classify_http_error(100, None), RetryErrorType::Retryable);
             assert_eq!(classify_http_error(200, None), RetryErrorType::Retryable);
             assert_eq!(classify_http_error(300, None), RetryErrorType::Retryable);
+        }
+
+        #[test]
+        #[cfg(feature = "experimental-http-retry")]
+        fn test_http_429_with_retry_after_valid_date() {
+            use std::time::SystemTime;
+
+            // Create a time 30 seconds in the future
+            let future_time = SystemTime::now() + Duration::from_secs(30);
+            let date_str = httpdate::fmt_http_date(future_time);
+            let result = classify_http_error(429, Some(&date_str));
+            match result {
+                RetryErrorType::Throttled(duration) => {
+                    let secs = duration.as_secs();
+                    assert!(
+                        (29..=30).contains(&secs),
+                        "Expected ~30 seconds, got {}",
+                        secs
+                    );
+                }
+                _ => panic!("Expected Throttled, got {:?}", result),
+            }
+        }
+
+        #[test]
+        #[cfg(feature = "experimental-http-retry")]
+        fn test_http_429_with_retry_after_invalid_date() {
+            let result = classify_http_error(429, Some("Not a valid date"));
+            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+        }
+
+        #[test]
+        #[cfg(feature = "experimental-http-retry")]
+        fn test_http_429_with_retry_after_malformed_date() {
+            let result = classify_http_error(429, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
+            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
         }
     }
 
