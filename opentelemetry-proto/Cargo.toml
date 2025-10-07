@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.30.0"
+version = "0.31.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -36,7 +36,7 @@ full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "intern
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/channel"]
-gen-tonic-messages = ["tonic", "prost"]
+gen-tonic-messages = ["tonic", "tonic-prost", "prost"]
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
@@ -52,19 +52,20 @@ with-schemars = ["schemars"]
 with-serde = ["serde", "const-hex", "base64", "serde_json"]
 
 [dependencies]
-tonic = { workspace = true, optional = true, features = ["codegen", "prost"] }
+tonic = { workspace = true, optional = true, features = ["codegen"] }
+tonic-prost = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true }
+opentelemetry = { workspace = true, default-features = false }
+opentelemetry_sdk = { workspace = true, default-features = false }
 schemars = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["serde_derive"] }
+serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 serde_json = { workspace = true, optional = true }
 const-hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
-tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }
 prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }

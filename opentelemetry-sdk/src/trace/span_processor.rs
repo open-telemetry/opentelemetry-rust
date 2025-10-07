@@ -968,6 +968,7 @@ mod tests {
         let unsampled = SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
+            parent_span_is_remote: false,
             span_kind: SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
@@ -1129,6 +1130,7 @@ mod tests {
         SpanData {
             span_context: SpanContext::empty_context(),
             parent_span_id: SpanId::INVALID,
+            parent_span_is_remote: false,
             span_kind: SpanKind::Internal,
             name: name.to_string().into(),
             start_time: opentelemetry::time::now(),
@@ -1256,6 +1258,7 @@ mod tests {
         let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(2) // Small queue size to test span dropping
+            .with_max_export_batch_size(512) // Explicitly set to avoid env var override
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
@@ -1270,7 +1273,7 @@ mod tests {
         processor.on_end(span3.clone()); // This span exceeds the queue size
 
         // Wait for the scheduled delay to expire
-        std::thread::sleep(Duration::from_secs(3));
+        std::thread::sleep(Duration::from_secs(6));
 
         let exported_spans = exporter_shared.lock().unwrap();
 
