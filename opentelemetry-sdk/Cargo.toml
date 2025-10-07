@@ -36,7 +36,7 @@ rstest = { workspace = true }
 temp-env = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+pprof = { workspace = true }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
@@ -57,6 +57,7 @@ experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimenta
 experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
+bench_profiling = []
 
 [[bench]]
 name = "context"

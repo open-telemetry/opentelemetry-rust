@@ -53,7 +53,7 @@ where
 
     c.bench_function(name, |b| {
         b.iter(|| {
-            criterion::black_box(logger.event_enabled(
+            std::hint::black_box(logger.event_enabled(
                 opentelemetry::logs::Severity::Debug,
                 "target",
                 Some("name"),
