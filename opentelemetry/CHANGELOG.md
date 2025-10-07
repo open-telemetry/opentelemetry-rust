@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
+
 ## v0.31.0
 
 Released 2025-Sep-25
