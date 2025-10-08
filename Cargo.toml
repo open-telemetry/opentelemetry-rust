@@ -44,6 +44,7 @@ thiserror = { version = "2", default-features = false }
 tonic = { version = "0.14.1", default-features = false }
 tonic-prost-build = "0.14.1"
 tonic-prost = "0.14.1"
+tonic-types = "0.14.1"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
 # Using `tracing 0.1.40` because 0.1.39 (which is yanked) introduces the ability to set event names in macros,
