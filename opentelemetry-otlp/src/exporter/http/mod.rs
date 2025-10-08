@@ -388,7 +388,6 @@ impl OtlpHttpClient {
         #[cfg(feature = "experimental-http-retry")]
         {
             use crate::retry::retry_with_backoff;
-            use opentelemetry_sdk::runtime::Tokio;
 
             // Build request body once before retry loop
             let (body, content_type, content_encoding) = build_body_fn(self, data)
@@ -400,8 +399,17 @@ impl OtlpHttpClient {
                 endpoint: self.collector_endpoint.to_string(),
             });
 
+            // Select runtime based on HTTP client feature - if we're using
+            // one without Tokio, we don't need or want the Tokio async blocking
+            // behaviour.
+            #[cfg(feature = "reqwest-blocking-client")]
+            let runtime = opentelemetry_sdk::runtime::NoAsync;
+
+            #[cfg(not(feature = "reqwest-blocking-client"))]
+            let runtime = opentelemetry_sdk::runtime::Tokio;
+
             retry_with_backoff(
-                Tokio,
+                runtime,
                 self.retry_policy.clone(),
                 classify_http_export_error,
                 operation_name,
