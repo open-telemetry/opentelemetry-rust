@@ -13,8 +13,9 @@
     | AddWithDynamicAttributes_WithStringAllocation       | 77.338 ns   |
 */
 
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use opentelemetry::{global, metrics::Counter, KeyValue};
+use std::hint::black_box;
 
 // Run this benchmark with:
 // cargo bench --bench metrics
