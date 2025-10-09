@@ -70,7 +70,7 @@ opentelemetry-appender-log = { path = "opentelemetry-appender-log", version = "0
 opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", version = "0.31.1", default-features = false }
 opentelemetry-http = { path = "opentelemetry-http", version = "0.31", default-features = false }
 opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", version = "0.31", default-features = false }
-opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.31", default-features = false }
+opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.31.1", default-features = false }
 opentelemetry-proto = { path = "opentelemetry-proto", version= "0.31", default-features = false }
 opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.31", default-features = false }
 opentelemetry-stdout = { path = "opentelemetry-stdout", version = "0.31", default-features = false }

@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp"
-version = "0.31.0"
+version = "0.31.1"
 description = "Exporter for the OpenTelemetry Collector"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp"

@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.31.1
+
+Released 2025-Oct-10
+
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
 
 ## 0.31.0
