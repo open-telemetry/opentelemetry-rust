@@ -1,6 +1,7 @@
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{body::Incoming, service::service_fn, Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use log::{info, Level};
 use opentelemetry::{
     baggage::BaggageExt,
     global::{self, BoxedTracer},
@@ -9,7 +10,7 @@ use opentelemetry::{
     trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
     Context, InstrumentationScope, KeyValue,
 };
-use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_http::{Bytes, HeaderExtractor};
 use opentelemetry_sdk::{
     error::OTelSdkResult,
@@ -22,8 +23,6 @@ use opentelemetry_stdout::{LogExporter, SpanExporter};
 use std::time::Duration;
 use std::{convert::Infallible, net::SocketAddr, sync::OnceLock};
 use tokio::net::TcpListener;
-use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn get_tracer() -> &'static BoxedTracer {
     static TRACER: OnceLock<BoxedTracer> = OnceLock::new();
@@ -46,7 +45,7 @@ async fn handle_health_check(
         .span_builder("health_check")
         .with_kind(SpanKind::Internal)
         .start(tracer);
-    info!(name: "health_check", message = "Health check endpoint hit");
+    info!(name = "health_check"; "Health check endpoint hit");
 
     let res = Response::new(
         Full::new(Bytes::from_static(b"Server is up and running!"))
@@ -66,7 +65,7 @@ async fn handle_echo(
         .span_builder("echo")
         .with_kind(SpanKind::Internal)
         .start(tracer);
-    info!(name = "echo", message = "Echo endpoint hit");
+    info!(name = "echo"; "Echo endpoint hit");
 
     let res = Response::new(req.into_body().boxed());
 
@@ -86,7 +85,7 @@ async fn router(
             .with_kind(SpanKind::Server)
             .start_with_context(tracer, &parent_cx);
 
-        info!(name = "router", message = "Dispatching request");
+        info!(name = "router"; "Dispatching request");
 
         let cx = parent_cx.with_span(span);
         match (req.method(), req.uri().path()) {
@@ -173,8 +172,10 @@ fn init_logs() -> SdkLoggerProvider {
         .with_log_processor(EnrichWithBaggageLogProcessor)
         .with_simple_exporter(LogExporter::default())
         .build();
-    let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
-    tracing_subscriber::registry().with(otel_layer).init();
+    // Setup Log Appender for the log crate.
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
 
     logger_provider
 }
