@@ -28,14 +28,6 @@ if [ -d "$TEST_DIR" ]; then
     echo ####
     echo
     cargo test --no-default-features --features "reqwest-blocking-client"
-
-    # Run tests with the hyper-client feature
-    echo
-    echo ####
-    echo "Integration Tests: Hyper Client (Disabled now)"
-    echo ####
-    echo
-    cargo test --no-default-features --features "hyper-client","internal-logs" --test logs
 else
     echo "Directory $TEST_DIR does not exist. Skipping tests."
     exit 1

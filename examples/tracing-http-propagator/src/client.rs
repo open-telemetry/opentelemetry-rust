@@ -1,18 +1,17 @@
 use http_body_util::Full;
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
+use log::{info, Level};
 use opentelemetry::{
     global,
     trace::{SpanKind, TraceContextExt, Tracer},
     Context,
 };
-use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+use opentelemetry_appender_log::OpenTelemetryLogBridge;
 use opentelemetry_http::{Bytes, HeaderInjector};
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, propagation::TraceContextPropagator, trace::SdkTracerProvider,
 };
 use opentelemetry_stdout::{LogExporter, SpanExporter};
-use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn init_tracer() -> SdkTracerProvider {
     global::set_text_map_propagator(TraceContextPropagator::new());
@@ -32,11 +31,10 @@ fn init_logs() -> SdkLoggerProvider {
     let logger_provider = SdkLoggerProvider::builder()
         .with_simple_exporter(LogExporter::default())
         .build();
-    let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
-    tracing_subscriber::registry()
-        .with(otel_layer)
-        .with(tracing_subscriber::filter::LevelFilter::INFO)
-        .init();
+    // Setup Log Appender for the log crate.
+    let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
 
     logger_provider
 }
@@ -65,7 +63,7 @@ async fn send_request(
         .request(req.body(Full::new(Bytes::from(body_content.to_string())))?)
         .await?;
 
-    info!(name: "ResponseReceived", status = res.status().to_string(), message = "Response received");
+    info!(name = "ResponseReceived", status:% = res.status(); "Response received");
 
     Ok(())
 }

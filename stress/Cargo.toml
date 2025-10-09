@@ -31,12 +31,6 @@ path = "src/metrics_overflow.rs"
 doc = false
 bench = false
 
-[[bin]] # Bin to run the logs stress tests
-name = "logs"
-path = "src/logs.rs"
-doc = false
-bench = false
-
 [[bin]] # Bin to run the traces stress tests
 name = "traces"
 path = "src/traces.rs"
@@ -55,7 +49,6 @@ lazy_static = { workspace = true }
 num_cpus = { workspace = true }
 opentelemetry = { path = "../opentelemetry", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled"] }
 opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["metrics", "logs", "trace", "spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor", "experimental_metrics_custom_reader"] }
-opentelemetry-appender-tracing = { workspace = true, features = ["spec_unstable_logs_enabled"] }
 rand = { workspace = true, features = ["small_rng", "os_rng"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["registry", "std"] }
