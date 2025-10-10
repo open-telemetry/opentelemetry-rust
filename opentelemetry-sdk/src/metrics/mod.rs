@@ -127,7 +127,7 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread;
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     // Run all tests in this mod
     // cargo test metrics::tests --features=testing,spec_unstable_metrics_views

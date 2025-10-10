@@ -107,7 +107,7 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// ```rust
 /// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, SdkLoggerProvider};
 /// use opentelemetry::global;
-/// use std::time::Duration;
+/// use opentelemetry::time::Duration;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
 ///
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
@@ -751,7 +751,7 @@ mod tests {
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::{Arc, Mutex};
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     #[test]
     fn test_default_const_values() {

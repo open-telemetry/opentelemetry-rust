@@ -1,10 +1,10 @@
+use crate::time::SystemTime;
 use crate::trace::{noop::NoopTracerProvider, SpanContext, Status};
 use crate::{otel_error, otel_info, InstrumentationScope};
 use crate::{trace, trace::TracerProvider, Context, KeyValue};
 use std::borrow::Cow;
 use std::fmt;
 use std::sync::{Arc, OnceLock, RwLock};
-use std::time::SystemTime;
 
 /// Allows a specific [`crate::trace::Span`] to be used generically by [`BoxedSpan`]
 /// instances by mirroring the interface and boxing the return types.
@@ -99,7 +99,7 @@ pub trait ObjectSafeSpan {
     ///
     /// This API MUST be non-blocking.
     fn end(&mut self) {
-        self.end_with_timestamp(crate::time::now());
+        self.end_with_timestamp(SystemTime::now());
     }
 
     /// Finishes the `Span` with given timestamp

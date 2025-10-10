@@ -165,7 +165,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time;
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     #[derive(Debug, Clone)]
     struct LogExporterThatRequiresTokio {

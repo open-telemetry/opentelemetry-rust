@@ -3,7 +3,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
-use std::time::Duration;
+use opentelemetry::time::Duration;
 use std::{
     borrow::Cow,
     sync::{

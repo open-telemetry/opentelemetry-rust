@@ -21,7 +21,7 @@ use opentelemetry_sdk::metrics::{
     data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
 };
 use std::fmt::{Debug, Formatter};
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 /// Target to which the exporter is going to send metrics, defaults to https://localhost:4317/v1/metrics.
 /// Learn about the relationship between this constant and default/spans/logs at
@@ -174,7 +174,7 @@ impl PushMetricExporter for MetricExporter {
         self.shutdown_with_timeout(Duration::from_secs(5))
     }
 
-    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: opentelemetry::time::Duration) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.shutdown(),

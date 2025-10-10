@@ -309,7 +309,7 @@ mod tests {
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     #[derive(Debug, Clone)]
     struct MockLogExporter {

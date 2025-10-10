@@ -1,6 +1,8 @@
 //! Types for delivery of pre-aggregated metric time series data.
 
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
+
+use opentelemetry::time::SystemTime;
 
 use opentelemetry::{InstrumentationScope, KeyValue};
 

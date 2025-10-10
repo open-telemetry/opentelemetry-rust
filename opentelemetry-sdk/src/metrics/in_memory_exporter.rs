@@ -8,7 +8,7 @@ use crate::InMemoryExporterError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 

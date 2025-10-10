@@ -5,7 +5,7 @@ use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;
 use std::fmt::Debug;
-use std::time::{Duration, SystemTime};
+use opentelemetry::time::{Duration, SystemTime};
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
 /// implement so that they can be plugged into OpenTelemetry SDK and support

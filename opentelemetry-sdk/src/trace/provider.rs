@@ -71,11 +71,11 @@ use crate::trace::{
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::otel_debug;
+use opentelemetry::time::Duration;
 use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
 
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
@@ -474,13 +474,12 @@ mod tests {
     use crate::trace::{Config, Span, SpanProcessor};
     use crate::trace::{SdkTracerProvider, SpanData};
     use crate::Resource;
+    use opentelemetry::env;
+    use opentelemetry::time::Duration;
     use opentelemetry::trace::{Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
-
-    use std::env;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
-    use std::time::Duration;
 
     // fields below is wrapped with Arc so we can assert it
     #[derive(Default, Debug)]

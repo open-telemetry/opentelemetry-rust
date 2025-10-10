@@ -3,8 +3,8 @@
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
 use crate::resource::{Resource, ResourceDetector};
+use opentelemetry::env;
 use opentelemetry::{Key, KeyValue, Value};
-use std::env;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
 const OTEL_SERVICE_NAME: &str = "OTEL_SERVICE_NAME";

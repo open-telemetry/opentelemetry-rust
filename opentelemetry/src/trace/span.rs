@@ -1,7 +1,7 @@
+use crate::time::SystemTime;
 use crate::{trace::SpanContext, KeyValue};
 use std::borrow::Cow;
 use std::error::Error;
-use std::time::SystemTime;
 
 /// The interface for a single operation within a trace.
 ///
@@ -60,7 +60,7 @@ pub trait Span {
     where
         T: Into<Cow<'static, str>>,
     {
-        self.add_event_with_timestamp(name, crate::time::now(), attributes)
+        self.add_event_with_timestamp(name, SystemTime::now(), attributes)
     }
 
     /// Record an error as an event for this span.
@@ -172,7 +172,7 @@ pub trait Span {
 
     /// Signals that the operation described by this span has now ended.
     fn end(&mut self) {
-        self.end_with_timestamp(crate::time::now());
+        self.end_with_timestamp(SystemTime::now());
     }
 
     /// Signals that the operation described by this span ended at the given time.

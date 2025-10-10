@@ -607,7 +607,7 @@ mod tests {
     #[test]
     fn collection_triggered_by_interval_multiple() {
         // Arrange
-        let interval = std::time::Duration::from_millis(1);
+        let interval = opentelemetry::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone())
             .with_interval(interval)
@@ -728,7 +728,7 @@ mod tests {
         // Validate using this exporter that periodic reader can handle exporter failure
         // and continue to export metrics.
         // Arrange
-        let interval = std::time::Duration::from_millis(10);
+        let interval = opentelemetry::time::Duration::from_millis(10);
         let exporter = MetricExporterThatFailsOnlyOnFirst::default();
         let reader = PeriodicReader::builder(exporter.clone())
             .with_interval(interval)
@@ -869,7 +869,7 @@ mod tests {
 
     async fn some_async_function() -> u64 {
         // No dependency on any particular async runtime.
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        std::thread::sleep(opentelemetry::time::Duration::from_millis(1));
         1
     }
 
@@ -894,7 +894,7 @@ mod tests {
     }
 
     fn async_inside_observable_callback_helper() {
-        let interval = std::time::Duration::from_millis(10);
+        let interval = opentelemetry::time::Duration::from_millis(10);
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone())
             .with_interval(interval)

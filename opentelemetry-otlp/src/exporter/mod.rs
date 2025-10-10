@@ -11,7 +11,7 @@ use crate::Protocol;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 use thiserror::Error;
 
 /// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
@@ -181,9 +181,9 @@ fn resolve_compression_from_env(
 ) -> Result<Option<Compression>, ExporterBuildError> {
     if let Some(compression) = config_compression {
         Ok(Some(compression))
-    } else if let Ok(compression) = std::env::var(signal_env_var) {
+    } else if let Ok(compression) = opentelemetry::env::var(signal_env_var) {
         Ok(Some(compression.parse::<Compression>()?))
-    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
+    } else if let Ok(compression) = opentelemetry::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
         Ok(Some(compression.parse::<Compression>()?))
     } else {
         Ok(None)
@@ -299,13 +299,13 @@ fn resolve_timeout(signal_timeout_var: &str, provided_timeout: Option<&Duration>
     // programmatic configuration overrides any value set via environment variables
     if let Some(timeout) = provided_timeout {
         *timeout
-    } else if let Some(timeout) = std::env::var(signal_timeout_var)
+    } else if let Some(timeout) = opentelemetry::env::var(signal_timeout_var)
         .ok()
         .and_then(|s| s.parse().ok())
     {
         // per signal env var is not modified
         Duration::from_millis(timeout)
-    } else if let Some(timeout) = std::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
+    } else if let Some(timeout) = opentelemetry::env::var(OTEL_EXPORTER_OTLP_TIMEOUT)
         .ok()
         .and_then(|s| s.parse().ok())
     {
@@ -397,7 +397,7 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn export_builder_error_invalid_http_endpoint() {
-        use std::time::Duration;
+        use opentelemetry::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
 
@@ -424,7 +424,7 @@ mod tests {
     #[cfg(feature = "grpc-tonic")]
     #[tokio::test]
     async fn export_builder_error_invalid_grpc_endpoint() {
-        use std::time::Duration;
+        use opentelemetry::time::Duration;
 
         use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
 
@@ -577,7 +577,7 @@ mod tests {
             || {
                 let timeout = super::resolve_timeout(
                     crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
-                    Some(&std::time::Duration::from_millis(1000)),
+                    Some(&opentelemetry::time::Duration::from_millis(1000)),
                 );
                 assert_eq!(timeout.as_millis(), 1000);
             },

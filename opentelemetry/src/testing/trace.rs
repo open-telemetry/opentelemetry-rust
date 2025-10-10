@@ -11,7 +11,7 @@ impl Span for TestSpan {
     fn add_event_with_timestamp<T>(
         &mut self,
         _name: T,
-        _timestamp: std::time::SystemTime,
+        _timestamp: crate::time::SystemTime,
         _attributes: Vec<KeyValue>,
     ) where
         T: Into<Cow<'static, str>>,
@@ -32,5 +32,5 @@ impl Span for TestSpan {
     }
 
     fn add_link(&mut self, _span_context: SpanContext, _attributes: Vec<KeyValue>) {}
-    fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {}
+    fn end_with_timestamp(&mut self, _timestamp: crate::time::SystemTime) {}
 }

@@ -254,7 +254,7 @@
 //! use opentelemetry_otlp::WithTonicConfig;
 //! # #[cfg(any(feature = "http-proto", feature = "http-json"))]
 //! use opentelemetry_otlp::WithHttpConfig;
-//! use std::time::Duration;
+//! use opentelemetry::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
 //!

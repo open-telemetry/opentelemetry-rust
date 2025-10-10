@@ -7,8 +7,9 @@ use crate::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{self, TraceContextExt as _},
     Context, InstrumentationScope, KeyValue,
+    time::SystemTime,
 };
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
 
 /// A no-op instance of a `TracerProvider`.
 #[derive(Clone, Debug, Default)]

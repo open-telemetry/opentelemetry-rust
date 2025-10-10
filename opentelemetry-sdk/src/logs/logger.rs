@@ -1,13 +1,13 @@
 #[cfg(feature = "trace")]
 use super::TraceContext;
 use super::{SdkLogRecord, SdkLoggerProvider};
+use opentelemetry::time::SystemTime;
 #[cfg(feature = "trace")]
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::{Context, InstrumentationScope};
 
 #[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::time::now;
 
 #[derive(Debug, Clone)]
 /// The object for emitting [`LogRecord`]s.
@@ -49,7 +49,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
             });
         }
         if record.observed_timestamp.is_none() {
-            record.observed_timestamp = Some(now());
+            record.observed_timestamp = Some(SystemTime::now());
         }
 
         for p in processors {

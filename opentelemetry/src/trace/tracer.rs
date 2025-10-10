@@ -3,7 +3,7 @@ use crate::{
     Context, KeyValue, SpanId, TraceId,
 };
 use std::borrow::Cow;
-use std::time::SystemTime;
+use crate::time::SystemTime;
 
 /// The interface for constructing [`Span`]s.
 ///

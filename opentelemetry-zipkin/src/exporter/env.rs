@@ -1,4 +1,4 @@
-use std::env;
+use opentelemetry::env;
 use std::time::Duration;
 
 /// Default Zipkin collector endpoint

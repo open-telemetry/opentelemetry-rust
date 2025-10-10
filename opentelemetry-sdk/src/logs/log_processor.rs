@@ -34,7 +34,7 @@ use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 
 use std::fmt::Debug;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 /// The interface for plugging into a [`SdkLogger`].
 ///

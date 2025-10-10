@@ -1,4 +1,5 @@
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
+use crate::time::SystemTime;
 
 use crate::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},

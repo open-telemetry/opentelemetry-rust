@@ -1,3 +1,7 @@
 [resolver]
 # https://doc.rust-lang.org/cargo/reference/config.html#resolverincompatible-rust-versions
 incompatible-rust-versions = "fallback"
+
+[build]
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))']
+rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]

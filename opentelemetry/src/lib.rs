@@ -279,24 +279,41 @@ pub mod trace;
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
 
+/// Platform-agnostic time types for WASM compatibility.
 #[doc(hidden)]
-#[cfg(any(feature = "metrics", feature = "trace", feature = "logs"))]
 pub mod time {
-    use std::time::SystemTime;
+    #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+    pub use web_time::{Duration, Instant, SystemTime, SystemTimeError, UNIX_EPOCH};
 
-    #[doc(hidden)]
     #[cfg(any(
         not(target_arch = "wasm32"),
         all(target_arch = "wasm32", target_os = "wasi")
     ))]
-    pub fn now() -> SystemTime {
-        SystemTime::now()
+    pub use std::time::{Duration, Instant, SystemTime, SystemTimeError, UNIX_EPOCH};
+}
+
+/// Platform-agnostic environment variable access for WASM compatibility.
+#[doc(hidden)]
+pub mod env {
+    use std::env::VarError;
+
+    /// Get an environment variable.
+    ///
+    /// On WASM targets this always returns [`VarError::NotPresent`].
+    #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
+    pub fn var(_key: &str) -> Result<String, VarError> {
+        Err(VarError::NotPresent)
     }
 
-    #[doc(hidden)]
-    #[cfg(all(target_arch = "wasm32", not(target_os = "wasi")))]
-    pub fn now() -> SystemTime {
-        SystemTime::UNIX_EPOCH + std::time::Duration::from_millis(js_sys::Date::now() as u64)
+    /// Get an environment variable.
+    ///
+    /// On non-WASM targets, this is just [`std::env::var`].
+    #[cfg(any(
+        not(target_arch = "wasm32"),
+        all(target_arch = "wasm32", target_os = "wasi")
+    ))]
+    pub fn var(key: &str) -> Result<String, VarError> {
+        std::env::var(key)
     }
 }
 

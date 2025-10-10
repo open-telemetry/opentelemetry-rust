@@ -1,5 +1,5 @@
 use opentelemetry::otel_debug;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 use std::{
     fmt,
     sync::{Mutex, Weak},

@@ -4,9 +4,9 @@
 //! can be set for the default OpenTelemetry limits and Sampler.
 use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
 use crate::Resource;
+use opentelemetry::env;
 use opentelemetry::otel_warn;
 use std::borrow::Cow;
-use std::env;
 use std::str::FromStr;
 
 /// Tracer configuration

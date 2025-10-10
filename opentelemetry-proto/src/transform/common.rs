@@ -2,7 +2,7 @@
     feature = "gen-tonic-messages",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use opentelemetry::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(all(
     feature = "gen-tonic-messages",

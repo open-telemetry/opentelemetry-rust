@@ -13,6 +13,7 @@ use crate::trace::{
     IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
+    time::SystemTime,
     trace::{
         SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt,
         TraceFlags,
@@ -111,7 +112,7 @@ impl SdkTracer {
             ..
         } = builder;
 
-        let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
+        let start_time = start_time.unwrap_or_else(SystemTime::now);
         let end_time = end_time.unwrap_or(start_time);
         let spans_events_limit = span_limits.max_events_per_span as usize;
         let span_events: SpanEvents = if let Some(mut events) = events {

@@ -1,9 +1,9 @@
 use core::fmt;
+use opentelemetry::time::Duration;
 use opentelemetry::{
     metrics::{Meter, MeterProvider},
     otel_debug, otel_error, otel_info, InstrumentationScope,
 };
-use std::time::Duration;
 use std::{
     collections::HashMap,
     sync::{
@@ -416,10 +416,10 @@ mod tests {
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
     use crate::Resource;
+    use opentelemetry::env;
     use opentelemetry::metrics::MeterProvider;
     use opentelemetry::{global, InstrumentationScope};
     use opentelemetry::{Key, KeyValue, Value};
-    use std::env;
 
     #[test]
     fn test_meter_provider_resource() {

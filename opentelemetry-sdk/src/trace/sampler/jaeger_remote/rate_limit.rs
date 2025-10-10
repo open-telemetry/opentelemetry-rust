@@ -1,5 +1,5 @@
 use opentelemetry::time::now;
-use std::time::SystemTime;
+use opentelemetry::time::SystemTime;
 // leaky bucket based rate limit
 // should be Send+Sync
 pub(crate) struct LeakyBucket {
@@ -71,7 +71,7 @@ mod tests {
     use crate::trace::sampler::jaeger_remote::rate_limit::LeakyBucket;
     use opentelemetry::time::now;
     use std::ops::{Add, Sub};
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     #[test]
     fn test_leaky_bucket() {

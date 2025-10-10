@@ -1,5 +1,5 @@
 use opentelemetry::{otel_info, InstrumentationScope};
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 use crate::{error::OTelSdkResult, Resource};
 

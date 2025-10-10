@@ -1,6 +1,7 @@
 //! Context extensions for tracing
 use crate::{
     global, otel_debug,
+    time::SystemTime,
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
@@ -104,7 +105,7 @@ impl SpanRef<'_> {
     pub fn add_event_with_timestamp<T>(
         &self,
         name: T,
-        timestamp: std::time::SystemTime,
+        timestamp: crate::time::SystemTime,
         attributes: Vec<crate::KeyValue>,
     ) where
         T: Into<Cow<'static, str>>,
@@ -211,11 +212,11 @@ impl SpanRef<'_> {
 
     /// Signals that the operation described by this span has now ended.
     pub fn end(&self) {
-        self.end_with_timestamp(crate::time::now());
+        self.end_with_timestamp(SystemTime::now());
     }
 
     /// Signals that the operation described by this span ended at the given time.
-    pub fn end_with_timestamp(&self, timestamp: std::time::SystemTime) {
+    pub fn end_with_timestamp(&self, timestamp: crate::time::SystemTime) {
         self.with_inner_mut(move |inner| inner.end_with_timestamp(timestamp))
     }
 }

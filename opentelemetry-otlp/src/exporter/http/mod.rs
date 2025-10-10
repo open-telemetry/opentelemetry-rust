@@ -4,7 +4,9 @@ use super::{
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
+use opentelemetry::env;
 use opentelemetry::otel_debug;
+use opentelemetry::time::Duration;
 use opentelemetry_http::HttpClient;
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
@@ -17,10 +19,8 @@ use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::trace::SpanData;
 use prost::Message;
 use std::collections::HashMap;
-use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -859,7 +859,7 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
                 crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
             );
 
@@ -890,7 +890,7 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
                 crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
             );
 
@@ -918,7 +918,7 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
                 crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 None, // No compression
             );
 
@@ -939,7 +939,7 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
                 crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
             );
 
@@ -961,7 +961,7 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
                 crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
             );
 
@@ -1023,19 +1023,19 @@ mod tests {
                 "http://localhost:4318".parse().unwrap(),
                 HashMap::new(),
                 protocol,
-                std::time::Duration::from_secs(10),
+                opentelemetry::time::Duration::from_secs(10),
                 compression,
             )
         }
 
         fn create_test_span_data() -> opentelemetry_sdk::trace::SpanData {
+            use opentelemetry::time::{Duration, SystemTime};
             use opentelemetry::trace::Status;
             use opentelemetry::trace::{
                 SpanContext, SpanId, SpanKind, TraceFlags, TraceId, TraceState,
             };
             use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
             use std::borrow::Cow;
-            use std::time::{Duration, SystemTime};
 
             let span_context = SpanContext::new(
                 TraceId::from(123),

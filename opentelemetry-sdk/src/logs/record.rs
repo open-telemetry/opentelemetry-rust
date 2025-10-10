@@ -5,7 +5,9 @@ use opentelemetry::{
     logs::{AnyValue, Severity},
     Key, SpanId, TraceFlags, TraceId,
 };
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
+
+use opentelemetry::time::SystemTime;
 
 // According to a Go-specific study mentioned on https://go.dev/blog/slog,
 // up to 5 attributes is the most common case.

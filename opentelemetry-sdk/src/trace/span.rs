@@ -9,10 +9,10 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
+use opentelemetry::time::SystemTime;
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
-use std::time::SystemTime;
 
 /// Single operation within a trace.
 #[derive(Debug)]
@@ -216,7 +216,7 @@ impl Span {
         if let Some(timestamp) = timestamp {
             data.end_time = timestamp;
         } else if data.end_time == data.start_time {
-            data.end_time = opentelemetry::time::now();
+            data.end_time = SystemTime::now();
         }
 
         match provider.span_processors() {
@@ -281,8 +281,8 @@ mod tests {
     use crate::trace::{SpanEvents, SpanLinks};
     use opentelemetry::trace::{self, SpanBuilder, TraceFlags, TraceId, Tracer};
     use opentelemetry::{trace::Span as _, trace::TracerProvider};
-    use std::time::Duration;
     use std::vec;
+    use SystemTime::Duration;
 
     fn init() -> (crate::trace::SdkTracer, SpanData) {
         let provider = crate::trace::SdkTracerProvider::default();
@@ -292,8 +292,8 @@ mod tests {
             parent_span_is_remote: false,
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
-            start_time: opentelemetry::time::now(),
-            end_time: opentelemetry::time::now(),
+            start_time: SystemTime::now(),
+            end_time: SystemTime::now(),
             attributes: Vec::new(),
             dropped_attributes_count: 0,
             events: SpanEvents::default(),
@@ -358,7 +358,7 @@ mod tests {
         let mut span = create_span();
         let name = "some_event";
         let attributes = vec![KeyValue::new("k", "v")];
-        let timestamp = opentelemetry::time::now();
+        let timestamp = SystemTime::now();
         span.add_event_with_timestamp(name, timestamp, attributes.clone());
         span.with_data(|data| {
             if let Some(event) = data.events.iter().next() {
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn end_with_timestamp() {
         let mut span = create_span();
-        let timestamp = opentelemetry::time::now();
+        let timestamp = SystemTime::now();
         span.end_with_timestamp(timestamp);
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
     }
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn end_only_once() {
         let mut span = create_span();
-        let timestamp = opentelemetry::time::now();
+        let timestamp = SystemTime::now();
         span.end_with_timestamp(timestamp);
         span.end_with_timestamp(timestamp.checked_add(Duration::from_secs(10)).unwrap());
         span.with_data(|data| assert_eq!(data.end_time, timestamp));
@@ -502,7 +502,7 @@ mod tests {
         span.add_event("some_event", vec![KeyValue::new("k", "v")]);
         span.add_event_with_timestamp(
             "some_event",
-            opentelemetry::time::now(),
+            SystemTime::now(),
             vec![KeyValue::new("k", "v")],
         );
         let err = std::io::Error::from(std::io::ErrorKind::Other);

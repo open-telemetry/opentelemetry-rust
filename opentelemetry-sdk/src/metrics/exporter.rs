@@ -1,7 +1,7 @@
 //! Interfaces for exporting metrics
 
 use crate::error::OTelSdkResult;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 use crate::metrics::data::ResourceMetrics;
 

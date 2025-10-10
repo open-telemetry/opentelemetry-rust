@@ -76,7 +76,7 @@ mod tests {
         },
         Context, KeyValue,
     };
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     #[test]
     fn span_modification_via_context() {

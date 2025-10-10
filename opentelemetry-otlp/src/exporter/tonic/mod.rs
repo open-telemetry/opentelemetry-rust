@@ -1,8 +1,8 @@
-use std::env;
 use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
+use opentelemetry::env;
 use opentelemetry::otel_debug;
 use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};

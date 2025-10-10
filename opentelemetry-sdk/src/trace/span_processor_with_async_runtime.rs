@@ -19,7 +19,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-use std::time::Duration;
+use opentelemetry::time::Duration;
 use tokio::sync::RwLock;
 
 /// A [`SpanProcessor`] that asynchronously buffers finished spans and reports
@@ -57,7 +57,7 @@ use tokio::sync::RwLock;
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{runtime, testing::trace::NoopSpanExporter, trace};
 /// use opentelemetry_sdk::trace::BatchConfigBuilder;
-/// use std::time::Duration;
+/// use opentelemetry::time::Duration;
 /// use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 ///
 /// #[tokio::main]
@@ -460,7 +460,7 @@ mod tests {
     use std::fmt::Debug;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
-    use std::time::Duration;
+    use opentelemetry::time::Duration;
 
     struct BlockingExporter<D> {
         delay_for: Duration,

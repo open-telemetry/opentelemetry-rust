@@ -1,6 +1,6 @@
 //! Interfaces for reading and producing metrics
 use crate::error::OTelSdkResult;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 use std::{fmt, sync::Weak};
 
 use super::{data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, Temporality};

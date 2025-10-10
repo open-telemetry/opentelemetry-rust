@@ -26,6 +26,9 @@ tokio = { workspace = true, default-features = false, optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
+[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
+getrandom = { workspace = true, features = ["wasm_js"] }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

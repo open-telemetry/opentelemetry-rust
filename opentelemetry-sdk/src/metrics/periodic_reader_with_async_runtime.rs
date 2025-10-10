@@ -512,7 +512,7 @@ mod tests {
     where
         RT: crate::runtime::Runtime,
     {
-        let interval = std::time::Duration::from_millis(1);
+        let interval = opentelemetry::time::Duration::from_millis(1);
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime)
             .with_interval(interval)

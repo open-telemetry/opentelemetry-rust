@@ -3,11 +3,11 @@ use std::{
     mem::replace,
     ops::DerefMut,
     sync::{Arc, Mutex},
-    time::SystemTime,
 };
 
+use opentelemetry::time::SystemTime;
+
 use crate::metrics::{data::AggregatedMetrics, Temporality};
-use opentelemetry::time::now;
 use opentelemetry::KeyValue;
 
 use super::{
@@ -61,7 +61,7 @@ pub(crate) struct AggregateTimeInitiator(Mutex<SystemTime>);
 
 impl AggregateTimeInitiator {
     pub(crate) fn delta(&self) -> AggregateTime {
-        let current_time = now();
+        let current_time = SystemTime::now();
         let start_time = self
             .0
             .lock()
@@ -74,7 +74,7 @@ impl AggregateTimeInitiator {
     }
 
     pub(crate) fn cumulative(&self) -> AggregateTime {
-        let current_time = now();
+        let current_time = SystemTime::now();
         let start_time = self.0.lock().map(|start| *start).unwrap_or(current_time);
         AggregateTime {
             start: start_time,
@@ -85,7 +85,7 @@ impl AggregateTimeInitiator {
 
 impl Default for AggregateTimeInitiator {
     fn default() -> Self {
-        Self(Mutex::new(now()))
+        Self(Mutex::new(SystemTime::now()))
     }
 }
 

@@ -3,7 +3,7 @@ use crate::resource::Resource;
 use crate::trace::{SpanData, SpanExporter};
 use crate::InMemoryExporterError;
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 /// An in-memory span exporter that stores span data in memory.
 ///

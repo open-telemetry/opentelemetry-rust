@@ -1,8 +1,9 @@
 use crate::{Key, StringValue};
 
 use crate::{SpanId, TraceFlags, TraceId};
+use crate::time::SystemTime;
 
-use std::{borrow::Cow, collections::HashMap, time::SystemTime};
+use std::{borrow::Cow, collections::HashMap};
 
 /// SDK implemented trait for managing log records
 pub trait LogRecord {

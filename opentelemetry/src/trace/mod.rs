@@ -166,7 +166,6 @@
 //! ```
 
 use std::borrow::Cow;
-use std::time;
 
 pub(crate) mod context;
 pub mod noop;
@@ -184,6 +183,7 @@ pub use self::{
     tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
+use crate::time::SystemTime;
 use crate::KeyValue;
 pub use crate::{SpanId, TraceFlags, TraceId};
 
@@ -195,7 +195,7 @@ pub struct Event {
     pub name: Cow<'static, str>,
 
     /// The time at which this event occurred.
-    pub timestamp: time::SystemTime,
+    pub timestamp: SystemTime,
 
     /// Attributes that describe this event.
     pub attributes: Vec<KeyValue>,
@@ -209,7 +209,7 @@ impl Event {
     /// Create new `Event`
     pub fn new<T: Into<Cow<'static, str>>>(
         name: T,
-        timestamp: time::SystemTime,
+        timestamp: SystemTime,
         attributes: Vec<KeyValue>,
         dropped_attributes_count: u32,
     ) -> Self {
@@ -225,7 +225,7 @@ impl Event {
     pub fn with_name<T: Into<Cow<'static, str>>>(name: T) -> Self {
         Event {
             name: name.into(),
-            timestamp: crate::time::now(),
+            timestamp: SystemTime::now(),
             attributes: Vec::new(),
             dropped_attributes_count: 0,
         }

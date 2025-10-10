@@ -10,7 +10,7 @@ use opentelemetry::{otel_warn, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
+use opentelemetry::time::Duration;
 
 const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778/sampling";
 
