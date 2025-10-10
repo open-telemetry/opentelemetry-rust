@@ -11,20 +11,22 @@ rust-version = "1.75.0"
 autobenches = false
 
 [dependencies]
-opentelemetry = { workspace = true }
-opentelemetry-http = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-executor = { workspace = true }
+futures-timer = { workspace = true, optional = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
+http = { workspace = true, optional = true }
+opentelemetry = { workspace = true }
+opentelemetry-http = { workspace = true, optional = true }
 percent-encoding = { workspace = true, optional = true }
 rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
-url = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, optional = true }
 tokio-stream = { workspace = true, optional = true }
-http = { workspace = true, optional = true }
+tokio_with_wasm = { workspace = true, default-features = false, optional = true }
+url = { workspace = true, optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 getrandom = { workspace = true, features = ["wasm_js"] }
@@ -52,6 +54,7 @@ testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-
 experimental_async_runtime = []
 rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
+rt-tokio-with-wasm = ["tokio_with_wasm/rt", "tokio_with_wasm/sync", "tokio_with_wasm/time", "tokio-stream", "experimental_async_runtime", "futures-timer"]
 internal-logs = ["opentelemetry/internal-logs"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]

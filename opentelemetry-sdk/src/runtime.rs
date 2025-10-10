@@ -137,6 +137,35 @@ impl Runtime for TokioCurrentThread {
     }
 }
 
+/// Runtime implementation, which works with Tokio's multi thread runtime.
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm")))
+)]
+#[derive(Debug, Clone)]
+pub struct TokioWithWasm;
+
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm")))
+)]
+impl Runtime for TokioWithWasm {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        #[allow(clippy::let_underscore_future)]
+        // we don't have to await on the returned future to execute
+        let _ = tokio_with_wasm::alias::spawn(future);
+    }
+
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
+        futures_timer::Delay::new(duration)
+    }
+}
+
 /// `RuntimeChannel` is an extension to [`Runtime`]. Currently, it provides a
 /// channel that is used by the [log] and [span] batch processors.
 ///
@@ -185,7 +214,7 @@ pub trait TrySend: Sync + Send {
 
 #[cfg(all(
     feature = "experimental_async_runtime",
-    any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
+    any(feature = "rt-tokio", feature = "rt-tokio-current-thread",)
 ))]
 impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
     type Message = T;
@@ -194,6 +223,25 @@ impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
         self.try_send(item).map_err(|err| match err {
             tokio::sync::mpsc::error::TrySendError::Full(_) => TrySendError::ChannelFull,
             tokio::sync::mpsc::error::TrySendError::Closed(_) => TrySendError::ChannelClosed,
+        })
+    }
+}
+
+#[cfg(all(
+    feature = "experimental_async_runtime",
+    any(feature = "rt-tokio-with-wasm")
+))]
+impl<T: Send> TrySend for tokio_with_wasm::alias::sync::mpsc::Sender<T> {
+    type Message = T;
+
+    fn try_send(&self, item: Self::Message) -> Result<(), TrySendError> {
+        self.try_send(item).map_err(|err| match err {
+            tokio_with_wasm::alias::sync::mpsc::error::TrySendError::Full(_) => {
+                TrySendError::ChannelFull
+            }
+            tokio_with_wasm::alias::sync::mpsc::error::TrySendError::Closed(_) => {
+                TrySendError::ChannelClosed
+            }
         })
     }
 }
@@ -239,6 +287,27 @@ impl RuntimeChannel for TokioCurrentThread {
         capacity: usize,
     ) -> (Self::Sender<T>, Self::Receiver<T>) {
         let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
+        (
+            sender,
+            tokio_stream::wrappers::ReceiverStream::new(receiver),
+        )
+    }
+}
+
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio-with-wasm")))
+)]
+impl RuntimeChannel for TokioWithWasm {
+    type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
+    type Sender<T: Debug + Send> = tokio_with_wasm::alias::sync::mpsc::Sender<T>;
+
+    fn batch_message_channel<T: Debug + Send>(
+        &self,
+        capacity: usize,
+    ) -> (Self::Sender<T>, Self::Receiver<T>) {
+        let (sender, receiver) = tokio_with_wasm::alias::sync::mpsc::channel(capacity);
         (
             sender,
             tokio_stream::wrappers::ReceiverStream::new(receiver),
