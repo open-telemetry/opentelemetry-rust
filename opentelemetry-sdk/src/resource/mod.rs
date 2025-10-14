@@ -228,6 +228,11 @@ impl Resource {
     pub fn get(&self, key: &Key) -> Option<Value> {
         self.inner.attrs.get(key).cloned()
     }
+
+    /// Returns a reference to the value for the given key without cloning.
+    pub fn get_ref(&self, key: &Key) -> Option<&Value> {
+        self.inner.attrs.get(key)
+    }
 }
 
 /// An iterator over the entries of a `Resource`.
