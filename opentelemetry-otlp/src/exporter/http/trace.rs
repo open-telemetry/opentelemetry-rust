@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
 use super::OtlpHttpClient;
-use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::otel_debug;
 use opentelemetry_sdk::{
     error::{OTelSdkError, OTelSdkResult},
     trace::{SpanData, SpanExporter},
@@ -10,61 +6,12 @@ use opentelemetry_sdk::{
 
 impl SpanExporter for OtlpHttpClient {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-        let client = match self
-            .client
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {e}")))
-            .and_then(|g| match &*g {
-                Some(client) => Ok(Arc::clone(client)),
-                _ => Err(OTelSdkError::AlreadyShutdown),
-            }) {
-            Ok(client) => client,
-            Err(err) => return Err(err),
-        };
-
-        let (body, content_type, content_encoding) = match self.build_trace_export_body(batch) {
-            Ok(result) => result,
-            Err(e) => return Err(OTelSdkError::InternalFailure(e.to_string())),
-        };
-
-        let mut request_builder = http::Request::builder()
-            .method(Method::POST)
-            .uri(&self.collector_endpoint)
-            .header(CONTENT_TYPE, content_type);
-
-        if let Some(encoding) = content_encoding {
-            request_builder = request_builder.header("Content-Encoding", encoding);
-        }
-
-        let mut request = match request_builder.body(body.into()) {
-            Ok(req) => req,
-            Err(e) => return Err(OTelSdkError::InternalFailure(e.to_string())),
-        };
-
-        for (k, v) in &self.headers {
-            request.headers_mut().insert(k.clone(), v.clone());
-        }
-
-        let request_uri = request.uri().to_string();
-        otel_debug!(name: "HttpTracesClient.ExportStarted");
-        let response = client
-            .send_bytes(request)
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
-
-        if !response.status().is_success() {
-            let error = format!(
-                "OpenTelemetry trace export failed. Url: {}, Status Code: {}, Response: {:?}",
-                request_uri,
-                response.status().as_u16(),
-                response.body()
-            );
-            otel_debug!(name: "HttpTracesClient.ExportFailed", error = &error);
-            return Err(OTelSdkError::InternalFailure(error));
-        }
-
-        otel_debug!(name: "HttpTracesClient.ExportSucceeded");
-        Ok(())
+        self.export_http_with_retry(
+            batch,
+            OtlpHttpClient::build_trace_export_body,
+            "HttpTracesClient.Export",
+        )
+        .await
     }
 
     fn shutdown(&mut self) -> OTelSdkResult {
