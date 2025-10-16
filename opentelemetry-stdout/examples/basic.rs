@@ -43,17 +43,19 @@ fn init_metrics() -> opentelemetry_sdk::metrics::SdkMeterProvider {
 
 #[cfg(feature = "logs")]
 fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
-    use opentelemetry_appender_tracing::layer;
+    use log::{self, Level};
+    use opentelemetry_appender_log::OpenTelemetryLogBridge;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
-    use tracing_subscriber::prelude::*;
 
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
         .build();
-    let layer = layer::OpenTelemetryTracingBridge::new(&provider);
-    tracing_subscriber::registry().with(layer).init();
+    // Setup Log Appender for the log crate.
+    let otel_log_appender = OpenTelemetryLogBridge::new(&provider);
+    log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
+    log::set_max_level(Level::Info.to_level_filter());
     provider
 }
 
