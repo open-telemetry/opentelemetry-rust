@@ -2,6 +2,9 @@
 
 ## vNext
 
+### Added
+- Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
+
 ## 0.31.0
 
 Released 2025-Sep-25

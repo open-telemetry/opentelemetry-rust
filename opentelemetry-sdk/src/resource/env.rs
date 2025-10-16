@@ -138,15 +138,15 @@ mod tests {
         // Ensure no env var set
         let no_env = SdkProvidedResourceDetector.detect();
         assert_eq!(
-            no_env.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
-            Some(Value::from("unknown_service")),
+            no_env.get_ref(&Key::from_static_str(crate::resource::SERVICE_NAME)),
+            Some(&Value::from("unknown_service")),
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
             let with_service = SdkProvidedResourceDetector.detect();
             assert_eq!(
-                with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
-                Some(Value::from("test service")),
+                with_service.get_ref(&Key::from_static_str(crate::resource::SERVICE_NAME)),
+                Some(&Value::from("test service")),
             )
         });
 
@@ -156,8 +156,8 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
-                    Some(Value::from("test service1")),
+                    with_service.get_ref(&Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    Some(&Value::from("test service1")),
                 )
             },
         );
@@ -171,8 +171,8 @@ mod tests {
             || {
                 let with_service = SdkProvidedResourceDetector.detect();
                 assert_eq!(
-                    with_service.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
-                    Some(Value::from("test service"))
+                    with_service.get_ref(&Key::from_static_str(crate::resource::SERVICE_NAME)),
+                    Some(&Value::from("test service"))
                 );
             },
         );
