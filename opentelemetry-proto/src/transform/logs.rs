@@ -195,10 +195,7 @@ pub mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(InstrumentationScope::from((
-                    log_data.first().unwrap().1,
-                    Some(key.into_owned().into()),
-                ))),
+                scope: Some(new_instrumentation_scope(log_data.first().unwrap().1, key)),
                 schema_url: resource.schema_url.clone().unwrap_or_default(),
                 log_records: log_data
                     .into_iter()
@@ -217,6 +214,22 @@ pub mod tonic {
             schema_url: resource.schema_url.clone().unwrap_or_default(),
         }]
     }
+
+    /// Ensure that InstrumentationScope is propagated correctly.
+    /// These are the rules:
+    ///
+    /// 1. If the log scope name matches the key, return a new scope with all the fields from the original scope.
+    /// 2. Otherwise, return a new scope with the key as the name of the scope, and the rest of the fields empty.
+    fn new_instrumentation_scope(
+        log_scope: &opentelemetry::InstrumentationScope,
+        key: Cow<'static, str>,
+    ) -> InstrumentationScope {
+        if key == log_scope.name() {
+            return InstrumentationScope::from((log_scope, None));
+        }
+
+        InstrumentationScope::from((log_scope, Some(key)))
+    }
 }
 
 #[cfg(test)]
@@ -227,6 +240,7 @@ mod tests {
     use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
     use opentelemetry::InstrumentationScope;
+    use opentelemetry::KeyValue;
     use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
@@ -246,6 +260,7 @@ mod tests {
     fn create_test_log_data(
         instrumentation_name: &str,
         _message: &str,
+        attrs: Vec<KeyValue>,
     ) -> (SdkLogRecord, InstrumentationScope) {
         let processor = MockProcessor {};
         let logger = SdkLoggerProvider::builder()
@@ -255,16 +270,17 @@ mod tests {
         let mut logrecord = logger.create_log_record();
         logrecord.set_timestamp(now());
         logrecord.set_observed_timestamp(now());
-        let instrumentation =
-            InstrumentationScope::builder(instrumentation_name.to_string()).build();
+        let instrumentation = InstrumentationScope::builder(instrumentation_name.to_string())
+            .with_attributes(attrs)
+            .build();
         (logrecord, instrumentation)
     }
 
     #[test]
     fn test_group_logs_by_resource_and_scope_single_scope() {
         let resource = Resource::builder().build();
-        let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1");
-        let (log_record2, instrum_lib2) = create_test_log_data("test-lib", "Log 2");
+        let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1", vec![]);
+        let (log_record2, instrum_lib2) = create_test_log_data("test-lib", "Log 2", vec![]);
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
@@ -284,8 +300,8 @@ mod tests {
     #[test]
     fn test_group_logs_by_resource_and_scope_multiple_scopes() {
         let resource = Resource::builder().build();
-        let (log_record1, instrum_lib1) = create_test_log_data("lib1", "Log 1");
-        let (log_record2, instrum_lib2) = create_test_log_data("lib2", "Log 2");
+        let (log_record1, instrum_lib1) = create_test_log_data("lib1", "Log 1", vec![]);
+        let (log_record2, instrum_lib2) = create_test_log_data("lib2", "Log 2", vec![]);
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
@@ -310,5 +326,112 @@ mod tests {
 
         assert_eq!(scope_logs_1.log_records.len(), 1);
         assert_eq!(scope_logs_2.log_records.len(), 1);
+    }
+
+    #[test]
+    fn test_group_logs_by_resource_preserving_scope_attributes_when_log_target_empty() {
+        let resource = Resource::builder().build();
+        let (log_record1, instrum_lib1) =
+            create_test_log_data("lib1", "Log 1", vec![KeyValue::new("key1", "value1")]);
+        let (log_record2, instrum_lib2) =
+            create_test_log_data("lib2", "Log 2", vec![KeyValue::new("key2", "value2")]);
+
+        let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let log_batch = LogBatch::new(&logs);
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 2);
+
+        let scope_logs_1 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib1")
+            .unwrap();
+        let scope_logs_2 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib2")
+            .unwrap();
+
+        assert_eq!(1, scope_logs_1.scope.as_ref().unwrap().attributes.len());
+        assert_eq!(1, scope_logs_2.scope.as_ref().unwrap().attributes.len());
+    }
+
+    #[test]
+    fn test_group_logs_by_resource_preserving_scope_attributes_when_log_target_matching() {
+        let resource = Resource::builder().build();
+        let (mut log_record1, instrum_lib1) =
+            create_test_log_data("lib1", "Log 1", vec![KeyValue::new("key1", "value1")]);
+        let (mut log_record2, instrum_lib2) =
+            create_test_log_data("lib2", "Log 2", vec![KeyValue::new("key2", "value2")]);
+
+        let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let log_batch = LogBatch::new(&logs);
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+
+        // This makes the grouping to match the existent InstrumentationScope, preserving the scope attributes.
+        log_record1.set_target("lib1");
+        log_record2.set_target("lib2");
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 2);
+
+        let scope_logs_1 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib1")
+            .unwrap();
+        let scope_logs_2 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "lib2")
+            .unwrap();
+
+        assert_eq!(1, scope_logs_1.scope.as_ref().unwrap().attributes.len());
+        assert_eq!(1, scope_logs_2.scope.as_ref().unwrap().attributes.len());
+    }
+
+    #[test]
+    fn test_group_logs_by_resource_ignoring_scope_attributes_when_log_target_not_matching() {
+        let resource = Resource::builder().build();
+        let (mut log_record1, instrum_lib1) =
+            create_test_log_data("lib1", "Log 1", vec![KeyValue::new("key1", "value1")]);
+        let (mut log_record2, instrum_lib2) =
+            create_test_log_data("lib2", "Log 2", vec![KeyValue::new("key2", "value2")]);
+
+        // This makes the grouping to not match the existent InstrumentationScope, ignoring the scope attributes.
+        log_record1.set_target("target1");
+        log_record2.set_target("target2");
+
+        let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
+        let log_batch = LogBatch::new(&logs);
+        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 2);
+
+        let scope_logs_1 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "target1")
+            .unwrap();
+        let scope_logs_2 = &resource_logs
+            .scope_logs
+            .iter()
+            .find(|scope| scope.scope.as_ref().unwrap().name == "target2")
+            .unwrap();
+
+        assert!(scope_logs_1.scope.as_ref().unwrap().attributes.is_empty());
+        assert!(scope_logs_2.scope.as_ref().unwrap().attributes.is_empty());
     }
 }
