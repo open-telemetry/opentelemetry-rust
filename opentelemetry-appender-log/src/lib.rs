@@ -151,6 +151,7 @@ where
             log_record.set_severity_number(severity_of_level(record.level()));
             log_record.set_severity_text(record.level().as_str());
             log_record.set_body(AnyValue::from(record.args().to_string()));
+            log_record.set_timestamp(SystemTime::now());
 
             #[cfg(feature = "experimental_metadata_attributes")]
             {
