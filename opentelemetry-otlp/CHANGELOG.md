@@ -11,7 +11,7 @@ Released 2025-Sep-25
 - Update `opentelemetry-proto` and `opentelemetry-http` dependency version to 0.31.0
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
 - Add retry with exponential backoff and throttling support for HTTP and gRPC exporters
-  This behaviour is opt in via the `experimental-grpc-retry` and `experimental-http-retry flags` on this crate.
+  This behaviour is opt in via the `experimental-grpc-retry` and `experimental-http-retry` flags on this crate. You can customize the retry policy using the `with_retry_policy` on the exporter builders.
 
 ## 0.30.0
 

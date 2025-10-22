@@ -128,15 +128,23 @@ where
 
                 match error_type {
                     RetryErrorType::NonRetryable => {
-                        otel_warn!(name: "OtlpRetryNonRetryable", operation = operation_name, error = format!("{:?}", err));
+                        otel_warn!(name: "Export.Failed.NonRetryable",
+                            operation = operation_name,
+                            message = "OTLP export failed with non-retryable error - telemetry data will be lost");
                         return Err(err);
                     }
                     RetryErrorType::Retryable if attempt < policy.max_retries => {
                         attempt += 1;
                         // Use exponential backoff with jitter
-                        otel_info!(name: "OtlpRetryRetrying", operation = operation_name, error = format!("{:?}", err));
                         let jitter = generate_jitter(policy.jitter_ms);
                         let delay_with_jitter = std::cmp::min(delay + jitter, policy.max_delay_ms);
+                        otel_info!(name: "Export.InProgress.Retrying",
+                            operation = operation_name,
+                            attempt = attempt,
+                            delay_ms = delay_with_jitter,
+                            jitter_ms = jitter,
+                            message = "OTLP export failed with retryable error - retrying"
+                        );
                         runtime
                             .delay(Duration::from_millis(delay_with_jitter))
                             .await;
@@ -145,13 +153,22 @@ where
                     RetryErrorType::Throttled(server_delay) if attempt < policy.max_retries => {
                         attempt += 1;
                         // Use server-specified delay (overrides exponential backoff)
-                        otel_info!(name: "OtlpRetryThrottled", operation = operation_name, error = format!("{:?}", err), delay = format!("{:?}", server_delay));
+                        otel_info!(name: "Export.InProgress.Throttled",
+                            operation = operation_name,
+                            attempt = attempt,
+                            delay_ms = server_delay.as_millis(),
+                            message = "OTLP export throttled by OTLP endpoint - delaying and retrying"
+                        );
                         runtime.delay(server_delay).await;
                         // Don't update exponential backoff delay for next attempt since server provided specific timing
                     }
                     _ => {
                         // Max retries reached
-                        otel_warn!(name: "OtlpRetryExhausted", operation = operation_name, error = format!("{:?}", err), attempts = attempt);
+                        otel_warn!(name: "Export.Failed.Exhausted",
+                            operation = operation_name,
+                            retries = attempt,
+                            message = "OTLP export exhausted retries - telemetry data will be lost"
+                        );
                         return Err(err);
                     }
                 }
