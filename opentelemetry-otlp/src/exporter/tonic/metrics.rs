@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Mutex;
 
-use opentelemetry::otel_debug;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::metrics::v1::{
     metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
 };
@@ -106,8 +106,21 @@ impl MetricsClient for TonicMetricsClient {
                         ExportMetricsServiceRequest::from(metrics),
                     ))
                     .await
-                    .map(|_| {
+                    .map(|response| {
                         otel_debug!(name: "TonicMetricsClient.ExportSucceeded");
+
+                        // Handle partial success. As per spec, we log and _do not_ retry.
+                        if let Some(partial_success) = response.into_inner().partial_success {
+                            if partial_success.rejected_data_points > 0
+                                || !partial_success.error_message.is_empty()
+                            {
+                                otel_warn!(
+                                    name: "TonicMetricsClient.PartialSuccess",
+                                    rejected_data_points = partial_success.rejected_data_points,
+                                    error_message = partial_success.error_message.as_str(),
+                                );
+                            }
+                        }
                     })
             },
         )

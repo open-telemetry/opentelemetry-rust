@@ -1,5 +1,5 @@
 use core::fmt;
-use opentelemetry::otel_debug;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::logs::v1::{
     logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
 };
@@ -115,8 +115,21 @@ impl LogExporter for TonicLogsClient {
                         ExportLogsServiceRequest { resource_logs },
                     ))
                     .await
-                    .map(|_| {
+                    .map(|response| {
                         otel_debug!(name: "TonicLogsClient.ExportSucceeded");
+
+                        // Handle partial success. As per spec, we log and _do not_ retry.
+                        if let Some(partial_success) = response.into_inner().partial_success {
+                            if partial_success.rejected_log_records > 0
+                                || !partial_success.error_message.is_empty()
+                            {
+                                otel_warn!(
+                                    name: "TonicLogsClient.PartialSuccess",
+                                    rejected_log_records = partial_success.rejected_log_records,
+                                    error_message = partial_success.error_message.as_str(),
+                                );
+                            }
+                        }
                     })
             },
         )

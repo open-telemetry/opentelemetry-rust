@@ -5,7 +5,7 @@ use super::{
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::HttpClient;
+use opentelemetry_http::{Bytes, HttpClient};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -381,7 +381,7 @@ impl OtlpHttpClient {
         data: T,
         build_body_fn: F,
         operation_name: &'static str,
-    ) -> opentelemetry_sdk::error::OTelSdkResult
+    ) -> Result<Bytes, opentelemetry_sdk::error::OTelSdkError>
     where
         F: Fn(&Self, T) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String>,
     {
@@ -408,7 +408,7 @@ impl OtlpHttpClient {
             #[cfg(not(feature = "reqwest-blocking-client"))]
             let runtime = opentelemetry_sdk::runtime::Tokio;
 
-            retry_with_backoff(
+            let response_body = retry_with_backoff(
                 runtime,
                 self.retry_policy.clone(),
                 classify_http_export_error,
@@ -424,7 +424,9 @@ impl OtlpHttpClient {
                 },
             )
             .await
-            .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))
+            .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+
+            Ok(response_body)
         }
 
         #[cfg(not(feature = "experimental-http-retry"))]
@@ -438,9 +440,12 @@ impl OtlpHttpClient {
                 endpoint: self.collector_endpoint.to_string(),
             };
 
-            self.export_http_once(&retry_data, content_type, content_encoding, operation_name)
+            let response_body = self
+                .export_http_once(&retry_data, content_type, content_encoding, operation_name)
                 .await
-                .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))
+                .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+
+            Ok(response_body)
         }
     }
 
@@ -451,7 +456,7 @@ impl OtlpHttpClient {
         content_type: &'static str,
         content_encoding: Option<&'static str>,
         _operation_name: &'static str,
-    ) -> Result<(), HttpExportError> {
+    ) -> Result<Bytes, HttpExportError> {
         // Get client
         let client = self
             .client
@@ -510,7 +515,9 @@ impl OtlpHttpClient {
         }
 
         otel_debug!(name: "HttpClient.ExportSucceeded");
-        Ok(())
+
+        // Return the response, consuming the body to save a copy
+        Ok(response.into_body())
     }
 
     /// Compress data using gzip or zstd if the user has requested it and the relevant feature
