@@ -116,14 +116,6 @@ impl TracerProviderInner {
         let mut results = vec![];
         for processor in &self.processors {
             let result = processor.shutdown_with_timeout(timeout);
-            if let Err(err) = &result {
-                // Log at debug level because:
-                //  - The error is also returned to the user for handling (if applicable)
-                //  - Or the error occurs during `TracerProviderInner::Drop` as part of telemetry shutdown,
-                //    which is non-actionable by the user
-                otel_debug!(name: "TracerProvider.Drop.ShutdownError",
-                        error = format!("{err}"));
-            }
             results.push(result);
         }
         results
