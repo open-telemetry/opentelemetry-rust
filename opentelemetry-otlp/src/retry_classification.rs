@@ -163,13 +163,12 @@ pub mod grpc {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::time::Duration;
-
     // Tests for HTTP error classification
+    #[cfg(feature = "experimental-http-retry")]
     mod http_tests {
-        use super::*;
+        use crate::retry::RetryErrorType;
         use crate::retry_classification::http::*;
+        use std::time::Duration;
 
         #[test]
         fn test_http_429_with_retry_after_seconds() {
