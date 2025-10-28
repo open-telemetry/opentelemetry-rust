@@ -28,6 +28,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::time::Duration;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -116,11 +117,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown()
+            exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
