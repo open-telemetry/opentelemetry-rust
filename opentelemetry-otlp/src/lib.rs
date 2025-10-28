@@ -366,6 +366,13 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+pub mod retry_classification;
+
+/// Retry logic for exporting telemetry data.
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+pub mod retry;
+
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 pub use crate::exporter::ExporterBuildError;
@@ -405,6 +412,9 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
+
+#[cfg(feature = "experimental-http-retry")]
+pub use retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]

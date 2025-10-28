@@ -2,7 +2,15 @@
 
 ## vNext
 
+- Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Update `opentelemetry-proto` and `opentelemetry-http` dependency version to 0.31.0
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
+- Add retry with exponential backoff and throttling support for HTTP and gRPC exporters
 
 ## 0.30.0
 

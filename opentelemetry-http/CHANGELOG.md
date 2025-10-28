@@ -2,10 +2,15 @@
 
 ## vNext
 
+## 0.31.0
+
+Released 2025-Sep-25
+
 - Implementation of `Extractor::get_all` for `HeaderExtractor`
 - Support `HttpClient` implementation for `HyperClient<C>` with custom connectors beyond `HttpConnector`, enabling Unix Domain Socket connections and other custom transports
 - Add `reqwest` and `reqwest-blocking` features to enable async and blocking
   reqwest HTTP clients
+- Updated `opentelemetry` dependency to version 0.31.0.
 
 ## 0.30.0
 

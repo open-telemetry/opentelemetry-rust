@@ -165,8 +165,8 @@ pub mod tonic {
         }
     }
 
-    pub fn group_logs_by_resource_and_scope(
-        logs: LogBatch<'_>,
+    pub fn group_logs_by_resource_and_scope<'a>(
+        logs: &'a LogBatch<'a>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group logs by target or instrumentation name
@@ -275,7 +275,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -295,7 +295,7 @@ mod tests {
         let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
