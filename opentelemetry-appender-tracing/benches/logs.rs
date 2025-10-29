@@ -62,6 +62,10 @@ impl LogProcessor for NoopProcessor {
     ) -> bool {
         self.enabled
     }
+
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+        Ok(())
+    }
 }
 
 struct NoOpLogLayer {
