@@ -58,9 +58,9 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
     ///
-    /// Implementors that manage resources (background threads, network connections, 
+    /// Implementors that manage resources (background threads, network connections,
     /// file handles, etc.) should override this method to properly clean up.
-    /// Processors that wrap other processors should forward the shutdown call to 
+    /// Processors that wrap other processors should forward the shutdown call to
     /// the wrapped processor(s).
     /// Simple processors that only transform log data can use the default implementation.
     fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
