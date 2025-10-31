@@ -58,13 +58,17 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
     ///
-    /// All implementors should implement this method.
+    /// Implementors that manage resources (background threads, network connections, 
+    /// file handles, etc.) should override this method to properly clean up.
+    /// Processors that wrap other processors should forward the shutdown call to 
+    /// the wrapped processor(s).
+    /// Simple processors that only transform log data can use the default implementation.
     fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         // It would have been better to make this method required, but that ship
         // sailed when the logs API was declared stable.
         otel_warn!(
             name: "LogProcessor.DefaultShutdownWithTimeout",
-            message = format!("LogProcessor::shutdown_with_timeout should be implemented by all LogProcessor types")
+            message = "LogProcessor is using default shutdown implementation. If this processor manages background threads, network connections, file handles, or other resources that need cleanup, implement shutdown_with_timeout() to properly release them. Simple processors that only transform log data can safely use this default."
         );
         Ok(())
     }
