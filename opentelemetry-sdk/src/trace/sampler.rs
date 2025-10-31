@@ -2,7 +2,7 @@ use opentelemetry::{
     trace::{
         Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
     },
-    Context, KeyValue,
+    Context, KeyValue, TraceFlags,
 };
 
 #[cfg(feature = "jaeger_remote_sampler")]
@@ -12,6 +12,8 @@ mod jaeger_remote;
 pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
 #[cfg(feature = "jaeger_remote_sampler")]
 use opentelemetry_http::HttpClient;
+
+const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
 
 /// The [`ShouldSample`] interface allows implementations to provide samplers
 /// which will return a sampling [`SamplingResult`] based on information that
@@ -180,6 +182,12 @@ impl ShouldSample for Sampler {
             // The parent decision if sampled; otherwise the decision of delegate_sampler
             Sampler::ParentBased(delegate_sampler) => parent_context
                 .filter(|cx| cx.has_active_span())
+                .map(|cx| cx.span())
+                .filter(|span| {
+                    let trace_flags = span.span_context().trace_flags();
+                    let is_deferred = trace_flags & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED;
+                    !is_deferred || trace_flags.is_sampled()
+                })
                 .map_or_else(
                     || {
                         delegate_sampler
@@ -193,10 +201,8 @@ impl ShouldSample for Sampler {
                             )
                             .decision
                     },
-                    |ctx| {
-                        let span = ctx.span();
-                        let parent_span_context = span.span_context();
-                        if parent_span_context.is_sampled() {
+                    |span| {
+                        if span.span_context().is_sampled() {
                             SamplingDecision::RecordAndSample
                         } else {
                             SamplingDecision::Drop
@@ -249,7 +255,7 @@ pub(crate) fn sample_based_on_probability(prob: &f64, trace_id: TraceId) -> Samp
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
-    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags};
+    use opentelemetry::trace::{SpanContext, SpanId};
     use rand::random;
 
     #[rustfmt::skip]
@@ -414,6 +420,30 @@ mod tests {
                     TraceId::from(1),
                     SpanId::from(1),
                     TraceFlags::SAMPLED, // not sampling
+                    false,
+                    TraceState::default(),
+                ))),
+                SamplingDecision::RecordAndSample,
+            ),
+            (
+                "should ignore deferred spans",
+                Sampler::AlwaysOn,
+                Context::current_with_span(TestSpan(SpanContext::new(
+                    TraceId::from(1),
+                    SpanId::from(1),
+                    TRACE_FLAG_DEFERRED, // deferred
+                    false,
+                    TraceState::default(),
+                ))),
+                SamplingDecision::RecordAndSample,
+            ),
+            (
+                "should prioritize sampled flag over deferred",
+                Sampler::AlwaysOff,
+                Context::current_with_span(TestSpan(SpanContext::new(
+                    TraceId::from(1),
+                    SpanId::from(1),
+                    TraceFlags::SAMPLED | TRACE_FLAG_DEFERRED, // sampled and deferred (invalid state)
                     false,
                     TraceState::default(),
                 ))),
