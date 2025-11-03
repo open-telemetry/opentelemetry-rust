@@ -68,7 +68,7 @@ pub trait LogProcessor: Send + Sync + Debug {
         // sailed when the logs API was declared stable.
         otel_warn!(
             name: "LogProcessor.DefaultShutdownWithTimeout",
-            message = "LogProcessor is using default shutdown implementation. If this processor manages background threads, network connections, file handles, or other resources that need cleanup, implement shutdown_with_timeout() to properly release them. Simple processors that only transform log data can safely use this default."
+            message = "LogProcessor is using default shutdown implementation. If this processor manages background threads, network connections, file handles, or other resources that need cleanup, implement `shutdown_with_timeout()` to properly release them. Simple processors that only transform log data can safely use this default."
         );
         Ok(())
     }
