@@ -3,7 +3,7 @@ name = "integration_test_runner"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-rust-version = "1.75.0"
+rust-version = "1.88.0"
 publish = false
 autobenches = false
 
@@ -13,7 +13,7 @@ opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio
 opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "metrics", "with-serde"] }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
-testcontainers = { workspace = true, features = ["http_wait"] }
+testcontainers = { version = "0.25.2", features = ["http_wait"] }
 anyhow = { workspace = true }
 ctor = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
