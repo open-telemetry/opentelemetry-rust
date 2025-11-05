@@ -54,6 +54,10 @@ pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
 pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size.
 pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+/// Force flush timeout
+pub(crate) const OTEL_BLRP_FORCE_FLUSH_TIMEOUT: &str = "OTEL_BLRP_FORCE_FLUSH_TIMEOUT";
+/// Default force flush timeout
+pub(crate) const OTEL_BLRP_FORCE_FLUSH_TIMEOUT_DEFAULT: Duration = Duration::from_millis(5_000);
 
 /// Messages sent between application thread and batch log processor's work thread.
 #[allow(clippy::large_enum_variant)]
@@ -339,6 +343,7 @@ impl BatchLogProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let forceflush_timeout = config.forceflush_timeout;
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
@@ -489,7 +494,7 @@ impl BatchLogProcessor {
             logs_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
-            forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
+            forceflush_timeout,
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
@@ -586,6 +591,9 @@ pub struct BatchConfig {
     /// is 512.
     pub(crate) max_export_batch_size: usize,
 
+    /// The maximum duration to wait when force flushing.
+    pub(crate) forceflush_timeout: Duration,
+
     /// The maximum duration to export a batch of data.
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     pub(crate) max_export_timeout: Duration,
@@ -603,6 +611,7 @@ pub struct BatchConfigBuilder {
     max_queue_size: usize,
     scheduled_delay: Duration,
     max_export_batch_size: usize,
+    forceflush_timeout: Duration,
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     max_export_timeout: Duration,
 }
@@ -622,6 +631,7 @@ impl Default for BatchConfigBuilder {
             max_queue_size: OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT,
             scheduled_delay: OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             max_export_batch_size: OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+            forceflush_timeout: OTEL_BLRP_FORCE_FLUSH_TIMEOUT_DEFAULT,
             #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT,
         }
@@ -682,6 +692,17 @@ impl BatchConfigBuilder {
         self
     }
 
+    /// Set forceflush_timeout for [`BatchConfigBuilder`].
+    /// The default value is 5000 milliseconds.
+    ///
+    /// Corresponding environment variable: `OTEL_BLRP_FORCE_FLUSH_TIMEOUT`.
+    ///
+    /// Note: Programmatically setting this will override any value set via the environment variable.
+    pub fn with_forceflush_timeout(mut self, forceflush_timeout: Duration) -> Self {
+        self.forceflush_timeout = forceflush_timeout;
+        self
+    }
+
     /// Builds a `BatchConfig` enforcing the following invariants:
     /// * `max_export_batch_size` must be less than or equal to `max_queue_size`.
     pub fn build(self) -> BatchConfig {
@@ -692,6 +713,7 @@ impl BatchConfigBuilder {
         BatchConfig {
             max_queue_size: self.max_queue_size,
             scheduled_delay: self.scheduled_delay,
+            forceflush_timeout: self.forceflush_timeout,
             #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
             max_export_timeout: self.max_export_timeout,
             max_export_batch_size,
@@ -718,6 +740,13 @@ impl BatchConfigBuilder {
             .and_then(|delay| u64::from_str(&delay).ok())
         {
             self.scheduled_delay = Duration::from_millis(scheduled_delay);
+        }
+
+        if let Some(forceflush_timeout) = env::var(OTEL_BLRP_FORCE_FLUSH_TIMEOUT)
+            .ok()
+            .and_then(|s| u64::from_str(&s).ok())
+        {
+            self.forceflush_timeout = Duration::from_millis(forceflush_timeout);
         }
 
         #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
