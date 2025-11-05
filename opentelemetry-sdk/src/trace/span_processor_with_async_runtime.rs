@@ -647,6 +647,7 @@ mod tests {
             scheduled_delay: Duration::from_secs(3600), // effectively disabled
             max_export_timeout: Duration::from_secs(5),
             max_concurrent_exports: 2, // what we want to verify
+            forceflush_timeout: Duration::from_secs(5),
         };
 
         // Spawn the processor.
@@ -685,6 +686,7 @@ mod tests {
             scheduled_delay: Duration::from_secs(3600),
             max_export_timeout: Duration::from_secs(5),
             max_concurrent_exports: 1, // what we want to verify
+            forceflush_timeout: Duration::from_secs(5),
         };
 
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
