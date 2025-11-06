@@ -123,7 +123,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         }
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))

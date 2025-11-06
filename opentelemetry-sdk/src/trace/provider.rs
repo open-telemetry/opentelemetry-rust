@@ -194,7 +194,7 @@ impl SdkTracerProvider {
         self.inner.is_shutdown.load(Ordering::Relaxed)
     }
 
-    /// Force flush all remaining spans in span processors and return results.
+    /// Force flush all remaining spans in span processors with a default timeout and return results.
     ///
     /// # Examples
     ///
@@ -228,10 +228,15 @@ impl SdkTracerProvider {
     /// }
     /// ```
     pub fn force_flush(&self) -> OTelSdkResult {
+        self.force_flush_with_timeout(Duration::from_secs(5))
+    }
+
+    /// force flush processors with a specified timeout
+    pub fn force_flush_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let result: Vec<_> = self
             .span_processors()
             .iter()
-            .map(|processor| processor.force_flush())
+            .map(|processor| processor.force_flush_with_timeout(timeout))
             .collect();
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
@@ -530,7 +535,7 @@ mod tests {
             // ignore
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             if self.success {
                 Ok(())
             } else {
@@ -793,7 +798,7 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

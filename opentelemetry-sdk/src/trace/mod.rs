@@ -143,7 +143,7 @@ mod tests {
             // let _c = Context::current();
         }
 
-        fn force_flush(&self) -> crate::error::OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

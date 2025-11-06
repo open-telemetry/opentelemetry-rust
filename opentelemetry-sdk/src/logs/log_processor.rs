@@ -53,7 +53,13 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// - `instrumentation`: The instrumentation scope associated with the log record.
     fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
-    fn force_flush(&self) -> OTelSdkResult;
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        Ok(())
+    }
+    /// Force the logs lying in the cache to be exported with default timeout.
+    fn force_flush(&self) -> OTelSdkResult {
+        self.force_flush_with_timeout(Duration::from_secs(5))
+    }
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
