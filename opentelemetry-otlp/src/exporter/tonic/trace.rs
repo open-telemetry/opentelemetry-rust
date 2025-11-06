@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use opentelemetry::otel_debug;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
@@ -120,8 +120,21 @@ impl SpanExporter for TonicTracesClient {
                         ExportTraceServiceRequest { resource_spans },
                     ))
                     .await
-                    .map(|_| {
+                    .map(|response| {
                         otel_debug!(name: "TonicTracesClient.ExportSucceeded");
+
+                        // Handle partial success. As per spec, we log and _do not_ retry.
+                        if let Some(partial_success) = response.into_inner().partial_success {
+                            if partial_success.rejected_spans > 0
+                                || !partial_success.error_message.is_empty()
+                            {
+                                otel_warn!(
+                                    name: "TonicTracesClient.PartialSuccess",
+                                    rejected_spans = partial_success.rejected_spans,
+                                    error_message = partial_success.error_message.as_str(),
+                                );
+                            }
+                        }
                     })
             },
         )

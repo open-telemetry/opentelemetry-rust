@@ -23,6 +23,8 @@ Released 2025-Sep-25
   The logs functionality now operates independently, while automatic correlation
   between logs and traces continues to work when the "trace" feature is
   explicitly enabled.
+- **Fix**: Fix shutdown of `SimpleLogProcessor` and async `BatchLogProcessor`.
+- Default implementation of `LogProcessor::shutdown_with_timeout()` will now warn to encourage users to implement proper shutdown.
 
 ## 0.30.0
 
@@ -45,7 +47,7 @@ also modified to suppress telemetry before invoking exporters.
 
 - **Feature**: Implemented and enabled cardinality capping for Metrics by
   default. [#2901](https://github.com/open-telemetry/opentelemetry-rust/pull/2901)
-  - The default cardinality limit is 2000 and can be customized using Views.  
+  - The default cardinality limit is 2000 and can be customized using Views.
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
     the limit.
@@ -186,7 +188,7 @@ Released 2025-Mar-21
   ```
 
   After:
-  
+
   ```rust
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
