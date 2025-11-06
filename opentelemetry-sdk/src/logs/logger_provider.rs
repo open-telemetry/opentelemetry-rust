@@ -428,7 +428,7 @@ mod tests {
             assert_eq!(
                 processor
                     .resource()
-                    .get_ref(&Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -436,7 +436,7 @@ mod tests {
             assert_eq!(
                 exporter
                     .resource()
-                    .get_ref(&Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -444,28 +444,28 @@ mod tests {
         let assert_telemetry_resource =
             |processor: &TestProcessorForResource, exporter: &TestExporterForResource| {
                 assert_eq!(
-                    processor.resource().get_ref(&TELEMETRY_SDK_LANGUAGE.into()),
-                    Some(&Value::from("rust"))
+                    processor.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
                 );
                 assert_eq!(
-                    processor.resource().get_ref(&TELEMETRY_SDK_NAME.into()),
-                    Some(&Value::from("opentelemetry"))
+                    processor.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
                 );
                 assert_eq!(
-                    processor.resource().get_ref(&TELEMETRY_SDK_VERSION.into()),
-                    Some(&Value::from(env!("CARGO_PKG_VERSION")))
+                    processor.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
                 );
                 assert_eq!(
-                    exporter.resource().get_ref(&TELEMETRY_SDK_LANGUAGE.into()),
-                    Some(&Value::from("rust"))
+                    exporter.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
                 );
                 assert_eq!(
-                    exporter.resource().get_ref(&TELEMETRY_SDK_NAME.into()),
-                    Some(&Value::from("opentelemetry"))
+                    exporter.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
                 );
                 assert_eq!(
-                    exporter.resource().get_ref(&TELEMETRY_SDK_VERSION.into()),
-                    Some(&Value::from(env!("CARGO_PKG_VERSION")))
+                    exporter.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
                 );
             };
 
@@ -876,16 +876,16 @@ mod tests {
         let resource = builder.resource.unwrap();
 
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key1")),
-            Some(&Value::from("value1"))
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
         );
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key2")),
-            Some(&Value::from("value2"))
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
         );
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key3")),
-            Some(&Value::from("value3"))
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
         );
         assert_eq!(resource.schema_url(), Some("http://example.com"));
     }

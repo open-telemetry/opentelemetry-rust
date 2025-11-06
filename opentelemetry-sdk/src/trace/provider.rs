@@ -577,7 +577,7 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get_ref(&Key::from_static_str(resource_key))
+                    .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
@@ -587,22 +587,19 @@ mod tests {
                 provider
                     .config()
                     .resource
-                    .get_ref(&TELEMETRY_SDK_LANGUAGE.into()),
-                Some(&Value::from("rust"))
+                    .get(&TELEMETRY_SDK_LANGUAGE.into()),
+                Some(Value::from("rust"))
+            );
+            assert_eq!(
+                provider.config().resource.get(&TELEMETRY_SDK_NAME.into()),
+                Some(Value::from("opentelemetry"))
             );
             assert_eq!(
                 provider
                     .config()
                     .resource
-                    .get_ref(&TELEMETRY_SDK_NAME.into()),
-                Some(&Value::from("opentelemetry"))
-            );
-            assert_eq!(
-                provider
-                    .config()
-                    .resource
-                    .get_ref(&TELEMETRY_SDK_VERSION.into()),
-                Some(&Value::from(env!("CARGO_PKG_VERSION")))
+                    .get(&TELEMETRY_SDK_VERSION.into()),
+                Some(Value::from(env!("CARGO_PKG_VERSION")))
             );
         };
 
@@ -762,16 +759,16 @@ mod tests {
             .into_owned();
 
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key1")),
-            Some(&Value::from("value1"))
+            resource.get(&Key::from_static_str("key1")),
+            Some(Value::from("value1"))
         );
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key2")),
-            Some(&Value::from("value2"))
+            resource.get(&Key::from_static_str("key2")),
+            Some(Value::from("value2"))
         );
         assert_eq!(
-            resource.get_ref(&Key::from_static_str("key3")),
-            Some(&Value::from("value3"))
+            resource.get(&Key::from_static_str("key3")),
+            Some(Value::from("value3"))
         );
         assert_eq!(resource.schema_url(), Some("http://example.com"));
     }

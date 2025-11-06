@@ -68,7 +68,7 @@ impl LogExporter for NoopExporter {
 
     fn set_resource(&mut self, res: &Resource) {
         self.service_name = res
-            .get_ref(&Key::from_static_str("service.name"))
+            .get(&Key::from_static_str("service.name"))
             .map(|v| v.to_string());
     }
 }
