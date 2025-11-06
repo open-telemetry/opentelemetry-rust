@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Fix**: `Sampler::ParentBased` now correctly delegates sampling decisions to the `delegate_sampler` when no sampling information was extracted by the context propagator. Previously `SamplingDecision::Drop` was returned in such cases. ([#3209](https://github.com/open-telemetry/opentelemetry-rust/pull/3209)).
+
 ## 0.31.0
 
 Released 2025-Sep-25
