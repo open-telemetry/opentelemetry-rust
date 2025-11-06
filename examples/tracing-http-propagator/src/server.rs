@@ -118,7 +118,7 @@ impl LogProcessor for EnrichWithBaggageLogProcessor {
         });
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

@@ -46,6 +46,7 @@ mod tests {
     use std::borrow::Borrow;
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     #[test]
     fn logging_sdk_test() {
@@ -167,7 +168,7 @@ mod tests {
             });
         }
 
-        fn force_flush(&self) -> crate::error::OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -273,7 +274,7 @@ mod tests {
             }
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

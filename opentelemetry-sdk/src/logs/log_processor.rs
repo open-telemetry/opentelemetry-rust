@@ -53,9 +53,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// - `instrumentation`: The instrumentation scope associated with the log record.
     fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope);
     /// Force the logs lying in the cache to be exported.
-    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
-        Ok(())
-    }
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult;
     /// Force the logs lying in the cache to be exported with default timeout.
     fn force_flush(&self) -> OTelSdkResult {
         self.force_flush_with_timeout(Duration::from_secs(5))
@@ -109,6 +107,7 @@ pub(crate) mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     #[derive(Debug, Clone)]
     pub(crate) struct MockLogExporter {
@@ -158,7 +157,7 @@ pub(crate) mod tests {
                 .push((record.clone(), instrumentation.clone())); //clone as the LogProcessor is storing the data.
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -188,7 +187,7 @@ pub(crate) mod tests {
                 .push((record.clone(), instrumentation.clone()));
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

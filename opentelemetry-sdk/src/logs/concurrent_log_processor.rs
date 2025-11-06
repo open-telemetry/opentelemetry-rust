@@ -37,7 +37,7 @@ impl<T: LogExporter> LogProcessor for SimpleConcurrentLogProcessor<T> {
         }
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         // TODO: invoke flush on exporter
         // once https://github.com/open-telemetry/opentelemetry-rust/issues/2261
         // is resolved

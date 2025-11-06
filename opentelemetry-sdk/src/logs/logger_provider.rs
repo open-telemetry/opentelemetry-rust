@@ -345,7 +345,7 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -398,7 +398,7 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -918,7 +918,7 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
@@ -949,7 +949,7 @@ mod tests {
             // nothing to do
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
