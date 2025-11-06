@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** Stabilized `logger.enabled` by removing the `spec_unstable_logs_enabled` feature flag. Log level filtering is now always enabled.
+
 ## 0.31.0
 
 Released 2025-Sep-25

@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** Stabilized `logger.enabled` by removing the `spec_unstable_logs_enabled` feature flag. Event filtering is now always enabled.
+
 ## 0.31.1
 
 Released 2025-Oct-1

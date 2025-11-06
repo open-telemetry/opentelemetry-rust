@@ -84,10 +84,6 @@
 //!
 //! * `jaeger_remote_sampler`: Enables the [Jaeger remote sampler](https://www.jaegertracing.io/docs/1.53/sampling/).
 //!
-//! For `logs` the following feature flags are available:
-//!
-//! * `spec_unstable_logs_enabled`: control the log level
-//!
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:
 //!

@@ -135,7 +135,6 @@
 //! >   spans to OpenTelemetry in the future.
 //!
 //! ## Feature Flags
-//! `spec_unstable_logs_enabled`: TODO
 //!
 //! `experimental_metadata_attributes`: TODO
 //!

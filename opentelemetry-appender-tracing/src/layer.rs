@@ -220,7 +220,6 @@ where
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
         let name = metadata.name();
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         if !self.logger.event_enabled(severity, target, Some(name)) {
             // TODO: See if we need internal logs or track the count.
             return;
@@ -919,7 +918,6 @@ mod tests {
             // no-op
         }
 
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
             // assert that passed in arguments are same as the ones set in the test.
             assert_eq!(self.severity_level, level);
@@ -940,7 +938,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[test]
     fn is_enabled() {
         // Arrange
