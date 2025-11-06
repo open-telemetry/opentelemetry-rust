@@ -38,11 +38,11 @@ trace = ["futures", "thiserror"]
 metrics = []
 testing = ["trace"]
 logs = []
-spec_unstable_logs_enabled = ["logs"]
+
 internal-logs = ["tracing"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 tokio = { version = "1.0", features = ["full"] }
