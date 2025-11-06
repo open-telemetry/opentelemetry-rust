@@ -1,0 +1,22 @@
+metrics:
+  readers:
+    - periodic:
+        exporter:
+          otlp:
+            protocol: http/protobuf
+            endpoint: https://backend:4318
+          stdout:
+            temporality: cumulative
+
+logs:
+  processors:
+    - batch:
+        exporter:
+          stdout: {}
+          otlp:
+            protocol: http/protobuf
+            endpoint: https://backend:4318
+
+resource:
+  service.name: sample-service
+  service.version: "1.0.0"

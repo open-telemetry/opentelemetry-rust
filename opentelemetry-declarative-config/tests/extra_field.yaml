@@ -1,0 +1,9 @@
+metrics:
+  readers:
+    - periodic:
+        exporter:
+          otlp:
+            protocol: http/protobuf
+            endpoint: https://backend:4318
+          stdout:
+            other: extra.thing

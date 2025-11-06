@@ -1,0 +1,41 @@
+[package]
+name = "opentelemetry-declarative-config"
+version = "0.29.1"
+description = "Declarative configuration for OpenTelemetry SDK"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-declarative-config"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-declarative-config"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+]
+keywords = ["opentelemetry", "declarative", "metrics", "configuration"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.75.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+opentelemetry = { version = "0.31.0" }
+opentelemetry_sdk = { version = "0.31.0", features = ["experimental_metrics_custom_reader"] }
+opentelemetry-stdout = { version = "0.31.0" }
+opentelemetry-otlp = { version = "0.31.0" }
+opentelemetry-http = { workspace = true, optional = true, default-features = false }
+serde = { workspace = true, features = ["derive"] }
+reqwest = { workspace = true, optional = true }
+serde_yaml = "0.9.34"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[features]
+tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics"]
+hyper-client = ["opentelemetry-http/hyper"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
+
+# Keep tonic as the default client
+default = ["tonic-client"]
