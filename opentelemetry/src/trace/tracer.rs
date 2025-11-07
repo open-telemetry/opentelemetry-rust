@@ -1,6 +1,6 @@
 use crate::{
-    trace::{Event, Link, Span, SpanKind, Status, TraceContextExt, TraceState},
-    Context, KeyValue, SpanId, TraceId,
+    trace::{Event, Link, Span, SpanKind, TraceContextExt, TraceState},
+    Context, KeyValue,
 };
 use std::borrow::Cow;
 use std::time::SystemTime;
@@ -240,12 +240,6 @@ pub trait Tracer {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct SpanBuilder {
-    /// Trace id, useful for integrations with external tracing systems.
-    pub trace_id: Option<TraceId>,
-
-    /// Span id, useful for integrations with external tracing systems.
-    pub span_id: Option<SpanId>,
-
     /// Span kind
     pub span_kind: Option<SpanKind>,
 
@@ -254,9 +248,6 @@ pub struct SpanBuilder {
 
     /// Span start time
     pub start_time: Option<SystemTime>,
-
-    /// Span end time
-    pub end_time: Option<SystemTime>,
 
     /// Span attributes that are provided at the span creation time.
     /// More attributes can be added afterwards.
@@ -269,12 +260,6 @@ pub struct SpanBuilder {
 
     /// Span Links
     pub links: Option<Vec<Link>>,
-
-    /// Span status
-    pub status: Status,
-
-    /// Sampling result
-    pub sampling_result: Option<SamplingResult>,
 }
 
 /// SpanBuilder methods
@@ -284,22 +269,6 @@ impl SpanBuilder {
         SpanBuilder {
             name: name.into(),
             ..Default::default()
-        }
-    }
-
-    /// Specify trace id to use if no parent context exists
-    pub fn with_trace_id(self, trace_id: TraceId) -> Self {
-        SpanBuilder {
-            trace_id: Some(trace_id),
-            ..self
-        }
-    }
-
-    /// Assign span id
-    pub fn with_span_id(self, span_id: SpanId) -> Self {
-        SpanBuilder {
-            span_id: Some(span_id),
-            ..self
         }
     }
 
@@ -315,14 +284,6 @@ impl SpanBuilder {
     pub fn with_start_time<T: Into<SystemTime>>(self, start_time: T) -> Self {
         SpanBuilder {
             start_time: Some(start_time.into()),
-            ..self
-        }
-    }
-
-    /// Assign span end time
-    pub fn with_end_time<T: Into<SystemTime>>(self, end_time: T) -> Self {
-        SpanBuilder {
-            end_time: Some(end_time.into()),
             ..self
         }
     }
@@ -353,19 +314,6 @@ impl SpanBuilder {
         links.retain(|l| l.span_context.is_valid());
         SpanBuilder {
             links: Some(links),
-            ..self
-        }
-    }
-
-    /// Assign status code
-    pub fn with_status(self, status: Status) -> Self {
-        SpanBuilder { status, ..self }
-    }
-
-    /// Assign sampling result
-    pub fn with_sampling_result(self, sampling_result: SamplingResult) -> Self {
-        SpanBuilder {
-            sampling_result: Some(sampling_result),
             ..self
         }
     }
