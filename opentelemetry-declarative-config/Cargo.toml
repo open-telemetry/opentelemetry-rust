@@ -39,3 +39,9 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-block
 
 # Keep tonic as the default client
 default = ["tonic-client"]
+
+[package.metadata.cargo-machete]
+ignored = [
+    "reqwest", # needed for otlp features
+    "opentelemetry-http" # needed for otlp features
+]
