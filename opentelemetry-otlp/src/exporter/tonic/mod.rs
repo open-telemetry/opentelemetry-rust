@@ -156,10 +156,7 @@ impl Default for TonicExporterBuilder {
                 #[cfg(feature = "experimental-grpc-retry")]
                 retry_policy: None,
             },
-            exporter_config: ExportConfig {
-                protocol: crate::Protocol::Grpc,
-                ..Default::default()
-            },
+            exporter_config: ExportConfig::default(),
         }
     }
 }

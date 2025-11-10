@@ -1,8 +1,8 @@
 use super::{
-    default_headers, default_protocol, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
@@ -100,6 +100,32 @@ mod trace;
 ))]
 use opentelemetry_http::hyper::HyperClient;
 
+/// The protocol to used for HTTP requests
+///
+/// This combination of transport (HTTP) and encoding (protobuf / JSON) is
+/// used in the OTel spec itself.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Protocol {
+    /// Binary protobuf encoding over HTTP
+    HttpProtobuf,
+    /// JSON encoding over HTTP
+    HttpJson,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Protocol {
+    fn default() -> Self {
+        #[cfg(feature = "http-json")]
+        {
+            Protocol::HttpJson
+        }
+        #[cfg(not(feature = "http-json"))]
+        {
+            Protocol::HttpProtobuf
+        }
+    }
+}
+
 /// Configuration of the http transport
 #[derive(Debug, Default)]
 pub struct HttpConfig {
@@ -115,6 +141,9 @@ pub struct HttpConfig {
     /// The retry policy to use for HTTP requests.
     #[cfg(feature = "experimental-http-retry")]
     retry_policy: Option<RetryPolicy>,
+
+    /// The encoding format for HTTP payloads.
+    protocol: Protocol,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -153,10 +182,7 @@ pub struct HttpExporterBuilder {
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
-            exporter_config: ExportConfig {
-                protocol: default_protocol(),
-                ..ExportConfig::default()
-            },
+            exporter_config: ExportConfig::default(),
             http_config: HttpConfig {
                 headers: Some(default_headers()),
                 ..HttpConfig::default()
@@ -283,7 +309,7 @@ impl HttpExporterBuilder {
             http_client,
             endpoint,
             headers,
-            self.exporter_config.protocol,
+            self.http_config.protocol,
             timeout,
             compression,
             #[cfg(feature = "experimental-http-retry")]
@@ -557,7 +583,7 @@ impl OtlpHttpClient {
         client: Arc<dyn HttpClient>,
         collector_endpoint: Uri,
         headers: HashMap<HeaderName, HeaderValue>,
-        protocol: Protocol,
+        encoding: Protocol,
         timeout: Duration,
         compression: Option<crate::Compression>,
         #[cfg(feature = "experimental-http-retry")] retry_policy: Option<RetryPolicy>,
@@ -566,7 +592,7 @@ impl OtlpHttpClient {
             client: Mutex::new(Some(client)),
             collector_endpoint,
             headers: Arc::new(headers),
-            protocol,
+            protocol: encoding,
             _timeout: timeout,
             compression,
             #[cfg(feature = "experimental-http-retry")]
@@ -595,7 +621,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpProtobuf => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(not(feature = "http-json"))]
+            Protocol::HttpJson => {
+                // This should never happen as we validate at build time, but handle it gracefully
+                (req.encode_to_vec(), "application/x-protobuf")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -617,7 +648,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpProtobuf => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(not(feature = "http-json"))]
+            Protocol::HttpJson => {
+                // This should never happen as we validate at build time, but handle it gracefully
+                (req.encode_to_vec(), "application/x-protobuf")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -642,7 +678,13 @@ impl OtlpHttpClient {
                     return None;
                 }
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpProtobuf => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(not(feature = "http-json"))]
+            Protocol::HttpJson => {
+                // This should never happen as we validate at build time, but handle it gracefully
+                otel_debug!(name: "JsonNotAvailable", message = "http-json feature not enabled, falling back to protobuf");
+                (req.encode_to_vec(), "application/x-protobuf")
+            }
         };
 
         match self.process_body(body) {
@@ -750,6 +792,11 @@ pub trait WithHttpConfig {
     /// Set the retry policy for HTTP requests.
     #[cfg(feature = "experimental-http-retry")]
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
+
+    /// Set the payload encoding format.
+    ///
+    /// Note: JSON encoding requires the `http-json` feature to be enabled.
+    fn with_protocol(self, protocol: Protocol) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -780,11 +827,16 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
         self.http_client_config().retry_policy = Some(policy);
         self
     }
+
+    fn with_protocol(mut self, protocol: Protocol) -> Self {
+        self.http_client_config().protocol = protocol;
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::exporter::http::HttpConfig;
+    use crate::exporter::http::{HttpConfig, Protocol};
     use crate::exporter::tests::run_env_test;
     use crate::{
         HttpExporterBuilder, WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
@@ -1027,6 +1079,7 @@ mod tests {
                 compression: None,
                 #[cfg(feature = "experimental-http-retry")]
                 retry_policy: None,
+                protocol: Protocol::default(),
             },
             exporter_config: crate::ExportConfig::default(),
         };
@@ -1079,7 +1132,7 @@ mod tests {
 
     #[cfg(feature = "gzip-http")]
     mod compression_tests {
-        use super::super::OtlpHttpClient;
+        use super::super::{OtlpHttpClient, Protocol};
         use flate2::read::GzDecoder;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::io::Read;
@@ -1090,7 +1143,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
                 #[cfg(feature = "experimental-http-retry")]
@@ -1123,7 +1176,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
                 #[cfg(feature = "experimental-http-retry")]
@@ -1153,7 +1206,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 None, // No compression
                 #[cfg(feature = "experimental-http-retry")]
@@ -1176,7 +1229,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
                 #[cfg(feature = "experimental-http-retry")]
@@ -1200,7 +1253,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
                 #[cfg(feature = "experimental-http-retry")]
@@ -1236,7 +1289,7 @@ mod tests {
     }
 
     mod export_body_tests {
-        use super::super::OtlpHttpClient;
+        use super::super::{OtlpHttpClient, Protocol};
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
 
@@ -1257,14 +1310,14 @@ mod tests {
         }
 
         fn create_test_client(
-            protocol: crate::Protocol,
+            encoding: Protocol,
             compression: Option<crate::Compression>,
         ) -> OtlpHttpClient {
             OtlpHttpClient::new(
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 HashMap::new(),
-                protocol,
+                encoding,
                 std::time::Duration::from_secs(10),
                 compression,
                 #[cfg(feature = "experimental-http-retry")]
@@ -1308,7 +1361,7 @@ mod tests {
         #[cfg(feature = "trace")]
         #[test]
         fn test_build_trace_export_body_binary_protocol() {
-            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let client = create_test_client(Protocol::HttpProtobuf, None);
             let span_data = create_test_span_data();
 
             let result = client.build_trace_export_body(vec![span_data]).unwrap();
@@ -1321,7 +1374,7 @@ mod tests {
         #[cfg(all(feature = "trace", feature = "http-json"))]
         #[test]
         fn test_build_trace_export_body_json_protocol() {
-            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let client = create_test_client(Protocol::HttpJson, None);
             let span_data = create_test_span_data();
 
             let result = client.build_trace_export_body(vec![span_data]).unwrap();
@@ -1334,8 +1387,7 @@ mod tests {
         #[cfg(all(feature = "trace", feature = "gzip-http"))]
         #[test]
         fn test_build_trace_export_body_with_compression() {
-            let client =
-                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let client = create_test_client(Protocol::HttpProtobuf, Some(crate::Compression::Gzip));
             let span_data = create_test_span_data();
 
             let result = client.build_trace_export_body(vec![span_data]).unwrap();
@@ -1356,7 +1408,7 @@ mod tests {
         #[cfg(feature = "logs")]
         #[test]
         fn test_build_logs_export_body_binary_protocol() {
-            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let client = create_test_client(Protocol::HttpProtobuf, None);
             let batch = create_test_log_batch();
 
             let result = client.build_logs_export_body(batch).unwrap();
@@ -1369,7 +1421,7 @@ mod tests {
         #[cfg(all(feature = "logs", feature = "http-json"))]
         #[test]
         fn test_build_logs_export_body_json_protocol() {
-            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let client = create_test_client(Protocol::HttpJson, None);
             let batch = create_test_log_batch();
 
             let result = client.build_logs_export_body(batch).unwrap();
@@ -1382,8 +1434,7 @@ mod tests {
         #[cfg(all(feature = "logs", feature = "gzip-http"))]
         #[test]
         fn test_build_logs_export_body_with_compression() {
-            let client =
-                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let client = create_test_client(Protocol::HttpProtobuf, Some(crate::Compression::Gzip));
             let batch = create_test_log_batch();
 
             let result = client.build_logs_export_body(batch).unwrap();
@@ -1398,7 +1449,7 @@ mod tests {
         fn test_build_metrics_export_body_binary_protocol() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
-            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let client = create_test_client(Protocol::HttpProtobuf, None);
             let metrics = ResourceMetrics::default();
 
             let result = client.build_metrics_export_body(&metrics).unwrap();
@@ -1413,7 +1464,7 @@ mod tests {
         fn test_build_metrics_export_body_json_protocol() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
-            let client = create_test_client(crate::Protocol::HttpJson, None);
+            let client = create_test_client(Protocol::HttpJson, None);
             let metrics = ResourceMetrics::default();
 
             let result = client.build_metrics_export_body(&metrics).unwrap();
@@ -1428,8 +1479,7 @@ mod tests {
         fn test_build_metrics_export_body_with_compression() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
-            let client =
-                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let client = create_test_client(Protocol::HttpProtobuf, Some(crate::Compression::Gzip));
             let metrics = ResourceMetrics::default();
 
             let result = client.build_metrics_export_body(&metrics).unwrap();
@@ -1444,8 +1494,7 @@ mod tests {
         fn test_build_metrics_export_body_compression_error_returns_none() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
-            let client =
-                create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
+            let client = create_test_client(Protocol::HttpProtobuf, Some(crate::Compression::Gzip));
             let metrics = ResourceMetrics::default();
 
             // Should return None when compression fails (feature not enabled)
@@ -1530,7 +1579,7 @@ mod tests {
         #[cfg(feature = "experimental-http-retry")]
         #[test]
         fn test_default_retry_policy_when_none_configured() {
-            let client = create_test_client(crate::Protocol::HttpBinary, None);
+            let client = create_test_client(Protocol::HttpProtobuf, None);
 
             // Verify default values are used
             assert_eq!(client.retry_policy.max_retries, 3);
@@ -1555,7 +1604,7 @@ mod tests {
                 std::sync::Arc::new(MockHttpClient),
                 "http://localhost:4318".parse().unwrap(),
                 HashMap::new(),
-                crate::Protocol::HttpBinary,
+                Protocol::HttpProtobuf,
                 std::time::Duration::from_secs(10),
                 None,
                 Some(custom_policy),
