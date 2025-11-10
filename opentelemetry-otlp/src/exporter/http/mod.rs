@@ -15,6 +15,7 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::SpanData;
+#[cfg(feature = "http-proto")]
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
@@ -595,7 +596,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -617,7 +623,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -642,7 +653,12 @@ impl OtlpHttpClient {
                     return None;
                 }
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         match self.process_body(body) {

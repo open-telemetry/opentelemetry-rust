@@ -29,27 +29,6 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
-#[cfg(feature = "http-json")]
-/// Default protocol, using http-json.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
-#[cfg(all(feature = "http-proto", not(feature = "http-json")))]
-/// Default protocol, using http-proto.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
-#[cfg(all(
-    feature = "grpc-tonic",
-    not(any(feature = "http-proto", feature = "http-json"))
-))]
-/// Default protocol, using grpc
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
-
-#[cfg(not(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")))]
-/// Default protocol if no features are enabled.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
-
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
-const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
-
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each signal batch.
@@ -84,6 +63,7 @@ pub struct ExportConfig {
     pub timeout: Option<Duration>,
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl Default for ExportConfig {
     fn default() -> Self {
         let protocol = default_protocol();
@@ -190,14 +170,25 @@ fn resolve_compression_from_env(
     }
 }
 
-/// default protocol based on enabled features
+/// Returns the default protocol based on enabled features.
+///
+/// Priority order (first available wins):
+/// 1. http-json (if enabled)
+/// 2. http-proto (if enabled)
+/// 3. grpc-tonic (if enabled)
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn default_protocol() -> Protocol {
-    match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
-        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Protocol::HttpBinary,
-        OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Protocol::Grpc,
-        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Protocol::HttpJson,
-        _ => Protocol::HttpBinary,
-    }
+    #[cfg(feature = "http-json")]
+    return Protocol::HttpJson;
+
+    #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
+    return Protocol::HttpBinary;
+
+    #[cfg(all(
+        feature = "grpc-tonic",
+        not(any(feature = "http-proto", feature = "http-json"))
+    ))]
+    return Protocol::Grpc;
 }
 
 /// default user-agent headers

@@ -409,8 +409,7 @@ pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
-    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
-    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+    OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
 #[cfg(feature = "experimental-http-retry")]
@@ -450,10 +449,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
     /// GRPC protocol
+    #[cfg(feature = "grpc-tonic")]
     Grpc,
     /// HTTP protocol with binary protobuf
+    #[cfg(feature = "http-proto")]
     HttpBinary,
     /// HTTP protocol with JSON payload
+    #[cfg(feature = "http-json")]
     HttpJson,
 }
 
