@@ -1,5 +1,4 @@
-use super::OtlpHttpClient;
-use crate::Protocol;
+use super::{OtlpHttpClient, Protocol};
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_sdk::{
     error::{OTelSdkError, OTelSdkResult},
@@ -52,7 +51,15 @@ fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
                 return;
             }
         },
-        _ => match Message::decode(response_body) {
+        Protocol::HttpProtobuf => match Message::decode(response_body) {
+            Ok(r) => r,
+            Err(e) => {
+                otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
+                return;
+            }
+        },
+        #[cfg(not(feature = "http-json"))]
+        Protocol::HttpJson => match Message::decode(response_body) {
             Ok(r) => r,
             Err(e) => {
                 otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
@@ -82,7 +89,7 @@ mod tests {
         let invalid = vec![0xFF, 0xFF, 0xFF, 0xFF];
 
         // Should not panic - logs debug and returns early
-        handle_partial_success(&invalid, Protocol::HttpBinary);
+        handle_partial_success(&invalid, Protocol::HttpProtobuf);
     }
 
     #[test]
@@ -90,7 +97,7 @@ mod tests {
         let empty = vec![];
 
         // Should not panic
-        handle_partial_success(&empty, Protocol::HttpBinary);
+        handle_partial_success(&empty, Protocol::HttpProtobuf);
     }
 
     #[cfg(feature = "http-json")]

@@ -28,14 +28,13 @@
 //! # {
 //! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
-//! use opentelemetry_otlp::Protocol;
-//! use opentelemetry_otlp::WithExportConfig;
+//! use opentelemetry_otlp::{Protocol, WithExportConfig, WithHttpConfig};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     // Initialize OTLP exporter with protobuf encoding and HTTP transport
 //!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
 //!         .with_http()
-//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_protocol(Protocol::HttpProtobuf)
 //!         .build()?;
 //!
 //!     // Create a tracer provider with the exporter
@@ -167,14 +166,13 @@
 //! use opentelemetry::global;
 //! use opentelemetry::metrics::Meter;
 //! use opentelemetry::KeyValue;
-//! use opentelemetry_otlp::Protocol;
-//! use opentelemetry_otlp::WithExportConfig;
+//! use opentelemetry_otlp::{Protocol, WithExportConfig, WithHttpConfig};
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // Initialize OTLP exporter using HTTP binary protocol
+//!     // Initialize OTLP exporter with protobuf encoding and HTTP transport
 //!     let exporter = opentelemetry_otlp::MetricExporter::builder()
 //!         .with_http()
-//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_protocol(Protocol::HttpProtobuf)
 //!         .with_endpoint("http://localhost:9090/api/v1/otlp/v1/metrics")
 //!         .build()?;
 //!
@@ -249,11 +247,11 @@
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::Temporality;
-//! use opentelemetry_otlp::{Protocol, WithExportConfig, Compression};
+//! use opentelemetry_otlp::{WithExportConfig, Compression};
 //! # #[cfg(feature = "grpc-tonic")]
 //! use opentelemetry_otlp::WithTonicConfig;
 //! # #[cfg(any(feature = "http-proto", feature = "http-json"))]
-//! use opentelemetry_otlp::WithHttpConfig;
+//! use opentelemetry_otlp::{Protocol, WithHttpConfig};
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
@@ -293,7 +291,7 @@
 //!         .with_http()
 //!         .with_endpoint("http://localhost:4318/v1/traces")
 //!         .with_timeout(Duration::from_secs(3))
-//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_protocol(Protocol::HttpProtobuf)
 //!         .with_compression(Compression::Gzip)  // Requires gzip-http feature
 //!         .build()?;
 //!         # exporter
@@ -304,7 +302,6 @@
 //!     let exporter = opentelemetry_otlp::MetricExporter::builder()
 //!        .with_tonic()
 //!        .with_endpoint("http://localhost:4318/v1/metrics")
-//!        .with_protocol(Protocol::Grpc)
 //!        .with_timeout(Duration::from_secs(3))
 //!        .build()
 //!        .unwrap();
@@ -321,7 +318,7 @@
 //!     let exporter = opentelemetry_otlp::MetricExporter::builder()
 //!        .with_http()
 //!        .with_endpoint("http://localhost:4318/v1/metrics")
-//!        .with_protocol(Protocol::HttpBinary)
+//!        .with_protocol(Protocol::HttpProtobuf)
 //!        .with_timeout(Duration::from_secs(3))
 //!        .with_compression(Compression::Zstd)  // Requires zstd-http feature
 //!        .build()
@@ -401,7 +398,7 @@ pub use crate::logs::{
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-pub use crate::exporter::http::{HasHttpConfig, WithHttpConfig};
+pub use crate::exporter::http::{HasHttpConfig, Protocol, WithHttpConfig};
 
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
@@ -441,21 +438,6 @@ pub use crate::exporter::http::HttpExporterBuilder;
 
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
-
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
-
-/// The communication protocol to use when exporting data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Protocol {
-    /// GRPC protocol
-    Grpc,
-    /// HTTP protocol with binary protobuf
-    HttpBinary,
-    /// HTTP protocol with JSON payload
-    HttpJson,
-}
 
 #[derive(Debug, Default)]
 #[doc(hidden)]

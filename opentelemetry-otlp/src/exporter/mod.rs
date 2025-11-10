@@ -6,7 +6,6 @@
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::Protocol;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -31,24 +30,20 @@ pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION
 
 #[cfg(feature = "http-json")]
 /// Default protocol, using http-json.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON;
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "http/json";
 #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
 /// Default protocol, using http-proto.
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF;
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "http/protobuf";
 #[cfg(all(
     feature = "grpc-tonic",
     not(any(feature = "http-proto", feature = "http-json"))
 ))]
 /// Default protocol, using grpc
-pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = OTEL_EXPORTER_OTLP_PROTOCOL_GRPC;
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "grpc";
 
 #[cfg(not(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")))]
 /// Default protocol if no features are enabled.
 pub const OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT: &str = "";
-
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
-const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
-const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
@@ -66,36 +61,18 @@ pub(crate) mod http;
 pub(crate) mod tonic;
 
 /// Configuration for the OTLP exporter.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExportConfig {
     /// The address of the OTLP collector.
-    /// Default address will be used based on the protocol.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub endpoint: Option<String>,
-
-    /// The protocol to use when communicating with the collector.
-    pub protocol: Protocol,
 
     /// The timeout to the collector.
     /// The default value is 10 seconds.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub timeout: Option<Duration>,
-}
-
-impl Default for ExportConfig {
-    fn default() -> Self {
-        let protocol = default_protocol();
-
-        Self {
-            endpoint: None,
-            // don't use default_endpoint(protocol) here otherwise we
-            // won't know if user provided a value
-            protocol,
-            timeout: None,
-        }
-    }
 }
 
 #[derive(Error, Debug)]
@@ -190,16 +167,6 @@ fn resolve_compression_from_env(
     }
 }
 
-/// default protocol based on enabled features
-fn default_protocol() -> Protocol {
-    match OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT {
-        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Protocol::HttpBinary,
-        OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Protocol::Grpc,
-        OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Protocol::HttpJson,
-        _ => Protocol::HttpBinary,
-    }
-}
-
 /// default user-agent headers
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 fn default_headers() -> std::collections::HashMap<String, String> {
@@ -252,14 +219,6 @@ pub trait WithExportConfig {
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
-    /// Set the protocol to use when communicating with the collector.
-    ///
-    /// Note that protocols that are not supported by exporters will be ignored. The exporter
-    /// will use default protocol in this case.
-    ///
-    /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
-    fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
@@ -276,11 +235,6 @@ impl<B: HasExportConfig> WithExportConfig for B {
         self
     }
 
-    fn with_protocol(mut self, protocol: Protocol) -> Self {
-        self.export_config().protocol = protocol;
-        self
-    }
-
     fn with_timeout(mut self, timeout: Duration) -> Self {
         self.export_config().timeout = Some(timeout);
         self
@@ -288,7 +242,6 @@ impl<B: HasExportConfig> WithExportConfig for B {
 
     fn with_export_config(mut self, exporter_config: ExportConfig) -> Self {
         self.export_config().endpoint = exporter_config.endpoint;
-        self.export_config().protocol = exporter_config.protocol;
         self.export_config().timeout = exporter_config.timeout;
         self
     }
@@ -370,19 +323,54 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod tests {
+    use super::*;
+
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
         T: Into<Vec<(&'static str, &'static str)>>,
     {
-        temp_env::with_vars(
-            env_vars
-                .into()
-                .iter()
-                .map(|&(k, v)| (k, Some(v)))
-                .collect::<Vec<(&'static str, Option<&'static str>)>>(),
-            f,
-        )
+        // List of all OTEL environment variables that could interfere with tests
+        #[cfg_attr(not(feature = "logs"), allow(unused_mut))]
+        let mut otel_env_vars = vec![
+            OTEL_EXPORTER_OTLP_ENDPOINT,
+            OTEL_EXPORTER_OTLP_PROTOCOL,
+            OTEL_EXPORTER_OTLP_HEADERS,
+            OTEL_EXPORTER_OTLP_COMPRESSION,
+            OTEL_EXPORTER_OTLP_TIMEOUT,
+            crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            crate::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            crate::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+            crate::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            crate::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            crate::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+        ];
+
+        #[cfg(feature = "logs")]
+        {
+            otel_env_vars.extend_from_slice(&[
+                crate::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+                crate::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+                crate::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+                crate::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            ]);
+        }
+
+        let mut test_env_vars: Vec<(&str, Option<&str>)> =
+            env_vars.into().iter().map(|&(k, v)| (k, Some(v))).collect();
+
+        // Clear all OTEL env vars that aren't explicitly set in the test
+        let test_env_keys: std::collections::HashSet<&str> =
+            test_env_vars.iter().map(|(k, _)| *k).collect();
+        for &var in &otel_env_vars {
+            if !test_env_keys.contains(var) {
+                test_env_vars.push((var, None));
+            }
+        }
+
+        temp_env::with_vars(test_env_vars, f)
     }
 
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -399,11 +387,10 @@ mod tests {
     fn export_builder_error_invalid_http_endpoint() {
         use std::time::Duration;
 
-        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+        use crate::{ExportConfig, LogExporter, WithExportConfig};
 
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::HttpBinary,
             timeout: Some(Duration::from_secs(10)),
         };
 
@@ -426,11 +413,10 @@ mod tests {
     async fn export_builder_error_invalid_grpc_endpoint() {
         use std::time::Duration;
 
-        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
+        use crate::{ExportConfig, LogExporter, WithExportConfig};
 
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::Grpc,
             timeout: Some(Duration::from_secs(10)),
         };
 
@@ -451,39 +437,6 @@ mod tests {
         let exporter_builder = crate::TonicExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
-    }
-
-    #[test]
-    fn test_default_protocol() {
-        #[cfg(all(
-            feature = "http-json",
-            not(any(feature = "grpc-tonic", feature = "http-proto"))
-        ))]
-        {
-            assert_eq!(
-                crate::exporter::default_protocol(),
-                crate::Protocol::HttpJson
-            );
-        }
-
-        #[cfg(all(
-            feature = "http-proto",
-            not(any(feature = "grpc-tonic", feature = "http-json"))
-        ))]
-        {
-            assert_eq!(
-                crate::exporter::default_protocol(),
-                crate::Protocol::HttpBinary
-            );
-        }
-
-        #[cfg(all(
-            feature = "grpc-tonic",
-            not(any(feature = "http-proto", feature = "http-json"))
-        ))]
-        {
-            assert_eq!(crate::exporter::default_protocol(), crate::Protocol::Grpc);
-        }
     }
 
     #[test]

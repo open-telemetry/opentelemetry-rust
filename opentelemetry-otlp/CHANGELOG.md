@@ -4,6 +4,28 @@
 
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
+- **Breaking** Make invalid protocol/transport combinations unrepresentable [#3082](https://github.com/open-telemetry/opentelemetry-rust/issues/3082)
+  - Removed `protocol` field from `ExportConfig` and `with_protocol()` method from `WithExportConfig` trait
+  - Added new HTTP-specific `Protocol` enum with `HttpProtobuf` and `HttpJson` variants
+  - Added `with_protocol()` method to `WithHttpConfig` trait that accepts the HTTP-specific `Protocol` enum
+  - The `Protocol` enum is now only available and only needed when using HTTP transport
+  - This change makes invalid protocol/transport combinations (like using HTTP protocol with gRPC transport) impossible to express
+  - Migration example:
+    ```rust
+    // Before:
+    SpanExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpBinary)  // old Protocol from ExportConfig
+        .build()
+
+    // After:
+    use opentelemetry_otlp::Protocol; 
+
+    SpanExporter::builder()
+        .with_http()
+        .with_protocol(Protocol::HttpProtobuf)  // HTTP-specific Protocol enum
+        .build()
+    ```
 
 ## 0.31.0
 

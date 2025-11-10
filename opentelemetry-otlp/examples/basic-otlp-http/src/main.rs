@@ -4,8 +4,8 @@ use opentelemetry::{
     InstrumentationScope, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
+use opentelemetry_otlp::{Protocol, WithHttpConfig};
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
@@ -29,7 +29,7 @@ fn get_resource() -> Resource {
 fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary)
+        .with_protocol(Protocol::HttpProtobuf)
         .build()
         .expect("Failed to create log exporter");
 
@@ -42,7 +42,7 @@ fn init_logs() -> SdkLoggerProvider {
 fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
+        .with_protocol(Protocol::HttpProtobuf)
         .build()
         .expect("Failed to create trace exporter");
 
@@ -55,7 +55,7 @@ fn init_traces() -> SdkTracerProvider {
 fn init_metrics() -> SdkMeterProvider {
     let exporter = MetricExporter::builder()
         .with_http()
-        .with_protocol(Protocol::HttpBinary) //can be changed to `Protocol::HttpJson` to export in JSON format
+        .with_protocol(Protocol::HttpProtobuf)
         .build()
         .expect("Failed to create metric exporter");
 
