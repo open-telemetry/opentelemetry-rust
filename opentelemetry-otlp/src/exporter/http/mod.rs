@@ -1,5 +1,5 @@
 use super::{
-    default_headers, default_protocol, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
@@ -155,7 +155,7 @@ impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
             exporter_config: ExportConfig {
-                protocol: default_protocol(),
+                protocol: Protocol::default(),
                 ..ExportConfig::default()
             },
             http_config: HttpConfig {

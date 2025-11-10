@@ -29,6 +29,13 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_PROTOCOL";
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_COMPRESSION";
 
+/// Protocol value for HTTP with protobuf encoding
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF: &str = "http/protobuf";
+/// Protocol value for gRPC
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_GRPC: &str = "grpc";
+/// Protocol value for HTTP with JSON encoding
+pub const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
+
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each signal batch.
@@ -66,7 +73,7 @@ pub struct ExportConfig {
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl Default for ExportConfig {
     fn default() -> Self {
-        let protocol = default_protocol();
+        let protocol = Protocol::default();
 
         Self {
             endpoint: None,
@@ -170,25 +177,34 @@ fn resolve_compression_from_env(
     }
 }
 
-/// Returns the default protocol based on enabled features.
+/// Returns the default protocol based on environment variable or enabled features.
 ///
 /// Priority order (first available wins):
-/// 1. http-json (if enabled)
-/// 2. http-proto (if enabled)
-/// 3. grpc-tonic (if enabled)
+/// 1. OTEL_EXPORTER_OTLP_PROTOCOL environment variable (if set and feature is enabled)
+/// 2. http-json (if enabled)
+/// 3. http-proto (if enabled)
+/// 4. grpc-tonic (if enabled)
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-fn default_protocol() -> Protocol {
-    #[cfg(feature = "http-json")]
-    return Protocol::HttpJson;
+impl Default for Protocol {
+    fn default() -> Self {
+        // Check environment variable first
+        if let Some(protocol) = Protocol::from_env() {
+            return protocol;
+        }
 
-    #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
-    return Protocol::HttpBinary;
+        // Fall back to feature-based defaults
+        #[cfg(feature = "http-json")]
+        return Protocol::HttpJson;
 
-    #[cfg(all(
-        feature = "grpc-tonic",
-        not(any(feature = "http-proto", feature = "http-json"))
-    ))]
-    return Protocol::Grpc;
+        #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
+        return Protocol::HttpBinary;
+
+        #[cfg(all(
+            feature = "grpc-tonic",
+            not(any(feature = "http-proto", feature = "http-json"))
+        ))]
+        return Protocol::Grpc;
+    }
 }
 
 /// default user-agent headers
@@ -451,10 +467,7 @@ mod tests {
             not(any(feature = "grpc-tonic", feature = "http-proto"))
         ))]
         {
-            assert_eq!(
-                crate::exporter::default_protocol(),
-                crate::Protocol::HttpJson
-            );
+            assert_eq!(crate::Protocol::default(), crate::Protocol::HttpJson);
         }
 
         #[cfg(all(
@@ -462,10 +475,7 @@ mod tests {
             not(any(feature = "grpc-tonic", feature = "http-json"))
         ))]
         {
-            assert_eq!(
-                crate::exporter::default_protocol(),
-                crate::Protocol::HttpBinary
-            );
+            assert_eq!(crate::Protocol::default(), crate::Protocol::HttpBinary);
         }
 
         #[cfg(all(
@@ -475,6 +485,58 @@ mod tests {
         {
             assert_eq!(crate::exporter::default_protocol(), crate::Protocol::Grpc);
         }
+    }
+
+    #[test]
+    fn test_protocol_from_env() {
+        use crate::{Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+
+        // Test with no env var set - should return None
+        temp_env::with_var_unset(OTEL_EXPORTER_OTLP_PROTOCOL, || {
+            assert_eq!(Protocol::from_env(), None);
+        });
+
+        // Test with grpc protocol
+        #[cfg(feature = "grpc-tonic")]
+        run_env_test(vec![(OTEL_EXPORTER_OTLP_PROTOCOL, "grpc")], || {
+            assert_eq!(Protocol::from_env(), Some(Protocol::Grpc));
+        });
+
+        // Test with http/protobuf protocol
+        #[cfg(feature = "http-proto")]
+        run_env_test(vec![(OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf")], || {
+            assert_eq!(Protocol::from_env(), Some(Protocol::HttpBinary));
+        });
+
+        // Test with http/json protocol
+        #[cfg(feature = "http-json")]
+        run_env_test(vec![(OTEL_EXPORTER_OTLP_PROTOCOL, "http/json")], || {
+            assert_eq!(Protocol::from_env(), Some(Protocol::HttpJson));
+        });
+
+        // Test with invalid protocol - should return None
+        run_env_test(vec![(OTEL_EXPORTER_OTLP_PROTOCOL, "invalid")], || {
+            assert_eq!(Protocol::from_env(), None);
+        });
+    }
+
+    #[test]
+    fn test_default_protocol_respects_env() {
+        // Test that env var takes precedence over feature-based defaults
+        #[cfg(all(feature = "http-json", feature = "http-proto"))]
+        run_env_test(
+            vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf")],
+            || {
+                // Even though http-json would be the default, env var should override
+                assert_eq!(crate::Protocol::default(), crate::Protocol::HttpBinary);
+            },
+        );
+
+        #[cfg(all(feature = "grpc-tonic", feature = "http-json"))]
+        run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc")], || {
+            // Even though http-json would be the default, env var should override
+            assert_eq!(crate::Protocol::default(), crate::Protocol::Grpc);
+        });
     }
 
     #[test]
