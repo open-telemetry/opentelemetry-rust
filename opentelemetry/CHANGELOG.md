@@ -3,6 +3,11 @@
 ## vNext
 
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
+- **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
+  - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
+  - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
+
+[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 
 ## v0.31.0
 
@@ -10,6 +15,7 @@ Released 2025-Sep-25
 
 - *Breaking* Change return type of `opentelemetry::global::set_tracer_provider` to Unit to align with metrics counterpart
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+- Add an `IntoIterator` implementation for `opentelemetry::trace::TraceState` to allow iterating through its key-value pair collection.
 
 ## 0.30.0
 

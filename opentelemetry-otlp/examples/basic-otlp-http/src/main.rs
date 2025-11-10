@@ -20,7 +20,7 @@ fn get_resource() -> Resource {
     RESOURCE
         .get_or_init(|| {
             Resource::builder()
-                .with_service_name("basic-otlp-example-grpc")
+                .with_service_name("basic-otlp-example-http")
                 .build()
         })
         .clone()
