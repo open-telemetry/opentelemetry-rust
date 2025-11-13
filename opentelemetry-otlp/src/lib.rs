@@ -409,7 +409,8 @@ pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
-    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
+    OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
@@ -450,11 +451,78 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
     /// GRPC protocol
+    #[cfg(feature = "grpc-tonic")]
     Grpc,
     /// HTTP protocol with binary protobuf
+    #[cfg(feature = "http-proto")]
     HttpBinary,
     /// HTTP protocol with JSON payload
+    #[cfg(feature = "http-json")]
     HttpJson,
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+impl Protocol {
+    /// Attempts to parse a protocol from the `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable.
+    ///
+    /// Returns `None` if:
+    /// - The environment variable is not set
+    /// - The value doesn't match a known protocol
+    /// - The specified protocol's feature is not enabled
+    pub fn from_env() -> Option<Self> {
+        use crate::exporter::{
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
+        };
+
+        let protocol = std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).ok()?;
+
+        match protocol.as_str() {
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
+                #[cfg(feature = "grpc-tonic")]
+                {
+                    Some(Protocol::Grpc)
+                }
+                #[cfg(not(feature = "grpc-tonic"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'grpc-tonic' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC)
+                    );
+                    None
+                }
+            }
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => {
+                #[cfg(feature = "http-proto")]
+                {
+                    Some(Protocol::HttpBinary)
+                }
+                #[cfg(not(feature = "http-proto"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'http-proto' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF)
+                    );
+                    None
+                }
+            }
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => {
+                #[cfg(feature = "http-json")]
+                {
+                    Some(Protocol::HttpJson)
+                }
+                #[cfg(not(feature = "http-json"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'http-json' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON)
+                    );
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
