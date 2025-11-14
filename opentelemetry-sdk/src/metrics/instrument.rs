@@ -32,12 +32,10 @@ pub enum InstrumentKind {
     /// A group of instruments that record increasing and decreasing values in an
     /// asynchronous callback.
     ObservableUpDownCounter,
-
-    /// a group of instruments that record current value synchronously with
+    /// A group of instruments that record current value synchronously with
     /// the code path they are measuring.
     Gauge,
-    ///
-    /// a group of instruments that record current values in an asynchronous callback.
+    /// A group of instruments that record current values in an asynchronous callback.
     ObservableGauge,
 }
 
@@ -97,33 +95,38 @@ impl InstrumentKind {
 pub struct Instrument {
     /// The human-readable identifier of the instrument.
     pub(crate) name: Cow<'static, str>,
-    /// describes the purpose of the instrument.
+    /// Describes the purpose of the instrument.
     pub(crate) description: Cow<'static, str>,
     /// The functional group of the instrument.
     pub(crate) kind: InstrumentKind,
-    /// Unit is the unit of measurement recorded by the instrument.
+    /// The unit of measurement recorded by the instrument.
     pub(crate) unit: Cow<'static, str>,
-    /// The instrumentation that created the instrument.
+    /// Information about the library that created the instrument.
     pub(crate) scope: InstrumentationScope,
 }
 
 impl Instrument {
-    /// Instrument name.
+    /// The human-readable identifier of the instrument.
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
 
-    /// Instrument kind.
+    /// Describes the purpose of the instrument.
+    pub fn descripton(&self) -> &str {
+        self.description.as_ref()
+    }
+
+    /// The functional group of the instrument.
     pub fn kind(&self) -> InstrumentKind {
         self.kind
     }
 
-    /// Instrument unit.
+    /// The unit of measurement recorded by the instrument.
     pub fn unit(&self) -> &str {
         self.unit.as_ref()
     }
 
-    /// Instrument scope.
+    /// Information about the library that created the instrument.
     pub fn scope(&self) -> &InstrumentationScope {
         &self.scope
     }
