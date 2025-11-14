@@ -112,7 +112,7 @@ impl Instrument {
     }
 
     /// Describes the purpose of the instrument.
-    pub fn descripton(&self) -> &str {
+    pub fn description(&self) -> &str {
         self.description.as_ref()
     }
 
