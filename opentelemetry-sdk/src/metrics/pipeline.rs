@@ -524,9 +524,8 @@ fn aggregate_fn<T: Number>(
         }
         Aggregation::Sum => {
             let fns = match kind {
-                // TODO implement: observable instruments should not report data points on every collect
-                // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
-                // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
+                // Observable instruments use collect_and_reset to report only data points
+                // measured in the current callback, removing stale attributes
                 InstrumentKind::ObservableCounter => b.precomputed_sum(true),
                 InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
                 InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),
