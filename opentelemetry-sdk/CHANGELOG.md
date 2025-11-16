@@ -5,6 +5,8 @@
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
+- **Fix**: ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle,
+  removing stale attribute combinations that are no longer observed. [#3213](https://github.com/open-telemetry/opentelemetry-rust/pull/3248)
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 
