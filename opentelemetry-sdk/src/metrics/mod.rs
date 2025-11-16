@@ -1465,17 +1465,12 @@ mod tests {
         // Run this test with stdout enabled to see output.
         // cargo test asynchronous_instruments_cumulative_data_points_only_from_last_measurement --features=testing -- --nocapture
 
+        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper("gauge");
         asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
-            "gauge", true,
-        );
-        // TODO fix: all asynchronous instruments should not emit data points if not measured
-        // but these implementations are still buggy
-        asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
-            "counter", false,
+            "counter",
         );
         asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
             "updown_counter",
-            false,
         );
     }
 
@@ -1790,7 +1785,6 @@ mod tests {
 
     fn asynchronous_instruments_cumulative_data_points_only_from_last_measurement_helper(
         instrument_name: &'static str,
-        should_not_emit: bool,
     ) {
         let mut test_context = TestContext::new(Temporality::Cumulative);
         let attributes = Arc::new([KeyValue::new("key1", "value1")]);
@@ -1852,12 +1846,7 @@ mod tests {
 
         test_context.flush_metrics();
 
-        if should_not_emit {
-            test_context.check_no_metrics();
-        } else {
-            // Test that latest export has the same data as the previous one
-            assert_correct_export(&mut test_context, instrument_name);
-        }
+        test_context.check_no_metrics();
 
         fn assert_correct_export(test_context: &mut TestContext, instrument_name: &'static str) {
             match instrument_name {
