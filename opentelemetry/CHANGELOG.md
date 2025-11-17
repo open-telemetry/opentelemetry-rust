@@ -6,7 +6,7 @@
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
-- **Breaking** Added `#[must_use]` to `opentelemetry::metrics::AsyncInstrumentBuilder`, since unbuilt async instruments will not have their callbacks called. This may cause compile errors for buggy or suspicious code.
+- **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 
