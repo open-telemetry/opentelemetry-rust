@@ -46,7 +46,6 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 tokio = { version = "1.0", features = ["full"] }
-futures = "0.3"
 
 [[bench]]
 name = "metrics"
