@@ -28,9 +28,3 @@ tonic-prost = { workspace = true }
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }
-
-[package.metadata.cargo-machete]
-ignored = [
-    "prost", # needed for `tonic-prost-build`
-    "tonic-prost" # needed for `tonic-prost-build`
-]
