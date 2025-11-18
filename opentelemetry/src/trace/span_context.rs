@@ -444,9 +444,9 @@ mod tests {
         let cx = Context::current();
         assert_eq!(
             format!("{cx:?}"),
-            "Context { span: \"None\", entries count: 0, suppress_telemetry: false }"
+            "Context { span: \"None\", entries count: 0, flags: ContextFlags() }"
         );
-        let cx = Context::current().with_remote_span_context(SpanContext::NONE);
+        let cx = Context::current().with_remote_span_context(SpanContext::NONE).with_telemetry_suppressed();
         assert_eq!(
             format!("{cx:?}"),
             "Context { \
@@ -457,7 +457,7 @@ mod tests {
                        is_remote: false, \
                        trace_state: TraceState(None) \
                      }, \
-               entries count: 1, suppress_telemetry: false \
+               entries count: 1, flags: ContextFlags(TELEMETRY_SUPPRESSED) \
              }"
         );
     }
