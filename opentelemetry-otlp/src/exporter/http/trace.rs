@@ -5,6 +5,7 @@ use opentelemetry_sdk::{
     error::{OTelSdkError, OTelSdkResult},
     trace::{SpanData, SpanExporter},
 };
+#[cfg(feature = "http-proto")]
 use prost::Message;
 
 impl SpanExporter for OtlpHttpClient {
@@ -52,13 +53,18 @@ fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
                 return;
             }
         },
-        _ => match Message::decode(response_body) {
+        #[cfg(feature = "http-proto")]
+        Protocol::HttpBinary => match Message::decode(response_body) {
             Ok(r) => r,
             Err(e) => {
                 otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
                 return;
             }
         },
+        #[cfg(feature = "grpc-tonic")]
+        Protocol::Grpc => {
+            unreachable!("HTTP client should not receive Grpc protocol")
+        }
     };
 
     if let Some(partial_success) = response.partial_success {
