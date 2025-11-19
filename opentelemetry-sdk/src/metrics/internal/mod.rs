@@ -156,7 +156,8 @@ where
     }
 
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
-    /// This is used in Cumulative temporality mode, where [`ValueMap`] is not cleared.
+    /// This is used for synchronous instruments (Counter, Histogram, etc.) in Cumulative temporality mode,
+    /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
     pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
@@ -179,7 +180,12 @@ where
     }
 
     /// Iterate through all attribute sets, populate `DataPoints` and reset.
-    /// This is used in Delta temporality mode, where [`ValueMap`] is reset after collection.
+    /// This is used for:
+    /// - Synchronous instruments in Delta temporality mode
+    /// - Asynchronous instruments (Observable) in both Delta and Cumulative temporality modes
+    ///
+    /// For asynchronous instruments, this removes stale attribute sets that were not observed
+    /// in the current callback, ensuring only currently active attributes are reported.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
