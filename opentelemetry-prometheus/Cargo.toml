@@ -37,8 +37,3 @@ tokio = { version = "1", features = ["full"] }
 default = ["internal-logs"]
 prometheus-encoding = []
 internal-logs = ["tracing"]
-
-[package.metadata.cargo-machete]
-ignored = [
-    "tracing" # needed for `internal-logs`
-]

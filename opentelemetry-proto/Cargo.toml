@@ -66,7 +66,6 @@ base64 = { workspace = true, optional = true }
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
 tonic-prost-build = { workspace = true }
-prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 

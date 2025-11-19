@@ -65,7 +65,7 @@ jobs:
       with:
         toolchain: stable
         components: rustfmt, clippy
-    - uses: taiki-e/install-action@47be02f2de8a32619316956f6117e150bdc6763f # v2.62.44
+    - uses: taiki-e/install-action@6f9c7cc51aa54b13cbcbd12f8bbf69d8ba405b4b # v2.62.47
       with:
           tool: cargo-hack
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -93,7 +93,7 @@ jobs:
           # https://github.com/awslabs/cargo-check-external-types/releases
           toolchain: nightly-2025-05-04
           components: rustfmt
-      - uses: taiki-e/install-action@47be02f2de8a32619316956f6117e150bdc6763f # v2.62.44
+      - uses: taiki-e/install-action@6f9c7cc51aa54b13cbcbd12f8bbf69d8ba405b4b # v2.62.47
         with:
           tool: cargo-check-external-types@0.2.0
       - name: external-type-check
@@ -117,7 +117,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@47be02f2de8a32619316956f6117e150bdc6763f # v2.62.44
+      - uses: taiki-e/install-action@6f9c7cc51aa54b13cbcbd12f8bbf69d8ba405b4b # v2.62.47
         with:
           tool: cargo-msrv
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -150,7 +150,7 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@f2ba7abc2abebaf185c833c3961145a3c275caad # v2.0.13
         with:
           command: check bans
-      
+
       - name: Check sources
         uses: EmbarkStudios/cargo-deny-action@f2ba7abc2abebaf185c833c3961145a3c275caad # v2.0.13
         with:
@@ -199,7 +199,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@47be02f2de8a32619316956f6117e150bdc6763f # v2.62.44
+        uses: taiki-e/install-action@6f9c7cc51aa54b13cbcbd12f8bbf69d8ba405b4b # v2.62.47
         with:
           tool: cargo-llvm-cov
       - name: cargo generate-lockfile
@@ -232,7 +232,7 @@ jobs:
               cargo build
             fi
           done
-  cargo-machete:
+  cargo-shear:
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
@@ -246,9 +246,12 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
-          toolchain: stable
-      - uses: taiki-e/install-action@47be02f2de8a32619316956f6117e150bdc6763f # v2.62.44
+          toolchain: nightly
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
-          tool: cargo-machete
-      - name: cargo machete
-        run: cargo machete
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: taiki-e/install-action@6f9c7cc51aa54b13cbcbd12f8bbf69d8ba405b4b # v2.62.47
+        with:
+          tool: cargo-shear
+      - name: cargo shear
+        run: cargo shear --expand
