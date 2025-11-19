@@ -11,7 +11,7 @@
     feature = "experimental-grpc-retry",
     feature = "experimental-http-retry"
 ))]
-use opentelemetry::otel_info;
+use opentelemetry::{otel_debug, otel_info};
 
 #[cfg(any(
     feature = "experimental-grpc-retry",
@@ -138,7 +138,7 @@ where
                         // Use exponential backoff with jitter
                         let jitter = generate_jitter(policy.jitter_ms);
                         let delay_with_jitter = std::cmp::min(delay + jitter, policy.max_delay_ms);
-                        otel_info!(name: "Export.InProgress.Retrying",
+                        otel_debug!(name: "Export.InProgress.Retrying",
                             operation = operation_name,
                             attempt = attempt,
                             delay_ms = delay_with_jitter,
