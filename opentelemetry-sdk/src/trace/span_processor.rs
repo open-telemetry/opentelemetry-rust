@@ -151,6 +151,12 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
                 reason = format!("{:?}", err)
             );
         }
+
+        // TODO: on_end() currently has a void return type, so errors are silently discarded.
+        // This should be changed to return Result so users can be notified of export failures.
+        // The OpenTelemetry spec requires on_end to be fast/non-blocking, but doesn't mandate
+        // a void return - returning an error doesn't violate that requirement.
+        // Until the trait is changed, we cannot return this error to the caller.
     }
 
     fn force_flush(&self) -> OTelSdkResult {
@@ -281,7 +287,6 @@ enum BatchMessage {
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-#[derive(Debug)]
 pub struct BatchSpanProcessor {
     span_sender: SyncSender<SpanData>, // Data channel to store spans
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages.
@@ -290,8 +295,29 @@ pub struct BatchSpanProcessor {
     export_span_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
-    dropped_spans_count: AtomicUsize,
+    dropped_spans_count: Arc<AtomicUsize>,
     max_queue_size: usize,
+    error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
+}
+
+impl std::fmt::Debug for BatchSpanProcessor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchSpanProcessor")
+            .field("span_sender", &self.span_sender)
+            .field("message_sender", &self.message_sender)
+            .field("handle", &self.handle)
+            .field("forceflush_timeout", &self.forceflush_timeout)
+            .field("export_span_message_sent", &self.export_span_message_sent)
+            .field("current_batch_size", &self.current_batch_size)
+            .field("max_export_batch_size", &self.max_export_batch_size)
+            .field("dropped_spans_count", &self.dropped_spans_count)
+            .field("max_queue_size", &self.max_queue_size)
+            .field(
+                "error_handler",
+                &self.error_handler.as_ref().map(|_| "<function>"),
+            )
+            .finish()
+    }
 }
 
 impl BatchSpanProcessor {
@@ -299,9 +325,7 @@ impl BatchSpanProcessor {
     pub fn new<E>(
         mut exporter: E,
         config: BatchConfig,
-        //max_queue_size: usize,
-        //scheduled_delay: Duration,
-        //shutdown_timeout: Duration,
+        error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
     ) -> Self
     where
         E: SpanExporter + Send + 'static,
@@ -425,11 +449,12 @@ impl BatchSpanProcessor {
             message_sender,
             handle: Mutex::new(Some(handle)),
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
-            dropped_spans_count: AtomicUsize::new(0),
+            dropped_spans_count: Arc::new(AtomicUsize::new(0)),
             max_queue_size,
             export_span_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
+            error_handler,
         }
     }
 
@@ -441,6 +466,7 @@ impl BatchSpanProcessor {
         BatchSpanProcessorBuilder {
             exporter,
             config: BatchConfig::default(),
+            error_handler: None,
         }
     }
 
@@ -576,18 +602,38 @@ impl SpanProcessor for BatchSpanProcessor {
             Err(std::sync::mpsc::TrySendError::Full(_)) => {
                 // Increment dropped spans count. The first time we have to drop
                 // a span, emit a warning.
-                if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
+                let previous_count = self.dropped_spans_count.fetch_add(1, Ordering::Relaxed);
+                if previous_count == 0 {
                     otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
                         message = "BatchSpanProcessor dropped a Span due to queue full. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
+                }
+
+                // Also invoke error handler if registered
+                if let Some(ref handler) = self.error_handler {
+                    handler(OTelSdkError::InternalFailure(format!(
+                        "Span dropped due to full queue (total dropped: {})",
+                        previous_count + 1
+                    )));
                 }
             }
             Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
                 // Given background thread is the only receiver, and it's
                 // disconnected, it indicates the thread is shutdown
-                otel_warn!(
-                    name: "BatchSpanProcessor.OnEnd.AfterShutdown",
-                    message = "Spans are being emitted even after Shutdown. This indicates incorrect lifecycle management of TracerProvider in application. Spans will not be exported."
-                );
+                let previous_count = self.dropped_spans_count.fetch_add(1, Ordering::Relaxed);
+                if previous_count == 0 {
+                    otel_warn!(
+                        name: "BatchSpanProcessor.OnEnd.AfterShutdown",
+                        message = "Spans are being emitted even after Shutdown. This indicates incorrect lifecycle management of TracerProvider in application. Spans will not be exported."
+                    );
+                }
+
+                // Also invoke error handler if registered
+                if let Some(ref handler) = self.error_handler {
+                    handler(OTelSdkError::InternalFailure(format!(
+                        "Span dropped due to processor already shut down (total dropped: {}). This indicates incorrect lifecycle management of TracerProvider.",
+                        previous_count + 1
+                    )));
+                }
             }
         }
     }
@@ -609,7 +655,7 @@ impl SpanProcessor for BatchSpanProcessor {
                     }
                 })?,
             Err(std::sync::mpsc::TrySendError::Full(_)) => {
-                // If the control message could not be sent, emit a warning.
+                // If the control message could not be sent, emit a debug log.
                 otel_debug!(
                     name: "BatchSpanProcessor.ForceFlush.ControlChannelFull",
                     message = "Control message to flush the worker thread could not be sent as the control channel is full. This can occur if user repeatedly calls force_flush/shutdown without finishing the previous call."
@@ -621,7 +667,7 @@ impl SpanProcessor for BatchSpanProcessor {
                 // disconnected, it indicates the thread is shutdown
                 otel_debug!(
                     name: "BatchSpanProcessor.ForceFlush.AlreadyShutdown",
-                    message = "ForceFlush invoked after Shutdown. This will not perform Flush and indicates a incorrect lifecycle management in Application."
+                    message = "ForceFlush invoked after Shutdown. This will not perform Flush and indicates incorrect lifecycle management in Application."
                 );
 
                 Err(OTelSdkError::AlreadyShutdown)
@@ -632,14 +678,21 @@ impl SpanProcessor for BatchSpanProcessor {
     /// Shuts down the processor.
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
-        let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
+            // Log warning for observability (always happens)
             otel_warn!(
-                name: "BatchSpanProcessor.SpansDropped",
-                dropped_span_count = dropped_spans,
-                max_queue_size = max_queue_size,
-                message = "Spans were dropped due to a queue being full. The count represents the total count of spans dropped in the lifetime of this BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                name: "BatchSpanProcessor.Shutdown",
+                dropped_spans = dropped_spans,
+                max_queue_size = self.max_queue_size,
+                message = "Spans were dropped due to a full queue. The count represents the total count of span records dropped in the lifetime of the BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
+
+            // Also return error so user code can handle it programmatically
+            return Err(OTelSdkError::InternalFailure(format!(
+                "BatchSpanProcessor dropped {} spans during its lifetime due to full queue (max queue size: {}). Consider increasing queue size or decreasing delay between intervals.",
+                dropped_spans,
+                self.max_queue_size
+            )));
         }
 
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
@@ -687,7 +740,6 @@ impl SpanProcessor for BatchSpanProcessor {
                     name: "BatchSpanProcessor.Shutdown.AlreadyShutdown",
                     message = "Shutdown is being invoked more than once. This is noop, but indicates a potential issue in the application's lifecycle management."
                 );
-
                 Err(OTelSdkError::AlreadyShutdown)
             }
         }
@@ -703,13 +755,29 @@ impl SpanProcessor for BatchSpanProcessor {
 }
 
 /// Builder for `BatchSpanProcessorDedicatedThread`.
-#[derive(Debug, Default)]
 pub struct BatchSpanProcessorBuilder<E>
 where
     E: SpanExporter + Send + 'static,
 {
     exporter: E,
     config: BatchConfig,
+    error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
+}
+
+impl<E: std::fmt::Debug> std::fmt::Debug for BatchSpanProcessorBuilder<E>
+where
+    E: SpanExporter + Send + 'static,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchSpanProcessorBuilder")
+            .field("exporter", &self.exporter)
+            .field("config", &self.config)
+            .field(
+                "error_handler",
+                &self.error_handler.as_ref().map(|_| "<function>"),
+            )
+            .finish()
+    }
 }
 
 impl<E> BatchSpanProcessorBuilder<E>
@@ -721,9 +789,20 @@ where
         BatchSpanProcessorBuilder { config, ..self }
     }
 
+    /// Set the error handler for background export failures
+    pub fn with_error_handler<F>(self, handler: F) -> Self
+    where
+        F: Fn(OTelSdkError) + Send + Sync + 'static,
+    {
+        BatchSpanProcessorBuilder {
+            error_handler: Some(Arc::new(handler)),
+            ..self
+        }
+    }
+
     /// Build a new instance of `BatchSpanProcessor`.
     pub fn build(self) -> BatchSpanProcessor {
-        BatchSpanProcessor::new(self.exporter, self.config)
+        BatchSpanProcessor::new(self.exporter, self.config, self.error_handler)
     }
 }
 
@@ -1189,7 +1268,7 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         let test_span = create_test_span("test_span");
         processor.on_end(test_span.clone());
@@ -1211,7 +1290,7 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
@@ -1237,7 +1316,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new()
             .keep_records_on_shutdown()
             .build();
-        let processor = BatchSpanProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchSpanProcessor::new(exporter.clone(), BatchConfig::default(), None);
 
         let record = create_test_span("test_span");
 
@@ -1261,7 +1340,7 @@ mod tests {
             .with_max_export_batch_size(512) // Explicitly set to avoid env var override
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         // Create test spans and send them to the processor
         let span1 = create_test_span("span1");
@@ -1306,7 +1385,7 @@ mod tests {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
         let config = BatchConfigBuilder::default().build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         // Create a span with attributes
         let mut span_data = create_test_span("attribute_validation");
@@ -1337,7 +1416,7 @@ mod tests {
         let exporter_shared = exporter.exported_spans.clone();
         let resource_shared = exporter.exported_resource.clone();
         let config = BatchConfigBuilder::default().build();
-        let mut processor = BatchSpanProcessor::new(exporter, config);
+        let mut processor = BatchSpanProcessor::new(exporter, config, None);
 
         // Set a resource for the processor
         let resource = Resource::new(vec![KeyValue::new("service.name", "test_service")]);
@@ -1376,7 +1455,7 @@ mod tests {
             .with_max_export_batch_size(3)
             .build();
 
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
@@ -1399,7 +1478,7 @@ mod tests {
             .with_max_export_batch_size(3)
             .build();
 
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config, None);
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
@@ -1423,7 +1502,7 @@ mod tests {
             .build();
 
         // Create the processor with the thread-safe exporter
-        let processor = Arc::new(BatchSpanProcessor::new(exporter, config));
+        let processor = Arc::new(BatchSpanProcessor::new(exporter, config, None));
 
         let mut handles = vec![];
         for _ in 0..10 {
