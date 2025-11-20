@@ -425,47 +425,44 @@ impl Context {
     }
 
     #[cfg(feature = "trace")]
-    pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Self::map_current(|cx| {
-            if let Some(inner) = &cx.inner {
-                Context {
-                    inner: Some(Arc::new(InnerContext {
-                        span: Some(Arc::new(value)),
-                        entries: inner.entries.clone(),
-                    })),
-                    flags: cx.flags,
-                }
-            } else {
-                Context {
-                    inner: Some(Arc::new(InnerContext {
-                        span: Some(Arc::new(value)),
-                        entries: None,
-                    })),
-                    flags: ContextFlags::new(),
-                }
-            }
-        })
+    pub(crate) fn current_with_synchronized_span(span: Option<Arc<SynchronizedSpan>>) -> Self {
+        Self::map_current(|cx| cx.with_synchronized_span(span))
     }
 
     #[cfg(feature = "trace")]
-    pub(crate) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
+    pub(crate) fn with_synchronized_span(&self, span: Option<Arc<SynchronizedSpan>>) -> Self {
+        let active = span.is_some();
         if let Some(inner) = &self.inner {
-            Context {
-                inner: Some(Arc::new(InnerContext {
-                    span: Some(Arc::new(value)),
-                    entries: inner.entries.clone(),
-                })),
-                flags: self.flags,
+            if span.is_none() && inner.span.is_none() {
+                self.clone()
+            } else {
+                Context {
+                    inner: Some(Arc::new(InnerContext {
+                        span,
+                        entries: inner.entries.clone(),
+                    })),
+                    flags: self.flags.with_active_span(active),
+                }
             }
         } else {
-            Context {
-                inner: Some(Arc::new(InnerContext {
-                    span: Some(Arc::new(value)),
-                    entries: None,
-                })),
-                flags: ContextFlags::new(),
+            if span.is_none() {
+                self.clone()
+            } else {
+                Context {
+                    inner: Some(Arc::new(InnerContext {
+                        span,
+                        entries: None,
+                    })),
+                    flags: self.flags.with_active_span(active),
+                }
             }
         }
+    }
+
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    pub(crate) const fn has_active_span_flag(&self) -> bool {
+        self.flags.is_span_active()
     }
 }
 
@@ -505,12 +502,8 @@ struct ContextFlags(u16);
 
 impl ContextFlags {
     const SUPPRESS_TELEMETRY: u16 = 1 << 0;
-
-    /// Creates a new ContextFlags with all flags cleared.
-    #[inline(always)]
-    const fn new() -> Self {
-        ContextFlags(0)
-    }
+    #[cfg(feature = "trace")]
+    const ACTIVE_SPAN: u16 = 1 << 1;
 
     /// Returns true if telemetry suppression is enabled.
     #[inline(always)]
@@ -523,13 +516,44 @@ impl ContextFlags {
     const fn with_telemetry_suppressed(self) -> Self {
         ContextFlags(self.0 | Self::SUPPRESS_TELEMETRY)
     }
+
+    /// Returns true if the active span flag is set.
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    const fn is_span_active(self) -> bool {
+        (self.0 & Self::ACTIVE_SPAN) != 0
+    }
+
+    /// Returns a new ContextFlags with the active span flag set.
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    const fn with_active_span(self, active: bool) -> Self {
+        if active {
+            ContextFlags(self.0 | Self::ACTIVE_SPAN)
+        } else {
+            ContextFlags(self.0 & !Self::ACTIVE_SPAN)
+        }
+    }
 }
 
 impl fmt::Debug for ContextFlags {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[cfg(feature = "trace")]
+        let mut comma = false;
         f.write_str("ContextFlags(")?;
         if self.is_telemetry_suppressed() {
             f.write_str("TELEMETRY_SUPPRESSED")?;
+            #[cfg(feature = "trace")]
+            {
+                comma = true;
+            }
+        }
+        #[cfg(feature = "trace")]
+        if self.is_span_active() {
+            if comma {
+                f.write_str(", ")?;
+            }
+            f.write_str("ACTIVE_SPAN")?;
         }
         f.write_str(")")
     }

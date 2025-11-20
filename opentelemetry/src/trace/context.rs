@@ -4,7 +4,11 @@ use crate::{
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
-use std::{borrow::Cow, error::Error, sync::Mutex};
+use std::{
+    borrow::Cow,
+    error::Error,
+    sync::{Arc, Mutex},
+};
 
 // Re-export for compatability. This used to be contained here.
 pub use crate::context::{FutureExt, WithContext};
@@ -30,22 +34,29 @@ impl SynchronizedSpan {
     pub(crate) fn span_context(&self) -> &SpanContext {
         &self.span_context
     }
-}
 
-impl From<SpanContext> for SynchronizedSpan {
-    fn from(value: SpanContext) -> Self {
-        Self {
-            span_context: value,
-            inner: None,
+    fn maybe_from_span<T>(value: T) -> Option<Arc<SynchronizedSpan>>
+    where
+        T: Span + Send + Sync + 'static,
+    {
+        if !value.span_context().is_valid() {
+            None
+        } else {
+            Some(Arc::new(SynchronizedSpan {
+                span_context: value.span_context().clone(),
+                inner: Some(Mutex::new(global::BoxedSpan::new(value))),
+            }))
         }
     }
-}
 
-impl<T: Span + Send + Sync + 'static> From<T> for SynchronizedSpan {
-    fn from(value: T) -> Self {
-        Self {
-            span_context: value.span_context().clone(),
-            inner: Some(Mutex::new(global::BoxedSpan::new(value))),
+    fn maybe_from_span_context(value: SpanContext) -> Option<Arc<SynchronizedSpan>> {
+        if !value.is_valid() {
+            None
+        } else {
+            Some(Arc::new(SynchronizedSpan {
+                span_context: value,
+                inner: None,
+            }))
         }
     }
 }
@@ -300,11 +311,11 @@ pub trait TraceContextExt {
 
 impl TraceContextExt for Context {
     fn current_with_span<T: crate::trace::Span + Send + Sync + 'static>(span: T) -> Self {
-        Context::current_with_synchronized_span(span.into())
+        Context::current_with_synchronized_span(SynchronizedSpan::maybe_from_span(span))
     }
 
     fn with_span<T: crate::trace::Span + Send + Sync + 'static>(&self, span: T) -> Self {
-        self.with_synchronized_span(span.into())
+        self.with_synchronized_span(SynchronizedSpan::maybe_from_span(span))
     }
 
     fn span(&self) -> SpanRef<'_> {
@@ -316,11 +327,11 @@ impl TraceContextExt for Context {
     }
 
     fn has_active_span(&self) -> bool {
-        self.inner.as_ref().map_or(false, |i| i.span.is_some())
+        self.has_active_span_flag()
     }
 
     fn with_remote_span_context(&self, span_context: crate::trace::SpanContext) -> Self {
-        self.with_synchronized_span(span_context.into())
+        self.with_synchronized_span(SynchronizedSpan::maybe_from_span_context(span_context))
     }
 }
 
