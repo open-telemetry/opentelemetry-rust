@@ -221,6 +221,7 @@ pub mod tonic {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::logs::LogRecord as _;
     use opentelemetry::logs::Logger;
@@ -238,7 +239,7 @@ mod tests {
     impl LogProcessor for MockProcessor {
         fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

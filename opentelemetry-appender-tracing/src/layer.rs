@@ -261,6 +261,7 @@ const fn severity_of_level(level: &Level) -> Severity {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use crate::layer;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
@@ -793,7 +794,7 @@ mod tests {
             true
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 

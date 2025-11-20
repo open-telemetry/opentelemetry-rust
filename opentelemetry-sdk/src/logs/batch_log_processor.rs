@@ -129,7 +129,6 @@ pub struct BatchLogProcessor {
     logs_sender: SyncSender<LogsData>, // Data channel to store log records and instrumentation scopes
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages for the worker thread
     handle: Mutex<Option<thread::JoinHandle<()>>>,
-    forceflush_timeout: Duration,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
@@ -221,21 +220,19 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let (sender, receiver) = mpsc::sync_channel(1);
         match self
             .message_sender
             .try_send(BatchMessage::ForceFlush(sender))
         {
-            Ok(_) => receiver
-                .recv_timeout(self.forceflush_timeout)
-                .map_err(|err| {
-                    if err == RecvTimeoutError::Timeout {
-                        OTelSdkError::Timeout(self.forceflush_timeout)
-                    } else {
-                        OTelSdkError::InternalFailure(format!("{err}"))
-                    }
-                })?,
+            Ok(_) => receiver.recv_timeout(timeout).map_err(|err| {
+                if err == RecvTimeoutError::Timeout {
+                    OTelSdkError::Timeout(timeout)
+                } else {
+                    OTelSdkError::InternalFailure(format!("{err}"))
+                }
+            })?,
             Err(mpsc::TrySendError::Full(_)) => {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
@@ -489,7 +486,6 @@ impl BatchLogProcessor {
             logs_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
-            forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),

@@ -113,7 +113,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

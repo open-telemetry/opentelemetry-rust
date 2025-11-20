@@ -118,7 +118,7 @@ impl LogProcessor for EnrichWithBaggageLogProcessor {
         });
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 
@@ -132,7 +132,7 @@ impl LogProcessor for EnrichWithBaggageLogProcessor {
 #[derive(Debug)]
 struct EnrichWithBaggageSpanProcessor;
 impl SpanProcessor for EnrichWithBaggageSpanProcessor {
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 

@@ -85,7 +85,11 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// TODO - This method should take reference to `SpanData`
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.
-    fn force_flush(&self) -> OTelSdkResult;
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult;
+    /// Force flush the spans with a default timeout.
+    fn force_flush(&self) -> OTelSdkResult {
+        self.force_flush_with_timeout(Duration::from_secs(5))
+    }
     /// Shuts down the processor. Called when SDK is shut down. This is an
     /// opportunity for processors to do any cleanup required.
     ///
@@ -153,7 +157,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         }
     }
 
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         // Nothing to flush for simple span processor.
         Ok(())
     }
@@ -286,7 +290,6 @@ pub struct BatchSpanProcessor {
     span_sender: SyncSender<SpanData>, // Data channel to store spans
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages.
     handle: Mutex<Option<thread::JoinHandle<()>>>,
-    forceflush_timeout: Duration,
     export_span_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
     max_export_batch_size: usize,
@@ -424,7 +427,6 @@ impl BatchSpanProcessor {
             span_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
-            forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
             export_span_message_sent: Arc::new(AtomicBool::new(false)),
@@ -593,21 +595,19 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Flushes all pending spans.
-    fn force_flush(&self) -> OTelSdkResult {
+    fn force_flush_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         match self
             .message_sender
             .try_send(BatchMessage::ForceFlush(sender))
         {
-            Ok(_) => receiver
-                .recv_timeout(self.forceflush_timeout)
-                .map_err(|err| {
-                    if err == std::sync::mpsc::RecvTimeoutError::Timeout {
-                        OTelSdkError::Timeout(self.forceflush_timeout)
-                    } else {
-                        OTelSdkError::InternalFailure(format!("{err}"))
-                    }
-                })?,
+            Ok(_) => receiver.recv_timeout(timeout).map_err(|err| {
+                if err == std::sync::mpsc::RecvTimeoutError::Timeout {
+                    OTelSdkError::Timeout(timeout)
+                } else {
+                    OTelSdkError::InternalFailure(format!("{err}"))
+                }
+            })?,
             Err(std::sync::mpsc::TrySendError::Full(_)) => {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
