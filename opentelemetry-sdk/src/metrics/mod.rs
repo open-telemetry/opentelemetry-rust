@@ -129,6 +129,8 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    use rstest::rstest;
+
     // Run all tests in this mod
     // cargo test metrics::tests --features=testing,spec_unstable_metrics_views
     // Note for all tests from this point onwards in this mod:
@@ -377,34 +379,15 @@ mod tests {
         counter_aggregation_overflow_helper_custom_limit(Temporality::Cumulative);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_sorted_first_delta() {
+    #[rstest]
+    #[case(Temporality::Delta, true)]
+    #[case(Temporality::Delta, false)]
+    #[case(Temporality::Cumulative, true)]
+    #[case(Temporality::Cumulative, false)]
+    fn counter_aggregation(#[case] temporality: Temporality, #[case] start_sorted: bool) {
         // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_sorted_first_delta --features=testing -- --nocapture
-        counter_aggregation_attribute_order_helper(Temporality::Delta, true);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_sorted_first_cumulative() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_sorted_first_cumulative --features=testing -- --nocapture
-        counter_aggregation_attribute_order_helper(Temporality::Cumulative, true);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_unsorted_first_delta() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_unsorted_first_delta --features=testing -- --nocapture
-
-        counter_aggregation_attribute_order_helper(Temporality::Delta, false);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn counter_aggregation_attribute_order_unsorted_first_cumulative() {
-        // Run this test with stdout enabled to see output.
-        // cargo test counter_aggregation_attribute_order_unsorted_first_cumulative --features=testing -- --nocapture
-
-        counter_aggregation_attribute_order_helper(Temporality::Cumulative, false);
+        // cargo test counter_aggregation_attribute --features=testing -- --nocapture
+        counter_aggregation_attribute_order_helper(temporality, start_sorted);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -473,60 +456,23 @@ mod tests {
         observable_gauge_aggregation_helper(Temporality::Cumulative, true);
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_cumulative_non_zero_increment() {
+    #[rstest]
+    #[case(Temporality::Cumulative, 10, false)]
+    #[case(Temporality::Cumulative, 10, true)]
+    #[case(Temporality::Delta, 10, false)]
+    #[case(Temporality::Delta, 10, true)]
+    #[case(Temporality::Cumulative, 0, false)]
+    #[case(Temporality::Cumulative, 0, true)]
+    #[case(Temporality::Delta, 0, false)]
+    #[case(Temporality::Delta, 0, true)]
+    fn observable_counter_aggregation(
+        #[case] temporality: Temporality,
+        #[case] increment: u64,
+        #[case] is_empty_attributes: bool,
+    ) {
         // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_cumulative_non_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4, false);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_cumulative_non_zero_increment_no_attrs() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_cumulative_non_zero_increment_no_attrs --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 10, 4, true);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_delta_non_zero_increment() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_delta_non_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4, false);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_delta_non_zero_increment_no_attrs() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_delta_non_zero_increment_no_attrs --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 10, 4, true);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_cumulative_zero_increment() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_cumulative_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4, false);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_cumulative_zero_increment_no_attrs() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_cumulative_zero_increment_no_attrs --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Cumulative, 100, 0, 4, true);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_delta_zero_increment() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_delta_zero_increment --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4, false);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn observable_counter_aggregation_delta_zero_increment_no_attrs() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_aggregation_delta_zero_increment_no_attrs --features=testing -- --nocapture
-        observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4, true);
+        // cargo test observable_counter_aggregation --features=testing -- --nocapture
+        observable_counter_aggregation_helper(temporality, 100, increment, 4, is_empty_attributes);
     }
 
     fn observable_counter_aggregation_helper(
