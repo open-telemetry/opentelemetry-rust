@@ -5,6 +5,9 @@
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
+- **Breaking** Removed `Default` and `Clone` implementation from `InMemoryMetricExporter`.
+- **Breaking** `InMemoryMetricExporterBuilder` requires mandatory `metrics` field to be set via
+  `.with_metrics` method.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 
