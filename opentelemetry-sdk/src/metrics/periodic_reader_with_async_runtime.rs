@@ -492,8 +492,10 @@ mod tests {
     #[test]
     fn unregistered_collect() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
         let mut rm = ResourceMetrics {
             resource: Resource::empty(),
             scope_metrics: Vec::new(),
@@ -513,8 +515,11 @@ mod tests {
         RT: crate::runtime::Runtime,
     {
         let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone(), runtime)
+
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter, runtime)
             .with_interval(interval)
             .build();
         let (sender, receiver) = mpsc::channel();

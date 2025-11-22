@@ -510,6 +510,9 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    //! Use below command to run all tests:
+    //! `cargo test metrics::periodic_reader::tests --features=testing,spec_unstable_metrics_views -- --nocapture`
+
     use super::PeriodicReader;
     use crate::{
         error::{OTelSdkError, OTelSdkResult},
@@ -528,8 +531,6 @@ mod tests {
         },
         time::Duration,
     };
-    // use below command to run all tests
-    // cargo test metrics::periodic_reader::tests --features=testing,spec_unstable_metrics_views -- --nocapture
 
     #[derive(Debug, Clone)]
     struct MetricExporterThatFailsOnlyOnFirst {

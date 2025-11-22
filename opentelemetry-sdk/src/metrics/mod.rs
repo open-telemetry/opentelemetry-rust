@@ -895,7 +895,9 @@ mod tests {
         // cargo test histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist --features=testing -- --nocapture
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+
         let view = |i: &Instrument| {
             if i.name == "test_histogram" {
                 Stream::builder()
@@ -912,7 +914,7 @@ mod tests {
             }
         };
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -927,9 +929,7 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
+        let resource_metrics = metrics.lock().unwrap();
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(
@@ -949,7 +949,9 @@ mod tests {
         // cargo test metrics::tests::spatial_aggregation_when_view_drops_attributes_observable_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+
         // View drops all attributes.
         let view = |i: &Instrument| {
             if i.name == "my_observable_counter" {
@@ -962,7 +964,7 @@ mod tests {
             }
         };
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -1000,9 +1002,7 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
+        let resource_metrics = metrics.lock().unwrap();
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_observable_counter",);
@@ -1029,7 +1029,9 @@ mod tests {
         // cargo test spatial_aggregation_when_view_drops_attributes_counter --features=testing
 
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+
         // View drops all attributes.
         let view = |i: &Instrument| {
             if i.name == "my_counter" {
@@ -1044,7 +1046,7 @@ mod tests {
             }
         };
         let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(exporter.clone())
+            .with_periodic_exporter(exporter)
             .with_view(view)
             .build();
 
@@ -1084,9 +1086,7 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         // Assert
-        let resource_metrics = exporter
-            .get_finished_metrics()
-            .expect("metrics are expected to be exported.");
+        let resource_metrics = metrics.lock().unwrap();
         assert!(!resource_metrics.is_empty());
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
         assert_eq!(metric.name, "my_counter",);
