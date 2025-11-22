@@ -449,7 +449,7 @@ mod tests {
         runtime, Resource,
     };
     use opentelemetry::metrics::MeterProvider;
-    use std::sync::mpsc;
+    use std::sync::{mpsc, Arc, Mutex};
 
     #[test]
     fn collection_triggered_by_interval_tokio_current() {
@@ -493,7 +493,9 @@ mod tests {
     fn unregistered_collect() {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
-        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter, runtime::Tokio).build();
         let mut rm = ResourceMetrics {
@@ -517,7 +519,9 @@ mod tests {
         let interval = std::time::Duration::from_millis(1);
 
         let metrics = Arc::new(Mutex::new(Vec::new()));
-        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter, runtime)
             .with_interval(interval)

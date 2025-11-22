@@ -271,11 +271,7 @@ mod tests {
             test_context.flush_metrics();
 
             // As instrument name are valid because of the feature flag, metrics should be exported
-            let resource_metrics = test_context
-                .exporter
-                .get_finished_metrics()
-                .expect("metrics expected to be exported");
-
+            let resource_metrics = test_context.resource_metrics.lock().unwrap();
             assert!(!resource_metrics.is_empty(), "metrics should be exported");
         }
 
@@ -896,7 +892,9 @@ mod tests {
 
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
-        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone())
+            .build();
 
         let view = |i: &Instrument| {
             if i.name == "test_histogram" {
@@ -950,7 +948,9 @@ mod tests {
 
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
-        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone())
+            .build();
 
         // View drops all attributes.
         let view = |i: &Instrument| {
@@ -1030,7 +1030,9 @@ mod tests {
 
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
-        let exporter = InMemoryMetricExporter::builder().with_metrics(metrics.clone()).build();
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone())
+            .build();
 
         // View drops all attributes.
         let view = |i: &Instrument| {
