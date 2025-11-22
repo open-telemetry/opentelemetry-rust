@@ -194,7 +194,9 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 /// with a custom configuration. Note that a dedicated thread is used internally
 /// to manage the export process.
 ///
-/// ```rust
+/// ```
+/// # #[cfg(all(feature = "testing", feature = "experimental_async_runtime"))]
+/// # {
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::{
 ///     trace::{BatchSpanProcessor, BatchConfigBuilder, SdkTracerProvider},
@@ -234,6 +236,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 ///     // Step 5: Ensure all spans are flushed before exiting.
 ///     provider.shutdown();
 /// }
+/// # }
 /// ```
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;

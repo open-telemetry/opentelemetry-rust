@@ -104,7 +104,9 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 ///
 /// ### Using a BatchLogProcessor:
 ///
-/// ```rust
+/// ```
+/// # #[cfg(feature = "testing")]
+/// # {
 /// use opentelemetry_sdk::logs::{BatchLogProcessor, BatchConfigBuilder, SdkLoggerProvider};
 /// use opentelemetry::global;
 /// use std::time::Duration;
@@ -124,7 +126,8 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_log_processor(processor)
 ///     .build();
-///
+/// # }
+/// ```
 pub struct BatchLogProcessor {
     logs_sender: SyncSender<LogsData>, // Data channel to store log records and instrumentation scopes
     message_sender: SyncSender<BatchMessage>, // Control channel to store control messages for the worker thread
