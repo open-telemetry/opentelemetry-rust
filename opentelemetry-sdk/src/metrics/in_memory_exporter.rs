@@ -16,8 +16,8 @@ type InMemoryMetrics = Vec<ResourceMetrics>;
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes. It stores
-/// metric data in a user-provided [`Vec<ResourceMetrics>`][1], from which the
-/// Metrics can be retrieved as well.
+/// metric data in a user-provided `Vec<ResourceMetrics>`, from which the 
+/// exported data can be retrieved as well.
 ///
 /// # Panics
 ///
@@ -61,8 +61,6 @@ type InMemoryMetrics = Vec<ResourceMetrics>;
 ///  }
 ///# }
 /// ```
-///
-/// [1]: InMemoryMetrics
 pub struct InMemoryMetricExporter {
     metrics: Arc<Mutex<InMemoryMetrics>>,
     temporality: Temporality,
