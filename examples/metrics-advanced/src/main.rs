@@ -1,6 +1,6 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::metrics::{Instrument, SdkMeterProvider, Stream, Temporality};
+use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
 use opentelemetry_sdk::Resource;
 use std::error::Error;
 
@@ -33,6 +33,22 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         }
     };
 
+    // for example 3
+    let my_view_change_aggregation = |i: &Instrument| {
+        if i.name() == "my_third_histogram" {
+            Stream::builder()
+                .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                    max_size: 10,
+                    max_scale: 5,
+                    record_min_max: true,
+                })
+                .build()
+                .ok()
+        } else {
+            None
+        }
+    };
+
     // Build exporter using Delta Temporality.
     let exporter = opentelemetry_stdout::MetricExporterBuilder::default()
         .with_temporality(Temporality::Delta)
@@ -47,6 +63,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_resource(resource)
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_change_cardinality)
+        .with_view(my_view_change_aggregation)
         .build();
     global::set_meter_provider(provider.clone());
     provider
@@ -111,6 +128,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram2.record(1.7, &[KeyValue::new("mykey1", "v6")]);
 
     histogram2.record(1.8, &[KeyValue::new("mykey1", "v7")]);
+
+    // Example 3 - Use exponential histogram.
+    let histogram3 = meter
+        .f64_histogram("my_third_histogram")
+        .with_description("My histogram example description")
+        .build();
+    histogram3.record(-1.3, &[KeyValue::new("mykey1", "myvalue1")]);
+    histogram3.record(-5.5, &[KeyValue::new("mykey1", "myvalue1")]);
+    histogram3.record(7.5, &[KeyValue::new("mykey1", "myvalue1")]);
+    histogram3.record(0.4, &[KeyValue::new("mykey1", "myvalue1")]);
 
     // Metrics are exported by default every 60 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
