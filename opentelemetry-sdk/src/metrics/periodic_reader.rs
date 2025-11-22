@@ -527,7 +527,7 @@ mod tests {
         },
         time::Duration,
     };
-
+    use std::sync::Mutex;
     // use below command to run all tests
     // cargo test metrics::periodic_reader::tests --features=testing,spec_unstable_metrics_views -- --nocapture
 
@@ -608,8 +608,12 @@ mod tests {
     fn collection_triggered_by_interval_multiple() {
         // Arrange
         let interval = std::time::Duration::from_millis(1);
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
+
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter)
             .with_interval(interval)
             .build();
         let i = Arc::new(AtomicUsize::new(0));
@@ -639,8 +643,11 @@ mod tests {
     #[test]
     fn shutdown_repeat() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.shutdown();
@@ -660,8 +667,11 @@ mod tests {
     #[test]
     fn flush_after_shutdown() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -678,8 +688,11 @@ mod tests {
     #[test]
     fn flush_repeat() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let result = meter_provider.force_flush();
@@ -693,8 +706,11 @@ mod tests {
     #[test]
     fn periodic_reader_without_pipeline() {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
 
         let rm = &mut ResourceMetrics {
             resource: Resource::empty(),
@@ -836,8 +852,11 @@ mod tests {
 
     fn collection_helper(trigger: fn(SdkMeterProvider)) {
         // Arrange
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
         let (sender, receiver) = mpsc::channel();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
@@ -858,11 +877,8 @@ mod tests {
             .recv_timeout(Duration::ZERO)
             .expect("message should be available in channel, indicating a collection occurred, which should trigger observable callback");
 
-        let exported_metrics = exporter
-            .get_finished_metrics()
-            .expect("this should not fail");
         assert!(
-            !exported_metrics.is_empty(),
+            !metrics.lock().unwrap().is_empty(),
             "Metrics should be available in exporter."
         );
     }
@@ -894,9 +910,12 @@ mod tests {
     }
 
     fn async_inside_observable_callback_helper() {
-        let interval = std::time::Duration::from_millis(10);
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone())
+        let interval = Duration::from_millis(10);
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter)
             .with_interval(interval)
             .build();
 
@@ -913,11 +932,8 @@ mod tests {
             .build();
 
         meter_provider.force_flush().expect("flush should succeed");
-        let exported_metrics = exporter
-            .get_finished_metrics()
-            .expect("this should not fail");
         assert!(
-            !exported_metrics.is_empty(),
+            !metrics.lock().unwrap().is_empty(),
             "Metrics should be available in exporter."
         );
     }
@@ -951,8 +967,11 @@ mod tests {
     }
 
     fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
-        let exporter = InMemoryMetricExporter::default();
-        let reader = PeriodicReader::builder(exporter.clone()).build();
+        let metrics = Arc::new(Mutex::new(Vec::new()));
+        let exporter = InMemoryMetricExporter::builder()
+            .with_metrics(metrics.clone()).build();
+
+        let reader = PeriodicReader::builder(exporter).build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         let meter = meter_provider.meter("test");
@@ -985,11 +1004,8 @@ mod tests {
         };
 
         meter_provider.force_flush().expect("flush should succeed");
-        let exported_metrics = exporter
-            .get_finished_metrics()
-            .expect("this should not fail");
         assert!(
-            !exported_metrics.is_empty(),
+            !metrics.lock().unwrap().is_empty(),
             "Metrics should be available in exporter."
         );
     }
