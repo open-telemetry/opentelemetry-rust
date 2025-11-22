@@ -16,7 +16,7 @@ type InMemoryMetrics = Vec<ResourceMetrics>;
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes. It stores
-/// metric data in a user-provided `Vec<ResourceMetrics>`, from which the 
+/// metric data in a user-provided `Vec<ResourceMetrics>`, from which the
 /// exported data can be retrieved as well.
 ///
 /// # Panics
