@@ -627,7 +627,8 @@ mod tests {
             // Assert
             let resource_metrics = metrics.lock().unwrap();
             assert_eq!(
-                resource_metrics[0].scope_metrics[0].metrics.len(), 1,
+                resource_metrics[0].scope_metrics[0].metrics.len(),
+                1,
                 "There should be a single metric"
             );
             let meter_name = resource_metrics[0].scope_metrics[0].scope.name();
@@ -636,7 +637,8 @@ mod tests {
 
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
@@ -656,7 +658,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
             .build();
@@ -684,7 +687,8 @@ mod tests {
         // Assert
         let resource_metrics = metrics.lock().unwrap();
         assert_eq!(
-            resource_metrics[0].scope_metrics[0].metrics.len(), 1,
+            resource_metrics[0].scope_metrics[0].metrics.len(),
+            1,
             "There should be single metric merging duplicate instruments"
         );
         let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
@@ -708,7 +712,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
@@ -738,15 +743,18 @@ mod tests {
         // Assert
         let resource_metrics = metrics.lock().unwrap();
         assert_eq!(
-            resource_metrics[0].scope_metrics.len(), 2,
+            resource_metrics[0].scope_metrics.len(),
+            2,
             "There should be 2 separate scope"
         );
         assert_eq!(
-            resource_metrics[0].scope_metrics[0].metrics.len(), 1,
+            resource_metrics[0].scope_metrics[0].metrics.len(),
+            1,
             "There should be single metric for the scope"
         );
         assert_eq!(
-            resource_metrics[0].scope_metrics[1].metrics.len(), 1,
+            resource_metrics[0].scope_metrics[1].metrics.len(),
+            1,
             "There should be single metric for the scope"
         );
 
@@ -800,7 +808,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
@@ -1104,7 +1113,6 @@ mod tests {
 
         counter.add(50, &[]);
         test_context.flush_metrics();
-
 
         test_context.with_aggregation::<i64>("my_counter", Some("my_unit"), |metric| {
             let MetricData::Sum(sum) = metric else {
@@ -1426,9 +1434,10 @@ mod tests {
                         };
 
                         assert_eq!(histogram_data.data_points.len(), 2);
-                        let zero_attribute_datapoint =
-                            find_histogram_datapoint_with_no_attributes(&histogram_data.data_points)
-                                .expect("datapoint with no attributes expected");
+                        let zero_attribute_datapoint = find_histogram_datapoint_with_no_attributes(
+                            &histogram_data.data_points,
+                        )
+                        .expect("datapoint with no attributes expected");
                         assert_eq!(zero_attribute_datapoint.count, 1);
                         assert_eq!(zero_attribute_datapoint.sum, 25);
                         assert_eq!(zero_attribute_datapoint.min, Some(25));
@@ -1438,7 +1447,7 @@ mod tests {
                             "key1",
                             "value1",
                         )
-                            .expect("datapoint with key1=value1 expected");
+                        .expect("datapoint with key1=value1 expected");
                         assert_eq!(data_point1.count, 1);
                         assert_eq!(data_point1.sum, 30);
                         assert_eq!(data_point1.min, Some(30));
@@ -1461,7 +1470,7 @@ mod tests {
                             "key1",
                             "value1",
                         )
-                            .expect("datapoint with key1=value1 expected");
+                        .expect("datapoint with key1=value1 expected");
                         assert_eq!(data_point1.value, 40);
                     });
                 }
@@ -1660,7 +1669,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
             .with_view(view_function)
@@ -1730,7 +1740,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
             .with_view(view1)
@@ -1773,7 +1784,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
         let meter_provider = SdkMeterProvider::builder()
             .with_periodic_exporter(exporter)
             .with_view(view)
@@ -1873,7 +1885,7 @@ mod tests {
             match instrument_name {
                 "counter" => {
                     test_context.with_aggregation::<u64>("test_counter", None, |metric| {
-                        let MetricData::Sum(sum) = metric     else {
+                        let MetricData::Sum(sum) = metric else {
                             unreachable!()
                         };
 
@@ -1923,7 +1935,7 @@ mod tests {
                             "key1",
                             "value1",
                         )
-                            .expect("datapoint with key1=value1 expected");
+                        .expect("datapoint with key1=value1 expected");
                         assert_eq!(data_point1.value, 30);
                     });
                 }
@@ -1963,37 +1975,37 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        test_context
-            .with_multiple_aggregations::<u64>("my_counter", None, 6, |metrics| {
-                let sums = metrics.into_iter()
-                    .map(|data| {
-                        if let MetricData::Sum(sum) = data {
-                            sum
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut sum_zero_attributes = 0;
-                let mut sum_key1_value1 = 0;
-                sums.iter().for_each(|sum| {
-                    assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
-                    assert!(sum.is_monotonic, "Counter should produce monotonic.");
-                    assert_eq!(sum.temporality, temporality);
-
-                    if temporality == Temporality::Delta {
-                        sum_zero_attributes += sum.data_points[0].value;
-                        sum_key1_value1 += sum.data_points[1].value;
+        test_context.with_multiple_aggregations::<u64>("my_counter", None, 6, |metrics| {
+            let sums = metrics
+                .into_iter()
+                .map(|data| {
+                    if let MetricData::Sum(sum) = data {
+                        sum
                     } else {
-                        sum_zero_attributes = sum.data_points[0].value;
-                        sum_key1_value1 = sum.data_points[1].value;
-                    };
-                });
+                        unreachable!()
+                    }
+                })
+                .collect::<Vec<_>>();
 
-                assert_eq!(sum_zero_attributes, 10);
-                assert_eq!(sum_key1_value1, 50); // Each of the 10 update threads record measurements summing up to 5.
+            let mut sum_zero_attributes = 0;
+            let mut sum_key1_value1 = 0;
+            sums.iter().for_each(|sum| {
+                assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
+                assert!(sum.is_monotonic, "Counter should produce monotonic.");
+                assert_eq!(sum.temporality, temporality);
+
+                if temporality == Temporality::Delta {
+                    sum_zero_attributes += sum.data_points[0].value;
+                    sum_key1_value1 += sum.data_points[1].value;
+                } else {
+                    sum_zero_attributes = sum.data_points[0].value;
+                    sum_key1_value1 = sum.data_points[1].value;
+                };
             });
+
+            assert_eq!(sum_zero_attributes, 10);
+            assert_eq!(sum_key1_value1, 50); // Each of the 10 update threads record measurements summing up to 5.
+        });
     }
 
     fn counter_f64_multithreaded_aggregation_helper(temporality: Temporality) {
@@ -2024,40 +2036,39 @@ mod tests {
 
         test_context.flush_metrics();
 
-
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        test_context
-            .with_multiple_aggregations::<f64>("test_counter", None, 6, |metrics| {
-                let sums = metrics.into_iter()
-                    .map(|data| {
-                        if let MetricData::Sum(sum) = data {
-                            sum
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut sum_zero_attributes = 0.0;
-                let mut sum_key1_value1 = 0.0;
-                sums.iter().for_each(|sum| {
-                    assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
-                    assert!(sum.is_monotonic, "Counter should produce monotonic.");
-                    assert_eq!(sum.temporality, temporality);
-
-                    if temporality == Temporality::Delta {
-                        sum_zero_attributes += sum.data_points[0].value;
-                        sum_key1_value1 += sum.data_points[1].value;
+        test_context.with_multiple_aggregations::<f64>("test_counter", None, 6, |metrics| {
+            let sums = metrics
+                .into_iter()
+                .map(|data| {
+                    if let MetricData::Sum(sum) = data {
+                        sum
                     } else {
-                        sum_zero_attributes = sum.data_points[0].value;
-                        sum_key1_value1 = sum.data_points[1].value;
-                    };
-                });
+                        unreachable!()
+                    }
+                })
+                .collect::<Vec<_>>();
 
-                assert!(f64::abs(12.3 - sum_zero_attributes) < 0.0001);
-                assert!(f64::abs(61.5 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements 5 times = 10 * 5 * 1.23 = 61.5
+            let mut sum_zero_attributes = 0.0;
+            let mut sum_key1_value1 = 0.0;
+            sums.iter().for_each(|sum| {
+                assert_eq!(sum.data_points.len(), 2); // Expecting 1 time-series.
+                assert!(sum.is_monotonic, "Counter should produce monotonic.");
+                assert_eq!(sum.temporality, temporality);
+
+                if temporality == Temporality::Delta {
+                    sum_zero_attributes += sum.data_points[0].value;
+                    sum_key1_value1 += sum.data_points[1].value;
+                } else {
+                    sum_zero_attributes = sum.data_points[0].value;
+                    sum_key1_value1 = sum.data_points[1].value;
+                };
             });
+
+            assert!(f64::abs(12.3 - sum_zero_attributes) < 0.0001);
+            assert!(f64::abs(61.5 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements 5 times = 10 * 5 * 1.23 = 61.5
+        });
     }
 
     fn histogram_multithreaded_aggregation_helper(temporality: Temporality) {
@@ -2091,117 +2102,126 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        test_context
-            .with_multiple_aggregations::<u64>("test_histogram", None, 6, |metrics| {
-                let histograms = metrics.into_iter()
-                    .map(|data| {
-                        if let MetricData::Histogram(hist) = data {
-                            hist
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                let (
-                    mut sum_zero_attributes,
-                    mut count_zero_attributes,
-                    mut min_zero_attributes,
-                    mut max_zero_attributes,
-                ) = (0, 0, u64::MAX, u64::MIN);
-                let (mut sum_key1_value1, mut count_key1_value1, mut min_key1_value1, mut max_key1_value1) =
-                    (0, 0, u64::MAX, u64::MIN);
-
-                let mut bucket_counts_zero_attributes = vec![0; 16]; // There are 16 buckets for the default configuration
-                let mut bucket_counts_key1_value1 = vec![0; 16];
-
-                histograms.iter().for_each(|histogram| {
-                    assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
-                    assert_eq!(histogram.temporality, temporality);
-
-                    let data_point_zero_attributes =
-                        find_histogram_datapoint_with_no_attributes(&histogram.data_points).unwrap();
-                    let data_point_key1_value1 =
-                        find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value1")
-                            .unwrap();
-
-                    if temporality == Temporality::Delta {
-                        sum_zero_attributes += data_point_zero_attributes.sum;
-                        sum_key1_value1 += data_point_key1_value1.sum;
-
-                        count_zero_attributes += data_point_zero_attributes.count;
-                        count_key1_value1 += data_point_key1_value1.count;
-
-                        min_zero_attributes =
-                            min(min_zero_attributes, data_point_zero_attributes.min.unwrap());
-                        min_key1_value1 = min(min_key1_value1, data_point_key1_value1.min.unwrap());
-
-                        max_zero_attributes =
-                            max(max_zero_attributes, data_point_zero_attributes.max.unwrap());
-                        max_key1_value1 = max(max_key1_value1, data_point_key1_value1.max.unwrap());
-
-                        assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
-                        assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
-
-                        for (i, _) in data_point_zero_attributes.bucket_counts.iter().enumerate() {
-                            bucket_counts_zero_attributes[i] += data_point_zero_attributes.bucket_counts[i];
-                        }
-
-                        for (i, _) in data_point_key1_value1.bucket_counts.iter().enumerate() {
-                            bucket_counts_key1_value1[i] += data_point_key1_value1.bucket_counts[i];
-                        }
+        test_context.with_multiple_aggregations::<u64>("test_histogram", None, 6, |metrics| {
+            let histograms = metrics
+                .into_iter()
+                .map(|data| {
+                    if let MetricData::Histogram(hist) = data {
+                        hist
                     } else {
-                        sum_zero_attributes = data_point_zero_attributes.sum;
-                        sum_key1_value1 = data_point_key1_value1.sum;
-
-                        count_zero_attributes = data_point_zero_attributes.count;
-                        count_key1_value1 = data_point_key1_value1.count;
-
-                        min_zero_attributes = data_point_zero_attributes.min.unwrap();
-                        min_key1_value1 = data_point_key1_value1.min.unwrap();
-
-                        max_zero_attributes = data_point_zero_attributes.max.unwrap();
-                        max_key1_value1 = data_point_key1_value1.max.unwrap();
-
-                        assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
-                        assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
-
-                        bucket_counts_zero_attributes.clone_from(&data_point_zero_attributes.bucket_counts);
-                        bucket_counts_key1_value1.clone_from(&data_point_key1_value1.bucket_counts);
-                    };
-                });
-
-                // Default buckets:
-                // (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0],
-                // (500.0, 750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0], (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞).
-
-                assert_eq!(count_zero_attributes, 20); // Each of the 10 update threads record two measurements.
-                assert_eq!(sum_zero_attributes, 50); // Each of the 10 update threads record measurements summing up to 5.
-                assert_eq!(min_zero_attributes, 1);
-                assert_eq!(max_zero_attributes, 4);
-
-                for (i, count) in bucket_counts_zero_attributes.iter().enumerate() {
-                    match i {
-                        1 => assert_eq!(*count, 20), // For each of the 10 update threads, both the recorded values 1 and 4 fall under the bucket (0, 5].
-                        _ => assert_eq!(*count, 0),
+                        unreachable!()
                     }
-                }
+                })
+                .collect::<Vec<_>>();
 
-                assert_eq!(count_key1_value1, 50); // Each of the 10 update threads record 5 measurements.
-                assert_eq!(sum_key1_value1, 1000); // Each of the 10 update threads record measurements summing up to 100 (5 + 7 + 18 + 35 + 35).
-                assert_eq!(min_key1_value1, 5);
-                assert_eq!(max_key1_value1, 35);
+            let (
+                mut sum_zero_attributes,
+                mut count_zero_attributes,
+                mut min_zero_attributes,
+                mut max_zero_attributes,
+            ) = (0, 0, u64::MAX, u64::MIN);
+            let (
+                mut sum_key1_value1,
+                mut count_key1_value1,
+                mut min_key1_value1,
+                mut max_key1_value1,
+            ) = (0, 0, u64::MAX, u64::MIN);
 
-                for (i, count) in bucket_counts_key1_value1.iter().enumerate() {
-                    match i {
-                        1 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 5 falls under the bucket (0, 5].
-                        2 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 7 falls under the bucket (5, 10].
-                        3 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 18 falls under the bucket (10, 25].
-                        4 => assert_eq!(*count, 20), // For each of the 10 update threads, the recorded value 35 (recorded twice) falls under the bucket (25, 50].
-                        _ => assert_eq!(*count, 0),
+            let mut bucket_counts_zero_attributes = vec![0; 16]; // There are 16 buckets for the default configuration
+            let mut bucket_counts_key1_value1 = vec![0; 16];
+
+            histograms.iter().for_each(|histogram| {
+                assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
+                assert_eq!(histogram.temporality, temporality);
+
+                let data_point_zero_attributes =
+                    find_histogram_datapoint_with_no_attributes(&histogram.data_points).unwrap();
+                let data_point_key1_value1 = find_histogram_datapoint_with_key_value(
+                    &histogram.data_points,
+                    "key1",
+                    "value1",
+                )
+                .unwrap();
+
+                if temporality == Temporality::Delta {
+                    sum_zero_attributes += data_point_zero_attributes.sum;
+                    sum_key1_value1 += data_point_key1_value1.sum;
+
+                    count_zero_attributes += data_point_zero_attributes.count;
+                    count_key1_value1 += data_point_key1_value1.count;
+
+                    min_zero_attributes =
+                        min(min_zero_attributes, data_point_zero_attributes.min.unwrap());
+                    min_key1_value1 = min(min_key1_value1, data_point_key1_value1.min.unwrap());
+
+                    max_zero_attributes =
+                        max(max_zero_attributes, data_point_zero_attributes.max.unwrap());
+                    max_key1_value1 = max(max_key1_value1, data_point_key1_value1.max.unwrap());
+
+                    assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                    assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                    for (i, _) in data_point_zero_attributes.bucket_counts.iter().enumerate() {
+                        bucket_counts_zero_attributes[i] +=
+                            data_point_zero_attributes.bucket_counts[i];
                     }
-                }
+
+                    for (i, _) in data_point_key1_value1.bucket_counts.iter().enumerate() {
+                        bucket_counts_key1_value1[i] += data_point_key1_value1.bucket_counts[i];
+                    }
+                } else {
+                    sum_zero_attributes = data_point_zero_attributes.sum;
+                    sum_key1_value1 = data_point_key1_value1.sum;
+
+                    count_zero_attributes = data_point_zero_attributes.count;
+                    count_key1_value1 = data_point_key1_value1.count;
+
+                    min_zero_attributes = data_point_zero_attributes.min.unwrap();
+                    min_key1_value1 = data_point_key1_value1.min.unwrap();
+
+                    max_zero_attributes = data_point_zero_attributes.max.unwrap();
+                    max_key1_value1 = data_point_key1_value1.max.unwrap();
+
+                    assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                    assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                    bucket_counts_zero_attributes
+                        .clone_from(&data_point_zero_attributes.bucket_counts);
+                    bucket_counts_key1_value1.clone_from(&data_point_key1_value1.bucket_counts);
+                };
             });
+
+            // Default buckets:
+            // (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0],
+            // (500.0, 750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0], (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞).
+
+            assert_eq!(count_zero_attributes, 20); // Each of the 10 update threads record two measurements.
+            assert_eq!(sum_zero_attributes, 50); // Each of the 10 update threads record measurements summing up to 5.
+            assert_eq!(min_zero_attributes, 1);
+            assert_eq!(max_zero_attributes, 4);
+
+            for (i, count) in bucket_counts_zero_attributes.iter().enumerate() {
+                match i {
+                    1 => assert_eq!(*count, 20), // For each of the 10 update threads, both the recorded values 1 and 4 fall under the bucket (0, 5].
+                    _ => assert_eq!(*count, 0),
+                }
+            }
+
+            assert_eq!(count_key1_value1, 50); // Each of the 10 update threads record 5 measurements.
+            assert_eq!(sum_key1_value1, 1000); // Each of the 10 update threads record measurements summing up to 100 (5 + 7 + 18 + 35 + 35).
+            assert_eq!(min_key1_value1, 5);
+            assert_eq!(max_key1_value1, 35);
+
+            for (i, count) in bucket_counts_key1_value1.iter().enumerate() {
+                match i {
+                    1 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 5 falls under the bucket (0, 5].
+                    2 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 7 falls under the bucket (5, 10].
+                    3 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 18 falls under the bucket (10, 25].
+                    4 => assert_eq!(*count, 20), // For each of the 10 update threads, the recorded value 35 (recorded twice) falls under the bucket (25, 50].
+                    _ => assert_eq!(*count, 0),
+                }
+            }
+        });
     }
 
     fn histogram_f64_multithreaded_aggregation_helper(temporality: Temporality) {
@@ -2235,117 +2255,126 @@ mod tests {
 
         // Assert
         // We invoke `test_context.flush_metrics()` six times.
-        test_context
-            .with_multiple_aggregations::<f64>("test_histogram", None, 6, |metrics| {
-                let histograms = metrics.into_iter()
-                    .map(|data| {
-                        if let MetricData::Histogram(hist) = data {
-                            hist
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                let (
-                    mut sum_zero_attributes,
-                    mut count_zero_attributes,
-                    mut min_zero_attributes,
-                    mut max_zero_attributes,
-                ) = (0.0, 0, f64::MAX, f64::MIN);
-                let (mut sum_key1_value1, mut count_key1_value1, mut min_key1_value1, mut max_key1_value1) =
-                    (0.0, 0, f64::MAX, f64::MIN);
-
-                let mut bucket_counts_zero_attributes = vec![0; 16]; // There are 16 buckets for the default configuration
-                let mut bucket_counts_key1_value1 = vec![0; 16];
-
-                histograms.iter().for_each(|histogram| {
-                    assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
-                    assert_eq!(histogram.temporality, temporality);
-
-                    let data_point_zero_attributes =
-                        find_histogram_datapoint_with_no_attributes(&histogram.data_points).unwrap();
-                    let data_point_key1_value1 =
-                        find_histogram_datapoint_with_key_value(&histogram.data_points, "key1", "value1")
-                            .unwrap();
-
-                    if temporality == Temporality::Delta {
-                        sum_zero_attributes += data_point_zero_attributes.sum;
-                        sum_key1_value1 += data_point_key1_value1.sum;
-
-                        count_zero_attributes += data_point_zero_attributes.count;
-                        count_key1_value1 += data_point_key1_value1.count;
-
-                        min_zero_attributes =
-                            min_zero_attributes.min(data_point_zero_attributes.min.unwrap());
-                        min_key1_value1 = min_key1_value1.min(data_point_key1_value1.min.unwrap());
-
-                        max_zero_attributes =
-                            max_zero_attributes.max(data_point_zero_attributes.max.unwrap());
-                        max_key1_value1 = max_key1_value1.max(data_point_key1_value1.max.unwrap());
-
-                        assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
-                        assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
-
-                        for (i, _) in data_point_zero_attributes.bucket_counts.iter().enumerate() {
-                            bucket_counts_zero_attributes[i] += data_point_zero_attributes.bucket_counts[i];
-                        }
-
-                        for (i, _) in data_point_key1_value1.bucket_counts.iter().enumerate() {
-                            bucket_counts_key1_value1[i] += data_point_key1_value1.bucket_counts[i];
-                        }
+        test_context.with_multiple_aggregations::<f64>("test_histogram", None, 6, |metrics| {
+            let histograms = metrics
+                .into_iter()
+                .map(|data| {
+                    if let MetricData::Histogram(hist) = data {
+                        hist
                     } else {
-                        sum_zero_attributes = data_point_zero_attributes.sum;
-                        sum_key1_value1 = data_point_key1_value1.sum;
-
-                        count_zero_attributes = data_point_zero_attributes.count;
-                        count_key1_value1 = data_point_key1_value1.count;
-
-                        min_zero_attributes = data_point_zero_attributes.min.unwrap();
-                        min_key1_value1 = data_point_key1_value1.min.unwrap();
-
-                        max_zero_attributes = data_point_zero_attributes.max.unwrap();
-                        max_key1_value1 = data_point_key1_value1.max.unwrap();
-
-                        assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
-                        assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
-
-                        bucket_counts_zero_attributes.clone_from(&data_point_zero_attributes.bucket_counts);
-                        bucket_counts_key1_value1.clone_from(&data_point_key1_value1.bucket_counts);
-                    };
-                });
-
-                // Default buckets:
-                // (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0],
-                // (500.0, 750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0], (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞).
-
-                assert_eq!(count_zero_attributes, 20); // Each of the 10 update threads record two measurements.
-                assert!(f64::abs(61.0 - sum_zero_attributes) < 0.0001); // Each of the 10 update threads record measurements summing up to 6.1 (1.5 + 4.6)
-                assert_eq!(min_zero_attributes, 1.5);
-                assert_eq!(max_zero_attributes, 4.6);
-
-                for (i, count) in bucket_counts_zero_attributes.iter().enumerate() {
-                    match i {
-                        1 => assert_eq!(*count, 20), // For each of the 10 update threads, both the recorded values 1.5 and 4.6 fall under the bucket (0, 5.0].
-                        _ => assert_eq!(*count, 0),
+                        unreachable!()
                     }
-                }
+                })
+                .collect::<Vec<_>>();
 
-                assert_eq!(count_key1_value1, 50); // Each of the 10 update threads record 5 measurements.
-                assert!(f64::abs(1006.0 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements summing up to 100.4 (5.0 + 7.3 + 18.1 + 35.1 + 35.1).
-                assert_eq!(min_key1_value1, 5.0);
-                assert_eq!(max_key1_value1, 35.1);
+            let (
+                mut sum_zero_attributes,
+                mut count_zero_attributes,
+                mut min_zero_attributes,
+                mut max_zero_attributes,
+            ) = (0.0, 0, f64::MAX, f64::MIN);
+            let (
+                mut sum_key1_value1,
+                mut count_key1_value1,
+                mut min_key1_value1,
+                mut max_key1_value1,
+            ) = (0.0, 0, f64::MAX, f64::MIN);
 
-                for (i, count) in bucket_counts_key1_value1.iter().enumerate() {
-                    match i {
-                        1 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 5.0 falls under the bucket (0, 5.0].
-                        2 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 7.3 falls under the bucket (5.0, 10.0].
-                        3 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 18.1 falls under the bucket (10.0, 25.0].
-                        4 => assert_eq!(*count, 20), // For each of the 10 update threads, the recorded value 35.1 (recorded twice) falls under the bucket (25.0, 50.0].
-                        _ => assert_eq!(*count, 0),
+            let mut bucket_counts_zero_attributes = vec![0; 16]; // There are 16 buckets for the default configuration
+            let mut bucket_counts_key1_value1 = vec![0; 16];
+
+            histograms.iter().for_each(|histogram| {
+                assert_eq!(histogram.data_points.len(), 2); // Expecting 1 time-series.
+                assert_eq!(histogram.temporality, temporality);
+
+                let data_point_zero_attributes =
+                    find_histogram_datapoint_with_no_attributes(&histogram.data_points).unwrap();
+                let data_point_key1_value1 = find_histogram_datapoint_with_key_value(
+                    &histogram.data_points,
+                    "key1",
+                    "value1",
+                )
+                .unwrap();
+
+                if temporality == Temporality::Delta {
+                    sum_zero_attributes += data_point_zero_attributes.sum;
+                    sum_key1_value1 += data_point_key1_value1.sum;
+
+                    count_zero_attributes += data_point_zero_attributes.count;
+                    count_key1_value1 += data_point_key1_value1.count;
+
+                    min_zero_attributes =
+                        min_zero_attributes.min(data_point_zero_attributes.min.unwrap());
+                    min_key1_value1 = min_key1_value1.min(data_point_key1_value1.min.unwrap());
+
+                    max_zero_attributes =
+                        max_zero_attributes.max(data_point_zero_attributes.max.unwrap());
+                    max_key1_value1 = max_key1_value1.max(data_point_key1_value1.max.unwrap());
+
+                    assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                    assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                    for (i, _) in data_point_zero_attributes.bucket_counts.iter().enumerate() {
+                        bucket_counts_zero_attributes[i] +=
+                            data_point_zero_attributes.bucket_counts[i];
                     }
-                }
+
+                    for (i, _) in data_point_key1_value1.bucket_counts.iter().enumerate() {
+                        bucket_counts_key1_value1[i] += data_point_key1_value1.bucket_counts[i];
+                    }
+                } else {
+                    sum_zero_attributes = data_point_zero_attributes.sum;
+                    sum_key1_value1 = data_point_key1_value1.sum;
+
+                    count_zero_attributes = data_point_zero_attributes.count;
+                    count_key1_value1 = data_point_key1_value1.count;
+
+                    min_zero_attributes = data_point_zero_attributes.min.unwrap();
+                    min_key1_value1 = data_point_key1_value1.min.unwrap();
+
+                    max_zero_attributes = data_point_zero_attributes.max.unwrap();
+                    max_key1_value1 = data_point_key1_value1.max.unwrap();
+
+                    assert_eq!(data_point_zero_attributes.bucket_counts.len(), 16);
+                    assert_eq!(data_point_key1_value1.bucket_counts.len(), 16);
+
+                    bucket_counts_zero_attributes
+                        .clone_from(&data_point_zero_attributes.bucket_counts);
+                    bucket_counts_key1_value1.clone_from(&data_point_key1_value1.bucket_counts);
+                };
             });
+
+            // Default buckets:
+            // (-∞, 0], (0, 5.0], (5.0, 10.0], (10.0, 25.0], (25.0, 50.0], (50.0, 75.0], (75.0, 100.0], (100.0, 250.0], (250.0, 500.0],
+            // (500.0, 750.0], (750.0, 1000.0], (1000.0, 2500.0], (2500.0, 5000.0], (5000.0, 7500.0], (7500.0, 10000.0], (10000.0, +∞).
+
+            assert_eq!(count_zero_attributes, 20); // Each of the 10 update threads record two measurements.
+            assert!(f64::abs(61.0 - sum_zero_attributes) < 0.0001); // Each of the 10 update threads record measurements summing up to 6.1 (1.5 + 4.6)
+            assert_eq!(min_zero_attributes, 1.5);
+            assert_eq!(max_zero_attributes, 4.6);
+
+            for (i, count) in bucket_counts_zero_attributes.iter().enumerate() {
+                match i {
+                    1 => assert_eq!(*count, 20), // For each of the 10 update threads, both the recorded values 1.5 and 4.6 fall under the bucket (0, 5.0].
+                    _ => assert_eq!(*count, 0),
+                }
+            }
+
+            assert_eq!(count_key1_value1, 50); // Each of the 10 update threads record 5 measurements.
+            assert!(f64::abs(1006.0 - sum_key1_value1) < 0.0001); // Each of the 10 update threads record measurements summing up to 100.4 (5.0 + 7.3 + 18.1 + 35.1 + 35.1).
+            assert_eq!(min_key1_value1, 5.0);
+            assert_eq!(max_key1_value1, 35.1);
+
+            for (i, count) in bucket_counts_key1_value1.iter().enumerate() {
+                match i {
+                    1 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 5.0 falls under the bucket (0, 5.0].
+                    2 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 7.3 falls under the bucket (5.0, 10.0].
+                    3 => assert_eq!(*count, 10), // For each of the 10 update threads, the recorded value 18.1 falls under the bucket (10.0, 25.0].
+                    4 => assert_eq!(*count, 20), // For each of the 10 update threads, the recorded value 35.1 (recorded twice) falls under the bucket (25.0, 50.0].
+                    _ => assert_eq!(*count, 0),
+                }
+            }
+        });
     }
 
     fn histogram_aggregation_helper(temporality: Temporality) {
@@ -2394,17 +2423,23 @@ mod tests {
             }
 
             // find and validate key1=value2 datapoint
-            let data_point1 =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point1 = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
             assert_eq!(data_point1.count, values_kv1.len() as u64);
             assert_eq!(data_point1.sum, values_kv1.iter().sum::<u64>());
             assert_eq!(data_point1.min.unwrap(), *values_kv1.iter().min().unwrap());
             assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
 
-            let data_point2 =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value2")
-                    .expect("datapoint with key1=value2 expected");
+            let data_point2 = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value2",
+            )
+            .expect("datapoint with key1=value2 expected");
             assert_eq!(data_point2.count, values_kv2.len() as u64);
             assert_eq!(data_point2.sum, values_kv2.iter().sum::<u64>());
             assert_eq!(data_point2.min.unwrap(), *values_kv2.iter().min().unwrap());
@@ -2423,16 +2458,18 @@ mod tests {
 
         test_context.flush_metrics();
 
-
         test_context.with_aggregation::<u64>("my_histogram", None, |metric| {
             let MetricData::Histogram(histogram_data) = metric else {
                 unreachable!()
             };
 
             assert_eq!(histogram_data.data_points.len(), 2);
-            let data_point1 =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point1 = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
             if temporality == Temporality::Cumulative {
                 assert_eq!(data_point1.count, 2 * (values_kv1.len() as u64));
                 assert_eq!(data_point1.sum, 2 * (values_kv1.iter().sum::<u64>()));
@@ -2445,9 +2482,12 @@ mod tests {
                 assert_eq!(data_point1.max.unwrap(), *values_kv1.iter().max().unwrap());
             }
 
-            let data_point1 =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value2")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point1 = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value2",
+            )
+            .expect("datapoint with key1=value1 expected");
             if temporality == Temporality::Cumulative {
                 assert_eq!(data_point1.count, 2 * (values_kv2.len() as u64));
                 assert_eq!(data_point1.sum, 2 * (values_kv2.iter().sum::<u64>()));
@@ -2501,9 +2541,12 @@ mod tests {
             }
 
             // find and validate key1=value1 datapoint
-            let data_point =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
 
             assert_eq!(data_point.count, 5);
             assert_eq!(data_point.sum, 15);
@@ -2558,9 +2601,12 @@ mod tests {
             }
 
             // find and validate key1=value1 datapoint
-            let data_point =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
 
             assert_eq!(data_point.count, 5);
             assert_eq!(data_point.sum, 15);
@@ -2598,14 +2644,20 @@ mod tests {
             assert_eq!(gauge_data_point.data_points.len(), 2);
 
             // find and validate key1=value2 datapoint
-            let data_point1 =
-                find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point1 = find_gauge_datapoint_with_key_value(
+                &gauge_data_point.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
             assert_eq!(data_point1.value, 4);
 
-            let data_point1 =
-                find_gauge_datapoint_with_key_value(&gauge_data_point.data_points, "key1", "value2")
-                    .expect("datapoint with key1=value2 expected");
+            let data_point1 = find_gauge_datapoint_with_key_value(
+                &gauge_data_point.data_points,
+                "key1",
+                "value2",
+            )
+            .expect("datapoint with key1=value2 expected");
             assert_eq!(data_point1.value, 6);
         });
 
@@ -2629,12 +2681,14 @@ mod tests {
             };
 
             assert_eq!(gauge.data_points.len(), 2);
-            let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
-                .expect("datapoint with key1=value1 expected");
+            let data_point1 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+                    .expect("datapoint with key1=value1 expected");
             assert_eq!(data_point1.value, 41);
 
-            let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
-                .expect("datapoint with key1=value2 expected");
+            let data_point1 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value2")
+                    .expect("datapoint with key1=value2 expected");
             assert_eq!(data_point1.value, 54);
         });
     }
@@ -2676,13 +2730,15 @@ mod tests {
             }
 
             // find and validate key1=value1 datapoint
-            let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
-                .expect("datapoint with key1=value1 expected");
+            let data_point1 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+                    .expect("datapoint with key1=value1 expected");
             assert_eq!(data_point1.value, 4);
 
             // find and validate key2=value2 datapoint
-            let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
-                .expect("datapoint with key2=value2 expected");
+            let data_point2 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+                    .expect("datapoint with key2=value2 expected");
             assert_eq!(data_point2.value, 5);
         });
 
@@ -2690,7 +2746,6 @@ mod tests {
         test_context.reset_metrics();
 
         test_context.flush_metrics();
-
 
         test_context.with_aggregation::<i64>("test_observable_gauge", None, |metric| {
             let MetricData::Gauge(gauge) = metric else {
@@ -2706,12 +2761,14 @@ mod tests {
                 assert_eq!(zero_attribute_datapoint.value, 1);
             }
 
-            let data_point1 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
-                .expect("datapoint with key1=value1 expected");
+            let data_point1 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key1", "value1")
+                    .expect("datapoint with key1=value1 expected");
             assert_eq!(data_point1.value, 4);
 
-            let data_point2 = find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
-                .expect("datapoint with key2=value2 expected");
+            let data_point2 =
+                find_gauge_datapoint_with_key_value(&gauge.data_points, "key2", "value2")
+                    .expect("datapoint with key2=value2 expected");
             assert_eq!(data_point2.value, 5);
         });
     }
@@ -2869,8 +2926,9 @@ mod tests {
                     .expect("point expected");
                 assert_eq!(data_point.value, 100);
 
-                let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
-                    .expect("point expected");
+                let data_point =
+                    find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
+                        .expect("point expected");
                 assert_eq!(data_point.value, 100);
 
                 let data_point =
@@ -2887,7 +2945,8 @@ mod tests {
                 let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
                 assert!(data_point.is_none(), "point should not be present");
 
-                let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
+                let data_point =
+                    find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
                 assert!(data_point.is_none(), "point should not be present");
 
                 let data_point =
@@ -2979,8 +3038,9 @@ mod tests {
                     .expect("point expected");
                 assert_eq!(data_point.value, 100);
 
-                let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
-                    .expect("point expected");
+                let data_point =
+                    find_sum_datapoint_with_key_value(&sum.data_points, "A", "another")
+                        .expect("point expected");
                 assert_eq!(data_point.value, 100);
 
                 let data_point =
@@ -2997,7 +3057,8 @@ mod tests {
                 let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "foo");
                 assert!(data_point.is_none(), "point should not be present");
 
-                let data_point = find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
+                let data_point =
+                    find_sum_datapoint_with_key_value(&sum.data_points, "A", "another");
                 assert!(data_point.is_none(), "point should not be present");
 
                 let data_point =
@@ -3343,13 +3404,11 @@ mod tests {
         ) {
             let resource_metrics = self.resource_metrics.lock().unwrap();
 
-            assert!(
-                !resource_metrics.is_empty(),
-                "no metrics were exported"
-            );
+            assert!(!resource_metrics.is_empty(), "no metrics were exported");
 
             assert_eq!(
-                resource_metrics.len(), 1,
+                resource_metrics.len(),
+                1,
                 "Expected single resource metrics."
             );
             let resource_metric = resource_metrics
@@ -3383,10 +3442,7 @@ mod tests {
         ) {
             let resource_metrics = self.resource_metrics.lock().unwrap();
 
-            assert!(
-                !resource_metrics.is_empty(),
-                "no metrics were exported"
-            );
+            assert!(!resource_metrics.is_empty(), "no metrics were exported");
 
             assert_eq!(
                 resource_metrics.len(),

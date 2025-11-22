@@ -114,7 +114,10 @@ impl Default for InMemoryMetricExporterBuilder {
 impl InMemoryMetricExporterBuilder {
     /// Creates a new instance of the `InMemoryMetricExporterBuilder`.
     pub fn new() -> Self {
-        Self { temporality: None, metrics: None }
+        Self {
+            temporality: None,
+            metrics: None,
+        }
     }
 
     /// Set the [Temporality] of the exporter.

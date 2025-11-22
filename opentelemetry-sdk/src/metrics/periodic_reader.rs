@@ -520,6 +520,7 @@ mod tests {
         Resource,
     };
     use opentelemetry::metrics::MeterProvider;
+    use std::sync::Mutex;
     use std::{
         sync::{
             atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -527,7 +528,6 @@ mod tests {
         },
         time::Duration,
     };
-    use std::sync::Mutex;
     // use below command to run all tests
     // cargo test metrics::periodic_reader::tests --features=testing,spec_unstable_metrics_views -- --nocapture
 
@@ -611,7 +611,8 @@ mod tests {
 
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter)
             .with_interval(interval)
@@ -645,7 +646,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
 
@@ -669,7 +671,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
 
@@ -690,7 +693,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
 
@@ -708,7 +712,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
 
@@ -854,7 +859,8 @@ mod tests {
         // Arrange
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
         let (sender, receiver) = mpsc::channel();
@@ -913,7 +919,8 @@ mod tests {
         let interval = Duration::from_millis(10);
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter)
             .with_interval(interval)
@@ -969,7 +976,8 @@ mod tests {
     fn tokio_async_inside_observable_callback_helper(use_current_tokio_runtime: bool) {
         let metrics = Arc::new(Mutex::new(Vec::new()));
         let exporter = InMemoryMetricExporter::builder()
-            .with_metrics(metrics.clone()).build();
+            .with_metrics(metrics.clone())
+            .build();
 
         let reader = PeriodicReader::builder(exporter).build();
 
