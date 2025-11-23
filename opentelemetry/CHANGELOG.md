@@ -7,6 +7,10 @@
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
 - **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
+- **Documentation** Enhanced documentation for `Counter` and `ObservableCounter` to clarify monotonic behavior:
+  - Updated `Counter` and `ObservableCounter` struct documentation to explicitly state they are monotonic instruments that only accept non-negative values
+  - Enhanced `Counter::add()` method documentation to specify that negative values violate the monotonic contract and will be dropped by the SDK
+  - Updated `InstrumentProvider` trait method documentation for counter creation methods to clarify monotonic behavior
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 

@@ -7,6 +7,8 @@
   - `id_generator`, `should_sample`
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+- Fixed Sum and PrecomputedSum not to accept negative values if monotonic
+[#3260](https://github.com/open-telemetry/opentelemetry-rust/pull/3260)
 
 ## 0.31.0
 
