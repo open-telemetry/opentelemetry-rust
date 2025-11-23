@@ -1,6 +1,6 @@
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
-use opentelemetry::KeyValue;
+use opentelemetry::{otel_warn, KeyValue};
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
@@ -149,6 +149,16 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Validate monotonic counter increment is non-negative
+        if self.monotonic && measurement < T::default() {
+            otel_warn!(
+                name: "Counter.NegativeValue",
+                message = "Counters are monotonic and can only accept non-negative values. This measurement will be dropped.",
+                value = format!("{:?}", measurement)
+            );
+            return;
+        }
+
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -166,5 +176,123 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sum_monotonic_rejects_negative_values() {
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true, // monotonic = true
+            100,
+        );
+
+        Measure::call(&sum, 5.0, &[]);
+        Measure::call(&sum, -3.0, &[]);
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        assert_eq!(sum_data.data_points[0].value, 5.0);
+    }
+
+    #[test]
+    fn sum_non_monotonic_accepts_negative_values() {
+        // Create a non-monotonic sum (up-down counter)
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            false, // monotonic = false
+            100,
+        );
+
+        Measure::call(&sum, 5.0, &[]);
+        Measure::call(&sum, -3.0, &[]);
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        // Both values should be summed: 5.0 + (-3.0) = 2.0
+        assert_eq!(sum_data.data_points[0].value, 2.0);
+    }
+
+    #[test]
+    fn sum_monotonic_accepts_zero() {
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            100,
+        );
+
+        Measure::call(&sum, 0.0, &[]);
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        assert_eq!(sum_data.data_points[0].value, 0.0);
+    }
+
+    #[test]
+    fn sum_monotonic_rejects_negative_i64() {
+        let sum = Sum::<i64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true, // monotonic = true
+            100,
+        );
+
+        Measure::call(&sum, 10, &[]);
+        Measure::call(&sum, -5, &[]);
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        assert_eq!(sum_data.data_points[0].value, 10);
     }
 }

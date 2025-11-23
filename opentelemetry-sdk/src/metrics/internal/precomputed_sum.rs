@@ -1,4 +1,4 @@
-use opentelemetry::KeyValue;
+use opentelemetry::{otel_warn, KeyValue};
 
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
@@ -132,6 +132,16 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Validate monotonic counter increment is non-negative
+        if self.monotonic && measurement < T::default() {
+            otel_warn!(
+                name: "ObservableCounter.NegativeValue",
+                message = "Observable counters are monotonic and can only accept non-negative values. This measurement will be dropped.",
+                value = format!("{:?}", measurement)
+            );
+            return;
+        }
+
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -149,5 +159,95 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn precomputed_sum_monotonic_rejects_negative_values() {
+        let sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true, // monotonic = true
+            100,
+        );
+
+        Measure::call(&sum, 5.0, &[]);
+        Measure::call(&sum, -3.0, &[]); // Should be dropped
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        // Only the positive value should be recorded
+        assert_eq!(sum_data.data_points[0].value, 5.0);
+    }
+
+    #[test]
+    fn precomputed_sum_non_monotonic_accepts_negative_values() {
+        let sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            false, // monotonic = false
+            100,
+        );
+
+        Measure::call(&sum, 5.0, &[]);
+        Measure::call(&sum, -3.0, &[]); // Should be accepted
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        // Both values should be recorded (precomputed sum overwrites, so last value wins)
+        assert_eq!(sum_data.data_points.len(), 1);
+        assert_eq!(sum_data.data_points[0].value, -3.0);
+    }
+
+    #[test]
+    fn precomputed_sum_monotonic_accepts_zero() {
+        let sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true, // monotonic = true
+            100,
+        );
+
+        Measure::call(&sum, 0.0, &[]);
+
+        let (_len, metrics) = sum.cumulative(None);
+        assert!(metrics.is_some(), "Should have metrics");
+        let metrics = metrics.unwrap();
+
+        assert!(
+            matches!(metrics, MetricData::Sum(_)),
+            "Expected Sum metric data"
+        );
+        let MetricData::Sum(sum_data) = metrics else {
+            unreachable!()
+        };
+
+        assert_eq!(sum_data.data_points.len(), 1);
+        assert_eq!(sum_data.data_points[0].value, 0.0);
     }
 }

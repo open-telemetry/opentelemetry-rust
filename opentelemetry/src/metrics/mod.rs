@@ -18,17 +18,23 @@ pub use noop::NoopMeterProvider;
 
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {
-    /// creates an instrument for recording increasing values.
+    /// Creates a monotonic counter for recording increasing values.
+    ///
+    /// Counters only accept non-negative values. Negative values will be dropped by the SDK.
     fn u64_counter(&self, _builder: InstrumentBuilder<'_, Counter<u64>>) -> Counter<u64> {
         Counter::new(Arc::new(noop::NoopSyncInstrument::new()))
     }
 
-    /// creates an instrument for recording increasing values.
+    /// Creates a monotonic counter for recording increasing values.
+    ///
+    /// Counters only accept non-negative values. Negative values will be dropped by the SDK.
     fn f64_counter(&self, _builder: InstrumentBuilder<'_, Counter<f64>>) -> Counter<f64> {
         Counter::new(Arc::new(noop::NoopSyncInstrument::new()))
     }
 
-    /// creates an instrument for recording increasing values via callback.
+    /// Creates a monotonic observable counter for recording increasing values via callback.
+    ///
+    /// Observable counters only accept non-negative values. Negative values will be dropped by the SDK.
     fn u64_observable_counter(
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableCounter<u64>, u64>,
@@ -36,7 +42,9 @@ pub trait InstrumentProvider {
         ObservableCounter::new()
     }
 
-    /// creates an instrument for recording increasing values via callback.
+    /// Creates a monotonic observable counter for recording increasing values via callback.
+    ///
+    /// Observable counters only accept non-negative values. Negative values will be dropped by the SDK.
     fn f64_observable_counter(
         &self,
         _builder: AsyncInstrumentBuilder<'_, ObservableCounter<f64>, f64>,
