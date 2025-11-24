@@ -480,9 +480,8 @@ impl Drop for ContextGuard {
         if id > ContextStack::BASE_POS && id < ContextStack::MAX_POS {
             // Extract the context to drop outside of borrow_mut to avoid panic
             // when the context's drop implementation (e.g., Span::drop) calls Context::current()
-            let _context_to_drop = CURRENT_CONTEXT.with(|context_stack| {
-                context_stack.borrow_mut().pop_id(id)
-            });
+            let _context_to_drop =
+                CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
             // Context is automatically dropped here, outside of borrow_mut scope
         }
     }

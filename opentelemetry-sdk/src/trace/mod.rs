@@ -149,13 +149,21 @@ mod tests {
 
             // Verify: on_start stored the baggage as an attribute
             assert!(
-                span.attributes.iter().any(|kv| kv.key.as_str() == "bag-key"),
+                span.attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "bag-key"),
                 "Baggage should have been stored as span attribute in on_start"
             );
 
             // The current context's baggage is the parent's baggage (if any)
-            println!("on_end: parent context baggage = {:?}",
-                current_cx.baggage().iter().map(|(k, _)| k).collect::<Vec<_>>());
+            println!(
+                "on_end: parent context baggage = {:?}",
+                current_cx
+                    .baggage()
+                    .iter()
+                    .map(|(k, _)| k)
+                    .collect::<Vec<_>>()
+            );
         }
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {
