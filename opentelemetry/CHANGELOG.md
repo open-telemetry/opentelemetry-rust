@@ -16,6 +16,10 @@
   - Modified `ContextGuard::drop` to extract the context outside of `borrow_mut()` scope before dropping it
   - This prevents "RefCell already mutably borrowed" panics when Span's `Drop` implementation calls `Context::current()` during context cleanup
   - **Note**: `Context::current()` called from within a Drop triggered by context cleanup will return the parent context, not the context being dropped (documented behavior)
+- **Fix**: Fixed panic when calling `Context::current()` from `Drop` implementations triggered by `ContextGuard` cleanup ([#3262][3262]).
+  - Modified `ContextGuard::drop` to extract only the span (not the entire context) outside of `borrow_mut()` scope before dropping it
+  - This prevents "RefCell already mutably borrowed" panics when Span's `Drop` implementation calls `Context::current()` during context cleanup
+  - **Important**: `Context::current()` called from within a Drop triggered by context cleanup returns whatever context happens to be current at that moment, which may be unrelated to the context being dropped
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
