@@ -7,8 +7,13 @@
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
 - **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
+- **Fix**: Fixed panic when calling `Context::current()` from `Drop` implementations triggered by `ContextGuard` cleanup ([#2871][2871]).
+  - Modified `ContextGuard::drop` to extract the context outside of `borrow_mut()` scope before dropping it
+  - This prevents "RefCell already mutably borrowed" panics when Span's `Drop` implementation calls `Context::current()` during context cleanup
+  - **Note**: `Context::current()` called from within a Drop triggered by context cleanup will return the parent context, not the context being dropped (documented behavior)
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[2871]: https://github.com/open-telemetry/opentelemetry-rust/issues/2871
 
 ## v0.31.0
 

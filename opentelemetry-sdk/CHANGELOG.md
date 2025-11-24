@@ -5,8 +5,13 @@
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
+- **Fix**: Fixed panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
+  - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
+  - Added best practice guidance: extract context information in `on_start` and store as span attributes
+  - Documented that the panic fix in `opentelemetry` allows safe calls to `Context::current()` from `on_end`
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 
 ## 0.31.0
 
