@@ -115,6 +115,18 @@ impl Context {
 
     /// Returns an immutable snapshot of the current thread's context.
     ///
+    /// # Behavior During Context Drop
+    ///
+    /// When called from within a [`Drop`] implementation that is triggered by
+    /// a [`ContextGuard`] being dropped (e.g., when a [`Span`] is dropped as part
+    /// of context cleanup), this function returns the **parent context**, not the
+    /// context being dropped.
+    ///
+    /// This behavior is by design and prevents panics that would otherwise occur
+    /// from attempting to borrow the context while it's being mutably borrowed
+    /// for cleanup. See [issue #2871](https://github.com/open-telemetry/opentelemetry-rust/issues/2871)
+    /// for details.
+    ///
     /// # Examples
     ///
     /// ```
@@ -130,6 +142,8 @@ impl Context {
     /// let _guard = Context::new().with_value(ValueA("a")).attach();
     /// do_work()
     /// ```
+    ///
+    /// [`Span`]: crate::trace::Span
     pub fn current() -> Self {
         Self::map_current(|cx| cx.clone())
     }
@@ -464,7 +478,12 @@ impl Drop for ContextGuard {
     fn drop(&mut self) {
         let id = self.cx_pos;
         if id > ContextStack::BASE_POS && id < ContextStack::MAX_POS {
-            CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
+            // Extract the context to drop outside of borrow_mut to avoid panic
+            // when the context's drop implementation (e.g., Span::drop) calls Context::current()
+            let _context_to_drop = CURRENT_CONTEXT.with(|context_stack| {
+                context_stack.borrow_mut().pop_id(id)
+            });
+            // Context is automatically dropped here, outside of borrow_mut scope
         }
     }
 }
@@ -543,7 +562,7 @@ impl ContextStack {
     }
 
     #[inline(always)]
-    fn pop_id(&mut self, pos: u16) {
+    fn pop_id(&mut self, pos: u16) -> Option<Context> {
         if pos == ContextStack::BASE_POS || pos == ContextStack::MAX_POS {
             // The empty context is always at the bottom of the [`ContextStack`]
             // and cannot be popped, and the overflow position is invalid, so do
@@ -557,7 +576,7 @@ impl ContextStack {
                     "Attempted to pop the overflow position which is not allowed"
                 }
             );
-            return;
+            return None;
         }
         let len: u16 = self.stack.len() as u16;
         // Are we at the top of the [`ContextStack`]?
@@ -570,7 +589,10 @@ impl ContextStack {
             // empty context is always at the bottom of the stack if the
             // [`ContextStack`] is not empty.
             if let Some(Some(next_cx)) = self.stack.pop() {
-                self.current_cx = next_cx;
+                // Return the old context to be dropped outside of borrow_mut
+                Some(std::mem::replace(&mut self.current_cx, next_cx))
+            } else {
+                None
             }
         } else {
             // This is an out of order pop.
@@ -582,10 +604,10 @@ impl ContextStack {
                     stack_length = len,
                     message = "Attempted to pop beyond the end of the context stack"
                 );
-                return;
+                return None;
             }
-            // Clear out the entry at the given id.
-            _ = self.stack[pos as usize].take();
+            // Clear out the entry at the given id and return it
+            self.stack[pos as usize].take()
         }
     }
 
