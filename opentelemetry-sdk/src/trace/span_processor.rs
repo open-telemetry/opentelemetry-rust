@@ -86,9 +86,11 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// # Accessing Context
     ///
-    /// If you need to access context information (such as baggage) in `on_end`,
-    /// note that calling [`Context::current()`] will return the **parent context**,
-    /// not the span's context (which has already been removed from the context stack).
+    /// **Important**: Do not rely on [`Context::current()`] in `on_end`. When `on_end`
+    /// is called during span cleanup, `Context::current()` returns whatever context
+    /// happens to be active at that moment, which is typically unrelated to the span
+    /// being ended. Contexts can be activated in any order and are not necessarily
+    /// hierarchical.
     ///
     /// **Best Practice**: Extract any needed context information in [`on_start`]
     /// and store it as span attributes. This ensures the information is available
