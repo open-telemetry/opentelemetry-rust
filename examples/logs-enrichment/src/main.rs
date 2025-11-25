@@ -114,8 +114,6 @@ impl<P: LogProcessor> LogProcessor for SlowEnrichmentLogProcessor<P> {
         sleep(Duration::from_secs(1));
         // Enrich the log record with a custom attribute using the public API
         data.add_attribute("enriched", true);
-        // You could also add more context, e.g., thread id, timestamp, etc.
-        // data.add_attribute("thread_id", format!("{:?}", std::thread::current().id()));
         self.delegate.emit(data, instrumentation);
     }
 
