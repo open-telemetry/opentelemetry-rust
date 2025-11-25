@@ -19,7 +19,7 @@ spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled", "opent
 [dependencies]
 opentelemetry_sdk = { workspace = true, features = ["logs", "spec_unstable_logs_enabled"] }
 opentelemetry-stdout = { workspace = true, features = ["logs"] }
-opentelemetry-appender-tracing = { workspace = true }
+opentelemetry-appender-tracing = { workspace = true, features = ["spec_unstable_logs_enabled"] }
 tracing = { workspace = true, features = ["std"]}
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 opentelemetry = { version = "0.31.0", features = ["spec_unstable_logs_enabled"] }
