@@ -6,7 +6,7 @@ use opentelemetry_sdk::Resource;
 use tracing::{info, error};
 use tracing_subscriber::{prelude::*, EnvFilter};
 use opentelemetry::InstrumentationScope;
-use opentelemetry::logs::Severity;
+use opentelemetry::logs::{Severity, LogRecord};
 use opentelemetry_sdk::error::OTelSdkResult;
 
 fn main() {
@@ -90,7 +90,6 @@ impl<P: LogProcessor> LogProcessor for FilteringLogProcessor<P> {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
-        println!("filtering: severity is {level:?}");
         self.delegate.event_enabled(level, target, name) && level >= self.min_severity
     }
 }
@@ -111,8 +110,12 @@ impl<P: LogProcessor> SlowEnrichmentLogProcessor<P> {
 
 impl<P: LogProcessor> LogProcessor for SlowEnrichmentLogProcessor<P> {
     fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
-        println!("slow enrichment log processor is waiting 1 s");
+        // Simulate an expensive enrichment step (e.g., fetching from a DB or service)
         sleep(Duration::from_secs(1));
+        // Enrich the log record with a custom attribute using the public API
+        data.add_attribute("enriched", true);
+        // You could also add more context, e.g., thread id, timestamp, etc.
+        // data.add_attribute("thread_id", format!("{:?}", std::thread::current().id()));
         self.delegate.emit(data, instrumentation);
     }
 
@@ -122,7 +125,10 @@ impl<P: LogProcessor> LogProcessor for SlowEnrichmentLogProcessor<P> {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
-        println!("slow enrichment: severity is {level:?}");
+        // It is important to call the delegate's event_enabled method to ensure that
+        // any filtering or logic implemented by downstream processors is respected.
+        // Skipping this call could result in logs being emitted that should have been filtered out
+        // or in bypassing other custom logic in the processor chain.
         self.delegate.event_enabled(level, target, name)
     }
 }
