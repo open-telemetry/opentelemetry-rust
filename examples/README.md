@@ -2,7 +2,7 @@
 
 This directory contains some examples that should help you get start crates from `opentelemetry-rust`.
 
-## log-basic
+## logs-basic
 
 This example uses following crates from this repo:
 
@@ -11,6 +11,17 @@ This example uses following crates from this repo:
 - opentelemetry-stdout
 
 Check this example if you want to understand *how to instrument logs using opentelemetry*.
+
+## logs-advanced
+
+This example uses following crates from this repo:
+
+-- opentelemetry(log)
+- opentelemetry-appender-tracing
+- opentelemetry-stdout
+
+This builds on top of the logs-basic,
+and shows how to implement and compose `LogProcessor`s..
 
 ## metrics-basic
 

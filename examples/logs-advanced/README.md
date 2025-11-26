@@ -1,4 +1,4 @@
-# OpenTelemetry Log Processor Implemenation and Composition - Example
+# OpenTelemetry Log Processor Implementation and Composition - Example
 
 This example builds on top of the `logs-basic`, showing how to implement and compose
 `LogProcessor`s correctly.
@@ -7,7 +7,7 @@ The `FilteringLogProcessor` applies a severity-based filtering. The main purpose
 mostly to serve as a way to show how to compose processors by wrapping them into
 each other, in a way akin to the [delegation pattern](https://en.wikipedia.org/wiki/Delegation_pattern).
 
-The `SlowEnrichmentProcessor` simulates a (very!) slow processor adding information
+The `EnrichmentProcessor` simulates a (very!) slow processor adding information
 to the log captured by the OpenTelemetry SDK, which correctly ensures that the
 downstream processor's filtering is captured, avoiding unnecessary work.
 
@@ -23,7 +23,7 @@ Notice:
 
 ## Extra credit
 
-Tweak the `SlowEnrichmentProcessor` by removing the implementation of `event_enabled`.
+Tweak the `EnrichmentProcessor` by removing the implementation of `event_enabled`.
 The default implementation always accepts the event from the wrapped processor, even
 when it's set up to ignore a specific event. As a consequence, the slow enrichment
 processor will act on every log record, regardless of whether they are ultimately
