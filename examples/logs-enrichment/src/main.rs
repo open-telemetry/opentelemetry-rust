@@ -1,20 +1,18 @@
-use std::thread::sleep;
-use std::time::Duration;
+use opentelemetry::logs::{LogRecord, Severity};
+use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer;
+use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider, SimpleLogProcessor};
 use opentelemetry_sdk::Resource;
-use tracing::{info, error};
+use std::thread::sleep;
+use std::time::Duration;
+use tracing::{error, info};
 use tracing_subscriber::{prelude::*, EnvFilter};
-use opentelemetry::InstrumentationScope;
-use opentelemetry::logs::{Severity, LogRecord};
-use opentelemetry_sdk::error::OTelSdkResult;
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let filtering_processor = FilteringLogProcessor::new(
-        SimpleLogProcessor::new(exporter),
-        Severity::Error,
-    );
+    let filtering_processor =
+        FilteringLogProcessor::new(SimpleLogProcessor::new(exporter), Severity::Error);
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -102,9 +100,7 @@ pub struct SlowEnrichmentLogProcessor<P: LogProcessor> {
 
 impl<P: LogProcessor> SlowEnrichmentLogProcessor<P> {
     pub fn new(delegate: P) -> SlowEnrichmentLogProcessor<P> {
-        SlowEnrichmentLogProcessor {
-            delegate: delegate,
-        }
+        SlowEnrichmentLogProcessor { delegate: delegate }
     }
 }
 
