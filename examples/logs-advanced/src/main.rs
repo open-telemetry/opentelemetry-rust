@@ -120,7 +120,8 @@ impl<P: LogProcessor> LogProcessor for SlowEnrichmentLogProcessor<P> {
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         // It is important to call the delegate's event_enabled method to ensure that
-        // any filtering or logic implemented by downstream processors is respected.
+        // any filtering or logic implemented by downstream processors is respected so
+        // that no unnecessary work is done, causing an unwanted performance issue.
         // Skipping this call could result in logs being emitted that should have been filtered out
         // or in bypassing other custom logic in the processor chain.
         self.delegate.event_enabled(level, target, name)
