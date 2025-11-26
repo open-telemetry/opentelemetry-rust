@@ -19,7 +19,7 @@ fn main() {
                 .with_service_name("log-appender-tracing-example")
                 .build(),
         )
-        .with_log_processor(SlowEnrichmentLogProcessor::new(filtering_processor))
+        .with_log_processor(EnrichmentLogProcessor::new(filtering_processor))
         .build();
 
     // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
@@ -93,18 +93,18 @@ impl<P: LogProcessor> LogProcessor for FilteringLogProcessor<P> {
 }
 
 #[derive(Debug)]
-pub struct SlowEnrichmentLogProcessor<P: LogProcessor> {
+pub struct EnrichmentLogProcessor<P: LogProcessor> {
     /// The wrapped processor that will receive enriched log records
     delegate: P,
 }
 
-impl<P: LogProcessor> SlowEnrichmentLogProcessor<P> {
-    pub fn new(delegate: P) -> SlowEnrichmentLogProcessor<P> {
-        SlowEnrichmentLogProcessor { delegate: delegate }
+impl<P: LogProcessor> EnrichmentLogProcessor<P> {
+    pub fn new(delegate: P) -> EnrichmentLogProcessor<P> {
+        EnrichmentLogProcessor { delegate: delegate }
     }
 }
 
-impl<P: LogProcessor> LogProcessor for SlowEnrichmentLogProcessor<P> {
+impl<P: LogProcessor> LogProcessor for EnrichmentLogProcessor<P> {
     fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         // Simulate an expensive enrichment step (e.g., fetching from a DB or service)
         sleep(Duration::from_secs(1));
