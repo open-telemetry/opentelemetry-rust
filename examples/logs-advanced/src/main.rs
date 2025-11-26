@@ -71,8 +71,8 @@ pub struct FilteringLogProcessor<P: LogProcessor> {
 impl<P: LogProcessor> FilteringLogProcessor<P> {
     pub fn new(delegate: P, min_severity: Severity) -> FilteringLogProcessor<P> {
         FilteringLogProcessor {
-            delegate: delegate,
-            min_severity: min_severity,
+            delegate,
+            min_severity,
         }
     }
 }
@@ -100,7 +100,7 @@ pub struct EnrichmentLogProcessor<P: LogProcessor> {
 
 impl<P: LogProcessor> EnrichmentLogProcessor<P> {
     pub fn new(delegate: P) -> EnrichmentLogProcessor<P> {
-        EnrichmentLogProcessor { delegate: delegate }
+        EnrichmentLogProcessor { delegate }
     }
 }
 
