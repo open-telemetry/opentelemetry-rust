@@ -4,8 +4,6 @@ use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider, SimpleLogProcessor};
 use opentelemetry_sdk::Resource;
-use std::thread::sleep;
-use std::time::Duration;
 use tracing::{error, info};
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -106,9 +104,6 @@ impl<P: LogProcessor> EnrichmentLogProcessor<P> {
 
 impl<P: LogProcessor> LogProcessor for EnrichmentLogProcessor<P> {
     fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
-        // Simulate an expensive enrichment step (e.g., fetching from a DB or service)
-        sleep(Duration::from_secs(1));
-        // Enrich the log record with a custom attribute using the public API
         data.add_attribute("enriched", true);
         self.delegate.emit(data, instrumentation);
     }
