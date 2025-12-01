@@ -1263,7 +1263,10 @@ mod tests {
         processor.shutdown().unwrap();
 
         // todo: expect to see errors here. How should we assert this?
-        processor.on_end(&create_test_span("after_shutdown_span"), &opentelemetry::InstrumentationScope::default());
+        processor.on_end(
+            &create_test_span("after_shutdown_span"),
+            &opentelemetry::InstrumentationScope::default(),
+        );
 
         assert_eq!(1, exporter.get_finished_spans().unwrap().len());
         assert!(exporter.is_shutdown_called());

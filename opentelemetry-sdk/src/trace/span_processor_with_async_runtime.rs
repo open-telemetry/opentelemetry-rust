@@ -585,7 +585,10 @@ mod tests {
             }
         });
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
         let _shutdown_result = processor.shutdown();
@@ -612,7 +615,10 @@ mod tests {
         };
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
         let flush_res = processor.force_flush();
         if time_out {
             assert!(flush_res.is_err());
@@ -661,9 +667,18 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish three spans in rapid succession.
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
 
         // Wait until everything has been exported.
         processor.force_flush().expect("force flush failed");
@@ -698,9 +713,18 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish several spans quickly.
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
-        processor.on_end(&new_test_export_span_data(), &opentelemetry::InstrumentationScope::default());
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
+        processor.on_end(
+            &new_test_export_span_data(),
+            &opentelemetry::InstrumentationScope::default(),
+        );
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
