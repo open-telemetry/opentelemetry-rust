@@ -62,8 +62,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                             let span_processor = shared_span_processor.clone();
                             let spans = get_span_data();
                             handles.push(tokio::spawn(async move {
-                                for span in spans {
-                                    span_processor.on_end(span);
+                                for span in &spans {
+                                    span_processor.on_end(span, &opentelemetry::InstrumentationScope::default());
                                     tokio::task::yield_now().await;
                                 }
                             }));

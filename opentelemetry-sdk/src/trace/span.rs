@@ -219,24 +219,13 @@ impl Span {
             data.end_time = opentelemetry::time::now();
         }
 
-        match provider.span_processors() {
-            [] => {}
-            [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
-            }
-            processors => {
-                for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
-                }
-            }
+        // Build export data once to avoid cloning for multiple processors
+        let export_data = build_export_data(data, self.span_context.clone(), &self.tracer);
+
+        let instrumentation_scope = self.tracer.instrumentation_scope();
+
+        for processor in provider.span_processors() {
+            processor.on_end(&export_data, instrumentation_scope);
         }
     }
 }

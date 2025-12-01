@@ -137,7 +137,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(&self, _span: &SpanData, _instrumentation_scope: &opentelemetry::InstrumentationScope) {
             // TODO: Accessing Context::current() will panic today and hence commented out.
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             // let _c = Context::current();
