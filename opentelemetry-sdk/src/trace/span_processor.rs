@@ -82,8 +82,14 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
-    /// TODO - This method should take reference to `SpanData`
-    fn on_end(&self, span: SpanData);
+    ///
+    /// # Parameters
+    /// - `span`: A reference to `SpanData` representing the ended span.
+    /// - `instrumentation_scope`: The instrumentation scope associated with the span.
+    ///
+    /// If the processor needs to handle the export asynchronously, it should clone
+    /// the data to ensure it can be safely processed without lifetime issues.
+    fn on_end(&self, span: &SpanData, instrumentation_scope: &opentelemetry::InstrumentationScope);
     /// Force the spans lying in the cache to be exported.
     fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
@@ -133,16 +139,22 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
+    fn on_end(
+        &self,
+        span: &SpanData,
+        _instrumentation_scope: &opentelemetry::InstrumentationScope,
+    ) {
         if !span.span_context.is_sampled() {
             return;
         }
+
+        let span_data = span.clone();
 
         let result = self
             .exporter
             .lock()
             .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span])));
+            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span_data])));
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -526,8 +538,13 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Handles span end.
-    fn on_end(&self, span: SpanData) {
-        let result = self.span_sender.try_send(span);
+    fn on_end(
+        &self,
+        span: &SpanData,
+        _instrumentation_scope: &opentelemetry::InstrumentationScope,
+    ) {
+        let span_data = span.clone();
+        let result = self.span_sender.try_send(span_data);
 
         // match for result and handle each separately
         match result {
@@ -956,7 +973,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&span_data, &opentelemetry::InstrumentationScope::default());
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
@@ -980,7 +997,7 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        processor.on_end(unsampled);
+        processor.on_end(&unsampled, &opentelemetry::InstrumentationScope::default());
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
@@ -989,7 +1006,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&span_data, &opentelemetry::InstrumentationScope::default());
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
         // Assume shutdown is called by ensuring spans are empty in the exporter
@@ -1192,7 +1209,7 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&test_span, &opentelemetry::InstrumentationScope::default());
 
         // Wait for flush interval to ensure the span is processed
         std::thread::sleep(Duration::from_secs(6));
@@ -1215,7 +1232,7 @@ mod tests {
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&test_span, &opentelemetry::InstrumentationScope::default());
 
         // Call force_flush to immediately export the spans
         let flush_result = processor.force_flush();
@@ -1241,12 +1258,15 @@ mod tests {
 
         let record = create_test_span("test_span");
 
-        processor.on_end(record);
+        processor.on_end(&record, &opentelemetry::InstrumentationScope::default());
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
         // todo: expect to see errors here. How should we assert this?
-        processor.on_end(create_test_span("after_shutdown_span"));
+        processor.on_end(
+            &create_test_span("after_shutdown_span"),
+            &opentelemetry::InstrumentationScope::default(),
+        );
 
         assert_eq!(1, exporter.get_finished_spans().unwrap().len());
         assert!(exporter.is_shutdown_called());
@@ -1268,9 +1288,9 @@ mod tests {
         let span2 = create_test_span("span2");
         let span3 = create_test_span("span3"); // This span should be dropped
 
-        processor.on_end(span1.clone());
-        processor.on_end(span2.clone());
-        processor.on_end(span3.clone()); // This span exceeds the queue size
+        processor.on_end(&span1, &opentelemetry::InstrumentationScope::default());
+        processor.on_end(&span2, &opentelemetry::InstrumentationScope::default());
+        processor.on_end(&span3, &opentelemetry::InstrumentationScope::default()); // This span exceeds the queue size
 
         // Wait for the scheduled delay to expire
         std::thread::sleep(Duration::from_secs(6));
@@ -1314,7 +1334,7 @@ mod tests {
             KeyValue::new("key1", "value1"),
             KeyValue::new("key2", "value2"),
         ];
-        processor.on_end(span_data.clone());
+        processor.on_end(&span_data, &opentelemetry::InstrumentationScope::default());
 
         // Force flush to export the span
         let _ = processor.force_flush();
@@ -1345,7 +1365,7 @@ mod tests {
 
         // Create a span and send it to the processor
         let test_span = create_test_span("resource_test");
-        processor.on_end(test_span.clone());
+        processor.on_end(&test_span, &opentelemetry::InstrumentationScope::default());
 
         // Force flush to ensure the span is exported
         let _ = processor.force_flush();
@@ -1380,7 +1400,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&span, &opentelemetry::InstrumentationScope::default());
         }
 
         processor.force_flush().unwrap();
@@ -1403,7 +1423,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&span, &opentelemetry::InstrumentationScope::default());
         }
 
         processor.force_flush().unwrap();
@@ -1430,7 +1450,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let span = new_test_export_span_data();
-                processor_clone.on_end(span);
+                processor_clone.on_end(&span, &opentelemetry::InstrumentationScope::default());
             });
             handles.push(handle);
         }

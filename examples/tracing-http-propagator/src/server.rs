@@ -146,7 +146,12 @@ impl SpanProcessor for EnrichWithBaggageSpanProcessor {
         }
     }
 
-    fn on_end(&self, _span: opentelemetry_sdk::trace::SpanData) {}
+    fn on_end(
+        &self,
+        _span: &opentelemetry_sdk::trace::SpanData,
+        _instrumentation_scope: &opentelemetry::InstrumentationScope,
+    ) {
+    }
 }
 
 fn init_tracer() -> SdkTracerProvider {

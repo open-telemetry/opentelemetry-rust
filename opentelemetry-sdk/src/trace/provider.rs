@@ -526,7 +526,11 @@ mod tests {
                 .fetch_add(1, Ordering::SeqCst);
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(
+            &self,
+            _span: &SpanData,
+            _instrumentation_scope: &opentelemetry::InstrumentationScope,
+        ) {
             // ignore
         }
 
@@ -789,7 +793,11 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn on_end(&self, _span: SpanData) {
+        fn on_end(
+            &self,
+            _span: &SpanData,
+            _instrumentation_scope: &opentelemetry::InstrumentationScope,
+        ) {
             // No operation needed for this processor
         }
 
