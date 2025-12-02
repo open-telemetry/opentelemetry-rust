@@ -1,4 +1,4 @@
-use opentelemetry::{otel_warn, KeyValue};
+use opentelemetry::{otel_debug, KeyValue};
 
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
@@ -134,7 +134,7 @@ where
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         // Validate monotonic counter increment is non-negative
         if self.monotonic && measurement < T::default() {
-            otel_warn!(
+            otel_debug!(
                 name: "ObservableCounter.NegativeValue",
                 message = "Observable counters are monotonic and can only accept non-negative values. This measurement will be dropped.",
                 value = format!("{:?}", measurement)

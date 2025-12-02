@@ -1,6 +1,6 @@
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
-use opentelemetry::{otel_warn, KeyValue};
+use opentelemetry::{otel_debug, KeyValue};
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
@@ -151,7 +151,7 @@ where
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         // Validate monotonic counter increment is non-negative
         if self.monotonic && measurement < T::default() {
-            otel_warn!(
+            otel_debug!(
                 name: "Counter.NegativeValue",
                 message = "Counters are monotonic and can only accept non-negative values. This measurement will be dropped.",
                 value = format!("{:?}", measurement)
