@@ -4,19 +4,20 @@ use crate::metrics::data::{
 };
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::Temporality;
-use crate::InMemoryExporterError;
-use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 
+// Not a user-facing type, just a type alias for clarity within this module.
+type InMemoryMetrics = Vec<ResourceMetrics>;
+
 /// An in-memory metrics exporter that stores metrics data in memory.
 ///
 /// This exporter is useful for testing and debugging purposes. It stores
-/// metric data in a `VecDeque<ResourceMetrics>`. Metrics can be retrieved
-/// using the `get_finished_metrics` method.
+/// metric data in a user-provided `Vec<ResourceMetrics>`, from which the
+/// exported data can be retrieved as well.
 ///
 /// # Panics
 ///
@@ -27,6 +28,7 @@ use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 /// # Example
 ///
 /// ```
+///# use std::sync::{Arc, Mutex};
 ///# use opentelemetry_sdk::metrics;
 ///# use opentelemetry::{KeyValue};
 ///# use opentelemetry::metrics::MeterProvider;
@@ -35,12 +37,15 @@ use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 ///
 ///# #[tokio::main]
 ///# async fn main() {
-/// // Create an InMemoryMetricExporter
-///  let exporter = InMemoryMetricExporter::default();
+///  // Create an InMemoryMetricExporter
+///  let metrics = Arc::new(Mutex::new(Vec::new()));
+///  let exporter = InMemoryMetricExporter::builder()
+///      .with_metrics(metrics.clone())
+///      .build();
 ///
 ///  // Create a MeterProvider and register the exporter
 ///  let meter_provider = metrics::SdkMeterProvider::builder()
-///      .with_reader(PeriodicReader::builder(exporter.clone()).build())
+///      .with_reader(PeriodicReader::builder(exporter).build())
 ///      .build();
 ///
 ///  // Create and record metrics using the MeterProvider
@@ -50,26 +55,21 @@ use super::data::{AggregatedMetrics, Metric, ScopeMetrics};
 ///
 ///  meter_provider.force_flush().unwrap();
 ///
-///  // Retrieve the finished metrics from the exporter
-///  let finished_metrics = exporter.get_finished_metrics().unwrap();
-///
 ///  // Print the finished metrics
-/// for resource_metrics in finished_metrics {
+///  for resource_metrics in metrics.lock().unwrap().iter() {
 ///      println!("{:?}", resource_metrics);
 ///  }
 ///# }
 /// ```
 pub struct InMemoryMetricExporter {
-    metrics: Arc<Mutex<VecDeque<ResourceMetrics>>>,
+    metrics: Arc<Mutex<InMemoryMetrics>>,
     temporality: Temporality,
 }
 
-impl Clone for InMemoryMetricExporter {
-    fn clone(&self) -> Self {
-        InMemoryMetricExporter {
-            metrics: self.metrics.clone(),
-            temporality: self.temporality,
-        }
+impl InMemoryMetricExporter {
+    /// Creates a new instance of the [`InMemoryMetricExporterBuilder`].
+    pub fn builder() -> InMemoryMetricExporterBuilder {
+        InMemoryMetricExporterBuilder::new()
     }
 }
 
@@ -79,22 +79,20 @@ impl fmt::Debug for InMemoryMetricExporter {
     }
 }
 
-impl Default for InMemoryMetricExporter {
-    fn default() -> Self {
-        InMemoryMetricExporterBuilder::new().build()
-    }
-}
-
 /// Builder for [`InMemoryMetricExporter`].
 /// # Example
 ///
 /// ```
-/// # use opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+///# use opentelemetry_sdk::metrics::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
+///# use std::sync::{Arc, Mutex};
 ///
-/// let exporter = InMemoryMetricExporterBuilder::new().build();
+/// let metrics = Arc::new(Mutex::new(Vec::new()));
+/// let exporter = InMemoryMetricExporterBuilder::new()
+///                 .with_metrics(metrics.clone()).build();
 /// ```
 pub struct InMemoryMetricExporterBuilder {
     temporality: Option<Temporality>,
+    metrics: Option<Arc<Mutex<InMemoryMetrics>>>,
 }
 
 impl fmt::Debug for InMemoryMetricExporterBuilder {
@@ -112,7 +110,10 @@ impl Default for InMemoryMetricExporterBuilder {
 impl InMemoryMetricExporterBuilder {
     /// Creates a new instance of the `InMemoryMetricExporterBuilder`.
     pub fn new() -> Self {
-        Self { temporality: None }
+        Self {
+            temporality: None,
+            metrics: None,
+        }
     }
 
     /// Set the [Temporality] of the exporter.
@@ -121,48 +122,34 @@ impl InMemoryMetricExporterBuilder {
         self
     }
 
+    /// Set the internal collection to store the metrics.
+    pub fn with_metrics(mut self, metrics: Arc<Mutex<InMemoryMetrics>>) -> Self {
+        self.metrics = Some(metrics);
+        self
+    }
+
     /// Creates a new instance of the `InMemoryMetricExporter`.
     ///
     pub fn build(self) -> InMemoryMetricExporter {
         InMemoryMetricExporter {
-            metrics: Arc::new(Mutex::new(VecDeque::new())),
+            metrics: self.metrics.expect("Metrics must be provided"),
             temporality: self.temporality.unwrap_or_default(),
         }
     }
 }
 
 impl InMemoryMetricExporter {
-    /// Returns the finished metrics as a vector of `ResourceMetrics`.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `MetricError` if the internal lock cannot be acquired.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
-    ///
-    /// let exporter = InMemoryMetricExporter::default();
-    /// let finished_metrics = exporter.get_finished_metrics().unwrap();
-    /// ```
-    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>, InMemoryExporterError> {
-        let metrics = self
-            .metrics
-            .lock()
-            .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
-            .map_err(InMemoryExporterError::from)?;
-        Ok(metrics)
-    }
-
     /// Clears the internal storage of finished metrics.
     ///
     /// # Example
     ///
     /// ```
-    /// # use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+    /// use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+    /// use std::sync::{Arc, Mutex};
     ///
-    /// let exporter = InMemoryMetricExporter::default();
+    /// let metrics = Arc::new(Mutex::new(Vec::new()));
+    /// let exporter = InMemoryMetricExporter::builder()
+    ///                .with_metrics(metrics.clone()).build();
     /// exporter.reset();
     /// ```
     pub fn reset(&self) {
@@ -241,7 +228,7 @@ impl PushMetricExporter for InMemoryMetricExporter {
         self.metrics
             .lock()
             .map(|mut metrics_guard| {
-                metrics_guard.push_back(InMemoryMetricExporter::clone_metrics(metrics))
+                metrics_guard.push(InMemoryMetricExporter::clone_metrics(metrics))
             })
             .map_err(|_| OTelSdkError::InternalFailure("Failed to lock metrics".to_string()))
     }
