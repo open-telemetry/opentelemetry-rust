@@ -9,15 +9,14 @@ use tracing_subscriber::{prelude::*, EnvFilter};
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();
-    let filtering_processor =
-        FilteringLogProcessor::new(SimpleLogProcessor::new(exporter), Severity::Error);
+    let enriching_processor = EnrichmentLogProcessor::new(SimpleLogProcessor::new(exporter));
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_resource(
             Resource::builder()
                 .with_service_name("log-appender-tracing-example")
                 .build(),
         )
-        .with_log_processor(EnrichmentLogProcessor::new(filtering_processor))
+        .with_log_processor(enriching_processor)
         .build();
 
     // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
@@ -43,7 +42,7 @@ fn main() {
     // Create a new tracing::Fmt layer to print the logs to stdout. It has a
     // default filter of `info` level and above, and `debug` and above for logs
     // from OpenTelemetry crates. The filter levels can be customized as needed.
-    let filter_fmt = EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
+    let filter_fmt = EnvFilter::new("error").add_directive("opentelemetry=debug".parse().unwrap());
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_thread_names(true)
         .with_filter(filter_fmt);
@@ -53,41 +52,9 @@ fn main() {
         .with(fmt_layer)
         .init();
 
-    for i in 0..10 {
-        info!(name: "my-event-name", target: "my-system", event_id = 20 + i, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
-    }
+    info!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     error!(name: "my-event-name", target: "my-system", event_id = 50, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     let _ = provider.shutdown();
-}
-
-#[derive(Debug)]
-pub struct FilteringLogProcessor<P: LogProcessor> {
-    delegate: P,
-    min_severity: Severity,
-}
-
-impl<P: LogProcessor> FilteringLogProcessor<P> {
-    pub fn new(delegate: P, min_severity: Severity) -> FilteringLogProcessor<P> {
-        FilteringLogProcessor {
-            delegate,
-            min_severity,
-        }
-    }
-}
-
-impl<P: LogProcessor> LogProcessor for FilteringLogProcessor<P> {
-    fn emit(&self, data: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
-        self.delegate.emit(data, instrumentation)
-    }
-
-    fn force_flush(&self) -> OTelSdkResult {
-        self.delegate.force_flush()
-    }
-
-    #[cfg(feature = "spec_unstable_logs_enabled")]
-    fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
-        self.delegate.event_enabled(level, target, name) && level >= self.min_severity
-    }
 }
 
 #[derive(Debug)]
