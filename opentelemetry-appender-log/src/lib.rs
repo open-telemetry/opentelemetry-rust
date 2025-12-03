@@ -134,11 +134,11 @@ where
     L: Logger + Send + Sync,
 {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        return self.logger.event_enabled(
+        self.logger.event_enabled(
             severity_of_level(metadata.level()),
             metadata.target(),
             None,
-        );
+        )
     }
 
     fn log(&self, record: &Record) {
