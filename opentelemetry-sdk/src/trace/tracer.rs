@@ -10,13 +10,10 @@
 use crate::trace::{
     provider::SdkTracerProvider,
     span::{Span, SpanData},
-    SpanEvents, SpanLimits, SpanLinks,
+    SamplingDecision, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{
-        SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt,
-        TraceFlags,
-    },
+    trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
@@ -270,12 +267,12 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 mod tests {
     use crate::{
         testing::trace::TestSpan,
-        trace::{Sampler, ShouldSample},
+        trace::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     };
     use opentelemetry::{
         trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+            Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
+            TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
