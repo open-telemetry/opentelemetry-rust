@@ -21,12 +21,11 @@ serde = { workspace = true, optional = true, features = ["std"] }
 opentelemetry-semantic-conventions = { workspace = true, optional = true, features = ["semconv_experimental"] }
 
 [features]
-spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 with-serde = ["log/kv_serde", "serde"]
 experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 
 [dev-dependencies]
-opentelemetry_sdk = { workspace = true, features = ["testing", "spec_unstable_logs_enabled"] }
+opentelemetry_sdk = { workspace = true, features = ["testing"] }
 opentelemetry-stdout = { workspace = true, features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }
