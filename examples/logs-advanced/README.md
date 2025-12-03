@@ -11,7 +11,3 @@ downstream processor's filtering is captured, avoiding unnecessary work.
 ```shell
 cargo run --features="spec_unstable_logs_enabled"
 ```
-
-Notice:
-1. only the error log is enriched with the `enriched: true` attribute
-2. the enrichment process only happens for the error log, without unnecessary work
