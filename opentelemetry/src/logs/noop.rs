@@ -78,7 +78,7 @@ impl Logger for NoopLogger {
         NoopLogRecord {}
     }
     fn emit(&self, _record: Self::LogRecord) {}
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+    
     fn event_enabled(&self, _level: super::Severity, _target: &str, _name: Option<&str>) -> bool {
         false
     }
