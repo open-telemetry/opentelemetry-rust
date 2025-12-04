@@ -21,7 +21,7 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, TraceContextExt, Tracer, TracerProvider},
+    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -75,9 +75,30 @@ fn criterion_benchmark(c: &mut Criterion) {
             span.set_attribute(KeyValue::new("key1", false));
             span.set_attribute(KeyValue::new("key2", "hello"));
             span.set_attribute(KeyValue::new("key3", 123.456));
-            span.set_attribute(KeyValue::new("key4", "world"));
-            span.set_attribute(KeyValue::new("key5", 123));
+            if span.is_recording() {
+                span.set_attribute(KeyValue::new("key4", "world"));
+                span.set_attribute(KeyValue::new("key5", 123));
+            }
         });
+    });
+
+    trace_benchmark_group(c, "span-creation-tracer-in-span-with-builder", |tracer| {
+        // This is similar to the simple span creation, but also does the job of activating
+        // the span in the current context.
+        tracer.in_span_with_builder(
+            SpanBuilder::from_name("span-name").with_attributes([
+                KeyValue::new("key1", false),
+                KeyValue::new("key2", "hello"),
+                KeyValue::new("key3", 123.456),
+            ]),
+            |ctx| {
+                let span = ctx.span();
+                if span.is_recording() {
+                    span.set_attribute(KeyValue::new("key4", "world"));
+                    span.set_attribute(KeyValue::new("key5", 123));
+                }
+            },
+        );
     });
 
     trace_benchmark_group(c, "span-creation-simple-context-activation", |tracer| {
