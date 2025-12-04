@@ -79,6 +79,18 @@ impl<P: LogProcessor> LogProcessor for EnrichmentLogProcessor<P> {
         self.delegate.force_flush()
     }
 
+    fn shutdown_with_timeout(&self, timeout: std::time::Duration) -> OTelSdkResult {
+        self.delegate.shutdown_with_timeout(timeout)
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
+        self.delegate.shutdown()
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        self.delegate.set_resource(resource);
+    }
+
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         // It is important to call the delegate's event_enabled method to ensure that
