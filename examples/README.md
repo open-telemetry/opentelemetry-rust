@@ -16,7 +16,7 @@ Check this example if you want to understand *how to instrument logs using opent
 
 This example uses following crates from this repo:
 
--- opentelemetry(log)
+- opentelemetry(log)
 - opentelemetry-appender-tracing
 - opentelemetry-stdout
 
