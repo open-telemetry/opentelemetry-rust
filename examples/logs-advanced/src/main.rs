@@ -108,7 +108,6 @@ impl<P: LogProcessor> LogProcessor for EnrichmentLogProcessor<P> {
         self.delegate.set_resource(resource);
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         self.delegate.event_enabled(level, target, name)
     }

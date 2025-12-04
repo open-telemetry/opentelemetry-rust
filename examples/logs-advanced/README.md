@@ -9,5 +9,5 @@ downstream processor's filtering is captured, avoiding unnecessary work.
 ## Usage
 
 ```shell
-cargo run --features="spec_unstable_logs_enabled"
+cargo run
 ```
