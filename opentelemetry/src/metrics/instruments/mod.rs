@@ -241,6 +241,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
 pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
+#[must_use = "Callbacks will not be invoked unless you call .build() on this async instrument builder."]
 #[non_exhaustive] // We expect to add more configuration fields in the future
 pub struct AsyncInstrumentBuilder<'a, I, M> {
     /// Instrument provider is used to create the instrument.

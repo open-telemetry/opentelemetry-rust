@@ -2,6 +2,19 @@
 
 ## vNext
 
+- Remove the `experimental_use_tracing_span_context` since
+  `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
+  context for the current tracing span.
+  
+  This fixes [3190][3190] the circular dependency introduced by depending on
+  `tracing-opentelemetry` that depends on `opentelemetry`.
+
+[3190]: https://github.com/open-telemetry/opentelemetry-rust/issues/3190
+[31901]: https://github.com/tokio-rs/tracing-opentelemetry/blob/884b00cf438557733bd9cef9456281bea8c4bea1/src/layer.rs#L842
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+
 ## 0.31.1
 
 Released 2025-Oct-1

@@ -4,6 +4,7 @@
 
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
+- Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
 
 ## 0.31.0
 
@@ -12,6 +13,7 @@ Released 2025-Sep-25
 - Update `opentelemetry-proto` and `opentelemetry-http` dependency version to 0.31.0
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
 - Add retry with exponential backoff and throttling support for HTTP and gRPC exporters
+  This behaviour is opt in via the `experimental-grpc-retry` and `experimental-http-retry` flags on this crate. You can customize the retry policy using the `with_retry_policy` on the exporter builders.
 
 ## 0.30.0
 

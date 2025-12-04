@@ -10,13 +10,10 @@
 use crate::trace::{
     provider::SdkTracerProvider,
     span::{Span, SpanData},
-    IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
+    SamplingDecision, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{
-        SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt,
-        TraceFlags,
-    },
+    trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
@@ -105,14 +102,11 @@ impl SdkTracer {
         let SpanBuilder {
             name,
             start_time,
-            end_time,
             events,
-            status,
             ..
         } = builder;
 
         let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
-        let end_time = end_time.unwrap_or(start_time);
         let spans_events_limit = span_limits.max_events_per_span as usize;
         let span_events: SpanEvents = if let Some(mut events) = events {
             let dropped_count = events.len().saturating_sub(spans_events_limit);
@@ -141,32 +135,16 @@ impl SdkTracer {
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
                 name,
                 start_time,
-                end_time,
+                end_time: start_time,
                 attributes: attribute_options,
                 dropped_attributes_count,
                 events: span_events,
                 links: span_links,
-                status,
+                status: Status::default(),
             }),
             self.clone(),
             span_limits,
         )
-    }
-
-    /// The [`IdGenerator`] associated with this tracer.
-    ///
-    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
-    #[doc(hidden)]
-    pub fn id_generator(&self) -> &dyn IdGenerator {
-        &*self.provider.config().id_generator
-    }
-
-    /// The [`ShouldSample`] associated with this tracer.
-    ///
-    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
-    #[doc(hidden)]
-    pub fn should_sample(&self) -> &dyn ShouldSample {
-        &*self.provider.config().sampler
     }
 }
 
@@ -181,7 +159,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build_with_context(&self, mut builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
+    fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
         if parent_cx.is_telemetry_suppressed() {
             return Span::new(
                 SpanContext::empty_context(),
@@ -203,10 +181,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         }
 
         let config = provider.config();
-        let span_id = builder
-            .span_id
-            .take()
-            .unwrap_or_else(|| config.id_generator.new_span_id());
+        let span_id = config.id_generator.new_span_id();
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
@@ -221,25 +196,17 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             trace_id = sc.trace_id();
             psc = sc;
         } else {
-            trace_id = builder
-                .trace_id
-                .unwrap_or_else(|| config.id_generator.new_trace_id());
+            trace_id = config.id_generator.new_trace_id();
         };
 
-        // In order to accommodate use cases like `tracing-opentelemetry` we there is the ability
-        // to use pre-sampling. Otherwise, the standard method of sampling is followed.
-        let samplings_result = if let Some(sr) = builder.sampling_result.take() {
-            sr
-        } else {
-            config.sampler.should_sample(
-                Some(parent_cx),
-                trace_id,
-                &builder.name,
-                builder.span_kind.as_ref().unwrap_or(&SpanKind::Internal),
-                builder.attributes.as_ref().unwrap_or(&Vec::new()),
-                builder.links.as_deref().unwrap_or(&[]),
-            )
-        };
+        let samplings_result = config.sampler.should_sample(
+            Some(parent_cx),
+            trace_id,
+            &builder.name,
+            builder.span_kind.as_ref().unwrap_or(&SpanKind::Internal),
+            builder.attributes.as_ref().unwrap_or(&Vec::new()),
+            builder.links.as_deref().unwrap_or(&[]),
+        );
 
         let trace_flags = parent_cx.span().span_context().trace_flags();
         let trace_state = samplings_result.trace_state;
@@ -300,12 +267,12 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 mod tests {
     use crate::{
         testing::trace::TestSpan,
-        trace::{Sampler, ShouldSample},
+        trace::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     };
     use opentelemetry::{
         trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+            Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
+            TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
