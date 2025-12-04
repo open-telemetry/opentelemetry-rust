@@ -57,6 +57,23 @@ fn main() {
     let _ = provider.shutdown();
 }
 
+/// A log processor that enriches log records with additional attributes before
+/// delegating to an underlying processor.
+///
+/// If this were implemented as a standalone processor in a chain (e.g.,
+/// EnrichmentProcessor -> SimpleLogProcessor), the performance benefits of the
+/// `event_enabled` check would be nullified. Here's why:
+///
+/// - The `event_enabled` method is crucial for performance - it allows processors
+///   to skip expensive operations for logs that will ultimately be filtered out
+/// - A standalone EnrichmentProcessor would need to implement `event_enabled`,
+///   but it has no knowledge of downstream filtering logic
+/// - It would have to return `true` by default, causing unnecessary enrichment
+///   work even for logs that the downstream processor will discard
+///
+/// Because this processor wraps another, it must delegate all trait methods
+/// to the underlying processor. This ensures the underlying processor receives
+/// all necessary lifecycle events.
 #[derive(Debug)]
 pub struct EnrichmentLogProcessor<P: LogProcessor> {
     /// The wrapped processor that will receive enriched log records
@@ -93,11 +110,6 @@ impl<P: LogProcessor> LogProcessor for EnrichmentLogProcessor<P> {
 
     #[cfg(feature = "spec_unstable_logs_enabled")]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
-        // It is important to call the delegate's event_enabled method to ensure that
-        // any filtering or logic implemented by downstream processors is respected so
-        // that no unnecessary work is done, causing an unwanted performance issue.
-        // Skipping this call could result in logs being emitted that should have been filtered out
-        // or in bypassing other custom logic in the processor chain.
         self.delegate.event_enabled(level, target, name)
     }
 }
