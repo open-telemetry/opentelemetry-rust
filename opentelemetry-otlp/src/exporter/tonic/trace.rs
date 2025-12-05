@@ -1,6 +1,5 @@
 use core::fmt;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::trace::v1::{
@@ -21,7 +20,7 @@ use crate::retry::RetryPolicy;
 use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicTracesClient {
-    inner: Option<ClientInner>,
+    inner: Mutex<Option<ClientInner>>,
     retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
@@ -30,7 +29,7 @@ pub(crate) struct TonicTracesClient {
 
 struct ClientInner {
     client: TraceServiceClient<Channel>,
-    interceptor: Mutex<BoxInterceptor>,
+    interceptor: BoxInterceptor,
 }
 
 impl fmt::Debug for TonicTracesClient {
@@ -56,10 +55,10 @@ impl TonicTracesClient {
         otel_debug!(name: "TonicsTracesClientBuilt");
 
         TonicTracesClient {
-            inner: Some(ClientInner {
+            inner: Mutex::new(Some(ClientInner {
                 client,
-                interceptor: Mutex::new(interceptor),
-            }),
+                interceptor,
+            })),
             retry_policy: retry_policy.unwrap_or(RetryPolicy {
                 max_retries: 3,
                 initial_delay_ms: 100,
@@ -87,26 +86,26 @@ impl SpanExporter for TonicTracesClient {
                 let batch_clone = Arc::clone(&batch);
 
                 // Execute the export operation
-                let (mut client, metadata, extensions) = match &self.inner {
-                    Some(inner) => {
-                        let (m, e, _) = inner
-                            .interceptor
-                            .lock()
-                            .await // tokio::sync::Mutex doesn't return a poisoned error, so we can safely use the interceptor here
-                            .call(Request::new(()))
-                            .map_err(|e| {
-                                // Convert interceptor errors to tonic::Status for retry classification
-                                tonic::Status::internal(format!("interceptor error: {e:?}"))
-                            })?
-                            .into_parts();
-                        (inner.client.clone(), m, e)
-                    }
-                    None => {
-                        return Err(tonic::Status::failed_precondition(
+                let (mut client, metadata, extensions) = self
+                    .inner
+                    .lock()
+                    .map_err(|e| tonic::Status::internal(format!("failed to acquire lock: {e}")))
+                    .and_then(|mut inner| match &mut *inner {
+                        Some(inner) => {
+                            let (m, e, _) = inner
+                                .interceptor
+                                .call(Request::new(()))
+                                .map_err(|e| {
+                                    // Convert interceptor errors to tonic::Status for retry classification
+                                    tonic::Status::internal(format!("interceptor error: {e:?}"))
+                                })?
+                                .into_parts();
+                            Ok((inner.client.clone(), m, e))
+                        }
+                        None => Err(tonic::Status::failed_precondition(
                             "exporter already shutdown",
-                        ))
-                    }
-                };
+                        )),
+                    })?;
 
                 let resource_spans =
                     group_spans_by_resource_and_scope((*batch_clone).clone(), &self.resource);
@@ -147,8 +146,12 @@ impl SpanExporter for TonicTracesClient {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
-        match self.inner.take() {
+    fn shutdown(&self) -> OTelSdkResult {
+        let mut inner_guard = self
+            .inner
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?;
+        match inner_guard.take() {
             Some(_) => Ok(()), // Successfully took `inner`, indicating a successful shutdown.
             None => Err(OTelSdkError::AlreadyShutdown), // `inner` was already `None`, meaning it's already shut down.
         }
