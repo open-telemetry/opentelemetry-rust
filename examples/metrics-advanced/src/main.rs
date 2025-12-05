@@ -1,6 +1,6 @@
 use opentelemetry::global;
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::metrics::{Instrument, SdkMeterProvider, Stream, Temporality};
+use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
 use opentelemetry_sdk::Resource;
 use std::error::Error;
 
@@ -33,6 +33,36 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         }
     };
 
+    // for example 3
+    // Unlike a regular OpenTelemetry histogram with fixed buckets, which can be
+    // specified explicitly, an exponential histogram calculates bucket widths
+    // automatically, growing them exponentially. The configuration is
+    // controlled by two parameters: max_size defines the maximum number of
+    // buckets, while max_scale adjusts the resolution, with higher values
+    // providing greater precision.
+    // If the minimum and maximum values are known in advance, a regular
+    // histogram is often the better choice. However, if the range of values is
+    // unpredictable e.g. may include extreme outliers, an exponential histogram
+    // is more suitable. A example is measuring packet round-trip time in a
+    // WLAN: while most packets return in milliseconds, some may occasionally
+    // take hundreds of milliseconds or even seconds.
+    // Details are in:
+    // https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram
+    let my_view_change_aggregation = |i: &Instrument| {
+        if i.name() == "my_third_histogram" {
+            Stream::builder()
+                .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                    max_size: 10,
+                    max_scale: 5,
+                    record_min_max: true,
+                })
+                .build()
+                .ok()
+        } else {
+            None
+        }
+    };
+
     // Build exporter using Delta Temporality.
     let exporter = opentelemetry_stdout::MetricExporterBuilder::default()
         .with_temporality(Temporality::Delta)
@@ -47,6 +77,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_resource(resource)
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_change_cardinality)
+        .with_view(my_view_change_aggregation)
         .build();
     global::set_meter_provider(provider.clone());
     provider
@@ -111,6 +142,23 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     histogram2.record(1.7, &[KeyValue::new("mykey1", "v6")]);
 
     histogram2.record(1.8, &[KeyValue::new("mykey1", "v7")]);
+
+    // Example 3 - Use exponential histogram.
+    let histogram3 = meter
+        .f64_histogram("my_third_histogram")
+        .with_description("My histogram example description")
+        .build();
+    histogram3.record(-1.3, &[KeyValue::new("mykey1", "v1")]);
+    histogram3.record(-5.5, &[KeyValue::new("mykey1", "v1")]);
+    // is intentionally at the boundary of bucket
+    histogram3.record(-4.0, &[KeyValue::new("mykey1", "v1")]);
+    histogram3.record(16.0, &[KeyValue::new("mykey1", "v1")]);
+    // Internally the exponential histogram puts values either into a list of
+    // negative buckets or a list of positive buckets. Based on the values which
+    // are added the buckets are adjusted automatically. E.g. depending if the
+    // next record is commented/uncommented, then exponential histogram will
+    // have a different scale.
+    histogram3.record(0.4, &[KeyValue::new("mykey1", "v1")]);
 
     // Metrics are exported by default every 60 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
