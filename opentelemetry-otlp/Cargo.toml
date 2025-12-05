@@ -31,7 +31,6 @@ opentelemetry = { workspace= true, default-features = false }
 opentelemetry_sdk = { workspace= true, default-features = false }
 opentelemetry-http = { workspace = true, optional = true, default-features = false }
 opentelemetry-proto = { workspace = true, default-features = false }
-tracing = {workspace = true, optional = true}
 
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
@@ -63,7 +62,7 @@ async-trait = { workspace = true }
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-internal-logs = ["tracing", "opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
+internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
 
 # add ons
 serialize = ["serde", "serde_json"]

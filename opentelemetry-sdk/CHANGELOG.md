@@ -5,8 +5,15 @@
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
+- **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
+  - `SamplingDecision`, `SamplingResult`
+  - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
 
 ## 0.31.0
 
