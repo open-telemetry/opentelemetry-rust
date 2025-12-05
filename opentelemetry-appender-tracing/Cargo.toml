@@ -34,6 +34,7 @@ pprof = { workspace = true }
 [features]
 default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
+experimental_span_attributes = []
 spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 bench_profiling = []
 
