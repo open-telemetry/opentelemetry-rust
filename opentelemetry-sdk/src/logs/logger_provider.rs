@@ -83,17 +83,22 @@ impl SdkLoggerProvider {
     }
 
     /// Force flush all remaining logs in log processors and return results.
-    pub fn force_flush(&self) -> OTelSdkResult {
+    pub fn force_flush_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let result: Vec<_> = self
             .log_processors()
             .iter()
-            .map(|processor| processor.force_flush())
+            .map(|processor| processor.force_flush_with_timeout(timeout))
             .collect();
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
             Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
+    }
+
+    /// Force flush all remaining logs with default timeout.
+    pub fn force_flush(&self) -> OTelSdkResult {
+        self.force_flush_with_timeout(Duration::from_secs(5))
     }
 
     /// Shuts down this `LoggerProvider`
@@ -340,7 +345,7 @@ mod tests {
                 .expect("lock poisoned");
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -393,7 +398,7 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
 
@@ -913,7 +918,7 @@ mod tests {
             // nothing to do.
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
@@ -944,7 +949,7 @@ mod tests {
             // nothing to do
         }
 
-        fn force_flush(&self) -> OTelSdkResult {
+        fn force_flush_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.flush_called.lock().unwrap() = true;
             Ok(())
         }
