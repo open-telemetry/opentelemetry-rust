@@ -87,11 +87,7 @@ impl Runtime for Tokio {
                 tokio::runtime::RuntimeFlavor::CurrentThread => {
                     // Single-threaded runtime: spawn on dedicated OS thread to avoid deadlocks
                     std::thread::spawn(move || {
-                        let rt = tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .expect("failed to create Tokio runtime for OpenTelemetry");
-                        rt.block_on(future);
+                        futures_executor::block_on(future);
                     });
                 }
                 _ => {
@@ -103,11 +99,7 @@ impl Runtime for Tokio {
         } else {
             // No tokio runtime: spawn on dedicated OS thread
             std::thread::spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("failed to create Tokio runtime for OpenTelemetry");
-                rt.block_on(future);
+                futures_executor::block_on(future);
             });
         }
     }
