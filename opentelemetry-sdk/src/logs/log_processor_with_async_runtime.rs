@@ -42,6 +42,7 @@ enum BatchMessage {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+    runtime: R,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -82,7 +83,8 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        futures_executor::block_on(res_receiver)
+        self.runtime
+            .block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
@@ -103,7 +105,8 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        futures_executor::block_on(res_receiver)
+        self.runtime
+            .block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
@@ -208,6 +211,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
+            runtime,
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size: config.max_queue_size,
         }

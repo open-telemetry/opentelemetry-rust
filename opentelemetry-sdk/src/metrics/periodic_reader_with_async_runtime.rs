@@ -105,10 +105,11 @@ where
     }
 
     /// Create a [PeriodicReader] with the given config.
-    pub fn build(self) -> PeriodicReader<E> {
+    pub fn build(self) -> PeriodicReader<E, RT> {
         let (message_sender, message_receiver) = mpsc::channel(256);
+        let runtime = self.runtime.clone();
 
-        let worker = move |reader: &PeriodicReader<E>| {
+        let worker = move |reader: &PeriodicReader<E, RT>| {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
             self.runtime.spawn(async move {
@@ -144,6 +145,7 @@ where
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
             })),
+            runtime,
         }
     }
 }
@@ -185,40 +187,39 @@ where
 /// # drop(reader);
 /// # }
 /// ```
-pub struct PeriodicReader<E: PushMetricExporter> {
+pub struct PeriodicReader<E: PushMetricExporter, R: Runtime> {
     exporter: Arc<E>,
-    inner: Arc<Mutex<PeriodicReaderInner<E>>>,
+    inner: Arc<Mutex<PeriodicReaderInner<E, R>>>,
+    runtime: R,
 }
 
-impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
+impl<E: PushMetricExporter, R: Runtime> Clone for PeriodicReader<E, R> {
     fn clone(&self) -> Self {
         Self {
             exporter: Arc::clone(&self.exporter),
             inner: Arc::clone(&self.inner),
+            runtime: self.runtime.clone(),
         }
     }
 }
 
-impl<E: PushMetricExporter> PeriodicReader<E> {
+impl<E: PushMetricExporter, R: Runtime> PeriodicReader<E, R> {
     /// Configuration options for a periodic reader
-    pub fn builder<RT>(exporter: E, runtime: RT) -> PeriodicReaderBuilder<E, RT>
-    where
-        RT: Runtime,
-    {
+    pub fn builder(exporter: E, runtime: R) -> PeriodicReaderBuilder<E, R> {
         PeriodicReaderBuilder::new(exporter, runtime)
     }
 }
 
-impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
+impl<E: PushMetricExporter, R: Runtime> fmt::Debug for PeriodicReader<E, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PeriodicReader").finish()
     }
 }
 
-struct PeriodicReaderInner<E: PushMetricExporter> {
+struct PeriodicReaderInner<E: PushMetricExporter, R: Runtime> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker<E>,
+    sdk_producer_or_worker: ProducerOrWorker<E, R>,
 }
 
 #[derive(Debug)]
@@ -228,14 +229,14 @@ enum Message {
     Shutdown(oneshot::Sender<OTelSdkResult>),
 }
 
-enum ProducerOrWorker<E: PushMetricExporter> {
+enum ProducerOrWorker<E: PushMetricExporter, R: Runtime> {
     Producer(Weak<dyn SdkProducer>),
     #[allow(clippy::type_complexity)]
-    Worker(Box<dyn FnOnce(&PeriodicReader<E>) + Send + Sync>),
+    Worker(Box<dyn FnOnce(&PeriodicReader<E, R>) + Send + Sync>),
 }
 
 struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
-    reader: PeriodicReader<E>,
+    reader: PeriodicReader<E, RT>,
     timeout: Duration,
     runtime: RT,
     rm: ResourceMetrics,
@@ -332,7 +333,7 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
     }
 }
 
-impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
+impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
     fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
         let mut inner = match self.inner.lock() {
             Ok(guard) => guard,
@@ -393,7 +394,8 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 
         drop(inner); // don't hold lock when blocking on future
 
-        futures_executor::block_on(receiver)
+        self.runtime
+            .block_on(receiver)
             .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(|res| res)
     }
@@ -414,7 +416,9 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
         drop(inner); // don't hold lock when blocking on future
 
-        let shutdown_result = futures_executor::block_on(receiver)
+        let shutdown_result = self
+            .runtime
+            .block_on(receiver)
             .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
 
         // Acquire the lock again to set the shutdown flag

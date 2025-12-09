@@ -77,6 +77,7 @@ use tokio::sync::RwLock;
 /// [`tokio`]: https://tokio.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+    runtime: R,
 
     // Track dropped spans
     dropped_spans_count: AtomicUsize,
@@ -124,7 +125,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
                 OTelSdkError::InternalFailure(format!("Failed to send flush message: {err}"))
             })?;
 
-        futures_executor::block_on(res_receiver).map_err(|err| {
+        self.runtime.block_on(res_receiver).map_err(|err| {
             OTelSdkError::InternalFailure(format!("Flush response channel error: {err}"))
         })?
     }
@@ -148,7 +149,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
                 OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {err}"))
             })?;
 
-        futures_executor::block_on(res_receiver).map_err(|err| {
+        self.runtime.block_on(res_receiver).map_err(|err| {
             OTelSdkError::InternalFailure(format!("Shutdown response channel error: {err}"))
         })?
     }
@@ -393,6 +394,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender,
+            runtime,
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
         }
@@ -695,5 +697,16 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    #[tokio::test]
+    async fn shutdown_does_not_deadlock_on_current_thread_tokio_runtime() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(10))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+        processor.shutdown().expect("shutdown should succeed");
     }
 }
