@@ -10,10 +10,11 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+- **Fix**: ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle,
+  removing stale attribute combinations that are no longer observed. [#3213](https://github.com/open-telemetry/opentelemetry-rust/pull/3248)
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
 
