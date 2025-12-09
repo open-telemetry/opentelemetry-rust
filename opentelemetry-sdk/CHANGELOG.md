@@ -10,12 +10,19 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-
-[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
-[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
+- **Fix**: Fixed panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
+  - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
+- **Fix**: Fixed panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
+  - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` should not be relied upon in `on_end`
+  - `Context::current()` returns whatever context happens to be active, which may be unrelated to the span being ended
+  - Added best practice guidance: extract context information in `on_start` and store as span attributes
+  - Documented that the panic fix in `opentelemetry` allows safe calls to `Context::current()` from `on_end`
+
+[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 
 ## 0.31.0
 
