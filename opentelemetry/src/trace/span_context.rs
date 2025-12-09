@@ -444,20 +444,29 @@ mod tests {
         let cx = Context::current();
         assert_eq!(
             format!("{cx:?}"),
-            "Context { span: \"None\", entries count: 0, suppress_telemetry: false }"
+            "Context { span: \"None\", entries count: 0, flags: ContextFlags() }"
         );
-        let cx = Context::current().with_remote_span_context(SpanContext::NONE);
+        let remote_span_cx = SpanContext::new(
+            0x123456789abcdef0123456789abcdef0.into(),
+            0x876543210fedcba0.into(),
+            TraceFlags::NOT_SAMPLED,
+            false,
+            TraceState::NONE,
+        );
+        let cx = Context::current()
+            .with_remote_span_context(remote_span_cx)
+            .with_telemetry_suppressed();
         assert_eq!(
             format!("{cx:?}"),
             "Context { \
                span: SpanContext { \
-                       trace_id: 00000000000000000000000000000000, \
-                       span_id: 0000000000000000, \
+                       trace_id: 123456789abcdef0123456789abcdef0, \
+                       span_id: 876543210fedcba0, \
                        trace_flags: TraceFlags(0), \
                        is_remote: false, \
                        trace_state: TraceState(None) \
                      }, \
-               entries count: 1, suppress_telemetry: false \
+               entries count: 1, flags: ContextFlags(TELEMETRY_SUPPRESSED, ACTIVE_SPAN) \
              }"
         );
     }
