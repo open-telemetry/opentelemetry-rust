@@ -25,16 +25,19 @@ pub trait Runtime: Clone + Send + Sync + 'static {
     ///
     /// # Note
     ///
-    /// This is mainly used to run batch span processing in the background. Note, that the function
+    /// This is mainly used to run batch span processing in the background. The mechanism used
+    /// to provide the spawn may be relatively heavyweight.  Note, that the function
     /// does not return a handle. OpenTelemetry will use a different way to wait for the future to
     /// finish when the caller shuts down.
-    ///
-    /// At the moment, the shutdown happens by blocking the
-    /// current thread. This means runtime implementations need to make sure they can still execute
-    /// the given future even if the main thread is blocked.
     fn spawn<F>(&self, future: F)
     where
         F: Future<Output = ()> + Send + 'static;
+
+    /// Block the current thread waiting for a future to complete.
+    fn block_on<F, T>(&self, future: F) -> T
+    where
+        F: Future<Output = T> + Send,
+        T: Send;
 
     /// Return a future that resolves after the specified [Duration].
     fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static;
@@ -58,12 +61,6 @@ pub(crate) fn to_interval_stream<T: Runtime>(
 }
 
 /// Runtime implementation for Tokio.
-///
-/// This runtime auto-detects the tokio runtime flavor and uses the appropriate
-/// spawn strategy to avoid deadlocks:
-/// - Multi-threaded runtime: spawns directly on the runtime
-/// - Single-threaded runtime: spawns on a dedicated OS thread to avoid deadlocks
-/// - No runtime available: spawns on a dedicated OS thread
 #[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 #[cfg_attr(
     docsrs,
@@ -85,22 +82,74 @@ impl Runtime for Tokio {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             match handle.runtime_flavor() {
                 tokio::runtime::RuntimeFlavor::CurrentThread => {
-                    // Single-threaded runtime: spawn on dedicated OS thread to avoid deadlocks
+                    // Single-threaded runtime: spawn on a separate OS thread with its
+                    // own tokio runtime to avoid deadlocks. We can't use the existing
+                    // handle because current_thread runtimes can only be driven from
+                    // their original thread.
+                    // We can't drive the future from a thread _without_ tokio as
+                    // it may be doing tokio specific things (like wait).
                     std::thread::spawn(move || {
-                        futures_executor::block_on(future);
+                        let rt = tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .expect("failed to create tokio runtime");
+                        rt.block_on(future);
                     });
                 }
                 _ => {
-                    // Multi-threaded runtime: spawn directly on the runtime
+                    // Multi-threaded runtime: use tokio::spawn
                     #[allow(clippy::let_underscore_future)]
                     let _ = tokio::spawn(future);
                 }
             }
         } else {
-            // No tokio runtime: spawn on dedicated OS thread
+            // No tokio runtime context: create a new runtime on an OS thread.
+            // As above, we can't drive the future without tokio, as it may be
+            // be doing tokio-specific things like like tokio::time::sleep.
             std::thread::spawn(move || {
-                futures_executor::block_on(future);
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to create tokio runtime");
+                rt.block_on(future);
             });
+        }
+    }
+
+    fn block_on<F, T>(&self, future: F) -> T
+    where
+        F: Future<Output = T> + Send,
+        T: Send,
+    {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            match handle.runtime_flavor() {
+                tokio::runtime::RuntimeFlavor::CurrentThread => {
+                    // Single-threaded runtime: block on a separate thread with its
+                    // own tokio runtime to avoid deadlocks.
+                    std::thread::scope(|s| {
+                        s.spawn(move || {
+                            let rt = tokio::runtime::Builder::new_current_thread()
+                                .enable_all()
+                                .build()
+                                .expect("failed to create tokio runtime");
+                            rt.block_on(future)
+                        })
+                        .join()
+                        .unwrap()
+                    })
+                }
+                _ => {
+                    // Multi-threaded runtime: block directly
+                    futures_executor::block_on(future)
+                }
+            }
+        } else {
+            // No tokio runtime context: create a runtime to handle the future
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("failed to create tokio runtime");
+            rt.block_on(future)
         }
     }
 
@@ -205,6 +254,14 @@ impl Runtime for NoAsync {
         std::thread::spawn(move || {
             futures_executor::block_on(future);
         });
+    }
+
+    fn block_on<F, T>(&self, future: F) -> T
+    where
+        F: Future<Output = T> + Send,
+        T: Send,
+    {
+        futures_executor::block_on(future)
     }
 
     // Needed because async fn would borrow `self`, violating the `'static` requirement.
