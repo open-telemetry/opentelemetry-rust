@@ -452,41 +452,23 @@ mod tests {
     use std::sync::mpsc;
 
     #[test]
-    fn collection_triggered_by_interval_tokio_current() {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio() {
-        collection_triggered_by_interval_helper(runtime::Tokio);
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio() {
+    fn collection_triggered_by_interval_tokio() {
         collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current()
-    {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
+    async fn collection_triggered_by_interval_from_tokio_multi_one_thread() {
+        collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current()
-    {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/2056"]
-    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio() {
+    async fn collection_triggered_by_interval_from_tokio_multi_two_thread() {
         collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio_current() {
-        collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
+    async fn collection_triggered_by_interval_from_tokio_current_thread() {
+        collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[test]
@@ -533,5 +515,16 @@ mod tests {
         receiver
             .recv()
             .expect("message should be available in channel, indicating a collection occurred");
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    #[tokio::test]
+    async fn shutdown_does_not_deadlock_on_current_thread_tokio_runtime() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(std::time::Duration::from_secs(10))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        meter_provider.shutdown().expect("shutdown should succeed");
     }
 }

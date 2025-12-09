@@ -551,40 +551,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        processor.shutdown().unwrap();
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-    async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
-    ) {
-        let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
-
-        //
-        // deadlock happens in shutdown with tokio current_thread runtime
-        //
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
         processor.shutdown().unwrap();
     }
 
@@ -827,11 +804,8 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread()
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
     }
@@ -848,11 +822,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
     }

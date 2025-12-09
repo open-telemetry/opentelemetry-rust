@@ -57,7 +57,13 @@ pub(crate) fn to_interval_stream<T: Runtime>(
     })
 }
 
-/// Runtime implementation, which works with Tokio's multi thread runtime.
+/// Runtime implementation for Tokio.
+///
+/// This runtime auto-detects the tokio runtime flavor and uses the appropriate
+/// spawn strategy to avoid deadlocks:
+/// - Multi-threaded runtime: spawns directly on the runtime
+/// - Single-threaded runtime: spawns on a dedicated OS thread to avoid deadlocks
+/// - No runtime available: spawns on a dedicated OS thread
 #[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 #[cfg_attr(
     docsrs,
@@ -76,60 +82,34 @@ impl Runtime for Tokio {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        #[allow(clippy::let_underscore_future)]
-        // we don't have to await on the returned future to execute
-        let _ = tokio::spawn(future);
-    }
-
-    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
-        tokio::time::sleep(duration)
-    }
-}
-
-/// Runtime implementation, which works with Tokio's current thread runtime.
-#[cfg(all(
-    feature = "experimental_async_runtime",
-    feature = "rt-tokio-current-thread"
-))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(
-        feature = "experimental_async_runtime",
-        feature = "rt-tokio-current-thread"
-    )))
-)]
-#[derive(Debug, Clone)]
-pub struct TokioCurrentThread;
-
-#[cfg(all(
-    feature = "experimental_async_runtime",
-    feature = "rt-tokio-current-thread"
-))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(
-        feature = "experimental_async_runtime",
-        feature = "rt-tokio-current-thread"
-    )))
-)]
-impl Runtime for TokioCurrentThread {
-    fn spawn<F>(&self, future: F)
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        // We cannot force push tracing in current thread tokio scheduler because we rely on
-        // BatchSpanProcessor to export spans in a background task, meanwhile we need to block the
-        // shutdown function so that the runtime will not finish the blocked task and kill any
-        // remaining tasks. But there is only one thread to run task, so it's a deadlock
-        //
-        // Thus, we spawn the background task in a separate thread.
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to create Tokio current thead runtime for OpenTelemetry batch processing");
-            rt.block_on(future);
-        });
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            match handle.runtime_flavor() {
+                tokio::runtime::RuntimeFlavor::CurrentThread => {
+                    // Single-threaded runtime: spawn on dedicated OS thread to avoid deadlocks
+                    std::thread::spawn(move || {
+                        let rt = tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .expect("failed to create Tokio runtime for OpenTelemetry");
+                        rt.block_on(future);
+                    });
+                }
+                _ => {
+                    // Multi-threaded runtime: spawn directly on the runtime
+                    #[allow(clippy::let_underscore_future)]
+                    let _ = tokio::spawn(future);
+                }
+            }
+        } else {
+            // No tokio runtime: spawn on dedicated OS thread
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to create Tokio runtime for OpenTelemetry");
+                rt.block_on(future);
+            });
+        }
     }
 
     fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
@@ -183,10 +163,7 @@ pub trait TrySend: Sync + Send {
     fn try_send(&self, item: Self::Message) -> Result<(), TrySendError>;
 }
 
-#[cfg(all(
-    feature = "experimental_async_runtime",
-    any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
-))]
+#[cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio"))]
 impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
     type Message = T;
 
@@ -204,33 +181,6 @@ impl<T: Send> TrySend for tokio::sync::mpsc::Sender<T> {
     doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl RuntimeChannel for Tokio {
-    type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
-    type Sender<T: Debug + Send> = tokio::sync::mpsc::Sender<T>;
-
-    fn batch_message_channel<T: Debug + Send>(
-        &self,
-        capacity: usize,
-    ) -> (Self::Sender<T>, Self::Receiver<T>) {
-        let (sender, receiver) = tokio::sync::mpsc::channel(capacity);
-        (
-            sender,
-            tokio_stream::wrappers::ReceiverStream::new(receiver),
-        )
-    }
-}
-
-#[cfg(all(
-    feature = "experimental_async_runtime",
-    feature = "rt-tokio-current-thread"
-))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(
-        feature = "experimental_async_runtime",
-        feature = "rt-tokio-current-thread"
-    )))
-)]
-impl RuntimeChannel for TokioCurrentThread {
     type Receiver<T: Debug + Send> = tokio_stream::wrappers::ReceiverStream<T>;
     type Sender<T: Debug + Send> = tokio::sync::mpsc::Sender<T>;
 
