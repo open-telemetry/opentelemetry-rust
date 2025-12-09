@@ -162,7 +162,7 @@ impl SpanExporter for InMemorySpanExporter {
         result
     }
 
-    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         self.shutdown_called
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if self.should_reset_on_shutdown {

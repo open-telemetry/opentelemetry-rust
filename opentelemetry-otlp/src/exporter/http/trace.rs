@@ -22,7 +22,7 @@ impl SpanExporter for OtlpHttpClient {
         Ok(())
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         let mut client_guard = self.client.lock().map_err(|e| {
             OTelSdkError::InternalFailure(format!("Failed to acquire client lock: {e}"))
         })?;

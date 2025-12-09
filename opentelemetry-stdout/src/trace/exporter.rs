@@ -59,7 +59,7 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, Ordering::SeqCst);
         Ok(())
     }
