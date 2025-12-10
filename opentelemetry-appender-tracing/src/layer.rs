@@ -297,6 +297,7 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync + 'static,
     L: Logger + Send + Sync + 'static,
 {
+    #[allow(unused_variables)]
     fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let metadata = event.metadata();
         let severity = severity_of_level(metadata.level());
@@ -326,7 +327,7 @@ where
             if let Some(span) = ctx.event_span(event) {
                 let extensions = span.extensions();
                 if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
-                    // Add span attributes FIRST (event attributes will overwrite on conflict)
+                    // Add span attributes first (event attributes will overwrite on conflict). TODO: Consider conflict resolution strategies.
                     for (key, value) in stored.attributes.iter() {
                         log_record.add_attribute(Key::new(key.clone()), value.clone());
                     }
@@ -1037,7 +1038,7 @@ mod tests {
             "test_span",
             str_field = "text",
             int_field = 42,
-            float_field = 3.14,
+            float_field = 1.5,
             bool_field = true
         );
         let _enter = span.enter();
@@ -1063,7 +1064,7 @@ mod tests {
         assert!(attributes_contains(
             &log.record,
             &Key::new("float_field"),
-            &AnyValue::Double(3.14)
+            &AnyValue::Double(1.5)
         ));
         assert!(attributes_contains(
             &log.record,
