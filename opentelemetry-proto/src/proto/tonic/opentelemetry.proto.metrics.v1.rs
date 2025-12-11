@@ -759,6 +759,10 @@ pub struct SummaryDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(default)
+    )]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
@@ -767,10 +771,10 @@ pub struct SummaryDataPoint {
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
     #[prost(uint32, tag = "8")]
-    // #[cfg_attr(
-    //     feature = "with-serde",
-    //     serde(default)
-    // )]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(default)
+    )]
     pub flags: u32,
 }
 /// Nested message and enum types in `SummaryDataPoint`.
