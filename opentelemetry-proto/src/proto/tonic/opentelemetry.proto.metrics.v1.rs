@@ -744,6 +744,7 @@ pub struct SummaryDataPoint {
     #[cfg_attr(
         feature = "with-serde",
         serde(
+            default,
             serialize_with = "crate::proto::serializers::serialize_u64_to_string",
             deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
         )
@@ -766,6 +767,10 @@ pub struct SummaryDataPoint {
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
     #[prost(uint32, tag = "8")]
+    // #[cfg_attr(
+    //     feature = "with-serde",
+    //     serde(default)
+    // )]
     pub flags: u32,
 }
 /// Nested message and enum types in `SummaryDataPoint`.
@@ -790,6 +795,7 @@ pub mod summary_data_point {
         #[cfg_attr(
             feature = "with-serde",
             serde(
+                default,
                 serialize_with = "crate::proto::serializers::serialize_f64_special",
                 deserialize_with = "crate::proto::serializers::deserialize_f64_special"
             )
@@ -802,6 +808,7 @@ pub mod summary_data_point {
         #[cfg_attr(
             feature = "with-serde",
             serde(
+                default,
                 serialize_with = "crate::proto::serializers::serialize_f64_special",
                 deserialize_with = "crate::proto::serializers::deserialize_f64_special"
             )
