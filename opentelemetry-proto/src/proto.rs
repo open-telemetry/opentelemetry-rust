@@ -8,6 +8,7 @@ pub(crate) mod serializers {
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use core::f64;
     use std::fmt;
 
     // hex string <-> bytes conversion
@@ -269,6 +270,13 @@ where
             E: de::Error,
         {
             Ok(value)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<f64, E>
+        where
+            E: de::Error,
+        {
+            Ok(value as f64)
         }
 
         fn visit_str<E>(self, value: &str) -> Result<f64, E>
