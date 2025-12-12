@@ -540,7 +540,7 @@ pub mod tonic_types {
     }
 
     /// Re-exported types from `tonic::transport`.
-    #[cfg(feature = "tls")]
+    #[cfg(feature = "_tls-any")]
     pub mod transport {
         #[doc(no_inline)]
         pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
