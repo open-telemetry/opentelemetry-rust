@@ -13,7 +13,7 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::{to_interval_stream, Runtime};
+use crate::runtime::{to_interval_stream, Joinable, JoinError, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
@@ -109,7 +109,7 @@ where
         let (message_sender, message_receiver) = mpsc::channel(256);
         let runtime = self.runtime.clone();
 
-        let worker = move |reader: &PeriodicReader<E, RT>| {
+        let worker = move |reader: &PeriodicReader<E, RT>| -> Joinable<OTelSdkResult> {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
             self.runtime.spawn(async move {
@@ -128,7 +128,7 @@ where
                 }
                 .run(messages)
                 .await
-            });
+            })
         };
 
         otel_debug!(
@@ -144,6 +144,7 @@ where
                 message_sender,
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
+                worker_handle: None,
             })),
             runtime,
         }
@@ -220,19 +221,22 @@ struct PeriodicReaderInner<E: PushMetricExporter, R: Runtime> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
     sdk_producer_or_worker: ProducerOrWorker<E, R>,
+    /// Handle to the background worker task. Used to join on shutdown.
+    worker_handle: Option<Joinable<OTelSdkResult>>,
 }
 
 #[derive(Debug)]
 enum Message {
     Export,
     Flush(oneshot::Sender<OTelSdkResult>),
-    Shutdown(oneshot::Sender<OTelSdkResult>),
+    /// Shutdown the worker. Result is returned through the join handle.
+    Shutdown,
 }
 
 enum ProducerOrWorker<E: PushMetricExporter, R: Runtime> {
     Producer(Weak<dyn SdkProducer>),
     #[allow(clippy::type_complexity)]
-    Worker(Box<dyn FnOnce(&PeriodicReader<E, R>) + Send + Sync>),
+    Worker(Box<dyn FnOnce(&PeriodicReader<E, R>) -> Joinable<OTelSdkResult> + Send + Sync>),
 }
 
 struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
@@ -273,7 +277,9 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
         }
     }
 
-    async fn process_message(&mut self, message: Message) -> bool {
+    /// Process a single message.
+    /// Returns `Some(result)` if shutdown was requested, `None` to continue processing.
+    async fn process_message(&mut self, message: Message) -> Option<OTelSdkResult> {
         match message {
             Message::Export => {
                 otel_debug!(
@@ -301,35 +307,27 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
                     );
                 }
             }
-            Message::Shutdown(ch) => {
+            Message::Shutdown => {
                 otel_debug!(
                     name: "PeriodicReader.ShutdownCalled",
                     message = "Shutdown message received",
                 );
                 let res = self.collect_and_export().await;
                 let _ = self.reader.exporter.shutdown();
-                if let Err(send_error) =
-                    ch.send(res.map_err(|e| OTelSdkError::InternalFailure(e.to_string())))
-                {
-                    otel_debug!(
-                        name: "PeriodicReader.Shutdown.SendResultError",
-                        message = "Failed to send shutdown result",
-                        reason = format!("{:?}", send_error),
-                    );
-                }
-                return false;
+                return Some(res);
             }
         }
 
-        true
+        None
     }
 
-    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) {
+    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) -> OTelSdkResult {
         while let Some(message) = messages.next().await {
-            if !self.process_message(message).await {
-                break;
+            if let Some(result) = self.process_message(message).await {
+                return result;
             }
         }
+        Ok(()) // Channel closed without explicit shutdown
     }
 }
 
@@ -347,11 +345,16 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
                     message = "duplicate registration found, did not register periodic reader.");
                 return;
             }
-            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
+            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {
+                // Dummy closure that returns a dummy handle - never actually called
+                panic!("placeholder worker should never be called")
+            })),
         };
 
         inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
-        worker(self);
+        // Spawn the worker and capture the handle
+        let handle = worker(self);
+        inner.worker_handle = Some(handle);
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
@@ -394,8 +397,7 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
 
         drop(inner); // don't hold lock when blocking on future
 
-        self.runtime
-            .block_on(receiver)
+        futures_executor::block_on(receiver)
             .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))
             .and_then(|res| res)
     }
@@ -409,19 +411,30 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
             return Err(OTelSdkError::AlreadyShutdown);
         }
 
-        let (sender, receiver) = oneshot::channel();
         inner
             .message_sender
-            .try_send(Message::Shutdown(sender))
+            .try_send(Message::Shutdown)
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        drop(inner); // don't hold lock when blocking on future
 
-        let shutdown_result = self
-            .runtime
-            .block_on(receiver)
-            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
+        // Take the worker handle to join
+        let handle = inner.worker_handle.take();
+        drop(inner); // don't hold lock when joining - worker needs to call collect()
 
-        // Acquire the lock again to set the shutdown flag
+        // Join the worker and get the result
+        let shutdown_result = match handle {
+            Some(h) => h.join().map_err(|e| match e {
+                JoinError::Panic(_) => {
+                    OTelSdkError::InternalFailure("Worker task panicked".to_string())
+                }
+                #[cfg(feature = "rt-tokio")]
+                JoinError::Cancelled => {
+                    OTelSdkError::InternalFailure("Worker task was cancelled".to_string())
+                }
+            })?,
+            None => Ok(()), // Worker not started or already shut down
+        };
+
+        // Set shutdown flag after worker completes
         let mut inner = self
             .inner
             .lock()
