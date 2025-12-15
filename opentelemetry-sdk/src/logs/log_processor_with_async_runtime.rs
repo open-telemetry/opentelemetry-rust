@@ -12,12 +12,13 @@ use std::{
 };
 use std::{
     sync::atomic::{AtomicUsize, Ordering},
+    sync::Mutex,
     time::Duration,
 };
 
 use super::{BatchConfig, LogProcessor};
 #[cfg(feature = "experimental_async_runtime")]
-use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, Joinable, JoinError, RuntimeChannel, TrySend};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, Either},
@@ -33,7 +34,8 @@ enum BatchMessage {
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<OTelSdkResult>),
+    /// The result is returned through the worker's join handle.
+    Shutdown,
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -42,7 +44,9 @@ enum BatchMessage {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
-    runtime: R,
+
+    /// Handle to the background worker task. Used to join on shutdown.
+    worker_handle: Arc<Mutex<Option<Joinable<OTelSdkResult>>>>,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -83,8 +87,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        self.runtime
-            .block_on(res_receiver)
+        futures_executor::block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
@@ -100,15 +103,30 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
-        let (res_sender, res_receiver) = oneshot::channel();
+
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))
+            .try_send(BatchMessage::Shutdown)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        self.runtime
-            .block_on(res_receiver)
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
-            .and_then(std::convert::identity)
+        // Take the worker handle and join it to get the shutdown result
+        let handle = self
+            .worker_handle
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Lock poisoned: {e}")))?
+            .take();
+
+        match handle {
+            Some(h) => h.join().map_err(|e| match e {
+                JoinError::Panic(_) => {
+                    OTelSdkError::InternalFailure("Worker task panicked".to_string())
+                }
+                #[cfg(feature = "rt-tokio")]
+                JoinError::Cancelled => {
+                    OTelSdkError::InternalFailure("Worker task was cancelled".to_string())
+                }
+            })?,
+            None => Ok(()), // Already shut down
+        }
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -127,9 +145,10 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
+        let max_queue_size = config.max_queue_size;
 
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(async move {
+        let worker_handle = runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
@@ -182,7 +201,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
-                    BatchMessage::Shutdown(ch) => {
+                    BatchMessage::Shutdown => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             &mut exporter,
@@ -192,14 +211,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         .await;
 
                         let _ = exporter.shutdown(); //TODO - handle error
-
-                        if let Err(send_error) = ch.send(result) {
-                            otel_debug!(
-                                name: "BatchLogProcessor.Shutdown.SendResultError",
-                                error = format!("{:?}", send_error),
-                            );
-                        }
-                        break;
+                        return result;
                     }
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
@@ -207,13 +219,15 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                 }
             }
+            Ok(()) // Channel closed without explicit shutdown
         });
+
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
-            runtime,
+            worker_handle: Arc::new(Mutex::new(Some(worker_handle))),
             dropped_logs_count: AtomicUsize::new(0),
-            max_queue_size: config.max_queue_size,
+            max_queue_size,
         }
     }
 
