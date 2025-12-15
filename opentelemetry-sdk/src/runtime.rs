@@ -6,8 +6,85 @@
 //! [Tokio]: https://crates.io/crates/tokio
 
 use futures_util::stream::{unfold, Stream};
-use std::{fmt::Debug, future::Future, time::Duration};
+use std::{any::Any, fmt::Debug, future::Future, time::Duration};
 use thiserror::Error;
+
+/// A handle to a spawned task that can be joined to retrieve its result.
+///
+/// This abstracts over different join handle types (OS threads vs async tasks)
+/// to provide a uniform interface for waiting on spawned work.
+#[cfg(feature = "experimental_async_runtime")]
+pub struct Joinable<T>(JoinableInner<T>);
+
+#[cfg(feature = "experimental_async_runtime")]
+enum JoinableInner<T> {
+    Thread(std::thread::JoinHandle<T>),
+    #[cfg(feature = "rt-tokio")]
+    TokioTask(tokio::task::JoinHandle<T>),
+}
+
+#[cfg(feature = "experimental_async_runtime")]
+impl<T> Debug for Joinable<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            JoinableInner::Thread(_) => f.debug_tuple("Joinable::Thread").finish(),
+            #[cfg(feature = "rt-tokio")]
+            JoinableInner::TokioTask(_) => f.debug_tuple("Joinable::TokioTask").finish(),
+        }
+    }
+}
+
+#[cfg(feature = "experimental_async_runtime")]
+impl<T> Joinable<T> {
+    /// Create a Joinable from an OS thread handle.
+    pub(crate) fn from_thread(handle: std::thread::JoinHandle<T>) -> Self {
+        Joinable(JoinableInner::Thread(handle))
+    }
+
+    /// Create a Joinable from a Tokio task handle.
+    #[cfg(feature = "rt-tokio")]
+    pub(crate) fn from_tokio(handle: tokio::task::JoinHandle<T>) -> Self {
+        Joinable(JoinableInner::TokioTask(handle))
+    }
+}
+
+/// Error returned when joining a spawned task fails.
+#[cfg(feature = "experimental_async_runtime")]
+#[derive(Debug, Error)]
+pub enum JoinError {
+    /// The task panicked.
+    #[error("task panicked")]
+    Panic(Box<dyn Any + Send + 'static>),
+    /// The task was cancelled (Tokio only).
+    #[cfg(feature = "rt-tokio")]
+    #[error("task was cancelled")]
+    Cancelled,
+}
+
+#[cfg(feature = "experimental_async_runtime")]
+impl<T> Joinable<T> {
+    /// Block the current thread until the spawned task completes, returning its result.
+    ///
+    /// For OS threads, this uses `std::thread::JoinHandle::join()`.
+    /// For tokio tasks, this uses `futures_executor::block_on()` to poll the join handle.
+    /// This works because the task is already running on tokio's thread pool, and the
+    /// JoinHandle is just a future that completes when the task finishes.
+    pub fn join(self) -> Result<T, JoinError> {
+        match self.0 {
+            JoinableInner::Thread(handle) => handle.join().map_err(JoinError::Panic),
+            #[cfg(feature = "rt-tokio")]
+            JoinableInner::TokioTask(handle) => {
+                futures_executor::block_on(handle).map_err(|e| {
+                    if e.is_cancelled() {
+                        JoinError::Cancelled
+                    } else {
+                        JoinError::Panic(e.into_panic())
+                    }
+                })
+            }
+        }
+    }
+}
 
 /// A runtime is an abstraction of an async runtime like [Tokio]. It allows
 /// OpenTelemetry to work with any current and hopefully future runtime implementations.
@@ -23,21 +100,17 @@ use thiserror::Error;
 pub trait Runtime: Clone + Send + Sync + 'static {
     /// Spawn a new task or thread, which executes the given future.
     ///
+    /// Returns a [`Joinable`] handle that can be used to wait for the task to complete
+    /// and retrieve its result.
+    ///
     /// # Note
     ///
     /// This is mainly used to run batch span processing in the background. The mechanism used
-    /// to provide the spawn may be relatively heavyweight.  Note, that the function
-    /// does not return a handle. OpenTelemetry will use a different way to wait for the future to
-    /// finish when the caller shuts down.
-    fn spawn<F>(&self, future: F)
+    /// to provide the spawn may be relatively heavyweight.
+    fn spawn<F, T>(&self, future: F) -> Joinable<T>
     where
-        F: Future<Output = ()> + Send + 'static;
-
-    /// Block the current thread waiting for a future to complete.
-    fn block_on<F, T>(&self, future: F) -> T
-    where
-        F: Future<Output = T> + Send,
-        T: Send;
+        F: Future<Output = T> + Send + 'static,
+        T: Send + 'static;
 
     /// Return a future that resolves after the specified [Duration].
     fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static;
@@ -75,9 +148,10 @@ pub struct Tokio;
     doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl Runtime for Tokio {
-    fn spawn<F>(&self, future: F)
+    fn spawn<F, T>(&self, future: F) -> Joinable<T>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = T> + Send + 'static,
+        T: Send + 'static,
     {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             match handle.runtime_flavor() {
@@ -87,69 +161,31 @@ impl Runtime for Tokio {
                     // handle because current_thread runtimes can only be driven from
                     // their original thread.
                     // We can't drive the future from a thread _without_ tokio as
-                    // it may be doing tokio specific things (like wait).
-                    std::thread::spawn(move || {
+                    // it may be doing tokio specific things (like tokio::time::sleep).
+                    Joinable::from_thread(std::thread::spawn(move || {
                         let rt = tokio::runtime::Builder::new_current_thread()
                             .enable_all()
                             .build()
                             .expect("failed to create tokio runtime");
-                        rt.block_on(future);
-                    });
+                        rt.block_on(future)
+                    }))
                 }
                 _ => {
-                    // Multi-threaded runtime: use tokio::spawn
-                    #[allow(clippy::let_underscore_future)]
-                    let _ = tokio::spawn(future);
+                    // Multi-threaded runtime: use tokio::spawn directly
+                    Joinable::from_tokio(tokio::spawn(future))
                 }
             }
         } else {
             // No tokio runtime context: create a new runtime on an OS thread.
             // As above, we can't drive the future without tokio, as it may be
-            // be doing tokio-specific things like like tokio::time::sleep.
-            std::thread::spawn(move || {
+            // doing tokio-specific things like tokio::time::sleep.
+            Joinable::from_thread(std::thread::spawn(move || {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .expect("failed to create tokio runtime");
-                rt.block_on(future);
-            });
-        }
-    }
-
-    fn block_on<F, T>(&self, future: F) -> T
-    where
-        F: Future<Output = T> + Send,
-        T: Send,
-    {
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            match handle.runtime_flavor() {
-                tokio::runtime::RuntimeFlavor::CurrentThread => {
-                    // Single-threaded runtime: block on a separate thread with its
-                    // own tokio runtime to avoid deadlocks.
-                    std::thread::scope(|s| {
-                        s.spawn(move || {
-                            let rt = tokio::runtime::Builder::new_current_thread()
-                                .enable_all()
-                                .build()
-                                .expect("failed to create tokio runtime");
-                            rt.block_on(future)
-                        })
-                        .join()
-                        .unwrap()
-                    })
-                }
-                _ => {
-                    // Multi-threaded runtime: block directly
-                    futures_executor::block_on(future)
-                }
-            }
-        } else {
-            // No tokio runtime context: create a runtime to handle the future
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to create tokio runtime");
-            rt.block_on(future)
+                rt.block_on(future)
+            }))
         }
     }
 
@@ -247,21 +283,14 @@ pub struct NoAsync;
 
 #[cfg(feature = "experimental_async_runtime")]
 impl Runtime for NoAsync {
-    fn spawn<F>(&self, future: F)
+    fn spawn<F, T>(&self, future: F) -> Joinable<T>
     where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = T> + Send + 'static,
+        T: Send + 'static,
     {
-        std::thread::spawn(move || {
-            futures_executor::block_on(future);
-        });
-    }
-
-    fn block_on<F, T>(&self, future: F) -> T
-    where
-        F: Future<Output = T> + Send,
-        T: Send,
-    {
-        futures_executor::block_on(future)
+        Joinable::from_thread(std::thread::spawn(move || {
+            futures_executor::block_on(future)
+        }))
     }
 
     // Needed because async fn would borrow `self`, violating the `'static` requirement.
