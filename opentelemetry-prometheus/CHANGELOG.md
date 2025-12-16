@@ -2,6 +2,12 @@
 
 ## vNext
 
+## 0.30.0
+
+- Remove `prometheus` dependency
+- Implement `otel_scope_info` and `target_into` as described in the
+  [OpenTelelemetry Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/compatibility/prometheus_and_openmetrics.md)
+
 ## 0.29.1
 
 Released 2025-April-11

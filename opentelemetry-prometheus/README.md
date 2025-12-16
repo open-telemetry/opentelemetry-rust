@@ -4,12 +4,16 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-[`Prometheus`] exporter for applications instrumented with [`OpenTelemetry`].
+[Prometheus] exporter for applications instrumented with [OpenTelemetry].
 
-This crate provides a simple exporter that converts OpenTelemetry metrics to the
-Prometheus exposition format (text-based). It does not require any external
-Prometheus client library dependencies and generates the text format directly
-using only standard Rust string operations.
+[Prometheus]: https://prometheus.io/
+[OpenTelemetry]: https://crates.io/crates/opentelemetry
+
+This crate provides a simple exporter that converts OpenTelemetry
+metrics to the Prometheus text exposition format in the manner
+specified for [OpenTelemetry Prometheus compatibility][PROMEXPORT].
+
+[PROMEXPORT]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/compatibility/prometheus_and_openmetrics.md
 
 [![Crates.io: opentelemetry-prometheus](https://img.shields.io/crates/v/opentelemetry-prometheus.svg)](https://crates.io/crates/opentelemetry-prometheus)
 [![Documentation](https://docs.rs/opentelemetry-prometheus/badge.svg)](https://docs.rs/opentelemetry-prometheus)
@@ -31,9 +35,6 @@ management, and export of telemetry. A major goal of OpenTelemetry is that you
 can easily instrument your applications or systems, no matter their language,
 infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
-
-[`Prometheus`]: https://prometheus.io
-[`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
 ## Release Notes
 
