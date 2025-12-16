@@ -908,25 +908,25 @@ fn test_comprehensive_spec_compliance() {
 
     // Export and verify output
     let output = exporter.export().unwrap();
+    
+    // Verify counter with description and _total suffix
+    assert!(output.contains("# HELP test_counter_total A test counter for spec compliance"));
+    assert!(output.contains("# TYPE test_counter_total counter"));
+    assert!(output.contains("test_counter_total{method=\"GET\",status=\"200\""));
+    assert!(output.contains("test_counter_total{method=\"POST\",status=\"201\""));
 
-    // Verify counter with description and unit
-    assert!(output.contains("# HELP test_counter_requests_total A test counter for spec compliance"));
-    assert!(output.contains("# TYPE test_counter_requests_total counter"));
-    assert!(output.contains("test_counter_requests_total{method=\"GET\",status=\"200\""));
-    assert!(output.contains("test_counter_requests_total{method=\"POST\",status=\"201\""));
+    // Verify up-down counter (becomes gauge, no unit suffix added to gauge names)
+    assert!(output.contains("# HELP test_updown A test up-down counter"));
+    assert!(output.contains("# TYPE test_updown gauge"));
+    assert!(output.contains("test_updown{region=\"us-west\""));
+    assert!(output.contains("test_updown{region=\"us-east\""));
 
-    // Verify up-down counter
-    assert!(output.contains("# HELP test_updown_active_connections A test up-down counter"));
-    assert!(output.contains("# TYPE test_updown_active_connections gauge"));
-    assert!(output.contains("test_updown_active_connections{region=\"us-west\""));
-    assert!(output.contains("test_updown_active_connections{region=\"us-east\""));
-
-    // Verify histogram
-    assert!(output.contains("# HELP test_histogram_ms A test histogram for latency"));
-    assert!(output.contains("# TYPE test_histogram_ms histogram"));
-    assert!(output.contains("test_histogram_ms_bucket{endpoint=\"/api/v1\""));
-    assert!(output.contains("test_histogram_ms_sum{endpoint=\"/api/v1\""));
-    assert!(output.contains("test_histogram_ms_count{endpoint=\"/api/v1\""));
+    // Verify histogram with unit suffix
+    assert!(output.contains("# HELP test_histogram_milliseconds A test histogram for latency"));
+    assert!(output.contains("# TYPE test_histogram_milliseconds histogram"));
+    assert!(output.contains("test_histogram_milliseconds_bucket{endpoint=\"/api/v1\""));
+    assert!(output.contains("test_histogram_milliseconds_sum{endpoint=\"/api/v1\""));
+    assert!(output.contains("test_histogram_milliseconds_count{endpoint=\"/api/v1\""));
 
     // Verify scope labels are present on metrics (per spec)
     assert!(output.contains("otel_scope_name=\"comprehensive-test-scope\""));
