@@ -4,21 +4,12 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-[`Prometheus`] integration for applications instrumented with [`OpenTelemetry`]. 
+[`Prometheus`] exporter for applications instrumented with [`OpenTelemetry`].
 
-**Warning: This crate is no longer recommended for use.**
-
-Development of the Prometheus exporter has been discontinued. See the related
-[issue](https://github.com/open-telemetry/opentelemetry-rust/issues/2451). This
-crate depends on the unmaintained `protobuf` crate and has unresolved security
-vulnerabilities. Version 0.29 will be the final release.
-
-For Prometheus integration, we strongly recommend using the [OTLP] exporter
-instead. Prometheus [natively supports
-OTLP](https://prometheus.io/docs/guides/opentelemetry/#enable-the-otlp-receiver),
-providing a more stable and actively maintained solution.
-
-[OTLP]: https://docs.rs/opentelemetry-otlp/latest/opentelemetry_otlp/
+This crate provides a simple exporter that converts OpenTelemetry metrics to the
+Prometheus exposition format (text-based). It does not require any external
+Prometheus client library dependencies and generates the text format directly
+using only standard Rust string operations.
 
 [![Crates.io: opentelemetry-prometheus](https://img.shields.io/crates/v/opentelemetry-prometheus.svg)](https://crates.io/crates/opentelemetry-prometheus)
 [![Documentation](https://docs.rs/opentelemetry-prometheus/badge.svg)](https://docs.rs/opentelemetry-prometheus)

@@ -1,14 +1,12 @@
 use core::fmt;
-use once_cell::sync::OnceCell;
-use opentelemetry_sdk::metrics::{ManualReaderBuilder, MetricError, MetricResult};
-use std::sync::{Arc, Mutex};
+use opentelemetry_sdk::metrics::{ManualReaderBuilder, MetricResult};
+use std::sync::Arc;
 
-use crate::{Collector, PrometheusExporter, ResourceSelector};
+use crate::{ExporterConfig, PrometheusExporter, ResourceSelector};
 
 /// [PrometheusExporter] configuration options
 #[derive(Default)]
 pub struct ExporterBuilder {
-    registry: Option<prometheus::Registry>,
     disable_target_info: bool,
     without_units: bool,
     without_counter_suffixes: bool,
@@ -21,7 +19,6 @@ pub struct ExporterBuilder {
 impl fmt::Debug for ExporterBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ExporterBuilder")
-            .field("registry", &self.registry)
             .field("disable_target_info", &self.disable_target_info)
             .field("without_units", &self.without_units)
             .field("without_counter_suffixes", &self.without_counter_suffixes)
@@ -93,14 +90,6 @@ impl ExporterBuilder {
         self
     }
 
-    /// Configures which [prometheus::Registry] the exporter will use.
-    ///
-    /// If no registry is specified, the prometheus default is used.
-    pub fn with_registry(mut self, registry: prometheus::Registry) -> Self {
-        self.registry = Some(registry);
-        self
-    }
-
     /// Configures whether to export resource as attributes with every metric.
     ///
     /// Note that this is orthogonal to the `target_info` metric, which can be disabled using `without_target_info`.
@@ -118,24 +107,15 @@ impl ExporterBuilder {
     pub fn build(self) -> MetricResult<PrometheusExporter> {
         let reader = Arc::new(self.reader.build());
 
-        let collector = Collector {
-            reader: Arc::clone(&reader),
+        let config = Arc::new(ExporterConfig {
             disable_target_info: self.disable_target_info,
             without_units: self.without_units,
             without_counter_suffixes: self.without_counter_suffixes,
             disable_scope_info: self.disable_scope_info,
-            create_target_info_once: OnceCell::new(),
             namespace: self.namespace,
-            inner: Mutex::new(Default::default()),
             resource_selector: self.resource_selector,
-            resource_labels_once: OnceCell::new(),
-        };
+        });
 
-        let registry = self.registry.unwrap_or_default();
-        registry
-            .register(Box::new(collector))
-            .map_err(|e| MetricError::Other(e.to_string()))?;
-
-        Ok(PrometheusExporter { reader })
+        Ok(PrometheusExporter { reader, config })
     }
 }

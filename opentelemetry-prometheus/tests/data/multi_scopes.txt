@@ -1,13 +1,13 @@
 # HELP bar_milliseconds_total meter bar counter
 # TYPE bar_milliseconds_total counter
-bar_milliseconds_total{type="bar",otel_scope_name="meterbar",otel_scope_version="v0.1.0"} 200
+bar_milliseconds_total{type="bar",otel_scope_name="meterbar",otel_scope_version="v0.1.0",otel_scope_schema_url="https://opentelemetry.io/schema/1.0.0",otel_scope_k="v"} 200
 # HELP foo_milliseconds_total meter foo counter
 # TYPE foo_milliseconds_total counter
-foo_milliseconds_total{type="foo",otel_scope_name="meterfoo",otel_scope_version="v0.1.0"} 100
+foo_milliseconds_total{type="foo",otel_scope_name="meterfoo",otel_scope_version="v0.1.0",otel_scope_schema_url="https://opentelemetry.io/schema/1.0.0",otel_scope_k="v"} 100
 # HELP otel_scope_info Instrumentation Scope metadata
 # TYPE otel_scope_info gauge
-otel_scope_info{otel_scope_name="meterbar",otel_scope_version="v0.1.0"} 1
-otel_scope_info{otel_scope_name="meterfoo",otel_scope_version="v0.1.0"} 1
+otel_scope_info{otel_scope_name="meterbar",otel_scope_version="v0.1.0",otel_scope_schema_url="https://opentelemetry.io/schema/1.0.0",otel_scope_k="v"} 1
+otel_scope_info{otel_scope_name="meterfoo",otel_scope_version="v0.1.0",otel_scope_schema_url="https://opentelemetry.io/schema/1.0.0",otel_scope_k="v"} 1
 # HELP target_info Target metadata
 # TYPE target_info gauge
 target_info{service_name="prometheus_test",telemetry_sdk_language="rust",telemetry_sdk_name="opentelemetry",telemetry_sdk_version="latest"} 1

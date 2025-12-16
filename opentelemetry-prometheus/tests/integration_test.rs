@@ -5,11 +5,10 @@ use std::path::Path;
 use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::KeyValue;
 use opentelemetry::{InstrumentationScope, Key};
-use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
+use opentelemetry_prometheus::{ExporterBuilder, PrometheusExporter, ResourceSelector};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
-use prometheus::{Encoder, TextEncoder};
 
 const BOUNDARIES: &[f64] = &[
     0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0,
@@ -352,8 +351,7 @@ fn prometheus_exporter_integration() {
     ];
 
     for tc in test_cases {
-        let registry = prometheus::Registry::new();
-        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
+        let exporter = tc.builder.build().unwrap();
 
         let res = if tc.empty_resource {
             Resource::builder_empty().build()
@@ -374,7 +372,7 @@ fn prometheus_exporter_integration() {
 
         let provider = SdkMeterProvider::builder()
             .with_resource(res)
-            .with_reader(exporter)
+            .with_reader(exporter.clone())
             .build();
 
         let scope = InstrumentationScope::builder("testmeter")
@@ -389,18 +387,15 @@ fn prometheus_exporter_integration() {
 
         let content = fs::read_to_string(Path::new("./tests/data").join(tc.expected_file))
             .expect(tc.expected_file);
-        gather_and_compare(registry, content, tc.name);
+        gather_and_compare(&exporter, content, tc.name);
     }
 }
 
-fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'static str) {
-    let mut output = Vec::new();
-    let encoder = TextEncoder::new();
-    let metric_families = registry.gather();
-    encoder.encode(&metric_families, &mut output).unwrap();
+fn gather_and_compare(exporter: &PrometheusExporter, expected: String, name: &'static str) {
+    let output_string = exporter.export().unwrap();
 
     let expected = get_platform_specific_string(expected);
-    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
+    let output_string = get_platform_specific_string(output_string);
 
     assert_eq!(output_string, expected, "{name}");
 }
@@ -415,9 +410,7 @@ fn get_platform_specific_string(input: String) -> String {
 
 #[test]
 fn multiple_scopes() {
-    let registry = prometheus::Registry::new();
     let exporter = ExporterBuilder::default()
-        .with_registry(registry.clone())
         .build()
         .unwrap();
 
@@ -431,7 +424,7 @@ fn multiple_scopes() {
         .build();
 
     let provider = SdkMeterProvider::builder()
-        .with_reader(exporter)
+        .with_reader(exporter.clone())
         .with_resource(resource)
         .build();
 
@@ -464,7 +457,7 @@ fn multiple_scopes() {
     bar_counter.add(200, &[KeyValue::new("type", "bar")]);
 
     let content = fs::read_to_string("./tests/data/multi_scopes.txt").unwrap();
-    gather_and_compare(registry, content, "multi_scope");
+    gather_and_compare(&exporter, content, "multi_scope");
 }
 
 #[test]
@@ -762,8 +755,7 @@ fn duplicate_metrics() {
     ];
 
     for tc in test_cases {
-        let registry = prometheus::Registry::new();
-        let exporter = tc.builder.with_registry(registry.clone()).build().unwrap();
+        let exporter = tc.builder.build().unwrap();
 
         let resource = Resource::builder()
             .with_attributes(
@@ -780,7 +772,7 @@ fn duplicate_metrics() {
 
         let provider = SdkMeterProvider::builder()
             .with_resource(resource)
-            .with_reader(exporter)
+            .with_reader(exporter.clone())
             .build();
 
         let scope_ma = InstrumentationScope::builder("ma")
@@ -806,24 +798,165 @@ fn duplicate_metrics() {
             .map(|f| fs::read_to_string(Path::new("./tests/data").join(f)).expect(f))
             .map(get_platform_specific_string)
             .collect();
-        gather_and_compare_multi(registry, possible_matches, tc.name);
+        gather_and_compare_multi(&exporter, possible_matches, tc.name);
     }
 }
 
 fn gather_and_compare_multi(
-    registry: prometheus::Registry,
+    exporter: &PrometheusExporter,
     expected: Vec<String>,
     name: &'static str,
 ) {
-    let mut output = Vec::new();
-    let encoder = TextEncoder::new();
-    let metric_families = registry.gather();
-    encoder.encode(&metric_families, &mut output).unwrap();
-
-    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
+    let output_string = exporter.export().unwrap();
+    let output_string = get_platform_specific_string(output_string);
 
     assert!(
         expected.contains(&output_string),
         "mismatched output in {name}"
     )
+}
+
+/// Comprehensive end-to-end test covering all OpenTelemetry specification requirements:
+/// - All metric types (Counter, UpDownCounter, Histogram) with full metadata
+/// - Scope with name, version, schema_url, and custom attributes
+/// - Resource with custom attributes
+/// - Verification of scope attribute labels (otel_scope_*)
+/// - Verification of resource attributes in target_info
+/// - Info metric format per spec
+#[test]
+fn test_comprehensive_spec_compliance() {
+    use opentelemetry::{
+        metrics::{Counter, Histogram, MeterProvider as _, UpDownCounter},
+        KeyValue,
+        InstrumentationScope,
+    };
+    use opentelemetry_sdk::{
+        metrics::SdkMeterProvider,
+        Resource,
+    };
+
+    // Create resource with custom attributes per spec
+    let resource = Resource::builder()
+        .with_attributes(vec![
+            KeyValue::new("service.name", "spec-compliance-test"),
+            KeyValue::new("service.version", "1.0.0"),
+            KeyValue::new("service.namespace", "testing"),
+            KeyValue::new("deployment.environment", "production"),
+            KeyValue::new("custom_resource_attr", "resource_value"),
+        ])
+        .build();
+
+    let exporter = opentelemetry_prometheus::exporter().build().unwrap();
+
+    let provider = SdkMeterProvider::builder()
+        .with_resource(resource)
+        .with_reader(exporter.clone())
+        .build();
+
+    // Create instrumentation scope with full metadata including schema_url and custom attributes
+    let scope = InstrumentationScope::builder("comprehensive-test-scope")
+        .with_version("2.0.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.20.0")
+        .with_attributes(vec![
+            KeyValue::new("scope_environment", "test"),
+            KeyValue::new("scope_tier", "integration"),
+            KeyValue::new("custom_scope_attr", "scope_value"),
+        ])
+        .build();
+
+    let meter = provider.meter_with_scope(scope);
+
+    // Create Counter with full metadata
+    let counter: Counter<u64> = meter
+        .u64_counter("test.counter")
+        .with_description("A test counter for spec compliance")
+        .with_unit("requests")
+        .build();
+
+    // Create UpDownCounter with full metadata
+    let updown_counter: UpDownCounter<i64> = meter
+        .i64_up_down_counter("test.updown")
+        .with_description("A test up-down counter")
+        .with_unit("active_connections")
+        .build();
+
+    // Create Histogram with full metadata
+    let histogram: Histogram<f64> = meter
+        .f64_histogram("test.histogram")
+        .with_description("A test histogram for latency")
+        .with_unit("ms")
+        .build();
+
+    // Record measurements with attributes
+    counter.add(100, &[
+        KeyValue::new("method", "GET"),
+        KeyValue::new("status", "200"),
+    ]);
+    counter.add(50, &[
+        KeyValue::new("method", "POST"),
+        KeyValue::new("status", "201"),
+    ]);
+
+    updown_counter.add(5, &[KeyValue::new("region", "us-west")]);
+    updown_counter.add(-2, &[KeyValue::new("region", "us-east")]);
+
+    histogram.record(123.45, &[KeyValue::new("endpoint", "/api/v1")]);
+    histogram.record(234.56, &[KeyValue::new("endpoint", "/api/v2")]);
+
+    // Force collection
+    let _ = provider.force_flush();
+
+    // Export and verify output
+    let output = exporter.export().unwrap();
+
+    // Verify counter with description and unit
+    assert!(output.contains("# HELP test_counter_requests_total A test counter for spec compliance"));
+    assert!(output.contains("# TYPE test_counter_requests_total counter"));
+    assert!(output.contains("test_counter_requests_total{method=\"GET\",status=\"200\""));
+    assert!(output.contains("test_counter_requests_total{method=\"POST\",status=\"201\""));
+
+    // Verify up-down counter
+    assert!(output.contains("# HELP test_updown_active_connections A test up-down counter"));
+    assert!(output.contains("# TYPE test_updown_active_connections gauge"));
+    assert!(output.contains("test_updown_active_connections{region=\"us-west\""));
+    assert!(output.contains("test_updown_active_connections{region=\"us-east\""));
+
+    // Verify histogram
+    assert!(output.contains("# HELP test_histogram_ms A test histogram for latency"));
+    assert!(output.contains("# TYPE test_histogram_ms histogram"));
+    assert!(output.contains("test_histogram_ms_bucket{endpoint=\"/api/v1\""));
+    assert!(output.contains("test_histogram_ms_sum{endpoint=\"/api/v1\""));
+    assert!(output.contains("test_histogram_ms_count{endpoint=\"/api/v1\""));
+
+    // Verify scope labels are present on metrics (per spec)
+    assert!(output.contains("otel_scope_name=\"comprehensive-test-scope\""));
+    assert!(output.contains("otel_scope_version=\"2.0.0\""));
+    assert!(output.contains("otel_scope_schema_url=\"https://opentelemetry.io/schemas/1.20.0\""));
+    
+    // Verify custom scope attributes with otel_scope_ prefix (per spec)
+    assert!(output.contains("otel_scope_scope_environment=\"test\""));
+    assert!(output.contains("otel_scope_scope_tier=\"integration\""));
+    assert!(output.contains("otel_scope_custom_scope_attr=\"scope_value\""));
+
+    // Verify otel_scope_info metric (per spec)
+    assert!(output.contains("# HELP otel_scope_info Instrumentation Scope metadata"));
+    assert!(output.contains("# TYPE otel_scope_info gauge"));
+    assert!(output.contains("otel_scope_info{"));
+    
+    // Verify target_info metric with resource attributes (per spec)
+    assert!(output.contains("# HELP target_info Target metadata"));
+    assert!(output.contains("# TYPE target_info gauge"));
+    assert!(output.contains("target_info{"));
+    assert!(output.contains("service_name=\"spec-compliance-test\""));
+    assert!(output.contains("service_version=\"1.0.0\""));
+    assert!(output.contains("service_namespace=\"testing\""));
+    assert!(output.contains("deployment_environment=\"production\""));
+    assert!(output.contains("custom_resource_attr=\"resource_value\""));
+
+    // Verify that target_info appears last (per spec recommendation)
+    let target_info_pos = output.rfind("target_info{").expect("target_info should be present");
+    let last_metric_pos = output.rfind("# TYPE").expect("should have type declarations");
+    assert!(target_info_pos > last_metric_pos, "target_info should appear after all other TYPE declarations");
+
+    println!("Full output:\n{}", output);
 }

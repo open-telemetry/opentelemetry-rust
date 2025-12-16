@@ -11,8 +11,8 @@ use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
 };
+use opentelemetry_prometheus::PrometheusExporter;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
-use prometheus::{Encoder, Registry, TextEncoder};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use opentelemetry::time::now;
@@ -31,17 +31,20 @@ async fn serve_req(
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
-            let mut buffer = vec![];
-            let encoder = TextEncoder::new();
-            let metric_families = state.registry.gather();
-            encoder.encode(&metric_families, &mut buffer).unwrap();
+            // Export metrics in Prometheus exposition format
+            let exported = state.exporter.export().unwrap_or_else(|e| {
+                eprintln!("Failed to export metrics: {}", e);
+                String::from("# Error exporting metrics\n")
+            });
+            let buffer = exported.into_bytes();
+            
             state
                 .http_body_gauge
                 .record(buffer.len() as u64, HANDLER_ALL.as_ref());
 
             Response::builder()
                 .status(200)
-                .header(CONTENT_TYPE, encoder.format_type())
+                .header(CONTENT_TYPE, "text/plain; version=0.0.4")
                 .body(Full::new(Bytes::from(buffer)))
                 .unwrap()
         }
@@ -63,7 +66,7 @@ async fn serve_req(
 }
 
 struct AppState {
-    registry: Registry,
+    exporter: PrometheusExporter,
     http_counter: Counter<u64>,
     http_body_gauge: Histogram<u64>,
     http_req_histogram: Histogram<f64>,
@@ -73,15 +76,14 @@ struct AppState {
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use hyper_util::server::conn::auto::Builder;
 
-    let registry = Registry::new();
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_registry(registry.clone())
-        .build()?;
-    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+    let exporter = opentelemetry_prometheus::exporter().build()?;
+    let provider = SdkMeterProvider::builder()
+        .with_reader(exporter.clone())
+        .build();
 
     let meter = provider.meter("hyper-example");
     let state = Arc::new(AppState {
-        registry,
+        exporter,
         http_counter: meter
             .u64_counter("http_requests_total")
             .with_description("Total number of HTTP requests made.")
