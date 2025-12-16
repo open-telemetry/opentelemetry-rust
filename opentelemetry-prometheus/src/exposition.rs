@@ -1,5 +1,5 @@
 use opentelemetry::{Key, Value};
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 
 /// Encodes metrics in Prometheus exposition format (text-based).
 ///
@@ -42,6 +42,12 @@ impl ExpositionEncoder {
         let _ = writeln!(&mut self.buffer, "# TYPE {} {}", name, metric_type);
     }
 
+    /// Encodes both HELP and TYPE lines for a metric header.
+    pub fn encode_metric_header(&mut self, name: &str, description: &str, metric_type: &str) {
+        self.encode_help(name, description);
+        self.encode_type(name, metric_type);
+    }
+
     /// Encodes a metric sample with labels and value.
     pub fn encode_sample(&mut self, name: &str, labels: &[(String, String)], value: f64) {
         let _ = write!(&mut self.buffer, "{}", name);
@@ -71,21 +77,22 @@ impl ExpositionEncoder {
         let mut bucket_labels = labels.to_vec();
         bucket_labels.push(("le".to_string(), format_value(upper_bound)));
 
-        self.encode_sample(
-            &format!("{}_bucket", name),
-            &bucket_labels,
-            cumulative_count as f64,
-        );
+        self.encode_histogram_metric(name, "bucket", &bucket_labels, cumulative_count as f64);
     }
 
     /// Encodes a histogram sum.
     pub fn encode_histogram_sum(&mut self, name: &str, labels: &[(String, String)], sum: f64) {
-        self.encode_sample(&format!("{}_sum", name), labels, sum);
+        self.encode_histogram_metric(name, "sum", labels, sum);
     }
 
     /// Encodes a histogram count.
     pub fn encode_histogram_count(&mut self, name: &str, labels: &[(String, String)], count: u64) {
-        self.encode_sample(&format!("{}_count", name), labels, count as f64);
+        self.encode_histogram_metric(name, "count", labels, count as f64);
+    }
+
+    /// Helper to encode histogram metrics with a suffix.
+    fn encode_histogram_metric(&mut self, name: &str, suffix: &str, labels: &[(String, String)], value: f64) {
+        self.encode_sample(&format!("{}_{}", name, suffix), labels, value);
     }
 
     /// Returns the encoded content as a string.
@@ -110,27 +117,27 @@ impl Default for ExpositionEncoder {
     }
 }
 
-/// Escapes special characters in label values according to Prometheus exposition format.
-fn escape_label_value(s: &str) -> String {
+/// Escapes special characters according to Prometheus exposition format.
+/// If `include_quote` is true, also escapes double quotes (for label values).
+fn escape_string(s: &str, include_quote: bool) -> String {
     s.chars()
         .flat_map(|c| match c {
             '\\' => vec!['\\', '\\'],
             '\n' => vec!['\\', 'n'],
-            '"' => vec!['\\', '"'],
+            '"' if include_quote => vec!['\\', '"'],
             c => vec![c],
         })
         .collect()
 }
 
+/// Escapes special characters in label values according to Prometheus exposition format.
+fn escape_label_value(s: &str) -> String {
+    escape_string(s, true)
+}
+
 /// Escapes special characters in help text.
 fn escape_help(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| match c {
-            '\\' => vec!['\\', '\\'],
-            '\n' => vec!['\\', 'n'],
-            c => vec![c],
-        })
-        .collect()
+    escape_string(s, false)
 }
 
 /// Formats a float value for Prometheus exposition format.
@@ -153,8 +160,6 @@ fn format_value(v: f64) -> String {
 pub(crate) fn otel_kv_to_labels<'a>(
     kvs: impl Iterator<Item = (&'a Key, &'a Value)>,
 ) -> Vec<(String, String)> {
-    use std::collections::BTreeMap;
-
     // Use BTreeMap to sort keys and handle duplicates
     let mut map = BTreeMap::<String, Vec<String>>::new();
 

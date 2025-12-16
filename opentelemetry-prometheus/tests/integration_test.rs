@@ -10,6 +10,43 @@ use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 
+// Helper function to create a test resource with standard attributes
+fn create_test_resource(custom_attrs: Vec<KeyValue>, empty: bool) -> Resource {
+    if empty {
+        Resource::builder_empty().build()
+    } else {
+        Resource::builder()
+            .with_attributes(
+                vec![
+                    // always specify service.name because the default depends on the running OS
+                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
+                    // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
+                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
+                ]
+                .into_iter()
+                .chain(custom_attrs.into_iter()),
+            )
+            .build()
+    }
+}
+
+// Helper function to create a test instrumentation scope
+fn create_test_scope(name: &'static str) -> InstrumentationScope {
+    InstrumentationScope::builder(name)
+        .with_version("v0.1.0")
+        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+        .with_attributes(vec![KeyValue::new("k", "v")])
+        .build()
+}
+
+// Helper function to create a provider with exporter and resource
+fn create_test_provider(exporter: &PrometheusExporter, resource: Resource) -> SdkMeterProvider {
+    SdkMeterProvider::builder()
+        .with_resource(resource)
+        .with_reader(exporter.clone())
+        .build()
+}
+
 const BOUNDARIES: &[f64] = &[
     0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 1000.0,
 ];
@@ -352,34 +389,9 @@ fn prometheus_exporter_integration() {
 
     for tc in test_cases {
         let exporter = tc.builder.build().unwrap();
-
-        let res = if tc.empty_resource {
-            Resource::builder_empty().build()
-        } else {
-            Resource::builder()
-                .with_attributes(
-                    vec![
-                        // always specify service.name because the default depends on the running OS
-                        KeyValue::new(SERVICE_NAME, "prometheus_test"),
-                        // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                        KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-                    ]
-                    .into_iter()
-                    .chain(tc.custom_resource_attrs.into_iter()),
-                )
-                .build()
-        };
-
-        let provider = SdkMeterProvider::builder()
-            .with_resource(res)
-            .with_reader(exporter.clone())
-            .build();
-
-        let scope = InstrumentationScope::builder("testmeter")
-            .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-            .with_attributes(vec![KeyValue::new("k", "v")])
-            .build();
+        let res = create_test_resource(tc.custom_resource_attrs, tc.empty_resource);
+        let provider = create_test_provider(&exporter, res);
+        let scope = create_test_scope("testmeter");
 
         let meter = provider.meter_with_scope(scope);
 
@@ -414,25 +426,9 @@ fn multiple_scopes() {
         .build()
         .unwrap();
 
-    let resource = Resource::builder()
-        .with_attributes([
-            // always specify service.name because the default depends on the running OS
-            KeyValue::new(SERVICE_NAME, "prometheus_test"),
-            // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-            KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-        ])
-        .build();
-
-    let provider = SdkMeterProvider::builder()
-        .with_reader(exporter.clone())
-        .with_resource(resource)
-        .build();
-
-    let scope_foo = InstrumentationScope::builder("meterfoo")
-        .with_version("v0.1.0")
-        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-        .with_attributes(vec![KeyValue::new("k", "v")])
-        .build();
+    let resource = create_test_resource(Vec::new(), false);
+    let provider = create_test_provider(&exporter, resource);
+    let scope_foo = create_test_scope("meterfoo");
 
     let foo_counter = provider
         .meter_with_scope(scope_foo)
@@ -442,11 +438,7 @@ fn multiple_scopes() {
         .build();
     foo_counter.add(100, &[KeyValue::new("type", "foo")]);
 
-    let scope_bar = InstrumentationScope::builder("meterbar")
-        .with_version("v0.1.0")
-        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-        .with_attributes(vec![KeyValue::new("k", "v")])
-        .build();
+    let scope_bar = create_test_scope("meterbar");
 
     let bar_counter = provider
         .meter_with_scope(scope_bar)
@@ -756,36 +748,10 @@ fn duplicate_metrics() {
 
     for tc in test_cases {
         let exporter = tc.builder.build().unwrap();
-
-        let resource = Resource::builder()
-            .with_attributes(
-                vec![
-                    // always specify service.name because the default depends on the running OS
-                    KeyValue::new(SERVICE_NAME, "prometheus_test"),
-                    // Overwrite the semconv.TelemetrySDKVersionKey value so we don't need to update every version
-                    KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
-                ]
-                .into_iter()
-                .chain(tc.custom_resource_attrs.into_iter()),
-            )
-            .build();
-
-        let provider = SdkMeterProvider::builder()
-            .with_resource(resource)
-            .with_reader(exporter.clone())
-            .build();
-
-        let scope_ma = InstrumentationScope::builder("ma")
-            .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-            .with_attributes(vec![KeyValue::new("k", "v")])
-            .build();
-
-        let scope_mb = InstrumentationScope::builder("mb")
-            .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
-            .with_attributes(vec![KeyValue::new("k", "v")])
-            .build();
+        let resource = create_test_resource(tc.custom_resource_attrs, false);
+        let provider = create_test_provider(&exporter, resource);
+        let scope_ma = create_test_scope("ma");
+        let scope_mb = create_test_scope("mb");
 
         let meter_a = provider.meter_with_scope(scope_ma);
         let meter_b = provider.meter_with_scope(scope_mb);

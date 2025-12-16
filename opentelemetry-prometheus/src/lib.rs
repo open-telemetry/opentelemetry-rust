@@ -91,15 +91,19 @@ use opentelemetry_sdk::{
 };
 use std::{
     any::TypeId,
+    collections::BTreeMap,
+    fmt,
     sync::{Arc, Weak},
 };
-use std::fmt;
 
 const TARGET_INFO_NAME: &str = "target_info";
 const TARGET_INFO_DESCRIPTION: &str = "Target metadata";
 
 const SCOPE_INFO_METRIC_NAME: &str = "otel_scope_info";
 const SCOPE_INFO_DESCRIPTION: &str = "Instrumentation Scope metadata";
+
+// Type alias for metrics grouped by name with their type, labels, and metric data
+type MetricsByName<'a> = std::collections::BTreeMap<String, Vec<(String, Vec<(String, String)>, &'a data::Metric)>>;
 
 // prometheus counters MUST have a _total suffix by default:
 // https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/compatibility/prometheus_and_openmetrics.md
@@ -154,52 +158,76 @@ impl PrometheusExporter {
         Ok(self.encode_metrics(&metrics))
     }
     
+    /// Builds scope labels from an InstrumentationScope.
+    fn build_scope_labels(scope: &opentelemetry::InstrumentationScope) -> Vec<(String, String)> {
+        let mut labels = Vec::new();
+        labels.push(("otel_scope_name".to_string(), scope.name().to_string()));
+        if let Some(version) = scope.version() {
+            labels.push(("otel_scope_version".to_string(), version.to_string()));
+        }
+        if let Some(schema_url) = scope.schema_url() {
+            labels.push(("otel_scope_schema_url".to_string(), schema_url.to_string()));
+        }
+        // Add custom scope attributes with otel_scope_ prefix
+        for kv in scope.attributes() {
+            let attr_name = format!("otel_scope_{}", kv.key.as_str());
+            labels.push((attr_name, kv.value.to_string()));
+        }
+        labels
+    }
+    
+    /// Builds labels from data point attributes combined with extra labels.
+    fn build_data_point_labels<'a, I>(attributes: I, extra_labels: &[(String, String)]) -> Vec<(String, String)>
+    where
+        I: Iterator<Item = (&'a opentelemetry::Key, &'a opentelemetry::Value)>,
+    {
+        let mut labels = exposition::otel_kv_to_labels(attributes);
+        labels.extend_from_slice(extra_labels);
+        labels
+    }
+    
+    /// Checks if a Sum metric is monotonic
+    fn is_sum_monotonic(data: &dyn std::any::Any) -> bool {
+        if let Some(v) = data.downcast_ref::<data::Sum<i64>>() {
+            v.is_monotonic
+        } else if let Some(v) = data.downcast_ref::<data::Sum<u64>>() {
+            v.is_monotonic
+        } else if let Some(v) = data.downcast_ref::<data::Sum<f64>>() {
+            v.is_monotonic
+        } else {
+            false
+        }
+    }
+    
+    /// Extracts the otel_scope_name value from a label set for sorting
+    fn extract_scope_name(labels: &[(String, String)]) -> Option<&String> {
+        labels.iter().find(|(k, _)| k == "otel_scope_name").map(|(_, v)| v)
+    }
+    
+    /// Compares two label sets by their otel_scope_name for sorting
+    fn compare_by_scope_name(a: &[(String, String)], b: &[(String, String)]) -> std::cmp::Ordering {
+        Self::extract_scope_name(a).cmp(&Self::extract_scope_name(b))
+    }
+    
     /// Encodes metrics to Prometheus exposition format.
     fn encode_metrics(&self, metrics: &ResourceMetrics) -> String {
-        use std::collections::BTreeMap;
-        
         let resource_labels = self.config.resource_selector.select(&metrics.resource);
         
         // Collect all metrics grouped by name for sorting
-        let mut metrics_by_name: BTreeMap<String, Vec<(String, Vec<(String, String)>, &data::Metric)>> = BTreeMap::new();
+        let mut metrics_by_name: MetricsByName<'_> = BTreeMap::new();
         let mut scope_info_labels = Vec::new();
         
         for scope_metrics in &metrics.scope_metrics {
             let mut scope_labels = Vec::new();
             
             if !self.config.disable_scope_info {
-                // Collect scope_info labels
+                // Collect scope_info labels if there are attributes
                 if scope_metrics.scope.attributes().count() > 0 {
-                    let mut labels = Vec::new();
-                    labels.push(("otel_scope_name".to_string(), scope_metrics.scope.name().to_string()));
-                    if let Some(version) = scope_metrics.scope.version() {
-                        labels.push(("otel_scope_version".to_string(), version.to_string()));
-                    }
-                    if let Some(schema_url) = scope_metrics.scope.schema_url() {
-                        labels.push(("otel_scope_schema_url".to_string(), schema_url.to_string()));
-                    }
-                    // Add custom scope attributes with otel_scope_ prefix
-                    for kv in scope_metrics.scope.attributes() {
-                        let attr_name = format!("otel_scope_{}", kv.key.as_str());
-                        labels.push((attr_name, kv.value.to_string()));
-                    }
-                    scope_info_labels.push(labels);
+                    scope_info_labels.push(Self::build_scope_labels(&scope_metrics.scope));
                 }
                 
                 // Add scope labels to all metrics
-                scope_labels.push(("otel_scope_name".to_string(), scope_metrics.scope.name().to_string()));
-                if let Some(version) = scope_metrics.scope.version() {
-                    scope_labels.push(("otel_scope_version".to_string(), version.to_string()));
-                }
-                if let Some(schema_url) = scope_metrics.scope.schema_url() {
-                    scope_labels.push(("otel_scope_schema_url".to_string(), schema_url.to_string()));
-                }
-                // Add custom scope attributes with otel_scope_ prefix
-                for kv in scope_metrics.scope.attributes() {
-                    let attr_name = format!("otel_scope_{}", kv.key.as_str());
-                    scope_labels.push((attr_name, kv.value.to_string()));
-                }
-                
+                scope_labels = Self::build_scope_labels(&scope_metrics.scope);
                 scope_labels.extend(resource_labels.iter().cloned());
             }
             
@@ -208,7 +236,7 @@ impl PrometheusExporter {
                 if let Some((metric_type, name)) = self.metric_type_and_name(metric) {
                     metrics_by_name
                         .entry(name.clone())
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push((metric_type.to_string(), scope_labels.clone(), metric));
                 }
             }
@@ -224,12 +252,7 @@ impl PrometheusExporter {
             }
             
             // Sort entries by scope labels for stable output order
-            metric_entries.sort_by(|a, b| {
-                // Sort by scope_name first
-                let a_scope = a.1.iter().find(|(k, _)| k == "otel_scope_name").map(|(_, v)| v);
-                let b_scope = b.1.iter().find(|(k, _)| k == "otel_scope_name").map(|(_, v)| v);
-                a_scope.cmp(&b_scope)
-            });
+            metric_entries.sort_by(|a, b| Self::compare_by_scope_name(&a.1, &b.1));
             
             // Use the first entry for HELP and TYPE
             if let Some((metric_type, _, first_metric)) = metric_entries.first() {
@@ -265,8 +288,7 @@ impl PrometheusExporter {
                 }
                 
                 if !valid_entries.is_empty() {
-                    encoder.encode_help(&name, first_description);
-                    encoder.encode_type(&name, metric_type);
+                    encoder.encode_metric_header(&name, first_description, metric_type);
                     
                     // Encode all valid data points for this metric
                     for (extra_labels, metric) in valid_entries {
@@ -279,14 +301,9 @@ impl PrometheusExporter {
         // Encode scope_info if we have any
         if !self.config.disable_scope_info && !scope_info_labels.is_empty() {
             // Sort scope_info labels by scope name for stable output
-            scope_info_labels.sort_by(|a, b| {
-                let a_scope = a.iter().find(|(k, _)| k == "otel_scope_name").map(|(_, v)| v);
-                let b_scope = b.iter().find(|(k, _)| k == "otel_scope_name").map(|(_, v)| v);
-                a_scope.cmp(&b_scope)
-            });
+            scope_info_labels.sort_by(|a, b| Self::compare_by_scope_name(a, b));
             
-            encoder.encode_help(SCOPE_INFO_METRIC_NAME, SCOPE_INFO_DESCRIPTION);
-            encoder.encode_type(SCOPE_INFO_METRIC_NAME, "gauge");
+            encoder.encode_metric_header(SCOPE_INFO_METRIC_NAME, SCOPE_INFO_DESCRIPTION, "gauge");
             for labels in scope_info_labels {
                 encoder.encode_sample(SCOPE_INFO_METRIC_NAME, &labels, 1.0);
             }
@@ -303,24 +320,20 @@ impl PrometheusExporter {
     fn encode_metric_data(&self, encoder: &mut ExpositionEncoder, metric: &data::Metric, name: &str, extra_labels: &[(String, String)]) {
         let data = metric.data.as_any();
         
-        if let Some(hist) = data.downcast_ref::<data::Histogram<i64>>() {
-            encode_histogram(encoder, hist, name, extra_labels);
-        } else if let Some(hist) = data.downcast_ref::<data::Histogram<u64>>() {
-            encode_histogram(encoder, hist, name, extra_labels);
-        } else if let Some(hist) = data.downcast_ref::<data::Histogram<f64>>() {
-            encode_histogram(encoder, hist, name, extra_labels);
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<u64>>() {
-            encode_sum(encoder, sum, name, extra_labels);
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<i64>>() {
-            encode_sum(encoder, sum, name, extra_labels);
-        } else if let Some(sum) = data.downcast_ref::<data::Sum<f64>>() {
-            encode_sum(encoder, sum, name, extra_labels);
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<u64>>() {
-            encode_gauge(encoder, gauge, name, extra_labels);
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<i64>>() {
-            encode_gauge(encoder, gauge, name, extra_labels);
-        } else if let Some(gauge) = data.downcast_ref::<data::Gauge<f64>>() {
-            encode_gauge(encoder, gauge, name, extra_labels);
+        // Try to encode as histogram (i64, u64, f64)
+        if try_encode_as::<data::Histogram<i64>>(data, |h| encode_histogram(encoder, h, name, extra_labels))
+            || try_encode_as::<data::Histogram<u64>>(data, |h| encode_histogram(encoder, h, name, extra_labels))
+            || try_encode_as::<data::Histogram<f64>>(data, |h| encode_histogram(encoder, h, name, extra_labels))
+            // Try to encode as sum (u64, i64, f64)
+            || try_encode_as::<data::Sum<u64>>(data, |s| encode_sum(encoder, s, name, extra_labels))
+            || try_encode_as::<data::Sum<i64>>(data, |s| encode_sum(encoder, s, name, extra_labels))
+            || try_encode_as::<data::Sum<f64>>(data, |s| encode_sum(encoder, s, name, extra_labels))
+            // Try to encode as gauge (u64, i64, f64)
+            || try_encode_as::<data::Gauge<u64>>(data, |g| encode_gauge(encoder, g, name, extra_labels))
+            || try_encode_as::<data::Gauge<i64>>(data, |g| encode_gauge(encoder, g, name, extra_labels))
+            || try_encode_as::<data::Gauge<f64>>(data, |g| encode_gauge(encoder, g, name, extra_labels))
+        {
+            // Successfully encoded
         }
     }
     
@@ -335,15 +348,7 @@ impl PrometheusExporter {
         } else if GAUGE_TYPES.contains(&type_id) {
             Some(("gauge", name))
         } else if SUM_TYPES.contains(&type_id) {
-            let is_monotonic = if let Some(v) = data.downcast_ref::<data::Sum<i64>>() {
-                v.is_monotonic
-            } else if let Some(v) = data.downcast_ref::<data::Sum<u64>>() {
-                v.is_monotonic
-            } else if let Some(v) = data.downcast_ref::<data::Sum<f64>>() {
-                v.is_monotonic
-            } else {
-                false
-            };
+            let is_monotonic = Self::is_sum_monotonic(data);
             
             if is_monotonic {
                 if !self.config.without_counter_suffixes {
@@ -422,10 +427,20 @@ static GAUGE_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
     ]
 });
 
+/// Helper function to try downcasting and encoding a metric type.
+/// Returns true if the downcast succeeded and the function was called.
+fn try_encode_as<T: 'static>(data: &dyn std::any::Any, f: impl FnOnce(&T)) -> bool {
+    if let Some(value) = data.downcast_ref::<T>() {
+        f(value);
+        true
+    } else {
+        false
+    }
+}
+
 /// Encodes target_info metric
 fn encode_target_info(encoder: &mut ExpositionEncoder, resource: &Resource) {
-    encoder.encode_help(TARGET_INFO_NAME, TARGET_INFO_DESCRIPTION);
-    encoder.encode_type(TARGET_INFO_NAME, "gauge");
+    encoder.encode_metric_header(TARGET_INFO_NAME, TARGET_INFO_DESCRIPTION, "gauge");
     
     let labels = exposition::otel_kv_to_labels(resource.iter());
     encoder.encode_sample(TARGET_INFO_NAME, &labels, 1.0);
@@ -441,10 +456,10 @@ fn encode_histogram<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     for dp in &histogram.data_points {
-        let mut labels = exposition::otel_kv_to_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value))
+        let labels = PrometheusExporter::build_data_point_labels(
+            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+            extra_labels,
         );
-        labels.extend_from_slice(extra_labels);
         
         // Encode buckets
         let mut cumulative_count = 0u64;
@@ -471,10 +486,10 @@ fn encode_sum<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     for dp in &sum.data_points {
-        let mut labels = exposition::otel_kv_to_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value))
+        let labels = PrometheusExporter::build_data_point_labels(
+            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+            extra_labels,
         );
-        labels.extend_from_slice(extra_labels);
         
         encoder.encode_sample(name, &labels, dp.value.as_f64());
     }
@@ -488,10 +503,10 @@ fn encode_gauge<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     for dp in &gauge.data_points {
-        let mut labels = exposition::otel_kv_to_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value))
+        let labels = PrometheusExporter::build_data_point_labels(
+            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+            extra_labels,
         );
-        labels.extend_from_slice(extra_labels);
         
         encoder.encode_sample(name, &labels, dp.value.as_f64());
     }
