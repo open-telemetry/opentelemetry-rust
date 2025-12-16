@@ -422,9 +422,7 @@ fn get_platform_specific_string(input: String) -> String {
 
 #[test]
 fn multiple_scopes() {
-    let exporter = ExporterBuilder::default()
-        .build()
-        .unwrap();
+    let exporter = ExporterBuilder::default().build().unwrap();
 
     let resource = create_test_resource(Vec::new(), false);
     let provider = create_test_provider(&exporter, resource);
@@ -793,13 +791,9 @@ fn gather_and_compare_multi(
 fn test_comprehensive_spec_compliance() {
     use opentelemetry::{
         metrics::{Counter, Histogram, MeterProvider as _, UpDownCounter},
-        KeyValue,
-        InstrumentationScope,
+        InstrumentationScope, KeyValue,
     };
-    use opentelemetry_sdk::{
-        metrics::SdkMeterProvider,
-        Resource,
-    };
+    use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
 
     // Create resource with custom attributes per spec
     let resource = Resource::builder()
@@ -854,14 +848,20 @@ fn test_comprehensive_spec_compliance() {
         .build();
 
     // Record measurements with attributes
-    counter.add(100, &[
-        KeyValue::new("method", "GET"),
-        KeyValue::new("status", "200"),
-    ]);
-    counter.add(50, &[
-        KeyValue::new("method", "POST"),
-        KeyValue::new("status", "201"),
-    ]);
+    counter.add(
+        100,
+        &[
+            KeyValue::new("method", "GET"),
+            KeyValue::new("status", "200"),
+        ],
+    );
+    counter.add(
+        50,
+        &[
+            KeyValue::new("method", "POST"),
+            KeyValue::new("status", "201"),
+        ],
+    );
 
     updown_counter.add(5, &[KeyValue::new("region", "us-west")]);
     updown_counter.add(-2, &[KeyValue::new("region", "us-east")]);
@@ -874,7 +874,7 @@ fn test_comprehensive_spec_compliance() {
 
     // Export and verify output
     let output = exporter.export().unwrap();
-    
+
     // Verify counter with description and _total suffix
     assert!(output.contains("# HELP test_counter_total A test counter for spec compliance"));
     assert!(output.contains("# TYPE test_counter_total counter"));
@@ -898,7 +898,7 @@ fn test_comprehensive_spec_compliance() {
     assert!(output.contains("otel_scope_name=\"comprehensive-test-scope\""));
     assert!(output.contains("otel_scope_version=\"2.0.0\""));
     assert!(output.contains("otel_scope_schema_url=\"https://opentelemetry.io/schemas/1.20.0\""));
-    
+
     // Verify custom scope attributes with otel_scope_ prefix (per spec)
     assert!(output.contains("otel_scope_scope_environment=\"test\""));
     assert!(output.contains("otel_scope_scope_tier=\"integration\""));
@@ -908,7 +908,7 @@ fn test_comprehensive_spec_compliance() {
     assert!(output.contains("# HELP otel_scope_info Instrumentation Scope metadata"));
     assert!(output.contains("# TYPE otel_scope_info gauge"));
     assert!(output.contains("otel_scope_info{"));
-    
+
     // Verify target_info metric with resource attributes (per spec)
     assert!(output.contains("# HELP target_info Target metadata"));
     assert!(output.contains("# TYPE target_info gauge"));
@@ -920,9 +920,16 @@ fn test_comprehensive_spec_compliance() {
     assert!(output.contains("custom_resource_attr=\"resource_value\""));
 
     // Verify that target_info appears last (per spec recommendation)
-    let target_info_pos = output.rfind("target_info{").expect("target_info should be present");
-    let last_metric_pos = output.rfind("# TYPE").expect("should have type declarations");
-    assert!(target_info_pos > last_metric_pos, "target_info should appear after all other TYPE declarations");
+    let target_info_pos = output
+        .rfind("target_info{")
+        .expect("target_info should be present");
+    let last_metric_pos = output
+        .rfind("# TYPE")
+        .expect("should have type declarations");
+    assert!(
+        target_info_pos > last_metric_pos,
+        "target_info should appear after all other TYPE declarations"
+    );
 
     println!("Full output:\n{}", output);
 }

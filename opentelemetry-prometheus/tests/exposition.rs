@@ -1,4 +1,4 @@
-use opentelemetry::{metrics::MeterProvider, KeyValue, InstrumentationScope};
+use opentelemetry::{metrics::MeterProvider, InstrumentationScope, KeyValue};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 
 #[test]
@@ -52,6 +52,6 @@ otel_scope_info{otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\"
 # TYPE target_info gauge
 target_info{service_name=\"unknown_service\",telemetry_sdk_language=\"rust\",telemetry_sdk_name=\"opentelemetry\",telemetry_sdk_version=\"0.29.0\"} 1
 ";
-    
+
     assert_eq!(output, expected);
 }

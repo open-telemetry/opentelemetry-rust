@@ -91,7 +91,13 @@ impl ExpositionEncoder {
     }
 
     /// Helper to encode histogram metrics with a suffix.
-    fn encode_histogram_metric(&mut self, name: &str, suffix: &str, labels: &[(String, String)], value: f64) {
+    fn encode_histogram_metric(
+        &mut self,
+        name: &str,
+        suffix: &str,
+        labels: &[(String, String)],
+        value: f64,
+    ) {
         self.encode_sample(&format!("{}_{}", name, suffix), labels, value);
     }
 
@@ -165,9 +171,7 @@ pub(crate) fn otel_kv_to_labels<'a>(
 
     for (key, value) in kvs {
         let key = crate::utils::sanitize_prom_kv(key.as_str());
-        map.entry(key)
-            .or_default()
-            .push(value.to_string());
+        map.entry(key).or_default().push(value.to_string());
     }
 
     map.into_iter()
@@ -203,7 +207,11 @@ mod tests {
         let mut encoder = ExpositionEncoder::new();
         encoder.encode_help("test_metric", "A test metric");
         encoder.encode_type("test_metric", "counter");
-        encoder.encode_sample("test_metric", &[("label".to_string(), "value".to_string())], 42.0);
+        encoder.encode_sample(
+            "test_metric",
+            &[("label".to_string(), "value".to_string())],
+            42.0,
+        );
 
         let result = encoder.finish();
         assert!(result.contains("# HELP test_metric A test metric"));

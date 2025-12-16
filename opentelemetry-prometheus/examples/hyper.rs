@@ -7,6 +7,7 @@ use hyper::{
 };
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use once_cell::sync::Lazy;
+use opentelemetry::time::now;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
@@ -15,7 +16,6 @@ use opentelemetry_prometheus::PrometheusExporter;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use opentelemetry::time::now;
 use tokio::net::TcpListener;
 
 static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
@@ -37,7 +37,7 @@ async fn serve_req(
                 String::from("# Error exporting metrics\n")
             });
             let buffer = exported.into_bytes();
-            
+
             state
                 .http_body_gauge
                 .record(buffer.len() as u64, HANDLER_ALL.as_ref());
