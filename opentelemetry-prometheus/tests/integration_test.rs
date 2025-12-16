@@ -34,7 +34,6 @@ fn create_test_resource(custom_attrs: Vec<KeyValue>, empty: bool) -> Resource {
 fn create_test_scope(name: &'static str) -> InstrumentationScope {
     InstrumentationScope::builder(name)
         .with_version("v0.1.0")
-        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
         .with_attributes(vec![KeyValue::new("k", "v")])
         .build()
 }

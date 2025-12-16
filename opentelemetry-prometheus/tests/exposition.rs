@@ -13,10 +13,9 @@ fn test_basic_exposition_format() {
         .with_reader(exporter.clone())
         .build();
 
-    // Create an instrumentation scope with version, schema_url, and custom attributes
+    // Create an instrumentation scope with version and custom attributes
     let scope = InstrumentationScope::builder("minimal-example")
         .with_version("1.0.0")
-        .with_schema_url("https://opentelemetry.io/schemas/1.20.0")
         .with_attributes(vec![
             KeyValue::new("deployment.environment", "test"),
             KeyValue::new("service.instance.id", "instance-123"),
@@ -43,11 +42,11 @@ fn test_basic_exposition_format() {
     let expected = "\
 # HELP requests_ratio_total Number of requests
 # TYPE requests_ratio_total counter
-requests_ratio_total{method=\"GET\",otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_schema_url=\"https://opentelemetry.io/schemas/1.20.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 10
-requests_ratio_total{method=\"POST\",otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_schema_url=\"https://opentelemetry.io/schemas/1.20.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 5
+requests_ratio_total{method=\"GET\",otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 10
+requests_ratio_total{method=\"POST\",otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 5
 # HELP otel_scope_info Instrumentation Scope metadata
 # TYPE otel_scope_info gauge
-otel_scope_info{otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_schema_url=\"https://opentelemetry.io/schemas/1.20.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 1
+otel_scope_info{otel_scope_name=\"minimal-example\",otel_scope_version=\"1.0.0\",otel_scope_deployment.environment=\"test\",otel_scope_service.instance.id=\"instance-123\"} 1
 # HELP target_info Target metadata
 # TYPE target_info gauge
 target_info{service_name=\"unknown_service\",telemetry_sdk_language=\"rust\",telemetry_sdk_name=\"opentelemetry\",telemetry_sdk_version=\"0.29.0\"} 1
