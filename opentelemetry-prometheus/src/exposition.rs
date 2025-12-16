@@ -166,15 +166,27 @@ fn format_value(v: f64) -> String {
 pub(crate) fn otel_kv_to_labels<'a>(
     kvs: impl Iterator<Item = (&'a Key, &'a Value)>,
 ) -> Vec<(String, String)> {
-    // Use BTreeMap to sort keys and handle duplicates
-    let mut map = BTreeMap::<String, Vec<String>>::new();
+    // Use BTreeMap to sort keys and collect values
+    // First collect with original keys to detect exact duplicates
+    let mut seen_exact = std::collections::HashMap::<String, String>::new();
+    let mut sanitized_map = BTreeMap::<String, Vec<String>>::new();
 
     for (key, value) in kvs {
-        let key = crate::utils::sanitize_prom_kv(key.as_str());
-        map.entry(key).or_default().push(value.to_string());
+        let key_str = key.as_str();
+        let value_str = value.to_string();
+        
+        // If this exact key was seen before, skip it (keep first value)
+        if seen_exact.contains_key(key_str) {
+            continue;
+        }
+        seen_exact.insert(key_str.to_string(), value_str.clone());
+        
+        // Add to sanitized map (different keys may sanitize to same key)
+        let sanitized_key = crate::utils::sanitize_prom_kv(key_str);
+        sanitized_map.entry(sanitized_key).or_default().push(value_str);
     }
 
-    map.into_iter()
+    sanitized_map.into_iter()
         .map(|(key, mut values)| {
             values.sort_unstable();
             (key, values.join(";"))

@@ -56,7 +56,6 @@ const BYTES_BOUNDARIES: &[f64] = &[
     10000.0,
 ];
 
-#[ignore = "https://github.com/open-telemetry/opentelemetry-rust/pull/2224"]
 #[test]
 fn prometheus_exporter_integration() {
     struct TestCase {

@@ -79,18 +79,16 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-use once_cell::sync::Lazy;
 use opentelemetry_sdk::{
+    Resource,
     error::OTelSdkResult,
     metrics::{
+        InstrumentKind, ManualReader, MetricResult, Pipeline, Temporality,
         data::{self, ResourceMetrics},
         reader::MetricReader,
-        InstrumentKind, ManualReader, MetricResult, Pipeline, Temporality,
     },
-    Resource,
 };
 use std::{
-    any::TypeId,
     collections::BTreeMap,
     fmt,
     sync::{Arc, Weak},
@@ -353,15 +351,27 @@ impl PrometheusExporter {
 
     fn metric_type_and_name(&self, m: &data::Metric) -> Option<(&'static str, String)> {
         let mut name = self.get_name(m);
-
         let data = m.data.as_any();
-        let type_id = data.type_id();
 
-        if HISTOGRAM_TYPES.contains(&type_id) {
+        // Check if it's a histogram type
+        if data.is::<data::Histogram<i64>>()
+            || data.is::<data::Histogram<u64>>()
+            || data.is::<data::Histogram<f64>>()
+        {
             Some(("histogram", name))
-        } else if GAUGE_TYPES.contains(&type_id) {
+        }
+        // Check if it's a gauge type
+        else if data.is::<data::Gauge<i64>>()
+            || data.is::<data::Gauge<u64>>()
+            || data.is::<data::Gauge<f64>>()
+        {
             Some(("gauge", name))
-        } else if SUM_TYPES.contains(&type_id) {
+        }
+        // Check if it's a sum type
+        else if data.is::<data::Sum<i64>>()
+            || data.is::<data::Sum<u64>>()
+            || data.is::<data::Sum<f64>>()
+        {
             let is_monotonic = Self::is_sum_monotonic(data);
 
             if is_monotonic {
@@ -417,30 +427,6 @@ impl MetricReader for PrometheusExporter {
     }
 }
 
-// TODO: Remove lazy and switch to pattern matching once `TypeId` is stable in
-// const context: https://github.com/rust-lang/rust/issues/77125
-static HISTOGRAM_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
-    [
-        TypeId::of::<data::Histogram<i64>>(),
-        TypeId::of::<data::Histogram<u64>>(),
-        TypeId::of::<data::Histogram<f64>>(),
-    ]
-});
-static SUM_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
-    [
-        TypeId::of::<data::Sum<i64>>(),
-        TypeId::of::<data::Sum<u64>>(),
-        TypeId::of::<data::Sum<f64>>(),
-    ]
-});
-static GAUGE_TYPES: Lazy<[TypeId; 3]> = Lazy::new(|| {
-    [
-        TypeId::of::<data::Gauge<i64>>(),
-        TypeId::of::<data::Gauge<u64>>(),
-        TypeId::of::<data::Gauge<f64>>(),
-    ]
-});
-
 /// Helper function to try downcasting and encoding a metric type.
 /// Returns true if the downcast succeeded and the function was called.
 fn try_encode_as<T: 'static>(data: &dyn std::any::Any, f: impl FnOnce(&T)) -> bool {
@@ -467,12 +453,18 @@ fn encode_histogram<T: Numeric>(
     name: &str,
     extra_labels: &[(String, String)],
 ) {
-    for dp in &histogram.data_points {
+    // Collect and sort histogram data points for stable output
+    let mut histograms: Vec<_> = histogram.data_points.iter().map(|dp| {
         let labels = PrometheusExporter::build_data_point_labels(
             dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
             extra_labels,
         );
-
+        (labels, dp)
+    }).collect();
+    
+    histograms.sort_by(|a, b| a.0.cmp(&b.0));
+    
+    for (labels, dp) in histograms {
         // Encode buckets
         let mut cumulative_count = 0u64;
         for (i, bound) in dp.bounds.iter().enumerate() {
@@ -497,13 +489,19 @@ fn encode_sum<T: Numeric>(
     name: &str,
     extra_labels: &[(String, String)],
 ) {
-    for dp in &sum.data_points {
+    // Collect and sort data points for stable output
+    let mut samples: Vec<_> = sum.data_points.iter().map(|dp| {
         let labels = PrometheusExporter::build_data_point_labels(
             dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
             extra_labels,
         );
-
-        encoder.encode_sample(name, &labels, dp.value.as_f64());
+        (labels, dp.value.as_f64())
+    }).collect();
+    
+    samples.sort_by(|a, b| a.0.cmp(&b.0));
+    
+    for (labels, value) in samples {
+        encoder.encode_sample(name, &labels, value);
     }
 }
 
@@ -514,13 +512,19 @@ fn encode_gauge<T: Numeric>(
     name: &str,
     extra_labels: &[(String, String)],
 ) {
-    for dp in &gauge.data_points {
+    // Collect and sort data points for stable output
+    let mut samples: Vec<_> = gauge.data_points.iter().map(|dp| {
         let labels = PrometheusExporter::build_data_point_labels(
             dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
             extra_labels,
         );
-
-        encoder.encode_sample(name, &labels, dp.value.as_f64());
+        (labels, dp.value.as_f64())
+    }).collect();
+    
+    samples.sort_by(|a, b| a.0.cmp(&b.0));
+    
+    for (labels, value) in samples {
+        encoder.encode_sample(name, &labels, value);
     }
 }
 
