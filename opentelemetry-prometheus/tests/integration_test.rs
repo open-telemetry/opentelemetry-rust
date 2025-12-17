@@ -110,6 +110,35 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
+            name: "counter without scope attributes",
+            expected_file: "counter_no_scope_attrs.txt",
+            builder: ExporterBuilder::default().without_scope_attributes(),
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![
+                    KeyValue::new("A", "B"),
+                    KeyValue::new("C", "D"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
+                ];
+                let counter = meter
+                    .f64_counter("foo")
+                    .with_description("a simple counter")
+                    .with_unit("ms")
+                    .build();
+                counter.add(5.0, &attrs);
+                counter.add(10.3, &attrs);
+                counter.add(9.0, &attrs);
+                let attrs2 = vec![
+                    KeyValue::new("A", "D"),
+                    KeyValue::new("C", "B"),
+                    KeyValue::new("E", true),
+                    KeyValue::new("F", 42),
+                ];
+                counter.add(5.0, &attrs2);
+            }),
+            ..Default::default()
+        },
+        TestCase {
             name: "counter with suffixes disabled",
             expected_file: "counter_disabled_suffix.txt",
             builder: ExporterBuilder::default().without_counter_suffixes(),
@@ -154,8 +183,43 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
+            name: "gauge without scope attributes",
+            expected_file: "gauge_no_scope_attrs.txt",
+            builder: ExporterBuilder::default().without_scope_attributes(),
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+                let gauge = meter
+                    .f64_up_down_counter("bar")
+                    .with_description("a fun little gauge")
+                    .with_unit("1")
+                    .build();
+                gauge.add(1.0, &attrs);
+                gauge.add(-0.25, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
             name: "histogram",
             expected_file: "histogram.txt",
+            record_metrics: Box::new(|meter| {
+                let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
+                let histogram = meter
+                    .f64_histogram("histogram_baz")
+                    .with_description("a very nice histogram")
+                    .with_unit("By")
+                    .with_boundaries(BOUNDARIES.to_vec())
+                    .build();
+                histogram.record(23.0, &attrs);
+                histogram.record(7.0, &attrs);
+                histogram.record(101.0, &attrs);
+                histogram.record(105.0, &attrs);
+            }),
+            ..Default::default()
+        },
+        TestCase {
+            name: "histogram without scope attributes",
+            expected_file: "histogram_no_scope_attrs.txt",
+            builder: ExporterBuilder::default().without_scope_attributes(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let histogram = meter

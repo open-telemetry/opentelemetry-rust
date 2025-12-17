@@ -12,6 +12,7 @@ pub struct ExporterBuilder {
     without_counter_suffixes: bool,
     namespace: Option<String>,
     disable_scope_info: bool,
+    disable_scope_attributes: bool,
     reader: ManualReaderBuilder,
     resource_selector: ResourceSelector,
 }
@@ -24,6 +25,7 @@ impl fmt::Debug for ExporterBuilder {
             .field("without_counter_suffixes", &self.without_counter_suffixes)
             .field("namespace", &self.namespace)
             .field("disable_scope_info", &self.disable_scope_info)
+            .field("disable_scope_attributes", &self.disable_scope_attributes)
             .finish()
     }
 }
@@ -73,6 +75,15 @@ impl ExporterBuilder {
         self
     }
 
+    /// Configures the exporter to not add scope attributes as labels to metric points.
+    ///
+    /// This provides compatibility with the old behavior before scope attributes were added.
+    /// The `otel_scope_info` metric will still be exported unless `without_scope_info` is also called.
+    pub fn without_scope_attributes(mut self) -> Self {
+        self.disable_scope_attributes = true;
+        self
+    }
+
     /// Configures the exporter to prefix metrics with the given namespace.
     ///
     /// Metrics such as `target_info` and `otel_scope_info` are not prefixed since
@@ -112,6 +123,7 @@ impl ExporterBuilder {
             without_units: self.without_units,
             without_counter_suffixes: self.without_counter_suffixes,
             disable_scope_info: self.disable_scope_info,
+            disable_scope_attributes: self.disable_scope_attributes,
             namespace: self.namespace,
             resource_selector: self.resource_selector,
         });

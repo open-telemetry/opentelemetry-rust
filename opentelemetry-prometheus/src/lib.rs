@@ -137,6 +137,7 @@ struct ExporterConfig {
     without_units: bool,
     without_counter_suffixes: bool,
     disable_scope_info: bool,
+    disable_scope_attributes: bool,
     namespace: Option<String>,
     resource_selector: ResourceSelector,
 }
@@ -231,9 +232,11 @@ impl PrometheusExporter {
                     scope_info_labels.push(Self::build_scope_labels(&scope_metrics.scope));
                 }
 
-                // Add scope labels to all metrics
-                scope_labels = Self::build_scope_labels(&scope_metrics.scope);
-                scope_labels.extend(resource_labels.iter().cloned());
+                // Add scope labels to all metrics (unless disabled for compatibility)
+                if !self.config.disable_scope_attributes {
+                    scope_labels = Self::build_scope_labels(&scope_metrics.scope);
+                    scope_labels.extend(resource_labels.iter().cloned());
+                }
             }
 
             // Collect metrics grouped by name
