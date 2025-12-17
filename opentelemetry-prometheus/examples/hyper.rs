@@ -1,16 +1,16 @@
 use http_body_util::Full;
 use hyper::{
+    Method, Request, Response,
     body::{Bytes, Incoming},
     header::CONTENT_TYPE,
     service::service_fn,
-    Method, Request, Response,
 };
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use once_cell::sync::Lazy;
 use opentelemetry::time::now;
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
+    metrics::{Counter, Histogram, MeterProvider as _},
 };
 use opentelemetry_prometheus::PrometheusExporter;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
@@ -31,11 +31,7 @@ async fn serve_req(
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
-            // Export metrics in Prometheus exposition format
-            let exported = state.exporter.export().unwrap_or_else(|e| {
-                eprintln!("Failed to export metrics: {}", e);
-                String::from("# Error exporting metrics\n")
-            });
+            let exported = state.exporter.export().unwrap();
             let buffer = exported.into_bytes();
 
             state
@@ -44,6 +40,7 @@ async fn serve_req(
 
             Response::builder()
                 .status(200)
+                // See https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format
                 .header(CONTENT_TYPE, "text/plain; version=0.0.4")
                 .body(Full::new(Bytes::from(buffer)))
                 .unwrap()

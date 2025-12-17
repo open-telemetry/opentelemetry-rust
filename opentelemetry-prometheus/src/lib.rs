@@ -137,7 +137,6 @@ struct ExporterConfig {
     without_units: bool,
     without_counter_suffixes: bool,
     disable_scope_info: bool,
-    disable_scope_attributes: bool,
     namespace: Option<String>,
     resource_selector: ResourceSelector,
 }
@@ -233,10 +232,8 @@ impl PrometheusExporter {
                 }
 
                 // Add scope labels to all metrics (unless disabled for compatibility)
-                if !self.config.disable_scope_attributes {
-                    scope_labels = Self::build_scope_labels(&scope_metrics.scope);
-                    scope_labels.extend(resource_labels.iter().cloned());
-                }
+                scope_labels = Self::build_scope_labels(&scope_metrics.scope);
+                scope_labels.extend(resource_labels.iter().cloned());
             }
 
             // Collect metrics grouped by name
@@ -457,16 +454,20 @@ fn encode_histogram<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     // Collect and sort histogram data points for stable output
-    let mut histograms: Vec<_> = histogram.data_points.iter().map(|dp| {
-        let labels = PrometheusExporter::build_data_point_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
-            extra_labels,
-        );
-        (labels, dp)
-    }).collect();
-    
+    let mut histograms: Vec<_> = histogram
+        .data_points
+        .iter()
+        .map(|dp| {
+            let labels = PrometheusExporter::build_data_point_labels(
+                dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+                extra_labels,
+            );
+            (labels, dp)
+        })
+        .collect();
+
     histograms.sort_by(|a, b| a.0.cmp(&b.0));
-    
+
     for (labels, dp) in histograms {
         // Encode buckets
         let mut cumulative_count = 0u64;
@@ -493,16 +494,20 @@ fn encode_sum<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     // Collect and sort data points for stable output
-    let mut samples: Vec<_> = sum.data_points.iter().map(|dp| {
-        let labels = PrometheusExporter::build_data_point_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
-            extra_labels,
-        );
-        (labels, dp.value.as_f64())
-    }).collect();
-    
+    let mut samples: Vec<_> = sum
+        .data_points
+        .iter()
+        .map(|dp| {
+            let labels = PrometheusExporter::build_data_point_labels(
+                dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+                extra_labels,
+            );
+            (labels, dp.value.as_f64())
+        })
+        .collect();
+
     samples.sort_by(|a, b| a.0.cmp(&b.0));
-    
+
     for (labels, value) in samples {
         encoder.encode_sample(name, &labels, value);
     }
@@ -516,16 +521,20 @@ fn encode_gauge<T: Numeric>(
     extra_labels: &[(String, String)],
 ) {
     // Collect and sort data points for stable output
-    let mut samples: Vec<_> = gauge.data_points.iter().map(|dp| {
-        let labels = PrometheusExporter::build_data_point_labels(
-            dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
-            extra_labels,
-        );
-        (labels, dp.value.as_f64())
-    }).collect();
-    
+    let mut samples: Vec<_> = gauge
+        .data_points
+        .iter()
+        .map(|dp| {
+            let labels = PrometheusExporter::build_data_point_labels(
+                dp.attributes.iter().map(|kv| (&kv.key, &kv.value)),
+                extra_labels,
+            );
+            (labels, dp.value.as_f64())
+        })
+        .collect();
+
     samples.sort_by(|a, b| a.0.cmp(&b.0));
-    
+
     for (labels, value) in samples {
         encoder.encode_sample(name, &labels, value);
     }

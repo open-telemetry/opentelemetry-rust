@@ -2,12 +2,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::KeyValue;
+use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::{InstrumentationScope, Key};
 use opentelemetry_prometheus::{ExporterBuilder, PrometheusExporter, ResourceSelector};
-use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 
 // Helper function to create a test resource with standard attributes
@@ -110,9 +110,9 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
-            name: "counter without scope attributes",
-            expected_file: "counter_no_scope_attrs.txt",
-            builder: ExporterBuilder::default().without_scope_attributes(),
+            name: "counter without scope info",
+            expected_file: "counter_no_scope_info.txt",
+            builder: ExporterBuilder::default().without_scope_info(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![
                     KeyValue::new("A", "B"),
@@ -183,9 +183,9 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
-            name: "gauge without scope attributes",
-            expected_file: "gauge_no_scope_attrs.txt",
-            builder: ExporterBuilder::default().without_scope_attributes(),
+            name: "gauge without scope info",
+            expected_file: "gauge_no_scope_info.txt",
+            builder: ExporterBuilder::default().without_scope_info(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let gauge = meter
@@ -217,9 +217,9 @@ fn prometheus_exporter_integration() {
             ..Default::default()
         },
         TestCase {
-            name: "histogram without scope attributes",
-            expected_file: "histogram_no_scope_attrs.txt",
-            builder: ExporterBuilder::default().without_scope_attributes(),
+            name: "histogram without scope info",
+            expected_file: "histogram_no_scope_info.txt",
+            builder: ExporterBuilder::default().without_scope_info(),
             record_metrics: Box::new(|meter| {
                 let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
                 let histogram = meter
@@ -852,10 +852,10 @@ fn gather_and_compare_multi(
 #[test]
 fn test_comprehensive_spec_compliance() {
     use opentelemetry::{
-        metrics::{Counter, Histogram, MeterProvider as _, UpDownCounter},
         InstrumentationScope, KeyValue,
+        metrics::{Counter, Histogram, MeterProvider as _, UpDownCounter},
     };
-    use opentelemetry_sdk::{metrics::SdkMeterProvider, Resource};
+    use opentelemetry_sdk::{Resource, metrics::SdkMeterProvider};
 
     // Create resource with custom attributes per spec
     let resource = Resource::builder()
