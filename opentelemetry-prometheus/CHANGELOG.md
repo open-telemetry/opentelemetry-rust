@@ -4,10 +4,10 @@
 
 ## 0.30.0
 
-- Remove `prometheus` dependency
-- Implement `otel_scope_info` as specified
+- Remove `prometheus` dependency, do not use Prometheus Registry.
+- Implement `otel_scope_info` attributes specified
   [OpenTelelemetry Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/compatibility/prometheus_and_openmetrics.md),
-  controlled by `with_scope_info()`.
+  controlled by (existing) `without_scope_info()` feature.
 
 ## 0.29.1
 
