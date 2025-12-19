@@ -327,7 +327,8 @@ where
             if let Some(span) = ctx.event_span(event) {
                 let extensions = span.extensions();
                 if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
-                    // Add span attributes first (event attributes will overwrite on conflict). TODO: Consider conflict resolution strategies.
+                    // Add span attributes before event attributes.
+                    // TODO: Consider conflict resolution strategies.
                     for (key, value) in stored.attributes.iter() {
                         log_record.add_attribute(Key::new(key.clone()), value.clone());
                     }
