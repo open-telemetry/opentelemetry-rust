@@ -50,7 +50,7 @@ impl SpanExporter for TokioSpanExporter {
         })
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.tx_shutdown.send(()).map_err(|_| {
             OTelSdkError::InternalFailure("Failed to send shutdown signal".to_string())
         })
