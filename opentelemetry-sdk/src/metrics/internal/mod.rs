@@ -6,6 +6,7 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
@@ -80,7 +81,9 @@ where
 {
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + DEFAULT_CARDINALITY_LIMIT)),
+            trackers: RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
+            )),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
@@ -92,8 +95,11 @@ where
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
-        self.trackers_for_collect
-            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + DEFAULT_CARDINALITY_LIMIT)))
+        self.trackers_for_collect.get_or_init(|| {
+            RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
+            ))
+        })
     }
 
     /// Checks whether aggregator has hit cardinality limit for metric streams
