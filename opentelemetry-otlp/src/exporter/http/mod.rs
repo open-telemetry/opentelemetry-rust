@@ -212,22 +212,14 @@ impl HttpExporterBuilder {
         #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
         let mut http_client = self.http_config.client.take();
 
+        // When multiple HTTP client features are enabled, we use a priority order
+        // to select the client. This follows Rust's feature unification principle
+        // where features should be additive. Priority (highest to lowest):
+        // 1. reqwest-client (async)
+        // 2. hyper-client
+        // 3. reqwest-blocking-client (default)
         if http_client.is_none() {
-            #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "hyper-client"
-            ))]
-            {
-                // TODO - support configuring custom connector and executor
-                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
-                    as Arc<dyn HttpClient>);
-            }
-            #[cfg(all(
-                not(feature = "hyper-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "reqwest-client"
-            ))]
+            #[cfg(feature = "reqwest-client")]
             {
                 http_client = Some(Arc::new(
                     reqwest::Client::builder()
@@ -236,9 +228,15 @@ impl HttpExporterBuilder {
                         .unwrap_or_default(),
                 ) as Arc<dyn HttpClient>);
             }
+            #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
+            {
+                // TODO - support configuring custom connector and executor
+                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
+                    as Arc<dyn HttpClient>);
+            }
             #[cfg(all(
-                not(feature = "hyper-client"),
                 not(feature = "reqwest-client"),
+                not(feature = "hyper-client"),
                 feature = "reqwest-blocking-client"
             ))]
             {
