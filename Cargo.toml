@@ -74,7 +74,7 @@ opentelemetry-proto = { path = "opentelemetry-proto", version= "0.31", default-f
 opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.31", default-features = false }
 opentelemetry-stdout = { path = "opentelemetry-stdout", version = "0.31", default-features = false }
 percent-encoding = "2.0"
-rstest = "0.23.0"
+rstest = "0.26.1"
 schemars = "0.8"
 sysinfo = "0.32"
 tempfile = "3.3.0"
