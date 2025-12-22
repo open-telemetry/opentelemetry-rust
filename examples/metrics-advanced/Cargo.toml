@@ -14,6 +14,6 @@ bench = false
 
 [dependencies]
 opentelemetry = { workspace = true, features = ["metrics"] }
-opentelemetry_sdk = { workspace = true }
+opentelemetry_sdk = { workspace = true, features = ["spec_unstable_metrics_views"] }
 opentelemetry-stdout = { workspace = true, features = ["metrics"] }
 tokio = { workspace = true, features = ["full"] }
