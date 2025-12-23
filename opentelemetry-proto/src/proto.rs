@@ -8,7 +8,6 @@ pub(crate) mod serializers {
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use core::f64;
     use std::fmt;
 
     // hex string <-> bytes conversion
@@ -179,9 +178,7 @@ pub(crate) mod serializers {
     where
         S: Serializer,
     {
-        let s = value.iter()
-            .map(|v| v.to_string())
-            .collect::<Vec<_>>();
+        let s = value.iter().map(|v| v.to_string()).collect::<Vec<_>>();
         let mut sq = serializer.serialize_seq(Some(s.len()))?;
         for v in value {
             sq.serialize_element(&v.to_string())?;
@@ -214,14 +211,14 @@ pub(crate) mod serializers {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<i64>().map_err(de::Error::custom)
     }
-    pub fn serialize_vec_u64_to_strings<S>(vec: &Vec<u64>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize_vec_u64_to_strings<S>(vec: &[u64], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         let str_vec: Vec<String> = vec.iter().map(|&num| num.to_string()).collect();
         serializer.collect_seq(str_vec)
     }
-    
+
     pub fn deserialize_strings_to_vec_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
     where
         D: Deserializer<'de>,
@@ -233,70 +230,76 @@ pub(crate) mod serializers {
             .collect()
     }
 
-
-// Special serializer and deserializer for NaN, Infinity, and -Infinity
-pub fn serialize_f64_special<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if value.is_nan() {
-        serializer.serialize_str("NaN")
-    } else if value.is_infinite() {
-        if value.is_sign_positive() {
-            serializer.serialize_str("Infinity")
+    // Special serializer and deserializer for NaN, Infinity, and -Infinity
+    pub fn serialize_f64_special<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if value.is_nan() {
+            serializer.serialize_str("NaN")
+        } else if value.is_infinite() {
+            if value.is_sign_positive() {
+                serializer.serialize_str("Infinity")
+            } else {
+                serializer.serialize_str("-Infinity")
+            }
         } else {
-            serializer.serialize_str("-Infinity")
+            serializer.serialize_f64(*value)
         }
-    } else {
-        serializer.serialize_f64(*value)
     }
-}
 
-pub fn deserialize_f64_special<'de, D>(deserializer: D) -> Result<f64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct F64Visitor;
+    pub fn deserialize_f64_special<'de, D>(deserializer: D) -> Result<f64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct F64Visitor;
 
-    impl<'de> de::Visitor<'de> for F64Visitor {
-        type Value = f64;
+        impl<'de> de::Visitor<'de> for F64Visitor {
+            type Value = f64;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
-        }
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
+            }
 
-        fn visit_f64<E>(self, value: f64) -> Result<f64, E>
-        where
-            E: de::Error,
-        {
-            Ok(value)
-        }
+            fn visit_f64<E>(self, value: f64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
 
-        fn visit_u64<E>(self, value: u64) -> Result<f64, E>
-        where
-            E: de::Error,
-        {
-            Ok(value as f64)
-        }
+            fn visit_u64<E>(self, value: u64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value as f64)
+            }
 
-        fn visit_str<E>(self, value: &str) -> Result<f64, E>
-        where
-            E: de::Error,
-        {
-            match value {
-                "NaN" => Ok(f64::NAN),
-                "Infinity" => Ok(f64::INFINITY),
-                "-Infinity" => Ok(f64::NEG_INFINITY),
-                _ => Err(E::custom(format!(
-                    "Invalid string for f64: expected NaN, Infinity, or -Infinity but got '{}'",
-                    value
-                ))),
+            fn visit_i64<E>(self, value: i64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value as f64)
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "NaN" => Ok(f64::NAN),
+                    "Infinity" => Ok(f64::INFINITY),
+                    "-Infinity" => Ok(f64::NEG_INFINITY),
+                    _ => Err(E::custom(format!(
+                        "Invalid string for f64: expected NaN, Infinity, or -Infinity but got '{}'",
+                        value
+                    ))),
+                }
             }
         }
-    }
 
-    deserializer.deserialize_any(F64Visitor)
-   }
+        deserializer.deserialize_any(F64Visitor)
+    }
 }
 
 #[cfg(feature = "gen-tonic-messages")]
