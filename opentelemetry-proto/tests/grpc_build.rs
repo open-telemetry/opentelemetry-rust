@@ -97,7 +97,7 @@ fn build_tonic() {
     }
 
     // special serializer and deserializer for timestamp
-    // OTLP/JSON format may uses string for timestamp
+    // OTLP/JSON format may use string for timestamp
     // the proto file uses u64 for timestamp
     // Thus, special serializer and deserializer are needed
     for path in [
@@ -132,7 +132,7 @@ fn build_tonic() {
     }
 
     // special serializer and deserializer for metrics count
-    // OTLP/JSON format may uses string for count
+    // OTLP/JSON format may use string for count
     // the proto file uses u64 for count
     // Thus, special serializer and deserializer are needed
     for path in [
@@ -149,7 +149,7 @@ fn build_tonic() {
     }
 
     // special serializer and deserializer for metrics bucket counts
-    // OTLP/JSON format may uses string for bucket counts
+    // OTLP/JSON format may use string for bucket counts
     // the proto file uses u64 for bucket counts
     // Thus, special serializer and deserializer are needed
     for path in [
@@ -158,9 +158,9 @@ fn build_tonic() {
         "metrics.v1.ExponentialHistogramDataPoint.negative.bucket_counts",
     ] {
         builder = builder.field_attribute(
-        path,
-        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_strings\", deserialize_with = \"crate::proto::serializers::deserialize_strings_to_vec_u64\"))]",
-    );
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_strings\", deserialize_with = \"crate::proto::serializers::deserialize_strings_to_vec_u64\"))]",
+        );
     }
 
     // Special handling for floating-point fields that might contain NaN, Infinity, or -Infinity
@@ -171,9 +171,9 @@ fn build_tonic() {
         "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
     ] {
         builder = builder.field_attribute(
-        path,
-        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
-    );
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
+        );
     }
 
     // special serializer and deserializer for value
