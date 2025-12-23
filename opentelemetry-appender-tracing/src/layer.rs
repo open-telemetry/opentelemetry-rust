@@ -186,7 +186,7 @@ use std::sync::Arc;
 /// Visitor to extract fields from a tracing span
 #[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor {
-    fields: HashMap<String, AnyValue>,
+    fields: HashMap<Key, AnyValue>,
 }
 
 #[cfg(feature = "experimental_span_attributes")]
@@ -202,21 +202,21 @@ impl SpanFieldVisitor {
 impl tracing::field::Visit for SpanFieldVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         self.fields.insert(
-            field.name().to_string(),
+            Key::from(field.name()),
             AnyValue::String(format!("{value:?}").into()),
         );
     }
 
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
         self.fields.insert(
-            field.name().to_string(),
+            Key::from(field.name()),
             AnyValue::String(value.to_owned().into()),
         );
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
         self.fields
-            .insert(field.name().to_string(), AnyValue::Int(value));
+            .insert(Key::from(field.name()), AnyValue::Int(value));
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
@@ -225,17 +225,17 @@ impl tracing::field::Visit for SpanFieldVisitor {
         } else {
             AnyValue::String(format!("{value}").into())
         };
-        self.fields.insert(field.name().to_string(), any_value);
+        self.fields.insert(Key::from(field.name()), any_value);
     }
 
     fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
         self.fields
-            .insert(field.name().to_string(), AnyValue::Boolean(value));
+            .insert(Key::from(field.name()), AnyValue::Boolean(value));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
         self.fields
-            .insert(field.name().to_string(), AnyValue::Double(value));
+            .insert(Key::from(field.name()), AnyValue::Double(value));
     }
 
     fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
@@ -244,7 +244,7 @@ impl tracing::field::Visit for SpanFieldVisitor {
         } else {
             AnyValue::String(format!("{value}").into())
         };
-        self.fields.insert(field.name().to_string(), any_value);
+        self.fields.insert(Key::from(field.name()), any_value);
     }
 
     fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
@@ -253,7 +253,7 @@ impl tracing::field::Visit for SpanFieldVisitor {
         } else {
             AnyValue::String(format!("{value}").into())
         };
-        self.fields.insert(field.name().to_string(), any_value);
+        self.fields.insert(Key::from(field.name()), any_value);
     }
 }
 
@@ -261,7 +261,7 @@ impl tracing::field::Visit for SpanFieldVisitor {
 #[cfg(feature = "experimental_span_attributes")]
 #[derive(Debug, Clone)]
 struct StoredSpanAttributes {
-    attributes: Arc<HashMap<String, AnyValue>>,
+    attributes: Arc<HashMap<Key, AnyValue>>,
 }
 
 pub struct OpenTelemetryTracingBridge<P, L>
@@ -330,7 +330,7 @@ where
                     // Add span attributes before event attributes.
                     // TODO: Consider conflict resolution strategies.
                     for (key, value) in stored.attributes.iter() {
-                        log_record.add_attribute(Key::new(key.clone()), value.clone());
+                        log_record.add_attribute(key.clone(), value.clone());
                     }
                 }
             }
