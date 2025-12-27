@@ -175,10 +175,13 @@ mod span_context;
 mod tracer;
 mod tracer_provider;
 
+#[allow(deprecated)]
+pub use crate::context::FutureExt;
+pub use crate::context::{WithContext, FutureContextExt, StreamContextExt, SinkContextExt};
+
 pub use self::{
     context::{
-        get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
-        FutureContextExt, StreamContextExt, SinkContextExt
+        get_active_span, mark_span_as_active, SpanRef, TraceContextExt,
     },
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},

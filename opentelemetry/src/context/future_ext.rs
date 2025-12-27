@@ -5,6 +5,7 @@ use pin_project_lite::pin_project;
 use std::pin::Pin;
 use std::task::Context as TaskContext;
 use std::task::Poll;
+#[allow(deprecated)]
 impl<T: Sized> FutureExt for T {}
 
 impl<T: std::future::Future> std::future::Future for WithContext<T> {
@@ -104,6 +105,7 @@ pub trait FutureExt: Sized {
     ///
     /// [`Context`]: Context
     #[deprecated = "Overly general extension trait impl, use FutureContextExt, StreamContextExt, or SinkContextExt instead"]
+    #[allow(deprecated)]
     fn with_current_context(self) -> WithContext<Self> {
         let otel_cx = Context::current();
         self.with_context(otel_cx)
