@@ -6,7 +6,7 @@ use opentelemetry::{
     global::{self, BoxedTracer},
     logs::LogRecord,
     propagation::TextMapCompositePropagator,
-    trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
+    trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer, SinkContextExt, StreamContextExt, FutureContextExt},
     Context, InstrumentationScope, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;

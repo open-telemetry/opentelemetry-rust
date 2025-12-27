@@ -73,7 +73,7 @@ use std::time::SystemTime;
 /// ## In Asynchronous Code
 ///
 /// If you are instrumenting code that make use of [`std::future::Future`] or
-/// async/await, be sure to use the [`FutureExt`] trait. This is needed because
+/// async/await, be sure to use the [`FutureContextExt`] trait. This is needed because
 /// the following example _will not_ work:
 ///
 /// ```no_run
@@ -98,7 +98,7 @@ use std::time::SystemTime;
 ///
 /// ```
 /// # async fn run() -> Result<(), ()> {
-/// use opentelemetry::{trace::FutureExt, Context};
+/// use opentelemetry::{trace::FutureContextExt, Context};
 /// let cx = Context::current();
 ///
 /// let my_future = async {
@@ -115,8 +115,8 @@ use std::time::SystemTime;
 /// [`Future::with_context`] attaches a context to the future, ensuring that the
 /// context's lifetime is as long as the future's.
 ///
-/// [`FutureExt`]: crate::trace::FutureExt
-/// [`Future::with_context`]: crate::trace::FutureExt::with_context()
+/// [`FutureContextExt`]: crate::trace::FutureContextExt
+/// [`Future::with_context`]: crate::trace::FutureContextExt::with_context()
 /// [`Context`]: crate::Context
 pub trait Tracer {
     /// The [`Span`] type used by this tracer.
