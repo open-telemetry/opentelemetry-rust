@@ -24,7 +24,7 @@ use std::sync::Arc;
 mod future_ext;
 
 #[cfg(feature = "futures")]
-pub use future_ext::{FutureExt, WithContext};
+pub use future_ext::{FutureExt, WithContext, SinkContextExt, FutureContextExt, StreamContextExt};
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
@@ -886,6 +886,7 @@ mod tests {
                 .with_value(ValueB(24)); // Add new ValueB
 
             // Run nested async operation with both values
+            FutureContextExt::with_context(
             async {
                 // Verify both values are available
                 assert_eq!(
@@ -914,7 +915,7 @@ mod tests {
                     "New value should persist across await points"
                 );
             }
-            .with_context(cx_with_both)
+            , cx_with_both)
             .await;
         }
 
@@ -922,7 +923,7 @@ mod tests {
         let parent_cx = Context::new().with_value(ValueA(42));
 
         // Create and run async operation with the parent context explicitly propagated
-        nested_operation().with_context(parent_cx.clone()).await;
+        FutureContextExt::with_context(nested_operation(), parent_cx.clone()).await;
 
         // After async operation completes:
         // 1. Parent context should be unchanged
@@ -961,20 +962,20 @@ mod tests {
         async fn create_a_future() -> impl std::future::Future<Output = ()> {
             // Create a future that will do some work, referencing our current
             // context, but don't await it.
-            async {
+            FutureContextExt::with_context(async {
                 assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
 
                 // Longer work
                 sleep(Duration::from_millis(50)).await;
-            }
-            .with_context(Context::current())
+            },
+            Context::current())
         }
 
         // Create our base context
         let parent_cx = Context::new().with_value(ValueA(42));
 
         // await our nested function, which will create and detach a context
-        let future = create_a_future().with_context(parent_cx).await;
+        let future = FutureContextExt::with_context(create_a_future(), parent_cx).await;
 
         // Execute the future. The future that created it is long gone, but this shouldn't
         // cause issues.
@@ -1099,7 +1100,7 @@ mod tests {
 
             let cx_with_additional_value = Context::current().with_value(ValueB(24));
 
-            async {
+            FutureContextExt::with_context(async {
                 assert_eq!(
                     Context::current().get::<ValueB>(),
                     Some(&ValueB(24)),
@@ -1117,8 +1118,8 @@ mod tests {
                     "Parent value should still be available after adding new value"
                 );
                 assert!(Context::is_current_telemetry_suppressed());
-            }
-            .with_context(cx_with_additional_value)
+            },
+            cx_with_additional_value)
             .await;
         }
 
@@ -1128,8 +1129,8 @@ mod tests {
         assert!(!Context::is_current_telemetry_suppressed());
 
         // Create and run async operation with the suppressed context explicitly propagated
-        nested_operation()
-            .with_context(suppressed_parent.clone())
+        FutureContextExt::with_context(nested_operation(),
+            suppressed_parent.clone())
             .await;
 
         // After async operation completes:

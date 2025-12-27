@@ -146,10 +146,10 @@
 //!
 //! #### Async active spans
 //!
-//! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
+//! Async spans can be propagated with [`TraceContextExt`] and [`FutureContextExt`].
 //!
 //! ```
-//! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
+//! use opentelemetry::{Context, global, trace::{FutureContextExt, TraceContextExt, Tracer}};
 //!
 //! async fn some_work() { }
 //! # async fn in_an_async_context() {
@@ -178,6 +178,7 @@ mod tracer_provider;
 pub use self::{
     context::{
         get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
+        FutureContextExt, StreamContextExt, SinkContextExt
     },
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},
