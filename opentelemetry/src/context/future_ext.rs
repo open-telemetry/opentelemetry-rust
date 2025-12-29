@@ -113,7 +113,7 @@ pub trait FutureExt: Sized {
 }
 
 // The following three extension traits are _almost_ identical,
-// but are 
+// but are
 
 impl<F: std::future::Future> FutureContextExt for F {}
 /// Extension trait allowing futures to be traced with a span.
@@ -173,7 +173,7 @@ pub trait StreamContextExt: Sized {
 
 impl<I, S: Sink<I>> SinkContextExt<I> for S {}
 /// Extension trait allowing sinks to be traced with a span.
-/// 
+///
 /// The generic argument is unused.
 pub trait SinkContextExt<_I>: Sized {
     /// Attaches the provided [`Context`] to this sink, returning a `WithContext`

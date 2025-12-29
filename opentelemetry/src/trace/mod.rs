@@ -177,12 +177,10 @@ mod tracer_provider;
 
 #[allow(deprecated)]
 pub use crate::context::FutureExt;
-pub use crate::context::{WithContext, FutureContextExt, StreamContextExt, SinkContextExt};
+pub use crate::context::{FutureContextExt, SinkContextExt, StreamContextExt, WithContext};
 
 pub use self::{
-    context::{
-        get_active_span, mark_span_as_active, SpanRef, TraceContextExt,
-    },
+    context::{get_active_span, mark_span_as_active, SpanRef, TraceContextExt},
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},
     tracer::{SpanBuilder, Tracer},

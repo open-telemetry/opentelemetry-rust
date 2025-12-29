@@ -31,7 +31,7 @@ mod future_ext;
 pub use future_ext::FutureExt;
 
 #[cfg(feature = "futures")]
-pub use future_ext::{WithContext, SinkContextExt, FutureContextExt, StreamContextExt};
+pub use future_ext::{FutureContextExt, SinkContextExt, StreamContextExt, WithContext};
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());

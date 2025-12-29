@@ -278,35 +278,36 @@ async fn test_async_context_propagation() {
 
         // Run nested async operation with both values
         FutureContextExt::with_context(
-        async {
-            // Verify both values are available
-            assert_eq!(
-                Context::current().get::<ValueA>(),
-                Some(&ValueA(43)),
-                "Parent value should still be available after adding new value"
-            );
-            assert_eq!(
-                Context::current().get::<ValueB>(),
-                Some(&ValueB(24)),
-                "New value should be available in async operation"
-            );
+            async {
+                // Verify both values are available
+                assert_eq!(
+                    Context::current().get::<ValueA>(),
+                    Some(&ValueA(43)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "New value should be available in async operation"
+                );
 
-            // Do some async work to simulate real-world scenario
-            sleep(Duration::from_millis(10)).await;
+                // Do some async work to simulate real-world scenario
+                sleep(Duration::from_millis(10)).await;
 
-            // Values should still be available after async work
-            assert_eq!(
-                Context::current().get::<ValueA>(),
-                Some(&ValueA(43)),
-                "Parent value should persist across await points"
-            );
-            assert_eq!(
-                Context::current().get::<ValueB>(),
-                Some(&ValueB(24)),
-                "New value should persist across await points"
-            );
-        }
-        , cx_with_both)
+                // Values should still be available after async work
+                assert_eq!(
+                    Context::current().get::<ValueA>(),
+                    Some(&ValueA(43)),
+                    "Parent value should persist across await points"
+                );
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "New value should persist across await points"
+                );
+            },
+            cx_with_both,
+        )
         .await;
     }
 
@@ -353,13 +354,15 @@ async fn test_out_of_order_context_detachment_futures() {
     async fn create_a_future() -> impl std::future::Future<Output = ()> {
         // Create a future that will do some work, referencing our current
         // context, but don't await it.
-        FutureContextExt::with_context(async {
-            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+        FutureContextExt::with_context(
+            async {
+                assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
 
-            // Longer work
-            sleep(Duration::from_millis(50)).await;
-        },
-        Context::current())
+                // Longer work
+                sleep(Duration::from_millis(50)).await;
+            },
+            Context::current(),
+        )
     }
 
     // Create our base context
@@ -491,26 +494,28 @@ async fn test_async_suppression() {
 
         let cx_with_additional_value = Context::current().with_value(ValueB(24));
 
-        FutureContextExt::with_context(async {
-            assert_eq!(
-                Context::current().get::<ValueB>(),
-                Some(&ValueB(24)),
-                "Parent value should still be available after adding new value"
-            );
-            assert!(Context::is_current_telemetry_suppressed());
+        FutureContextExt::with_context(
+            async {
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert!(Context::is_current_telemetry_suppressed());
 
-            // Do some async work to simulate real-world scenario
-            sleep(Duration::from_millis(10)).await;
+                // Do some async work to simulate real-world scenario
+                sleep(Duration::from_millis(10)).await;
 
-            // Values should still be available after async work
-            assert_eq!(
-                Context::current().get::<ValueB>(),
-                Some(&ValueB(24)),
-                "Parent value should still be available after adding new value"
-            );
-            assert!(Context::is_current_telemetry_suppressed());
-        },
-        cx_with_additional_value)
+                // Values should still be available after async work
+                assert_eq!(
+                    Context::current().get::<ValueB>(),
+                    Some(&ValueB(24)),
+                    "Parent value should still be available after adding new value"
+                );
+                assert!(Context::is_current_telemetry_suppressed());
+            },
+            cx_with_additional_value,
+        )
         .await;
     }
 
@@ -520,9 +525,7 @@ async fn test_async_suppression() {
     assert!(!Context::is_current_telemetry_suppressed());
 
     // Create and run async operation with the suppressed context explicitly propagated
-    FutureContextExt::with_context(nested_operation(),
-        suppressed_parent.clone())
-        .await;
+    FutureContextExt::with_context(nested_operation(), suppressed_parent.clone()).await;
 
     // After async operation completes:
     // Suppression should be active
