@@ -40,8 +40,6 @@ pin_project! {
 }
 
 impl<I, T: Sink<I>> Sink<I> for WithContext<T>
-where
-    T: Sink<I>, // why???
 {
     type Error = T::Error;
 
