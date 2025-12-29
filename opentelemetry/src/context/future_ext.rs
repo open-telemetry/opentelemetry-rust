@@ -39,8 +39,7 @@ pin_project! {
     }
 }
 
-impl<I, T: Sink<I>> Sink<I> for WithContext<T>
-{
+impl<I, T: Sink<I>> Sink<I> for WithContext<T> {
     type Error = T::Error;
 
     fn poll_ready(
