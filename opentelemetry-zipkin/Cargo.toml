@@ -21,7 +21,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["reqwest-blocking-client", "reqwest-rustls"]
+default = ["reqwest-blocking-client", "reqwest/native-tls"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]

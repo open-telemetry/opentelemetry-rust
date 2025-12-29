@@ -67,7 +67,7 @@ internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs
 # add ons
 serialize = ["serde", "serde_json"]
 
-default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs", "reqwest-rustls"]
+default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
 grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-proto/gen-tonic"]
