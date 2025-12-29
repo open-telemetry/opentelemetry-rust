@@ -11,7 +11,7 @@ rust-version = "1.75.0"
 autobenches = false
 
 [features]
-default = ["internal-logs"]
+default = ["internal-logs", "reqwest-rustls"]
 hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["dep:reqwest", "reqwest/blocking"]
