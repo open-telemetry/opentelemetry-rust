@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking change**: update dependency `schemars` of `opentelemetry_proto` from `0.8.*` to `1.*`.
+
 ## 0.31.0
 
 Released 2025-Sep-25
