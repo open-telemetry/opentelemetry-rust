@@ -2,7 +2,7 @@
 
 ## vNext
 
-- **Breaking change**: update dependency `schemars` of `opentelemetry_proto` from `0.8.*` to `1.*`.
+- Updated `schemars` dependency to version 1.0.0.
 
 ## 0.31.0
 
