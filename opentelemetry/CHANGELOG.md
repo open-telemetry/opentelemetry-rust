@@ -11,7 +11,7 @@
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 - **Breaking** `FutureExt` trait deprecated because it has an overly general blanket implementation.
-- **Added** traits replace `FutureExt` trait, with precise blanket implementations, which function identically:
+- **Added** traits to replace `FutureExt` trait, with precise blanket implementations, which function identically:
   - `FutureContextExt` for futures
   - `StreamContextExt` for streams
   - `SinkContextExt` for sinks

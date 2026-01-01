@@ -110,7 +110,7 @@ pub trait FutureExt: Sized {
 }
 
 // The following three extension traits are _almost_ identical,
-// but are
+// but need to be separate to avoid overlapping implemenetation errors.
 
 impl<F: std::future::Future> FutureContextExt for F {}
 /// Extension trait allowing futures to be traced with a span.
@@ -146,7 +146,7 @@ pub trait StreamContextExt: Sized {
     /// Attaches the provided [`Context`] to this stream, returning a `WithContext`
     /// wrapper.
     ///
-    /// The attached context will be set as current while this steam is being polled.
+    /// The attached context will be set as current while this stream is being polled.
     ///
     /// [`Context`]: Context
     fn with_context(self, otel_cx: Context) -> WithContext<Self> {
@@ -168,7 +168,7 @@ pub trait StreamContextExt: Sized {
     }
 }
 
-impl<I, S: Sink<I>> SinkContextExt<I> for S {}
+impl<_I, S: Sink<_I>> SinkContextExt<_I> for S {}
 /// Extension trait allowing sinks to be traced with a span.
 ///
 /// The generic argument is unused.
