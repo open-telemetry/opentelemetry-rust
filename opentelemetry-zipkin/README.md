@@ -32,7 +32,20 @@ of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
-## Quickstart
+### What does this crate contain?
+
+This crate provides a Zipkin exporter for OpenTelemetry trace data. It includes:
+
+- **Zipkin Exporter**: Export OpenTelemetry traces to Zipkin-compatible backends
+- **HTTP Transport**: Send trace data via HTTP/JSON to Zipkin endpoints
+- **Span Conversion**: Convert OpenTelemetry spans to Zipkin's data model while preserving trace relationships
+- **Batch Processing**: Efficient batching of spans for optimized network usage
+- **HTTP Client Flexibility**: Support for multiple HTTP client implementations (reqwest, surf, etc.)
+- **Async Support**: Full async/await compatibility for non-blocking telemetry export
+
+Note: This exporter only supports traces. For metrics and logs, use the OTLP exporter or other appropriate exporters.
+
+## Getting started
 
 First make sure you have a running version of the zipkin process you want to
 send data to:

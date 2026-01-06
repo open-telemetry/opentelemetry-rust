@@ -25,6 +25,10 @@ and visualization tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-semantic-conventions).
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-semantic-conventions/CHANGELOG.md).
