@@ -154,7 +154,7 @@ mod tests {
             .get(&Key::from_static_str(crate::resource::SERVICE_NAME))
             .map(|v| v.to_string())
             .unwrap();
-        
+
         assert!(
             service_name.starts_with("unknown_service:opentelemetry_sdk-"),
             "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
