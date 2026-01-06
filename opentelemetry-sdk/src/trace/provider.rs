@@ -606,10 +606,16 @@ mod tests {
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
             let default_config_provider = super::SdkTracerProvider::builder().build();
-            assert_resource(
-                &default_config_provider,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = default_config_provider
+                .config()
+                .resource
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&default_config_provider);
         });
@@ -631,10 +637,16 @@ mod tests {
             Some("key1=value1, k2, k3=value2"),
             || {
                 let env_resource_provider = super::SdkTracerProvider::builder().build();
-                assert_resource(
-                    &env_resource_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = env_resource_provider
+                    .config()
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
@@ -658,10 +670,16 @@ mod tests {
                             .build(),
                     )
                     .build();
-                assert_resource(
-                    &user_provided_resource_config_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = user_provided_resource_config_provider
+                    .config()
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &user_provided_resource_config_provider,
