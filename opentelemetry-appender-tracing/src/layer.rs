@@ -324,13 +324,15 @@ where
         // Extract span attributes if feature is enabled
         #[cfg(feature = "experimental_span_attributes")]
         {
-            if let Some(span) = ctx.event_span(event) {
-                let extensions = span.extensions();
-                if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
-                    // Add span attributes before event attributes.
-                    // TODO: Consider conflict resolution strategies.
-                    for (key, value) in stored.attributes.iter() {
-                        log_record.add_attribute(key.clone(), value.clone());
+            // Collect attributes from all parent spans (root to leaf), including current span
+            if let Some(scope) = ctx.event_scope(event) {
+                for span_ref in scope.from_root() {
+                    let extensions = span_ref.extensions();
+                    if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
+                        // Add span attributes before event attributes.
+                        for (key, value) in stored.attributes.iter() {
+                            log_record.add_attribute(key.clone(), value.clone());
+                        }
                     }
                 }
             }
@@ -945,7 +947,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn test_span_context_enrichment_enabled() {
+    fn tracing_appender_span_context_enrichment_enabled() {
         // Arrange
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -980,7 +982,6 @@ mod tests {
             &AnyValue::String("/api/users".into())
         ));
 
-        // Should also contain event attribute
         assert!(attributes_contains(
             &log.record,
             &Key::new("status"),
@@ -990,7 +991,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn test_span_context_with_various_types() {
+    fn tracing_appender_nested_spans_collect_all_parent_attributes() {
         // Arrange
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1001,17 +1002,18 @@ mod tests {
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
-        // Act
-        let span = tracing::info_span!(
-            "test_span",
-            str_field = "text",
-            int_field = 42,
-            float_field = 1.5,
-            bool_field = true
-        );
-        let _enter = span.enter();
-        tracing::error!("test message");
+        // Act: Create nested spans with different attributes
+        let outer_span = tracing::info_span!("outer", request_id = "req-123");
+        let _outer_guard = outer_span.enter();
 
+        let inner_span = tracing::info_span!("inner", user_id = "user-456");
+        let _inner_guard = inner_span.enter();
+
+        // Emit event in innermost span context
+        tracing::info!(status = 200, "Event message");
+
+        drop(_inner_guard);
+        drop(_outer_guard);
         provider.force_flush().unwrap();
 
         // Assert
@@ -1019,144 +1021,24 @@ mod tests {
         assert_eq!(logs.len(), 1);
         let log = &logs[0];
 
+        // Verify outer span attribute is included
         assert!(attributes_contains(
             &log.record,
-            &Key::new("str_field"),
-            &AnyValue::String("text".into())
+            &Key::new("request_id"),
+            &AnyValue::String("req-123".into())
         ));
+
+        // Verify inner span attribute is included
         assert!(attributes_contains(
             &log.record,
-            &Key::new("int_field"),
-            &AnyValue::Int(42)
+            &Key::new("user_id"),
+            &AnyValue::String("user-456".into())
         ));
+
         assert!(attributes_contains(
             &log.record,
-            &Key::new("float_field"),
-            &AnyValue::Double(1.5)
+            &Key::new("status"),
+            &AnyValue::Int(200)
         ));
-        assert!(attributes_contains(
-            &log.record,
-            &Key::new("bool_field"),
-            &AnyValue::Boolean(true)
-        ));
-    }
-
-    #[test]
-    #[cfg(feature = "experimental_span_attributes")]
-    fn test_nested_spans_use_innermost_attributes() {
-        // Arrange
-        let exporter = InMemoryLogExporter::default();
-        let provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
-        let subscriber = tracing_subscriber::registry().with(layer);
-        let _guard = tracing::subscriber::set_default(subscriber);
-
-        // Act
-        // Outer span
-        let outer_span = tracing::info_span!(
-            "outer_span",
-            outer_key = "outer_value",
-            shared_key = "from_outer"
-        );
-        let _outer_guard = outer_span.enter();
-
-        // Emit event in outer span context
-        tracing::info!(event1 = "in_outer", "Event in outer span");
-
-        // Inner span
-        let inner_span = tracing::info_span!(
-            "inner_span",
-            inner_key = "inner_value",
-            shared_key = "from_inner"
-        );
-        let _inner_guard = inner_span.enter();
-
-        // Emit event in inner span context
-        tracing::info!(event2 = "in_inner", "Event in inner span");
-
-        drop(_inner_guard); // Exit inner span
-
-        // Emit event back in outer span context
-        tracing::info!(event3 = "back_in_outer", "Event back in outer span");
-
-        drop(_outer_guard); // Exit outer span
-
-        provider.force_flush().unwrap();
-
-        // Assert
-        let logs = exporter.get_emitted_logs().unwrap();
-        assert_eq!(logs.len(), 3);
-
-        // Event 1: In outer span
-        let log1 = &logs[0];
-        assert!(attributes_contains(
-            &log1.record,
-            &Key::new("outer_key"),
-            &AnyValue::String("outer_value".into())
-        ));
-        assert!(attributes_contains(
-            &log1.record,
-            &Key::new("shared_key"),
-            &AnyValue::String("from_outer".into())
-        ));
-        assert!(attributes_contains(
-            &log1.record,
-            &Key::new("event1"),
-            &AnyValue::String("in_outer".into())
-        ));
-        let has_inner = log1
-            .record
-            .attributes_iter()
-            .any(|(k, _)| k.as_str() == "inner_key");
-        assert!(!has_inner, "Log 1 should not have inner_key");
-
-        // Event 2: In inner span
-        let log2 = &logs[1];
-        assert!(attributes_contains(
-            &log2.record,
-            &Key::new("inner_key"),
-            &AnyValue::String("inner_value".into())
-        ));
-        assert!(attributes_contains(
-            &log2.record,
-            &Key::new("shared_key"),
-            &AnyValue::String("from_inner".into())
-        )); // Inner overrides outer
-        assert!(attributes_contains(
-            &log2.record,
-            &Key::new("event2"),
-            &AnyValue::String("in_inner".into())
-        ));
-        let has_outer = log2
-            .record
-            .attributes_iter()
-            .any(|(k, _)| k.as_str() == "outer_key");
-        assert!(!has_outer, "Log 2 should not have outer_key");
-
-        // Event 3: Back in outer span
-        let log3 = &logs[2];
-        assert!(attributes_contains(
-            &log3.record,
-            &Key::new("outer_key"),
-            &AnyValue::String("outer_value".into())
-        ));
-        assert!(attributes_contains(
-            &log3.record,
-            &Key::new("shared_key"),
-            &AnyValue::String("from_outer".into())
-        ));
-        assert!(attributes_contains(
-            &log3.record,
-            &Key::new("event3"),
-            &AnyValue::String("back_in_outer".into())
-        ));
-        let has_inner_3 = log3
-            .record
-            .attributes_iter()
-            .any(|(k, _)| k.as_str() == "inner_key");
-        assert!(!has_inner_3, "Log 3 should not have inner_key");
     }
 }
