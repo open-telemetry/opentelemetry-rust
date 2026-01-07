@@ -1006,6 +1006,7 @@ mod tests {
         let outer_span = tracing::info_span!("outer", request_id = "req-123");
         let _outer_guard = outer_span.enter();
 
+        // Create inner span nested within outer span
         let inner_span = tracing::info_span!("inner", user_id = "user-456");
         let _inner_guard = inner_span.enter();
 
@@ -1039,6 +1040,59 @@ mod tests {
             &log.record,
             &Key::new("status"),
             &AnyValue::Int(200)
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_context_with_various_types() {
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act
+        let span = tracing::info_span!(
+            "test_span",
+            str_field = "text",
+            int_field = 42,
+            float_field = 1.5,
+            bool_field = true
+        );
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("str_field"),
+            &AnyValue::String("text".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("int_field"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("float_field"),
+            &AnyValue::Double(1.5)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bool_field"),
+            &AnyValue::Boolean(true)
         ));
     }
 }
