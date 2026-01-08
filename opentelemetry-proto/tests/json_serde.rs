@@ -999,11 +999,11 @@ mod json_serde {
                     ],
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2.0,
                     "bucketCounts": [
-                      1,
-                      1
+                      "1",
+                      "1"
                     ],
                     "explicitBounds": [
                       1.0
@@ -1111,9 +1111,9 @@ mod json_serde {
                   {
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2,
-                    "bucketCounts": [1,1],
+                    "bucketCounts": ["1","1"],
                     "explicitBounds": [1],
                     "min": 0,
                     "max": 2,
@@ -1523,6 +1523,189 @@ mod json_serde {
                     serde_json::from_str(ALTERNATIVE).expect("deserialization must succeed");
                 let expected: ExportLogsServiceRequest = value();
                 assert_eq!(actual, expected);
+            }
+        }
+    }
+    #[cfg(feature = "metrics")]
+    mod metrics_with_nan {
+        use super::*;
+        use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
+        use opentelemetry_proto::tonic::metrics::v1::Summary;
+        use opentelemetry_proto::tonic::metrics::v1::SummaryDataPoint;
+
+        fn value_with_nan() -> ExportMetricsServiceRequest {
+            ExportMetricsServiceRequest {
+                resource_metrics: vec![ResourceMetrics {
+                    resource: Some(Resource {
+                        attributes: vec![KeyValue {
+                            key: String::from("service.name"),
+                            value: None,
+                        }],
+                        dropped_attributes_count: 0,
+                    }),
+                    scope_metrics: vec![ScopeMetrics {
+                        scope: None,
+                        metrics: vec![Metric {
+                            name: String::from("example_metric"),
+                            description: String::from("A sample metric with NaN values"),
+                            unit: String::from("1"),
+                            metadata: vec![],
+                            data: Some(
+                                opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(
+                                    Summary {
+                                        data_points: vec![SummaryDataPoint {
+                                            attributes: vec![],
+                                            start_time_unix_nano: 0,
+                                            time_unix_nano: 0,
+                                            count: 100,
+                                            sum: 500.0,
+                                            quantile_values: vec![
+                                                ValueAtQuantile {
+                                                    quantile: 0.5,
+                                                    value: f64::NAN,
+                                                },
+                                                ValueAtQuantile {
+                                                    quantile: 0.9,
+                                                    value: f64::NAN,
+                                                },
+                                            ],
+                                            flags: 0,
+                                        }],
+                                    },
+                                ),
+                            ),
+                        }],
+                        schema_url: String::new(),
+                    }],
+                    schema_url: String::new(),
+                }],
+            }
+        }
+
+        // language=json
+        const CANONICAL_WITH_NAN: &str = r#"{
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": null
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeMetrics": [
+                {
+                  "scope": null,
+                  "metrics": [
+                    {
+                      "name": "example_metric",
+                      "description": "A sample metric with NaN values",
+                      "unit": "1",
+                      "metadata": [],
+                      "summary": {
+                        "dataPoints": [
+                          {
+                            "attributes": [],
+                            "startTimeUnixNano": "0",
+                            "timeUnixNano": "0",
+                            "count": "100",
+                            "sum": 500.0,
+                            "quantileValues": [
+                              {
+                                "quantile": 0.5,
+                                "value": "NaN"
+                              },
+                              {
+                                "quantile": 0.9,
+                                "value": "NaN"
+                              }
+                            ],
+                            "flags": 0
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "schemaUrl": ""
+                }
+              ],
+              "schemaUrl": ""
+            }
+          ]
+        }"#;
+
+        #[test]
+        fn serialize_with_nan() {
+            let input: ExportMetricsServiceRequest = value_with_nan();
+
+            // Serialize the structure to JSON
+            let actual = serde_json::to_string_pretty(&input).expect("serialization must succeed");
+
+            // Normalize both the actual and expected JSON for comparison
+            let actual_value: serde_json::Value =
+                serde_json::from_str(&actual).expect("valid JSON");
+            let expected_value: serde_json::Value =
+                serde_json::from_str(CANONICAL_WITH_NAN).expect("valid JSON");
+
+            // Compare the normalized JSON values
+            assert_eq!(actual_value, expected_value);
+        }
+
+        #[test]
+        fn deserialize_with_nan() {
+            let actual: ExportMetricsServiceRequest =
+                serde_json::from_str(CANONICAL_WITH_NAN).expect("deserialization must succeed");
+
+            // Ensure the deserialized structure matches the expected values
+            assert_eq!(actual.resource_metrics.len(), 1);
+
+            let resource_metric = &actual.resource_metrics[0];
+            assert_eq!(
+                resource_metric.resource.as_ref().unwrap().attributes.len(),
+                1
+            );
+            assert_eq!(
+                resource_metric.resource.as_ref().unwrap().attributes[0].key,
+                "service.name"
+            );
+            assert!(resource_metric.resource.as_ref().unwrap().attributes[0]
+                .value
+                .is_none());
+
+            assert_eq!(resource_metric.scope_metrics.len(), 1);
+
+            let scope_metric = &resource_metric.scope_metrics[0];
+            assert!(scope_metric.scope.is_none());
+            assert_eq!(scope_metric.metrics.len(), 1);
+
+            let metric = &scope_metric.metrics[0];
+            assert_eq!(metric.name, "example_metric");
+            assert_eq!(metric.description, "A sample metric with NaN values");
+            assert_eq!(metric.unit, "1");
+
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
+                &metric.data
+            {
+                assert_eq!(summary.data_points.len(), 1);
+
+                let data_point = &summary.data_points[0];
+                assert_eq!(data_point.attributes.len(), 0);
+                assert_eq!(data_point.start_time_unix_nano, 0);
+                assert_eq!(data_point.time_unix_nano, 0);
+                assert_eq!(data_point.count, 100);
+                assert_eq!(data_point.sum, 500.0);
+
+                assert_eq!(data_point.quantile_values.len(), 2);
+
+                // Verify that quantile values are NaN
+                assert!(data_point.quantile_values[0].value.is_nan());
+                assert!(data_point.quantile_values[0].quantile == 0.5);
+                assert!(data_point.quantile_values[1].value.is_nan());
+                assert!(data_point.quantile_values[1].quantile == 0.9);
+            } else {
+                panic!("Expected metric data to be of type Summary");
             }
         }
     }
