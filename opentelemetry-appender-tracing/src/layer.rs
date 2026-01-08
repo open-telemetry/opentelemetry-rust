@@ -327,10 +327,17 @@ where
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
                 for span_ref in scope.from_root() {
-                    let extensions = span_ref.extensions();
-                    if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
-                        // Add span attributes before event attributes.
-                        for (key, value) in stored.attributes.iter() {
+                    // Clone Arc to release span extensions lock before processing attributes
+                    let attrs = {
+                        let extensions = span_ref.extensions();
+                        extensions
+                            .get::<StoredSpanAttributes>()
+                            .map(|stored| stored.attributes.clone())
+                    };
+
+                    // Add span attributes before event attributes
+                    if let Some(attrs) = attrs {
+                        for (key, value) in attrs.iter() {
                             log_record.add_attribute(key.clone(), value.clone());
                         }
                     }
