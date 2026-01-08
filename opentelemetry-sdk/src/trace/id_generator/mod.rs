@@ -10,6 +10,12 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
 
     /// Generate a new `SpanId`
     fn new_span_id(&self) -> SpanId;
+
+    /// Returns `true` if this generator produces random IDs.
+    ///
+    /// When `true`, spans created with IDs from this generator should
+    /// have the [`TraceFlags::RANDOM`] flag set.
+    fn is_random(&self) -> bool;
 }
 
 /// Default [`IdGenerator`] implementation.
@@ -27,6 +33,10 @@ impl IdGenerator for RandomIdGenerator {
 
     fn new_span_id(&self) -> SpanId {
         CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().random::<u64>()))
+    }
+
+    fn is_random(&self) -> bool {
+        true
     }
 }
 

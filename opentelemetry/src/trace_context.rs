@@ -16,13 +16,20 @@ use std::ops::{BitAnd, BitOr, Not};
 pub struct TraceFlags(u8);
 
 impl TraceFlags {
-    /// Trace flags with the `sampled` flag set to `0`.
+    /// Trace flags with no flags set.
     ///
+    /// Equivalent to having the `sampled` and `random-trace-id` flags set to `0`.
     /// Spans that are not sampled will be ignored by most tracing tools.
     /// See the `sampled` section of the [W3C TraceContext specification] for details.
     ///
     /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
-    pub const NOT_SAMPLED: TraceFlags = TraceFlags(0x00);
+    pub const EMPTY: TraceFlags = TraceFlags(0x00);
+
+    /// Mask of all valid trace flags (`SAMPLED | RANDOM`).
+    ///
+    /// Used to clear unrecognized bits when parsing trace flags from
+    /// external sources.
+    pub const VALID_FLAGS: TraceFlags = TraceFlags(0x03);
 
     /// Trace flags with the `sampled` flag set to `1`.
     ///
@@ -31,6 +38,14 @@ impl TraceFlags {
     ///
     /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
     pub const SAMPLED: TraceFlags = TraceFlags(0x01);
+
+    /// Trace flags with the `random-trace-id` flag set to `1`.
+    ///
+    /// Indicates that at least the right-most 7 bytes of `trace-id` are generated randomly.
+    /// See the `random-trace-id` section of the [W3C TraceContext specification] for details.
+    ///
+    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context-2/#random-trace-id-flag
+    pub const RANDOM: TraceFlags = TraceFlags(0x02);
 
     /// Construct new trace flags
     pub const fn new(flags: u8) -> Self {
@@ -51,9 +66,28 @@ impl TraceFlags {
         }
     }
 
+    /// Returns `true` if the `random-trace-id` flag is set
+    pub fn is_random(&self) -> bool {
+        (*self & TraceFlags::RANDOM) == TraceFlags::RANDOM
+    }
+
+    /// Returns copy of the current flags with the `random-trace-id` flag set.
+    pub fn with_random(&self, random: bool) -> Self {
+        if random {
+            *self | TraceFlags::RANDOM
+        } else {
+            *self & !TraceFlags::RANDOM
+        }
+    }
+
     /// Returns the flags as a `u8`
     pub fn to_u8(self) -> u8 {
         self.0
+    }
+
+    /// Returns a copy of the current flags with only recognized flags preserved.
+    pub fn sanitized(self) -> Self {
+        self & Self::VALID_FLAGS
     }
 }
 
@@ -231,6 +265,32 @@ mod tests {
         ]
     }
 
+    #[rustfmt::skip]
+    fn trace_flags_test_data() -> Vec<(TraceFlags, u8, bool, bool)> {
+        // (flags, expected_u8, is_sampled, is_random)
+        vec![
+            (TraceFlags::EMPTY, 0x00, false, false),
+            (TraceFlags::SAMPLED, 0x01, true, false),
+            (TraceFlags::RANDOM, 0x02, false, true),
+            (TraceFlags::SAMPLED | TraceFlags::RANDOM, 0x03, true, true),
+        ]
+    }
+
+    #[rustfmt::skip]
+    fn trace_flags_sanitized_test_data() -> Vec<(u8, TraceFlags)> {
+        // (input, expected_output)
+        vec![
+            (0x00, TraceFlags::EMPTY),
+            (0x01, TraceFlags::SAMPLED),
+            (0x02, TraceFlags::RANDOM),
+            (0x03, TraceFlags::SAMPLED | TraceFlags::RANDOM),
+            (0x04, TraceFlags::EMPTY),
+            (0x05, TraceFlags::SAMPLED),
+            (0x06, TraceFlags::RANDOM),
+            (0xFF, TraceFlags::SAMPLED | TraceFlags::RANDOM),
+        ]
+    }
+
     #[test]
     fn test_trace_id() {
         for test_case in trace_id_test_data() {
@@ -253,5 +313,36 @@ mod tests {
             assert_eq!(test_case.0, SpanId::from_hex(test_case.1).unwrap());
             assert_eq!(test_case.0, SpanId::from_bytes(test_case.2));
         }
+    }
+
+    #[test]
+    fn test_trace_flags_values() {
+        for (flags, expected_u8, expected_sampled, expected_random) in trace_flags_test_data() {
+            assert_eq!(flags.to_u8(), expected_u8);
+            assert_eq!(flags.is_sampled(), expected_sampled);
+            assert_eq!(flags.is_random(), expected_random);
+            assert_eq!(format!("{:02x}", flags), format!("{:02x}", expected_u8));
+        }
+    }
+
+    #[test]
+    fn test_trace_flags_sanitized() {
+        for (input, expected) in trace_flags_sanitized_test_data() {
+            let flags = TraceFlags::new(input);
+            assert_eq!(flags.sanitized(), expected);
+        }
+    }
+
+    #[test]
+    fn test_trace_flags_default() {
+        assert_eq!(TraceFlags::default(), TraceFlags::EMPTY);
+    }
+
+    #[test]
+    fn test_trace_flags_valid_flags() {
+        assert_eq!(
+            TraceFlags::VALID_FLAGS,
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
     }
 }

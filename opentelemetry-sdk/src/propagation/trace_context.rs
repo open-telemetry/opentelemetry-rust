@@ -98,9 +98,8 @@ impl TraceContextPropagator {
             return Err(());
         }
 
-        // Build trace flags clearing all flags other than the trace-context
-        // supported sampling bit.
-        let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
+        // Build trace flags
+        let trace_flags = TraceFlags::new(opts).sanitized();
 
         let trace_state = match extractor.get(TRACESTATE_HEADER) {
             Some(trace_state_str) => {
@@ -133,7 +132,7 @@ impl TextMapPropagator for TraceContextPropagator {
                 SUPPORTED_VERSION,
                 span_context.trace_id(),
                 span_context.span_id(),
-                span_context.trace_flags() & TraceFlags::SAMPLED
+                span_context.trace_flags().sanitized()
             );
             injector.set(TRACEPARENT_HEADER, header_value);
             injector.set(TRACESTATE_HEADER, span_context.trace_state().header());
@@ -202,7 +201,7 @@ mod tests {
         vec![
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0xff), true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0xff), true, TraceState::from_str("foo=bar").unwrap())),
             ("", "", SpanContext::empty_context()),
         ]
     }

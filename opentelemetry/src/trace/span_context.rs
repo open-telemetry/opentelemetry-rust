@@ -304,7 +304,7 @@ impl SpanContext {
     pub const NONE: SpanContext = SpanContext {
         trace_id: TraceId::INVALID,
         span_id: SpanId::INVALID,
-        trace_flags: TraceFlags::NOT_SAMPLED,
+        trace_flags: TraceFlags::EMPTY,
         is_remote: false,
         trace_state: TraceState::NONE,
     };
