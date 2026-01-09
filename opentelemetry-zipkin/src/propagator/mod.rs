@@ -13,12 +13,14 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
+
 use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
+use std::borrow::Cow;
 
 const B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -149,7 +151,7 @@ impl Propagator {
 
     /// Extract a `SpanContext` from a single B3 header.
     fn extract_single_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
+        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or(Cow::Borrowed(""));
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
         if parts.len() > 4 || parts.len() < 2 {
@@ -183,17 +185,29 @@ impl Propagator {
     /// Extract a `SpanContext` from multiple B3 headers.
     fn extract_multi_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let trace_id = self
-            .extract_trace_id(extractor.get(B3_TRACE_ID_HEADER).unwrap_or(""))
+            .extract_trace_id(
+                &extractor
+                    .get(B3_TRACE_ID_HEADER)
+                    .unwrap_or(Cow::Borrowed("")),
+            )
             .map_err(|_| ())?;
         let span_id = self
-            .extract_span_id(extractor.get(B3_SPAN_ID_HEADER).unwrap_or(""))
+            .extract_span_id(
+                &extractor
+                    .get(B3_SPAN_ID_HEADER)
+                    .unwrap_or(Cow::Borrowed("")),
+            )
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
         if let Some(parent) = extractor.get(B3_PARENT_SPAN_ID_HEADER) {
-            let _ = self.extract_span_id(parent).map_err(|_| ());
+            let _ = self.extract_span_id(&parent).map_err(|_| ());
         }
 
-        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
+        let debug = self.extract_debug_flag(
+            &extractor
+                .get(B3_DEBUG_FLAG_HEADER)
+                .unwrap_or(Cow::Borrowed("")),
+        );
         let sampled_opt = extractor.get(B3_SAMPLED_HEADER);
 
         let flag = if let Ok(debug_flag) = debug {
@@ -202,7 +216,7 @@ impl Propagator {
         } else if let Some(sampled) = sampled_opt {
             // if debug is not set and X-B3-Sampled is not set, then deferred
             // if sample value is invalid, then return empty context.
-            self.extract_sampled_state(sampled)?
+            self.extract_sampled_state(&sampled)?
         } else {
             TRACE_FLAG_DEFERRED
         };
