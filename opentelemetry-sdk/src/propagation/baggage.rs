@@ -131,7 +131,7 @@ impl TextMapPropagator for BaggagePropagator {
                             otel_warn!(
                                 name: "BaggagePropagator.Extract.InvalidUTF8",
                                 message = "Invalid UTF8 string in key values",
-                                baggage_header = header_value,
+                                baggage_header = header_value.as_ref(),
                             );
                             None
                         }
@@ -139,7 +139,7 @@ impl TextMapPropagator for BaggagePropagator {
                         otel_warn!(
                             name: "BaggagePropagator.Extract.InvalidKeyValueFormat",
                             message = "Invalid baggage key-value format",
-                            baggage_header = header_value,
+                            baggage_header = header_value.as_ref(),
                         );
                         None
                     }
@@ -147,7 +147,8 @@ impl TextMapPropagator for BaggagePropagator {
                     otel_warn!(
                         name: "BaggagePropagator.Extract.InvalidFormat",
                         message = "Invalid baggage format",
-                        baggage_header = header_value);
+                        baggage_header = header_value.as_ref(),
+                    );
                     None
                 }
             });
