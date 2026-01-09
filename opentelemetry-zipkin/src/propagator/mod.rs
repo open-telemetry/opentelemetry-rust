@@ -31,8 +31,8 @@ const B3_SPAN_ID_HEADER: &str = "x-b3-spanid";
 const B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 const B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 
-const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
-const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
+const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x40);
+const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x80);
 
 static B3_SINGLE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [B3_SINGLE_HEADER.to_owned()]);
 static B3_MULTI_FIELDS: Lazy<[String; 4]> = Lazy::new(|| {
