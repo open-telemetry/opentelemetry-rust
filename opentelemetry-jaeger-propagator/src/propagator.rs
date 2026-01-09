@@ -74,7 +74,7 @@ impl Propagator {
     /// Extract span context from header value
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Option<SpanContext> {
         let mut header_value =
-            Cow::from(extractor.get(self.header_name).unwrap_or(Cow::Borrowed("")));
+            extractor.get(self.header_name).unwrap_or(Cow::Borrowed(""));
         // if there is no :, it means header_value could be encoded as url, try decode first
         if !header_value.contains(':') {
             header_value = Cow::from(header_value.replace("%3A", ":"));
