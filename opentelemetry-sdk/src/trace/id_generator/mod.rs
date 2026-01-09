@@ -14,7 +14,7 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
     /// Returns `true` if this generator produces random IDs.
     ///
     /// When `true`, spans created with IDs from this generator should
-    /// have the [`TraceFlags::RANDOM`] flag set.
+    /// have the random trace id flag set.
     fn is_random(&self) -> bool;
 }
 
