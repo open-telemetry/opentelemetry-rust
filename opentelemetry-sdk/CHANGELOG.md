@@ -5,6 +5,11 @@
 - Fix `SpanExporter::shutdown()` default timeout from 5 nanoseconds to 5 seconds.
 - **Breaking** `SpanExporter` trait methods `shutdown`, `shutdown_with_timeout`, and `force_flush` now take `&self` instead of `&mut self` for consistency with `LogExporter` and `PushMetricExporter`. Implementers using interior mutability (e.g., `Mutex`, `AtomicBool`) require no changes.
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
+- Added `MeterProviderBuilder::with_dynamic_memory_allocation_delta()` to enable
+  dynamic memory allocation for delta temporality metrics. When enabled,
+  internal storage grows and shrinks based on actual cardinality instead of
+  pre-allocating to the cardinality limit. Default remains static pre-allocation
+  for predictable performance.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
