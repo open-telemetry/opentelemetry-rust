@@ -361,6 +361,7 @@ pub(crate) struct ExpoHistogram<T: Number> {
 }
 
 impl<T: Number> ExpoHistogram<T> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
