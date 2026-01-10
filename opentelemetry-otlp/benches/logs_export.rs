@@ -16,6 +16,19 @@
     - Multiple scopes: 10 different instrumentation scopes (~51 logs per scope)
     - Fake HTTP server: Returns 200 OK with minimal latency
     - Protocol: HTTP/Binary (protobuf)
+
+    Benchmark Results:
+    criterion = "0.5"
+    Hardware: Apple M4 Pro
+    | Test                            | Time      |
+    |---------------------------------|-----------|
+    | batch_512_with_4_attrs          | ~469 µs   |
+    | batch_512_with_10_attrs         | ~809 µs   |
+    | batch_512_with_4_attrs_gzip     | ~644 µs   |
+    | batch_512_with_10_attrs_gzip    | ~1,159 µs |
+
+    Notes:
+    - Export time = Conversion + Serialization + Compression (optional) + HTTP overhead
 */
 
 use criterion::{black_box, Criterion};
@@ -137,6 +150,9 @@ fn create_log_batch(
         record.set_trace_context(trace_id, span_id, Some(trace_flags));
 
         // Add attributes
+        // TODO: Use realistic attribute names following OpenTelemetry semantic conventions
+        // (e.g., http.request.method, http.response.status_code, url.path, etc.)
+        // to better match real-world log data patterns and compression characteristics
         for j in 0..attribute_count {
             record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
         }
