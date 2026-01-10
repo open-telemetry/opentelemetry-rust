@@ -24,9 +24,10 @@ impl<T: Number> PrecomputedSum<T> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, dynamic_memory_allocation_delta),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,

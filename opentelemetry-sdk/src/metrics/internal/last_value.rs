@@ -54,9 +54,10 @@ impl<T: Number> LastValue<T> {
         temporality: Temporality,
         filter: AttributeSetFilter,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         LastValue {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, dynamic_memory_allocation_delta),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,

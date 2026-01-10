@@ -361,7 +361,7 @@ pub(crate) struct ExpoHistogram<T: Number> {
 }
 
 impl<T: Number> ExpoHistogram<T> {
-    /// Create a new exponential histogram.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
@@ -370,6 +370,7 @@ impl<T: Number> ExpoHistogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         ExpoHistogram {
             value_map: ValueMap::new(
@@ -378,6 +379,7 @@ impl<T: Number> ExpoHistogram<T> {
                     max_scale,
                 },
                 cardinality_limit,
+                dynamic_memory_allocation_delta,
             ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
@@ -717,6 +719,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                false,
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -774,6 +777,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                false,
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -1286,13 +1290,18 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    AggregateBuilder::new(Temporality::Delta, None, CARDINALITY_LIMIT_DEFAULT)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    AggregateBuilder::new(
+                        Temporality::Delta,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                        false,
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1331,6 +1340,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        false,
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1376,6 +1386,7 @@ mod tests {
                         Temporality::Delta,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        false,
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1424,6 +1435,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        false,
                     )
                     .exponential_bucket_histogram(
                         max_size,

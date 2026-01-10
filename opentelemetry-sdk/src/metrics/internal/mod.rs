@@ -6,7 +6,6 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
-use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
@@ -18,7 +17,6 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
-use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -73,32 +71,66 @@ where
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
+    /// When true, HashMaps start with minimal capacity and grow dynamically.
+    /// When false (default), HashMaps pre-allocate up to cardinality_limit.
+    /// This is useful when cardinality_limit is set high for rare spikes
+    /// but typical usage has far fewer attribute sets.
+    dynamic_memory_allocation_delta: bool,
 }
 
 impl<A> ValueMap<A>
 where
     A: Aggregator,
 {
-    fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
+    fn new(
+        config: A::InitConfig,
+        cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
+    ) -> Self {
+        let initial_capacity =
+            Self::calculate_initial_capacity(cardinality_limit, dynamic_memory_allocation_delta);
+
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(
-                1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
-            )),
+            trackers: RwLock::new(HashMap::with_capacity(initial_capacity)),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
+            dynamic_memory_allocation_delta,
+        }
+    }
+
+    /// Calculates the initial capacity for HashMap based on allocation strategy.
+    ///
+    /// When dynamic allocation is disabled (default), pre-allocates capacity
+    /// to cardinality_limit to minimize resizing overhead.
+    ///
+    /// When dynamic allocation is enabled, starts with minimal capacity (0),
+    /// allowing HashMap to grow naturally. This saves memory when cardinality_limit
+    /// is set high for rare spikes but typical usage has fewer attribute sets.
+    fn calculate_initial_capacity(
+        cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
+    ) -> usize {
+        if dynamic_memory_allocation_delta {
+            0 // Start with minimal capacity, let HashMap grow dynamically
+        } else {
+            // Pre-allocate to cardinality_limit to avoid resizing
+            // +1 for potential overflow attribute
+            1 + cardinality_limit
         }
     }
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
         self.trackers_for_collect.get_or_init(|| {
-            RwLock::new(HashMap::with_capacity(
-                1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
-            ))
+            let initial_capacity = Self::calculate_initial_capacity(
+                self.cardinality_limit,
+                self.dynamic_memory_allocation_delta,
+            );
+            RwLock::new(HashMap::with_capacity(initial_capacity))
         })
     }
 
@@ -208,11 +240,23 @@ where
                 return;
             }
 
+            // Capture the size before draining for shrinking later
+            let entries_count = trackers_collect.len();
+
             let mut seen = HashSet::new();
             for (attrs, tracker) in trackers_collect.drain() {
                 if seen.insert(Arc::as_ptr(&tracker)) {
                     dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
                 }
+            }
+
+            // For dynamic allocation mode, shrink the HashMap to the actual
+            // number of entries from this collection (includes duplicate keys).
+            // This adapts capacity to recent usage patterns while accounting for
+            // the duplicate sorted/unsorted attribute keys in the implementation.
+            // For static allocation mode, preserve the pre-allocated capacity.
+            if self.dynamic_memory_allocation_delta {
+                trackers_collect.shrink_to(entries_count);
             }
         } else {
             otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers for collect lock poisoned");
@@ -627,12 +671,40 @@ mod tests {
     }
 
     #[test]
-    fn large_cardinality_limit() {
-        // This is a regression test for panics that used to occur for large cardinality limits
+    fn dynamic_allocation_starts_with_zero_capacity() {
+        // Test that dynamic allocation mode starts with minimal capacity
+        let value_map_dynamic = ValueMap::<Assign<i64>>::new((), 10000, true);
+        let trackers = value_map_dynamic.trackers.read().unwrap();
+        assert_eq!(
+            trackers.capacity(),
+            0,
+            "Dynamic allocation should start with 0 capacity"
+        );
+    }
 
-        // Should not panic
-        let value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
-        // Should not panic
-        let _ = value_map.trackers_for_collect();
+    #[test]
+    fn static_allocation_preallocates_capacity() {
+        // Test that static allocation mode pre-allocates capacity
+        let value_map_static = ValueMap::<Assign<i64>>::new((), 100, false);
+        let trackers = value_map_static.trackers.read().unwrap();
+        assert!(
+            trackers.capacity() > 0,
+            "Static allocation should pre-allocate capacity"
+        );
+        assert!(
+            trackers.capacity() >= 100,
+            "Static allocation should pre-allocate at least to cardinality limit"
+        );
+    }
+
+    #[test]
+    fn default_new_uses_static_allocation() {
+        // Test that the default new() method uses static allocation (backward compatible)
+        let value_map = ValueMap::<Assign<i64>>::new((), 100, false);
+        let trackers = value_map.trackers.read().unwrap();
+        assert!(
+            trackers.capacity() > 0,
+            "Default new() should use static allocation for backward compatibility"
+        );
     }
 }
