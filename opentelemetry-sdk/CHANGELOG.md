@@ -5,17 +5,18 @@
 - Fix `SpanExporter::shutdown()` default timeout from 5 nanoseconds to 5 seconds.
 - **Breaking** `SpanExporter` trait methods `shutdown`, `shutdown_with_timeout`, and `force_flush` now take `&self` instead of `&mut self` for consistency with `LogExporter` and `PushMetricExporter`. Implementers using interior mutability (e.g., `Mutex`, `AtomicBool`) require no changes.
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
-- Added `MeterProviderBuilder::with_dynamic_memory_allocation_delta()` to enable
-  dynamic memory allocation for delta temporality metrics. When enabled,
-  internal storage grows and shrinks based on actual cardinality instead of
-  pre-allocating to the cardinality limit. Default remains static pre-allocation
-  for predictable performance.
 - **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
   - `id_generator`, `should_sample`
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- Added `MeterProviderBuilder::with_dynamic_memory_allocation_delta()` to enable
+  dynamic memory allocation for delta temporality metrics. When enabled,
+  internal storage grows and shrinks based on actual cardinality instead of
+  pre-allocating to the cardinality limit. Default remains static pre-allocation
+  for predictable performance.
+  This can be used to fix [#3290][3290], by using dynamic memory allocation when
+  large cardinality limit is set for handling rare spikes.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
