@@ -91,6 +91,7 @@ impl<T: Number> Histogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         #[cfg(feature = "spec_unstable_metrics_views")]
         {
@@ -106,7 +107,11 @@ impl<T: Number> Histogram<T> {
         };
 
         Histogram {
-            value_map: ValueMap::new(buckets_count, cardinality_limit),
+            value_map: ValueMap::new(
+                buckets_count,
+                cardinality_limit,
+                dynamic_memory_allocation_delta,
+            ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -272,6 +277,7 @@ mod tests {
             false,
             false,
             2000,
+            false,
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);

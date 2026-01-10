@@ -47,19 +47,15 @@ pub(crate) struct Sum<T: Number> {
 }
 
 impl<T: Number> Sum<T> {
-    /// Returns an aggregator that summarizes a set of measurements as their
-    /// arithmetic sum.
-    ///
-    /// Each sum is scoped by attributes and the aggregation cycle the measurements
-    /// were made in.
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, dynamic_memory_allocation_delta),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
