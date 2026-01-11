@@ -1081,12 +1081,26 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         // Act
+        let small_u64value: u64 = 42;
+        let big_u64value: u64 = u64::MAX;
+        let small_u128value: u128 = 42;
+        let big_u128value: u128 = u128::MAX;
+        let small_i128value: i128 = 42;
+        let big_i128value: i128 = i128::MAX;
+
         let span = tracing::info_span!(
             "test_span",
             str_field = "text",
             int_field = 42,
             float_field = 1.5,
-            bool_field = true
+            bool_field = true,
+            small_u64value,
+            big_u64value,
+            small_u128value,
+            big_u128value,
+            small_i128value,
+            big_i128value,
+            bytes_field = &[1u8, 2, 3] as &[u8]
         );
         let _enter = span.enter();
         tracing::error!("test message");
@@ -1117,6 +1131,41 @@ mod tests {
             &log.record,
             &Key::new("bool_field"),
             &AnyValue::Boolean(true)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u64value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u64value"),
+            &AnyValue::String(u64::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u128value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u128value"),
+            &AnyValue::String(u128::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_i128value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_i128value"),
+            &AnyValue::String(i128::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bytes_field"),
+            &AnyValue::Bytes(Box::new(vec![1, 2, 3]))
         ));
     }
 }
