@@ -25,7 +25,7 @@ required-features = ["integration-testing"]
 [[bench]]
 name = "logs_export"
 harness = false
-required-features = ["logs", "http-proto", "reqwest-blocking-client", "gzip-http"]
+required-features = ["logs", "http-proto", "reqwest-blocking-client"]
 
 [package.metadata.docs.rs]
 all-features = true
