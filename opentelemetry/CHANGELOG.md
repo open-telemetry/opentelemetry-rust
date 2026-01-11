@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
+- **Added** `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
@@ -10,6 +10,11 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+- **Breaking** `FutureExt` trait deprecated because it has an overly general blanket implementation.
+- **Added** traits to replace `FutureExt` trait, with precise blanket implementations, which function identically:
+  - `FutureContextExt` for futures
+  - `StreamContextExt` for streams
+  - `SinkContextExt` for sinks
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
