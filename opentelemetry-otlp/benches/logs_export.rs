@@ -26,6 +26,8 @@
     | batch_512_with_10_attrs         | ~809 µs   |
     | batch_512_with_4_attrs_gzip     | ~644 µs   |
     | batch_512_with_10_attrs_gzip    | ~1,159 µs |
+    | batch_512_with_4_attrs_zstd     | ~376 µs   |
+    | batch_512_with_10_attrs_zstd    | ~689 µs   |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP overhead
@@ -110,7 +112,8 @@ fn create_log_exporter(endpoint: String) -> OtlpLogExporter {
         .expect("Failed to create log exporter")
 }
 
-fn create_log_exporter_with_compression(endpoint: String) -> OtlpLogExporter {
+#[cfg(feature = "gzip-http")]
+fn create_log_exporter_with_gzip(endpoint: String) -> OtlpLogExporter {
     OtlpLogExporter::builder()
         .with_http()
         .with_endpoint(endpoint)
@@ -118,7 +121,19 @@ fn create_log_exporter_with_compression(endpoint: String) -> OtlpLogExporter {
         .with_compression(opentelemetry_otlp::Compression::Gzip)
         .with_timeout(Duration::from_secs(5))
         .build()
-        .expect("Failed to create log exporter with compression")
+        .expect("Failed to create log exporter with gzip compression")
+}
+
+#[cfg(feature = "zstd-http")]
+fn create_log_exporter_with_zstd(endpoint: String) -> OtlpLogExporter {
+    OtlpLogExporter::builder()
+        .with_http()
+        .with_endpoint(endpoint)
+        .with_protocol(Protocol::HttpBinary)
+        .with_compression(opentelemetry_otlp::Compression::Zstd)
+        .with_timeout(Duration::from_secs(5))
+        .build()
+        .expect("Failed to create log exporter with zstd compression")
 }
 
 fn create_log_batch(
@@ -237,33 +252,67 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
 
     group.finish();
 
-    // Create exporter with gzip compression for comparison
-    let mut exporter_gzip = create_log_exporter_with_compression(endpoint.clone());
-    exporter_gzip.set_resource(&resource);
+    #[cfg(feature = "gzip-http")]
+    {
+        // Create exporter with gzip compression
+        let mut exporter_gzip = create_log_exporter_with_gzip(endpoint.clone());
+        exporter_gzip.set_resource(&resource);
 
-    let mut group = c.benchmark_group("otlp_log_export_gzip");
+        let mut group = c.benchmark_group("otlp_log_export_gzip");
 
-    // Benchmark: 512 logs with 4 attributes - WITH COMPRESSION
-    group.bench_function("batch_512_with_4_attrs_gzip", |b| {
-        b.iter(|| {
-            let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
-            rt.block_on(async {
-                exporter_gzip.export(batch).await.unwrap();
+        // Benchmark: 512 logs with 4 attributes - WITH GZIP
+        group.bench_function("batch_512_with_4_attrs_gzip", |b| {
+            b.iter(|| {
+                let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
+                rt.block_on(async {
+                    exporter_gzip.export(batch).await.unwrap();
+                });
             });
         });
-    });
 
-    // Benchmark: 512 logs with 10 attributes - WITH COMPRESSION
-    group.bench_function("batch_512_with_10_attrs_gzip", |b| {
-        b.iter(|| {
-            let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
-            rt.block_on(async {
-                exporter_gzip.export(batch).await.unwrap();
+        // Benchmark: 512 logs with 10 attributes - WITH GZIP
+        group.bench_function("batch_512_with_10_attrs_gzip", |b| {
+            b.iter(|| {
+                let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
+                rt.block_on(async {
+                    exporter_gzip.export(batch).await.unwrap();
+                });
             });
         });
-    });
 
-    group.finish();
+        group.finish();
+    }
+
+    #[cfg(feature = "zstd-http")]
+    {
+        // Create exporter with zstd compression
+        let mut exporter_zstd = create_log_exporter_with_zstd(endpoint.clone());
+        exporter_zstd.set_resource(&resource);
+
+        let mut group = c.benchmark_group("otlp_log_export_zstd");
+
+        // Benchmark: 512 logs with 4 attributes - WITH ZSTD
+        group.bench_function("batch_512_with_4_attrs_zstd", |b| {
+            b.iter(|| {
+                let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
+                rt.block_on(async {
+                    exporter_zstd.export(batch).await.unwrap();
+                });
+            });
+        });
+
+        // Benchmark: 512 logs with 10 attributes - WITH ZSTD
+        group.bench_function("batch_512_with_10_attrs_zstd", |b| {
+            b.iter(|| {
+                let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
+                rt.block_on(async {
+                    exporter_zstd.export(batch).await.unwrap();
+                });
+            });
+        });
+
+        group.finish();
+    }
 }
 
 criterion::criterion_group!(benches, bench_log_export_pipeline);
