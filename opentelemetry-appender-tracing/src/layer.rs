@@ -203,57 +203,74 @@ impl tracing::field::Visit for SpanFieldVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         self.fields.insert(
             Key::from(field.name()),
-            AnyValue::String(format!("{value:?}").into()),
+            AnyValue::from(format!("{value:?}")),
         );
     }
 
-    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+    fn record_error(
+        &mut self,
+        _field: &tracing::field::Field,
+        value: &(dyn std::error::Error + 'static),
+    ) {
         self.fields.insert(
-            Key::from(field.name()),
-            AnyValue::String(value.to_owned().into()),
+            Key::new("exception.message"),
+            AnyValue::from(value.to_string()),
         );
+    }
+
+    fn record_bytes(&mut self, field: &tracing::field::Field, value: &[u8]) {
+        self.fields
+            .insert(Key::from(field.name()), AnyValue::from(value));
+    }
+
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        self.fields
+            .insert(Key::from(field.name()), AnyValue::from(value.to_owned()));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::Int(value));
+            .insert(Key::from(field.name()), AnyValue::from(value));
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
-        let any_value = if let Ok(signed) = i64::try_from(value) {
-            AnyValue::Int(signed)
+        if let Ok(signed) = i64::try_from(value) {
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(signed));
         } else {
-            AnyValue::String(format!("{value}").into())
-        };
-        self.fields.insert(Key::from(field.name()), any_value);
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+        }
     }
 
     fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::Boolean(value));
+            .insert(Key::from(field.name()), AnyValue::from(value));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::Double(value));
+            .insert(Key::from(field.name()), AnyValue::from(value));
     }
 
     fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
-        let any_value = if let Ok(signed) = i64::try_from(value) {
-            AnyValue::Int(signed)
+        if let Ok(signed) = i64::try_from(value) {
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(signed));
         } else {
-            AnyValue::String(format!("{value}").into())
-        };
-        self.fields.insert(Key::from(field.name()), any_value);
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+        }
     }
 
     fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
-        let any_value = if let Ok(signed) = i64::try_from(value) {
-            AnyValue::Int(signed)
+        if let Ok(signed) = i64::try_from(value) {
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(signed));
         } else {
-            AnyValue::String(format!("{value}").into())
-        };
-        self.fields.insert(Key::from(field.name()), any_value);
+            self.fields
+                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+        }
     }
 }
 
