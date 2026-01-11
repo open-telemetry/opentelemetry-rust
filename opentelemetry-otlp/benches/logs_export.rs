@@ -22,12 +22,12 @@
     Hardware: Apple M4 Pro
     | Test                            | Time      |
     |---------------------------------|-----------|
-    | batch_512_with_4_attrs          | ~469 µs   |
-    | batch_512_with_10_attrs         | ~809 µs   |
-    | batch_512_with_4_attrs_gzip     | ~644 µs   |
-    | batch_512_with_10_attrs_gzip    | ~1,159 µs |
-    | batch_512_with_4_attrs_zstd     | ~376 µs   |
-    | batch_512_with_10_attrs_zstd    | ~689 µs   |
+    | batch_512_with_4_attrs          | ~400 µs   |
+    | batch_512_with_10_attrs         | ~720 µs   |
+    | batch_512_with_4_attrs_gzip     | ~600 µs   |
+    | batch_512_with_10_attrs_gzip    | ~1,100 µs |
+    | batch_512_with_4_attrs_zstd     | ~385 µs   |
+    | batch_512_with_10_attrs_zstd    | ~669 µs   |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP overhead
@@ -38,9 +38,9 @@ use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Seve
 use opentelemetry::time::now;
 use opentelemetry::InstrumentationScope;
 use opentelemetry::KeyValue;
-use opentelemetry_otlp::{
-    LogExporter as OtlpLogExporter, Protocol, WithExportConfig, WithHttpConfig,
-};
+#[cfg(any(feature = "gzip-http", feature = "zstd-http"))]
+use opentelemetry_otlp::WithHttpConfig;
+use opentelemetry_otlp::{LogExporter as OtlpLogExporter, Protocol, WithExportConfig};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
 use std::time::Duration;
