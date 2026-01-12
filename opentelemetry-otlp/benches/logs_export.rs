@@ -1,12 +1,11 @@
 /*
     End-to-End Log Export Benchmark
 
-    This benchmark measures the complete OTLP log export pipeline:
-    1. Log record creation and batching
-    2. Conversion to protobuf
-    3. HTTP request creation
-    4. Serialization and optional compression
-    5. Network transport (to a local fake server)
+    This benchmark measures the OTLP log export performance:
+    1. Conversion to protobuf
+    2. HTTP request creation
+    3. Serialization and optional compression
+    4. Network transport (to a local fake server)
 
     The fake HTTP server returns 200 OK immediately to isolate client-side costs.
     Future enhancements can add TLS to measure encryption overhead.
@@ -16,21 +15,22 @@
     - Multiple scopes: 10 different instrumentation scopes (~51 logs per scope)
     - Fake HTTP server: Returns 200 OK with minimal latency
     - Protocol: HTTP/Binary (protobuf)
+    - TODO: Add gRPC
 
     Benchmark Results:
     criterion = "0.5"
     Hardware: Apple M4 Pro
     | Test                            | Time      |
     |---------------------------------|-----------|
-    | batch_512_with_4_attrs          | ~400 µs   |
-    | batch_512_with_10_attrs         | ~720 µs   |
-    | batch_512_with_4_attrs_gzip     | ~600 µs   |
-    | batch_512_with_10_attrs_gzip    | ~1,100 µs |
-    | batch_512_with_4_attrs_zstd     | ~385 µs   |
-    | batch_512_with_10_attrs_zstd    | ~669 µs   |
+    | batch_512_with_4_attrs          | ~485 µs   |
+    | batch_512_with_10_attrs         | ~830 µs   |
+    | batch_512_with_4_attrs_gzip     | ~650 µs   |
+    | batch_512_with_10_attrs_gzip    | ~1,150 µs |
+    | batch_512_with_4_attrs_zstd     | ~420 µs   |
+    | batch_512_with_10_attrs_zstd    | ~716 µs   |
 
     Notes:
-    - Export time = Conversion + Serialization + Compression (optional) + HTTP overhead
+    - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
 */
 
 use criterion::{black_box, Criterion};
@@ -60,7 +60,6 @@ async fn start_fake_otlp_server(port: u16) -> tokio::task::JoinHandle<()> {
         req: Request<Body>,
         counter: Arc<AtomicUsize>,
     ) -> Result<Response<Body>, Infallible> {
-        // Consume the body to prevent connection issues
         let body_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
         counter.fetch_add(1, Ordering::Relaxed);
 
@@ -136,6 +135,7 @@ fn create_log_exporter_with_zstd(endpoint: String) -> OtlpLogExporter {
         .expect("Failed to create log exporter with zstd compression")
 }
 
+#[allow(clippy::vec_box)]
 fn create_log_batch(
     scopes: &[InstrumentationScope],
     batch_size: usize,
