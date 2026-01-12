@@ -1,11 +1,10 @@
 /*
-    The benchmark results - Complete Pipeline Breakdown:
+    The benchmark results
     criterion = "0.5"
     OS: macOS
     Hardware: Apple Silicon
     Batch Size: 512 logs (default batch size) from 10 different scopes (~51 logs per scope)
 
-    Pipeline Stages:
     1. Conversion: OTel struct → Protobuf struct (using group_logs_by_resource_and_scope)
     2. Serialization: Protobuf struct → bytes (prost::Message::encode_to_vec())
     3. Compression: bytes → gzip compressed bytes
@@ -15,13 +14,6 @@
     | batch_512_with_4_attrs     | ~158 µs    | ~72 µs        | ~253 µs     | ~483 µs  | ~943 ns  |
     | batch_512_with_10_attrs    | ~362 µs    | ~143 µs       | ~382 µs     | ~887 µs  | ~1732 ns |
     | batch_512_complex          | ~665 µs    | ~341 µs       | ~519 µs     | ~1.52 ms | ~2979 ns |
-
-    Key Insights:
-    - With 10 scopes, group_logs_by_resource_and_scope creates 1 ResourceLogs with 10 ScopeLogs
-    - Serialization improved 18-20% vs single scope (better protobuf compression with scope grouping)
-    - Conversion cost dominates for complex records (~44% of total)
-    - Per-record costs: conversion ~295-1,275 ns, serialization ~130-645 ns, compression ~492-988 ns
-    - Benchmark accurately reflects production code path with multiple components/libraries
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
