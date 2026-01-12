@@ -24,10 +24,12 @@ bench = false
 [[bench]]
 name = "logs"
 harness = false
+required-features = ["logs"]
 
 [[bench]]
 name = "metrics"
 harness = false
+required-features = ["metrics"]
 
 [[test]]
 name = "grpc_build"
