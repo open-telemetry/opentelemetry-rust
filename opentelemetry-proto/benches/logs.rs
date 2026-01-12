@@ -13,16 +13,13 @@
     |----------------------------|------------|---------------|-------------|----------|----------|
     | batch_512_with_4_attrs     | ~158 µs    | ~72 µs        | ~253 µs     | ~483 µs  | ~943 ns  |
     | batch_512_with_10_attrs    | ~362 µs    | ~143 µs       | ~382 µs     | ~887 µs  | ~1732 ns |
-    | batch_512_complex          | ~665 µs    | ~341 µs       | ~519 µs     | ~1.52 ms | ~2979 ns |
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::time::now;
 use opentelemetry::InstrumentationScope;
-use opentelemetry::Key;
-use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
-use std::collections::HashMap;
+use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
 
 #[cfg(feature = "gen-tonic-messages")]
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -39,133 +36,44 @@ use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "gen-tonic-messages")]
 use prost::Message;
 
-// Mock processor for creating log records
-#[derive(Debug)]
-struct MockProcessor;
+#[allow(clippy::vec_box)]
+fn create_log_batch(
+    scopes: &[InstrumentationScope],
+    batch_size: usize,
+    attribute_count: usize,
+) -> Vec<Box<(SdkLogRecord, InstrumentationScope)>> {
+    // Create a temporary logger provider just for creating log records
+    let temp_provider = SdkLoggerProvider::builder().build();
 
-impl LogProcessor for MockProcessor {
-    fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
+    let mut log_data = Vec::with_capacity(batch_size);
 
-    fn force_flush(&self) -> opentelemetry_sdk::error::OTelSdkResult {
-        Ok(())
+    for i in 0..batch_size {
+        let scope = &scopes[i % scopes.len()];
+        let logger = temp_provider.logger_with_scope(scope.clone());
+        let mut record = logger.create_log_record();
+
+        record.set_observed_timestamp(now());
+        record.set_timestamp(now());
+        record.set_severity_number(Severity::Info);
+        record.set_severity_text("INFO");
+        record.set_body(AnyValue::String("Benchmark log message".into()));
+
+        // Add trace context
+        let trace_id =
+            opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
+        let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
+        let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
+        record.set_trace_context(trace_id, span_id, Some(trace_flags));
+
+        // Add attributes
+        for j in 0..attribute_count {
+            record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+        }
+
+        log_data.push(Box::new((record, scope.clone())));
     }
 
-    fn shutdown_with_timeout(
-        &self,
-        _timeout: std::time::Duration,
-    ) -> opentelemetry_sdk::error::OTelSdkResult {
-        Ok(())
-    }
-}
-
-fn create_log_record_with_4_attributes() -> SdkLogRecord {
-    let processor = MockProcessor {};
-    let logger = SdkLoggerProvider::builder()
-        .with_log_processor(processor)
-        .build()
-        .logger("benchmark");
-    let mut record = logger.create_log_record();
-    record.set_observed_timestamp(now());
-    record.set_timestamp(now());
-    record.set_severity_number(Severity::Info);
-    record.set_severity_text("INFO");
-    record.set_body(AnyValue::String("Log message".into()));
-
-    // Add trace context
-    let trace_id =
-        opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
-    let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
-    let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
-
-    record.set_trace_context(trace_id, span_id, Some(trace_flags));
-
-    // Add 4 attributes
-    record.add_attribute("http.method", "GET");
-    record.add_attribute("http.status_code", 200);
-    record.add_attribute("http.url", "https://example.com/api");
-    record.add_attribute("user.id", "user123");
-
-    record
-}
-
-fn create_log_record_with_10_attributes() -> SdkLogRecord {
-    let processor = MockProcessor {};
-    let logger = SdkLoggerProvider::builder()
-        .with_log_processor(processor)
-        .build()
-        .logger("benchmark");
-    let mut record = logger.create_log_record();
-    record.set_observed_timestamp(now());
-    record.set_timestamp(now());
-    record.set_severity_number(Severity::Info);
-    record.set_severity_text("INFO");
-    record.set_body(AnyValue::String("Log message".into()));
-
-    // Add trace context
-    let trace_id =
-        opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
-    let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
-    let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
-
-    record.set_trace_context(trace_id, span_id, Some(trace_flags));
-
-    // Add 10 attributes
-    for i in 0..10 {
-        record.add_attribute(format!("attr_{}", i), format!("value_{}", i));
-    }
-
-    record
-}
-
-fn create_log_record_complex() -> SdkLogRecord {
-    let processor = MockProcessor {};
-    let logger = SdkLoggerProvider::builder()
-        .with_log_processor(processor)
-        .build()
-        .logger("benchmark");
-    let mut record = logger.create_log_record();
-    record.set_observed_timestamp(now());
-    record.set_timestamp(now());
-    record.set_severity_number(Severity::Info);
-    record.set_severity_text("INFO");
-
-    // Complex nested map body
-    let mut inner_map = HashMap::new();
-    inner_map.insert(
-        Key::new("inner_key1"),
-        AnyValue::String("inner_value1".into()),
-    );
-    inner_map.insert(Key::new("inner_key2"), AnyValue::Int(42));
-    inner_map.insert(Key::new("inner_key3"), AnyValue::Boolean(true));
-
-    let mut outer_map = HashMap::new();
-    outer_map.insert(Key::new("string_field"), AnyValue::String("value".into()));
-    outer_map.insert(Key::new("number_field"), AnyValue::Int(123));
-    outer_map.insert(Key::new("nested_map"), AnyValue::Map(Box::new(inner_map)));
-    outer_map.insert(
-        Key::new("array_field"),
-        AnyValue::ListAny(Box::new(vec![
-            AnyValue::String("item1".into()),
-            AnyValue::String("item2".into()),
-            AnyValue::Int(100),
-        ])),
-    );
-    record.set_body(AnyValue::Map(Box::new(outer_map)));
-
-    // Add trace context
-    let trace_id =
-        opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
-    let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
-    let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
-
-    record.set_trace_context(trace_id, span_id, Some(trace_flags));
-
-    // Add 10 attributes
-    for i in 0..10 {
-        record.add_attribute(format!("attr_{}", i), format!("value_{}", i));
-    }
-
-    record
+    log_data
 }
 
 #[cfg(feature = "gen-tonic-messages")]
@@ -204,38 +112,12 @@ fn bench_log_conversion(c: &mut Criterion) {
             .build(),
     );
 
-    // Pre-create all log records once (not measured in benchmarks)
-    let records_4_attrs: Vec<_> = (0..BATCH_SIZE)
-        .map(|_| create_log_record_with_4_attributes())
-        .collect();
-    let records_10_attrs: Vec<_> = (0..BATCH_SIZE)
-        .map(|_| create_log_record_with_10_attributes())
-        .collect();
-    let records_complex: Vec<_> = (0..BATCH_SIZE)
-        .map(|_| create_log_record_complex())
-        .collect();
-
-    // Pre-create log batches for each test case
-    let log_tuples_4_attrs: Vec<Box<(SdkLogRecord, InstrumentationScope)>> = records_4_attrs
-        .into_iter()
-        .enumerate()
-        .map(|(i, r)| Box::new((r, instrumentation_scopes[i % NUM_SCOPES].clone())))
-        .collect();
+    // Pre-create log batches for each test case (not measured in benchmarks)
+    let log_tuples_4_attrs = create_log_batch(&instrumentation_scopes, BATCH_SIZE, 4);
     let log_batch_4_attrs = LogBatch::new_with_owned_data(&log_tuples_4_attrs);
 
-    let log_tuples_10_attrs: Vec<Box<(SdkLogRecord, InstrumentationScope)>> = records_10_attrs
-        .into_iter()
-        .enumerate()
-        .map(|(i, r)| Box::new((r, instrumentation_scopes[i % NUM_SCOPES].clone())))
-        .collect();
+    let log_tuples_10_attrs = create_log_batch(&instrumentation_scopes, BATCH_SIZE, 10);
     let log_batch_10_attrs = LogBatch::new_with_owned_data(&log_tuples_10_attrs);
-
-    let log_tuples_complex: Vec<Box<(SdkLogRecord, InstrumentationScope)>> = records_complex
-        .into_iter()
-        .enumerate()
-        .map(|(i, r)| Box::new((r, instrumentation_scopes[i % NUM_SCOPES].clone())))
-        .collect();
-    let log_batch_complex = LogBatch::new_with_owned_data(&log_tuples_complex);
 
     // Step 1: OTel struct to Protobuf struct (batch of 512 from 10 scopes)
     let mut group = c.benchmark_group("log_batch_conversion");
@@ -254,20 +136,12 @@ fn bench_log_conversion(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("batch_512_complex", |b| {
-        b.iter(|| {
-            let request = create_batch_request(black_box(&log_batch_complex), &resource);
-            black_box(request);
-        });
-    });
-
     group.finish();
 
     // Step 2: Protobuf struct to bytes (batch of 512 from 10 scopes)
     // Pre-create protobuf requests for serialization benchmarks
     let request_4_attrs = create_batch_request(&log_batch_4_attrs, &resource);
     let request_10_attrs = create_batch_request(&log_batch_10_attrs, &resource);
-    let request_complex = create_batch_request(&log_batch_complex, &resource);
 
     let mut group = c.benchmark_group("log_batch_serialization");
 
@@ -285,20 +159,12 @@ fn bench_log_conversion(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("batch_512_complex_to_bytes", |b| {
-        b.iter(|| {
-            let bytes = black_box(&request_complex).encode_to_vec();
-            black_box(bytes);
-        });
-    });
-
     group.finish();
 
     // Step 3: Bytes to compressed bytes (gzip) - batch of 512 from 10 scopes
     // Pre-serialize for compression benchmarks
     let bytes_4_attrs = request_4_attrs.encode_to_vec();
     let bytes_10_attrs = request_10_attrs.encode_to_vec();
-    let bytes_complex = request_complex.encode_to_vec();
 
     let mut group = c.benchmark_group("log_batch_compression");
 
@@ -319,17 +185,6 @@ fn bench_log_conversion(c: &mut Criterion) {
             use std::io::Write;
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder.write_all(black_box(&bytes_10_attrs)).unwrap();
-            let compressed = encoder.finish().unwrap();
-            black_box(compressed);
-        });
-    });
-
-    group.bench_function("batch_512_complex_compress", |b| {
-        b.iter(|| {
-            use flate2::{write::GzEncoder, Compression};
-            use std::io::Write;
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(black_box(&bytes_complex)).unwrap();
             let compressed = encoder.finish().unwrap();
             black_box(compressed);
         });
