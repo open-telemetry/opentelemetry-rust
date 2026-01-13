@@ -29,7 +29,6 @@
 use crate::error::OTelSdkResult;
 use crate::{logs::SdkLogRecord, Resource};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_warn, InstrumentationScope};
 
@@ -79,7 +78,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(Duration::from_secs(5))
     }
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: Option<&str>) -> bool {
         // By default, all logs are enabled

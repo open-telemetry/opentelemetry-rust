@@ -7,8 +7,15 @@
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
 - **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
+- **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
+  - `SamplingDecision`, `SamplingResult`
+  - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
 
 ## v0.31.0
 

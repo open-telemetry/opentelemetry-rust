@@ -93,7 +93,7 @@ impl MetricsClient for TonicMetricsClient {
                             Ok((inner.client.clone(), m, e))
                         }
                         None => Err(tonic::Status::failed_precondition(
-                            "exporter is already shut down",
+                            "metrics exporter is already shut down",
                         )),
                     })?;
 

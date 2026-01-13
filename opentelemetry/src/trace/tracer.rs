@@ -1,5 +1,5 @@
 use crate::{
-    trace::{Event, Link, Span, SpanKind, TraceContextExt, TraceState},
+    trace::{Event, Link, Span, SpanKind, TraceContextExt},
     Context, KeyValue,
 };
 use std::borrow::Cow;
@@ -442,30 +442,4 @@ impl SpanBuilder {
     pub fn start_with_context<T: Tracer>(self, tracer: &T, parent_cx: &Context) -> T::Span {
         tracer.build_with_context(self, parent_cx)
     }
-}
-
-/// The result of sampling logic for a given span.
-#[derive(Clone, Debug, PartialEq)]
-pub struct SamplingResult {
-    /// The decision about whether or not to sample.
-    pub decision: SamplingDecision,
-
-    /// Extra attributes to be added to the span by the sampler
-    pub attributes: Vec<KeyValue>,
-
-    /// Trace state from parent context, may be modified by samplers.
-    pub trace_state: TraceState,
-}
-
-/// Decision about whether or not to sample
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SamplingDecision {
-    /// Span will not be recorded and all events and attributes will be dropped.
-    Drop,
-
-    /// Span data wil be recorded, but not exported.
-    RecordOnly,
-
-    /// Span data will be recorded and exported.
-    RecordAndSample,
 }
