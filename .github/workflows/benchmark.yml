@@ -34,9 +34,6 @@ jobs:
       BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
-      - name: Clean up Docker networks
-        run: docker network prune -f || true
-
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
