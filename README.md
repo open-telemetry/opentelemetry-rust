@@ -4,10 +4,13 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 
 [![Crates.io: opentelemetry](https://img.shields.io/crates/v/opentelemetry.svg)](https://crates.io/crates/opentelemetry)
 [![LICENSE](https://img.shields.io/crates/l/opentelemetry)](./LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B162%2Fgithub.com%2Fopen-telemetry%2Fopentelemetry-rust.svg?type=shield&issueType=license)](https://app.fossa.com/projects/custom%2B162%2Fgithub.com%2Fopen-telemetry%2Fopentelemetry-rust?ref=badge_shield&issueType=license)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B162%2Fgithub.com%2Fopen-telemetry%2Fopentelemetry-rust.svg?type=shield&issueType=security)](https://app.fossa.com/projects/custom%2B162%2Fgithub.com%2Fopen-telemetry%2Fopentelemetry-rust?ref=badge_shield&issueType=security)
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-telemetry/opentelemetry-rust/badge)](https://scorecard.dev/viewer/?uri=github.com/open-telemetry/opentelemetry-rust)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10394/badge)](https://www.bestpractices.dev/projects/10394)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 ## Overview
@@ -35,11 +38,11 @@ documentation.
 | Baggage               | RC                 |
 | Propagators           | Beta               |
 | Logs-API              | Stable*            |
-| Logs-SDK              | Stable              |
+| Logs-SDK              | Stable             |
 | Logs-OTLP Exporter    | RC                 |
 | Logs-Appender-Tracing | Stable             |
 | Metrics-API           | Stable             |
-| Metrics-SDK           | RC                 |
+| Metrics-SDK           | Stable             |
 | Metrics-OTLP Exporter | RC                 |
 | Traces-API            | Beta               |
 | Traces-SDK            | Beta               |
@@ -159,8 +162,9 @@ this policy.
 
 See the [contributing file](CONTRIBUTING.md).
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
-Time. The meeting is subject to change depending on contributors' availability.
+The Rust special interest group (SIG) meets on alternating weeks between Tuesday
+at 9:00 AM PT and Wednesday at 8:00 AM PT.
+The meeting is subject to change depending on contributors' availability.
 Check the [OpenTelemetry community
 calendar](https://github.com/open-telemetry/community?tab=readme-ov-file#calendar)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
@@ -186,20 +190,26 @@ you're more than welcome to participate!
 * [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
+For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
+
 ### Approvers
 
 * [Anton Grübel](https://github.com/gruebel), Baz
 * [Björn Antonsson](https://github.com/bantonsson), Datadog
-* [Shaun Cox](https://github.com/shaun-cox), Microsoft
 * [Scott Gerring](https://github.com/scottgerring), Datadog
+* [Shaun Cox](https://github.com/shaun-cox), Microsoft
+
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 
 * [Dirkjan Ochtman](https://github.com/djc)
+* [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Jan Kühle](https://github.com/frigus02)
 * [Julian Tescher](https://github.com/jtescher)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
 * [Mike Goldsmith](https://github.com/MikeGoldsmith)
+
+For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 
 ### Thanks to all the people who have contributed
 

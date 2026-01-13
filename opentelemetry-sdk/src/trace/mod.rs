@@ -38,7 +38,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, ShouldSample};
+pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
@@ -58,15 +58,16 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-
     use super::*;
+    use crate::error::OTelSdkResult;
+    use crate::trace::{SamplingDecision, SamplingResult};
     use crate::{
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState},
+        trace::{SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -76,6 +77,7 @@ mod tests {
         },
         Context, KeyValue,
     };
+    use std::time::Duration;
 
     #[test]
     fn span_modification_via_context() {
@@ -146,7 +148,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> crate::error::OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -234,6 +236,16 @@ mod tests {
             span.update_name("span_name_updated");
             span.set_attribute(KeyValue::new("attribute1", "value1"));
             span.add_event("test-event".to_string(), vec![]);
+            span.add_link(
+                SpanContext::new(
+                    TraceId::from(47),
+                    SpanId::from(11),
+                    TraceFlags::default(),
+                    false,
+                    Default::default(),
+                ),
+                vec![],
+            );
         });
 
         // Assert
@@ -247,6 +259,9 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.links.len(), 1);
+        assert_eq!(span.links[0].span_context.trace_id(), TraceId::from(47));
+        assert_eq!(span.links[0].span_context.span_id(), SpanId::from(11));
         assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Unset);
@@ -338,8 +353,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -408,8 +423,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),
@@ -461,8 +476,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),

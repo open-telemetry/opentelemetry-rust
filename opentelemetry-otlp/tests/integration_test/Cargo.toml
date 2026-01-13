@@ -2,6 +2,8 @@
 name = "integration_test_runner"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.88.0"
 publish = false
 autobenches = false
 
@@ -11,17 +13,20 @@ opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio
 opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "metrics", "with-serde"] }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
-testcontainers = { workspace = true, features = ["http_wait"] }
+testcontainers = { version = "0.25.2", features = ["http_wait"] }
 anyhow = { workspace = true }
-ctor = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 tracing = {workspace = true}
 
 [target.'cfg(unix)'.dependencies]
-opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
 opentelemetry-otlp = { path = "../../../opentelemetry-otlp", default-features = false }
-opentelemetry-semantic-conventions = { path = "../../../opentelemetry-semantic-conventions" }
+
+[dev-dependencies]
+ctor = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+[target.'cfg(unix)'.dev-dependencies]
+opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
 
 [features]
 hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]

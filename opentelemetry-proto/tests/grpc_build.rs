@@ -12,6 +12,8 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/profiles/v1development/profiles.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
@@ -23,7 +25,7 @@ fn build_tonic() {
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
     // build the generated files into OUT_DIR for now so we don't have to touch the src unless we have to
-    let mut builder = tonic_build::configure()
+    let mut builder = tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
@@ -66,6 +68,7 @@ fn build_tonic() {
         "metrics.v1.Summary",
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
+        "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
             path,
@@ -87,6 +90,7 @@ fn build_tonic() {
         "logs.v1.LogRecord.trace_id",
         "metrics.v1.Exemplar.span_id",
         "metrics.v1.Exemplar.trace_id",
+        "profiles.v1development.Profile.profile_id",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
@@ -109,6 +113,14 @@ fn build_tonic() {
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
+    }
+    for path in ["profiles.v1development.Profile.time_nanos"] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
+    }
+    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
     }
 
     // special serializer and deserializer for value

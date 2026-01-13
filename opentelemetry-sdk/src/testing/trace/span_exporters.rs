@@ -14,13 +14,14 @@ use std::fmt::{Display, Formatter};
 pub fn new_test_export_span_data() -> SpanData {
     SpanData {
         span_context: SpanContext::new(
-            TraceId::from_u128(1),
-            SpanId::from_u64(1),
+            TraceId::from(1),
+            SpanId::from(1),
             TraceFlags::SAMPLED,
             false,
             TraceState::default(),
         ),
         parent_span_id: SpanId::INVALID,
+        parent_span_is_remote: false,
         span_kind: SpanKind::Internal,
         name: "opentelemetry".into(),
         start_time: opentelemetry::time::now(),
@@ -45,11 +46,11 @@ impl SpanExporter for TokioSpanExporter {
         batch.into_iter().try_for_each(|span_data| {
             self.tx_export
                 .send(span_data)
-                .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {:?}", err)))
+                .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {err:?}")))
         })
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.tx_shutdown.send(()).map_err(|_| {
             OTelSdkError::InternalFailure("Failed to send shutdown signal".to_string())
         })

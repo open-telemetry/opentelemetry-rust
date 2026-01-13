@@ -20,7 +20,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
@@ -55,7 +55,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     counter_add_unsorted(c);
 
     let attribute_values: [String; 10] = (1..=10)
-        .map(|i| format!("value{}", i))
+        .map(|i| format!("value{i}"))
         .collect::<Vec<String>>()
         .try_into()
         .expect("Expected a Vec of length 10");
@@ -239,7 +239,7 @@ fn random_generator(c: &mut Criterion) {
     });
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -248,7 +248,7 @@ criterion_group! {
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()

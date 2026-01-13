@@ -2,6 +2,21 @@
 
 ## vNext
 
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.31.0.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.30.0.
+
 ## 0.29.0
 
 Released 2025-Mar-21

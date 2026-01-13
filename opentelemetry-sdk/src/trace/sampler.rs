@@ -1,12 +1,36 @@
 use opentelemetry::{
-    trace::{
-        Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
-    },
+    trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
 
 #[cfg(feature = "jaeger_remote_sampler")]
 mod jaeger_remote;
+
+/// The result of sampling logic for a given span.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SamplingResult {
+    /// The decision about whether or not to sample.
+    pub decision: SamplingDecision,
+
+    /// Extra attributes to be added to the span by the sampler
+    pub attributes: Vec<KeyValue>,
+
+    /// Trace state from parent context, may be modified by samplers.
+    pub trace_state: TraceState,
+}
+
+/// Decision about whether or not to sample
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SamplingDecision {
+    /// Span will not be recorded and all events and attributes will be dropped.
+    Drop,
+
+    /// Span data wil be recorded, but not exported.
+    RecordOnly,
+
+    /// Span data will be recorded and exported.
+    RecordAndSample,
+}
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
@@ -311,8 +335,8 @@ mod tests {
                         TraceFlags::default()
                     };
                     let span_context = SpanContext::new(
-                        TraceId::from_u128(1),
-                        SpanId::from_u64(1),
+                        TraceId::from(1),
+                        SpanId::from(1),
                         trace_flags,
                         false,
                         TraceState::default(),
@@ -351,12 +375,7 @@ mod tests {
             let diff = (got - expectation).abs();
             assert!(
                 diff <= tolerance,
-                "{} got {:?} (diff: {}), expected {} (w/tolerance: {})",
-                name,
-                got,
-                diff,
-                expectation,
-                tolerance
+                "{name} got {got:?} (diff: {diff}), expected {expectation} (w/tolerance: {tolerance})"
             );
         }
     }
@@ -371,7 +390,7 @@ mod tests {
 
         let result = sampler.should_sample(
             Some(&cx),
-            TraceId::from_u128(1),
+            TraceId::from(1),
             "should sample",
             &SpanKind::Internal,
             &[],
@@ -380,7 +399,7 @@ mod tests {
 
         let cloned_result = cloned_sampler.should_sample(
             Some(&cx),
-            TraceId::from_u128(1),
+            TraceId::from(1),
             "should sample",
             &SpanKind::Internal,
             &[],
@@ -404,8 +423,8 @@ mod tests {
                 "should use parent result, always off",
                 Sampler::AlwaysOn,
                 Context::current_with_span(TestSpan(SpanContext::new(
-                    TraceId::from_u128(1),
-                    SpanId::from_u64(1),
+                    TraceId::from(1),
+                    SpanId::from(1),
                     TraceFlags::default(), // not sampling
                     false,
                     TraceState::default(),
@@ -416,8 +435,8 @@ mod tests {
                 "should use parent result, always on",
                 Sampler::AlwaysOff,
                 Context::current_with_span(TestSpan(SpanContext::new(
-                    TraceId::from_u128(1),
-                    SpanId::from_u64(1),
+                    TraceId::from(1),
+                    SpanId::from(1),
                     TraceFlags::SAMPLED, // not sampling
                     false,
                     TraceState::default(),
@@ -430,7 +449,7 @@ mod tests {
             let sampler = Sampler::ParentBased(Box::new(delegate));
             let result = sampler.should_sample(
                 Some(&parent_cx),
-                TraceId::from_u128(1),
+                TraceId::from(1),
                 name,
                 &SpanKind::Internal,
                 &[],

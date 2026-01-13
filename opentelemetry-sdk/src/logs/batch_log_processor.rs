@@ -101,8 +101,6 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// cause deadlock. Instead, call `shutdown()` from a separate thread or use
 /// tokio's `spawn_blocking`.
 ///
-/// [`shutdown()`]: crate::logs::LoggerProvider::shutdown
-/// [`force_flush()`]: crate::logs::LoggerProvider::force_flush
 ///
 /// ### Using a BatchLogProcessor:
 ///
@@ -209,6 +207,10 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
+                // The following `otel_warn!` may cause an infinite feedback loop of
+                // 'telemetry-induced-telemetry', potentially causing a stack overflow
+                let _guard = Context::enter_telemetry_suppressed_scope();
+
                 // Given background thread is the only receiver, and it's
                 // disconnected, it indicates the thread is shutdown
                 otel_warn!(
@@ -231,7 +233,7 @@ impl LogProcessor for BatchLogProcessor {
                     if err == RecvTimeoutError::Timeout {
                         OTelSdkError::Timeout(self.forceflush_timeout)
                     } else {
-                        OTelSdkError::InternalFailure(format!("{}", err))
+                        OTelSdkError::InternalFailure(format!("{err}"))
                     }
                 })?,
             Err(mpsc::TrySendError::Full(_)) => {
@@ -293,7 +295,7 @@ impl LogProcessor for BatchLogProcessor {
                                 name: "BatchLogProcessor.Shutdown.Error",
                                 error = format!("{}", err)
                             );
-                            OTelSdkError::InternalFailure(format!("{}", err))
+                            OTelSdkError::InternalFailure(format!("{err}"))
                         }
                     })?
             }
@@ -362,7 +364,7 @@ impl BatchLogProcessor {
                     logs: &mut Vec<LogsData>,
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
-                    config: &BatchConfig,
+                    max_export_size: usize,
                 ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
@@ -375,7 +377,7 @@ impl BatchLogProcessor {
                         // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
                             logs.push(log);
-                            if logs.len() == config.max_export_batch_size {
+                            if logs.len() == max_export_size {
                                 break;
                             }
                         }
@@ -411,7 +413,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
@@ -422,7 +424,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                             let _ = sender.send(result);
                         }
@@ -434,7 +436,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                             let _ = exporter.shutdown();
                             let _ = sender.send(result);
@@ -462,7 +464,7 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                &config,
+                                max_export_batch_size,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {

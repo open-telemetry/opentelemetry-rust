@@ -28,6 +28,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::time::Duration;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -116,11 +117,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown()
+            exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
@@ -134,7 +135,6 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[inline]
     fn event_enabled(
         &self,
@@ -340,8 +340,7 @@ mod tests {
         assert!(
             panic_message.contains("no reactor running")
                 || panic_message.contains("must be called from the context of a Tokio 1.x runtime"),
-            "Expected panic message about missing Tokio runtime, but got: {}",
-            panic_message
+            "Expected panic message about missing Tokio runtime, but got: {panic_message}"
         );
     }
 

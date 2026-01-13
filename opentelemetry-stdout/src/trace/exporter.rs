@@ -45,11 +45,11 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
             } else {
                 println!("Resource");
                 if let Some(schema_url) = self.resource.schema_url() {
-                    println!("\tResource SchemaUrl: {:?}", schema_url);
+                    println!("\tResource SchemaUrl: {schema_url:?}");
                 }
 
                 self.resource.iter().for_each(|(k, v)| {
-                    println!("\t ->  {}={:?}", k, v);
+                    println!("\t ->  {k}={v:?}");
                 });
 
                 print_spans(batch);
@@ -59,7 +59,7 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, Ordering::SeqCst);
         Ok(())
     }
@@ -71,17 +71,17 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
 
 fn print_spans(batch: Vec<SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
-        println!("Span #{}", i);
+        println!("Span #{i}");
         println!("\tInstrumentation Scope");
         println!(
             "\t\tName         : {:?}",
             &span.instrumentation_scope.name()
         );
         if let Some(version) = &span.instrumentation_scope.version() {
-            println!("\t\tVersion  : {:?}", version);
+            println!("\t\tVersion  : {version:?}");
         }
         if let Some(schema_url) = &span.instrumentation_scope.schema_url() {
-            println!("\t\tSchemaUrl: {:?}", schema_url);
+            println!("\t\tSchemaUrl: {schema_url:?}");
         }
         span.instrumentation_scope
             .attributes()
@@ -94,18 +94,28 @@ fn print_spans(batch: Vec<SpanData>) {
             });
 
         println!();
-        println!("\tName        : {}", &span.name);
-        println!("\tTraceId     : {}", &span.span_context.trace_id());
-        println!("\tSpanId      : {}", &span.span_context.span_id());
-        println!("\tTraceFlags  : {:?}", &span.span_context.trace_flags());
-        println!("\tParentSpanId: {}", &span.parent_span_id);
-        println!("\tKind        : {:?}", &span.span_kind);
+        println!("\tName         : {}", &span.name);
+        println!("\tTraceId      : {}", &span.span_context.trace_id());
+        println!("\tSpanId       : {}", &span.span_context.span_id());
+        println!("\tTraceFlags   : {:?}", &span.span_context.trace_flags());
+        if span.parent_span_id == opentelemetry::SpanId::INVALID {
+            println!("\tParentSpanId : None (root span)");
+        } else {
+            println!("\tParentSpanId : {}", &span.parent_span_id);
+        }
+        println!("\tKind         : {:?}", &span.span_kind);
 
         let datetime: DateTime<Utc> = span.start_time.into();
-        println!("\tStart time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+        println!(
+            "\tStart time   : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
         let datetime: DateTime<Utc> = span.end_time.into();
-        println!("\tEnd time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
-        println!("\tStatus: {:?}", &span.status);
+        println!(
+            "\tEnd time     : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
+        println!("\tStatus       : {:?}", &span.status);
 
         let mut print_header = true;
         for kv in span.attributes.iter() {
@@ -120,7 +130,7 @@ fn print_spans(batch: Vec<SpanData>) {
             if index == 0 {
                 println!("\tEvents:");
             }
-            println!("\tEvent #{}", index);
+            println!("\tEvent #{index}");
             println!("\tName      : {}", event.name);
             let datetime: DateTime<Utc> = event.timestamp.into();
             println!("\tTimestamp : {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
@@ -137,7 +147,7 @@ fn print_spans(batch: Vec<SpanData>) {
             if index == 0 {
                 println!("\tLinks:");
             }
-            println!("\tLink #{}", index);
+            println!("\tLink #{index}");
             println!("\tTraceId: {}", link.span_context.trace_id());
             println!("\tSpanId : {}", link.span_context.span_id());
 

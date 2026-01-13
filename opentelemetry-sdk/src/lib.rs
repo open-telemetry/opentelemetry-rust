@@ -77,16 +77,13 @@
 //! The following feature flags can used to control the telemetry signals to use:
 //!
 //! * `trace`: Includes the trace SDK (enabled by default).
-//! * `metrics`: Includes the metrics SDK.
-//! * `logs`: Includes the logs SDK.
+//! * `metrics`: Includes the metrics SDK (enabled by default).
+//! * `logs`: Includes the logs SDK (enabled by default).
 //!
 //! For `trace` the following feature flags are available:
 //!
 //! * `jaeger_remote_sampler`: Enables the [Jaeger remote sampler](https://www.jaegertracing.io/docs/1.53/sampling/).
 //!
-//! For `logs` the following feature flags are available:
-//!
-//! * `spec_unstable_logs_enabled`: control the log level
 //!
 //! Support for recording and exporting telemetry asynchronously and perform
 //! metrics aggregation can be added via the following flags:
@@ -164,6 +161,6 @@ pub enum InMemoryExporterError {
 #[cfg(any(feature = "testing", test))]
 impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
     fn from(err: std::sync::PoisonError<T>) -> Self {
-        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {}", err))
+        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {err}"))
     }
 }

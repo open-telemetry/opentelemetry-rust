@@ -2,8 +2,31 @@
 
 ## vNext
 
+- Updated `schemars` dependency to version 1.0.0.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- **Feature**: Add span flags support for `isRemote` property in OTLP trace transformation ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
+- Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
+- Update proto definitions to v1.8.0.
+- Added Rust generated protos for profiles collector. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
+- **Breaking change**: package opentelemetry_proto::tonic::profiles::v1 renamed to opentelemetry_proto::tonic::profiles::v1development. [#3077](https://github.com/open-telemetry/opentelemetry-rust/pull/3077)
+- Update `tonic` dependency version to 0.14.1
+- Update `prost` dependency version to 0.14
+- Update `opentelemetry` dependency version to 0.31.0
+- Updated `opentelemetry_sdk` dependency to version 0.31.0.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Update `opentelemetry` dependency version to 0.30
+- Updated `opentelemetry_sdk` dependency to version 0.30.0.
+- **Feature**: Added Rust code generation for profiles protos. [#2979](https://github.com/open-telemetry/opentelemetry-rust/pull/2979)
 - Update `tonic` dependency version to 0.13
-- - Update proto definitions to v1.6.0.
+- Update proto definitions to v1.6.0.
 
 ## 0.29.0
 

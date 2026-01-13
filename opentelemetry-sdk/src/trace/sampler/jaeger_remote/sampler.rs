@@ -2,10 +2,10 @@ use crate::runtime::{to_interval_stream, RuntimeChannel};
 use crate::trace::error::TraceError;
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
 use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
-use crate::trace::{Sampler, ShouldSample};
+use crate::trace::{Sampler, SamplingResult, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
-use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceId};
+use opentelemetry::trace::{Link, SpanKind, TraceId};
 use opentelemetry::{otel_warn, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
@@ -236,7 +236,7 @@ impl JaegerRemoteSampler {
         let resp = client
             .send_bytes(request)
             .await
-            .map_err(|err| format!("the request is failed to send {}", err))?;
+            .map_err(|err| format!("the request is failed to send {err}"))?;
 
         // process failures
         if resp.status() != http::StatusCode::OK {
@@ -248,7 +248,7 @@ impl JaegerRemoteSampler {
 
         // deserialize the response
         serde_json::from_slice(&resp.body()[..])
-            .map_err(|err| format!("cannot deserialize the response, {}", err))
+            .map_err(|err| format!("cannot deserialize the response, {err}"))
     }
 }
 

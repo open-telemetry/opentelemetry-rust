@@ -2,6 +2,24 @@
 
 ## vNext
 
+- `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Updated `opentelemetry` dependency to version 0.31.0.
+- Updated `opentelemetry_sdk` dependency to version 0.31.0.
+- Updated `opentelemetry-http` dependency to version 0.31.0.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` dependency to version 0.30.0.
+- Updated `opentelemetry_sdk` dependency to version 0.30.0.
+- Updated `opentelemetry-http` dependency to version 0.30.0.
+
 ## 0.29.0
 
 Released 2025-Mar-21

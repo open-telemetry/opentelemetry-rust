@@ -80,14 +80,14 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Flush(Some(res_sender)))
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -101,10 +101,10 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
         let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
             .try_send(BatchMessage::Shutdown(res_sender))
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))?;
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
         futures_executor::block_on(res_receiver)
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{:?}", err)))
+            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
 
@@ -628,6 +628,10 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]
@@ -652,6 +656,10 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

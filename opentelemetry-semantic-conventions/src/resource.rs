@@ -78,6 +78,24 @@ pub use crate::attribute::BROWSER_MOBILE;
 pub use crate::attribute::BROWSER_PLATFORM;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_RUN_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_PIPELINE_RUN_URL_FULL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CICD_WORKER_URL_FULL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_ACCOUNT_ID;
 
 #[cfg(feature = "semconv_experimental")]
@@ -294,16 +312,34 @@ pub use crate::attribute::K8S_CONTAINER_RESTART_COUNT;
 pub use crate::attribute::K8S_CONTAINER_STATUS_LAST_TERMINATED_REASON;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_CRONJOB_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_CRONJOB_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_CRONJOB_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_CRONJOB_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DAEMONSET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DAEMONSET_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DAEMONSET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DAEMONSET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DEPLOYMENT_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_DEPLOYMENT_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_DEPLOYMENT_NAME;
@@ -315,7 +351,22 @@ pub use crate::attribute::K8S_DEPLOYMENT_UID;
 pub use crate::attribute::K8S_HPA_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_API_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_KIND;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_HPA_SCALETARGETREF_NAME;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_HPA_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_JOB_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_JOB_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_JOB_NAME;
@@ -324,7 +375,19 @@ pub use crate::attribute::K8S_JOB_NAME;
 pub use crate::attribute::K8S_JOB_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NAMESPACE_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NAMESPACE_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_NAMESPACE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NODE_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_NODE_LABEL;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_NODE_NAME;
@@ -345,6 +408,12 @@ pub use crate::attribute::K8S_POD_NAME;
 pub use crate::attribute::K8S_POD_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICASET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_REPLICASET_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_REPLICASET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
@@ -363,10 +432,19 @@ pub use crate::attribute::K8S_RESOURCEQUOTA_NAME;
 pub use crate::attribute::K8S_RESOURCEQUOTA_UID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_STATEFULSET_ANNOTATION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::K8S_STATEFULSET_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::K8S_STATEFULSET_UID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::MAINFRAME_LPAR_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::OCI_MANIFEST_DIGEST;
@@ -451,6 +529,21 @@ pub use crate::attribute::TELEMETRY_SDK_VERSION;
 pub use crate::attribute::USER_AGENT_ORIGINAL;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_HEAD_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_HEAD_REVISION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REF_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REPOSITORY_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::VCS_REPOSITORY_URL_FULL;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_DESCRIPTION;
 
 #[cfg(feature = "semconv_experimental")]
@@ -458,3 +551,9 @@ pub use crate::attribute::WEBENGINE_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::WEBENGINE_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ZOS_SMF_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ZOS_SYSPLEX_NAME;

@@ -2,6 +2,24 @@
 
 ## vNext
 
+- `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Implementation of `Extractor::get_all` for `HeaderExtractor`
+- Support `HttpClient` implementation for `HyperClient<C>` with custom connectors beyond `HttpConnector`, enabling Unix Domain Socket connections and other custom transports
+- Add `reqwest` and `reqwest-blocking` features to enable async and blocking
+  reqwest HTTP clients
+- Updated `opentelemetry` dependency to version 0.31.0.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` dependency to version 0.30.0.
+
 ## 0.29.0
 
 Released 2025-Mar-21
@@ -45,7 +63,7 @@ Released 2024-Sep-30
 
 ## v0.12.0
 
-- Add `reqwest-rustls-webkpi-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webkpi-roots`.
+- Add `reqwest-rustls-webpki-roots` feature flag to configure [`reqwest`](https://docs.rs/reqwest/0.11.27/reqwest/index.html#optional-features) to use embedded `webpki-roots`.
 - Update `opentelemetry` dependency version to 0.23
 
 ## v0.11.1

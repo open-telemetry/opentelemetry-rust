@@ -20,7 +20,7 @@ fn get_resource() -> Resource {
     RESOURCE
         .get_or_init(|| {
             Resource::builder()
-                .with_service_name("basic-otlp-example-grpc")
+                .with_service_name("basic-otlp-example-http")
                 .build()
         })
         .clone()
@@ -169,15 +169,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // Collect all shutdown errors
     let mut shutdown_errors = Vec::new();
     if let Err(e) = tracer_provider.shutdown() {
-        shutdown_errors.push(format!("tracer provider: {}", e));
+        shutdown_errors.push(format!("tracer provider: {e}"));
     }
 
     if let Err(e) = meter_provider.shutdown() {
-        shutdown_errors.push(format!("meter provider: {}", e));
+        shutdown_errors.push(format!("meter provider: {e}"));
     }
 
     if let Err(e) = logger_provider.shutdown() {
-        shutdown_errors.push(format!("logger provider: {}", e));
+        shutdown_errors.push(format!("logger provider: {e}"));
     }
 
     // Return an error if any shutdown failed

@@ -110,8 +110,8 @@ mod tests {
         assert_eq!(log.record.attributes_len(), 10);
         for i in 1..=10 {
             assert!(log.record.attributes_contains(
-                &Key::new(format!("key{}", i)),
-                &AnyValue::String(format!("value{}", i).into())
+                &Key::new(format!("key{i}")),
+                &AnyValue::String(format!("value{i}").into())
             ));
         }
 
@@ -127,7 +127,7 @@ mod tests {
             .build();
 
         let scope = InstrumentationScope::builder("test_logger")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
 
@@ -149,7 +149,7 @@ mod tests {
         assert_eq!(instrumentation_scope.name(), "test_logger");
         assert_eq!(
             instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schema/1.0.0")
+            Some("https://opentelemetry.io/schemas/1.0.0")
         );
         assert!(instrumentation_scope
             .attributes()
@@ -171,7 +171,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> crate::error::OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -277,7 +277,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

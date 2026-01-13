@@ -73,7 +73,7 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
             return;
         }
         if field.name() == "message" {
-            self.log_record.set_body(format!("{:?}", value).into());
+            self.log_record.set_body(format!("{value:?}").into());
         } else {
             self.log_record
                 .add_attribute(Key::new(field.name()), AnyValue::from(format!("{value:?}")));
@@ -220,7 +220,6 @@ where
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
         let name = metadata.name();
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         if !self.logger.event_enabled(severity, target, Some(name)) {
             // TODO: See if we need internal logs or track the count.
             return;
@@ -243,26 +242,6 @@ where
         visitor.visit_experimental_metadata(meta);
         // Visit fields.
         event.record(&mut visitor);
-
-        #[cfg(feature = "experimental_use_tracing_span_context")]
-        if let Some(span) = _ctx.event_span(event) {
-            use tracing_opentelemetry::OtelData;
-            let opt_span_id = span
-                .extensions()
-                .get::<OtelData>()
-                .and_then(|otd| otd.builder.span_id);
-
-            let opt_trace_id = span.scope().last().and_then(|root_span| {
-                root_span
-                    .extensions()
-                    .get::<OtelData>()
-                    .and_then(|otd| otd.builder.trace_id)
-            });
-
-            if let Some((trace_id, span_id)) = opt_trace_id.zip(opt_span_id) {
-                log_record.set_trace_context(trace_id, span_id, None);
-            }
-        }
 
         //emit record
         self.logger.emit(log_record);
@@ -608,67 +587,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "experimental_use_tracing_span_context")]
-    #[test]
-    fn tracing_appender_inside_tracing_crate_context() {
-        use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
-
-        // Arrange
-        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
-        let logger_provider = SdkLoggerProvider::builder()
-            .with_simple_exporter(exporter.clone())
-            .build();
-
-        // setup tracing layer to compare trace/span IDs against
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let tracer_provider = SdkTracerProvider::builder()
-            .with_simple_exporter(span_exporter.clone())
-            .build();
-        let tracer = tracer_provider.tracer("test-tracer");
-
-        let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
-        let log_layer =
-            layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
-
-        let subscriber = tracing_subscriber::registry()
-            .with(log_layer)
-            .with(tracing_opentelemetry::layer().with_tracer(tracer));
-
-        // Avoiding global subscriber.init() as that does not play well with unit tests.
-        let _guard = tracing::subscriber::set_default(subscriber);
-
-        // Act
-        tracing::error_span!("outer-span").in_scope(|| {
-            error!("first-event");
-
-            tracing::error_span!("inner-span").in_scope(|| {
-                error!("second-event");
-            });
-        });
-
-        assert!(logger_provider.force_flush().is_ok());
-
-        let logs = exporter.get_emitted_logs().expect("No emitted logs");
-        assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
-
-        let spans = span_exporter.get_finished_spans().unwrap();
-        assert_eq!(spans.len(), 2);
-
-        let trace_id = spans[0].span_context.trace_id();
-        assert_eq!(trace_id, spans[1].span_context.trace_id());
-        let inner_span_id = spans[0].span_context.span_id();
-        let outer_span_id = spans[1].span_context.span_id();
-        assert_eq!(outer_span_id, spans[0].parent_span_id);
-
-        let trace_ctx0 = logs[0].record.trace_context().unwrap();
-        let trace_ctx1 = logs[1].record.trace_context().unwrap();
-
-        assert_eq!(trace_ctx0.trace_id, trace_id);
-        assert_eq!(trace_ctx1.trace_id, trace_id);
-        assert_eq!(trace_ctx0.span_id, outer_span_id);
-        assert_eq!(trace_ctx1.span_id, inner_span_id);
-    }
-
     #[test]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
@@ -862,7 +780,6 @@ mod tests {
             // no-op
         }
 
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
             // assert that passed in arguments are same as the ones set in the test.
             assert_eq!(self.severity_level, level);
@@ -877,9 +794,12 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[test]
     fn is_enabled() {
         // Arrange

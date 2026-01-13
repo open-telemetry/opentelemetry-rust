@@ -14,7 +14,7 @@ comment_formats:
 default_comment_format: rust
 
 params:
-  schema_url: "https://opentelemetry.io/schemas/1.32.0"
+  schema_url: "https://opentelemetry.io/schemas/1.36.0"
   exclude_root_namespace: []
   excluded_attributes: ["messaging.client_id"]
 

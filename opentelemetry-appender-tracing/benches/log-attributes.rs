@@ -28,7 +28,7 @@ use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -41,6 +41,10 @@ impl LogProcessor for NoopProcessor {
     fn emit(&self, _: &mut SdkLogRecord, _: &InstrumentationScope) {}
 
     fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -60,7 +64,7 @@ fn create_benchmark(c: &mut Criterion, num_attributes: usize) {
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
-        c.bench_function(&format!("otel_{}_attributes", num_attributes), |b| {
+        c.bench_function(&format!("otel_{num_attributes}_attributes"), |b| {
             b.iter(|| {
                 // Dynamically generate the error! macro call based on the number of attributes
                 match num_attributes {
@@ -251,7 +255,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     // }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -261,7 +265,7 @@ criterion_group! {
     targets = criterion_benchmark
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
