@@ -76,7 +76,7 @@ use opentelemetry::KeyValue;
 
 let scope = InstrumentationScope::builder("my_company.my_product.my_library")
         .with_version("0.17")
-        .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.2.0")
         .with_attributes([KeyValue::new("key", "value")])
         .build();
 
