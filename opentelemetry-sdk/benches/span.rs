@@ -8,15 +8,16 @@
 
     The benchmark results:
     criterion = "0.5.1"
-    rustc 1.83.0 (90b35a623 2024-11-26)
+    cargo 1.91.1 (ea2d97820 2025-10-10)
     Hardware: M4Pro
     | Test                                                  | Always Sample | Never Sample |
     |-------------------------------------------------------|---------------|--------------|
-    | span-creation-simple                                  | 236.38 ns     | 77.155 ns    |
-    | span-creation-span-builder                            | 234.48 ns     | 109.22 ns    |
-    | span-creation-tracer-in-span                          | 417.24 ns     | 221.93 ns    |
-    | span-creation-simple-context-activation               | 408.40 ns     | 59.426 ns    |
-    | span-creation-span-builder-context-activation         | 414.39 ns     | 90.575 ns    |
+    | span-creation-simple                                  | 203.67 ns     | 51.316 ns    |
+    | span-creation-span-builder                            | 209.55 ns     | 88.032 ns    |
+    | span-creation-tracer-in-span                          | 339.52 ns     | 150.55 ns    |
+    | span-creation-tracer-in-span-with-builder             | 317.44 ns     | 170.38 ns    |
+    | span-creation-simple-context-activation               | 329.41 ns     | 47.681 ns    |
+    | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -38,11 +39,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         // Attributes are set after creation, and automatically gets
         // ignored if sampling is unfavorable.
         let mut span = tracer.start("span-name");
-        span.set_attribute(KeyValue::new("key1", false));
-        span.set_attribute(KeyValue::new("key2", "hello"));
-        span.set_attribute(KeyValue::new("key3", 123.456));
-        span.set_attribute(KeyValue::new("key4", "world"));
-        span.set_attribute(KeyValue::new("key5", 123));
+        if span.is_recording() {
+            span.set_attribute(KeyValue::new("key1", false));
+            span.set_attribute(KeyValue::new("key2", "hello"));
+            span.set_attribute(KeyValue::new("key3", 123.456));
+            span.set_attribute(KeyValue::new("key4", "world"));
+            span.set_attribute(KeyValue::new("key5", 123));
+        }
         span.end();
     });
 
@@ -60,8 +63,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                 KeyValue::new("key3", 123.456),
             ])
             .start(tracer);
-        span.set_attribute(KeyValue::new("key4", "world"));
-        span.set_attribute(KeyValue::new("key5", 123));
+        if span.is_recording() {
+            span.set_attribute(KeyValue::new("key4", "world"));
+            span.set_attribute(KeyValue::new("key5", 123));
+        }
         span.end();
     });
 
@@ -72,10 +77,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         // context activation is done, irrespective of sampling decision.
         tracer.in_span("span-name", |ctx| {
             let span = ctx.span();
-            span.set_attribute(KeyValue::new("key1", false));
-            span.set_attribute(KeyValue::new("key2", "hello"));
-            span.set_attribute(KeyValue::new("key3", 123.456));
             if span.is_recording() {
+                span.set_attribute(KeyValue::new("key1", false));
+                span.set_attribute(KeyValue::new("key2", "hello"));
+                span.set_attribute(KeyValue::new("key3", 123.456));
                 span.set_attribute(KeyValue::new("key4", "world"));
                 span.set_attribute(KeyValue::new("key5", 123));
             }
@@ -106,10 +111,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         // based on sampling decision, and hence it is faster than the
         // tracer.in_span approach.
         let mut span = tracer.start("span-name");
-        span.set_attribute(KeyValue::new("key1", false));
-        span.set_attribute(KeyValue::new("key2", "hello"));
-        span.set_attribute(KeyValue::new("key3", 123.456));
         if span.is_recording() {
+            span.set_attribute(KeyValue::new("key1", false));
+            span.set_attribute(KeyValue::new("key2", "hello"));
+            span.set_attribute(KeyValue::new("key3", 123.456));
             let _guard = mark_span_as_active(span);
             Context::map_current(|cx| {
                 let span_from_context = cx.span();
