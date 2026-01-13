@@ -379,7 +379,7 @@ fn prometheus_exporter_integration() {
 
         let scope = InstrumentationScope::builder("testmeter")
             .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![KeyValue::new("k", "v")])
             .build();
 
@@ -437,7 +437,7 @@ fn multiple_scopes() {
 
     let scope_foo = InstrumentationScope::builder("meterfoo")
         .with_version("v0.1.0")
-        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
         .with_attributes(vec![KeyValue::new("k", "v")])
         .build();
 
@@ -451,7 +451,7 @@ fn multiple_scopes() {
 
     let scope_bar = InstrumentationScope::builder("meterbar")
         .with_version("v0.1.0")
-        .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
         .with_attributes(vec![KeyValue::new("k", "v")])
         .build();
 
@@ -785,13 +785,13 @@ fn duplicate_metrics() {
 
         let scope_ma = InstrumentationScope::builder("ma")
             .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![KeyValue::new("k", "v")])
             .build();
 
         let scope_mb = InstrumentationScope::builder("mb")
             .with_version("v0.1.0")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![KeyValue::new("k", "v")])
             .build();
 
