@@ -15,6 +15,8 @@
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 - Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- **Feature**: Add support for `OTEL_SDK_DISABLED` environment variable ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
+
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
