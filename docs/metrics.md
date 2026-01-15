@@ -24,6 +24,7 @@ Status: **Work-In-Progress**
   * [Cardinality Limits](#cardinality-limits)
     * [Cardinality Limits - Implications](#cardinality-limits---implications)
     * [Cardinality Limits - Example](#cardinality-limits---example)
+    * [Cardinality Limits - How to Choose the Right Limit](#cardinality-limits---how-to-choose-the-right-limit)
   * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
