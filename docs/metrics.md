@@ -643,9 +643,9 @@ but know the maximum requests per second your application can handle (X), and
 each request produces one metric measurement, then `X × interval_seconds`
 provides a guaranteed upper bound. For example, at 500 req/sec max with a 60 sec
 interval: 500 × 60 = 30,000. This ensures no overflow but may overestimate if
-many requests come from the same users. Use this approach when you prefer safety
-over memory efficiency, or as a starting point before refining based on observed
-patterns.
+many requests come from the same users. Use this approach when you want to avoid
+overflow at the cost of memory efficiency, or as a starting point before
+refining based on observed patterns.
 
 ###### Export Interval Tuning
 
