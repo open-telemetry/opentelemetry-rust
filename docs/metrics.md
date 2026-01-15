@@ -632,6 +632,15 @@ But if only 10,000 users are typically active during a 60 sec export interval:
 **You can set the limit to 20,000, dramatically reducing memory usage during
 normal operation.**
 
+**Using request rate as an upper bound**: If you cannot estimate active users
+but know your application handles X requests per second and each request
+produces one metric measurement, then `X × interval_seconds` provides a
+guaranteed upper bound. For example, at 500 req/sec with a 60 sec interval: 500
+× 60 × 2 = 60,000. This ensures no overflow but may overestimate if many
+requests come from the same users. Use this approach when you prefer safety over
+memory efficiency, or as a starting point before refining based on observed
+patterns.
+
 ###### Export Interval Tuning
 
 Shorter export intervals further reduce the required cardinality:
