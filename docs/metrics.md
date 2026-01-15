@@ -412,7 +412,7 @@ color.
 > [!IMPORTANT]
 > Cardinality is the number of **unique attribute combinations**, not the number
 > of measurements. Even if you record millions of measurements per interval,
-> they are aggregated into a single data point per unique attribute combination.
+> they are aggregated into a finite set of data points - one for each unique attribute combination.
 
 | Color  | Name  | Count |
 | ------ | ----- | ----- |
