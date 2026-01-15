@@ -408,6 +408,11 @@ combinations). No matter how many fruits we sell, we can always use the
 following table to summarize the total number of fruits based on the name and
 color.
 
+> [!IMPORTANT]
+> Cardinality is the number of **unique attribute combinations**, not the number
+> of measurements. Even if you record millions of measurements per interval,
+> they are aggregated into a single data point per unique attribute combination.
+
 | Color  | Name  | Count |
 | ------ | ----- | ----- |
 | red    | apple | 6     |
@@ -527,11 +532,12 @@ of 3 and we're tracking sales with attributes for `name`, `color`, and
 
 During a busy sales period at time (T3, T4], we record:
   
-1. 10 red apples sold at Downtown store
-2. 5 yellow lemons sold at Uptown store
-3. 8 green apples sold at Downtown store
-4. 3 red apples sold at Midtown store (at this point, the cardinality limit is
-    hit, and attributes are replaced with overflow attribute.)
+1. 10 red apples sold at Downtown store → 1st unique combination tracked
+2. 5 yellow lemons sold at Uptown store → 2nd unique combination tracked
+3. 8 green apples sold at Downtown store → 3rd unique combination tracked
+   (limit reached)
+4. 3 red apples sold at Midtown store → limit exceeded, folded into overflow
+   bucket
 
 The exported metrics would be:
   
@@ -633,12 +639,12 @@ But if only 10,000 users are typically active during a 60 sec export interval:
 normal operation.**
 
 **Using request rate as an upper bound**: If you cannot estimate active users
-but know your application handles X requests per second and each request
-produces one metric measurement, then `X × interval_seconds` provides a
-guaranteed upper bound. For example, at 500 req/sec with a 60 sec interval: 500
-× 60 × 2 = 60,000. This ensures no overflow but may overestimate if many
-requests come from the same users. Use this approach when you prefer safety over
-memory efficiency, or as a starting point before refining based on observed
+but know the maximum requests per second your application can handle (X), and
+each request produces one metric measurement, then `X × interval_seconds`
+provides a guaranteed upper bound. For example, at 500 req/sec max with a 60 sec
+interval: 500 × 60 = 30,000. This ensures no overflow but may overestimate if
+many requests come from the same users. Use this approach when you prefer safety
+over memory efficiency, or as a starting point before refining based on observed
 patterns.
 
 ###### Export Interval Tuning
