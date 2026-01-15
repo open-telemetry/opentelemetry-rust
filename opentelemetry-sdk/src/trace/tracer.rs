@@ -183,6 +183,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         let config = provider.config();
         let span_id = config.id_generator.new_span_id();
         let trace_id;
+        let mut trace_flags = parent_cx.span().span_context().trace_flags();
         let mut psc = &SpanContext::empty_context();
 
         let parent_span = if parent_cx.has_active_span() {
@@ -197,6 +198,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             psc = sc;
         } else {
             trace_id = config.id_generator.new_trace_id();
+            trace_flags = trace_flags.with_random(config.id_generator.is_random());
         };
 
         let samplings_result = config.sampler.should_sample(
@@ -208,7 +210,6 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             builder.links.as_deref().unwrap_or(&[]),
         );
 
-        let trace_flags = parent_cx.span().span_context().trace_flags();
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
         // Build optional inner context, `None` if not recording.
@@ -265,6 +266,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
+    use crate::trace::{IdGenerator, RandomIdGenerator};
     use crate::{
         testing::trace::TestSpan,
         trace::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
@@ -301,6 +303,23 @@ mod tests {
                 attributes: Vec::new(),
                 trace_state: trace_state.insert("foo", "notbar").unwrap(),
             }
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestNonRandomIdGenerator;
+
+    impl IdGenerator for TestNonRandomIdGenerator {
+        fn new_trace_id(&self) -> TraceId {
+            TraceId::from(1)
+        }
+
+        fn new_span_id(&self) -> SpanId {
+            SpanId::from(1)
+        }
+
+        fn is_random(&self) -> bool {
+            false
         }
     }
 
@@ -359,7 +378,7 @@ mod tests {
             cx.with_remote_span_context(SpanContext::new(
                 TraceId::from(1),
                 SpanId::from(1),
-                TraceFlags::default(),
+                TraceFlags::EMPTY,
                 true,
                 Default::default(),
             ))
@@ -368,6 +387,40 @@ mod tests {
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());
+        assert!(!span.span_context().trace_flags().is_random());
+        assert!(!span.span_context().trace_flags().is_sampled());
+    }
+
+    #[test]
+    fn new_trace_has_random_flag_set() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_id_generator(RandomIdGenerator::default())
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Start a new root span with no parent context
+        let span = tracer.start("root_span");
+        let span_context = span.span_context();
+
+        assert!(span_context.is_sampled());
+        assert!(span_context.trace_flags().is_random());
+    }
+
+    #[test]
+    fn new_trace_does_not_have_random_flag_set() {
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_id_generator(TestNonRandomIdGenerator)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Start a new root span with no parent context
+        let span = tracer.start("root_span");
+        let span_context = span.span_context();
+
+        assert!(span_context.is_sampled());
+        assert!(!span_context.trace_flags().is_random());
     }
 
     #[test]
