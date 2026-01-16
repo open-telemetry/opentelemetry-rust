@@ -41,7 +41,7 @@ impl LogProcessor for NoopProcessor {
     }
 }
 
-/// Creates a benchmark for a single span with a specific number of attributes
+/// Creates a benchmark for a specific number of attributes
 fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
     let provider = SdkLoggerProvider::builder()
         .with_resource(
@@ -57,7 +57,6 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
 
     tracing::subscriber::with_default(subscriber, || {
         c.bench_function(&format!("span_{num_attributes}_attributes"), |b| {
-            // Create span with the specified number of attributes
             b.iter(|| match num_attributes {
                 4 => {
                     let span = info_span!(
