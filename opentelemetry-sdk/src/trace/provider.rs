@@ -355,8 +355,11 @@ impl TracerProviderBuilder {
     }
 
     /// Specify the sampler to be used.
-    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
-        self.config.sampler = Box::new(sampler);
+    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(
+        mut self,
+        sampler: impl Into<Box<T>>,
+    ) -> Self {
+        self.config.sampler = sampler.into();
         self
     }
 
