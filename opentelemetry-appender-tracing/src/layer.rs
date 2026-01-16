@@ -346,8 +346,8 @@ where
                 for span_ref in scope.from_root() {
                     // Clone Arc to release span extensions lock before processing attributes
                     let attrs = {
-                        let extensions = span_ref.extensions();
-                        extensions
+                        span_ref
+                            .extensions()
                             .get::<StoredSpanAttributes>()
                             .map(|stored| stored.attributes.clone())
                     };
