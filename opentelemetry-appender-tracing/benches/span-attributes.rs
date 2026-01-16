@@ -6,19 +6,11 @@
 
 | Test                      | Average time | Increment |
 |---------------------------|--------------|-----------|
-| span_0_attributes         | 146 ns       | -         |
-| span_1_attributes         | 296 ns       | +150 ns   |
-| span_2_attributes         | 370 ns       | +74 ns    |
-| span_3_attributes         | 439 ns       | +69 ns    |
-| span_4_attributes         | 587 ns       | +148 ns   |
-| span_5_attributes         | 681 ns       | +94 ns    |
-| span_6_attributes         | 714 ns       | +33 ns    |
-| span_7_attributes         | 890 ns       | +176 ns   |
-| span_8_attributes         | 1.18 µs      | +290 ns   |
-| span_9_attributes         | 1.24 µs      | +60 ns    |
-| span_10_attributes        | 1.34 µs      | +100 ns   |
-| span_11_attributes        | 1.39 µs      | +50 ns    |
-| span_12_attributes        | 1.48 µs      | +90 ns    |
+| span_4_attributes         | 538 ns       | -         |
+| span_8_attributes         | 1.03 µs      | +492 ns   |
+| nested_spans_1_levels     | 591 ns       | -         |
+| nested_spans_2_levels     | 1.42 µs      | +829 ns   |
+| nested_spans_3_levels     | 2.24 µs      | +820 ns   |
 
 */
 
@@ -67,23 +59,6 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
         c.bench_function(&format!("span_{num_attributes}_attributes"), |b| {
             // Create span with the specified number of attributes
             b.iter(|| match num_attributes {
-                0 => {
-                    let span = info_span!("test");
-                    let _enter = span.enter();
-                }
-                1 => {
-                    let span = info_span!("test", attr1 = "value1");
-                    let _enter = span.enter();
-                }
-                2 => {
-                    let span = info_span!("test", attr1 = "value1", attr2 = "value2");
-                    let _enter = span.enter();
-                }
-                3 => {
-                    let span =
-                        info_span!("test", attr1 = "value1", attr2 = "value2", attr3 = "value3");
-                    let _enter = span.enter();
-                }
                 4 => {
                     let span = info_span!(
                         "test",
@@ -91,42 +66,6 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
                         attr2 = "value2",
                         attr3 = "value3",
                         attr4 = "value4"
-                    );
-                    let _enter = span.enter();
-                }
-                5 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5"
-                    );
-                    let _enter = span.enter();
-                }
-                6 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6"
-                    );
-                    let _enter = span.enter();
-                }
-                7 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6",
-                        attr7 = "value7"
                     );
                     let _enter = span.enter();
                 }
@@ -144,74 +83,8 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
                     );
                     let _enter = span.enter();
                 }
-                9 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6",
-                        attr7 = "value7",
-                        attr8 = "value8",
-                        attr9 = "value9"
-                    );
-                    let _enter = span.enter();
-                }
-                10 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6",
-                        attr7 = "value7",
-                        attr8 = "value8",
-                        attr9 = "value9",
-                        attr10 = "value10"
-                    );
-                    let _enter = span.enter();
-                }
-                11 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6",
-                        attr7 = "value7",
-                        attr8 = "value8",
-                        attr9 = "value9",
-                        attr10 = "value10",
-                        attr11 = "value11"
-                    );
-                    let _enter = span.enter();
-                }
-                12 => {
-                    let span = info_span!(
-                        "test",
-                        attr1 = "value1",
-                        attr2 = "value2",
-                        attr3 = "value3",
-                        attr4 = "value4",
-                        attr5 = "value5",
-                        attr6 = "value6",
-                        attr7 = "value7",
-                        attr8 = "value8",
-                        attr9 = "value9",
-                        attr10 = "value10",
-                        attr11 = "value11",
-                        attr12 = "value12"
-                    );
-                    let _enter = span.enter();
-                }
                 _ => {
-                    // Fall back to 8 attributes for any higher number
+                    // Fall back to 8 attributes for any other number
                     let span = info_span!(
                         "test",
                         attr1 = "value1",
@@ -230,12 +103,125 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
     });
 }
 
+/// Creates a benchmark for nested spans with a specific depth
+/// Each span has 4 attributes
+fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
+    let provider = SdkLoggerProvider::builder()
+        .with_resource(
+            Resource::builder_empty()
+                .with_service_name("benchmark")
+                .build(),
+        )
+        .with_log_processor(NoopProcessor)
+        .build();
+
+    let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
+    let subscriber = Registry::default().with(ot_layer);
+
+    tracing::subscriber::with_default(subscriber, || {
+        c.bench_function(&format!("nested_spans_{depth}_levels"), |b| {
+            b.iter(|| match depth {
+                1 => {
+                    let span1 = info_span!(
+                        "level_1",
+                        depth = 1,
+                        attr1 = "value1",
+                        attr2 = "value2",
+                        attr3 = "value3",
+                        attr4 = "value4"
+                    );
+                    let _enter1 = span1.enter();
+                }
+                2 => {
+                    let span1 = info_span!(
+                        "level_1",
+                        depth = 1,
+                        attr1 = "value1",
+                        attr2 = "value2",
+                        attr3 = "value3",
+                        attr4 = "value4"
+                    );
+                    let _enter1 = span1.enter();
+                    {
+                        let span2 = info_span!(
+                            "level_2",
+                            depth = 2,
+                            attr1 = "value1",
+                            attr2 = "value2",
+                            attr3 = "value3",
+                            attr4 = "value4"
+                        );
+                        let _enter2 = span2.enter();
+                    }
+                }
+                3 => {
+                    let span1 = info_span!(
+                        "level_1",
+                        depth = 1,
+                        attr1 = "value1",
+                        attr2 = "value2",
+                        attr3 = "value3",
+                        attr4 = "value4"
+                    );
+                    let _enter1 = span1.enter();
+                    {
+                        let span2 = info_span!(
+                            "level_2",
+                            depth = 2,
+                            attr1 = "value1",
+                            attr2 = "value2",
+                            attr3 = "value3",
+                            attr4 = "value4"
+                        );
+                        let _enter2 = span2.enter();
+                        {
+                            let span3 = info_span!(
+                                "level_3",
+                                depth = 3,
+                                attr1 = "value1",
+                                attr2 = "value2",
+                                attr3 = "value3",
+                                attr4 = "value4"
+                            );
+                            let _enter3 = span3.enter();
+                        }
+                    }
+                }
+                _ => {
+                    // Fall back to depth 2 for any higher number
+                    let span1 = info_span!(
+                        "level_1",
+                        depth = 1,
+                        attr1 = "value1",
+                        attr2 = "value2",
+                        attr3 = "value3",
+                        attr4 = "value4"
+                    );
+                    let _enter1 = span1.enter();
+                    {
+                        let span2 = info_span!(
+                            "level_2",
+                            depth = 2,
+                            attr1 = "value1",
+                            attr2 = "value2",
+                            attr3 = "value3",
+                            attr4 = "value4"
+                        );
+                        let _enter2 = span2.enter();
+                    }
+                }
+            });
+        });
+    });
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     benchmark_span_attributes(c, 4);
-    // Run benchmarks for 0 to 12 attributes
-    // for i in 0..=12 {
-    //     benchmark_span_attributes(c, i);
-    // }
+    benchmark_span_attributes(c, 8);
+
+    for i in 1..=3 {
+        benchmark_nested_spans(c, i);
+    }
 }
 
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
