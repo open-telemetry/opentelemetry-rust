@@ -215,9 +215,11 @@ fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
+    // Benchmark single spans with 4 and 8 attributes
     benchmark_span_attributes(c, 4);
     benchmark_span_attributes(c, 8);
 
+    // Benchmark nested spans (1-3 levels deep, each with 4 attributes)
     for i in 1..=3 {
         benchmark_nested_spans(c, i);
     }
