@@ -2590,9 +2590,12 @@ mod tests {
             }
 
             // find and validate key1=value1 datapoint
-            let data_point =
-                find_histogram_datapoint_with_key_value(&histogram_data.data_points, "key1", "value1")
-                    .expect("datapoint with key1=value1 expected");
+            let data_point = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
 
             assert_eq!(data_point.count, 5);
             assert_eq!(data_point.sum, 15);
