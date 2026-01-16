@@ -45,6 +45,10 @@ harness = false
 name = "log-attributes"
 harness = false
 
+[[bench]]
+name = "span-attributes"
+harness = false
+
 [lib]
 bench = false
 
