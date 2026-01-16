@@ -39,6 +39,7 @@ pub struct Pipeline {
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
     inner: Mutex<PipelineInner>,
+    dynamic_memory_allocation_delta: bool,
 }
 
 impl fmt::Debug for Pipeline {
@@ -404,6 +405,7 @@ where
                 self.pipeline.reader.temporality(kind),
                 filter,
                 cardinality_limit,
+                self.pipeline.dynamic_memory_allocation_delta,
             );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
@@ -646,6 +648,7 @@ impl Pipelines {
         res: Resource,
         readers: Vec<Box<dyn MetricReader>>,
         views: Vec<Arc<dyn View>>,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         let mut pipes = Vec::with_capacity(readers.len());
         for r in readers {
@@ -654,6 +657,7 @@ impl Pipelines {
                 reader: r,
                 views: views.clone(),
                 inner: Default::default(),
+                dynamic_memory_allocation_delta,
             });
             p.reader.register_pipeline(Arc::downgrade(&p));
             pipes.push(p);

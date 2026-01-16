@@ -126,6 +126,8 @@ pub(crate) struct AggregateBuilder<T> {
     /// Cardinality limit for the metric stream
     cardinality_limit: usize,
 
+    dynamic_memory_allocation_delta: bool,
+
     _marker: marker::PhantomData<T>,
 }
 
@@ -134,11 +136,13 @@ impl<T: Number> AggregateBuilder<T> {
         temporality: Temporality,
         filter: Option<Filter>,
         cardinality_limit: usize,
+        dynamic_memory_allocation_delta: bool,
     ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
+            dynamic_memory_allocation_delta,
             _marker: marker::PhantomData,
         }
     }
@@ -149,6 +153,7 @@ impl<T: Number> AggregateBuilder<T> {
             overwrite_temporality.unwrap_or(self.temporality),
             self.filter.clone(),
             self.cardinality_limit,
+            self.dynamic_memory_allocation_delta,
         )
         .into()
     }
@@ -160,6 +165,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.dynamic_memory_allocation_delta,
         )
         .into()
     }
@@ -171,6 +177,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.dynamic_memory_allocation_delta,
         )
         .into()
     }
@@ -189,6 +196,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.dynamic_memory_allocation_delta,
         )
         .into()
     }
@@ -209,6 +217,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.dynamic_memory_allocation_delta,
         )
         .into()
     }
@@ -228,9 +237,13 @@ mod tests {
 
     #[test]
     fn last_value_aggregation() {
-        let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None, CARDINALITY_LIMIT_DEFAULT)
-                .last_value(None);
+        let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+            Temporality::Cumulative,
+            None,
+            CARDINALITY_LIMIT_DEFAULT,
+            false,
+        )
+        .last_value(None);
         let mut a = MetricData::Gauge(Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
@@ -260,7 +273,7 @@ mod tests {
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT, false)
                     .precomputed_sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
@@ -307,7 +320,7 @@ mod tests {
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT, false)
                     .sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
@@ -354,7 +367,7 @@ mod tests {
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT, false)
                     .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = MetricData::Histogram(Histogram {
                 data_points: vec![HistogramDataPoint {
@@ -402,7 +415,7 @@ mod tests {
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
             let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
+                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT, false)
                     .exponential_bucket_histogram(4, 20, true, true);
             let mut a = MetricData::ExponentialHistogram(ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {

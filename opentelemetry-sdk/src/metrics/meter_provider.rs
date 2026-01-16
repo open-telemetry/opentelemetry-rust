@@ -233,6 +233,7 @@ pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    dynamic_memory_allocation_delta: bool,
 }
 
 impl MeterProviderBuilder {
@@ -372,6 +373,21 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Enable dynamic memory allocation for delta temporality aggregations.
+    ///
+    /// **Default (disabled) is recommended** - provides predictable performance by avoiding
+    /// resize operations (which involve rehashing).
+    ///
+    /// When disabled (default), memory is pre-allocated up to the cardinality limit.
+    /// When enabled, memory starts small and grows/shrinks dynamically based on actual usage.
+    ///
+    /// Only enable when cardinality limit is extremely high (e.g., 100,000+) but typical
+    /// cardinality is much lower, and memory savings justify occasional resize costs.
+    pub fn with_dynamic_memory_allocation_delta(mut self, enabled: bool) -> Self {
+        self.dynamic_memory_allocation_delta = enabled;
+        self
+    }
+
     /// Construct a new [MeterProvider] with this configuration.
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
@@ -385,6 +401,7 @@ impl MeterProviderBuilder {
                     self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
+                    self.dynamic_memory_allocation_delta,
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
@@ -404,6 +421,10 @@ impl fmt::Debug for MeterProviderBuilder {
             .field("resource", &self.resource)
             .field("readers", &self.readers)
             .field("views", &self.views.len())
+            .field(
+                "dynamic_memory_allocation_delta",
+                &self.dynamic_memory_allocation_delta,
+            )
             .finish()
     }
 }
