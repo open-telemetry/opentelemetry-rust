@@ -1166,4 +1166,63 @@ mod tests {
             &AnyValue::Bytes(Box::new(vec![1, 2, 3]))
         ));
     }
+
+    #[test]
+    #[ignore = "See https://github.com/open-telemetry/opentelemetry-rust/issues/3315"]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_record_after_creation_not_captured() {
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act: Create span with an empty field, then record value later
+        let span = tracing::info_span!(
+            "test_span",
+            initial_field = "present",
+            delayed_field = tracing::field::Empty
+        );
+        let _enter = span.enter();
+
+        // Record the delayed field after span creation
+        span.record("delayed_field", "recorded_later");
+
+        tracing::error!(event_attr = "event_value", "test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // The initial field should be captured
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("initial_field"),
+            &AnyValue::String("present".into())
+        ));
+
+        // The delayed field should be captured
+        assert!(
+            attributes_contains(
+                &log.record,
+                &Key::new("delayed_field"),
+                &AnyValue::String("recorded_later".into())
+            ),
+            "delayed_field should be captured after on_record is implemented"
+        );
+
+        // Event attribute should also be captured
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_attr"),
+            &AnyValue::String("event_value".into())
+        ));
+    }
 }
