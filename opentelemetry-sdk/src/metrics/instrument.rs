@@ -134,6 +134,8 @@ impl Instrument {
 /// # Example
 ///
 /// ```
+/// # #[cfg(feature = "spec_unstable_metrics_views")]
+/// # {
 /// use opentelemetry_sdk::metrics::{Aggregation, Stream};
 /// use opentelemetry::Key;
 ///
@@ -143,6 +145,7 @@ impl Instrument {
 ///     .with_cardinality_limit(100)
 ///     .build()
 ///     .unwrap();
+/// # }
 /// ```
 #[derive(Default, Debug)]
 pub struct StreamBuilder {
