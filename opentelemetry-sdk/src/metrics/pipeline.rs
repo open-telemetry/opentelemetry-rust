@@ -279,6 +279,16 @@ where
                 stream.unit = Some(inst.unit.clone());
             }
 
+            // Override default histogram boundaries if provided.
+            if let Some(boundaries) = boundaries {
+                if kind == InstrumentKind::Histogram && stream.aggregation.is_none() {
+                    stream.aggregation = Some(Aggregation::ExplicitBucketHistogram {
+                        boundaries: boundaries.to_vec(),
+                        record_min_max: true,
+                    });
+                }
+            }
+
             let id = self.inst_id(kind, &stream);
             if seen.contains(&id) {
                 continue; // This aggregator has already been added
