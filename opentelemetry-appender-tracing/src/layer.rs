@@ -178,9 +178,6 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
 }
 
-#[cfg(feature = "experimental_span_attributes")]
-use std::sync::Arc;
-
 /// Visitor to extract fields from a tracing span
 #[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor {
@@ -272,11 +269,14 @@ impl tracing::field::Visit for SpanFieldVisitor {
     }
 }
 
-/// Stored span attributes in the span's extensions
+/// Stored span attributes in the span's extensions.
+/// Similar to how `tracing_subscriber::fmt::FormattedFields` stores formatted
+/// field data directly in span extensions - the Registry's internal locking
+/// provides the necessary synchronization.
 #[cfg(feature = "experimental_span_attributes")]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct StoredSpanAttributes {
-    attributes: Arc<Vec<(Key, AnyValue)>>,
+    attributes: Vec<(Key, AnyValue)>,
 }
 
 pub struct OpenTelemetryTracingBridge<P, L>
@@ -342,17 +342,10 @@ where
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
                 for span_ref in scope.from_root() {
-                    // Clone Arc to release span extensions lock before processing attributes
-                    let attrs = {
-                        span_ref
-                            .extensions()
-                            .get::<StoredSpanAttributes>()
-                            .map(|stored| stored.attributes.clone())
-                    };
-
-                    // Add span attributes before event attributes
-                    if let Some(attrs) = attrs {
-                        for (key, value) in attrs.iter() {
+                    // Access extensions inline - each span has its own extension lock
+                    let extensions = span_ref.extensions();
+                    if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
+                        for (key, value) in stored.attributes.iter() {
                             log_record.add_attribute(key.clone(), value.clone());
                         }
                     }
@@ -384,11 +377,41 @@ where
         // Only store if we actually found attributes to avoid empty allocations
         if !visitor.fields.is_empty() {
             let stored = StoredSpanAttributes {
-                attributes: Arc::new(visitor.fields),
+                attributes: visitor.fields,
             };
 
             let mut extensions = span.extensions_mut();
             extensions.insert(stored);
+        }
+    }
+
+    #[cfg(feature = "experimental_span_attributes")]
+    fn on_record(
+        &self,
+        id: &tracing::span::Id,
+        values: &tracing::span::Record<'_>,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let span = ctx.span(id).expect("Span not found; this is a bug");
+        let mut extensions = span.extensions_mut();
+
+        if let Some(stored) = extensions.get_mut::<StoredSpanAttributes>() {
+            // Append to existing attributes - extensions_mut() gives us mutable access
+            let mut visitor = SpanFieldVisitor::with_capacity(values.len());
+            values.record(&mut visitor);
+            if !visitor.fields.is_empty() {
+                stored.attributes.extend(visitor.fields);
+            }
+        } else {
+            // No existing attributes, create new storage
+            let mut visitor = SpanFieldVisitor::with_capacity(values.len());
+            values.record(&mut visitor);
+            if !visitor.fields.is_empty() {
+                let stored = StoredSpanAttributes {
+                    attributes: visitor.fields,
+                };
+                extensions.insert(stored);
+            }
         }
     }
 }
@@ -1033,7 +1056,7 @@ mod tests {
         let _inner_guard = inner_span.enter();
 
         // Emit event in innermost span context
-        tracing::info!(status = 200, "Event message");
+        tracing::error!(status = 200, "Event message");
 
         drop(_inner_guard);
         drop(_outer_guard);
@@ -1168,9 +1191,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "See https://github.com/open-telemetry/opentelemetry-rust/issues/3315"]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_record_after_creation_not_captured() {
+    fn tracing_appender_span_record_after_creation() {
+        // This test verifies that span fields recorded AFTER span creation
+        // are captured via the on_record implementation.
+
         // Arrange
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
