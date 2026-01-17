@@ -17,11 +17,11 @@
 
 | Test                      | Average time | Increment |
 |---------------------------|--------------|-----------|
-| span_4_attributes         | 293 ns       | -         |
-| span_8_attributes         | 552 ns     | +277 ns   |
-| nested_spans_1_levels     | 340 ns       | -         |
-| nested_spans_2_levels     | 710 ns      | +1.08 µs   |
-| nested_spans_3_levels     | 1000 ns      | +820 ns   |
+| span_4_attributes         | 233 ns       | -         |
+| span_8_attributes         | 323 ns       | +90 ns    |
+| nested_spans_1_levels     | 216 ns       | -         |
+| nested_spans_2_levels     | 450 ns       | +234 ns   |
+| nested_spans_3_levels     | 670 ns       | +220 ns   |
 
 */
 
