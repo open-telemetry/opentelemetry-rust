@@ -12,6 +12,17 @@
 | nested_spans_2_levels     | 1.42 µs      | +829 ns   |
 | nested_spans_3_levels     | 2.24 µs      | +820 ns   |
 
+// Hardware: Mac M4 Pro (8 cores)
+// Total Number of Cores:14 (10 performance and 4 efficiency)
+
+| Test                      | Average time | Increment |
+|---------------------------|--------------|-----------|
+| span_4_attributes         | 293 ns       | -         |
+| span_8_attributes         | 552 ns     | +277 ns   |
+| nested_spans_1_levels     | 340 ns       | -         |
+| nested_spans_2_levels     | 710 ns      | +1.08 µs   |
+| nested_spans_3_levels     | 1000 ns      | +820 ns   |
+
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};

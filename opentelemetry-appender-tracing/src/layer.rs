@@ -179,21 +179,19 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
 }
 
 #[cfg(feature = "experimental_span_attributes")]
-use std::collections::HashMap;
-#[cfg(feature = "experimental_span_attributes")]
 use std::sync::Arc;
 
 /// Visitor to extract fields from a tracing span
 #[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor {
-    fields: HashMap<Key, AnyValue>,
+    fields: Vec<(Key, AnyValue)>,
 }
 
 #[cfg(feature = "experimental_span_attributes")]
 impl SpanFieldVisitor {
-    fn new() -> Self {
+    fn with_capacity(capacity: usize) -> Self {
         Self {
-            fields: HashMap::new(),
+            fields: Vec::with_capacity(capacity),
         }
     }
 }
@@ -201,10 +199,10 @@ impl SpanFieldVisitor {
 #[cfg(feature = "experimental_span_attributes")]
 impl tracing::field::Visit for SpanFieldVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        self.fields.insert(
+        self.fields.push((
             Key::from(field.name()),
             AnyValue::from(format!("{value:?}")),
-        );
+        ));
     }
 
     fn record_error(
@@ -212,64 +210,64 @@ impl tracing::field::Visit for SpanFieldVisitor {
         _field: &tracing::field::Field,
         value: &(dyn std::error::Error + 'static),
     ) {
-        self.fields.insert(
+        self.fields.push((
             Key::new("exception.message"),
             AnyValue::from(value.to_string()),
-        );
+        ));
     }
 
     fn record_bytes(&mut self, field: &tracing::field::Field, value: &[u8]) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::from(value));
+            .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::from(value.to_owned()));
+            .push((Key::from(field.name()), AnyValue::from(value.to_owned())));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::from(value));
+            .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
         if let Ok(signed) = i64::try_from(value) {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(signed));
+                .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+                .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
 
     fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::from(value));
+            .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
         self.fields
-            .insert(Key::from(field.name()), AnyValue::from(value));
+            .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
         if let Ok(signed) = i64::try_from(value) {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(signed));
+                .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+                .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
 
     fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
         if let Ok(signed) = i64::try_from(value) {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(signed));
+                .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
             self.fields
-                .insert(Key::from(field.name()), AnyValue::from(format!("{value}")));
+                .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
 }
@@ -278,7 +276,7 @@ impl tracing::field::Visit for SpanFieldVisitor {
 #[cfg(feature = "experimental_span_attributes")]
 #[derive(Debug, Clone)]
 struct StoredSpanAttributes {
-    attributes: Arc<HashMap<Key, AnyValue>>,
+    attributes: Arc<Vec<(Key, AnyValue)>>,
 }
 
 pub struct OpenTelemetryTracingBridge<P, L>
@@ -380,7 +378,7 @@ where
     ) {
         let span = ctx.span(id).expect("Span not found; this is a bug");
 
-        let mut visitor = SpanFieldVisitor::new();
+        let mut visitor = SpanFieldVisitor::with_capacity(attrs.fields().len());
         attrs.record(&mut visitor);
 
         // Only store if we actually found attributes to avoid empty allocations
