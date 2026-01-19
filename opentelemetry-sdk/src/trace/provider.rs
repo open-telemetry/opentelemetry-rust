@@ -355,10 +355,24 @@ impl TracerProviderBuilder {
     }
 
     /// Specify the sampler to be used.
-    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(
-        mut self,
-        sampler: impl Into<Box<T>>,
-    ) -> Self {
+    ///
+    /// ## Dynamic sampler selection
+    ///
+    /// ```
+    /// use opentelemetry_sdk::trace::{Sampler, ShouldSample};
+    ///
+    /// fn should_return_dynamic_sampler() -> Box<dyn ShouldSample + 'static> {
+    ///     Box::new(opentelemetry_sdk::trace::Sampler::AlwaysOn)
+    /// }
+    ///
+    /// opentelemetry_sdk::trace::SdkTracerProvider::builder()
+    ///     //You can pass already boxed hidden behind box if you need configure your sampler in a simple fashion
+    ///     //This can be useful if you create your own sampler that implements `ShouldSample`
+    ///     .with_sampler(should_return_dynamic_sampler())
+    ///     //Or you can pass exact instance if you do not have complex configuration
+    ///     .with_sampler(Sampler::AlwaysOff);
+    /// ```
+    pub fn with_sampler(mut self, sampler: impl Into<Box<dyn crate::trace::ShouldSample>>) -> Self {
         self.config.sampler = sampler.into();
         self
     }
