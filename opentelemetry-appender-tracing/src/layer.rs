@@ -178,25 +178,15 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
 }
 
-/// Visitor to extract fields from a tracing span
+/// Visitor to extract fields from a tracing span.
+/// Takes a mutable reference to a Vec to append fields to.
 #[cfg(feature = "experimental_span_attributes")]
-struct SpanFieldVisitor {
-    fields: Vec<(Key, AnyValue)>,
-}
+struct SpanFieldVisitor<'a>(&'a mut Vec<(Key, AnyValue)>);
 
 #[cfg(feature = "experimental_span_attributes")]
-impl SpanFieldVisitor {
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            fields: Vec::with_capacity(capacity),
-        }
-    }
-}
-
-#[cfg(feature = "experimental_span_attributes")]
-impl tracing::field::Visit for SpanFieldVisitor {
+impl tracing::field::Visit for SpanFieldVisitor<'_> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        self.fields.push((
+        self.0.push((
             Key::from(field.name()),
             AnyValue::from(format!("{value:?}")),
         ));
@@ -207,63 +197,63 @@ impl tracing::field::Visit for SpanFieldVisitor {
         _field: &tracing::field::Field,
         value: &(dyn std::error::Error + 'static),
     ) {
-        self.fields.push((
+        self.0.push((
             Key::new("exception.message"),
             AnyValue::from(value.to_string()),
         ));
     }
 
     fn record_bytes(&mut self, field: &tracing::field::Field, value: &[u8]) {
-        self.fields
+        self.0
             .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-        self.fields
+        self.0
             .push((Key::from(field.name()), AnyValue::from(value.to_owned())));
     }
 
     fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-        self.fields
+        self.0
             .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
         if let Ok(signed) = i64::try_from(value) {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
 
     fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
-        self.fields
+        self.0
             .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-        self.fields
+        self.0
             .push((Key::from(field.name()), AnyValue::from(value)));
     }
 
     fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
         if let Ok(signed) = i64::try_from(value) {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
 
     fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
         if let Ok(signed) = i64::try_from(value) {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(signed)));
         } else {
-            self.fields
+            self.0
                 .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
         }
     }
@@ -370,15 +360,12 @@ where
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let span = ctx.span(id).expect("Span not found; this is a bug");
-
-        let mut visitor = SpanFieldVisitor::with_capacity(attrs.fields().len());
-        attrs.record(&mut visitor);
+        let mut fields = Vec::with_capacity(attrs.fields().len());
+        attrs.record(&mut SpanFieldVisitor(&mut fields));
 
         // Only store if we actually found attributes to avoid empty allocations
-        if !visitor.fields.is_empty() {
-            let stored = StoredSpanAttributes {
-                attributes: visitor.fields,
-            };
+        if !fields.is_empty() {
+            let stored = StoredSpanAttributes { attributes: fields };
 
             let mut extensions = span.extensions_mut();
             extensions.insert(stored);
@@ -397,19 +384,13 @@ where
 
         if let Some(stored) = extensions.get_mut::<StoredSpanAttributes>() {
             // Append to existing attributes - extensions_mut() gives us mutable access
-            let mut visitor = SpanFieldVisitor::with_capacity(values.len());
-            values.record(&mut visitor);
-            if !visitor.fields.is_empty() {
-                stored.attributes.extend(visitor.fields);
-            }
+            values.record(&mut SpanFieldVisitor(&mut stored.attributes));
         } else {
             // No existing attributes, create new storage
-            let mut visitor = SpanFieldVisitor::with_capacity(values.len());
-            values.record(&mut visitor);
-            if !visitor.fields.is_empty() {
-                let stored = StoredSpanAttributes {
-                    attributes: visitor.fields,
-                };
+            let mut fields = Vec::with_capacity(values.len());
+            values.record(&mut SpanFieldVisitor(&mut fields));
+            if !fields.is_empty() {
+                let stored = StoredSpanAttributes { attributes: fields };
                 extensions.insert(stored);
             }
         }
