@@ -742,14 +742,18 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
+    use crate::error::OTelSdkResult;
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
+    use crate::logs::{LogBatch, LogExporter};
     use crate::{
         logs::{InMemoryLogExporter, InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider},
         Resource,
     };
+    use opentelemetry::logs::LogRecord;
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -996,5 +1000,90 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
+    }
+
+    /// A slow exporter that counts the number of logs received.
+    /// Used for stress testing the BatchLogProcessor.
+    #[derive(Debug, Clone)]
+    struct CountingExporter {
+        count: Arc<AtomicUsize>,
+    }
+
+    impl CountingExporter {
+        fn new() -> Self {
+            CountingExporter {
+                count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    impl LogExporter for CountingExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            self.count.fetch_add(batch.len(), Ordering::SeqCst);
+            // Simulate slow export to cause queue buildup and drops
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            Ok(())
+        }
+    }
+
+    /// Stress test that verifies all logs are accounted for.
+    /// With multiple threads pushing logs faster than the exporter can handle,
+    /// some logs will inevitably be dropped. This test validates:
+    /// total_logs_sent == logs_received_by_exporter + logs_dropped
+    #[test]
+    fn test_batch_log_processor_all_logs_accounted_for() {
+        let exporter = CountingExporter::new();
+        let exporter_count = exporter.count.clone();
+
+        // Configure with small queue to force drops under pressure
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_millis(5))
+            .build();
+
+        let processor = BatchLogProcessor::new(exporter, config);
+
+        let total_logs_per_thread = 100_000;
+        let num_threads = 4;
+        let total_logs_to_emit = total_logs_per_thread * num_threads;
+
+        // Use scoped threads to safely share the processor reference
+        std::thread::scope(|s| {
+            for _ in 0..num_threads {
+                s.spawn(|| {
+                    for _ in 0..total_logs_per_thread {
+                        let mut record = SdkLogRecord::new();
+                        record.set_body("stress test log".into());
+                        let instrumentation = InstrumentationScope::default();
+                        processor.emit(&mut record, &instrumentation);
+                    }
+                });
+            }
+        });
+
+        // Shutdown the processor to ensure all buffered logs are flushed
+        processor.shutdown().unwrap();
+
+        let logs_received = exporter_count.load(Ordering::SeqCst);
+        let logs_dropped = processor.dropped_logs_count.load(Ordering::SeqCst);
+
+        // The invariant: every log is either received or dropped
+        assert_eq!(
+            logs_received + logs_dropped,
+            total_logs_to_emit,
+            "Logs unaccounted for! Received: {}, Dropped: {}, Total emitted: {}",
+            logs_received,
+            logs_dropped,
+            total_logs_to_emit
+        );
+
+        // Also verify that some logs were actually dropped (stress test validation)
+        // If no logs were dropped, the test parameters may need adjustment
+        assert!(
+            logs_dropped > 0,
+            "Expected some logs to be dropped under stress, but none were. \
+             Consider reducing queue size or increasing thread count/log volume."
+        );
     }
 }
