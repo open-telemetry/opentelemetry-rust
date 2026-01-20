@@ -70,6 +70,11 @@ impl LogBatch<'_> {
         }
     }
 
+    /// Returns `true` if the batch contains no log records.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns an iterator over the log records and instrumentation scopes in the batch.
     ///
     /// Each item yielded by the iterator is a tuple containing references to a `LogRecord`
