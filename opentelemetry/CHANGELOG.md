@@ -17,6 +17,8 @@
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
 
+- Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
+
 ## v0.31.0
 
 Released 2025-Sep-25

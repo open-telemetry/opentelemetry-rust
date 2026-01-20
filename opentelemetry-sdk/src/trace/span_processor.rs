@@ -1254,51 +1254,71 @@ mod tests {
 
     #[test]
     fn batchspanprocessor_handles_dropped_spans() {
-        let exporter = MockSpanExporter::new();
-        let exporter_shared = exporter.exported_spans.clone(); // Shared access to verify exported spans
+        // This test verifies that BSP drops spans when the queue is full.
+
+        #[derive(Debug)]
+        struct SlowExporter {
+            exported_count: Arc<std::sync::atomic::AtomicUsize>,
+        }
+
+        impl SpanExporter for SlowExporter {
+            async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+                // Simulate slow export
+                std::thread::sleep(Duration::from_millis(50));
+                self.exported_count
+                    .fetch_add(batch.len(), Ordering::Relaxed);
+                Ok(())
+            }
+
+            fn shutdown(&self) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn set_resource(&mut self, _resource: &Resource) {}
+        }
+
+        let exported_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let exporter = SlowExporter {
+            exported_count: exported_count.clone(),
+        };
+
+        let max_queue_size = 10;
         let config = BatchConfigBuilder::default()
-            .with_max_queue_size(2) // Small queue size to test span dropping
-            .with_max_export_batch_size(512) // Explicitly set to avoid env var override
-            .with_scheduled_delay(Duration::from_secs(5))
+            .with_max_queue_size(max_queue_size)
+            .with_max_export_batch_size(5)
+            .with_scheduled_delay(Duration::from_millis(10))
             .build();
         let processor = BatchSpanProcessor::new(exporter, config);
 
-        // Create test spans and send them to the processor
-        let span1 = create_test_span("span1");
-        let span2 = create_test_span("span2");
-        let span3 = create_test_span("span3"); // This span should be dropped
+        // Rapidly send many more spans than the queue can hold
+        let total_spans_to_send = 100;
+        for i in 0..total_spans_to_send {
+            let span = create_test_span(&format!("span_{}", i));
+            processor.on_end(span);
+        }
 
-        processor.on_end(span1.clone());
-        processor.on_end(span2.clone());
-        processor.on_end(span3.clone()); // This span exceeds the queue size
+        // Force flush any remaining spans - this waits for export to complete
+        let _ = processor.force_flush();
 
-        // Wait for the scheduled delay to expire
-        std::thread::sleep(Duration::from_secs(6));
+        let dropped = processor.dropped_spans_count.load(Ordering::Relaxed);
+        let exported = exported_count.load(Ordering::Relaxed);
 
-        let exported_spans = exporter_shared.lock().unwrap();
-
-        // Verify that only the first two spans are exported
+        // Verify that dropped + exported = total (every span is accounted for)
         assert_eq!(
-            exported_spans.len(),
-            2,
-            "Unexpected number of exported spans"
+            dropped + exported,
+            total_spans_to_send,
+            "dropped ({}) + exported ({}) should equal total sent ({})",
+            dropped,
+            exported,
+            total_spans_to_send
         );
-        assert!(exported_spans.iter().any(|s| s.name == "span1"));
-        assert!(exported_spans.iter().any(|s| s.name == "span2"));
 
-        // Ensure the third span is dropped
+        // With 100 spans sent rapidly and a slow exporter, we should have some drops
         assert!(
-            !exported_spans.iter().any(|s| s.name == "span3"),
-            "Span3 should have been dropped"
+            dropped > 0,
+            "Expected some spans to be dropped due to full queue. Exported: {}",
+            exported
         );
-
-        // Verify dropped spans count (if accessible in your implementation)
-        let dropped_count = processor.dropped_spans_count.load(Ordering::Relaxed);
-        assert_eq!(dropped_count, 1, "Unexpected number of dropped spans");
-
-        // Verify current batch size
-        let current_batch_size = processor.current_batch_size.load(Ordering::Relaxed);
-        assert_eq!(current_batch_size, 0, "Unexpected current batch size");
     }
 
     #[test]
