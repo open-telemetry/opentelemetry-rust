@@ -1254,8 +1254,7 @@ mod tests {
 
     #[test]
     fn batchspanprocessor_handles_dropped_spans() {
-        // This test verifies that spans are dropped when sent faster than they can be exported.
-        // We use a slow exporter to simulate backpressure.
+        // This test verifies that BSP drops spans when the queue is full.
 
         #[derive(Debug)]
         struct SlowExporter {
@@ -1298,16 +1297,13 @@ mod tests {
             processor.on_end(span);
         }
 
-        // Allow time for exports to complete
-        std::thread::sleep(Duration::from_millis(500));
-
-        // Force flush any remaining spans
+        // Force flush any remaining spans - this waits for export to complete
         let _ = processor.force_flush();
 
         let dropped = processor.dropped_spans_count.load(Ordering::Relaxed);
         let exported = exported_count.load(Ordering::Relaxed);
 
-        // Verify that dropped + exported = total (conservation of spans)
+        // Verify that dropped + exported = total (every span is accounted for)
         assert_eq!(
             dropped + exported,
             total_spans_to_send,
@@ -1320,7 +1316,7 @@ mod tests {
         // With 100 spans sent rapidly and a slow exporter, we should have some drops
         assert!(
             dropped > 0,
-            "Expected some spans to be dropped due to backpressure. Exported: {}",
+            "Expected some spans to be dropped due to full queue. Exported: {}",
             exported
         );
     }
