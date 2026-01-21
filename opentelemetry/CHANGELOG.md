@@ -22,6 +22,8 @@
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
 
+- Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
+
 ## v0.31.0
 
 Released 2025-Sep-25
@@ -272,7 +274,7 @@ Before:
 let logger = provider.versioned_logger(
     "my-logger-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -283,7 +285,7 @@ After:
 let logger = provider
     .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
@@ -296,7 +298,7 @@ Before:
 let tracer = provider.versioned_tracer(
     "my-tracer-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -307,7 +309,7 @@ After:
 let tracer = provider
     .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
