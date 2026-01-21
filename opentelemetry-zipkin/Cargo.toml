@@ -23,8 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["reqwest-blocking-client", "reqwest/native-tls"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
-reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-client = ["dep:reqwest", "opentelemetry-http/reqwest"]
+reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 
 [dependencies]
 once_cell = { workspace = true }

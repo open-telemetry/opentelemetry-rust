@@ -2,6 +2,8 @@
 
 ## vNext
 
+- New *experimental* feature to enrich log records with attributes from active tracing spans (`experimental_span_attributes`)
+
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
   context for the current tracing span.

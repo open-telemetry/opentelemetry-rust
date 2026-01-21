@@ -24,6 +24,7 @@ Status: **Work-In-Progress**
   * [Cardinality Limits](#cardinality-limits)
     * [Cardinality Limits - Implications](#cardinality-limits---implications)
     * [Cardinality Limits - Example](#cardinality-limits---example)
+    * [Cardinality Limits - How to Choose the Right Limit](#cardinality-limits---how-to-choose-the-right-limit)
   * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
@@ -76,7 +77,7 @@ use opentelemetry::KeyValue;
 
 let scope = InstrumentationScope::builder("my_company.my_product.my_library")
         .with_version("0.17")
-        .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.2.0")
         .with_attributes([KeyValue::new("key", "value")])
         .build();
 
@@ -408,6 +409,11 @@ combinations). No matter how many fruits we sell, we can always use the
 following table to summarize the total number of fruits based on the name and
 color.
 
+> [!IMPORTANT]
+> Cardinality is the number of **unique attribute combinations**, not the number
+> of measurements. Even if you record millions of measurements per interval,
+> they are aggregated into a finite set of data points - one for each unique attribute combination.
+
 | Color  | Name  | Count |
 | ------ | ----- | ----- |
 | red    | apple | 6     |
@@ -527,11 +533,12 @@ of 3 and we're tracking sales with attributes for `name`, `color`, and
 
 During a busy sales period at time (T3, T4], we record:
   
-1. 10 red apples sold at Downtown store
-2. 5 yellow lemons sold at Uptown store
-3. 8 green apples sold at Downtown store
-4. 3 red apples sold at Midtown store (at this point, the cardinality limit is
-    hit, and attributes are replaced with overflow attribute.)
+1. 10 red apples sold at Downtown store → 1st unique combination tracked
+2. 5 yellow lemons sold at Uptown store → 2nd unique combination tracked
+3. 8 green apples sold at Downtown store → 3rd unique combination tracked
+   (limit reached)
+4. 3 red apples sold at Midtown store → limit exceeded, folded into overflow
+   bucket
 
 The exported metrics would be:
   
@@ -631,6 +638,15 @@ But if only 10,000 users are typically active during a 60 sec export interval:
 
 **You can set the limit to 20,000, dramatically reducing memory usage during
 normal operation.**
+
+**Using request rate as an upper bound**: If you cannot estimate active users
+but know the maximum requests per second your application can handle (X), and
+each request produces one metric measurement, then `X × interval_seconds`
+provides a guaranteed upper bound. For example, at 500 req/sec max with a 60 sec
+interval: 500 × 60 = 30,000. This ensures no overflow but may overestimate if
+many requests come from the same users. Use this approach when you want to avoid
+overflow at the cost of memory efficiency, or as a starting point before
+refining based on observed patterns.
 
 ###### Export Interval Tuning
 

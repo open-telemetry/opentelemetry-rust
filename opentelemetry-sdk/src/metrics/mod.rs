@@ -438,6 +438,14 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_aggregation_with_custom_bounds_and_view() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_aggregation_with_custom_bounds_and_view --features=testing -- --nocapture
+        histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Delta);
+        histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn updown_counter_aggregation_cumulative() {
         // Run this test with stdout enabled to see output.
         // cargo test updown_counter_aggregation_cumulative --features=testing -- --nocapture
@@ -2533,6 +2541,77 @@ mod tests {
         assert_eq!(data_point.sum, 15);
         assert!(data_point.bounds.is_empty());
         assert!(data_point.bucket_counts.is_empty());
+    }
+
+    fn histogram_aggregation_with_custom_bounds_and_view_helper(temporality: Temporality) {
+        for specify_boundaries_in_view in [false, true] {
+            let view = move |_: &Instrument| {
+                let mut builder = Stream::builder();
+                if specify_boundaries_in_view {
+                    builder = builder.with_aggregation(Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![1.5, 4.2, 6.7],
+                        record_min_max: true,
+                    });
+                }
+                Some(builder.build().unwrap())
+            };
+            let mut test_context = TestContext::new_with_view(temporality, view);
+            let histogram = test_context
+                .meter()
+                .u64_histogram("test_histogram")
+                .with_boundaries(vec![1.0, 2.5, 5.5])
+                .build();
+            histogram.record(1, &[KeyValue::new("key1", "value1")]);
+            histogram.record(2, &[KeyValue::new("key1", "value1")]);
+            histogram.record(3, &[KeyValue::new("key1", "value1")]);
+            histogram.record(4, &[KeyValue::new("key1", "value1")]);
+            histogram.record(5, &[KeyValue::new("key1", "value1")]);
+
+            test_context.flush_metrics();
+
+            let MetricData::Histogram(histogram_data) =
+                test_context.get_aggregation::<u64>("test_histogram", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(histogram_data.data_points.len(), 1);
+            if let Temporality::Cumulative = temporality {
+                assert_eq!(
+                    histogram_data.temporality,
+                    Temporality::Cumulative,
+                    "Should produce cumulative"
+                );
+            } else {
+                assert_eq!(
+                    histogram_data.temporality,
+                    Temporality::Delta,
+                    "Should produce delta"
+                );
+            }
+
+            // find and validate key1=value1 datapoint
+            let data_point = find_histogram_datapoint_with_key_value(
+                &histogram_data.data_points,
+                "key1",
+                "value1",
+            )
+            .expect("datapoint with key1=value1 expected");
+
+            assert_eq!(data_point.count, 5);
+            assert_eq!(data_point.sum, 15);
+
+            // Check the bucket counts
+            if specify_boundaries_in_view {
+                // If boundaries are specified in the view, they should take precedence
+                assert_eq!(vec![1.5, 4.2, 6.7], data_point.bounds);
+                assert_eq!(vec![1, 3, 1, 0], data_point.bucket_counts);
+            } else {
+                // If boundaries are not specified in the view, the ones from the instrument
+                // should be used
+                assert_eq!(vec![1.0, 2.5, 5.5], data_point.bounds);
+                assert_eq!(vec![1, 1, 3, 0], data_point.bucket_counts);
+            }
+        }
     }
 
     fn gauge_aggregation_helper(temporality: Temporality) {

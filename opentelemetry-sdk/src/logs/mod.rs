@@ -127,7 +127,7 @@ mod tests {
             .build();
 
         let scope = InstrumentationScope::builder("test_logger")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
 
@@ -149,7 +149,7 @@ mod tests {
         assert_eq!(instrumentation_scope.name(), "test_logger");
         assert_eq!(
             instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schema/1.0.0")
+            Some("https://opentelemetry.io/schemas/1.0.0")
         );
         assert!(instrumentation_scope
             .attributes()

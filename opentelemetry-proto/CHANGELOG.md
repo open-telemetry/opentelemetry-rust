@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Updated `schemars` dependency to version 1.0.0.
+
 ## 0.31.0
 
 Released 2025-Sep-25

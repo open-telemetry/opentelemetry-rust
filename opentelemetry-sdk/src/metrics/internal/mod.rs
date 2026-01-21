@@ -6,6 +6,7 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
@@ -17,6 +18,7 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
+use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -79,7 +81,9 @@ where
 {
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
+            trackers: RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
+            )),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
@@ -91,8 +95,11 @@ where
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
-        self.trackers_for_collect
-            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + self.cardinality_limit)))
+        self.trackers_for_collect.get_or_init(|| {
+            RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
+            ))
+        })
     }
 
     /// Checks whether aggregator has hit cardinality limit for metric streams
@@ -501,6 +508,8 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
+    use crate::metrics::internal::last_value::Assign;
+
     use super::*;
 
     #[test]
@@ -615,5 +624,15 @@ mod tests {
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
         assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
+    }
+
+    #[test]
+    fn large_cardinality_limit() {
+        // This is a regression test for panics that used to occur for large cardinality limits
+
+        // Should not panic
+        let value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
+        // Should not panic
+        let _ = value_map.trackers_for_collect();
     }
 }
