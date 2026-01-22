@@ -133,13 +133,13 @@ impl Instrument {
 ///
 /// # Example
 ///
-/// ```
-/// use opentelemetry_sdk::metrics::{Aggregation, Stream};
-/// use opentelemetry::Key;
+/// ```rust
+/// use opentelemetry_sdk::metrics::Stream;
 ///
 /// let stream = Stream::builder()
 ///     .with_name("my_stream")
-///     .with_aggregation(Aggregation::Sum)
+///     .with_description("A custom stream")
+///     .with_unit("ms")
 ///     .with_cardinality_limit(100)
 ///     .build()
 ///     .unwrap();
