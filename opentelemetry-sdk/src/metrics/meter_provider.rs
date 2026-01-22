@@ -25,7 +25,7 @@ use super::{
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
 /// [Resource], have the same views applied to them, and have their produced
-/// metric telemetry passed to the configured [MetricReader]s. This is a
+/// metric telemetry passed to the configured `MetricReader`s. This is a
 /// clonable handle to the MeterProvider implementation itself, and cloning it
 /// will create a new reference, not a new instance of a MeterProvider. Dropping
 /// the last reference to it will trigger shutdown of the provider. Shutdown can
@@ -256,11 +256,11 @@ impl MeterProviderBuilder {
         self
     }
 
-    /// Associates a [MetricReader] with a [MeterProvider].
-    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
+    /// Associates a `MetricReader` with a [MeterProvider].
+    /// [`MeterProviderBuilder::with_periodic_exporter()`] can be used to add a PeriodicReader which is
     /// the most common use case.
     ///
-    /// A [MeterProvider] will export no metrics without [MetricReader]
+    /// A [MeterProvider] will export no metrics without a `MetricReader`
     /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
         self.readers.push(Box::new(reader));
