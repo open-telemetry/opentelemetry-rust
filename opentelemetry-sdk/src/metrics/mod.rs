@@ -71,7 +71,6 @@ pub mod in_memory_exporter;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
-#[cfg(feature = "spec_unstable_metrics_views")]
 pub use aggregation::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
@@ -443,6 +442,14 @@ mod tests {
         // cargo test histogram_aggregation_with_custom_bounds_and_view --features=testing -- --nocapture
         histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Delta);
         histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn exponential_histogram_aggregation_with_view() {
+        // Run this test with stdout enabled to see output.
+        // cargo test exponential_histogram_aggregation_with_view --features=testing -- --nocapture
+        exponential_histogram_aggregation_with_view_helper(Temporality::Delta);
+        exponential_histogram_aggregation_with_view_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -879,7 +886,6 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
@@ -2612,6 +2618,108 @@ mod tests {
                 assert_eq!(vec![1, 1, 3, 0], data_point.bucket_counts);
             }
         }
+    }
+
+    fn exponential_histogram_aggregation_with_view_helper(temporality: Temporality) {
+        // Arrange: Create a view that converts a regular histogram to Base2ExponentialHistogram
+        let view = |i: &Instrument| {
+            if i.name == "test_histogram" {
+                Some(
+                    Stream::builder()
+                        .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                            max_size: 160,
+                            max_scale: 20,
+                            record_min_max: true,
+                        })
+                        .build()
+                        .unwrap(),
+                )
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(temporality, view);
+        let histogram = test_context.meter().f64_histogram("test_histogram").build();
+
+        // Act: Record some values
+        histogram.record(1.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(2.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(3.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(4.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(5.0, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert: Verify we get an ExponentialHistogram instead of regular Histogram
+        let exponential_histogram_data =
+            test_context.get_aggregation::<f64>("test_histogram", None);
+        let MetricData::ExponentialHistogram(exp_hist) = exponential_histogram_data else {
+            panic!(
+                "Expected ExponentialHistogram aggregation, got {:?}",
+                exponential_histogram_data
+            );
+        };
+
+        assert_eq!(exp_hist.data_points.len(), 1);
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                exp_hist.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(
+                exp_hist.temporality,
+                Temporality::Delta,
+                "Should produce delta"
+            );
+        }
+
+        // Validate the data point
+        let data_point = &exp_hist.data_points[0];
+        assert_eq!(data_point.count(), 5);
+        assert_eq!(data_point.sum(), 15.0);
+        assert_eq!(data_point.min(), Some(1.0));
+        assert_eq!(data_point.max(), Some(5.0));
+
+        // Validate exponential histogram specific fields
+        // Scale should be within valid range (-10 to 20)
+        let scale = data_point.scale();
+        assert!(
+            (-10..=20).contains(&scale),
+            "Scale {} should be within valid range [-10, 20]",
+            scale
+        );
+
+        // zero_count should be 0 since we only recorded positive values > 0
+        assert_eq!(
+            data_point.zero_count(),
+            0,
+            "zero_count should be 0 for positive values"
+        );
+
+        // Positive bucket should have counts (we recorded positive values)
+        let positive_bucket = data_point.positive_bucket();
+        let positive_counts: Vec<u64> = positive_bucket.counts().collect();
+        let total_positive_count: u64 = positive_counts.iter().sum();
+        assert_eq!(
+            total_positive_count, 5,
+            "Total count in positive buckets should equal number of recorded values"
+        );
+
+        // Negative bucket should be empty (we only recorded positive values)
+        let negative_bucket = data_point.negative_bucket();
+        let negative_counts: Vec<u64> = negative_bucket.counts().collect();
+        let total_negative_count: u64 = negative_counts.iter().sum();
+        assert_eq!(
+            total_negative_count, 0,
+            "Negative bucket should be empty for positive-only values"
+        );
+
+        // Verify the attribute is present
+        let attrs: Vec<_> = data_point.attributes().collect();
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(attrs[0].key.as_str(), "key1");
     }
 
     fn gauge_aggregation_helper(temporality: Temporality) {

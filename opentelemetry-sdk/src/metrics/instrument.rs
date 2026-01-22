@@ -178,7 +178,6 @@ impl StreamBuilder {
         self
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
     /// Set the stream aggregation. This is used to customize the aggregation.
     /// If not set, the default aggregation based on the instrument kind will be used.
     pub fn with_aggregation(mut self, aggregation: Aggregation) -> Self {
@@ -529,7 +528,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
     #[test]
     fn stream_histogram_bucket_validation() {
         use super::Aggregation;
