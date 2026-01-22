@@ -8,7 +8,7 @@ use tonic::codec::CompressionEncoding;
 use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
-#[cfg(feature = "tls")]
+#[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
 use tonic::transport::ClientTlsConfig;
 
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
@@ -52,7 +52,7 @@ pub struct TonicConfig {
     /// Custom metadata entries to send to the collector.
     pub(crate) metadata: Option<MetadataMap>,
     /// TLS settings for the collector endpoint.
-    #[cfg(feature = "tls")]
+    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
     pub(crate) tls_config: Option<ClientTlsConfig>,
     /// The compression algorithm to use when communicating with the collector.
     pub(crate) compression: Option<Compression>,
@@ -90,7 +90,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 ///
 /// It allows you to
 /// - add additional metadata
-/// - set tls config (via the  `tls` feature)
+/// - set tls config (via the `tls-ring` or `tls-aws-lc` features)
 /// - specify custom [channel]s
 ///
 /// [tonic]: <https://github.com/hyperium/tonic>
@@ -148,7 +148,7 @@ impl Default for TonicExporterBuilder {
                         .try_into()
                         .expect("Invalid tonic headers"),
                 )),
-                #[cfg(feature = "tls")]
+                #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
                 tls_config: None,
                 compression: None,
                 channel: Option::default(),
@@ -240,7 +240,7 @@ impl TonicExporterBuilder {
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
         let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
 
-        #[cfg(feature = "tls")]
+        #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
         let channel = match self.tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
@@ -250,7 +250,7 @@ impl TonicExporterBuilder {
         .timeout(timeout)
         .connect_lazy();
 
-        #[cfg(not(feature = "tls"))]
+        #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
         let channel = endpoint.timeout(timeout).connect_lazy();
 
         otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
@@ -463,7 +463,7 @@ impl HasTonicConfig for TonicExporterBuilder {
 /// ```
 pub trait WithTonicConfig {
     /// Set the TLS settings for the collector endpoint.
-    #[cfg(feature = "tls")]
+    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
     fn with_tls_config(self, tls_config: ClientTlsConfig) -> Self;
 
     /// Set custom metadata entries to send to the collector.
@@ -576,7 +576,7 @@ pub trait WithTonicConfig {
 }
 
 impl<B: HasTonicConfig> WithTonicConfig for B {
-    #[cfg(feature = "tls")]
+    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
     fn with_tls_config(mut self, tls_config: ClientTlsConfig) -> Self {
         self.tonic_config().tls_config = Some(tls_config);
         self
