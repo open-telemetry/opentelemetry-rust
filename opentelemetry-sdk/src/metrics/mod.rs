@@ -108,8 +108,7 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
-    use super::data::MetricData;
+    use self::data::{HistogramDataPoint, MetricData, ScopeMetrics, SumDataPoint};
     use super::internal::Number;
     use super::*;
     use crate::metrics::data::ResourceMetrics;
@@ -936,6 +935,110 @@ mod tests {
         assert_eq!(
             metric.unit, "test_unit",
             "View rename of unit should be ignored and original unit retained."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to a Counter via a view, the view is ignored and
+        // the default aggregation (Sum) is used per the spec:
+        // "proceed as if the View did not [match]"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_counter",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Sum aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::U64(data::MetricData::Sum(_))
+            ),
+            "Counter should use default Sum aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_sum_aggregation_uses_default() {
+        // Sum aggregation is not valid for Gauge instruments.
+        // When applied to a Gauge via a view, the view is ignored and
+        // the default aggregation (LastValue/Gauge) is used per the spec:
+        // "proceed as if the View did not [match]"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Sum)
+                    .with_name("my_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge").build();
+        gauge.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_gauge",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Gauge (LastValue) aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::F64(data::MetricData::Gauge(_))
+            ),
+            "Gauge should use default LastValue aggregation when Sum is incompatible."
         );
     }
 

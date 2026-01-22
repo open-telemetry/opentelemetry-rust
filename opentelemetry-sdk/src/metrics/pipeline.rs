@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
+use opentelemetry::{otel_debug, otel_warn, InstrumentationScope, KeyValue};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -306,15 +306,24 @@ where
             measures.push(agg);
         }
 
-        if matched {
-            if errs.is_empty() {
-                return Ok(measures);
-            } else {
-                return Err(MetricError::Other(format!("{errs:?}")));
-            }
+        // If at least one view matched and produced a valid aggregator, return it.
+        // If views matched but all failed (e.g., incompatible aggregation), fall through
+        // to apply the default view per the spec: "proceed as if the View did not [match]".
+        if matched && !measures.is_empty() {
+            return Ok(measures);
         }
 
-        // Apply implicit default view if no explicit matched.
+        // Log warning if views matched but all failed
+        if matched && !errs.is_empty() {
+            otel_warn!(
+                name: "ViewAggregationIncompatible",
+                message = "All matching views have incompatible aggregation. Falling back to default aggregation.",
+                instrument_name = inst.name.as_ref(),
+                errors = format!("{errs:?}").as_str(),
+            );
+        }
+
+        // Apply implicit default view if no explicit matched, or if all views failed.
         let mut stream = Stream {
             name: Some(inst.name),
             description: Some(inst.description),
@@ -334,14 +343,10 @@ where
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
             Ok(agg) => {
-                if errs.is_empty() {
-                    if let Some(agg) = agg {
-                        measures.push(agg);
-                    }
-                    Ok(measures)
-                } else {
-                    Err(MetricError::Other(format!("{errs:?}")))
+                if let Some(agg) = agg {
+                    measures.push(agg);
                 }
+                Ok(measures)
             }
             Err(err) => {
                 errs.push(err);
