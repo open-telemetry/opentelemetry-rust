@@ -100,7 +100,10 @@ impl<
             Some(v) if !v.is_empty() => v.as_slice(),
             _ => &[],
         };
-        self.inline.iter().take(self.count).chain(overflow_slice.iter())
+        self.inline
+            .iter()
+            .take(self.count)
+            .chain(overflow_slice.iter())
     }
 }
 
