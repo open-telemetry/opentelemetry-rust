@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fix `service.name` Resource attribute fallback to follow OpenTelemetry
+  specification by using `unknown_service:<process.executable.name>` format when
+  service name is not explicitly configured. Previously, it only used
+  `unknown_service`.
 - Fix `SpanExporter::shutdown()` default timeout from 5 nanoseconds to 5 seconds.
 - **Breaking** `SpanExporter` trait methods `shutdown`, `shutdown_with_timeout`, and `force_flush` now take `&self` instead of `&mut self` for consistency with `LogExporter` and `PushMetricExporter`. Implementers using interior mutability (e.g., `Mutex`, `AtomicBool`) require no changes.
 - Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
@@ -11,10 +15,12 @@
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 - Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 [3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
+[3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.

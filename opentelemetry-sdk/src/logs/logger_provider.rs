@@ -477,11 +477,15 @@ mod tests {
             let _ = super::SdkLoggerProvider::builder()
                 .with_log_processor(processor_with_resource.clone())
                 .build();
-            assert_resource(
-                &processor_with_resource,
-                &exporter_with_resource,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = processor_with_resource
+                .resource()
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
         });
@@ -516,11 +520,15 @@ mod tests {
                 let _ = super::SdkLoggerProvider::builder()
                     .with_log_processor(processor_with_resource.clone())
                     .build();
-                assert_resource(
-                    &processor_with_resource,
-                    &exporter_with_resource,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &processor_with_resource,
@@ -558,11 +566,15 @@ mod tests {
                     )
                     .with_log_processor(processor_with_resource.clone())
                     .build();
-                assert_resource(
-                    &processor_with_resource,
-                    &exporter_with_resource,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &processor_with_resource,
