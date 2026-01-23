@@ -62,6 +62,15 @@ impl<'a> LogBatch<'a> {
 }
 
 impl LogBatch<'_> {
+    /// Returns the number of log records in the batch.
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        match &self.data {
+            LogBatchData::SliceOfOwnedData(data) => data.len(),
+            LogBatchData::SliceOfBorrowedData(data) => data.len(),
+        }
+    }
+
     /// Returns an iterator over the log records and instrumentation scopes in the batch.
     ///
     /// Each item yielded by the iterator is a tuple containing references to a `LogRecord`
