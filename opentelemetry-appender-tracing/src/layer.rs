@@ -735,6 +735,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "log tests set a global logger that cannot be unset and affects other tests"]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
@@ -811,6 +812,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "log tests set a global logger that cannot be unset and affects other tests"]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
