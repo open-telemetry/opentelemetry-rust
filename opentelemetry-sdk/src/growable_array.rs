@@ -96,15 +96,14 @@ impl<
     #[allow(dead_code)]
     #[inline]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
-        if self.overflow.is_none() || self.overflow.as_ref().unwrap().is_empty() {
-            self.inline.iter().take(self.count).chain([].iter()) // Chaining with an empty array
-                                                                 // so that both `if` and `else` branch return the same type
-        } else {
-            self.inline
-                .iter()
-                .take(self.count)
-                .chain(self.overflow.as_ref().unwrap().iter())
-        }
+        let overflow_slice = match &self.overflow {
+            Some(v) if !v.is_empty() => v.as_slice(),
+            _ => &[],
+        };
+        self.inline
+            .iter()
+            .take(self.count)
+            .chain(overflow_slice.iter())
     }
 }
 
@@ -148,19 +147,15 @@ impl<T: Default + Clone + PartialEq, const INLINE_CAPACITY: usize>
         std::iter::Take<std::array::IntoIter<T, INLINE_CAPACITY>>,
         std::vec::IntoIter<T>,
     > {
-        if source.overflow.is_none() || source.overflow.as_ref().unwrap().is_empty() {
-            source
-                .inline
-                .into_iter()
-                .take(source.count)
-                .chain(Vec::<T>::new())
-        } else {
-            source
-                .inline
-                .into_iter()
-                .take(source.count)
-                .chain(source.overflow.unwrap())
-        }
+        let overflow_vec = match source.overflow {
+            Some(v) if !v.is_empty() => v,
+            _ => Vec::new(),
+        };
+        source
+            .inline
+            .into_iter()
+            .take(source.count)
+            .chain(overflow_vec)
     }
 }
 
