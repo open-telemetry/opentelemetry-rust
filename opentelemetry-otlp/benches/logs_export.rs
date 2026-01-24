@@ -37,12 +37,14 @@
     Hardware: Apple M4 Pro
     | Test                            | Time      | Per Log |
     |---------------------------------|-----------|---------|
-    | batch_512_with_4_attrs          | TBD       | TBD     |
-    | batch_512_with_10_attrs         | TBD       | TBD     |
-    | batch_512_with_4_attrs_gzip     | TBD       | TBD     |
-    | batch_512_with_10_attrs_gzip    | TBD       | TBD     |
-    | batch_512_with_4_attrs_zstd     | TBD       | TBD     |
-    | batch_512_with_10_attrs_zstd    | TBD       | TBD     |
+    | batch_512_with_4_attrs          | ~406 µs   | ~793 ns |
+    | batch_512_with_10_attrs         | ~719 µs   | ~1.4 µs |
+    | batch_512_with_4_attrs_gzip     | ~674 µs   | ~1.3 µs |
+    | batch_512_with_10_attrs_gzip    | ~1,094 µs | ~2.1 µs |
+    | batch_512_with_4_attrs_zstd     | ~389 µs   | ~760 ns |
+    | batch_512_with_10_attrs_zstd    | ~745 µs   | ~1.5 µs |
+    | raw_http_88kb_payload           | ~98 µs    | -       |
+    | raw_http_4kb_payload            | ~57 µs    | -       |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
@@ -325,6 +327,57 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
                 let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
                 rt.block_on(async {
                     exporter_zstd.export(batch).await.unwrap();
+                });
+            });
+        });
+
+        group.finish();
+    }
+
+    // Benchmark: Raw HTTP overhead (sending pre-serialized bytes)
+    // This isolates the HTTP client stack cost from conversion/serialization
+    {
+        use http::{Request, Uri};
+        use opentelemetry_http::{Bytes, HttpClient};
+
+        // Get the HTTP client from a temporary exporter
+        let http_client = reqwest::Client::new();
+        let uri: Uri = format!("{}/v1/logs", endpoint).parse().unwrap();
+
+        // Pre-create payload matching 512 logs with 4 attrs (~88KB uncompressed)
+        let payload_bytes = Bytes::from(vec![0u8; 88000]);
+
+        let mut group = c.benchmark_group("http_stack_overhead");
+
+        group.bench_function("raw_http_88kb_payload", |b| {
+            b.iter(|| {
+                let request = Request::builder()
+                    .method("POST")
+                    .uri(uri.clone())
+                    .header("content-type", "application/x-protobuf")
+                    .body(black_box(payload_bytes.clone()))
+                    .unwrap();
+
+                rt.block_on(async {
+                    http_client.send_bytes(request).await.unwrap();
+                });
+            });
+        });
+
+        // Smaller payload (~4KB, similar to compressed size)
+        let small_payload = Bytes::from(vec![0u8; 4000]);
+
+        group.bench_function("raw_http_4kb_payload", |b| {
+            b.iter(|| {
+                let request = Request::builder()
+                    .method("POST")
+                    .uri(uri.clone())
+                    .header("content-type", "application/x-protobuf")
+                    .body(black_box(small_payload.clone()))
+                    .unwrap();
+
+                rt.block_on(async {
+                    http_client.send_bytes(request).await.unwrap();
                 });
             });
         });
