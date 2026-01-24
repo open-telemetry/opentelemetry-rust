@@ -20,6 +20,10 @@
     |-----------------------------------|------------|---------------|---------------|---------------|
     | batch_512_with_4_attrs            | ~170 µs    | ~66 µs        | ~249 µs       | ~30 µs        |
     | batch_512_with_10_attrs           | ~365 µs    | ~133 µs       | ~396 µs       | ~38 µs        |
+
+    === Compression Ratios (512 logs) ===
+    4 attrs:  87945 bytes -> gzip: 3817 bytes (4.3%), zstd: 2512 bytes (2.9%)
+    10 attrs: 152457 bytes -> gzip: 5055 bytes (3.3%), zstd: 2528 bytes (1.7%)
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -179,6 +183,42 @@ fn bench_log_conversion(c: &mut Criterion) {
     // Pre-serialize for compression benchmarks
     let bytes_4_attrs = request_4_attrs.encode_to_vec();
     let bytes_10_attrs = request_10_attrs.encode_to_vec();
+
+    // Print compression ratios for reference
+    {
+        use flate2::{write::GzEncoder, Compression};
+        use std::io::Write;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&bytes_4_attrs).unwrap();
+        let gzip_4 = encoder.finish().unwrap();
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&bytes_10_attrs).unwrap();
+        let gzip_10 = encoder.finish().unwrap();
+
+        let zstd_4 = zstd::bulk::compress(&bytes_4_attrs, 0).unwrap();
+        let zstd_10 = zstd::bulk::compress(&bytes_10_attrs, 0).unwrap();
+
+        println!("\n=== Compression Ratios (512 logs) ===");
+        println!(
+            "4 attrs:  {} bytes -> gzip: {} bytes ({:.1}%), zstd: {} bytes ({:.1}%)",
+            bytes_4_attrs.len(),
+            gzip_4.len(),
+            (gzip_4.len() as f64 / bytes_4_attrs.len() as f64) * 100.0,
+            zstd_4.len(),
+            (zstd_4.len() as f64 / bytes_4_attrs.len() as f64) * 100.0
+        );
+        println!(
+            "10 attrs: {} bytes -> gzip: {} bytes ({:.1}%), zstd: {} bytes ({:.1}%)",
+            bytes_10_attrs.len(),
+            gzip_10.len(),
+            (gzip_10.len() as f64 / bytes_10_attrs.len() as f64) * 100.0,
+            zstd_10.len(),
+            (zstd_10.len() as f64 / bytes_10_attrs.len() as f64) * 100.0
+        );
+        println!();
+    }
 
     // Gzip compression (same as OTLP exporter with gzip-http feature)
     let mut group = c.benchmark_group("log_batch_compression_gzip");
