@@ -195,45 +195,44 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 /// to manage the export process.
 ///
 /// ```rust
+/// # #[cfg(feature = "testing")]
+/// # {
 /// use opentelemetry::global;
-/// use opentelemetry_sdk::{
-///     trace::{BatchSpanProcessor, BatchConfigBuilder, SdkTracerProvider},
-///     runtime,
-///     testing::trace::NoopSpanExporter,
+/// use opentelemetry_sdk::trace::{
+///     BatchSpanProcessor, BatchConfigBuilder, SdkTracerProvider, InMemorySpanExporter,
 /// };
 /// use opentelemetry::trace::Tracer as _;
 /// use opentelemetry::trace::Span;
 /// use std::time::Duration;
 ///
-/// fn main() {
-///     // Step 1: Create an exporter (e.g., a No-Op Exporter for demonstration).
-///     let exporter = NoopSpanExporter::new();
+/// // Step 1: Create an exporter (e.g., an In-Memory Exporter for demonstration).
+/// let exporter = InMemorySpanExporter::default();
 ///
-///     // Step 2: Configure the BatchSpanProcessor.
-///     let batch_processor = BatchSpanProcessor::builder(exporter)
-///         .with_batch_config(
-///             BatchConfigBuilder::default()
-///                 .with_max_queue_size(1024) // Buffer up to 1024 spans.
-///                 .with_max_export_batch_size(256) // Export in batches of up to 256 spans.
-///                 .with_scheduled_delay(Duration::from_secs(5)) // Export every 5 seconds.
-///                 .build(),
-///         )
-///         .build();
+/// // Step 2: Configure the BatchSpanProcessor.
+/// let batch_processor = BatchSpanProcessor::builder(exporter)
+///     .with_batch_config(
+///         BatchConfigBuilder::default()
+///             .with_max_queue_size(1024) // Buffer up to 1024 spans.
+///             .with_max_export_batch_size(256) // Export in batches of up to 256 spans.
+///             .with_scheduled_delay(Duration::from_secs(5)) // Export every 5 seconds.
+///             .build(),
+///     )
+///     .build();
 ///
-///     // Step 3: Set up a TracerProvider with the configured processor.
-///     let provider = SdkTracerProvider::builder()
-///         .with_span_processor(batch_processor)
-///         .build();
-///     global::set_tracer_provider(provider.clone());
+/// // Step 3: Set up a TracerProvider with the configured processor.
+/// let provider = SdkTracerProvider::builder()
+///     .with_span_processor(batch_processor)
+///     .build();
+/// global::set_tracer_provider(provider.clone());
 ///
-///     // Step 4: Create spans and record operations.
-///     let tracer = global::tracer("example-tracer");
-///     let mut span = tracer.start("example-span");
-///     span.end(); // Mark the span as completed.
+/// // Step 4: Create spans and record operations.
+/// let tracer = global::tracer("example-tracer");
+/// let mut span = tracer.start("example-span");
+/// span.end(); // Mark the span as completed.
 ///
-///     // Step 5: Ensure all spans are flushed before exiting.
-///     provider.shutdown();
-/// }
+/// // Step 5: Ensure all spans are flushed before exiting.
+/// provider.shutdown();
+/// # }
 /// ```
 use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
