@@ -262,6 +262,28 @@ impl StreamBuilder {
             validate_bucket_boundaries(boundaries)?;
         }
 
+        // Validate parameters if using Base2ExponentialHistogram
+        if let Some(Aggregation::Base2ExponentialHistogram {
+            max_size,
+            max_scale,
+            ..
+        }) = &self.aggregation
+        {
+            if *max_size == 0 {
+                return Err("max_size must be greater than 0".into());
+            }
+            if *max_scale < super::internal::EXPO_MIN_SCALE
+                || *max_scale > super::internal::EXPO_MAX_SCALE
+            {
+                return Err(format!(
+                    "max_scale must be between {} and {}",
+                    super::internal::EXPO_MIN_SCALE,
+                    super::internal::EXPO_MAX_SCALE
+                )
+                .into());
+            }
+        }
+
         Ok(Stream {
             name: self.name,
             description: self.description,
@@ -652,6 +674,119 @@ mod tests {
             result.err().unwrap().to_string(),
             "Bucket boundaries must be sorted and not contain any duplicates",
             "Expected correct validation error for duplicate boundaries"
+        );
+    }
+
+    #[test]
+    fn stream_exponential_histogram_validation() {
+        use super::Aggregation;
+        use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+
+        // Test with valid parameters
+        let builder = StreamBuilder::new()
+            .with_name("valid_expo_histogram")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 160,
+                max_scale: 10,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_ok(),
+            "Expected successful build with valid exponential histogram parameters"
+        );
+
+        // Test with max_size = 0 (invalid)
+        let builder = StreamBuilder::new()
+            .with_name("invalid_expo_histogram_size")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 0,
+                max_scale: 10,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(result.is_err(), "Expected error for max_size = 0");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "max_size must be greater than 0",
+            "Expected correct validation error for max_size = 0"
+        );
+
+        // Test with max_scale too high (invalid)
+        let builder = StreamBuilder::new()
+            .with_name("invalid_expo_histogram_scale_high")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 160,
+                max_scale: EXPO_MAX_SCALE + 1,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for max_scale > EXPO_MAX_SCALE"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            format!(
+                "max_scale must be between {} and {}",
+                EXPO_MIN_SCALE, EXPO_MAX_SCALE
+            ),
+            "Expected correct validation error for max_scale too high"
+        );
+
+        // Test with max_scale too low (invalid)
+        let builder = StreamBuilder::new()
+            .with_name("invalid_expo_histogram_scale_low")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 160,
+                max_scale: EXPO_MIN_SCALE - 1,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for max_scale < EXPO_MIN_SCALE"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            format!(
+                "max_scale must be between {} and {}",
+                EXPO_MIN_SCALE, EXPO_MAX_SCALE
+            ),
+            "Expected correct validation error for max_scale too low"
+        );
+
+        // Test with boundary values of max_scale (valid)
+        let builder = StreamBuilder::new()
+            .with_name("valid_expo_histogram_min_scale")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 160,
+                max_scale: EXPO_MIN_SCALE,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_ok(),
+            "Expected successful build with max_scale = EXPO_MIN_SCALE"
+        );
+
+        let builder = StreamBuilder::new()
+            .with_name("valid_expo_histogram_max_scale")
+            .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                max_size: 160,
+                max_scale: EXPO_MAX_SCALE,
+                record_min_max: true,
+            });
+
+        let result = builder.build();
+        assert!(
+            result.is_ok(),
+            "Expected successful build with max_scale = EXPO_MAX_SCALE"
         );
     }
 }
