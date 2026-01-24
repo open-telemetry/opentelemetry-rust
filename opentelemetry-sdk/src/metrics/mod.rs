@@ -1202,6 +1202,187 @@ mod tests {
         );
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_with_sum_aggregation_is_valid() {
+        // Sum aggregation is valid for Histogram instruments.
+        // When applied via a view, the aggregation should change from
+        // ExplicitBucketHistogram to Sum.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Sum)
+                    .with_name("my_histogram_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_histogram").build();
+        histogram.record(10.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(20.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(30.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Sum aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_histogram_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Sum aggregation is used instead of default Histogram
+        let MetricData::Sum(sum) = f64::extract_metrics_data_ref(&metric.data)
+            .expect("Sum aggregation expected when view specifies Sum")
+        else {
+            panic!("Expected Sum aggregation for Histogram with Sum view");
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 60.0); // 10 + 20 + 30
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_histogram_aggregation_is_valid() {
+        // Histogram aggregation is valid for Gauge instruments.
+        // When applied via a view, the aggregation should change from
+        // LastValue to ExplicitBucketHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![5.0, 10.0, 25.0, 50.0],
+                        record_min_max: true,
+                    })
+                    .with_name("my_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge").build();
+        gauge.record(3.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(7.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(15.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(30.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Histogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_gauge_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Histogram aggregation is used instead of default LastValue
+        let MetricData::Histogram(histogram) = f64::extract_metrics_data_ref(&metric.data)
+            .expect("Histogram aggregation expected when view specifies Histogram")
+        else {
+            panic!("Expected Histogram aggregation for Gauge with Histogram view");
+        };
+        assert_eq!(histogram.data_points.len(), 1);
+        let dp = &histogram.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 55.0); // 3 + 7 + 15 + 30
+        assert_eq!(dp.min, Some(3.0));
+        assert_eq!(dp.max, Some(30.0));
+        // Bucket boundaries: [5.0, 10.0, 25.0, 50.0]
+        // Values: 3.0 (bucket 0), 7.0 (bucket 1), 15.0 (bucket 2), 30.0 (bucket 3)
+        assert_eq!(dp.bucket_counts, vec![1, 1, 1, 1, 0]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_histogram_aggregation_is_valid() {
+        // Histogram aggregation is valid for Counter instruments.
+        // When applied via a view, the aggregation should change from
+        // Sum to ExplicitBucketHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![5.0, 10.0, 25.0, 50.0],
+                        record_min_max: true,
+                    })
+                    .with_name("my_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(3, &[KeyValue::new("key1", "value1")]);
+        counter.add(7, &[KeyValue::new("key1", "value1")]);
+        counter.add(15, &[KeyValue::new("key1", "value1")]);
+        counter.add(30, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Histogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_counter_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Histogram aggregation is used instead of default Sum
+        let MetricData::Histogram(histogram) = u64::extract_metrics_data_ref(&metric.data)
+            .expect("Histogram aggregation expected when view specifies Histogram")
+        else {
+            panic!("Expected Histogram aggregation for Counter with Histogram view");
+        };
+        assert_eq!(histogram.data_points.len(), 1);
+        let dp = &histogram.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 55); // 3 + 7 + 15 + 30
+        assert_eq!(dp.min, Some(3));
+        assert_eq!(dp.max, Some(30));
+        // Bucket boundaries: [5.0, 10.0, 25.0, 50.0]
+        // Values: 3 (bucket 0), 7 (bucket 1), 15 (bucket 2), 30 (bucket 3)
+        assert_eq!(dp.bucket_counts, vec![1, 1, 1, 1, 0]);
+    }
+
     #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
