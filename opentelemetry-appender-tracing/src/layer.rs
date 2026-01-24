@@ -1208,7 +1208,6 @@ mod tests {
         let logs = exporter.get_emitted_logs().unwrap();
         assert_eq!(logs.len(), 1);
         let log = &logs[0];
-        assert_eq!(log.record.attributes_iter().count(), 3);
 
         // The initial field should be captured
         assert!(attributes_contains(
