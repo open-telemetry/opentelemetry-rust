@@ -2823,6 +2823,51 @@ mod tests {
         let attrs: Vec<_> = data_point.attributes().collect();
         assert_eq!(attrs.len(), 1);
         assert_eq!(attrs[0].key.as_str(), "key1");
+
+        // Reset and report more measurements to verify Delta vs Cumulative behavior
+        test_context.reset_metrics();
+        histogram.record(10.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(20.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(30.0, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert second collect
+        let exponential_histogram_data =
+            test_context.get_aggregation::<f64>("test_histogram", None);
+        let MetricData::ExponentialHistogram(exp_hist) = exponential_histogram_data else {
+            panic!(
+                "Expected ExponentialHistogram aggregation, got {:?}",
+                exponential_histogram_data
+            );
+        };
+
+        assert_eq!(exp_hist.data_points.len(), 1);
+        let data_point = &exp_hist.data_points[0];
+
+        if temporality == Temporality::Cumulative {
+            // Cumulative: values accumulate (5 original + 3 new = 8 count, 15 + 60 = 75 sum)
+            assert_eq!(data_point.count(), 8);
+            assert_eq!(data_point.sum(), 75.0);
+            assert_eq!(data_point.min(), Some(1.0)); // min from first batch
+            assert_eq!(data_point.max(), Some(30.0)); // max from second batch
+        } else {
+            // Delta: only new values (3 count, 60 sum)
+            assert_eq!(data_point.count(), 3);
+            assert_eq!(data_point.sum(), 60.0);
+            assert_eq!(data_point.min(), Some(10.0));
+            assert_eq!(data_point.max(), Some(30.0));
+        }
+
+        // Verify positive bucket counts match the count
+        let positive_bucket = data_point.positive_bucket();
+        let positive_counts: Vec<u64> = positive_bucket.counts().collect();
+        let total_positive_count: u64 = positive_counts.iter().sum();
+        assert_eq!(
+            total_positive_count,
+            data_point.count() as u64,
+            "Total count in positive buckets should equal count"
+        );
     }
 
     fn gauge_aggregation_helper(temporality: Temporality) {
