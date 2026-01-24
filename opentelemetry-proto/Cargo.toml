@@ -80,6 +80,7 @@ tempfile = { workspace = true }
 serde_json = { workspace = true }
 criterion = { workspace = true }
 flate2 = "1.0"
+zstd = "0.13"
 
 [lints]
 workspace = true
