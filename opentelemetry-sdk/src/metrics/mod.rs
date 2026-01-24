@@ -124,7 +124,7 @@ mod tests {
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
     use rand::{rngs, Rng, SeedableRng};
     use std::cmp::{max, min};
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::Duration;
@@ -535,6 +535,107 @@ mod tests {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_aggregation_delta_zero_increment_no_attrs --features=testing -- --nocapture
         observable_counter_aggregation_helper(Temporality::Delta, 100, 0, 4, true);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_selective_reporting_delta() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_selective_reporting_delta --features=testing -- --nocapture
+        observable_counter_selective_reporting_helper(Temporality::Delta);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_selective_reporting_cumulative() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_selective_reporting_cumulative --features=testing -- --nocapture
+        observable_counter_selective_reporting_helper(Temporality::Cumulative);
+    }
+
+    /// Test to validate that when an Observable Counter callback stops reporting
+    /// a particular attribute set, that attribute set is no longer exported.
+    /// This should work for both Delta and Cumulative temporality modes per the
+    /// OpenTelemetry specification.
+    ///
+    /// Test Flow:
+    /// Cycle 1: Callback reports A=100, B=50 → Export should contain both A and B
+    /// Cycle 2: Callback reports A=150 only (B missing) → Export should contain ONLY A
+    fn observable_counter_selective_reporting_helper(temporality: Temporality) {
+        // Arrange
+        let mut test_context = TestContext::new(temporality);
+
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_clone = call_count.clone();
+
+        let _observable_counter = test_context
+            .meter()
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(move |observer| {
+                let count = call_count_clone.fetch_add(1, Ordering::SeqCst);
+                if count == 0 {
+                    // First callback: report both A and B
+                    observer.observe(100, &[KeyValue::new("key", "A")]);
+                    observer.observe(50, &[KeyValue::new("key", "B")]);
+                } else {
+                    // Second callback onwards: report only A
+                    observer.observe(150, &[KeyValue::new("key", "A")]);
+                }
+            })
+            .build();
+
+        // Act & Assert - First collection
+        test_context.flush_metrics();
+        let sum = test_context.get_aggregation::<u64>("my_observable_counter", None);
+        let MetricData::Sum(sum) = sum else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            2,
+            "First collection should have 2 data points"
+        );
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "key", "A").is_some(),
+            "A should be present in first collection"
+        );
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "key", "B").is_some(),
+            "B should be present in first collection"
+        );
+
+        test_context.reset_metrics();
+
+        // Act & Assert - Second collection (B not reported)
+        test_context.flush_metrics();
+        let sum = test_context.get_aggregation::<u64>("my_observable_counter", None);
+        let MetricData::Sum(sum) = sum else {
+            unreachable!()
+        };
+
+        // Key assertion: Only A should be exported, B should NOT be present
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Second collection should have only 1 data point (A)"
+        );
+        let a_datapoint = find_sum_datapoint_with_key_value(&sum.data_points, "key", "A")
+            .expect("A should be present");
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "key", "B").is_none(),
+            "B should NOT be exported when not reported by callback"
+        );
+
+        // Verify value follows temporality rules
+        if temporality == Temporality::Delta {
+            // Delta: A should be 150 - 100 = 50
+            assert_eq!(a_datapoint.value, 50, "Delta should report the difference");
+        } else {
+            // Cumulative: A should be 150 (absolute value)
+            assert_eq!(
+                a_datapoint.value, 150,
+                "Cumulative should report the absolute value"
+            );
+        }
     }
 
     fn observable_counter_aggregation_helper(
