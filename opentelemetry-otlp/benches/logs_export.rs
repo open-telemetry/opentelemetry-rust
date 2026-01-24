@@ -12,7 +12,8 @@
 
     Setup:
     - Batch size: 512 logs (default SDK batch size)
-    - Multiple scopes: 10 different instrumentation scopes (~51 logs per scope)
+    - 1 InstrumentationScope (realistic for tracing-appender)
+    - 10 different targets (~51 logs per target)
     - Fake HTTP server: Returns 200 OK with minimal latency
     - Protocol: HTTP/Binary (protobuf)
 
@@ -36,12 +37,12 @@
     Hardware: Apple M4 Pro
     | Test                            | Time      | Per Log |
     |---------------------------------|-----------|---------|
-    | batch_512_with_4_attrs          | ~408 µs   | ~797 ns |
-    | batch_512_with_10_attrs         | ~716 µs   | ~1.4 µs |
-    | batch_512_with_4_attrs_gzip     | ~605 µs   | ~1.2 µs |
-    | batch_512_with_10_attrs_gzip    | ~1,070 µs | ~2.1 µs |
-    | batch_512_with_4_attrs_zstd     | ~390 µs   | ~762 ns |
-    | batch_512_with_10_attrs_zstd    | ~690 µs   | ~1.3 µs |
+    | batch_512_with_4_attrs          | TBD       | TBD     |
+    | batch_512_with_10_attrs         | TBD       | TBD     |
+    | batch_512_with_4_attrs_gzip     | TBD       | TBD     |
+    | batch_512_with_10_attrs_gzip    | TBD       | TBD     |
+    | batch_512_with_4_attrs_zstd     | TBD       | TBD     |
+    | batch_512_with_10_attrs_zstd    | TBD       | TBD     |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
@@ -151,10 +152,20 @@ fn create_log_exporter_with_zstd(endpoint: String) -> OtlpLogExporter {
 
 #[allow(clippy::vec_box)]
 fn create_log_batch(
-    scopes: &[InstrumentationScope],
+    targets: &[&str],
     batch_size: usize,
     attribute_count: usize,
 ) -> Vec<Box<(SdkLogRecord, InstrumentationScope)>> {
+    // Single instrumentation scope (realistic for tracing-appender usage)
+    let scope = InstrumentationScope::builder("opentelemetry-appender-tracing")
+        .with_version("0.28.0")
+        .with_attributes([
+            opentelemetry::KeyValue::new("scope.type", "library"),
+            opentelemetry::KeyValue::new("scope.id", "0"),
+            opentelemetry::KeyValue::new("scope.enabled", true),
+        ])
+        .build();
+
     // Create a temporary logger just for creating log records
     // The logger's scope doesn't matter since LogBatch uses the scope from the tuple
     let temp_provider = SdkLoggerProvider::builder().build();
@@ -163,7 +174,6 @@ fn create_log_batch(
     let mut log_data = Vec::with_capacity(batch_size);
 
     for i in 0..batch_size {
-        let scope = &scopes[i % scopes.len()];
         let mut record = logger.create_log_record();
 
         record.set_observed_timestamp(now());
@@ -171,6 +181,9 @@ fn create_log_batch(
         record.set_severity_number(Severity::Info);
         record.set_severity_text("INFO");
         record.set_body(AnyValue::String("Benchmark log message".into()));
+
+        // Set target (10 different targets, ~51 logs per target)
+        record.set_target(targets[i % targets.len()].to_string());
 
         // Add trace context
         let trace_id =
@@ -206,20 +219,6 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
 
     let endpoint = format!("http://localhost:{}", port);
 
-    // Create instrumentation scopes with attributes
-    let scopes: Vec<InstrumentationScope> = (0..10)
-        .map(|i| {
-            InstrumentationScope::builder(format!("component.{}", i))
-                .with_version(format!("1.{}.0", i))
-                .with_attributes([
-                    KeyValue::new("scope.type", "library"),
-                    KeyValue::new("scope.id", i.to_string()),
-                    KeyValue::new("scope.enabled", true),
-                ])
-                .build()
-        })
-        .collect();
-
     // Create resource once
     let resource = Resource::builder()
         .with_attributes([
@@ -235,9 +234,13 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     let mut exporter = create_log_exporter(endpoint.clone());
     exporter.set_resource(&resource);
 
+    // Create 10 different targets (~51 logs per target)
+    let targets: Vec<String> = (0..10).map(|i| format!("target::module_{}", i)).collect();
+    let target_refs: Vec<&str> = targets.iter().map(|s| s.as_str()).collect();
+
     // Pre-create log batches for each test case (not measured)
-    let log_data_4_attrs = create_log_batch(&scopes, 512, 4);
-    let log_data_10_attrs = create_log_batch(&scopes, 512, 10);
+    let log_data_4_attrs = create_log_batch(&target_refs, 512, 4);
+    let log_data_10_attrs = create_log_batch(&target_refs, 512, 10);
 
     let mut group = c.benchmark_group("otlp_log_export");
 
