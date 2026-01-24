@@ -1,27 +1,17 @@
 /*
 // Run this benchmark with:
- // cargo bench --bench span-attributes --features experimental_span_attributes
- // The benchmark results:
- // Hardware: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz (4 cores)
-
-| Test                      | Average time | Increment |
-|---------------------------|--------------|-----------|
-| span_4_attributes         | 538 ns       | -         |
-| span_8_attributes         | 1.03 µs      | +492 ns   |
-| nested_spans_1_levels     | 591 ns       | -         |
-| nested_spans_2_levels     | 1.42 µs      | +829 ns   |
-| nested_spans_3_levels     | 2.24 µs      | +820 ns   |
-
+// cargo bench --bench span-attributes --features experimental_span_attributes
+// The benchmark results:
 // Hardware: Mac M4 Pro (8 cores)
 // Total Number of Cores:14 (10 performance and 4 efficiency)
 
 | Test                      | Average time | Increment |
 |---------------------------|--------------|-----------|
-| span_4_attributes         | 182 ns       | -         |
-| span_8_attributes         | 290 ns       | +108 ns   |
-| nested_spans_1_levels     | 190 ns       | -         |
-| nested_spans_2_levels     | 401 ns       | +211 ns   |
-| nested_spans_3_levels     | 614 ns       | +213 ns   |
+| span_4_attributes         | 173 ns       | -         |
+| span_8_attributes         | 273 ns       | +100 ns   |
+| nested_spans_1_levels     | 197 ns       | -         |
+| nested_spans_2_levels     | 390 ns       | +193 ns   |
+| nested_spans_3_levels     | 575 ns       | +185 ns   |
 
 */
 
