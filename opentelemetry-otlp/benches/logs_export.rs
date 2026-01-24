@@ -15,19 +15,33 @@
     - Multiple scopes: 10 different instrumentation scopes (~51 logs per scope)
     - Fake HTTP server: Returns 200 OK with minimal latency
     - Protocol: HTTP/Binary (protobuf)
-    - TODO: Add gRPC
+
+    Run benchmarks:
+    ```bash
+    # Basic benchmark (no compression)
+    cargo bench --bench logs_export
+
+    # With gzip compression
+    cargo bench --bench logs_export --features gzip-http
+
+    # With zstd compression
+    cargo bench --bench logs_export --features zstd-http
+
+    # All compression variants
+    cargo bench --bench logs_export --features gzip-http,zstd-http
+    ```
 
     Benchmark Results:
     criterion = "0.5"
     Hardware: Apple M4 Pro
-    | Test                            | Time      |
-    |---------------------------------|-----------|
-    | batch_512_with_4_attrs          | ~485 µs   |
-    | batch_512_with_10_attrs         | ~830 µs   |
-    | batch_512_with_4_attrs_gzip     | ~650 µs   |
-    | batch_512_with_10_attrs_gzip    | ~1,150 µs |
-    | batch_512_with_4_attrs_zstd     | ~420 µs   |
-    | batch_512_with_10_attrs_zstd    | ~716 µs   |
+    | Test                            | Time      | Per Log |
+    |---------------------------------|-----------|---------|
+    | batch_512_with_4_attrs          | ~408 µs   | ~797 ns |
+    | batch_512_with_10_attrs         | ~716 µs   | ~1.4 µs |
+    | batch_512_with_4_attrs_gzip     | ~605 µs   | ~1.2 µs |
+    | batch_512_with_10_attrs_gzip    | ~1,070 µs | ~2.1 µs |
+    | batch_512_with_4_attrs_zstd     | ~390 µs   | ~762 ns |
+    | batch_512_with_10_attrs_zstd    | ~690 µs   | ~1.3 µs |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
@@ -141,14 +155,15 @@ fn create_log_batch(
     batch_size: usize,
     attribute_count: usize,
 ) -> Vec<Box<(SdkLogRecord, InstrumentationScope)>> {
-    // Create a temporary logger provider just for creating log records
+    // Create a temporary logger just for creating log records
+    // The logger's scope doesn't matter since LogBatch uses the scope from the tuple
     let temp_provider = SdkLoggerProvider::builder().build();
+    let logger = temp_provider.logger("benchmark");
 
     let mut log_data = Vec::with_capacity(batch_size);
 
     for i in 0..batch_size {
         let scope = &scopes[i % scopes.len()];
-        let logger = temp_provider.logger_with_scope(scope.clone());
         let mut record = logger.create_log_record();
 
         record.set_observed_timestamp(now());
