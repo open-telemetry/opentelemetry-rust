@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::borrow::Cow;
 use std::fmt::Debug;
 
 #[doc(no_inline)]
@@ -37,26 +38,34 @@ pub struct HeaderExtractor<'a>(pub &'a http::HeaderMap);
 
 impl Extractor for HeaderExtractor<'_> {
     /// Get a value for a key from the HeaderMap.  If the value is not valid ASCII, returns None.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).and_then(|value| value.to_str().ok())
+    fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+        self.0
+            .get(key)
+            .and_then(|value| value.to_str().ok())
+            .map(Cow::Borrowed)
     }
 
     /// Collect all the keys from the HeaderMap.
-    fn keys(&self) -> Vec<&str> {
+    fn keys(&self) -> Vec<Cow<'_, str>> {
         self.0
             .keys()
-            .map(|value| value.as_str())
+            .map(|value| Cow::Borrowed(value.as_str()))
             .collect::<Vec<_>>()
     }
 
     /// Get all the values for a key from the HeaderMap
-    fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+    fn get_all(&self, key: &str) -> Option<Vec<Cow<'_, str>>> {
         let all_iter = self.0.get_all(key).iter();
         if let (0, Some(0)) = all_iter.size_hint() {
             return None;
         }
 
-        Some(all_iter.filter_map(|value| value.to_str().ok()).collect())
+        Some(
+            all_iter
+                .filter_map(|value| value.to_str().ok())
+                .map(Cow::Borrowed)
+                .collect(),
+        )
     }
 }
 
@@ -266,7 +275,7 @@ mod tests {
 
         assert_eq!(
             HeaderExtractor(&carrier).get("HEADERNAME"),
-            Some("value"),
+            Some(Cow::Borrowed("value")),
             "case insensitive extraction"
         )
     }
@@ -279,7 +288,11 @@ mod tests {
 
         assert_eq!(
             HeaderExtractor(&carrier).get_all("HEADERNAME"),
-            Some(vec!["value", "value2", "value3"]),
+            Some(vec![
+                Cow::Borrowed("value"),
+                Cow::Borrowed("value2"),
+                Cow::Borrowed("value3")
+            ]),
             "all values from a key extraction"
         )
     }
@@ -305,8 +318,8 @@ mod tests {
         let extractor = HeaderExtractor(&carrier);
         let got = extractor.keys();
         assert_eq!(got.len(), 2);
-        assert!(got.contains(&"headername1"));
-        assert!(got.contains(&"headername2"));
+        assert!(got.contains(&Cow::Borrowed("headername1")));
+        assert!(got.contains(&Cow::Borrowed("headername2")));
     }
 
     #[test]
@@ -323,7 +336,7 @@ mod tests {
         }
         assert_eq!(
             HeaderExtractor(&carrier).get("test-header"),
-            Some("test-value")
+            Some(Cow::Borrowed("test-value"))
         );
 
         // Test reserve with zero capacity
@@ -334,7 +347,7 @@ mod tests {
         }
         assert_eq!(
             HeaderExtractor(&carrier).get("another-header"),
-            Some("another-value")
+            Some(Cow::Borrowed("another-value"))
         );
 
         // Test that capacity is actually reserved (at least the requested amount)

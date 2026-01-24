@@ -6,6 +6,7 @@ use opentelemetry::{
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
+use std::borrow::Cow;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -61,8 +62,13 @@ impl TraceContextPropagator {
 
     /// Extract span context from w3c trace-context header.
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
-        let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
+        let header_value = extractor
+            .get(TRACEPARENT_HEADER)
+            .unwrap_or(Cow::Borrowed(""));
+        let parts = header_value
+            .trim()
+            .split_terminator('-')
+            .collect::<Vec<&str>>();
         // Ensure parts are not out of range.
         if parts.len() < 4 {
             return Err(());
@@ -104,7 +110,7 @@ impl TraceContextPropagator {
 
         let trace_state = match extractor.get(TRACESTATE_HEADER) {
             Some(trace_state_str) => {
-                TraceState::from_str(trace_state_str).unwrap_or_else(|_| TraceState::default())
+                TraceState::from_str(&trace_state_str).unwrap_or_else(|_| TraceState::default())
             }
             None => TraceState::default(),
         };
@@ -272,12 +278,12 @@ mod tests {
             );
 
             assert_eq!(
-                Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or(""),
+                Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or(Cow::Borrowed("")),
                 expected_trace_parent
             );
 
             assert_eq!(
-                Extractor::get(&injector, TRACESTATE_HEADER).unwrap_or(""),
+                Extractor::get(&injector, TRACESTATE_HEADER).unwrap_or(Cow::Borrowed("")),
                 expected_trace_state
             );
         }
@@ -293,6 +299,9 @@ mod tests {
 
         Context::map_current(|cx| propagator.inject_context(cx, &mut injector));
 
-        assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
+        assert_eq!(
+            Extractor::get(&injector, TRACESTATE_HEADER),
+            Some(Cow::Borrowed(state))
+        )
     }
 }
