@@ -10,6 +10,48 @@ pub(crate) mod serializers {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
 
+    /// Visitor for deserializing u64 from either a string or integer.
+    struct U64Visitor;
+
+    impl<'de> Visitor<'de> for U64Visitor {
+        type Value = u64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a u64 integer or string")
+        }
+
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+            Ok(v)
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            v.parse().map_err(E::custom)
+        }
+    }
+
+    /// Visitor for deserializing i64 from either a string or integer.
+    struct I64Visitor;
+
+    impl<'de> Visitor<'de> for I64Visitor {
+        type Value = i64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("an i64 integer or string")
+        }
+
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(v)
+        }
+
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+            i64::try_from(v).map_err(|_| E::custom("u64 value out of range for i64"))
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            v.parse().map_err(E::custom)
+        }
+    }
+
     // hex string <-> bytes conversion
 
     pub fn serialize_to_hex_string<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -170,17 +212,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum StringOrU64 {
-            U64(u64),
-            String(String),
-        }
-
-        match StringOrU64::deserialize(deserializer)? {
-            StringOrU64::U64(v) => Ok(v),
-            StringOrU64::String(s) => s.parse().map_err(de::Error::custom),
-        }
+        deserializer.deserialize_any(U64Visitor)
     }
 
     pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
@@ -201,20 +233,35 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum StringOrU64 {
-            U64(u64),
-            String(String),
+        struct VecU64Visitor;
+
+        impl<'de> Visitor<'de> for VecU64Visitor {
+            type Value = Vec<u64>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a list of u64 integers or strings")
+            }
+
+            fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(v) = seq.next_element_seed(U64Seed)? {
+                    values.push(v);
+                }
+                Ok(values)
+            }
         }
 
-        let v: Vec<StringOrU64> = Deserialize::deserialize(deserializer)?;
-        v.into_iter()
-            .map(|item| match item {
-                StringOrU64::U64(n) => Ok(n),
-                StringOrU64::String(s) => s.parse().map_err(de::Error::custom),
-            })
-            .collect()
+        struct U64Seed;
+
+        impl<'de> de::DeserializeSeed<'de> for U64Seed {
+            type Value = u64;
+
+            fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
+                deserializer.deserialize_any(U64Visitor)
+            }
+        }
+
+        deserializer.deserialize_seq(VecU64Visitor)
     }
 
     pub fn serialize_i64_to_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -229,17 +276,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum StringOrI64 {
-            I64(i64),
-            String(String),
-        }
-
-        match StringOrI64::deserialize(deserializer)? {
-            StringOrI64::I64(v) => Ok(v),
-            StringOrI64::String(s) => s.parse().map_err(de::Error::custom),
-        }
+        deserializer.deserialize_any(I64Visitor)
     }
 }
 
