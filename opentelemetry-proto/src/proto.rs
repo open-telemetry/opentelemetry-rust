@@ -10,7 +10,7 @@ pub(crate) mod serializers {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
 
-    /// Visitor for deserializing u64 from either a string or integer.
+    /// Visitor for deserializing a `u64` from either a string or integer.
     struct StringOrU64Visitor;
 
     impl<'de> Visitor<'de> for StringOrU64Visitor {
@@ -29,7 +29,7 @@ pub(crate) mod serializers {
         }
     }
 
-    /// Visitor for deserializing i64 from either a string or integer.
+    /// Visitor for deserializing `i64` from either a string or integer.
     struct StringOrI64Visitor;
 
     impl<'de> Visitor<'de> for StringOrI64Visitor {
@@ -52,7 +52,7 @@ pub(crate) mod serializers {
         }
     }
 
-    /// Visitor for deserializing a Vec<u64> where each element can be a string or integer.
+    /// Visitor for deserializing a `Vec<u64>` where each element can be a string or integer.
     struct StringOrU64VecVisitor;
 
     impl<'de> Visitor<'de> for StringOrU64VecVisitor {
@@ -71,7 +71,7 @@ pub(crate) mod serializers {
         }
     }
 
-    /// Seed for deserializing individual u64 elements within a sequence.
+    /// Seed for deserializing individual `u64` elements within a sequence.
     struct StringOrU64Seed;
 
     impl<'de> de::DeserializeSeed<'de> for StringOrU64Seed {
