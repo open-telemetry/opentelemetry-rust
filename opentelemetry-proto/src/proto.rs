@@ -11,9 +11,9 @@ pub(crate) mod serializers {
     use std::fmt;
 
     /// Visitor for deserializing u64 from either a string or integer.
-    struct U64Visitor;
+    struct StringOrU64Visitor;
 
-    impl<'de> Visitor<'de> for U64Visitor {
+    impl<'de> Visitor<'de> for StringOrU64Visitor {
         type Value = u64;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -30,9 +30,9 @@ pub(crate) mod serializers {
     }
 
     /// Visitor for deserializing i64 from either a string or integer.
-    struct I64Visitor;
+    struct StringOrI64Visitor;
 
-    impl<'de> Visitor<'de> for I64Visitor {
+    impl<'de> Visitor<'de> for StringOrI64Visitor {
         type Value = i64;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -49,6 +49,36 @@ pub(crate) mod serializers {
 
         fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
             v.parse().map_err(E::custom)
+        }
+    }
+
+    /// Visitor for deserializing a Vec<u64> where each element can be a string or integer.
+    struct StringOrU64VecVisitor;
+
+    impl<'de> Visitor<'de> for StringOrU64VecVisitor {
+        type Value = Vec<u64>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a list of u64 integers or strings")
+        }
+
+        fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+            while let Some(v) = seq.next_element_seed(StringOrU64Seed)? {
+                values.push(v);
+            }
+            Ok(values)
+        }
+    }
+
+    /// Seed for deserializing individual u64 elements within a sequence.
+    struct StringOrU64Seed;
+
+    impl<'de> de::DeserializeSeed<'de> for StringOrU64Seed {
+        type Value = u64;
+
+        fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
+            deserializer.deserialize_any(StringOrU64Visitor)
         }
     }
 
@@ -212,7 +242,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(U64Visitor)
+        deserializer.deserialize_any(StringOrU64Visitor)
     }
 
     pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
@@ -233,35 +263,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        struct VecU64Visitor;
-
-        impl<'de> Visitor<'de> for VecU64Visitor {
-            type Value = Vec<u64>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a list of u64 integers or strings")
-            }
-
-            fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-                while let Some(v) = seq.next_element_seed(U64Seed)? {
-                    values.push(v);
-                }
-                Ok(values)
-            }
-        }
-
-        struct U64Seed;
-
-        impl<'de> de::DeserializeSeed<'de> for U64Seed {
-            type Value = u64;
-
-            fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
-                deserializer.deserialize_any(U64Visitor)
-            }
-        }
-
-        deserializer.deserialize_seq(VecU64Visitor)
+        deserializer.deserialize_seq(StringOrU64VecVisitor)
     }
 
     pub fn serialize_i64_to_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -276,7 +278,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(I64Visitor)
+        deserializer.deserialize_any(StringOrI64Visitor)
     }
 }
 
