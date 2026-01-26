@@ -170,8 +170,17 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<u64>().map_err(de::Error::custom)
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrU64 {
+            U64(u64),
+            String(String),
+        }
+
+        match StringOrU64::deserialize(deserializer)? {
+            StringOrU64::U64(v) => Ok(v),
+            StringOrU64::String(s) => s.parse().map_err(de::Error::custom),
+        }
     }
 
     pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
@@ -192,9 +201,19 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: Vec<String> = Deserialize::deserialize(deserializer)?;
-        s.into_iter()
-            .map(|v| v.parse::<u64>().map_err(de::Error::custom))
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrU64 {
+            U64(u64),
+            String(String),
+        }
+
+        let v: Vec<StringOrU64> = Deserialize::deserialize(deserializer)?;
+        v.into_iter()
+            .map(|item| match item {
+                StringOrU64::U64(n) => Ok(n),
+                StringOrU64::String(s) => s.parse().map_err(de::Error::custom),
+            })
             .collect()
     }
 
@@ -210,8 +229,17 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<i64>().map_err(de::Error::custom)
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrI64 {
+            I64(i64),
+            String(String),
+        }
+
+        match StringOrI64::deserialize(deserializer)? {
+            StringOrI64::I64(v) => Ok(v),
+            StringOrI64::String(s) => s.parse().map_err(de::Error::custom),
+        }
     }
 }
 
