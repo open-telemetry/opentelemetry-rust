@@ -3,6 +3,7 @@
 ## vNext
 
 - Updated `schemars` dependency to version 1.0.0.
+- Fix JSON deserialization to accept both string and integer for 64-bit fields, per OTLP spec.
 
 ## 0.31.0
 
