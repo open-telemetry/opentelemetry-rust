@@ -3,6 +3,8 @@
 ## vNext
 
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+- Add `reqwest-native-tls` feature flag to enable system native TLS (OpenSSL on Linux, Schannel on Windows, Secure Transport on macOS).
+- Update `reqwest-rustls` and `reqwest-rustls-webpki-roots` features to use explicit `rustls-tls` instead of `default-tls` for clarity.
 
 ## 0.31.0
 
