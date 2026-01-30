@@ -107,7 +107,7 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
 }
 
 impl<T: ShouldSample + 'static> From<T> for Box<dyn ShouldSample> {
-    #[inline(always)]
+    #[inline]
     fn from(value: T) -> Self {
         Box::new(value)
     }

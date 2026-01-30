@@ -366,7 +366,7 @@ impl TracerProviderBuilder {
     /// }
     ///
     /// opentelemetry_sdk::trace::SdkTracerProvider::builder()
-    ///     // You can pass already boxed sampler if you need configure your sampler in a simple fashion
+    ///     // You can pass already boxed sampler if you need to configure your sampler in a simple fashion
     ///     // This can be useful if you create your own sampler that implements `ShouldSample`
     ///     .with_sampler(should_return_dynamic_sampler())
     ///     // Or you can pass exact instance if you do not have complex configuration
