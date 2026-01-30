@@ -17,6 +17,7 @@
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 - Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
+- `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
