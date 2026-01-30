@@ -53,7 +53,7 @@
     - Controlled batch size (511 logs) to isolate force_flush as sole trigger
 
     | Test                              | Time      | Per Log |
-    |-----------------------------------|-----------|---------|    
+    |-----------------------------------|-----------|---------|
     | e2e_batch_511_with_4_attrs        | ~796 µs   | ~1.6 µs |
     | e2e_batch_511_with_4_attrs_zstd   | ~792 µs   | ~1.5 µs |
 
