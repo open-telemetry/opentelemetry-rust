@@ -1,17 +1,24 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId,
-    Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId, Criterion,
 };
 use opentelemetry::{
-    trace::{SpanContext, TraceContextExt},
-    Context,
+    trace::{SpanContext, TraceContextExt, TraceState},
+    Context, SpanId, TraceFlags, TraceId,
 };
+use std::hint::black_box;
 
 // Run this benchmark with:
 // cargo bench --bench context_attach
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let span_context = Context::new().with_remote_span_context(SpanContext::empty_context());
+    let remote_context = SpanContext::new(
+        TraceId::from(47),
+        SpanId::from(11),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::NONE,
+    );
+    let span_context = Context::new().with_remote_span_context(remote_context);
     let contexts = vec![
         ("empty_cx", Context::new()),
         ("single_value_cx", Context::new().with_value(Value(4711))),
@@ -98,7 +105,7 @@ fn dummy_work() -> i32 {
     black_box(1 + 1)
 }
 
-fn group(c: &mut Criterion) -> BenchmarkGroup<WallTime> {
+fn group(c: &mut Criterion) -> BenchmarkGroup<'_, WallTime> {
     c.benchmark_group("context_attach")
 }
 

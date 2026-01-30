@@ -54,7 +54,7 @@ pub trait MeterProvider {
     /// // meter used in libraries/crates that optionally includes version and schema url
     /// let scope = InstrumentationScope::builder(env!("CARGO_PKG_NAME"))
     ///     .with_version(env!("CARGO_PKG_VERSION"))
-    ///     .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    ///     .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     ///     .build();
     ///
     /// let meter = provider.meter_with_scope(scope);

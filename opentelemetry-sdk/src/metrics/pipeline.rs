@@ -50,7 +50,7 @@ impl fmt::Debug for Pipeline {
 /// Single or multi-instrument callbacks
 type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
-const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
+pub(crate) const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
 
 #[derive(Default)]
 struct PipelineInner {
@@ -277,6 +277,16 @@ where
             }
             if stream.unit.is_none() {
                 stream.unit = Some(inst.unit.clone());
+            }
+
+            // Override default histogram boundaries if provided.
+            if let Some(boundaries) = boundaries {
+                if kind == InstrumentKind::Histogram && stream.aggregation.is_none() {
+                    stream.aggregation = Some(Aggregation::ExplicitBucketHistogram {
+                        boundaries: boundaries.to_vec(),
+                        record_min_max: true,
+                    });
+                }
             }
 
             let id = self.inst_id(kind, &stream);

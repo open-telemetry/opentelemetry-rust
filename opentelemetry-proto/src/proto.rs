@@ -16,7 +16,7 @@ pub(crate) mod serializers {
     where
         S: Serializer,
     {
-        let hex_string = hex::encode(bytes);
+        let hex_string = const_hex::encode(bytes);
         serializer.serialize_str(&hex_string)
     }
 
@@ -37,7 +37,7 @@ pub(crate) mod serializers {
             where
                 E: de::Error,
             {
-                hex::decode(value).map_err(E::custom)
+                const_hex::decode(value).map_err(E::custom)
             }
         }
 
@@ -242,6 +242,13 @@ pub mod tonic {
             #[path = "opentelemetry.proto.collector.trace.v1.rs"]
             pub mod v1;
         }
+
+        #[cfg(feature = "profiles")]
+        #[path = ""]
+        pub mod profiles {
+            #[path = "opentelemetry.proto.collector.profiles.v1development.rs"]
+            pub mod v1development;
+        }
     }
 
     /// Common types used across all signals
@@ -295,7 +302,7 @@ pub mod tonic {
     #[path = ""]
     pub mod profiles {
         #[path = "opentelemetry.proto.profiles.v1development.rs"]
-        pub mod v1;
+        pub mod v1development;
     }
 
     pub use crate::transform::common::tonic::Attributes;

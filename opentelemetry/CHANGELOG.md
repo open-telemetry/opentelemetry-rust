@@ -2,7 +2,30 @@
 
 ## vNext
 
+- Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
+- **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
+  - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
+  - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
+- **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
+- **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
+  - `SamplingDecision`, `SamplingResult`
+  - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+
+[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+
+- Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
+
+## v0.31.0
+
+Released 2025-Sep-25
+
+- *Breaking* Change return type of `opentelemetry::global::set_tracer_provider` to Unit to align with metrics counterpart
 - Add `get_all` method to `opentelemetry::propagation::Extractor` to return all values of the given propagation key and provide a default implementation.
+- Add an `IntoIterator` implementation for `opentelemetry::trace::TraceState` to allow iterating through its key-value pair collection.
 
 ## 0.30.0
 
@@ -35,7 +58,7 @@ predictable and efficient observability pipelines.
 
 Release 2025-Apr-01
 
-- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatability
+- Bug Fix: Re-export `WithContext` at `opentelemetry::trace::context::WithContext` [#2879](https://github.com/open-telemetry/opentelemetry-rust/pull/2879) to restore backwards compatibility
   - The new path for `WithContext` and `FutureExt` are in  `opentelemetry::context` as they are independent of the trace signal. Users should prefer this path.
 
 ## 0.29.0
@@ -104,10 +127,10 @@ let counter = meter.u64_counter("my_counter").build();
   - Replaced `global::meter_with_version` with `global::meter_with_scope`
   - Added `global::tracer_with_scope`
   - Refer to PR description for migration guide.
-- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)  
+- **Breaking change**: replaced `InstrumentationScope` public attributes by getters [#2275](https://github.com/open-telemetry/opentelemetry-rust/pull/2275)
 
 - **Breaking change**: [#2260](https://github.com/open-telemetry/opentelemetry-rust/pull/2260)
-  - Removed `global::set_error_handler` and `global::handle_error`. 
+  - Removed `global::set_error_handler` and `global::handle_error`.
   - `global::handle_error` usage inside the opentelemetry crates has been replaced with `global::otel_info`, `otel_warn`, `otel_debug` and `otel_error` macros based on the severity of the internal logs.
   - The default behavior of `global::handle_error` was to log the error using `eprintln!`. With otel macros, the internal logs get emitted via `tracing` macros of matching severity. Users now need to configure a `tracing` layer/subscriber to capture these logs.
   - Refer to PR description for migration guide. Also refer to [self-diagnostics](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/self-diagnostics) example to learn how to view internal logs in stdout using `tracing::fmt` layer.
@@ -207,7 +230,7 @@ to learn how to provide Observable callbacks.
   opaque string. Migration: Replace `.with_unit(Unit::new("myunit"))` with
   `.with_unit("myunit")`.
 
-- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Introduced the `LogRecord::set_target()` method in the log bridge API. 
+- [1869](https://github.com/open-telemetry/opentelemetry-rust/pull/1869) Introduced the `LogRecord::set_target()` method in the log bridge API.
 This method allows appenders to set the target/component emitting the logs.
 
 ## v0.23.0
@@ -228,7 +251,7 @@ This method allows appenders to set the target/component emitting the logs.
         - opentelemetry::global::shutdown_logger_provider
         - opentelemetry::global::logger_provider
         - opentelemetry::global::GlobalLoggerProvider
-        - opentelemetry::global::ObjectSafeLoggerProvider 
+        - opentelemetry::global::ObjectSafeLoggerProvider
     For creating appenders using Logging bridge API, refer to the opentelemetry-tracing-appender [example](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/examples/basic.rs)
 
 ### Changed
@@ -246,7 +269,7 @@ Before:
 let logger = provider.versioned_logger(
     "my-logger-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -257,7 +280,7 @@ After:
 let logger = provider
     .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
@@ -270,7 +293,7 @@ Before:
 let tracer = provider.versioned_tracer(
     "my-tracer-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -281,7 +304,7 @@ After:
 let tracer = provider
     .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
@@ -504,7 +527,7 @@ and SDK are still unstable.
 - Use current span for SDK-less context propagation #510
 - Always export span batch when limit reached #519
 - Rename message events to events #530
-- Update resource merge behaviour #537
+- Update resource merge behavior #537
 - Ignore links with invalid context #538
 
 ## Removed
@@ -529,7 +552,7 @@ use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
 
 ## Changed
 
-- Pull configrations from environment variables by default when creating BatchSpanProcessor #445
+- Pull configurations from environment variables by default when creating BatchSpanProcessor #445
 - Convert doc links to intra-doc #466
 - Switch to Cow for event names #471
 - Use API to configure async runtime instead of features #481
@@ -826,7 +849,7 @@ use `opentelemetry::global::shutdown_tracer_provider` explicitly instead.
 - Make trace and metrics features optional
 - ExportResult as specified in the specification
 - Add Futures compatibility API
-- Added serde serialise support to SpanData
+- Added serde serialize support to SpanData
 - Separate OpenTelemetry Jaeger crate
 
 ### Changed

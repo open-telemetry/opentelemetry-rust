@@ -40,7 +40,7 @@
 //!
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_simple_exporter(otlp_exporter)
+//!         .with_batch_exporter(otlp_exporter)
 //!         .build();
 //!
 //!     // Set it as the global provider
@@ -83,7 +83,7 @@
 //!
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_simple_exporter(otlp_exporter)
+//!         .with_batch_exporter(otlp_exporter)
 //!         .build();
 //!
 //!     // Set it as the global provider
@@ -116,7 +116,7 @@
 //!             .build()
 //!             .expect("Failed to create span exporter");
 //!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!             .with_simple_exporter(exporter)
+//!             .with_batch_exporter(exporter)
 //!             .build()
 //!     });
 //!
@@ -203,40 +203,6 @@
 //! `http://localhost:9090`
 //! ## Show Logs, Metrics too (TODO)
 //!
-//! ## Performance
-//!
-//! For optimal performance, a batch exporting processor is recommended as the simple
-//! processor will export each span synchronously on dropping, and is only good
-//! for test/debug purposes.
-//!
-//! ```toml
-//! [dependencies]
-//! opentelemetry-otlp = { version = "*", features = ["grpc-tonic"] }
-//! ```
-//!
-//! ```no_run
-//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
-//! # {
-//! use opentelemetry::global;
-//! use opentelemetry::trace::Tracer;
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     // First, create a OTLP exporter builder. Configure it as you need.
-//!     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder().with_tonic().build()?;
-//!     // Then pass it into provider builder
-//!     let _ = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_batch_exporter(otlp_exporter)
-//!         .build();
-//!     let tracer = global::tracer("my_tracer");
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//!
-//!     Ok(())
-//!   # }
-//! }
-//! ```
-//!
 //! [`tokio`]: https://tokio.rs
 //!
 //! # Feature Flags
@@ -261,6 +227,8 @@
 //! The following feature flags offer additional configurations on http:
 //!
 //! * `http-proto`: Use http as transport layer, protobuf as body format. This feature is enabled by default.
+//! * `gzip-http`: Use gzip compression for HTTP transport.
+//! * `zstd-http`: Use zstd compression for HTTP transport.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client. This feature is enabled by default.
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
@@ -281,7 +249,11 @@
 //! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! # #[cfg(feature = "metrics")]
 //! use opentelemetry_sdk::metrics::Temporality;
-//! use opentelemetry_otlp::{Protocol, WithExportConfig, WithTonicConfig};
+//! use opentelemetry_otlp::{Protocol, WithExportConfig, Compression};
+//! # #[cfg(feature = "grpc-tonic")]
+//! use opentelemetry_otlp::WithTonicConfig;
+//! # #[cfg(any(feature = "http-proto", feature = "http-json"))]
+//! use opentelemetry_otlp::WithHttpConfig;
 //! use std::time::Duration;
 //! # #[cfg(feature = "grpc-tonic")]
 //! use tonic::metadata::*;
@@ -314,6 +286,19 @@
 //!         # tracer
 //!     # };
 //!
+//!     // HTTP exporter example with compression
+//!     # #[cfg(all(feature = "trace", feature = "http-proto"))]
+//!     # let _http_tracer = {
+//!     let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!         .with_http()
+//!         .with_endpoint("http://localhost:4318/v1/traces")
+//!         .with_timeout(Duration::from_secs(3))
+//!         .with_protocol(Protocol::HttpBinary)
+//!         .with_compression(Compression::Gzip)  // Requires gzip-http feature
+//!         .build()?;
+//!         # exporter
+//!     # };
+//!
 //!     # #[cfg(all(feature = "metrics", feature = "grpc-tonic"))]
 //!     # {
 //!     let exporter = opentelemetry_otlp::MetricExporter::builder()
@@ -328,6 +313,19 @@
 //!         .with_periodic_exporter(exporter)
 //!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
 //!         .build();
+//!     # }
+//!
+//!     // HTTP metrics exporter example with compression
+//!     # #[cfg(all(feature = "metrics", feature = "http-proto"))]
+//!     # {
+//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
+//!        .with_http()
+//!        .with_endpoint("http://localhost:4318/v1/metrics")
+//!        .with_protocol(Protocol::HttpBinary)
+//!        .with_timeout(Duration::from_secs(3))
+//!        .with_compression(Compression::Zstd)  // Requires zstd-http feature
+//!        .build()
+//!        .unwrap();
 //!     # }
 //!
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
@@ -368,6 +366,13 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+pub mod retry_classification;
+
+/// Retry logic for exporting telemetry data.
+#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+pub mod retry;
+
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExportConfig;
 pub use crate::exporter::ExporterBuildError;
@@ -404,9 +409,13 @@ pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
-    OTEL_EXPORTER_OTLP_PROTOCOL_DEFAULT, OTEL_EXPORTER_OTLP_TIMEOUT,
+    OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
+    OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF, OTEL_EXPORTER_OTLP_TIMEOUT,
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
+
+#[cfg(feature = "experimental-http-retry")]
+pub use retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]
@@ -442,11 +451,78 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
     /// GRPC protocol
+    #[cfg(feature = "grpc-tonic")]
     Grpc,
     /// HTTP protocol with binary protobuf
+    #[cfg(feature = "http-proto")]
     HttpBinary,
     /// HTTP protocol with JSON payload
+    #[cfg(feature = "http-json")]
     HttpJson,
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+impl Protocol {
+    /// Attempts to parse a protocol from the `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable.
+    ///
+    /// Returns `None` if:
+    /// - The environment variable is not set
+    /// - The value doesn't match a known protocol
+    /// - The specified protocol's feature is not enabled
+    pub fn from_env() -> Option<Self> {
+        use crate::exporter::{
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
+        };
+
+        let protocol = std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).ok()?;
+
+        match protocol.as_str() {
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
+                #[cfg(feature = "grpc-tonic")]
+                {
+                    Some(Protocol::Grpc)
+                }
+                #[cfg(not(feature = "grpc-tonic"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'grpc-tonic' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC)
+                    );
+                    None
+                }
+            }
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => {
+                #[cfg(feature = "http-proto")]
+                {
+                    Some(Protocol::HttpBinary)
+                }
+                #[cfg(not(feature = "http-proto"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'http-proto' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF)
+                    );
+                    None
+                }
+            }
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => {
+                #[cfg(feature = "http-json")]
+                {
+                    Some(Protocol::HttpJson)
+                }
+                #[cfg(not(feature = "http-json"))]
+                {
+                    opentelemetry::otel_warn!(
+                        name: "Protocol.InvalidFeatureCombination",
+                        message = format!("Protocol '{}' requested but 'http-json' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON)
+                    );
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Default)]

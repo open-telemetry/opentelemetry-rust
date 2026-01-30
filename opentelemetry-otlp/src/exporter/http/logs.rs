@@ -1,53 +1,23 @@
 use super::OtlpHttpClient;
-use http::{header::CONTENT_TYPE, Method};
-use opentelemetry::otel_debug;
+use crate::Protocol;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
+#[cfg(feature = "http-proto")]
+use prost::Message;
 use std::time;
 
 impl LogExporter for OtlpHttpClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
-        let client = self
-            .client
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Mutex lock failed: {e}")))?
-            .clone()
-            .ok_or(OTelSdkError::AlreadyShutdown)?;
+        let response_body = self
+            .export_http_with_retry(
+                batch,
+                OtlpHttpClient::build_logs_export_body,
+                "HttpLogsClient.Export",
+            )
+            .await?;
 
-        let (body, content_type) = self
-            .build_logs_export_body(batch)
-            .map_err(OTelSdkError::InternalFailure)?;
-
-        let mut request = http::Request::builder()
-            .method(Method::POST)
-            .uri(&self.collector_endpoint)
-            .header(CONTENT_TYPE, content_type)
-            .body(body.into())
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-
-        for (k, v) in &self.headers {
-            request.headers_mut().insert(k.clone(), v.clone());
-        }
-
-        let request_uri = request.uri().to_string();
-        otel_debug!(name: "HttpLogsClient.ExportStarted");
-        let response = client
-            .send_bytes(request)
-            .await
-            .map_err(|e| OTelSdkError::InternalFailure(format!("{e:?}")))?;
-
-        if !response.status().is_success() {
-            let error = format!(
-                "OpenTelemetry logs export failed. Url: {}, Status Code: {}, Response: {:?}",
-                request_uri,
-                response.status().as_u16(),
-                response.body()
-            );
-            otel_debug!(name: "HttpLogsClient.ExportFailed", error = &error);
-            return Err(OTelSdkError::InternalFailure(error));
-        }
-
-        otel_debug!(name: "HttpLogsClient.ExportSucceeded");
+        handle_partial_success(&response_body, self.protocol);
         Ok(())
     }
 
@@ -65,5 +35,75 @@ impl LogExporter for OtlpHttpClient {
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
         self.resource = resource.into();
+    }
+}
+
+/// Handles partial success returned by OTLP endpoints. We log the rejected log records,
+/// as well as the error message returned.
+fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
+    use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceResponse;
+
+    let response: ExportLogsServiceResponse = match protocol {
+        #[cfg(feature = "http-json")]
+        Protocol::HttpJson => match serde_json::from_slice(response_body) {
+            Ok(r) => r,
+            Err(e) => {
+                otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
+                return;
+            }
+        },
+        #[cfg(feature = "http-proto")]
+        Protocol::HttpBinary => match Message::decode(response_body) {
+            Ok(r) => r,
+            Err(e) => {
+                otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
+                return;
+            }
+        },
+        #[cfg(feature = "grpc-tonic")]
+        Protocol::Grpc => {
+            unreachable!("HTTP client should not receive Grpc protocol")
+        }
+    };
+
+    if let Some(partial_success) = response.partial_success {
+        if partial_success.rejected_log_records > 0 || !partial_success.error_message.is_empty() {
+            otel_warn!(
+                name: "HttpLogsClient.PartialSuccess",
+                rejected_log_records = partial_success.rejected_log_records,
+                error_message = partial_success.error_message.as_str(),
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_invalid_protobuf() {
+        // Corrupted/invalid protobuf data
+        let invalid = vec![0xFF, 0xFF, 0xFF, 0xFF];
+
+        // Should not panic - logs debug and returns early
+        handle_partial_success(&invalid, Protocol::HttpBinary);
+    }
+
+    #[test]
+    fn test_handle_empty_response() {
+        let empty = vec![];
+
+        // Should not panic
+        handle_partial_success(&empty, Protocol::HttpBinary);
+    }
+
+    #[cfg(feature = "http-json")]
+    #[test]
+    fn test_handle_invalid_json() {
+        let invalid_json = b"{not valid json}";
+
+        // Should not panic - logs debug and returns
+        handle_partial_success(invalid_json, Protocol::HttpJson);
     }
 }

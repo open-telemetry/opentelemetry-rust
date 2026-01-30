@@ -4,13 +4,13 @@
 
 ## Summary
 
-This ADR describes the general pattern we will follow when modelling errors in public API interfaces - that is, APIs that are exposed to users of the project's published crates. It summarises the discussion and final option from [#2571](https://github.com/open-telemetry/opentelemetry-rust/issues/2571); for more context check out that issue. 
+This ADR describes the general pattern we will follow when modelling errors in public API interfaces - that is, APIs that are exposed to users of the project's published crates. It summarizes the discussion and final option from [#2571](https://github.com/open-telemetry/opentelemetry-rust/issues/2571); for more context check out that issue. 
 
 We will focus on the exporter traits in this example, but the outcome should be applied to _all_ public traits and their fallible operations. 
 
 These include [SpanExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/trace/export.rs#L18), [LogExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/logs/export.rs#L115), and [PushMetricExporter](https://github.com/open-telemetry/opentelemetry-rust/blob/eca1ce87084c39667061281e662d5edb9a002882/opentelemetry-sdk/src/metrics/exporter.rs#L11) which form part of the API surface of `opentelemetry-sdk`.
 
-There are various ways to handle errors on trait methods, including swallowing them and logging, panicing, returning a shared global error, or returning a method-specific error. We strive for consistency, and we want to be sure that we've put enough thought into what this looks like that we don't have to make breaking interface changes unecessarily in the future.
+There are various ways to handle errors on trait methods, including swallowing them and logging, panicking, returning a shared global error, or returning a method-specific error. We strive for consistency, and we want to be sure that we've put enough thought into what this looks like that we don't have to make breaking interface changes unnecessarily in the future.
 
 ## Design Guidance
 
@@ -69,7 +69,7 @@ trait MyTrait {
 
 ## 3. Consolidate error types between signals where we can, let them diverge where we can't
 
-Consider the `Exporter`s mentioned earlier. Each of them has the same failure indicators - as dicated by the OpenTelemetry spec  - and we will
+Consider the `Exporter`s mentioned earlier. Each of them has the same failure indicators - as dictated by the OpenTelemetry spec  - and we will
 share the error types accordingly: 
 
 **Don't do this** - each signal has its own error type, despite having exactly the same failure cases: 

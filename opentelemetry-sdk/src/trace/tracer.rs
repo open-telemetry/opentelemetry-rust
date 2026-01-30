@@ -10,13 +10,10 @@
 use crate::trace::{
     provider::SdkTracerProvider,
     span::{Span, SpanData},
-    IdGenerator, ShouldSample, SpanEvents, SpanLimits, SpanLinks,
+    SamplingDecision, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{
-        SamplingDecision, Span as _, SpanBuilder, SpanContext, SpanKind, TraceContextExt,
-        TraceFlags,
-    },
+    trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
@@ -105,14 +102,11 @@ impl SdkTracer {
         let SpanBuilder {
             name,
             start_time,
-            end_time,
             events,
-            status,
             ..
         } = builder;
 
         let start_time = start_time.unwrap_or_else(opentelemetry::time::now);
-        let end_time = end_time.unwrap_or(start_time);
         let spans_events_limit = span_limits.max_events_per_span as usize;
         let span_events: SpanEvents = if let Some(mut events) = events {
             let dropped_count = events.len().saturating_sub(spans_events_limit);
@@ -137,35 +131,20 @@ impl SdkTracer {
             sc,
             Some(SpanData {
                 parent_span_id: psc.span_id(),
+                parent_span_is_remote: psc.is_valid() && psc.is_remote(),
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
                 name,
                 start_time,
-                end_time,
+                end_time: start_time,
                 attributes: attribute_options,
                 dropped_attributes_count,
                 events: span_events,
                 links: span_links,
-                status,
+                status: Status::default(),
             }),
             self.clone(),
             span_limits,
         )
-    }
-
-    /// The [`IdGenerator`] associated with this tracer.
-    ///
-    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
-    #[doc(hidden)]
-    pub fn id_generator(&self) -> &dyn IdGenerator {
-        &*self.provider.config().id_generator
-    }
-
-    /// The [`ShouldSample`] associated with this tracer.
-    ///
-    // Note: this is necessary for tracing-opentelemetry's `PreSampledTracer`.
-    #[doc(hidden)]
-    pub fn should_sample(&self) -> &dyn ShouldSample {
-        &*self.provider.config().sampler
     }
 }
 
@@ -180,7 +159,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// trace. A span is said to be a _root span_ if it does not have a parent. Each
     /// trace includes a single root span, which is the shared ancestor of all other
     /// spans in the trace.
-    fn build_with_context(&self, mut builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
+    fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
         if parent_cx.is_telemetry_suppressed() {
             return Span::new(
                 SpanContext::empty_context(),
@@ -202,10 +181,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         }
 
         let config = provider.config();
-        let span_id = builder
-            .span_id
-            .take()
-            .unwrap_or_else(|| config.id_generator.new_span_id());
+        let span_id = config.id_generator.new_span_id();
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
@@ -220,25 +196,17 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             trace_id = sc.trace_id();
             psc = sc;
         } else {
-            trace_id = builder
-                .trace_id
-                .unwrap_or_else(|| config.id_generator.new_trace_id());
+            trace_id = config.id_generator.new_trace_id();
         };
 
-        // In order to accommodate use cases like `tracing-opentelemetry` we there is the ability
-        // to use pre-sampling. Otherwise, the standard method of sampling is followed.
-        let samplings_result = if let Some(sr) = builder.sampling_result.take() {
-            sr
-        } else {
-            config.sampler.should_sample(
-                Some(parent_cx),
-                trace_id,
-                &builder.name,
-                builder.span_kind.as_ref().unwrap_or(&SpanKind::Internal),
-                builder.attributes.as_ref().unwrap_or(&Vec::new()),
-                builder.links.as_deref().unwrap_or(&[]),
-            )
-        };
+        let samplings_result = config.sampler.should_sample(
+            Some(parent_cx),
+            trace_id,
+            &builder.name,
+            builder.span_kind.as_ref().unwrap_or(&SpanKind::Internal),
+            builder.attributes.as_ref().unwrap_or(&Vec::new()),
+            builder.links.as_deref().unwrap_or(&[]),
+        );
 
         let trace_flags = parent_cx.span().span_context().trace_flags();
         let trace_state = samplings_result.trace_state;
@@ -299,12 +267,12 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 mod tests {
     use crate::{
         testing::trace::TestSpan,
-        trace::{Sampler, ShouldSample},
+        trace::{Sampler, SamplingDecision, SamplingResult, ShouldSample},
     };
     use opentelemetry::{
         trace::{
-            Link, SamplingDecision, SamplingResult, Span, SpanContext, SpanId, SpanKind,
-            TraceContextExt, TraceFlags, TraceId, TraceState, Tracer, TracerProvider,
+            Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
+            TraceState, Tracer, TracerProvider,
         },
         Context, KeyValue,
     };
@@ -347,8 +315,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(128),
-            SpanId::from_u64(64),
+            TraceId::from(128),
+            SpanId::from(64),
             TraceFlags::SAMPLED,
             true,
             trace_state,
@@ -389,8 +357,8 @@ mod tests {
 
         let context = Context::map_current(|cx| {
             cx.with_remote_span_context(SpanContext::new(
-                TraceId::from_u128(1),
-                SpanId::from_u64(1),
+                TraceId::from(1),
+                SpanId::from(1),
                 TraceFlags::default(),
                 true,
                 Default::default(),
@@ -400,5 +368,224 @@ mod tests {
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);
 
         assert!(!span.span_context().is_sampled());
+    }
+
+    #[test]
+    fn in_span_with_context_uses_provided_context() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Create a parent context explicitly
+        let parent_span = tracer.start("parent");
+        let parent_trace_id = parent_span.span_context().trace_id();
+        let parent_span_id = parent_span.span_context().span_id();
+        let parent_cx = Context::current_with_span(parent_span);
+
+        // Use in_span_with_context with explicit parent context
+        let mut child_trace_id = None;
+        let mut child_span_id = None;
+        let mut executed = false;
+
+        let returned_value = tracer.in_span_with_context("child-span", &parent_cx, |cx| {
+            let span = cx.span();
+            child_trace_id = Some(span.span_context().trace_id());
+            child_span_id = Some(span.span_context().span_id());
+            executed = true;
+            "test_result"
+        });
+
+        // Verify child span inherited parent's trace_id
+        assert_eq!(child_trace_id, Some(parent_trace_id));
+        // Verify child has a different span_id than parent
+        assert_ne!(child_span_id, Some(parent_span_id));
+        // Verify the closure was executed
+        assert!(executed);
+        // Verify return value is passed through
+        assert_eq!(returned_value, "test_result");
+
+        // End the parent span to export it
+        drop(parent_cx);
+
+        // Verify parent-child relationship through exporter
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 2);
+        let parent = spans.iter().find(|s| s.name == "parent").unwrap();
+        let child = spans.iter().find(|s| s.name == "child-span").unwrap();
+        assert_eq!(child.parent_span_id, parent.span_context.span_id());
+        assert_eq!(
+            child.span_context.trace_id(),
+            parent.span_context.trace_id()
+        );
+    }
+
+    #[test]
+    fn in_span_with_builder_uses_current_context() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Create a parent span and attach it to the current context
+        let parent_span = tracer.start("parent");
+        let parent_trace_id = parent_span.span_context().trace_id();
+        let parent_span_id = parent_span.span_context().span_id();
+        let _attached = Context::current_with_span(parent_span).attach();
+
+        // Use in_span_with_builder with configured span
+        let mut child_trace_id = None;
+
+        tracer.in_span_with_builder(
+            tracer
+                .span_builder("child")
+                .with_kind(SpanKind::Client)
+                .with_attributes(vec![KeyValue::new("test_key", "test_value")]),
+            |cx| {
+                let span = cx.span();
+                child_trace_id = Some(span.span_context().trace_id());
+            },
+        );
+
+        // Verify child span inherited parent's trace_id
+        assert_eq!(child_trace_id, Some(parent_trace_id));
+
+        // End the attached context to export the parent span
+        drop(_attached);
+
+        // Verify parent-child relationship through exporter
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 2);
+        let child = spans.iter().find(|s| s.name == "child").unwrap();
+        assert_eq!(child.parent_span_id, parent_span_id);
+        assert_eq!(child.span_context.trace_id(), parent_trace_id);
+    }
+
+    #[test]
+    fn in_span_with_builder_and_context_uses_provided_context() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Create a parent context explicitly
+        let parent_span = tracer.start("parent");
+        let parent_trace_id = parent_span.span_context().trace_id();
+        let parent_span_id = parent_span.span_context().span_id();
+        let parent_cx = Context::current_with_span(parent_span);
+
+        // Use in_span_with_builder_and_context with explicit parent context
+        let mut child_trace_id = None;
+        let mut result = 0;
+
+        let returned_value = tracer.in_span_with_builder_and_context(
+            tracer
+                .span_builder("child")
+                .with_kind(SpanKind::Server)
+                .with_attributes(vec![
+                    KeyValue::new("http.method", "GET"),
+                    KeyValue::new("http.url", "/api/test"),
+                ]),
+            &parent_cx,
+            |cx| {
+                let span = cx.span();
+                child_trace_id = Some(span.span_context().trace_id());
+                result = 42;
+                result
+            },
+        );
+
+        // Verify child span inherited parent's trace_id
+        assert_eq!(child_trace_id, Some(parent_trace_id));
+        // Verify return value is passed through
+        assert_eq!(returned_value, 42);
+        assert_eq!(result, 42);
+
+        // End the parent span to export it
+        drop(parent_cx);
+
+        // Verify parent-child relationship through exporter
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 2);
+        let child = spans.iter().find(|s| s.name == "child").unwrap();
+        assert_eq!(child.parent_span_id, parent_span_id);
+        assert_eq!(child.span_context.trace_id(), parent_trace_id);
+    }
+
+    #[test]
+    fn in_span_with_builder_and_context_ignores_active_context() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // Create an active context with a specific trace context
+        let active_span_context = SpanContext::new(
+            TraceId::from(1u128),
+            SpanId::from(1u64),
+            TraceFlags::SAMPLED,
+            true,
+            Default::default(),
+        );
+        let active_trace_id = active_span_context.trace_id();
+        let active_span_id = active_span_context.span_id();
+        let _attached = Context::current_with_span(TestSpan(active_span_context)).attach();
+
+        // Create a different parent context with a different trace ID to explicitly provide
+        let provided_span_context = SpanContext::new(
+            TraceId::from(2u128),
+            SpanId::from(2u64),
+            TraceFlags::SAMPLED,
+            true,
+            Default::default(),
+        );
+        let provided_trace_id = provided_span_context.trace_id();
+        let provided_span_id = provided_span_context.span_id();
+        let provided_cx = Context::current_with_span(TestSpan(provided_span_context));
+
+        // Ensure the two parents have different trace IDs
+        assert_ne!(active_trace_id, provided_trace_id);
+
+        // Use in_span_with_builder_and_context with explicit parent context
+        let mut child_trace_id = None;
+
+        tracer.in_span_with_builder_and_context(
+            tracer.span_builder("child").with_kind(SpanKind::Internal),
+            &provided_cx,
+            |cx| {
+                let span = cx.span();
+                child_trace_id = Some(span.span_context().trace_id());
+            },
+        );
+
+        // Verify child uses the provided context, NOT the active context
+        assert_eq!(child_trace_id, Some(provided_trace_id));
+        assert_ne!(child_trace_id, Some(active_trace_id));
+
+        // Verify parent-child relationship through exporter
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        let child = &spans[0];
+        assert_eq!(child.name, "child");
+        assert_eq!(child.parent_span_id, provided_span_id);
+        assert_eq!(child.span_context.trace_id(), provided_trace_id);
+        assert_ne!(child.parent_span_id, active_span_id);
+        assert_ne!(child.span_context.trace_id(), active_trace_id);
     }
 }

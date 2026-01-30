@@ -168,8 +168,8 @@ mod tests {
 
     fn valid_span_context() -> trace::SpanContext {
         trace::SpanContext::new(
-            trace::TraceId::from_u128(42),
-            trace::SpanId::from_u64(42),
+            trace::TraceId::from(42),
+            trace::SpanId::from(42),
             trace::TraceFlags::default(),
             true,
             TraceState::default(),
