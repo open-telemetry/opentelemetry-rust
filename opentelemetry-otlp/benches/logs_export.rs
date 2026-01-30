@@ -46,8 +46,20 @@
     | raw_http_88kb_payload           | ~98 µs    | -       |
     | raw_http_4kb_payload            | ~57 µs    | -       |
 
+    End-to-End with BatchLogProcessor (emit → batch → export → HTTP):
+    Note: This approximates a real e2e scenario but differs from production:
+    - Uses force_flush() to synchronize (production relies on timer/batch-size triggers)
+    - Fake HTTP server with instant 200 OK (no real network latency or collector processing)
+    - Controlled batch size (511 logs) to isolate force_flush as sole trigger
+
+    | Test                              | Time      | Per Log |
+    |-----------------------------------|-----------|---------|    | e2e_batch_511_with_4_attrs        | ~796 µs   | ~1.6 µs |
+    | e2e_batch_511_with_4_attrs_zstd   | ~792 µs   | ~1.5 µs |
+
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
+    - E2E time = emit() overhead + channel + batch processing + export time
+    - E2E uses 511 logs (below max_export_batch_size=512) so force_flush() is the only export trigger
 */
 
 use criterion::{black_box, Criterion};
@@ -58,7 +70,9 @@ use opentelemetry::KeyValue;
 #[cfg(any(feature = "gzip-http", feature = "zstd-http"))]
 use opentelemetry_otlp::WithHttpConfig;
 use opentelemetry_otlp::{LogExporter as OtlpLogExporter, Protocol, WithExportConfig};
-use opentelemetry_sdk::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLoggerProvider};
+use opentelemetry_sdk::logs::{
+    BatchConfigBuilder, BatchLogProcessor, LogBatch, LogExporter, SdkLogRecord, SdkLoggerProvider,
+};
 use opentelemetry_sdk::Resource;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -386,5 +400,168 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     }
 }
 
-criterion::criterion_group!(benches, bench_log_export_pipeline);
+/// Approximate end-to-end benchmark: emit() → BatchLogProcessor → OTLP Exporter → HTTP
+///
+/// This attempts to measure the complete pipeline including:
+/// - LogRecord creation via Logger.emit()
+/// - Channel send to BatchLogProcessor
+/// - Batch assembly in background thread
+/// - OTLP export (conversion, serialization, compression, HTTP)
+///
+/// Caveats (differs from real production):
+/// - Uses force_flush() to synchronize measurement (production uses timer/batch-size triggers)
+/// - Fake HTTP server returns 200 OK instantly (no network latency or collector processing)
+/// - Emits 511 logs per iteration to avoid auto-export, making force_flush the sole trigger
+///
+/// Despite these differences, this provides a reasonable approximation of the
+/// end-to-end cost for a single batch of logs through the full pipeline.
+fn bench_e2e_with_batch_processor(c: &mut Criterion) {
+    // Create runtime for async operations
+    let rt = Runtime::new().unwrap();
+
+    // Start fake OTLP server on a different port to avoid conflicts
+    let port = 14319;
+    let _server_handle = rt.block_on(start_fake_otlp_server(port));
+    std::thread::sleep(Duration::from_millis(100));
+
+    let endpoint = format!("http://localhost:{}", port);
+
+    // Create OTLP exporter (no compression for baseline)
+    let exporter = create_log_exporter(endpoint.clone());
+
+    // Configure BatchLogProcessor:
+    // - We emit 511 logs (below max_export_batch_size=512) so NO auto-export is triggered
+    // - High scheduled_delay prevents timer-based exports during benchmark run
+    // - force_flush() is the ONLY thing that triggers export
+    let processor = BatchLogProcessor::builder(exporter)
+        .with_batch_config(
+            BatchConfigBuilder::default()
+                .with_scheduled_delay(Duration::from_secs(30))
+                .build(),
+        )
+        .build();
+
+    let provider = SdkLoggerProvider::builder()
+        .with_log_processor(processor)
+        .with_resource(
+            Resource::builder()
+                .with_attributes([
+                    KeyValue::new("service.name", "benchmark-service"),
+                    KeyValue::new("service.version", "1.0.0"),
+                    KeyValue::new("deployment.environment", "production"),
+                ])
+                .build(),
+        )
+        .build();
+
+    // Use static targets to avoid lifetime issues with logger()
+    static TARGETS: &[&str] = &[
+        "target::module_0",
+        "target::module_1",
+        "target::module_2",
+        "target::module_3",
+        "target::module_4",
+        "target::module_5",
+        "target::module_6",
+        "target::module_7",
+        "target::module_8",
+        "target::module_9",
+    ];
+
+    let mut group = c.benchmark_group("e2e_batch_processor");
+
+    // Benchmark: emit 511 logs + force_flush (complete round-trip)
+    // 511 is below max_export_batch_size (512), so force_flush is the only trigger
+    group.bench_function("e2e_batch_511_with_4_attrs", |b| {
+        b.iter(|| {
+            // Emit 511 logs across 10 targets (below batch threshold)
+            for i in 0..511 {
+                let target = TARGETS[i % TARGETS.len()];
+                let logger = provider.logger(target);
+                let mut record = logger.create_log_record();
+
+                record.set_observed_timestamp(now());
+                record.set_severity_number(Severity::Info);
+                record.set_severity_text("INFO");
+                record.set_body(AnyValue::String("Benchmark log message".into()));
+
+                // Add 4 attributes
+                for j in 0..4 {
+                    record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+                }
+
+                logger.emit(black_box(record));
+            }
+
+            // force_flush ensures all logs are exported before continuing
+            provider.force_flush().unwrap();
+        });
+    });
+
+    group.finish();
+
+    // Benchmark with zstd compression
+    #[cfg(feature = "zstd-http")]
+    {
+        let exporter_zstd = create_log_exporter_with_zstd(endpoint.clone());
+
+        let processor_zstd = BatchLogProcessor::builder(exporter_zstd)
+            .with_batch_config(
+                BatchConfigBuilder::default()
+                    .with_scheduled_delay(Duration::from_secs(30))
+                    .build(),
+            )
+            .build();
+
+        let provider_zstd = SdkLoggerProvider::builder()
+            .with_log_processor(processor_zstd)
+            .with_resource(
+                Resource::builder()
+                    .with_attributes([
+                        KeyValue::new("service.name", "benchmark-service"),
+                        KeyValue::new("service.version", "1.0.0"),
+                        KeyValue::new("deployment.environment", "production"),
+                    ])
+                    .build(),
+            )
+            .build();
+
+        let mut group = c.benchmark_group("e2e_batch_processor_zstd");
+
+        group.bench_function("e2e_batch_511_with_4_attrs_zstd", |b| {
+            b.iter(|| {
+                for i in 0..511 {
+                    let target = TARGETS[i % TARGETS.len()];
+                    let logger = provider_zstd.logger(target);
+                    let mut record = logger.create_log_record();
+
+                    record.set_observed_timestamp(now());
+                    record.set_severity_number(Severity::Info);
+                    record.set_severity_text("INFO");
+                    record.set_body(AnyValue::String("Benchmark log message".into()));
+
+                    for j in 0..4 {
+                        record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+                    }
+
+                    logger.emit(black_box(record));
+                }
+
+                provider_zstd.force_flush().unwrap();
+            });
+        });
+
+        group.finish();
+
+        let _ = provider_zstd.shutdown();
+    }
+
+    let _ = provider.shutdown();
+}
+
+criterion::criterion_group!(
+    benches,
+    bench_log_export_pipeline,
+    bench_e2e_with_batch_processor
+);
 criterion::criterion_main!(benches);
