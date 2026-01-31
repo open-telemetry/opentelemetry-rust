@@ -615,6 +615,133 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta_attribute_set_reappears_after_gap() {
+        // Run this test with stdout enabled to see output.
+        // cargo test observable_counter_delta_attribute_set_reappears_after_gap --features=testing -- --nocapture
+
+        // This test verifies the behavior when an attribute set is not reported
+        // for one collection cycle and then reappears.
+        // See: https://github.com/open-telemetry/opentelemetry-specification/issues/4861
+        //
+        // Scenario (Observable Counter with Delta temporality):
+        // | Collection | Callback Reports  | Expected Delta Export  |
+        // |------------|-------------------|------------------------|
+        // | 1          | A=100, B=50       | A=100, B=50            |
+        // | 2          | A=150 (B missing) | A=50 (B not exported)  |
+        // | 3          | A=200, B=80       | A=50, B=80             |
+        //
+        // Current implementation: When B reappears, its delta is calculated from zero
+        // (fresh start), not from the last known value. This is Option 1 from the spec issue.
+
+        let mut test_context = TestContext::new(Temporality::Delta);
+
+        // Shared state for callback: (collection_cycle, value_a, value_b_option)
+        // value_b_option is None when B should not be reported
+        let callback_state = Arc::new(Mutex::new((0u32, 0u64, Option::<u64>::None)));
+        let callback_state_clone = callback_state.clone();
+
+        let _observable_counter = test_context
+            .meter()
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(move |observer| {
+                let state = callback_state_clone.lock().unwrap();
+                let (_cycle, value_a, value_b_option) = *state;
+
+                observer.observe(value_a, &[KeyValue::new("key", "A")]);
+                if let Some(value_b) = value_b_option {
+                    observer.observe(value_b, &[KeyValue::new("key", "B")]);
+                }
+            })
+            .build();
+
+        // Collection 1: A=100, B=50
+        {
+            *callback_state.lock().unwrap() = (1, 100, Some(50));
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) =
+                test_context.get_aggregation::<u64>("my_observable_counter", None)
+            else {
+                unreachable!()
+            };
+
+            assert_eq!(sum.data_points.len(), 2);
+            assert_eq!(sum.temporality, Temporality::Delta);
+
+            let dp_a = find_sum_datapoint_with_key_value(&sum.data_points, "key", "A")
+                .expect("datapoint for A expected");
+            let dp_b = find_sum_datapoint_with_key_value(&sum.data_points, "key", "B")
+                .expect("datapoint for B expected");
+
+            // First collection: delta = value - 0
+            assert_eq!(
+                dp_a.value, 100,
+                "A's delta should be 100 (first collection)"
+            );
+            assert_eq!(dp_b.value, 50, "B's delta should be 50 (first collection)");
+
+            test_context.reset_metrics();
+        }
+
+        // Collection 2: A=150, B missing
+        {
+            *callback_state.lock().unwrap() = (2, 150, None);
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) =
+                test_context.get_aggregation::<u64>("my_observable_counter", None)
+            else {
+                unreachable!()
+            };
+
+            // Only A should be exported, B is not observed so not exported (per spec)
+            assert_eq!(
+                sum.data_points.len(),
+                1,
+                "Only A should be exported when B is not observed"
+            );
+
+            let dp_a = find_sum_datapoint_with_key_value(&sum.data_points, "key", "A")
+                .expect("datapoint for A expected");
+            assert_eq!(dp_a.value, 50, "A's delta should be 50 (150 - 100)");
+
+            test_context.reset_metrics();
+        }
+
+        // Collection 3: A=200, B=80 (B reappears)
+        {
+            *callback_state.lock().unwrap() = (3, 200, Some(80));
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) =
+                test_context.get_aggregation::<u64>("my_observable_counter", None)
+            else {
+                unreachable!()
+            };
+
+            assert_eq!(sum.data_points.len(), 2);
+
+            let dp_a = find_sum_datapoint_with_key_value(&sum.data_points, "key", "A")
+                .expect("datapoint for A expected");
+            let dp_b = find_sum_datapoint_with_key_value(&sum.data_points, "key", "B")
+                .expect("datapoint for B expected");
+
+            assert_eq!(dp_a.value, 50, "A's delta should be 50 (200 - 150)");
+
+            // B reappears after a gap. Current implementation uses "delta from zero" (Option 1).
+            // This means B's delta = 80 - 0 = 80, not 80 - 50 = 30.
+            // See: https://github.com/open-telemetry/opentelemetry-specification/issues/4861
+            // TODO: Watch for spec clarification on this behavior.
+            assert_eq!(
+                dp_b.value, 80,
+                "B's delta should be 80 (fresh start after gap, not 30 from last known value)"
+            );
+
+            test_context.reset_metrics();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn empty_meter_name_retained() {
         async fn meter_name_retained_helper(
             meter: Meter,
