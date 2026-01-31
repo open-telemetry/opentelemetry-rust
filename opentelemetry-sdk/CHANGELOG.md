@@ -2,6 +2,7 @@
 
 ## vNext
 
+- `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
   specification by using `unknown_service:<process.executable.name>` format when
   service name is not explicitly configured. Previously, it only used
