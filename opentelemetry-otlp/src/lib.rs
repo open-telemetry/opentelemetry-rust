@@ -233,6 +233,7 @@
 //! * `reqwest-client`: Use reqwest http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
 //! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
+//! * `reqwest-native-tls`: Use reqwest with system native TLS (OpenSSL on Linux, Schannel on Windows, Secure Transport on macOS).
 //!
 //! # Kitchen Sink Full Configuration
 //!
