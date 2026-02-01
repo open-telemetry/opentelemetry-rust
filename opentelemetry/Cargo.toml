@@ -45,6 +45,7 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 tokio = { version = "1.0", features = ["full"] }
+temp-env = { workspace = true }
 
 [[bench]]
 name = "metrics"

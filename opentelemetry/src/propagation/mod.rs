@@ -18,8 +18,9 @@
 //!
 //! [`Baggage`]: crate::baggage::Baggage
 //! [`Context`]: crate::Context
-
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::env;
 
 pub mod composite;
 pub mod text_map_propagator;
@@ -40,13 +41,13 @@ pub trait Injector {
 /// Extractor provides an interface for removing fields from an underlying struct like `HashMap`
 pub trait Extractor {
     /// Get a value from a key from the underlying data.
-    fn get(&self, key: &str) -> Option<&str>;
+    fn get(&self, key: &str) -> Option<Cow<'_, str>>;
 
     /// Collect all the keys from the underlying data.
-    fn keys(&self) -> Vec<&str>;
+    fn keys(&self) -> Vec<Cow<'_, str>>;
 
     /// Get all values from a key from the underlying data.
-    fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+    fn get_all(&self, key: &str) -> Option<Vec<Cow<'_, str>>> {
         self.get(key).map(|value| vec![value])
     }
 }
@@ -65,13 +66,52 @@ impl<S: std::hash::BuildHasher> Injector for HashMap<String, String, S> {
 
 impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(&key.to_lowercase()).map(|v| v.as_str())
+    fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+        self.get(&key.to_lowercase())
+            .map(|v| Cow::Borrowed(v.as_str()))
     }
 
     /// Collect all the keys from the HashMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|k| k.as_str()).collect::<Vec<_>>()
+    fn keys(&self) -> Vec<Cow<'_, str>> {
+        self.keys()
+            .map(|k| Cow::Borrowed(k.as_str()))
+            .collect::<Vec<_>>()
+    }
+}
+
+/// Injector for `std::process::Command` that sets environment variables for child processes.
+///
+/// Keys are converted to uppercase.
+impl Injector for std::process::Command {
+    fn set(&mut self, key: &str, value: String) {
+        self.env(key.to_uppercase(), value);
+    }
+}
+
+/// Extractor for environment variables.
+///
+/// Keys are case-insensitive and automatically converted to uppercase.
+#[derive(Debug, Default)]
+pub struct EnvExtractor {
+    _private: (),
+}
+
+impl EnvExtractor {
+    /// Create a new extractor that reads from environment variables.
+    pub fn new() -> Self {
+        Self { _private: () }
+    }
+}
+
+impl Extractor for EnvExtractor {
+    fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+        env::var(key.to_uppercase()).ok().map(Cow::Owned)
+    }
+
+    fn keys(&self) -> Vec<Cow<'_, str>> {
+        env::vars()
+            .map(|(k, _)| Cow::Owned(k.to_lowercase()))
+            .collect()
     }
 }
 
@@ -86,7 +126,7 @@ mod tests {
 
         assert_eq!(
             Extractor::get(&carrier, "HEADERNAME"),
-            Some("value"),
+            Some(Cow::Borrowed("value")),
             "case insensitive extraction"
         );
     }
@@ -98,7 +138,7 @@ mod tests {
 
         assert_eq!(
             Extractor::get_all(&carrier, "HEADERNAME"),
-            Some(vec!["value"]),
+            Some(vec![Cow::Borrowed("value")]),
             "case insensitive get_all extraction"
         );
     }
@@ -123,8 +163,8 @@ mod tests {
 
         let got = Extractor::keys(&carrier);
         assert_eq!(got.len(), 2);
-        assert!(got.contains(&"headername1"));
-        assert!(got.contains(&"headername2"));
+        assert!(got.contains(&Cow::Borrowed("headername1")));
+        assert!(got.contains(&Cow::Borrowed("headername2")));
     }
 
     #[test]
@@ -136,14 +176,17 @@ mod tests {
 
         // Verify the HashMap still works after reserve
         Injector::set(&mut carrier, "test_key", "test_value".to_string());
-        assert_eq!(Extractor::get(&carrier, "test_key"), Some("test_value"));
+        assert_eq!(
+            Extractor::get(&carrier, "test_key"),
+            Some(Cow::Borrowed("test_value"))
+        );
 
         // Test reserve with zero capacity
         Injector::reserve(&mut carrier, 0);
         Injector::set(&mut carrier, "another_key", "another_value".to_string());
         assert_eq!(
             Extractor::get(&carrier, "another_key"),
-            Some("another_value")
+            Some(Cow::Borrowed("another_value"))
         );
 
         // Test that capacity is actually reserved (at least the requested amount)
@@ -174,5 +217,86 @@ mod tests {
         let mut test_injector = TestInjector();
         Injector::reserve(&mut test_injector, 4711);
         Injector::set(&mut test_injector, "key", "value".to_string());
+    }
+    #[test]
+    fn env_extractor_get() {
+        const TRACEPARENT_VALUE: &str = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+
+        temp_env::with_var("TRACEPARENT", Some(TRACEPARENT_VALUE), || {
+            let extractor = EnvExtractor::new();
+
+            assert_eq!(
+                extractor.get("traceparent"),
+                Some(Cow::Owned(TRACEPARENT_VALUE.to_string())),
+            );
+            assert_eq!(
+                extractor.get("TRACEPARENT"),
+                Some(Cow::Owned(TRACEPARENT_VALUE.to_string())),
+            );
+        });
+    }
+
+    #[test]
+    fn env_extractor_get_missing() {
+        temp_env::with_var_unset("TRACEPARENT", || {
+            let extractor = EnvExtractor::new();
+
+            assert_eq!(extractor.get("TRACEPARENT"), None);
+        });
+    }
+
+    #[test]
+    fn env_extractor_keys() {
+        const TRACEPARENT_VALUE: &str = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+        const TRACESTATE_VALUE: &str = "vendor1=value1,vendor2=value2";
+        const BAGGAGE_VALUE: &str = "user_id=12345,session_id=abc";
+
+        temp_env::with_vars(
+            [
+                ("TRACEPARENT", Some(TRACEPARENT_VALUE)),
+                ("TRACESTATE", Some(TRACESTATE_VALUE)),
+                ("BAGGAGE", Some(BAGGAGE_VALUE)),
+            ],
+            || {
+                let extractor = EnvExtractor::new();
+                let keys = extractor.keys();
+
+                assert!(keys.contains(&Cow::Owned("traceparent".to_string())));
+                assert!(keys.contains(&Cow::Owned("tracestate".to_string())));
+                assert!(keys.contains(&Cow::Owned("baggage".to_string())));
+            },
+        );
+    }
+    #[test]
+    fn command_injector() {
+        use std::process::Command;
+
+        const TRACEPARENT_VALUE: &str = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01";
+        const TRACESTATE_VALUE: &str = "x=1,y=2";
+        const BAGGAGE_VALUE: &str = "user_id=12345,session_id=abc";
+
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("echo $TRACEPARENT");
+        Injector::set(&mut cmd, "traceparent", TRACEPARENT_VALUE.to_string());
+
+        let output = cmd.output().expect("failed to execute command");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout.trim(), TRACEPARENT_VALUE);
+
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("echo $TRACESTATE");
+        Injector::set(&mut cmd, "tracestate", TRACESTATE_VALUE.to_string());
+
+        let output = cmd.output().expect("failed to execute command");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout.trim(), TRACESTATE_VALUE);
+
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg("echo $BAGGAGE");
+        Injector::set(&mut cmd, "baggage", BAGGAGE_VALUE.to_string());
+
+        let output = cmd.output().expect("failed to execute command");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(stdout.trim(), BAGGAGE_VALUE);
     }
 }
