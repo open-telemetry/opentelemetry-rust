@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
-use opentelemetry::otel_debug;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_http::{Bytes, HttpClient};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
@@ -488,7 +488,19 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
-            HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
+            // status_code 0 indicates a network error (no HTTP response received)
+            otel_warn!(
+                name: "HttpClient.ExportFailed",
+                status_code = 0,
+                url = request_uri.as_str()
+            );
+            // Network error details may contain sensitive information,
+            // so log them at debug level only.
+            otel_debug!(
+                name: "HttpClient.ExportFailedDetails",
+                error = format!("{e:?}")
+            );
+            HttpExportError::new(0, "HTTP export failed".to_string())
         })?;
 
         let status_code = response.status().as_u16();
@@ -499,12 +511,18 @@ impl OtlpHttpClient {
             .map(|s| s.to_string());
 
         if !response.status().is_success() {
-            let message = format!(
-                "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
-                request_uri,
-                status_code,
-                response.body()
+            otel_warn!(
+                name: "HttpClient.ExportFailed",
+                status_code = status_code,
+                url = request_uri.as_str()
             );
+            // Response body may contain sensitive information,
+            // so log it at debug level only.
+            otel_debug!(
+                name: "HttpClient.ExportFailedDetails",
+                response_body = format!("{:?}", response.body())
+            );
+            let message = "HTTP export failed".to_string();
             return Err(match retry_after {
                 Some(retry_after) => {
                     HttpExportError::with_retry_after(status_code, retry_after, message)
