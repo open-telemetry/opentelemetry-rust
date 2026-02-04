@@ -306,10 +306,11 @@ where
             measures.push(agg);
         }
 
-        // If at least one view matched and produced a valid aggregator, return it.
-        // If views matched but all failed (e.g., incompatible aggregation), fall through
-        // to apply the default view per the spec: "proceed as if the View did not [match]".
-        if matched && !measures.is_empty() {
+        // If at least one view matched, check the outcome:
+        // - If we have aggregators, return them
+        // - If all views resulted in Drop (measures empty, no errors), return empty (instrument is dropped)
+        // - If all views failed with errors, fall through to default aggregation per spec
+        if matched && (errs.is_empty() || !measures.is_empty()) {
             return Ok(measures);
         }
 

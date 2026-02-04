@@ -1677,6 +1677,185 @@ mod tests {
         assert_eq!(dp.max(), Some(15.0));
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches an instrument and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter_to_drop").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches a histogram and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_histogram_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_histogram_to_drop").build();
+        histogram.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test gauge_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches a gauge and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge_to_drop").build();
+        gauge.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_drop_aggregation_and_rename_should_still_drop() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_with_drop_aggregation_and_rename_should_still_drop --features=testing -- --nocapture
+
+        // When a view matches and specifies Aggregation::Drop, the instrument should be
+        // dropped even if the view also specifies other customizations (like name).
+        // The name customization is meaningless for a dropped instrument, but the Drop
+        // intent should still be honored.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_name("dropped_counter") // Meaningless but shouldn't break Drop
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop, even with rename. Got: {:?}",
+            resource_metrics
+        );
+    }
+
     #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     #[ignore = "Spatial aggregation is not yet implemented."]
