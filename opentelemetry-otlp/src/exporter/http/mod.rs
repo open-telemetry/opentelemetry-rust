@@ -488,13 +488,11 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
-            // status_code 0 indicates a network error (no HTTP response received)
             otel_warn!(
                 name: "HttpClient.ExportFailed",
-                status_code = 0,
                 url = request_uri.as_str()
             );
-            // Network error details may contain sensitive information,
+            // Error details may contain sensitive information,
             // so log them at debug level only.
             otel_debug!(
                 name: "HttpClient.ExportFailedDetails",
