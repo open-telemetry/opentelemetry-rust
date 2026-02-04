@@ -94,9 +94,14 @@ impl LogExporter for TonicLogsClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
-                                    otel_debug!(
+                                    otel_warn!(
                                         name: "TonicLogsClient.InterceptorFailed",
-                                        grpc_code = format!("{:?}", e.code()),
+                                        grpc_code = format!("{:?}", e.code())
+                                    );
+                                    // grpc_message and grpc_details may contain sensitive information,
+                                    // so log them at debug level only.
+                                    otel_debug!(
+                                        name: "TonicLogsClient.InterceptorFailedDetails",
                                         grpc_message = e.message(),
                                         grpc_details = format!("{:?}", e.details())
                                     );
@@ -144,9 +149,14 @@ impl LogExporter for TonicLogsClient {
         {
             Ok(_) => Ok(()),
             Err(tonic_status) => {
-                otel_debug!(
+                otel_warn!(
                     name: "TonicLogsClient.ExportFailed",
-                    grpc_code = format!("{:?}", tonic_status.code()),
+                    grpc_code = format!("{:?}", tonic_status.code())
+                );
+                // grpc_message and grpc_details may contain sensitive information,
+                // so log them at debug level only.
+                otel_debug!(
+                    name: "TonicLogsClient.ExportFailedDetails",
                     grpc_message = tonic_status.message(),
                     grpc_details = format!("{:?}", tonic_status.details())
                 );

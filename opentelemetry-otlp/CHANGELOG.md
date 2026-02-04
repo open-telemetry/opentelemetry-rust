@@ -2,10 +2,11 @@
 
 ## vNext
 
-- Improved error logging for gRPC exporters. Detailed gRPC error information
-  (code, message, details) is now logged at DEBUG level, while only a generic
-  failure message is returned to upstream components. This prevents sensitive
-  information (like authentication tokens) from being logged at ERROR level.
+- Improved error logging for gRPC exporters. The gRPC status code is now logged
+  at WARN level, while potentially sensitive details (message, details) are
+  logged at DEBUG level only. This prevents sensitive information (like
+  authentication tokens) from being logged at higher log levels while still
+  providing actionable error information in production.
   [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
 - Fix `NoHttpClient` error when multiple HTTP client features are enabled by using priority-based selection (`reqwest-client` > `hyper-client` > `reqwest-blocking-client`). [#2994](https://github.com/open-telemetry/opentelemetry-rust/issues/2994)
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
