@@ -18,11 +18,13 @@
 - Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
+- Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 [3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
+[3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
