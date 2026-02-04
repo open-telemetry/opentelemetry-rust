@@ -71,7 +71,6 @@ pub mod in_memory_exporter;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "testing", test))))]
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
-#[cfg(feature = "spec_unstable_metrics_views")]
 pub use aggregation::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
@@ -109,8 +108,7 @@ pub enum Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-    use self::data::{HistogramDataPoint, ScopeMetrics, SumDataPoint};
-    use super::data::MetricData;
+    use self::data::{HistogramDataPoint, MetricData, ScopeMetrics, SumDataPoint};
     use super::internal::Number;
     use super::*;
     use crate::metrics::data::ResourceMetrics;
@@ -443,6 +441,14 @@ mod tests {
         // cargo test histogram_aggregation_with_custom_bounds_and_view --features=testing -- --nocapture
         histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Delta);
         histogram_aggregation_with_custom_bounds_and_view_helper(Temporality::Cumulative);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn exponential_histogram_aggregation_with_view() {
+        // Run this test with stdout enabled to see output.
+        // cargo test exponential_histogram_aggregation_with_view --features=testing -- --nocapture
+        exponential_histogram_aggregation_with_view_helper(Temporality::Delta);
+        exponential_histogram_aggregation_with_view_helper(Temporality::Cumulative);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -1006,7 +1012,6 @@ mod tests {
         assert_eq!(datapoint.value, 15);
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn histogram_aggregation_with_invalid_aggregation_should_proceed_as_if_view_not_exist() {
         // Run this test with stdout enabled to see output.
@@ -1057,6 +1062,924 @@ mod tests {
         assert_eq!(
             metric.unit, "test_unit",
             "View rename of unit should be ignored and original unit retained."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to a Counter via a view, the view is ignored and
+        // the default aggregation (Sum) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_counter",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Sum aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::U64(data::MetricData::Sum(_))
+            ),
+            "Counter should use default Sum aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_sum_aggregation_uses_default() {
+        // Sum aggregation is not valid for Gauge instruments.
+        // When applied to a Gauge via a view, the view is ignored and
+        // the default aggregation (LastValue/Gauge) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Sum)
+                    .with_name("my_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge").build();
+        gauge.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_gauge",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Gauge (LastValue) aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::F64(data::MetricData::Gauge(_))
+            ),
+            "Gauge should use default LastValue aggregation when Sum is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn updowncounter_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to an UpDownCounter via a view, the view is ignored and
+        // the default aggregation (Sum) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_updown_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_updown_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.i64_up_down_counter("my_updown_counter").build();
+        counter.add(-5, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_updown_counter",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Sum aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::I64(data::MetricData::Sum(_))
+            ),
+            "UpDownCounter should use default Sum aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to a Histogram via a view, the view is ignored and
+        // the default aggregation (ExplicitBucketHistogram) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_histogram_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_histogram").build();
+        histogram.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_histogram",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Histogram aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::F64(data::MetricData::Histogram(_))
+            ),
+            "Histogram should use default ExplicitBucketHistogram aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_gauge_with_sum_aggregation_uses_default() {
+        // Sum aggregation is not valid for Observable Gauge instruments.
+        // When applied to an Observable Gauge via a view, the view is ignored and
+        // the default aggregation (LastValue/Gauge) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_observable_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Sum)
+                    .with_name("my_observable_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let _observable_gauge = meter
+            .f64_observable_gauge("my_observable_gauge")
+            .with_callback(|observer| {
+                observer.observe(42.0, &[KeyValue::new("key1", "value1")]);
+            })
+            .build();
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_observable_gauge",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Gauge (LastValue) aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::F64(data::MetricData::Gauge(_))
+            ),
+            "Observable Gauge should use default LastValue aggregation when Sum is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to an Observable Counter via a view, the view is ignored and
+        // the default aggregation (Sum) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_observable_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_observable_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let _observable_counter = meter
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(|observer| {
+                observer.observe(100, &[KeyValue::new("key1", "value1")]);
+            })
+            .build();
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_observable_counter",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Sum aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::U64(data::MetricData::Sum(_))
+            ),
+            "Observable Counter should use default Sum aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_updowncounter_with_lastvalue_aggregation_uses_default() {
+        // LastValue aggregation is only valid for Gauge instruments.
+        // When applied to an Observable UpDownCounter via a view, the view is ignored and
+        // the default aggregation (Sum) is used per the spec:
+        // "proceed as if the View did not match"
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_observable_updowncounter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::LastValue)
+                    .with_name("my_observable_updowncounter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let _observable_updowncounter = meter
+            .i64_observable_up_down_counter("my_observable_updowncounter")
+            .with_callback(|observer| {
+                observer.observe(-50, &[KeyValue::new("key1", "value1")]);
+            })
+            .build();
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is ignored, default aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // Original name is used (view rename is ignored)
+        assert_eq!(
+            metric.name, "my_observable_updowncounter",
+            "View rename should be ignored due to incompatible aggregation."
+        );
+        // Default Sum aggregation is used
+        assert!(
+            matches!(
+                &metric.data,
+                data::AggregatedMetrics::I64(data::MetricData::Sum(_))
+            ),
+            "Observable UpDownCounter should use default Sum aggregation when LastValue is incompatible."
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_with_sum_aggregation_is_valid() {
+        // Sum aggregation is valid for Histogram instruments.
+        // When applied via a view, the aggregation should change from
+        // ExplicitBucketHistogram to Sum.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Sum)
+                    .with_name("my_histogram_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_histogram").build();
+        histogram.record(10.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(20.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(30.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Sum aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_histogram_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Sum aggregation is used instead of default Histogram
+        let MetricData::Sum(sum) = f64::extract_metrics_data_ref(&metric.data)
+            .expect("Sum aggregation expected when view specifies Sum")
+        else {
+            panic!("Expected Sum aggregation for Histogram with Sum view");
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 60.0); // 10 + 20 + 30
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_histogram_aggregation_is_valid() {
+        // Histogram aggregation is valid for Gauge instruments.
+        // When applied via a view, the aggregation should change from
+        // LastValue to ExplicitBucketHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![5.0, 10.0, 25.0, 50.0],
+                        record_min_max: true,
+                    })
+                    .with_name("my_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge").build();
+        gauge.record(3.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(7.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(15.0, &[KeyValue::new("key1", "value1")]);
+        gauge.record(30.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Histogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_gauge_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Histogram aggregation is used instead of default LastValue
+        let MetricData::Histogram(histogram) = f64::extract_metrics_data_ref(&metric.data)
+            .expect("Histogram aggregation expected when view specifies Histogram")
+        else {
+            panic!("Expected Histogram aggregation for Gauge with Histogram view");
+        };
+        assert_eq!(histogram.data_points.len(), 1);
+        let dp = &histogram.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 55.0); // 3 + 7 + 15 + 30
+        assert_eq!(dp.min, Some(3.0));
+        assert_eq!(dp.max, Some(30.0));
+        // Bucket boundaries: [5.0, 10.0, 25.0, 50.0]
+        // Values: 3.0 (bucket 0), 7.0 (bucket 1), 15.0 (bucket 2), 30.0 (bucket 3)
+        assert_eq!(dp.bucket_counts, vec![1, 1, 1, 1, 0]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_histogram_aggregation_is_valid() {
+        // Histogram aggregation is valid for Counter instruments.
+        // When applied via a view, the aggregation should change from
+        // Sum to ExplicitBucketHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![5.0, 10.0, 25.0, 50.0],
+                        record_min_max: true,
+                    })
+                    .with_name("my_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(3, &[KeyValue::new("key1", "value1")]);
+        counter.add(7, &[KeyValue::new("key1", "value1")]);
+        counter.add(15, &[KeyValue::new("key1", "value1")]);
+        counter.add(30, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Histogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_counter_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Histogram aggregation is used instead of default Sum
+        let MetricData::Histogram(histogram) = u64::extract_metrics_data_ref(&metric.data)
+            .expect("Histogram aggregation expected when view specifies Histogram")
+        else {
+            panic!("Expected Histogram aggregation for Counter with Histogram view");
+        };
+        assert_eq!(histogram.data_points.len(), 1);
+        let dp = &histogram.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 55); // 3 + 7 + 15 + 30
+        assert_eq!(dp.min, Some(3));
+        assert_eq!(dp.max, Some(30));
+        // Bucket boundaries: [5.0, 10.0, 25.0, 50.0]
+        // Values: 3 (bucket 0), 7 (bucket 1), 15 (bucket 2), 30 (bucket 3)
+        assert_eq!(dp.bucket_counts, vec![1, 1, 1, 1, 0]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn updowncounter_with_histogram_aggregation_is_valid() {
+        // Histogram aggregation is valid for UpDownCounter instruments.
+        // When applied via a view, the aggregation should change from
+        // Sum to ExplicitBucketHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_updowncounter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::ExplicitBucketHistogram {
+                        boundaries: vec![0.0, 10.0, 20.0, 50.0],
+                        record_min_max: true,
+                    })
+                    .with_name("my_updowncounter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let updowncounter = meter.i64_up_down_counter("my_updowncounter").build();
+        updowncounter.add(-5, &[KeyValue::new("key1", "value1")]);
+        updowncounter.add(15, &[KeyValue::new("key1", "value1")]);
+        updowncounter.add(25, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, Histogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_updowncounter_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // Histogram aggregation is used instead of default Sum
+        let MetricData::Histogram(histogram) = i64::extract_metrics_data_ref(&metric.data)
+            .expect("Histogram aggregation expected when view specifies Histogram")
+        else {
+            panic!("Expected Histogram aggregation for UpDownCounter with Histogram view");
+        };
+        assert_eq!(histogram.data_points.len(), 1);
+        let dp = &histogram.data_points[0];
+        assert_eq!(dp.count, 3);
+        // Note: Sum is not recorded for UpDownCounter histogram per the spec
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_exponential_histogram_aggregation_is_valid() {
+        // ExponentialHistogram aggregation is valid for Counter instruments.
+        // When applied via a view, the aggregation should change from
+        // Sum to Base2ExponentialHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_name("my_counter_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(5, &[KeyValue::new("key1", "value1")]);
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        counter.add(20, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, ExponentialHistogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_counter_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // ExponentialHistogram aggregation is used instead of default Sum
+        let MetricData::ExponentialHistogram(exp_hist) =
+            u64::extract_metrics_data_ref(&metric.data)
+                .expect("ExponentialHistogram aggregation expected when view specifies it")
+        else {
+            panic!("Expected ExponentialHistogram aggregation for Counter with ExponentialHistogram view");
+        };
+        assert_eq!(exp_hist.data_points.len(), 1);
+        let dp = &exp_hist.data_points[0];
+        assert_eq!(dp.count(), 3);
+        assert_eq!(dp.sum(), 35); // 5 + 10 + 20
+        assert_eq!(dp.min(), Some(5));
+        assert_eq!(dp.max(), Some(20));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_exponential_histogram_aggregation_is_valid() {
+        // ExponentialHistogram aggregation is valid for Gauge instruments.
+        // When applied via a view, the aggregation should change from
+        // LastValue to Base2ExponentialHistogram.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_name("my_gauge_renamed")
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge").build();
+        gauge.record(2.5, &[KeyValue::new("key1", "value1")]);
+        gauge.record(7.5, &[KeyValue::new("key1", "value1")]);
+        gauge.record(15.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - view is applied, ExponentialHistogram aggregation is used
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        assert!(!resource_metrics.is_empty());
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        // View rename is applied
+        assert_eq!(
+            metric.name, "my_gauge_renamed",
+            "View rename should be applied for compatible aggregation."
+        );
+        // ExponentialHistogram aggregation is used instead of default LastValue
+        let MetricData::ExponentialHistogram(exp_hist) =
+            f64::extract_metrics_data_ref(&metric.data)
+                .expect("ExponentialHistogram aggregation expected when view specifies it")
+        else {
+            panic!("Expected ExponentialHistogram aggregation for Gauge with ExponentialHistogram view");
+        };
+        assert_eq!(exp_hist.data_points.len(), 1);
+        let dp = &exp_hist.data_points[0];
+        assert_eq!(dp.count(), 3);
+        assert_eq!(dp.sum(), 25.0); // 2.5 + 7.5 + 15.0
+        assert_eq!(dp.min(), Some(2.5));
+        assert_eq!(dp.max(), Some(15.0));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches an instrument and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter_to_drop").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn histogram_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test histogram_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches a histogram and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_histogram_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_histogram_to_drop").build();
+        histogram.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn gauge_with_drop_aggregation_is_dropped() {
+        // Run this test with stdout enabled to see output.
+        // cargo test gauge_with_drop_aggregation_is_dropped --features=testing -- --nocapture
+
+        // When a view matches a gauge and specifies Aggregation::Drop,
+        // the instrument should be dropped and no metrics should be exported.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_gauge_to_drop" {
+                Stream::builder()
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let gauge = meter.f64_gauge("my_gauge_to_drop").build();
+        gauge.record(42.0, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop. Got: {:?}",
+            resource_metrics
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_drop_aggregation_and_rename_should_still_drop() {
+        // Run this test with stdout enabled to see output.
+        // cargo test counter_with_drop_aggregation_and_rename_should_still_drop --features=testing -- --nocapture
+
+        // When a view matches and specifies Aggregation::Drop, the instrument should be
+        // dropped even if the view also specifies other customizations (like name).
+        // The name customization is meaningless for a dropped instrument, but the Drop
+        // intent should still be honored.
+
+        // Arrange
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name == "my_counter" {
+                Stream::builder()
+                    .with_name("dropped_counter") // Meaningless but shouldn't break Drop
+                    .with_aggregation(aggregation::Aggregation::Drop)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+
+        // Act
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+        counter.add(10, &[KeyValue::new("key1", "value1")]);
+        meter_provider.force_flush().unwrap();
+
+        // Assert - no metrics should be exported because the view drops the instrument
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics result expected");
+        assert!(
+            resource_metrics.is_empty()
+                || resource_metrics[0].scope_metrics.is_empty()
+                || resource_metrics[0].scope_metrics[0].metrics.is_empty(),
+            "No metrics should be exported when view uses Aggregation::Drop, even with rename. Got: {:?}",
+            resource_metrics
         );
     }
 
@@ -2728,6 +3651,153 @@ mod tests {
                 assert_eq!(vec![1, 1, 3, 0], data_point.bucket_counts);
             }
         }
+    }
+
+    fn exponential_histogram_aggregation_with_view_helper(temporality: Temporality) {
+        // Arrange: Create a view that converts a regular histogram to Base2ExponentialHistogram
+        let view = |i: &Instrument| {
+            if i.name == "test_histogram" {
+                Some(
+                    Stream::builder()
+                        .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                            max_size: 160,
+                            max_scale: 20,
+                            record_min_max: true,
+                        })
+                        .build()
+                        .unwrap(),
+                )
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(temporality, view);
+        let histogram = test_context.meter().f64_histogram("test_histogram").build();
+
+        // Act: Record some values
+        histogram.record(1.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(2.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(3.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(4.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(5.0, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert: Verify we get an ExponentialHistogram instead of regular Histogram
+        let exponential_histogram_data =
+            test_context.get_aggregation::<f64>("test_histogram", None);
+        let MetricData::ExponentialHistogram(exp_hist) = exponential_histogram_data else {
+            panic!(
+                "Expected ExponentialHistogram aggregation, got {:?}",
+                exponential_histogram_data
+            );
+        };
+
+        assert_eq!(exp_hist.data_points.len(), 1);
+        if let Temporality::Cumulative = temporality {
+            assert_eq!(
+                exp_hist.temporality,
+                Temporality::Cumulative,
+                "Should produce cumulative"
+            );
+        } else {
+            assert_eq!(
+                exp_hist.temporality,
+                Temporality::Delta,
+                "Should produce delta"
+            );
+        }
+
+        // Validate the data point
+        let data_point = &exp_hist.data_points[0];
+        assert_eq!(data_point.count(), 5);
+        assert_eq!(data_point.sum(), 15.0);
+        assert_eq!(data_point.min(), Some(1.0));
+        assert_eq!(data_point.max(), Some(5.0));
+
+        // Validate exponential histogram specific fields
+        // Scale should be within valid range (-10 to 20)
+        let scale = data_point.scale();
+        assert!(
+            (-10..=20).contains(&scale),
+            "Scale {} should be within valid range [-10, 20]",
+            scale
+        );
+
+        // zero_count should be 0 since we only recorded positive values > 0
+        assert_eq!(
+            data_point.zero_count(),
+            0,
+            "zero_count should be 0 for positive values"
+        );
+
+        // Positive bucket should have counts (we recorded positive values)
+        let positive_bucket = data_point.positive_bucket();
+        let positive_counts: Vec<u64> = positive_bucket.counts().collect();
+        let total_positive_count: u64 = positive_counts.iter().sum();
+        assert_eq!(
+            total_positive_count, 5,
+            "Total count in positive buckets should equal number of recorded values"
+        );
+
+        // Negative bucket should be empty (we only recorded positive values)
+        let negative_bucket = data_point.negative_bucket();
+        let negative_counts: Vec<u64> = negative_bucket.counts().collect();
+        let total_negative_count: u64 = negative_counts.iter().sum();
+        assert_eq!(
+            total_negative_count, 0,
+            "Negative bucket should be empty for positive-only values"
+        );
+
+        // Verify the attribute is present
+        let attrs: Vec<_> = data_point.attributes().collect();
+        assert_eq!(attrs.len(), 1);
+        assert_eq!(attrs[0].key.as_str(), "key1");
+
+        // Reset and report more measurements to verify Delta vs Cumulative behavior
+        test_context.reset_metrics();
+        histogram.record(10.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(20.0, &[KeyValue::new("key1", "value1")]);
+        histogram.record(30.0, &[KeyValue::new("key1", "value1")]);
+
+        test_context.flush_metrics();
+
+        // Assert second collect
+        let exponential_histogram_data =
+            test_context.get_aggregation::<f64>("test_histogram", None);
+        let MetricData::ExponentialHistogram(exp_hist) = exponential_histogram_data else {
+            panic!(
+                "Expected ExponentialHistogram aggregation, got {:?}",
+                exponential_histogram_data
+            );
+        };
+
+        assert_eq!(exp_hist.data_points.len(), 1);
+        let data_point = &exp_hist.data_points[0];
+
+        if temporality == Temporality::Cumulative {
+            // Cumulative: values accumulate (5 original + 3 new = 8 count, 15 + 60 = 75 sum)
+            assert_eq!(data_point.count(), 8);
+            assert_eq!(data_point.sum(), 75.0);
+            assert_eq!(data_point.min(), Some(1.0)); // min from first batch
+            assert_eq!(data_point.max(), Some(30.0)); // max from second batch
+        } else {
+            // Delta: only new values (3 count, 60 sum)
+            assert_eq!(data_point.count(), 3);
+            assert_eq!(data_point.sum(), 60.0);
+            assert_eq!(data_point.min(), Some(10.0));
+            assert_eq!(data_point.max(), Some(30.0));
+        }
+
+        // Verify positive bucket counts match the count
+        let positive_bucket = data_point.positive_bucket();
+        let positive_counts: Vec<u64> = positive_bucket.counts().collect();
+        let total_positive_count: u64 = positive_counts.iter().sum();
+        assert_eq!(
+            total_positive_count,
+            data_point.count() as u64,
+            "Total count in positive buckets should equal count"
+        );
     }
 
     fn gauge_aggregation_helper(temporality: Temporality) {
