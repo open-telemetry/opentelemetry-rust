@@ -87,9 +87,11 @@ experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_r
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-tls = ["tonic/tls-ring"]
-tls-roots = ["tls", "tonic/tls-native-roots"]
-tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
+tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc.
+tls-ring = ["tonic/tls-ring"]
+tls-aws-lc = ["tonic/tls-aws-lc"]
+tls-roots = ["tonic/tls-native-roots"]
+tls-webpki-roots = ["tonic/tls-webpki-roots"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
