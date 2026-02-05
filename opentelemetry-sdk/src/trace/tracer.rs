@@ -330,6 +330,31 @@ mod tests {
     }
 
     #[test]
+    fn allow_sampler_to_change_trace_state_boxed() {
+        // Setup
+        let sampler: Box<dyn ShouldSample> = Box::new(TestSampler {});
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(sampler)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+        let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
+
+        let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
+            TraceId::from(128),
+            SpanId::from(64),
+            TraceFlags::SAMPLED,
+            true,
+            trace_state,
+        )));
+
+        // Test sampler should change trace state
+        let span = tracer.start_with_context("foo", &parent_context);
+        let span_context = span.span_context();
+        let expected = span_context.trace_state();
+        assert_eq!(expected.get("foo"), Some("notbar"))
+    }
+
+    #[test]
     fn drop_parent_based_children() {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
