@@ -96,8 +96,19 @@ impl SpanExporter for TonicTracesClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
+                                    otel_warn!(
+                                        name: "TonicTracesClient.InterceptorFailed",
+                                        grpc_code = format!("{:?}", e.code())
+                                    );
+                                    // grpc_message and grpc_details may contain sensitive information,
+                                    // so log them at debug level only.
+                                    otel_debug!(
+                                        name: "TonicTracesClient.InterceptorFailedDetails",
+                                        grpc_message = e.message(),
+                                        grpc_details = format!("{:?}", e.details())
+                                    );
                                     // Convert interceptor errors to tonic::Status for retry classification
-                                    tonic::Status::internal(format!("interceptor error: {e:?}"))
+                                    tonic::Status::internal("Traces export failed in interceptor")
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
@@ -140,9 +151,20 @@ impl SpanExporter for TonicTracesClient {
         .await
         {
             Ok(_) => Ok(()),
-            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
-                "export error: {tonic_status:?}"
-            ))),
+            Err(tonic_status) => {
+                otel_warn!(
+                    name: "TonicTracesClient.ExportFailed",
+                    grpc_code = format!("{:?}", tonic_status.code())
+                );
+                // grpc_message and grpc_details may contain sensitive information,
+                // so log them at debug level only.
+                otel_debug!(
+                    name: "TonicTracesClient.ExportFailedDetails",
+                    grpc_message = tonic_status.message(),
+                    grpc_details = format!("{:?}", tonic_status.details())
+                );
+                Err(OTelSdkError::InternalFailure("Traces export failed".into()))
+            }
         }
     }
 
