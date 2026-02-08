@@ -211,24 +211,6 @@ pub(crate) mod serializers {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<i64>().map_err(de::Error::custom)
     }
-    pub fn serialize_vec_u64_to_strings<S>(vec: &[u64], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let str_vec: Vec<String> = vec.iter().map(|&num| num.to_string()).collect();
-        serializer.collect_seq(str_vec)
-    }
-
-    pub fn deserialize_strings_to_vec_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let str_vec: Vec<String> = Deserialize::deserialize(deserializer)?;
-        str_vec
-            .into_iter()
-            .map(|s| s.parse::<u64>().map_err(de::Error::custom))
-            .collect()
-    }
 
     // Special serializer and deserializer for NaN, Infinity, and -Infinity
     pub fn serialize_f64_special<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>

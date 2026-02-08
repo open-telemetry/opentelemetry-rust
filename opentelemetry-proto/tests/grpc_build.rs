@@ -159,7 +159,7 @@ fn build_tonic() {
     ] {
         builder = builder.field_attribute(
             path,
-            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_strings\", deserialize_with = \"crate::proto::serializers::deserialize_strings_to_vec_u64\"))]",
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
         );
     }
 

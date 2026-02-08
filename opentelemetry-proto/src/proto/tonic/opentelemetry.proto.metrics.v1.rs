@@ -486,8 +486,8 @@ pub struct HistogramDataPoint {
     #[cfg_attr(
         feature = "with-serde",
         serde(
-            serialize_with = "crate::proto::serializers::serialize_vec_u64_to_strings",
-            deserialize_with = "crate::proto::serializers::deserialize_strings_to_vec_u64"
+            serialize_with = "crate::proto::serializers::serialize_vec_u64_to_string",
+            deserialize_with = "crate::proto::serializers::deserialize_vec_string_to_vec_u64"
         )
     )]
     pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
