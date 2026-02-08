@@ -718,6 +718,70 @@ mod json_serde {
                 assert_eq!(actual, expected);
             }
         }
+
+        mod none {
+            use super::*;
+
+            fn value() -> KeyValue {
+                KeyValue {
+                    key: String::from("service.name"),
+                    value: None,
+                }
+            }
+
+            // It also represents "no value" but with an additional nesting level
+            fn alternative() -> KeyValue {
+                KeyValue {
+                    key: String::from("service.name"),
+                    value: Some(AnyValue { value: None }),
+                }
+            }
+
+            // language=json
+            const CANONICAL: &str = r#"{
+  "key": "service.name",
+  "value": null
+}"#;
+            // ALTERNATIVE uses {} instead of null, which deserializes differently.
+            // The additional nesting level is due to `value` not being `null` at the top-level
+            // language=json
+            const ALTERNATIVE: &str = r#"{
+  "key": "service.name",
+  "value": {}
+}"#;
+
+            #[test]
+            fn serialize() {
+                let input: KeyValue = value();
+                let actual =
+                    serde_json::to_string_pretty(&input).expect("serialization must succeed");
+                assert_eq!(actual, CANONICAL);
+            }
+
+            #[test]
+            fn serialize_alternative() {
+                let input: KeyValue = alternative();
+                let actual =
+                    serde_json::to_string_pretty(&input).expect("serialization must succeed");
+                assert_eq!(actual, ALTERNATIVE);
+            }
+
+            #[test]
+            fn deserialize_canonical() {
+                let actual: KeyValue =
+                    serde_json::from_str(CANONICAL).expect("deserialization must succeed");
+                let expected: KeyValue = value();
+                assert_eq!(actual, expected);
+            }
+
+            #[test]
+            fn deserialize_alternative() {
+                let actual: KeyValue =
+                    serde_json::from_str(ALTERNATIVE).expect("deserialization must succeed");
+                let expected: KeyValue = alternative();
+                assert_eq!(actual, expected);
+            }
+        }
     }
 
     #[cfg(feature = "trace")]
