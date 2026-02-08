@@ -8,6 +8,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace::SdkTracerProvider};
 use opentelemetry_stdout::SpanExporter;
+use std::borrow::Cow;
 use tonic::{transport::Server, Request, Response, Status};
 
 fn init_tracer() -> SdkTracerProvider {
@@ -30,17 +31,20 @@ struct MetadataMap<'a>(&'a tonic::metadata::MetadataMap);
 
 impl Extractor for MetadataMap<'_> {
     /// Get a value for a key from the MetadataMap.  If the value can't be converted to &str, returns None
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).and_then(|metadata| metadata.to_str().ok())
+    fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+        self.0
+            .get(key)
+            .and_then(|metadata| metadata.to_str().ok())
+            .map(Cow::Borrowed)
     }
 
     /// Collect all the keys from the MetadataMap.
-    fn keys(&self) -> Vec<&str> {
+    fn keys(&self) -> Vec<Cow<'_, str>> {
         self.0
             .keys()
             .map(|key| match key {
-                tonic::metadata::KeyRef::Ascii(v) => v.as_str(),
-                tonic::metadata::KeyRef::Binary(v) => v.as_str(),
+                tonic::metadata::KeyRef::Ascii(v) => Cow::Borrowed(v.as_str()),
+                tonic::metadata::KeyRef::Binary(v) => Cow::Borrowed(v.as_str()),
             })
             .collect::<Vec<_>>()
     }
