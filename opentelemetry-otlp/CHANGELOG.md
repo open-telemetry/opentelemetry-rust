@@ -7,6 +7,8 @@
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
 - Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
+- Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
+  **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
 
 ## 0.31.0
 
