@@ -10,6 +10,11 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+- **Added** `global::logs` module containing functions for configuring a global logger provider, analogous to the global tracer and meter providers in the same module.
+   - Dyn-compatible wrapper traits for `LoggerProvider`, `Logger`, and `LogRecord`
+   - Boxed dynamic-dispatch versions of `Logger` and `LogRecord`: `BoxedLogger`, `BoxedLogRecord`
+   - A global dynamic-dispatch `LoggerProvider`: `GlobalLoggerProvider`
+   - Helper functions
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277

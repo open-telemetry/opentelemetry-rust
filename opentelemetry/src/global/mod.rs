@@ -131,6 +131,8 @@
 //! [`set_meter_provider`]: crate::global::set_meter_provider
 
 mod internal_logging;
+#[cfg(feature = "logs")]
+mod logs;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "trace")]
@@ -138,6 +140,9 @@ mod propagation;
 #[cfg(feature = "trace")]
 mod trace;
 
+#[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
+pub use logs::*;
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::*;
