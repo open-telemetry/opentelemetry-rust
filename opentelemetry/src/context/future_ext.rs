@@ -5,6 +5,7 @@ use pin_project_lite::pin_project;
 use std::pin::Pin;
 use std::task::Context as TaskContext;
 use std::task::Poll;
+#[allow(deprecated)]
 impl<T: Sized> FutureExt for T {}
 
 impl<T: std::future::Future> std::future::Future for WithContext<T> {
@@ -38,10 +39,7 @@ pin_project! {
     }
 }
 
-impl<I, T: Sink<I>> Sink<I> for WithContext<T>
-where
-    T: Sink<I>,
-{
+impl<I, T: Sink<I>> Sink<I> for WithContext<T> {
     type Error = T::Error;
 
     fn poll_ready(
@@ -79,6 +77,7 @@ where
 }
 
 /// Extension trait allowing futures, streams, and sinks to be traced with a span.
+#[deprecated = "Overly general extension trait impl, use FutureContextExt, StreamContextExt, or SinkContextExt instead"]
 pub trait FutureExt: Sized {
     /// Attaches the provided [`Context`] to this type, returning a `WithContext`
     /// wrapper.
@@ -87,6 +86,7 @@ pub trait FutureExt: Sized {
     /// will be set as current while it is being polled.
     ///
     /// [`Context`]: Context
+    #[deprecated = "Overly general extension trait impl, use FutureContextExt, StreamContextExt, or SinkContextExt instead"]
     fn with_context(self, otel_cx: Context) -> WithContext<Self> {
         WithContext {
             inner: self,
@@ -99,6 +99,97 @@ pub trait FutureExt: Sized {
     ///
     /// When the wrapped type is a future, stream, or sink, the attached context
     /// will be set as the default while it is being polled.
+    ///
+    /// [`Context`]: Context
+    #[deprecated = "Overly general extension trait impl, use FutureContextExt, StreamContextExt, or SinkContextExt instead"]
+    #[allow(deprecated)]
+    fn with_current_context(self) -> WithContext<Self> {
+        let otel_cx = Context::current();
+        self.with_context(otel_cx)
+    }
+}
+
+// The following three extension traits are _almost_ identical,
+// but need to be separate to avoid overlapping implementation errors.
+
+impl<F: std::future::Future> FutureContextExt for F {}
+/// Extension trait allowing futures to be traced with a span.
+pub trait FutureContextExt: Sized {
+    /// Attaches the provided [`Context`] to this future, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this future is being polled.
+    ///
+    /// [`Context`]: Context
+    fn with_context(self, otel_cx: Context) -> WithContext<Self> {
+        WithContext {
+            inner: self,
+            otel_cx,
+        }
+    }
+
+    /// Attaches the current [`Context`] to this future, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this future is being polled.
+    ///
+    /// [`Context`]: Context
+    fn with_current_context(self) -> WithContext<Self> {
+        let otel_cx = Context::current();
+        self.with_context(otel_cx)
+    }
+}
+
+impl<S: Stream> StreamContextExt for S {}
+/// Extension trait allowing streams to be traced with a span.
+pub trait StreamContextExt: Sized {
+    /// Attaches the provided [`Context`] to this stream, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this stream is being polled.
+    ///
+    /// [`Context`]: Context
+    fn with_context(self, otel_cx: Context) -> WithContext<Self> {
+        WithContext {
+            inner: self,
+            otel_cx,
+        }
+    }
+
+    /// Attaches the current [`Context`] to this stream, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this stream is being polled.
+    ///
+    /// [`Context`]: Context
+    fn with_current_context(self) -> WithContext<Self> {
+        let otel_cx = Context::current();
+        self.with_context(otel_cx)
+    }
+}
+
+impl<_I, S: Sink<_I>> SinkContextExt<_I> for S {}
+/// Extension trait allowing sinks to be traced with a span.
+///
+/// The generic argument is unused.
+pub trait SinkContextExt<_I>: Sized {
+    /// Attaches the provided [`Context`] to this sink, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this sink is being polled.
+    ///
+    /// [`Context`]: Context
+    fn with_context(self, otel_cx: Context) -> WithContext<Self> {
+        WithContext {
+            inner: self,
+            otel_cx,
+        }
+    }
+
+    /// Attaches the current [`Context`] to this sink, returning a `WithContext`
+    /// wrapper.
+    ///
+    /// The attached context will be set as current while this sink is being polled.
     ///
     /// [`Context`]: Context
     fn with_current_context(self) -> WithContext<Self> {
