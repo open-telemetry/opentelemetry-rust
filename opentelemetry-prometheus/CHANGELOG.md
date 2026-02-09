@@ -2,6 +2,10 @@
 
 ## vNext
 
+## v0.31.1
+
+- Remove `protobuf` dependency from `prometheus`
+
 ## v0.31.0
 
 - Update `opentelemetry` dependency version to 0.31.0
