@@ -110,7 +110,7 @@ pub trait FutureExt: Sized {
 }
 
 // The following three extension traits are _almost_ identical,
-// but need to be separate to avoid overlapping implemenetation errors.
+// but need to be separate to avoid overlapping implementation errors.
 
 impl<F: std::future::Future> FutureContextExt for F {}
 /// Extension trait allowing futures to be traced with a span.
