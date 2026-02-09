@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use crate::logs::{AnyValue, LogRecord, Logger, LoggerProvider, NoopLoggerProvider, Severity};
 use crate::{otel_error, otel_info, InstrumentationScope, Key, SpanId, TraceFlags, TraceId};
 
-/// Allows a specific [`crate::logs::LoggerProvider`] to be used generically by [`BoxedLoggerProvider`]
+/// Allows a specific [`crate::logs::LoggerProvider`] to be used generically by [`GlobalLoggerProvider`]
 /// instances by mirroring the interface and boxing the return types.
 pub trait DynCompatibleLoggerProvider {
     /// Returns a new logger with the given instrumentation scope.
@@ -305,7 +305,7 @@ impl LoggerProvider for GlobalLoggerProvider {
     }
 }
 
-/// Creates a named instance of a [`Logger`] via the configured [`GlobalTracerProvider`].
+/// Creates a named instance of a [`Logger`] via the configured [`GlobalLoggerProvider`].
 ///
 /// If the name is an empty string, the provider will use a default name.
 ///
@@ -315,7 +315,7 @@ pub fn logger(name: impl Into<Cow<'static, str>>) -> BoxedLogger {
 }
 
 /// Creates a [`Logger`] with the given instrumentation scope
-/// via the configured [`GlobalTracerProvider`].
+/// via the configured [`GlobalLoggerProvider`].
 ///
 /// This is a simpler alternative to `global::logger_provider().logger_with_scope(...)`
 pub fn logger_with_scope(scope: InstrumentationScope) -> BoxedLogger {
