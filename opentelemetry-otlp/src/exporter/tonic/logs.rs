@@ -152,20 +152,44 @@ impl LogExporter for TonicLogsClient {
         {
             Ok(_) => Ok(()),
             Err(tonic_status) => {
-                otel_warn!(
-                    name: "TonicLogsClient.ExportFailed",
-                    grpc_code = format!("{:?}", tonic_status.code())
+                // For connection-related errors (Unavailable, Unknown, etc.), the message
+                // typically contains safe, actionable information (e.g., "Connection refused").
+                // For auth errors (Unauthenticated, PermissionDenied), the message may contain
+                // sensitive information, so we only log the code at WARN level.
+                let code = tonic_status.code();
+                let is_connection_error = matches!(
+                    code,
+                    tonic::Code::Unavailable
+                        | tonic::Code::Unknown
+                        | tonic::Code::DeadlineExceeded
+                        | tonic::Code::ResourceExhausted
+                        | tonic::Code::Aborted
+                        | tonic::Code::Cancelled
                 );
-                // grpc_message and grpc_details may contain sensitive information,
-                // so log them at debug level only.
-                otel_debug!(
-                    name: "TonicLogsClient.ExportFailedDetails",
-                    grpc_message = tonic_status.message(),
-                    grpc_details = format!("{:?}", tonic_status.details())
-                );
+
+                if is_connection_error {
+                    otel_warn!(
+                        name: "TonicLogsClient.ExportFailed",
+                        grpc_code = format!("{:?}", code),
+                        grpc_message = tonic_status.message()
+                    );
+                } else {
+                    // For potentially sensitive errors (Unauthenticated, PermissionDenied, etc.),
+                    // only log the code at WARN level.
+                    otel_warn!(
+                        name: "TonicLogsClient.ExportFailed",
+                        grpc_code = format!("{:?}", code)
+                    );
+                    // Log message and details at debug level for sensitive error types.
+                    otel_debug!(
+                        name: "TonicLogsClient.ExportFailedDetails",
+                        grpc_message = tonic_status.message(),
+                        grpc_details = format!("{:?}", tonic_status.details())
+                    );
+                }
                 Err(OTelSdkError::InternalFailure(format!(
                     "Logs export failed with gRPC code: {:?}",
-                    tonic_status.code()
+                    code
                 )))
             }
         }

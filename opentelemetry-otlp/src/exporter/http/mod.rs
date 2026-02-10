@@ -488,15 +488,13 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
+            // Connection errors (e.g., "Connection refused", DNS failures) typically
+            // indicate user-side misconfigurations and don't contain sensitive data,
+            // so it's safe to log the error message at WARN level.
             otel_warn!(
                 name: "HttpClient.ExportFailed",
-                url = request_uri.as_str()
-            );
-            // Error details may contain sensitive information,
-            // so log them at debug level only.
-            otel_debug!(
-                name: "HttpClient.ExportFailedDetails",
-                error = format!("{e:?}")
+                url = request_uri.as_str(),
+                error = format!("{e}")
             );
             HttpExportError::new(0, "HTTP export failed".to_string())
         })?;
