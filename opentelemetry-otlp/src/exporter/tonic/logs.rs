@@ -106,7 +106,10 @@ impl LogExporter for TonicLogsClient {
                                         grpc_details = format!("{:?}", e.details())
                                     );
                                     // Convert interceptor errors to tonic::Status for retry classification
-                                    tonic::Status::internal("Logs export failed in interceptor")
+                                    tonic::Status::internal(&format!(
+                                        "Logs export failed in interceptor with gRPC code: {:?}",
+                                        e.code()
+                                    ))
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
