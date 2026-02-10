@@ -163,7 +163,10 @@ impl LogExporter for TonicLogsClient {
                     grpc_message = tonic_status.message(),
                     grpc_details = format!("{:?}", tonic_status.details())
                 );
-                Err(OTelSdkError::InternalFailure("Logs export failed".into()))
+                Err(OTelSdkError::InternalFailure(format!(
+                    "Logs export failed with gRPC code: {:?}",
+                    tonic_status.code()
+                )))
             }
         }
     }
