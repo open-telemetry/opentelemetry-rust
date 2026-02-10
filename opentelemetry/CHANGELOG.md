@@ -15,11 +15,10 @@
   [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
 - Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
 - Fix panic when calling `Context::current()` from `Drop` implementations triggered by `ContextGuard` cleanup ([#3262][3262]).
-  - Modified `ContextGuard::drop` to extract the context outside of `borrow_mut()` scope before dropping it
-  - This prevents "RefCell already mutably borrowed" panics when Span's `Drop` implementation calls `Context::current()` during context cleanup
-  - **Note**: `Context::current()` called from within a Drop triggered by context cleanup will return the parent context, not the context being dropped (documented behavior)
+  
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 
 ## v0.31.0
 
