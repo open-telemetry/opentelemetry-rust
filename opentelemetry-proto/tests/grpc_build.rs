@@ -68,6 +68,7 @@ fn build_tonic() {
         "metrics.v1.Summary",
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
+        "metrics.v1.SummaryDataPoint",
         "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
@@ -154,8 +155,8 @@ fn build_tonic() {
     // Thus, special serializer and deserializer are needed
     for path in [
         "metrics.v1.HistogramDataPoint.bucket_counts",
-        "metrics.v1.ExponentialHistogramDataPoint.positive.bucket_counts",
-        "metrics.v1.ExponentialHistogramDataPoint.negative.bucket_counts",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
     ] {
         builder = builder.field_attribute(
             path,
