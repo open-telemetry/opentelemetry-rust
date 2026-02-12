@@ -39,7 +39,7 @@ pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
-pub use span::Span;
+pub use span::{Span, SpanHandle};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
