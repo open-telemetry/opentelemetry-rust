@@ -376,7 +376,7 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-mod tests {
+pub(crate) mod tests {
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),

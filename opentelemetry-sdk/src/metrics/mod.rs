@@ -82,6 +82,7 @@ pub use pipeline::Pipeline;
 pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
 
 use std::hash::Hash;
+use std::str::FromStr;
 
 /// Defines the window that an aggregation was calculated over.
 #[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash)]
@@ -104,6 +105,61 @@ pub enum Temporality {
     /// Delta aggregation temporality, which allows them to shed memory
     /// following a cardinality explosion, thus use less memory.
     LowMemory,
+}
+
+impl FromStr for Temporality {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "cumulative" => Ok(Temporality::Cumulative),
+            "delta" => Ok(Temporality::Delta),
+            "lowmemory" => Ok(Temporality::LowMemory),
+            _ => Err(()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod temporality_tests {
+    use super::*;
+
+    #[test]
+    fn parse_valid_temporality_values() {
+        assert_eq!(
+            "cumulative".parse::<Temporality>(),
+            Ok(Temporality::Cumulative)
+        );
+        assert_eq!("delta".parse::<Temporality>(), Ok(Temporality::Delta));
+        assert_eq!(
+            "lowmemory".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+    }
+
+    #[test]
+    fn parse_temporality_case_insensitive() {
+        assert_eq!(
+            "Cumulative".parse::<Temporality>(),
+            Ok(Temporality::Cumulative)
+        );
+        assert_eq!("DELTA".parse::<Temporality>(), Ok(Temporality::Delta));
+        assert_eq!(
+            "LowMemory".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+        assert_eq!(
+            "LOWMEMORY".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+    }
+
+    #[test]
+    fn parse_invalid_temporality_returns_err() {
+        assert!("unknown".parse::<Temporality>().is_err());
+        assert!("".parse::<Temporality>().is_err());
+        assert!("cumulativ".parse::<Temporality>().is_err());
+    }
 }
 
 #[cfg(all(test, feature = "testing"))]
