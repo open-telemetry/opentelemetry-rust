@@ -10,15 +10,15 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-
-[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
-[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
   [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
-
 - Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
+- Fix panic when calling `Context::current()` from `Drop` implementations triggered by `ContextGuard` cleanup ([#3262][3262]).
+  
+[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 
 ## v0.31.0
 
