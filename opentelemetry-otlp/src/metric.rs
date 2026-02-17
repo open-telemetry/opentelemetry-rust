@@ -95,11 +95,12 @@ fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, Exp
         return Ok(temporality);
     }
     if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE) {
-        return val.parse::<Temporality>().map_err(|_| {
-            ExporterBuildError::InternalFailure(format!(
-                "Invalid value for {OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE}: {val}. Expected: cumulative, delta, or lowmemory"
-            ))
-        });
+        return val
+            .parse::<Temporality>()
+            .map_err(|_| ExporterBuildError::InvalidConfig {
+                name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE.to_string(),
+                reason: format!("Invalid value '{val}'. Expected: cumulative, delta, or lowmemory"),
+            });
     }
     Ok(Temporality::default())
 }
@@ -247,7 +248,21 @@ impl MetricExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exporter::tests::run_env_test;
+
+    fn run_env_test<T, F>(env_vars: T, f: F)
+    where
+        F: FnOnce(),
+        T: Into<Vec<(&'static str, &'static str)>>,
+    {
+        temp_env::with_vars(
+            env_vars
+                .into()
+                .iter()
+                .map(|&(k, v)| (k, Some(v)))
+                .collect::<Vec<(&'static str, Option<&'static str>)>>(),
+            f,
+        )
+    }
 
     #[test]
     fn code_config_overrides_env_var() {

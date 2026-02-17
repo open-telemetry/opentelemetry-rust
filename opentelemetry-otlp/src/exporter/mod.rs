@@ -114,6 +114,15 @@ pub enum ExporterBuildError {
     #[error("invalid URI {0}. Reason {1}")]
     InvalidUri(String, String),
 
+    /// Invalid configuration from environment variable or builder.
+    #[error("{name}: {reason}")]
+    InvalidConfig {
+        /// The configuration name (e.g. environment variable).
+        name: String,
+        /// The reason the configuration is invalid.
+        reason: String,
+    },
+
     /// Failed due to an internal error.
     /// The error message is intended for logging purposes only and should not
     /// be used to make programmatic decisions. It is implementation-specific
@@ -376,7 +385,7 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub(crate) mod tests {
+mod tests {
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
