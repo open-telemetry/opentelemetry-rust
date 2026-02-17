@@ -114,10 +114,10 @@ pub enum ExporterBuildError {
     #[error("invalid URI {0}. Reason {1}")]
     InvalidUri(String, String),
 
-    /// Invalid configuration from environment variable or builder.
+    /// Invalid configuration.
     #[error("{name}: {reason}")]
     InvalidConfig {
-        /// The configuration name (e.g. environment variable).
+        /// The configuration name.
         name: String,
         /// The reason the configuration is invalid.
         reason: String,

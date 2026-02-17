@@ -37,7 +37,6 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 /// Temporality preference for metrics, defaults to cumulative.
-/// Accepted values: `cumulative`, `delta`, `lowmemory` (case-insensitive).
 pub const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
 
@@ -76,8 +75,7 @@ impl<C> MetricExporterBuilder<C> {
 
     /// Set the temporality for the metrics.
     ///
-    /// Note: Programmatically setting this will override any value set via the
-    /// `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable.
+    /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_temporality(self, temporality: Temporality) -> MetricExporterBuilder<C> {
         MetricExporterBuilder {
             client: self.client,
@@ -86,9 +84,10 @@ impl<C> MetricExporterBuilder<C> {
     }
 }
 
-/// Resolve the temporality from the provided config or environment variable.
-///
-/// Priority: programmatic config > env var > default (`Cumulative`).
+/// Resolve temporality with priority:
+/// 1. Provided config value
+/// 2. OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE environment variable
+/// 3. Default (Cumulative)
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, ExporterBuildError> {
     if let Some(temporality) = provided {

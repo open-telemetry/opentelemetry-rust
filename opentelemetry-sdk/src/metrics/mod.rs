@@ -120,48 +120,6 @@ impl FromStr for Temporality {
     }
 }
 
-#[cfg(test)]
-mod temporality_tests {
-    use super::*;
-
-    #[test]
-    fn parse_valid_temporality_values() {
-        assert_eq!(
-            "cumulative".parse::<Temporality>(),
-            Ok(Temporality::Cumulative)
-        );
-        assert_eq!("delta".parse::<Temporality>(), Ok(Temporality::Delta));
-        assert_eq!(
-            "lowmemory".parse::<Temporality>(),
-            Ok(Temporality::LowMemory)
-        );
-    }
-
-    #[test]
-    fn parse_temporality_case_insensitive() {
-        assert_eq!(
-            "Cumulative".parse::<Temporality>(),
-            Ok(Temporality::Cumulative)
-        );
-        assert_eq!("DELTA".parse::<Temporality>(), Ok(Temporality::Delta));
-        assert_eq!(
-            "LowMemory".parse::<Temporality>(),
-            Ok(Temporality::LowMemory)
-        );
-        assert_eq!(
-            "LOWMEMORY".parse::<Temporality>(),
-            Ok(Temporality::LowMemory)
-        );
-    }
-
-    #[test]
-    fn parse_invalid_temporality_returns_err() {
-        assert!("unknown".parse::<Temporality>().is_err());
-        assert!("".parse::<Temporality>().is_err());
-        assert!("cumulativ".parse::<Temporality>().is_err());
-    }
-}
-
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use self::data::{HistogramDataPoint, MetricData, ScopeMetrics, SumDataPoint};
@@ -4684,5 +4642,42 @@ mod tests {
 
             result
         }
+    }
+
+    #[test]
+    fn parse_valid_temporality_values() {
+        assert_eq!(
+            "cumulative".parse::<Temporality>(),
+            Ok(Temporality::Cumulative)
+        );
+        assert_eq!("delta".parse::<Temporality>(), Ok(Temporality::Delta));
+        assert_eq!(
+            "lowmemory".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+    }
+
+    #[test]
+    fn parse_temporality_case_insensitive() {
+        assert_eq!(
+            "Cumulative".parse::<Temporality>(),
+            Ok(Temporality::Cumulative)
+        );
+        assert_eq!("DELTA".parse::<Temporality>(), Ok(Temporality::Delta));
+        assert_eq!(
+            "LowMemory".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+        assert_eq!(
+            "LOWMEMORY".parse::<Temporality>(),
+            Ok(Temporality::LowMemory)
+        );
+    }
+
+    #[test]
+    fn parse_invalid_temporality_returns_err() {
+        assert!("unknown".parse::<Temporality>().is_err());
+        assert!("".parse::<Temporality>().is_err());
+        assert!("cumulativ".parse::<Temporality>().is_err());
     }
 }
