@@ -85,9 +85,18 @@ impl MetricsClient for TonicMetricsClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
-                                    tonic::Status::internal(format!(
-                                        "unexpected status while exporting {e:?}"
-                                    ))
+                                    otel_warn!(
+                                        name: "TonicMetricsClient.InterceptorFailed",
+                                        grpc_code = format!("{:?}", e.code())
+                                    );
+                                    // grpc_message and grpc_details may contain sensitive information,
+                                    // so log them at debug level only.
+                                    otel_debug!(
+                                        name: "TonicMetricsClient.InterceptorFailedDetails",
+                                        grpc_message = e.message(),
+                                        grpc_details = format!("{:?}", e.details())
+                                    );
+                                    tonic::Status::internal("Metrics export failed in interceptor")
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
@@ -127,9 +136,46 @@ impl MetricsClient for TonicMetricsClient {
         .await
         {
             Ok(_) => Ok(()),
-            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
-                "export error: {tonic_status:?}"
-            ))),
+            Err(tonic_status) => {
+                // For connection-related errors (Unavailable, Unknown, etc.), the message
+                // typically contains safe, actionable information (e.g., "Connection refused").
+                // For auth errors (Unauthenticated, PermissionDenied), the message may contain
+                // sensitive information, so we only log the code at WARN level.
+                let code = tonic_status.code();
+                let is_connection_error = matches!(
+                    code,
+                    tonic::Code::Unavailable
+                        | tonic::Code::Unknown
+                        | tonic::Code::DeadlineExceeded
+                        | tonic::Code::ResourceExhausted
+                        | tonic::Code::Aborted
+                        | tonic::Code::Cancelled
+                );
+
+                if is_connection_error {
+                    otel_warn!(
+                        name: "TonicMetricsClient.ExportFailed",
+                        grpc_code = format!("{:?}", code),
+                        grpc_message = tonic_status.message()
+                    );
+                } else {
+                    // For potentially sensitive errors (Unauthenticated, PermissionDenied, etc.),
+                    // only log the code at WARN level.
+                    otel_warn!(
+                        name: "TonicMetricsClient.ExportFailed",
+                        grpc_code = format!("{:?}", code)
+                    );
+                    // Log message and details at debug level for sensitive error types.
+                    otel_debug!(
+                        name: "TonicMetricsClient.ExportFailedDetails",
+                        grpc_message = tonic_status.message(),
+                        grpc_details = format!("{:?}", tonic_status.details())
+                    );
+                }
+                Err(OTelSdkError::InternalFailure(
+                    "Metrics export failed".into(),
+                ))
+            }
         }
     }
 
