@@ -114,6 +114,15 @@ pub enum ExporterBuildError {
     #[error("invalid URI {0}. Reason {1}")]
     InvalidUri(String, String),
 
+    /// Invalid configuration.
+    #[error("{name}: {reason}")]
+    InvalidConfig {
+        /// The configuration name.
+        name: String,
+        /// The reason the configuration is invalid.
+        reason: String,
+    },
+
     /// Failed due to an internal error.
     /// The error message is intended for logging purposes only and should not
     /// be used to make programmatic decisions. It is implementation-specific

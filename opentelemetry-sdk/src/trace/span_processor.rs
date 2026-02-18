@@ -79,9 +79,45 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// synchronously on the thread that started the span, therefore it should
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
+
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
+    ///
+    /// # Accessing Context
+    ///
+    /// **Important**: Do not rely on [`Context::current()`] in `on_end`. When `on_end`
+    /// is called during span cleanup, `Context::current()` returns whatever context
+    /// happens to be active at that moment, which is typically unrelated to the span
+    /// being ended. Contexts can be activated in any order and are not necessarily
+    /// hierarchical.
+    ///
+    /// **Best Practice**: Extract any needed context information in [`on_start`]
+    /// and store it as span attributes. This ensures the information is available
+    /// in the [`SpanData`] passed to `on_end`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// impl SpanProcessor for MyProcessor {
+    ///     fn on_start(&self, span: &mut Span, cx: &Context) {
+    ///         // Extract baggage and store as span attribute
+    ///         if let Some(value) = cx.baggage().get("my-key") {
+    ///             span.set_attribute(KeyValue::new("my-key", value.to_string()));
+    ///         }
+    ///     }
+    ///
+    ///     fn on_end(&self, span: SpanData) {
+    ///         // Access the attribute stored in on_start
+    ///         let my_value = span.attributes.iter()
+    ///             .find(|kv| kv.key.as_str() == "my-key");
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// [`on_start`]: SpanProcessor::on_start
+    /// [`Context::current()`]: opentelemetry::Context::current
+    ///
     /// TODO - This method should take reference to `SpanData`
     fn on_end(&self, span: SpanData);
     /// Force the spans lying in the cache to be exported.

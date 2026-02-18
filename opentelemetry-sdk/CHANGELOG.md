@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
+- `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
   specification by using `unknown_service:<process.executable.name>` format when
   service name is not explicitly configured. Previously, it only used
@@ -18,15 +20,19 @@
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
+- Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
+  - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 [3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
+  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
 
 ## 0.31.0
 

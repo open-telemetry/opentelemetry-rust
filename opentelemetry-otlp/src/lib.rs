@@ -221,8 +221,11 @@
 //! * `grpc-tonic`: Use `tonic` as grpc layer.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
-//! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate
-//! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate
+//! * `tls-ring`: Enable rustls TLS support using ring for `tonic`.
+//! * `tls-aws-lc`: Enable rustls TLS support using aws-lc for `tonic`.
+//! * `tls` (deprecated): Use `tls-ring` or `tls-aws-lc` instead.
+//! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate (use with `tls-ring` or `tls-aws-lc`).
+//! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate (use with `tls-ring` or `tls-aws-lc`).
 //!
 //! The following feature flags offer additional configurations on http:
 //!
@@ -389,7 +392,7 @@ pub use crate::span::{
 pub use crate::metric::{
     MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
     OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
@@ -540,7 +543,7 @@ pub mod tonic_types {
     }
 
     /// Re-exported types from `tonic::transport`.
-    #[cfg(feature = "tls")]
+    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
     pub mod transport {
         #[doc(no_inline)]
         pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
