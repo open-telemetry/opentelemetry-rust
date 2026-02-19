@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Bump MSRV to 1.80.0
 - Updated `schemars` dependency to version 1.0.0.
 
 ## 0.31.0

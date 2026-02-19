@@ -8,6 +8,9 @@ members = [
     "stress",
 ]
 resolver = "2"
+
+[workspace.package]
+rust-version = "1.80.0"
 # Avoid applying patch to force use of workspace members for this
 # not actively maintained crate
 exclude = ["opentelemetry-prometheus"]
