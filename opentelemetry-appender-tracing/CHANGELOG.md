@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Bump MSRV to 1.80.0
 - New *experimental* feature to enrich log records with attributes from active
   tracing spans (`experimental_span_attributes`). Use
   `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`

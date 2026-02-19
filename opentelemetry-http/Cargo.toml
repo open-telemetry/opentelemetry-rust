@@ -7,7 +7,7 @@ repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/ope
 keywords = ["opentelemetry", "tracing", "context", "propagation"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version.workspace = true
 autobenches = false
 
 [features]
