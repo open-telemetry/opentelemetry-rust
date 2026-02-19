@@ -13,14 +13,13 @@ categories = [
 keywords = ["opentelemetry", "prometheus", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.80.0"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-once_cell = { version = "1.13" }
 opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "internal-logs"] }
 opentelemetry_sdk = { version = "0.31", default-features = false, features = ["metrics", "experimental_metrics_custom_reader"] }
 prometheus = { version = "0.14", default-features = false }

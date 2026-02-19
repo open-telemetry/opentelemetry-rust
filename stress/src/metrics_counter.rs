@@ -9,7 +9,6 @@
     ~20 M /sec
 */
 
-use lazy_static::lazy_static;
 use opentelemetry::{
     metrics::{Counter, MeterProvider as _},
     KeyValue,
@@ -20,19 +19,23 @@ use rand::{
     Rng, SeedableRng,
 };
 use std::cell::RefCell;
+use std::sync::LazyLock;
 
 mod throughput;
 
-lazy_static! {
-    static ref PROVIDER: SdkMeterProvider = SdkMeterProvider::builder()
+static PROVIDER: LazyLock<SdkMeterProvider> = LazyLock::new(|| {
+    SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
-        .build();
-    static ref ATTRIBUTE_VALUES: [&'static str; 10] = [
+        .build()
+});
+static ATTRIBUTE_VALUES: LazyLock<[&str; 10]> = LazyLock::new(|| {
+    [
         "value1", "value2", "value3", "value4", "value5", "value6", "value7", "value8", "value9",
-        "value10"
-    ];
-    static ref COUNTER: Counter<u64> = PROVIDER.meter("test").u64_counter("hello").build();
-}
+        "value10",
+    ]
+});
+static COUNTER: LazyLock<Counter<u64>> =
+    LazyLock::new(|| PROVIDER.meter("test").u64_counter("hello").build());
 
 thread_local! {
     /// Store random number generator for each thread

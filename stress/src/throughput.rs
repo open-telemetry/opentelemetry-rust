@@ -1,4 +1,3 @@
-use num_format::{Locale, ToFormattedString};
 use std::cell::UnsafeCell;
 use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -30,7 +29,9 @@ where
     })
     .expect("Error setting Ctrl-C handler");
 
-    let mut num_threads = num_cpus::get();
+    let mut num_threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
     let mut args_iter = env::args();
 
     if let Some(arg_str) = args_iter.nth(1) {
@@ -44,7 +45,7 @@ where
         let arg_num = arg.unwrap();
 
         if arg_num > 0 {
-            if arg_num > num_cpus::get() {
+            if arg_num > num_threads {
                 println!(
                     "Specified {arg_num} threads which is larger than the number of logical cores ({num_threads})!"
                 );
@@ -87,7 +88,7 @@ where
                     let throughput = current_count / elapsed;
                     println!(
                         "Throughput: {} iterations/sec",
-                        throughput.to_formatted_string(&Locale::en)
+                        format_with_commas(throughput)
                     );
 
                     #[cfg(feature = "stats")]
@@ -164,4 +165,16 @@ impl<'a> UnsafeSlice<'a> {
             .map(|cell| unsafe { (*cell.get()).count })
             .sum()
     }
+}
+
+fn format_with_commas(n: u64) -> String {
+    let s = n.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
 }
