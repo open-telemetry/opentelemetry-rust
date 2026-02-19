@@ -6,11 +6,11 @@ use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_O
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
-use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
+use crate::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
 #[cfg(feature = "trace")]
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -370,7 +370,7 @@ pub(crate) struct OtlpHttpClient {
     retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: crate::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {

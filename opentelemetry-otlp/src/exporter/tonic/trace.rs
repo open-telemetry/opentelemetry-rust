@@ -5,7 +5,7 @@ use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::trace::v1::{
     trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
 };
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 use opentelemetry_sdk::error::OTelSdkError;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
@@ -24,7 +24,7 @@ pub(crate) struct TonicTracesClient {
     retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: crate::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
