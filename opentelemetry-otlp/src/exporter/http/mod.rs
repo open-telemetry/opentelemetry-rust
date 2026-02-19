@@ -1,11 +1,11 @@
 use super::{
-    default_headers, default_protocol, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::HttpClient;
+use opentelemetry_http::{Bytes, HttpClient};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -15,12 +15,72 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::SpanData;
+#[cfg(feature = "http-proto")]
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+#[cfg(feature = "experimental-http-retry")]
+use crate::retry::{RetryErrorType, RetryPolicy};
+#[cfg(feature = "experimental-http-retry")]
+use crate::retry_classification::http::classify_http_error;
+
+// Shared HTTP retry functionality
+/// HTTP-specific error wrapper for retry classification
+#[derive(Debug)]
+pub(crate) struct HttpExportError {
+    #[cfg(feature = "experimental-http-retry")]
+    pub status_code: u16,
+    #[cfg(feature = "experimental-http-retry")]
+    pub retry_after: Option<String>,
+    pub message: String,
+}
+
+impl HttpExportError {
+    /// Create a new HttpExportError without retry-after header
+    pub(crate) fn new(_status_code: u16, message: String) -> Self {
+        Self {
+            #[cfg(feature = "experimental-http-retry")]
+            status_code: _status_code,
+            #[cfg(feature = "experimental-http-retry")]
+            retry_after: None,
+            message,
+        }
+    }
+
+    /// Create a new HttpExportError with retry-after header
+    pub(crate) fn with_retry_after(
+        _status_code: u16,
+        _retry_after: String,
+        message: String,
+    ) -> Self {
+        Self {
+            #[cfg(feature = "experimental-http-retry")]
+            status_code: _status_code,
+            #[cfg(feature = "experimental-http-retry")]
+            retry_after: Some(_retry_after),
+            message,
+        }
+    }
+}
+
+#[cfg(feature = "experimental-http-retry")]
+/// Classify HTTP export errors for retry decisions
+pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
+    classify_http_error(error.status_code, error.retry_after.as_deref())
+}
+
+/// Shared HTTP request data for retry attempts - optimizes Arc usage by bundling all data
+/// we need to pass into the retry handler
+#[derive(Debug)]
+pub(crate) struct HttpRetryData {
+    pub body: Vec<u8>,
+    pub headers: Arc<HashMap<HeaderName, HeaderValue>>,
+    pub endpoint: String,
+}
 
 #[cfg(feature = "metrics")]
 mod metrics;
@@ -52,6 +112,10 @@ pub struct HttpConfig {
 
     /// The compression algorithm to use when communicating with the OTLP endpoint.
     compression: Option<crate::Compression>,
+
+    /// The retry policy to use for HTTP requests.
+    #[cfg(feature = "experimental-http-retry")]
+    retry_policy: Option<RetryPolicy>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -91,7 +155,7 @@ impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
             exporter_config: ExportConfig {
-                protocol: default_protocol(),
+                protocol: Protocol::default(),
                 ..ExportConfig::default()
             },
             http_config: HttpConfig {
@@ -148,22 +212,14 @@ impl HttpExporterBuilder {
         #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
         let mut http_client = self.http_config.client.take();
 
+        // When multiple HTTP client features are enabled, we use a priority order
+        // to select the client. This follows Rust's feature unification principle
+        // where features should be additive. Priority (highest to lowest):
+        // 1. reqwest-client (async)
+        // 2. hyper-client
+        // 3. reqwest-blocking-client (default)
         if http_client.is_none() {
-            #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "hyper-client"
-            ))]
-            {
-                // TODO - support configuring custom connector and executor
-                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
-                    as Arc<dyn HttpClient>);
-            }
-            #[cfg(all(
-                not(feature = "hyper-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "reqwest-client"
-            ))]
+            #[cfg(feature = "reqwest-client")]
             {
                 http_client = Some(Arc::new(
                     reqwest::Client::builder()
@@ -172,9 +228,15 @@ impl HttpExporterBuilder {
                         .unwrap_or_default(),
                 ) as Arc<dyn HttpClient>);
             }
+            #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
+            {
+                // TODO - support configuring custom connector and executor
+                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
+                    as Arc<dyn HttpClient>);
+            }
             #[cfg(all(
-                not(feature = "hyper-client"),
                 not(feature = "reqwest-client"),
+                not(feature = "hyper-client"),
                 feature = "reqwest-blocking-client"
             ))]
             {
@@ -223,6 +285,8 @@ impl HttpExporterBuilder {
             self.exporter_config.protocol,
             timeout,
             compression,
+            #[cfg(feature = "experimental-http-retry")]
+            self.http_config.retry_policy.take(),
         ))
     }
 
@@ -298,16 +362,163 @@ impl HttpExporterBuilder {
 pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
-    headers: HashMap<HeaderName, HeaderValue>,
+    headers: Arc<HashMap<HeaderName, HeaderValue>>,
     protocol: Protocol,
     _timeout: Duration,
     compression: Option<crate::Compression>,
+    #[cfg(feature = "experimental-http-retry")]
+    retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
+    /// Shared HTTP export logic used by all exporters with retry support
+    async fn export_http_with_retry<F, T>(
+        &self,
+        data: T,
+        build_body_fn: F,
+        operation_name: &'static str,
+    ) -> Result<Bytes, opentelemetry_sdk::error::OTelSdkError>
+    where
+        F: Fn(&Self, T) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String>,
+    {
+        #[cfg(feature = "experimental-http-retry")]
+        {
+            use crate::retry::retry_with_backoff;
+
+            // Build request body once before retry loop
+            let (body, content_type, content_encoding) = build_body_fn(self, data)
+                .map_err(opentelemetry_sdk::error::OTelSdkError::InternalFailure)?;
+
+            let retry_data = Arc::new(HttpRetryData {
+                body,
+                headers: self.headers.clone(),
+                endpoint: self.collector_endpoint.to_string(),
+            });
+
+            // Select runtime based on HTTP client feature - if we're using
+            // one without Tokio, we don't need or want the Tokio async blocking
+            // behaviour.
+            #[cfg(feature = "reqwest-blocking-client")]
+            let runtime = opentelemetry_sdk::runtime::NoAsync;
+
+            #[cfg(not(feature = "reqwest-blocking-client"))]
+            let runtime = opentelemetry_sdk::runtime::Tokio;
+
+            let response_body = retry_with_backoff(
+                runtime,
+                self.retry_policy.clone(),
+                classify_http_export_error,
+                operation_name,
+                || async {
+                    self.export_http_once(
+                        &retry_data,
+                        content_type,
+                        content_encoding,
+                        operation_name,
+                    )
+                    .await
+                },
+            )
+            .await
+            .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+
+            Ok(response_body)
+        }
+
+        #[cfg(not(feature = "experimental-http-retry"))]
+        {
+            let (body, content_type, content_encoding) = build_body_fn(self, data)
+                .map_err(opentelemetry_sdk::error::OTelSdkError::InternalFailure)?;
+
+            let retry_data = HttpRetryData {
+                body,
+                headers: self.headers.clone(),
+                endpoint: self.collector_endpoint.to_string(),
+            };
+
+            let response_body = self
+                .export_http_once(&retry_data, content_type, content_encoding, operation_name)
+                .await
+                .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+
+            Ok(response_body)
+        }
+    }
+
+    /// Single HTTP export attempt - shared between retry and no-retry paths
+    async fn export_http_once(
+        &self,
+        retry_data: &HttpRetryData,
+        content_type: &'static str,
+        content_encoding: Option<&'static str>,
+        _operation_name: &'static str,
+    ) -> Result<Bytes, HttpExportError> {
+        // Get client
+        let client = self
+            .client
+            .lock()
+            .map_err(|e| HttpExportError::new(500, format!("Mutex lock failed: {e}")))?
+            .as_ref()
+            .ok_or_else(|| HttpExportError::new(500, "Exporter already shutdown".to_string()))?
+            .clone();
+
+        // Build HTTP request
+        let mut request_builder = http::Request::builder()
+            .method(http::Method::POST)
+            .uri(&retry_data.endpoint)
+            .header(http::header::CONTENT_TYPE, content_type);
+
+        if let Some(encoding) = content_encoding {
+            request_builder = request_builder.header("Content-Encoding", encoding);
+        }
+
+        let mut request = request_builder
+            .body(retry_data.body.clone().into())
+            .map_err(|e| HttpExportError::new(400, format!("Failed to build HTTP request: {e}")))?;
+
+        for (k, v) in retry_data.headers.iter() {
+            request.headers_mut().insert(k.clone(), v.clone());
+        }
+
+        let request_uri = request.uri().to_string();
+        otel_debug!(name: "HttpClient.ExportStarted");
+
+        // Send request
+        let response = client.send_bytes(request).await.map_err(|e| {
+            HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
+        })?;
+
+        let status_code = response.status().as_u16();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        if !response.status().is_success() {
+            let message = format!(
+                "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
+                request_uri,
+                status_code,
+                response.body()
+            );
+            return Err(match retry_after {
+                Some(retry_after) => {
+                    HttpExportError::with_retry_after(status_code, retry_after, message)
+                }
+                None => HttpExportError::new(status_code, message),
+            });
+        }
+
+        otel_debug!(name: "HttpClient.ExportSucceeded");
+
+        // Return the response, consuming the body to save a copy
+        Ok(response.into_body())
+    }
+
     /// Compress data using gzip or zstd if the user has requested it and the relevant feature
     /// has been enabled. If the user has requested it but the feature has not been enabled,
     /// we should catch this at exporter build time and never get here.
@@ -348,14 +559,22 @@ impl OtlpHttpClient {
         protocol: Protocol,
         timeout: Duration,
         compression: Option<crate::Compression>,
+        #[cfg(feature = "experimental-http-retry")] retry_policy: Option<RetryPolicy>,
     ) -> Self {
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
             collector_endpoint,
-            headers,
+            headers: Arc::new(headers),
             protocol,
             _timeout: timeout,
             compression,
+            #[cfg(feature = "experimental-http-retry")]
+            retry_policy: retry_policy.unwrap_or(RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 100,
+                max_delay_ms: 1600,
+                jitter_ms: 100,
+            }),
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -375,7 +594,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -388,7 +612,7 @@ impl OtlpHttpClient {
         logs: LogBatch<'_>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-        let resource_logs = group_logs_by_resource_and_scope(logs, &self.resource);
+        let resource_logs = group_logs_by_resource_and_scope(&logs, &self.resource);
         let req = ExportLogsServiceRequest { resource_logs };
 
         let (body, content_type) = match self.protocol {
@@ -397,7 +621,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -422,7 +651,12 @@ impl OtlpHttpClient {
                     return None;
                 }
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         match self.process_body(body) {
@@ -526,6 +760,10 @@ pub trait WithHttpConfig {
 
     /// Set the compression algorithm to use when communicating with the collector.
     fn with_compression(self, compression: crate::Compression) -> Self;
+
+    /// Set the retry policy for HTTP requests.
+    #[cfg(feature = "experimental-http-retry")]
+    fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -548,6 +786,12 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_compression(mut self, compression: crate::Compression) -> Self {
         self.http_client_config().compression = Some(compression);
+        self
+    }
+
+    #[cfg(feature = "experimental-http-retry")]
+    fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
+        self.http_client_config().retry_policy = Some(policy);
         self
     }
 }
@@ -795,6 +1039,8 @@ mod tests {
                 client: None,
                 headers: Some(initial_headers),
                 compression: None,
+                #[cfg(feature = "experimental-http-retry")]
+                retry_policy: None,
             },
             exporter_config: crate::ExportConfig::default(),
         };
@@ -861,6 +1107,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             );
 
             // Test with some sample data
@@ -892,6 +1140,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             );
 
             // Test with some sample data
@@ -920,6 +1170,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 None, // No compression
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -941,6 +1193,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -963,6 +1217,8 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             );
 
             let body = vec![1, 2, 3, 4];
@@ -1025,6 +1281,8 @@ mod tests {
                 protocol,
                 std::time::Duration::from_secs(10),
                 compression,
+                #[cfg(feature = "experimental-http-retry")]
+                None,
             )
         }
 
@@ -1257,6 +1515,71 @@ mod tests {
                 result,
                 Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
             ));
+        }
+
+        #[cfg(feature = "experimental-http-retry")]
+        #[test]
+        fn test_with_retry_policy() {
+            use super::super::HttpExporterBuilder;
+            use crate::retry::RetryPolicy;
+            use crate::WithHttpConfig;
+
+            let custom_policy = RetryPolicy {
+                max_retries: 5,
+                initial_delay_ms: 200,
+                max_delay_ms: 3200,
+                jitter_ms: 50,
+            };
+
+            let builder = HttpExporterBuilder::default().with_retry_policy(custom_policy);
+
+            // Verify the retry policy was set
+            let retry_policy = builder.http_config.retry_policy.as_ref().unwrap();
+            assert_eq!(retry_policy.max_retries, 5);
+            assert_eq!(retry_policy.initial_delay_ms, 200);
+            assert_eq!(retry_policy.max_delay_ms, 3200);
+            assert_eq!(retry_policy.jitter_ms, 50);
+        }
+
+        #[cfg(feature = "experimental-http-retry")]
+        #[test]
+        fn test_default_retry_policy_when_none_configured() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+
+            // Verify default values are used
+            assert_eq!(client.retry_policy.max_retries, 3);
+            assert_eq!(client.retry_policy.initial_delay_ms, 100);
+            assert_eq!(client.retry_policy.max_delay_ms, 1600);
+            assert_eq!(client.retry_policy.jitter_ms, 100);
+        }
+
+        #[cfg(feature = "experimental-http-retry")]
+        #[test]
+        fn test_custom_retry_policy_used() {
+            use crate::retry::RetryPolicy;
+
+            let custom_policy = RetryPolicy {
+                max_retries: 7,
+                initial_delay_ms: 500,
+                max_delay_ms: 5000,
+                jitter_ms: 200,
+            };
+
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None,
+                Some(custom_policy),
+            );
+
+            // Verify custom values are used
+            assert_eq!(client.retry_policy.max_retries, 7);
+            assert_eq!(client.retry_policy.initial_delay_ms, 500);
+            assert_eq!(client.retry_policy.max_delay_ms, 5000);
+            assert_eq!(client.retry_policy.jitter_ms, 200);
         }
     }
 }

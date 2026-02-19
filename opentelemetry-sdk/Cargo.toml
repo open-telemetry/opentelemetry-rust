@@ -26,6 +26,9 @@ tokio = { workspace = true, default-features = false, optional = true }
 tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
+[target.'cfg(not(target_has_atomic = "64"))'.dependencies]
+portable-atomic = { version = "1", default-features = false, features = ["fallback"] }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -36,14 +39,13 @@ rstest = { workspace = true }
 temp-env = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+pprof = { workspace = true }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs"]
-spec_unstable_logs_enabled = ["logs", "opentelemetry/spec_unstable_logs_enabled"]
 metrics = ["opentelemetry/metrics"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
 experimental_async_runtime = []
@@ -57,6 +59,7 @@ experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimenta
 experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
+bench_profiling = []
 
 [[bench]]
 name = "context"
@@ -96,7 +99,7 @@ harness = false
 [[bench]]
 name = "log_enabled"
 harness = false
-required-features = ["spec_unstable_logs_enabled", "experimental_logs_concurrent_log_processor"]
+required-features = ["experimental_logs_concurrent_log_processor"]
 
 [[bench]]
 name = "tracer_creation"

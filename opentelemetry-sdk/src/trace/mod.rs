@@ -38,7 +38,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, ShouldSample};
+pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
@@ -60,13 +60,14 @@ mod runtime_tests;
 mod tests {
     use super::*;
     use crate::error::OTelSdkResult;
+    use crate::trace::{SamplingDecision, SamplingResult};
     use crate::{
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState},
+        trace::{SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -137,10 +138,22 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {
-            // TODO: Accessing Context::current() will panic today and hence commented out.
+        fn on_end(&self, span: SpanData) {
+            // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
-            // let _c = Context::current();
+            Context::current();
+
+            // IMPORTANT NOTE: The context returned here is whatever context happens
+            // to be current at this moment, which may be unrelated to the span being ended.
+            // The span's baggage was extracted in on_start and stored as attributes.
+
+            // Verify: on_start stored the baggage as an attribute
+            assert!(
+                span.attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "bag-key"),
+                "Baggage should have been stored as span attribute in on_start"
+            );
         }
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {

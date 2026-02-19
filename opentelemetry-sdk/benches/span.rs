@@ -8,27 +8,28 @@
 
     The benchmark results:
     criterion = "0.5.1"
-    rustc 1.83.0 (90b35a623 2024-11-26)
+    cargo 1.91.1 (ea2d97820 2025-10-10)
     Hardware: M4Pro
     | Test                                                  | Always Sample | Never Sample |
     |-------------------------------------------------------|---------------|--------------|
-    | span-creation-simple                                  | 236.38 ns     | 77.155 ns    |
-    | span-creation-span-builder                            | 234.48 ns     | 109.22 ns    |
-    | span-creation-tracer-in-span                          | 417.24 ns     | 221.93 ns    |
-    | span-creation-simple-context-activation               | 408.40 ns     | 59.426 ns    |
-    | span-creation-span-builder-context-activation         | 414.39 ns     | 90.575 ns    |
+    | span-creation-simple                                  | 203.67 ns     | 51.316 ns    |
+    | span-creation-span-builder                            | 209.55 ns     | 88.032 ns    |
+    | span-creation-tracer-in-span                          | 339.52 ns     | 150.55 ns    |
+    | span-creation-tracer-in-span-with-builder             | 317.44 ns     | 170.38 ns    |
+    | span-creation-simple-context-activation               | 329.41 ns     | 47.681 ns    |
+    | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, TraceContextExt, Tracer, TracerProvider},
+    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     trace::{self as sdktrace, SpanData, SpanExporter},
 };
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -38,11 +39,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         // Attributes are set after creation, and automatically gets
         // ignored if sampling is unfavorable.
         let mut span = tracer.start("span-name");
-        span.set_attribute(KeyValue::new("key1", false));
-        span.set_attribute(KeyValue::new("key2", "hello"));
-        span.set_attribute(KeyValue::new("key3", 123.456));
-        span.set_attribute(KeyValue::new("key4", "world"));
-        span.set_attribute(KeyValue::new("key5", 123));
+        if span.is_recording() {
+            span.set_attribute(KeyValue::new("key1", false));
+            span.set_attribute(KeyValue::new("key2", "hello"));
+            span.set_attribute(KeyValue::new("key3", 123.456));
+            span.set_attribute(KeyValue::new("key4", "world"));
+            span.set_attribute(KeyValue::new("key5", 123));
+        }
         span.end();
     });
 
@@ -60,8 +63,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                 KeyValue::new("key3", 123.456),
             ])
             .start(tracer);
-        span.set_attribute(KeyValue::new("key4", "world"));
-        span.set_attribute(KeyValue::new("key5", 123));
+        if span.is_recording() {
+            span.set_attribute(KeyValue::new("key4", "world"));
+            span.set_attribute(KeyValue::new("key5", 123));
+        }
         span.end();
     });
 
@@ -72,12 +77,33 @@ fn criterion_benchmark(c: &mut Criterion) {
         // context activation is done, irrespective of sampling decision.
         tracer.in_span("span-name", |ctx| {
             let span = ctx.span();
-            span.set_attribute(KeyValue::new("key1", false));
-            span.set_attribute(KeyValue::new("key2", "hello"));
-            span.set_attribute(KeyValue::new("key3", 123.456));
-            span.set_attribute(KeyValue::new("key4", "world"));
-            span.set_attribute(KeyValue::new("key5", 123));
+            if span.is_recording() {
+                span.set_attribute(KeyValue::new("key1", false));
+                span.set_attribute(KeyValue::new("key2", "hello"));
+                span.set_attribute(KeyValue::new("key3", 123.456));
+                span.set_attribute(KeyValue::new("key4", "world"));
+                span.set_attribute(KeyValue::new("key5", 123));
+            }
         });
+    });
+
+    trace_benchmark_group(c, "span-creation-tracer-in-span-with-builder", |tracer| {
+        // This is similar to the simple span creation, but also does the job of activating
+        // the span in the current context.
+        tracer.in_span_with_builder(
+            SpanBuilder::from_name("span-name").with_attributes([
+                KeyValue::new("key1", false),
+                KeyValue::new("key2", "hello"),
+                KeyValue::new("key3", 123.456),
+            ]),
+            |ctx| {
+                let span = ctx.span();
+                if span.is_recording() {
+                    span.set_attribute(KeyValue::new("key4", "world"));
+                    span.set_attribute(KeyValue::new("key5", 123));
+                }
+            },
+        );
     });
 
     trace_benchmark_group(c, "span-creation-simple-context-activation", |tracer| {
@@ -85,10 +111,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         // based on sampling decision, and hence it is faster than the
         // tracer.in_span approach.
         let mut span = tracer.start("span-name");
-        span.set_attribute(KeyValue::new("key1", false));
-        span.set_attribute(KeyValue::new("key2", "hello"));
-        span.set_attribute(KeyValue::new("key3", 123.456));
         if span.is_recording() {
+            span.set_attribute(KeyValue::new("key1", false));
+            span.set_attribute(KeyValue::new("key2", "hello"));
+            span.set_attribute(KeyValue::new("key3", 123.456));
             let _guard = mark_span_as_active(span);
             Context::map_current(|cx| {
                 let span_from_context = cx.span();
@@ -159,7 +185,7 @@ fn trace_benchmark_group<F: Fn(&sdktrace::SdkTracer)>(c: &mut Criterion, name: &
     group.finish();
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -168,7 +194,8 @@ criterion_group! {
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()

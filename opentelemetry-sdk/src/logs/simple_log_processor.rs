@@ -28,6 +28,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::time::Duration;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -47,6 +48,8 @@ use std::sync::Mutex;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
+/// # #[cfg(feature = "testing")]
+/// # {
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
@@ -55,7 +58,7 @@ use std::sync::Mutex;
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
-///
+/// # }
 /// ```
 ///
 #[derive(Debug)]
@@ -116,11 +119,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
         if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown()
+            exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
@@ -134,7 +137,6 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[inline]
     fn event_enabled(
         &self,

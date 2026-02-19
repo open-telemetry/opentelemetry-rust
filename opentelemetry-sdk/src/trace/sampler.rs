@@ -1,12 +1,36 @@
 use opentelemetry::{
-    trace::{
-        Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
-    },
+    trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
 
 #[cfg(feature = "jaeger_remote_sampler")]
 mod jaeger_remote;
+
+/// The result of sampling logic for a given span.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SamplingResult {
+    /// The decision about whether or not to sample.
+    pub decision: SamplingDecision,
+
+    /// Extra attributes to be added to the span by the sampler
+    pub attributes: Vec<KeyValue>,
+
+    /// Trace state from parent context, may be modified by samplers.
+    pub trace_state: TraceState,
+}
+
+/// Decision about whether or not to sample
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SamplingDecision {
+    /// Span will not be recorded and all events and attributes will be dropped.
+    Drop,
+
+    /// Span data wil be recorded, but not exported.
+    RecordOnly,
+
+    /// Span data will be recorded and exported.
+    RecordAndSample,
+}
 
 #[cfg(feature = "jaeger_remote_sampler")]
 pub use jaeger_remote::{JaegerRemoteSampler, JaegerRemoteSamplerBuilder};
@@ -80,6 +104,13 @@ pub trait ShouldSample: CloneShouldSample + Send + Sync + std::fmt::Debug {
         attributes: &[KeyValue],
         links: &[Link],
     ) -> SamplingResult;
+}
+
+impl<T: ShouldSample + 'static> From<T> for Box<dyn ShouldSample> {
+    #[inline]
+    fn from(value: T) -> Self {
+        Box::new(value)
+    }
 }
 
 /// This trait should not be used directly instead users should use [`ShouldSample`].

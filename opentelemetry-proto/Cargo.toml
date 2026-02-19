@@ -49,7 +49,7 @@ testing = ["opentelemetry/testing"]
 # add ons
 internal-logs = ["opentelemetry/internal-logs"]
 with-schemars = ["schemars"]
-with-serde = ["serde", "const-hex", "base64", "serde_json"]
+with-serde = ["serde", "const-hex", "base64"]
 
 [dependencies]
 tonic = { workspace = true, optional = true, features = ["codegen"] }
@@ -59,14 +59,12 @@ opentelemetry = { workspace = true, default-features = false }
 opentelemetry_sdk = { workspace = true, default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
-serde_json = { workspace = true, optional = true }
 const-hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
 tonic-prost-build = { workspace = true }
-prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 

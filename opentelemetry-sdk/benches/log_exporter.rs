@@ -22,7 +22,7 @@ use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::SdkLogRecord;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Debug;
 
@@ -73,7 +73,7 @@ impl LogProcessor for ExportingProcessorWithFuture {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -104,7 +104,7 @@ impl LogProcessor for ExportingProcessorWithoutFuture {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -164,7 +164,7 @@ fn exporter_without_future(c: &mut Criterion) {
     });
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -173,7 +173,7 @@ criterion_group! {
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()

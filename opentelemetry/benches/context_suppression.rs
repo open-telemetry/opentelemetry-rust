@@ -1,5 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::Context;
+use std::hint::black_box;
 
 // Run this benchmark with:
 // cargo bench --bench context_suppression
