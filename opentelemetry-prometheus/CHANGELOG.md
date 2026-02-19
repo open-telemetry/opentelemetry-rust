@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Bump MSRV to 1.85.0
+
 ## v0.31.1
 
 - Remove `protobuf` dependency from `prometheus`

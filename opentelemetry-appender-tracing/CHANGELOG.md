@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Bump MSRV to 1.80.0
+- Bump MSRV to 1.85.0
 - New *experimental* feature to enrich log records with attributes from active tracing spans (`experimental_span_attributes`)
 
 - Remove the `experimental_use_tracing_span_context` since

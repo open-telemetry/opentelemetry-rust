@@ -270,9 +270,10 @@ impl ExpoBuckets {
                 return;
             }
 
-            self.counts.extend(
-                std::iter::repeat(0).take((bin - self.start_bin) as usize - self.counts.len() + 1),
-            );
+            self.counts.extend(std::iter::repeat_n(
+                0,
+                (bin - self.start_bin) as usize - self.counts.len() + 1,
+            ));
             self.counts[(bin - self.start_bin) as usize] = 1
         }
     }
