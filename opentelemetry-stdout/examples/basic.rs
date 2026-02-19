@@ -1,7 +1,7 @@
 //! run with `$ cargo run --example basic
 
-use once_cell::sync::Lazy;
 use opentelemetry::{global, KeyValue};
+use std::sync::LazyLock;
 
 #[cfg(feature = "trace")]
 use opentelemetry::trace::Tracer;
@@ -13,7 +13,7 @@ use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 
-static RESOURCE: Lazy<Resource> = Lazy::new(|| {
+static RESOURCE: LazyLock<Resource> = LazyLock::new(|| {
     Resource::builder()
         .with_service_name("basic-stdout-example")
         .build()

@@ -6,7 +6,6 @@ use hyper::{
     Method, Request, Response,
 };
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use once_cell::sync::Lazy;
 use opentelemetry::time::now;
 use opentelemetry::{
     metrics::{Counter, Histogram, MeterProvider as _},
@@ -15,10 +14,10 @@ use opentelemetry::{
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tokio::net::TcpListener;
 
-static HANDLER_ALL: Lazy<[KeyValue; 1]> = Lazy::new(|| [KeyValue::new("handler", "all")]);
+static HANDLER_ALL: LazyLock<[KeyValue; 1]> = LazyLock::new(|| [KeyValue::new("handler", "all")]);
 
 async fn serve_req(
     req: Request<Incoming>,
