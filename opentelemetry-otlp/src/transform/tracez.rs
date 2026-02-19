@@ -10,7 +10,9 @@ mod tonic {
     use crate::transform::common::{to_nanos, tonic::Attributes};
     use crate::transform::trace::tonic::link_to_proto_link;
 
-    pub fn span_data_to_latency_data(span_data: SpanData) -> LatencyData {
+    /// Converts span data to latency data for tracez.
+    #[allow(dead_code)]
+    pub(crate) fn span_data_to_latency_data(span_data: SpanData) -> LatencyData {
         LatencyData {
             traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
             spanid: span_data.span_context.span_id().to_bytes().to_vec(),
@@ -23,7 +25,9 @@ mod tonic {
         }
     }
 
-    pub fn span_data_to_error_data(span_data: SpanData) -> ErrorData {
+    /// Converts span data to error data for tracez.
+    #[allow(dead_code)]
+    pub(crate) fn span_data_to_error_data(span_data: SpanData) -> ErrorData {
         ErrorData {
             traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
             spanid: span_data.span_context.span_id().to_bytes().to_vec(),
@@ -42,7 +46,9 @@ mod tonic {
         }
     }
 
-    pub fn span_data_to_running_data(span_data: SpanData) -> RunningData {
+    /// Converts span data to running data for tracez.
+    #[allow(dead_code)]
+    pub(crate) fn span_data_to_running_data(span_data: SpanData) -> RunningData {
         RunningData {
             traceid: span_data.span_context.trace_id().to_bytes().to_vec(),
             spanid: span_data.span_context.span_id().to_bytes().to_vec(),
@@ -54,7 +60,9 @@ mod tonic {
         }
     }
 
-    pub fn event_to_span_event(event: Event) -> SpanEvent {
+    /// Converts an event to a span event for tracez.
+    #[allow(dead_code)]
+    pub(crate) fn event_to_span_event(event: Event) -> SpanEvent {
         SpanEvent {
             time_unix_nano: to_nanos(event.timestamp),
             name: event.name.to_string(),

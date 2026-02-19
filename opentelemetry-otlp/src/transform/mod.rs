@@ -16,7 +16,9 @@ pub mod trace;
 pub mod logs;
 
 #[cfg(feature = "zpages")]
+/// Tracez transformation utilities for converting span data to tracez data types.
 pub mod tracez;
 
 #[cfg(feature = "profiles")]
+/// Profiles transformation utilities for converting profiling data to protobuf types.
 pub mod profiles;
