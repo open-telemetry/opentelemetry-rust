@@ -20,7 +20,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-once_cell = { workspace = true }
 opentelemetry = { workspace = true, features = ["metrics", "internal-logs"] }
 opentelemetry_sdk = { workspace = true, features = ["metrics", "experimental_metrics_custom_reader"] }
 prometheus = { version = "0.14", default-features = false }

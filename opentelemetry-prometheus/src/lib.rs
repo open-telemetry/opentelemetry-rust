@@ -89,7 +89,6 @@
 )]
 #![cfg_attr(test, deny(warnings))]
 
-use once_cell::sync::OnceCell;
 use opentelemetry::{otel_error, otel_warn, InstrumentationScope, Key, Value};
 use opentelemetry_sdk::{
     error::OTelSdkResult,
@@ -107,7 +106,7 @@ use prometheus::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 use std::{fmt, sync::Weak};
 
@@ -171,8 +170,8 @@ struct Collector {
     without_units: bool,
     without_counter_suffixes: bool,
     disable_scope_info: bool,
-    create_target_info_once: OnceCell<MetricFamily>,
-    resource_labels_once: OnceCell<Vec<LabelPair>>,
+    create_target_info_once: OnceLock<MetricFamily>,
+    resource_labels_once: OnceLock<Vec<LabelPair>>,
     namespace: Option<String>,
     inner: Mutex<CollectorInner>,
     resource_selector: ResourceSelector,
