@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Bump MSRV to 1.80.0
+- Bump MSRV to 1.85.0
 
 ## 0.32.0
 
