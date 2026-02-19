@@ -29,10 +29,6 @@ pub use simple_log_processor::SimpleLogProcessor;
 /// Module for ConcurrentLogProcessor.
 pub mod concurrent_log_processor;
 
-#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-/// Module for BatchLogProcessor with async runtime.
-pub mod log_processor_with_async_runtime;
-
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;

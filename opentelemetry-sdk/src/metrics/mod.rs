@@ -53,9 +53,6 @@ pub(crate) mod meter;
 mod meter_provider;
 pub(crate) mod noop;
 pub(crate) mod periodic_reader;
-#[cfg(feature = "experimental_metrics_periodicreader_with_async_runtime")]
-/// Module for periodic reader with async runtime.
-pub mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub mod reader;

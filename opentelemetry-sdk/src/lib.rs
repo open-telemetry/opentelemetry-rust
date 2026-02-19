@@ -89,8 +89,7 @@
 //! metrics aggregation can be added via the following flags:
 //!
 //! * `experimental_async_runtime`: Enables the experimental `Runtime` trait and related functionality.
-//! * `rt-tokio`: Spawn telemetry tasks using [tokio]'s multi-thread runtime.
-//! * `rt-tokio-current-thread`: Spawn telemetry tasks on a separate runtime so that the main runtime won't be blocked.
+//! * `rt-tokio`: Spawn telemetry tasks using [tokio]. Automatically detects the runtime flavor (multi-thread or current-thread).
 //!
 //! [tokio]: https://crates.io/crates/tokio
 #![warn(

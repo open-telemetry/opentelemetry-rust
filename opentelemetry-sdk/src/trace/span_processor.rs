@@ -38,6 +38,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
+use crate::util::BlockingStrategy;
 use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::cmp::min;
@@ -347,6 +348,7 @@ impl BatchSpanProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let blocking_strategy = BlockingStrategy::new();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
@@ -361,6 +363,7 @@ impl BatchSpanProcessor {
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
                 let current_batch_size = current_batch_size_for_thread;
+                let blocking_strategy = blocking_strategy;
                 loop {
                     let remaining_time_option = config
                         .scheduled_delay
@@ -384,6 +387,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                             }
                             BatchMessage::ForceFlush(sender) => {
@@ -395,6 +399,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = sender.send(result);
                             }
@@ -407,6 +412,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = exporter.shutdown();
                                 let _ = sender.send(result);
@@ -436,6 +442,7 @@ impl BatchSpanProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 &config,
+                                &blocking_strategy,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -490,6 +497,7 @@ impl BatchSpanProcessor {
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
         config: &BatchConfig,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + Send + Sync + 'static,
@@ -510,7 +518,7 @@ impl BatchSpanProcessor {
             let count_of_spans = spans.len(); // Count of spans that will be exported
             total_exported_spans += count_of_spans;
 
-            result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
+            result = Self::export_batch_sync(exporter, spans, last_export_time, blocking_strategy); // This method clears the spans vec after exporting
 
             current_batch_size.fetch_sub(count_of_spans, Ordering::Relaxed);
         }
@@ -522,6 +530,7 @@ impl BatchSpanProcessor {
         exporter: &E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + ?Sized,
@@ -539,7 +548,7 @@ impl BatchSpanProcessor {
         // every export. See if this can be optimized by
         // *not* requiring ownership in the exporter.
         let export = exporter.export(batch.split_off(0));
-        let export_result = futures_executor::block_on(export);
+        let export_result = blocking_strategy.block_on(export);
 
         match export_result {
             Ok(_) => OTelSdkResult::Ok(()),
@@ -861,23 +870,6 @@ impl BatchConfigBuilder {
         self
     }
 
-    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-    /// Set max_concurrent_exports for [`BatchConfigBuilder`].
-    /// It's the maximum number of concurrent exports.
-    /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
-    /// The default value is 1.
-    /// If the max_concurrent_exports value is default value, it will cause exports to be performed
-    /// synchronously on the BatchSpanProcessor task.
-    /// The default value is 1.
-    ///
-    /// Corresponding environment variable: `OTEL_BSP_MAX_CONCURRENT_EXPORTS`.
-    ///
-    /// Note: Programmatically setting this will override any value set via the environment variable.
-    pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
-        self.max_concurrent_exports = max_concurrent_exports;
-        self
-    }
-
     /// Set scheduled_delay_duration for [`BatchConfigBuilder`].
     /// It's the delay interval in milliseconds between two consecutive processing of batches.
     /// The default value is 5000 milliseconds.
@@ -887,19 +879,6 @@ impl BatchConfigBuilder {
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_scheduled_delay(mut self, scheduled_delay: Duration) -> Self {
         self.scheduled_delay = scheduled_delay;
-        self
-    }
-
-    /// Set max_export_timeout for [`BatchConfigBuilder`].
-    /// It's the maximum duration to export a batch of data.
-    /// The The default value is 30000 milliseconds.
-    ///
-    /// Corresponding environment variable: `OTEL_BSP_EXPORT_TIMEOUT`.
-    ///
-    /// Note: Programmatically setting this will override any value set via the environment variable.
-    #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-    pub fn with_max_export_timeout(mut self, max_export_timeout: Duration) -> Self {
-        self.max_export_timeout = max_export_timeout;
         self
     }
 
@@ -1085,23 +1064,12 @@ mod tests {
             let config = BatchConfigBuilder::default()
                 .with_max_export_batch_size(512)
                 .with_max_queue_size(2048)
-                .with_scheduled_delay(Duration::from_millis(1000));
-            #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-            let config = {
-                config
-                    .with_max_concurrent_exports(10)
-                    .with_max_export_timeout(Duration::from_millis(2000))
-            };
-            let config = config.build();
+                .with_scheduled_delay(Duration::from_millis(1000))
+                .build();
 
             assert_eq!(config.max_export_batch_size, 512);
             assert_eq!(config.max_queue_size, 2048);
             assert_eq!(config.scheduled_delay, Duration::from_millis(1000));
-            #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-            {
-                assert_eq!(config.max_concurrent_exports, 10);
-                assert_eq!(config.max_export_timeout, Duration::from_millis(2000));
-            }
         });
     }
 
@@ -1142,22 +1110,11 @@ mod tests {
         let batch = BatchConfigBuilder::default()
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_millis(10))
-            .with_max_queue_size(10);
-        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-        let batch = {
-            batch
-                .with_max_concurrent_exports(10)
-                .with_max_export_timeout(Duration::from_millis(10))
-        };
-        let batch = batch.build();
+            .with_max_queue_size(10)
+            .build();
         assert_eq!(batch.max_export_batch_size, 10);
         assert_eq!(batch.scheduled_delay, Duration::from_millis(10));
         assert_eq!(batch.max_queue_size, 10);
-        #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
-        {
-            assert_eq!(batch.max_concurrent_exports, 10);
-            assert_eq!(batch.max_export_timeout, Duration::from_millis(10));
-        }
     }
 
     // Helper function to create a default test span
