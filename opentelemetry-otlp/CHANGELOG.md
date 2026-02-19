@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Bump MSRV to 1.80.0
+- Bump MSRV to 1.85.0
 - Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
   (before selecting a transport), which auto-selects the transport based on the
   `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
