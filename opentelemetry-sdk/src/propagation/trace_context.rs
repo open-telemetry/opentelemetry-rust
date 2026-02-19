@@ -7,20 +7,15 @@ use opentelemetry::{
     Context,
 };
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 const SUPPORTED_VERSION: u8 = 0;
 const MAX_VERSION: u8 = 254;
 const TRACEPARENT_HEADER: &str = "traceparent";
 const TRACESTATE_HEADER: &str = "tracestate";
 
-// TODO Replace this with LazyLock once it is stable.
-static TRACE_CONTEXT_HEADER_FIELDS: OnceLock<[String; 2]> = OnceLock::new();
-
-fn trace_context_header_fields() -> &'static [String; 2] {
-    TRACE_CONTEXT_HEADER_FIELDS
-        .get_or_init(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()])
-}
+static TRACE_CONTEXT_HEADER_FIELDS: LazyLock<[String; 2]> =
+    LazyLock::new(|| [TRACEPARENT_HEADER.to_owned(), TRACESTATE_HEADER.to_owned()]);
 
 /// Propagates `SpanContext`s in [W3C TraceContext] format under `traceparent` and `tracestate` header.
 ///
@@ -151,7 +146,7 @@ impl TextMapPropagator for TraceContextPropagator {
     }
 
     fn fields(&self) -> FieldIter<'_> {
-        FieldIter::new(trace_context_header_fields())
+        FieldIter::new(&*TRACE_CONTEXT_HEADER_FIELDS)
     }
 }
 
