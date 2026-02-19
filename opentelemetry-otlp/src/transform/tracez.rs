@@ -11,6 +11,8 @@ mod tonic {
     use crate::transform::trace::tonic::link_to_proto_link;
 
     /// Converts span data to latency data for tracez.
+    ///
+    /// Note: This function is currently unused but is reserved for future zpages/tracez functionality.
     #[allow(dead_code)]
     pub(crate) fn span_data_to_latency_data(span_data: SpanData) -> LatencyData {
         LatencyData {
@@ -26,6 +28,8 @@ mod tonic {
     }
 
     /// Converts span data to error data for tracez.
+    ///
+    /// Note: This function is currently unused but is reserved for future zpages/tracez functionality.
     #[allow(dead_code)]
     pub(crate) fn span_data_to_error_data(span_data: SpanData) -> ErrorData {
         ErrorData {
@@ -47,6 +51,8 @@ mod tonic {
     }
 
     /// Converts span data to running data for tracez.
+    ///
+    /// Note: This function is currently unused but is reserved for future zpages/tracez functionality.
     #[allow(dead_code)]
     pub(crate) fn span_data_to_running_data(span_data: SpanData) -> RunningData {
         RunningData {
@@ -61,6 +67,8 @@ mod tonic {
     }
 
     /// Converts an event to a span event for tracez.
+    ///
+    /// Note: This function is currently unused but is reserved for future zpages/tracez functionality.
     #[allow(dead_code)]
     pub(crate) fn event_to_span_event(event: Event) -> SpanEvent {
         SpanEvent {
