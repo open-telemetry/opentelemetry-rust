@@ -369,8 +369,6 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-pub mod transform;
-
 #[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
 pub mod retry_classification;
 
