@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Bump MSRV to 1.80.0
+
 ## 0.32.0
 
 Released 2026-May-08
