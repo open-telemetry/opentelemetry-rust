@@ -74,32 +74,25 @@ use opentelemetry::otel_debug;
 use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 use std::time::Duration;
 
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
-// a no nop tracer provider used as placeholder when the provider is shutdown
-// TODO Replace with LazyLock once it is stable
-static NOOP_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
-#[inline]
-fn noop_tracer_provider() -> &'static SdkTracerProvider {
-    NOOP_TRACER_PROVIDER.get_or_init(|| {
-        SdkTracerProvider {
-            inner: Arc::new(TracerProviderInner {
-                processors: Vec::new(),
-                config: Config {
-                    // cannot use default here as the default resource is not empty
-                    sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
-                    id_generator: Box::<RandomIdGenerator>::default(),
-                    span_limits: SpanLimits::default(),
-                    resource: Cow::Owned(Resource::empty()),
-                },
-                is_shutdown: AtomicBool::new(true),
-            }),
-        }
-    })
-}
+// a no-op tracer provider used as placeholder when the provider is shutdown
+static NOOP_TRACER_PROVIDER: LazyLock<SdkTracerProvider> = LazyLock::new(|| SdkTracerProvider {
+    inner: Arc::new(TracerProviderInner {
+        processors: Vec::new(),
+        config: Config {
+            // cannot use default here as the default resource is not empty
+            sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+            id_generator: Box::<RandomIdGenerator>::default(),
+            span_limits: SpanLimits::default(),
+            resource: Cow::Owned(Resource::empty()),
+        },
+        is_shutdown: AtomicBool::new(true),
+    }),
+});
 
 /// TracerProvider inner type
 #[derive(Debug)]
@@ -286,7 +279,7 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return SdkTracer::new(scope, noop_tracer_provider().clone());
+            return SdkTracer::new(scope, NOOP_TRACER_PROVIDER.clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");

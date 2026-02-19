@@ -13,7 +13,7 @@ use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -25,13 +25,8 @@ use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
 
-// TODO Replace it with LazyLock once it is stable
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
-
-#[inline]
-fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
-}
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: LazyLock<Vec<KeyValue>> =
+    LazyLock::new(|| vec![KeyValue::new("otel.metric.overflow", true)]);
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -177,7 +172,7 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
             overflow_value.aggregator.update(value);
             overflow_value
                 .has_been_updated
@@ -186,7 +181,7 @@ where
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
         }
     }
 
@@ -268,7 +263,7 @@ where
             // yet — mirrors the lazy creation in `measure()` (line above where
             // overflow is inserted on first overflowing measurement).
             let overflow_tracker = trackers
-                .entry(stream_overflow_attributes().clone())
+                .entry(STREAM_OVERFLOW_ATTRIBUTES.clone())
                 .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
                 .clone();
             overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
@@ -328,7 +323,7 @@ where
             dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
 
-        let overflow_attrs = stream_overflow_attributes();
+        let overflow_attrs = &*STREAM_OVERFLOW_ATTRIBUTES;
         let mut stale_entries: Vec<Arc<TrackerEntry<A>>> = Vec::new();
 
         {

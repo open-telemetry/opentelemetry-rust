@@ -8,23 +8,17 @@ use std::{
     borrow::Cow,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, OnceLock,
+        Arc, LazyLock,
     },
 };
 
-// a no nop logger provider used as placeholder when the provider is shutdown
-// TODO - replace it with LazyLock once it is stable
-static NOOP_LOGGER_PROVIDER: OnceLock<SdkLoggerProvider> = OnceLock::new();
-
-#[inline]
-fn noop_logger_provider() -> &'static SdkLoggerProvider {
-    NOOP_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
-        inner: Arc::new(LoggerProviderInner {
-            processors: Vec::new(),
-            is_shutdown: AtomicBool::new(true),
-        }),
-    })
-}
+// a no-op logger provider used as placeholder when the provider is shutdown
+static NOOP_LOGGER_PROVIDER: LazyLock<SdkLoggerProvider> = LazyLock::new(|| SdkLoggerProvider {
+    inner: Arc::new(LoggerProviderInner {
+        processors: Vec::new(),
+        is_shutdown: AtomicBool::new(true),
+    }),
+});
 
 #[derive(Debug, Clone)]
 /// Handles the creation and coordination of [`Logger`]s.
@@ -59,7 +53,7 @@ impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
                 name: "LoggerProvider.NoOpLoggerReturned",
                 logger_name = scope.name(),
             );
-            return SdkLogger::new(scope, noop_logger_provider().clone());
+            return SdkLogger::new(scope, NOOP_LOGGER_PROVIDER.clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
