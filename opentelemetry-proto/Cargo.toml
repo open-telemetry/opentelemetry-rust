@@ -53,7 +53,7 @@ with-sdk-metrics = ["with-sdk", "metrics", "opentelemetry/metrics", "opentelemet
 with-sdk-logs = ["with-sdk", "logs", "opentelemetry/logs", "opentelemetry_sdk/logs"]
 
 # add ons
-internal-logs = []
+internal-logs = ["opentelemetry?/internal-logs"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "const-hex", "base64"]
 
