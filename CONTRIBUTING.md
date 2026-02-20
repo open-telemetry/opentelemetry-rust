@@ -179,10 +179,13 @@ All such features should adhere to naming convention  `<signal>_<feature_name>`
 
 ## Style Guide
 
-- Run `cargo clippy --all` - this will catch common mistakes and improve
-your Rust code
-- Run `cargo fmt` - this will find and fix code formatting
-issues.
+- Run `cargo fmt` - this will find and fix code formatting issues.
+- Run `cargo clippy --workspace --all-targets --all-features -- -Dwarnings` - this will catch common
+  mistakes and improve your Rust code.
+- Run `cargo hack --each-feature --no-dev-deps clippy -- -Dwarnings` - this checks clippy for each
+  feature in isolation and catches issues like dead code or unused imports that only appear when
+  individual features are enabled. Install with `cargo install cargo-hack` if you don't have it.
+  This is the most common source of CI lint failures on PRs.
 
 ## Testing and Benchmarking
 
