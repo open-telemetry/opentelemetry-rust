@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Updated trace exporters to use borrowed `SpanBatch` interface, reducing allocations in the export path.
+- Updated trace exporters to use borrowed `SpanBatch` interface, eliminating unnecessary `SpanData` deep clones in tonic and HTTP trace exporters.
 
 ## 0.32.0
 
