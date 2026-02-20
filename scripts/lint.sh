@@ -9,33 +9,23 @@ cargo_feature() {
     -Dwarnings
 }
 
-if rustup component add clippy && \
-  ((cargo --list | grep -q hack) || cargo install cargo-hack); then
+if rustup component add clippy; then
   # Exit with a nonzero code if there are clippy warnings
   cargo clippy --workspace --all-targets --all-features -- -Dwarnings
-
-  # Run through all the features one by one and exit if there are clippy warnings
-  cargo hack --each-feature --no-dev-deps clippy -- -Dwarnings
 
   # `opentelemetry-prometheus` doesn't belong to the workspace
   cargo clippy --manifest-path=opentelemetry-prometheus/Cargo.toml --all-targets --all-features -- \
     -Dwarnings
 
+  # Multi-feature combinations not covered by per-feature checks
   cargo_feature opentelemetry "trace,metrics,logs,testing"
 
-  cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"
   cargo_feature opentelemetry-otlp "default,tls-roots"
-  cargo_feature opentelemetry-otlp "http-proto"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-blocking-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
-  cargo_feature opentelemetry-otlp "metrics"
 
-  cargo_feature opentelemetry-jaeger-propagator "default"
-
-  cargo_feature opentelemetry-proto "default"
-  cargo_feature opentelemetry-proto "full"
   cargo_feature opentelemetry-proto "gen-tonic,trace"
   cargo_feature opentelemetry-proto "gen-tonic,trace,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,trace,with-schemars,with-serde"
