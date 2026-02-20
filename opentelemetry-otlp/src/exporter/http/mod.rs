@@ -585,8 +585,7 @@ impl OtlpHttpClient {
         spans: SpanBatch<'_>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-        let span_data: Vec<_> = spans.iter().cloned().collect();
-        let resource_spans = group_spans_by_resource_and_scope(&span_data, &self.resource);
+        let resource_spans = group_spans_by_resource_and_scope(spans.as_slice(), &self.resource);
 
         let req = ExportTraceServiceRequest { resource_spans };
         let (body, content_type) = match self.protocol {

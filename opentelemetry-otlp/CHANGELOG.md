@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Updated trace exporters to use borrowed `SpanBatch` interface, reducing allocations in the export path.
+- Updated trace exporters to use borrowed `SpanBatch` interface, eliminating unnecessary `SpanData` deep clones in tonic and HTTP trace exporters.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.

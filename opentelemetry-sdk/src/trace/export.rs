@@ -30,6 +30,11 @@ impl<'a> SpanBatch<'a> {
     pub fn iter(&self) -> impl Iterator<Item = &SpanData> {
         self.data.iter()
     }
+
+    /// Returns the underlying slice of span data.
+    pub fn as_slice(&self) -> &'a [SpanData] {
+        self.data
+    }
 }
 
 /// `SpanExporter` defines the interface that protocol-specific exporters must
