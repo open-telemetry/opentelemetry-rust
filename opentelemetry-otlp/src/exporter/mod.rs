@@ -77,7 +77,7 @@ pub struct ExportConfig {
 /// 2. Signal-specific environment variable
 /// 3. Generic OTEL_EXPORTER_OTLP_PROTOCOL environment variable
 /// 4. Feature-based default
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub(crate) fn resolve_protocol(
     signal_protocol_var: &str,
     provided_protocol: Option<Protocol>,
