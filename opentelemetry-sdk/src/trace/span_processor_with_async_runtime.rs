@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{SpanBatch, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, BoxFuture, Either},
@@ -330,7 +330,7 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
         }
 
         let exporter_guard = exporter.read().await;
-        let export = exporter_guard.export(batch);
+        let export = exporter_guard.export(SpanBatch::new(&batch));
         let timeout = runtime.delay(max_export_timeout);
 
         pin_mut!(export);
@@ -455,7 +455,7 @@ mod tests {
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
-    use crate::trace::{SpanData, SpanExporter};
+    use crate::trace::{SpanBatch, SpanData, SpanExporter};
     use futures_util::Future;
     use std::fmt::Debug;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -482,7 +482,7 @@ mod tests {
         D: Fn(Duration) -> DS + 'static + Send + Sync,
         DS: Future<Output = ()> + Send + Sync + 'static,
     {
-        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+        async fn export(&self, _batch: SpanBatch<'_>) -> OTelSdkResult {
             (self.delay_fn)(self.delay_for).await;
             Ok(())
         }
@@ -505,7 +505,7 @@ mod tests {
     }
 
     impl SpanExporter for TrackingExporter {
-        async fn export(&self, _batch: Vec<SpanData>) -> crate::error::OTelSdkResult {
+        async fn export(&self, _batch: SpanBatch<'_>) -> crate::error::OTelSdkResult {
             // Increment in-flight counter and note any overlap.
             let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
             if inflight > 1 {

@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Updated trace exporter to use borrowed `SpanBatch` interface.
 - ExponentialHistogram supported in stdout
 
 ## 0.31.0
