@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Add support for INSECURE environment variables for gRPC:
+  `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
+  `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
+  Per the spec, these only apply to gRPC connections. When an endpoint has no explicit scheme,
+  `INSECURE=true` uses `http://`, `INSECURE=false` (default) uses `https://` with auto-TLS.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
