@@ -35,6 +35,8 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
+/// Protocol to use for trace exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
+pub const OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
 
 /// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]

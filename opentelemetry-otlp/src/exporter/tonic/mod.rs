@@ -157,7 +157,7 @@ impl Default for TonicExporterBuilder {
                 retry_policy: None,
             },
             exporter_config: ExportConfig {
-                protocol: crate::Protocol::Grpc,
+                protocol: Some(crate::Protocol::Grpc),
                 ..Default::default()
             },
         }
