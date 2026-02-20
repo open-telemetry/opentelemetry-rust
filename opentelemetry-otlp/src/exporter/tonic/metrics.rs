@@ -85,9 +85,7 @@ impl MetricsClient for TonicMetricsClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
-                                    tonic::Status::internal(format!(
-                                        "unexpected status while exporting {e:?}"
-                                    ))
+                                    super::handle_interceptor_error!("TonicMetricsClient", e)
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
@@ -127,9 +125,9 @@ impl MetricsClient for TonicMetricsClient {
         .await
         {
             Ok(_) => Ok(()),
-            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
-                "export error: {tonic_status:?}"
-            ))),
+            Err(tonic_status) => {
+                super::handle_tonic_export_error!("TonicMetricsClient", tonic_status)
+            }
         }
     }
 
