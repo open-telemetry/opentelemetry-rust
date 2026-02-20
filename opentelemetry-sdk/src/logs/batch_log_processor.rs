@@ -17,6 +17,7 @@
 
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::log_processor::LogProcessor;
+use crate::util::BlockingStrategy;
 use crate::{
     logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
@@ -342,6 +343,7 @@ impl BatchLogProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let blocking_strategy = BlockingStrategy::new();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
@@ -368,6 +370,7 @@ impl BatchLogProcessor {
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
                     max_export_size: usize,
+                    blocking_strategy: &BlockingStrategy,
                 ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
@@ -388,13 +391,15 @@ impl BatchLogProcessor {
                         let count_of_logs = logs.len(); // Count of logs that will be exported
                         total_exported_logs += count_of_logs;
 
-                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+                        result =
+                            export_batch_sync(exporter, logs, last_export_time, blocking_strategy); // This method clears the logs vec after exporting
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
                     }
                     result
                 }
 
+                let blocking_strategy = blocking_strategy;
                 loop {
                     let remaining_time = config
                         .scheduled_delay
@@ -417,6 +422,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
@@ -428,6 +434,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                             let _ = sender.send(result);
                         }
@@ -440,6 +447,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                             let _ = exporter.shutdown();
                             let _ = sender.send(result);
@@ -468,6 +476,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -518,6 +527,7 @@ fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(SdkLogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
+    blocking_strategy: &BlockingStrategy,
 ) -> OTelSdkResult
 where
     E: LogExporter + ?Sized,
@@ -529,7 +539,7 @@ where
     }
 
     let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
-    let export_result = futures_executor::block_on(export);
+    let export_result = blocking_strategy.block_on(export);
 
     // Clear the batch vec after exporting
     batch.clear();
