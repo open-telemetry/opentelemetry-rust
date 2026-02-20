@@ -21,6 +21,16 @@ autobenches = false
 doctest = false
 bench = false
 
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs"]
+
+[[bench]]
+name = "metrics"
+harness = false
+required-features = ["metrics"]
+
 [[test]]
 name = "grpc_build"
 path = "tests/grpc_build.rs"
@@ -64,9 +74,13 @@ base64 = { workspace = true, optional = true }
 
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
+opentelemetry_sdk = { workspace = true, features = ["testing"] }
 tonic-prost-build = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+criterion = { workspace = true }
+flate2 = "1.0"
+zstd = "0.13"
 
 [lints]
 workspace = true

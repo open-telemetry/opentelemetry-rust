@@ -52,7 +52,18 @@ impl<'a> LogBatch<'a> {
         }
     }
 
-    pub(crate) fn new_with_owned_data(
+    /// Creates a new instance of `LogBatch` with owned data.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - A slice of boxed tuples, where each tuple consists of owned `SdkLogRecord`
+    ///   and `InstrumentationScope`. These tuples represent the log records and their
+    ///   associated instrumentation scopes to be exported.
+    ///
+    /// # Returns
+    ///
+    /// A `LogBatch` instance containing the provided log records and instrumentation scopes.
+    pub fn new_with_owned_data(
         data: &'a [Box<(SdkLogRecord, InstrumentationScope)>],
     ) -> LogBatch<'a> {
         LogBatch {
