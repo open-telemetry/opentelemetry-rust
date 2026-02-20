@@ -3,6 +3,7 @@
 ## vNext
 
 - Updated `schemars` dependency to version 1.0.0.
+- **Bug fix**: `InstrumentationScope` version and attributes are now preserved when logs have a target set. Previously, setting a log target would discard the scope's version and attributes. ([#3276](https://github.com/open-telemetry/opentelemetry-rust/issues/3276))
 
 ## 0.31.0
 
