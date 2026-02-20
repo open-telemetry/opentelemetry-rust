@@ -1,7 +1,7 @@
 use core::fmt;
 use opentelemetry::{
     metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, otel_info, InstrumentationScope,
+    otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope,
 };
 use std::time::Duration;
 use std::{
@@ -41,6 +41,7 @@ struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
     meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
     shutdown_invoked: AtomicBool,
+    is_disabled: bool,
 }
 
 impl Default for SdkMeterProvider {
@@ -193,6 +194,15 @@ impl MeterProvider for SdkMeterProvider {
             otel_debug!(
                 name: "MeterProvider.NoOpMeterReturned",
                 meter_name = scope.name(),
+                reason = "already_shutdown"
+            );
+            return Meter::new(Arc::new(NoopMeter::new()));
+        }
+        if self.inner.is_disabled {
+            otel_debug!(
+                name: "MeterProvider.NoOpMeterReturned",
+                meter_name = scope.name(),
+                reason = "disabled_via_env_variable"
             );
             return Meter::new(Arc::new(NoopMeter::new()));
         }
@@ -379,6 +389,13 @@ impl MeterProviderBuilder {
             builder = format!("{:?}", &self),
         );
 
+        let is_disabled =
+            std::env::var("OTEL_SDK_DISABLED").is_ok_and(|var| var.to_lowercase() == "true");
+
+        if is_disabled {
+            otel_warn!(name: "MeterProvider.Disabled", message = "SDK is disabled through environment variable");
+        }
+
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
@@ -388,6 +405,7 @@ impl MeterProviderBuilder {
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
+                is_disabled,
             }),
         };
 
@@ -743,5 +761,22 @@ mod tests {
             Some(Value::from("value3"))
         );
         assert_eq!(resource.schema_url(), Some("http://example.com"));
+    }
+
+    #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other test"]
+    fn otel_sdk_disabled_env() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let meter_provider = super::SdkMeterProvider::builder().build();
+            let _ = meter_provider.meter("noop1");
+            let _ = meter_provider.meter("noop2");
+            let _ = meter_provider.meter("noop3");
+            let _ = meter_provider.meter("noop4");
+            let _ = meter_provider.meter("noop5");
+
+            assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 0);
+            assert!(meter_provider.shutdown().is_ok());
+            assert!(meter_provider.shutdown().is_err());
+        });
     }
 }
