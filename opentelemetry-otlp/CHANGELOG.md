@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Updated trace exporters to use borrowed `SpanBatch` interface, reducing allocations in the export path.
 - Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
   (before selecting a transport), which auto-selects the transport based on the
   `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
