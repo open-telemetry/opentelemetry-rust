@@ -1500,4 +1500,95 @@ mod tests {
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 10);
     }
+
+    #[test]
+    fn processor_has_access_to_span_handle() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor, SpanHandle};
+        use opentelemetry::trace::{Span as SpanTrait, SpanId, Tracer, TracerProvider};
+        use opentelemetry::Context;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+
+        // A processor that keeps SpanHandle in shared state
+        #[derive(Debug)]
+        struct ProcessorWithSharedState {
+            active_spans: Arc<Mutex<HashMap<SpanId, SpanHandle>>>,
+        }
+
+        impl SpanProcessor for ProcessorWithSharedState {
+            fn on_start(&self, span: &mut crate::trace::Span, _cx: &Context) {
+                let handle = span.get_handle();
+                let span_id = handle.span_context().span_id();
+                if let Ok(mut spans) = self.active_spans.lock() {
+                    spans.insert(span_id, handle);
+                }
+            }
+
+            fn on_end(&self, span: SpanData) {
+                if let Ok(mut spans) = self.active_spans.lock() {
+                    spans.remove(&span.span_context.span_id());
+                }
+            }
+
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let active_spans = Arc::new(Mutex::new(HashMap::<SpanId, SpanHandle>::new()));
+        let exporter = InMemorySpanExporter::default();
+        let processor = ProcessorWithSharedState {
+            active_spans: active_spans.clone(),
+        };
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(processor)
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span_1 = tracer.start("test_span_1");
+        let span_1_id = span_1.span_context().span_id();
+        let mut span_2 = tracer.start("test_span_2");
+
+        {
+            let mut active_spans = active_spans.lock().unwrap();
+            assert_eq!(2, active_spans.len());
+            if let Some(handle) = active_spans.get_mut(&span_1_id) {
+                handle.set_attribute(KeyValue::new("added_via_handle", "yes"));
+            } else {
+                panic!("failed to get lock")
+            }
+        }
+
+        span_2.end();
+        span_1.end();
+
+        {
+            let active_spans = active_spans.lock().unwrap();
+            assert!(
+                active_spans.is_empty(),
+                "expected all spans to be ended and removed from active spans"
+            );
+        }
+
+        provider.force_flush().unwrap();
+
+        let finished_spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(finished_spans.len(), 2);
+
+        // check that the attribute set via SpanHandle is in the span
+        let has_handle_attr = finished_spans
+            .iter()
+            .cloned()
+            .flat_map(|span| span.attributes)
+            .any(|kv| kv.key.as_str() == "added_via_handle" && kv.value.as_str() == "yes");
+        assert!(
+            has_handle_attr,
+            "expected added_via_handle attribute set through SpanHandle to be found in the exported spans"
+        );
+    }
 }

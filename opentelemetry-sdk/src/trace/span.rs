@@ -12,15 +12,155 @@ use crate::trace::SpanLimits;
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
+
+#[derive(Debug)]
+enum SpanInnerData {
+    Unique(Option<SpanData>),
+    Shared(Arc<Mutex<Option<SpanData>>>),
+}
+
+impl Default for SpanInnerData {
+    fn default() -> Self {
+        SpanInnerData::Unique(None)
+    }
+}
 
 /// Single operation within a trace.
 #[derive(Debug)]
 pub struct Span {
     span_context: SpanContext,
-    data: Option<SpanData>,
+    data: SpanInnerData,
     tracer: crate::trace::SdkTracer,
     span_limits: SpanLimits,
+}
+
+/// Thread safe reference to a span.
+#[derive(Debug, Clone)]
+pub struct SpanHandle {
+    span_context: SpanContext,
+    data: Arc<Mutex<Option<SpanData>>>,
+    tracer: crate::trace::SdkTracer,
+    span_limits: SpanLimits,
+}
+
+impl opentelemetry::trace::Span for SpanHandle {
+    /// Records events at a specific time in the context of a given `Span`.
+    fn add_event_with_timestamp<T>(
+        &mut self,
+        name: T,
+        timestamp: SystemTime,
+        attributes: Vec<KeyValue>,
+    ) where
+        T: Into<Cow<'static, str>>,
+    {
+        let span_events_limit = self.span_limits.max_events_per_span as usize;
+        let span_attributes_limit = self.span_limits.max_attributes_per_event as usize;
+        self.with_data(|data| {
+            data_add_event(
+                data,
+                name.into(),
+                timestamp,
+                attributes,
+                span_events_limit,
+                span_attributes_limit,
+            )
+        });
+    }
+
+    /// Returns the `SpanContext` for the given `Span`.
+    fn span_context(&self) -> &SpanContext {
+        &self.span_context
+    }
+
+    /// Returns `true` if this span is recording information.
+    fn is_recording(&self) -> bool {
+        self.data
+            .lock()
+            .map(|guard| guard.is_some())
+            .unwrap_or(false)
+    }
+
+    /// Sets a single `Attribute` where the attribute properties are passed as arguments.
+    fn set_attribute(&mut self, attribute: KeyValue) {
+        let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
+        self.with_data(|data| data_set_attribute(data, attribute, span_attribute_limit));
+    }
+
+    /// Sets the status of this `Span`.
+    fn set_status(&mut self, status: Status) {
+        self.with_data(|data| {
+            if status > data.status {
+                data.status = status;
+            }
+        });
+    }
+
+    /// Updates the span's name.
+    fn update_name<T>(&mut self, new_name: T)
+    where
+        T: Into<Cow<'static, str>>,
+    {
+        self.with_data(|data| data.name = new_name.into());
+    }
+
+    /// Add a link to the span.
+    fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+        let span_links_limit = self.span_limits.max_links_per_span as usize;
+        let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
+        self.with_data(|data| {
+            data_add_link(
+                data,
+                span_context,
+                attributes,
+                span_links_limit,
+                link_attributes_limit,
+            )
+        });
+    }
+
+    /// Finishes the span with given timestamp.
+    fn end_with_timestamp(&mut self, timestamp: SystemTime) {
+        // Take data from the mutex, marking span as ended
+        let data = match self.data.lock().ok().and_then(|mut guard| guard.take()) {
+            Some(d) => d,
+            None => return, // Already ended
+        };
+        let span_context = self.span_context.clone();
+        end_and_export_span(data, span_context, &self.tracer, Some(timestamp));
+    }
+}
+
+impl SpanHandle {
+    /// Operate on a shared reference to span data
+    fn with_data_ref<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&SpanData) -> T,
+    {
+        self.data
+            .lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().map(f))
+    }
+
+    /// Operate on a mutable reference to span data
+    fn with_data<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&mut SpanData) -> T,
+    {
+        self.data
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.as_mut().map(f))
+    }
+
+    /// Convert information in this span into `exporter::trace::SpanData`.
+    pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
+        let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
+
+        self.with_data_ref(|data| build_export_data(data.clone(), span_context, tracer))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -59,7 +199,7 @@ impl Span {
     ) -> Self {
         Span {
             span_context,
-            data,
+            data: SpanInnerData::Unique(data),
             tracer,
             span_limits: span_limit,
         }
@@ -70,7 +210,12 @@ impl Span {
     where
         F: FnOnce(&mut SpanData) -> T,
     {
-        self.data.as_mut().map(f)
+        match &mut self.data {
+            SpanInnerData::Unique(data) => data.as_mut().map(f),
+            SpanInnerData::Shared(data) => {
+                data.lock().ok().and_then(|mut guard| guard.as_mut().map(f))
+            }
+        }
     }
 
     /// Convert information in this span into `exporter::trace::SpanData`.
@@ -79,9 +224,75 @@ impl Span {
     pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
         let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
 
-        self.data
-            .as_ref()
-            .map(|data| build_export_data(data.clone(), span_context, tracer))
+        match &self.data {
+            SpanInnerData::Unique(data) => data
+                .as_ref()
+                .map(|data| build_export_data(data.clone(), span_context, tracer)),
+            SpanInnerData::Shared(data) => data.lock().ok().and_then(|guard| {
+                guard
+                    .as_ref()
+                    .map(|data| build_export_data(data.clone(), span_context, tracer))
+            }),
+        }
+    }
+
+    /// Get a shared handle to this span.
+    ///
+    /// This method upgrades the span from unique mode to shared mode
+    /// (where data is protected by mutex).
+    /// This allows span processors to keep a handle to the span.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// impl SpanProcessor for MyProcessor {
+    ///     fn on_start(&self, span: &mut Span, _cx: &Context) {
+    ///         let handle = span.get_handle();
+    ///         // Store handle for later use
+    ///     }
+    /// }
+    /// ```
+    pub fn get_handle(&mut self) -> SpanHandle {
+        self.upgrade_to_shared();
+
+        let span_context = self.span_context.clone();
+        let data = match &self.data {
+            SpanInnerData::Shared(data) => data.clone(),
+            SpanInnerData::Unique(_) => {
+                unreachable!("span is `Shared` after upgrading")
+            }
+        };
+
+        SpanHandle {
+            span_context,
+            data,
+            tracer: self.tracer.clone(),
+            span_limits: self.span_limits,
+        }
+    }
+
+    /// Upgrade the span from unique to shared mode.
+    fn upgrade_to_shared(&mut self) {
+        if let SpanInnerData::Unique(_) = &self.data {
+            let SpanInnerData::Unique(data) = std::mem::take(&mut self.data) else {
+                unreachable!("span is `Unique`")
+            };
+            self.data = SpanInnerData::Shared(Arc::new(Mutex::new(data)));
+        }
+    }
+
+    /// Check if the span is `Shared`.
+    pub fn is_shared(&self) -> bool {
+        matches!(self.data, SpanInnerData::Shared { .. })
+    }
+
+    /// Returns a clone of the internal span data for testing purposes.
+    #[cfg(all(test, feature = "testing"))]
+    pub(crate) fn data(&self) -> Option<SpanData> {
+        match &self.data {
+            SpanInnerData::Unique(data) => data.clone(),
+            SpanInnerData::Shared(data) => data.lock().ok().and_then(|guard| guard.clone()),
+        }
     }
 }
 
@@ -95,27 +306,21 @@ impl opentelemetry::trace::Span for Span {
         &mut self,
         name: T,
         timestamp: SystemTime,
-        mut attributes: Vec<KeyValue>,
+        attributes: Vec<KeyValue>,
     ) where
         T: Into<Cow<'static, str>>,
     {
         let span_events_limit = self.span_limits.max_events_per_span as usize;
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
         self.with_data(|data| {
-            if data.events.len() < span_events_limit {
-                let dropped_attributes_count =
-                    attributes.len().saturating_sub(event_attributes_limit);
-                attributes.truncate(event_attributes_limit);
-
-                data.events.add_event(Event::new(
-                    name,
-                    timestamp,
-                    attributes,
-                    dropped_attributes_count as u32,
-                ));
-            } else {
-                data.events.dropped_count += 1;
-            }
+            data_add_event(
+                data,
+                name.into(),
+                timestamp,
+                attributes,
+                span_events_limit,
+                event_attributes_limit,
+            )
         });
     }
 
@@ -128,7 +333,12 @@ impl opentelemetry::trace::Span for Span {
     /// operation, attributes using `set_attributes`, status with `set_status`, etc.
     /// Always returns false after span `end`.
     fn is_recording(&self) -> bool {
-        self.data.is_some()
+        match &self.data {
+            SpanInnerData::Unique(data) => data.is_some(),
+            SpanInnerData::Shared(data) => {
+                data.lock().map(|guard| guard.is_some()).unwrap_or(false)
+            }
+        }
     }
 
     /// Sets a single `Attribute` where the attribute properties are passed as arguments.
@@ -138,13 +348,7 @@ impl opentelemetry::trace::Span for Span {
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, attribute: KeyValue) {
         let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
-        self.with_data(|data| {
-            if data.attributes.len() < span_attribute_limit {
-                data.attributes.push(attribute);
-            } else {
-                data.dropped_attributes_count += 1;
-            }
-        });
+        self.with_data(|data| data_set_attribute(data, attribute, span_attribute_limit));
     }
 
     /// Sets the status of this `Span`.
@@ -176,19 +380,13 @@ impl opentelemetry::trace::Span for Span {
         let span_links_limit = self.span_limits.max_links_per_span as usize;
         let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
         self.with_data(|data| {
-            if data.links.links.len() < span_links_limit {
-                let dropped_attributes_count =
-                    attributes.len().saturating_sub(link_attributes_limit);
-                let mut attributes = attributes;
-                attributes.truncate(link_attributes_limit);
-                data.links.add_link(Link::new(
-                    span_context,
-                    attributes,
-                    dropped_attributes_count as u32,
-                ));
-            } else {
-                data.links.dropped_count += 1;
-            }
+            data_add_link(
+                data,
+                span_context,
+                attributes,
+                span_links_limit,
+                link_attributes_limit,
+            )
         });
     }
 
@@ -200,44 +398,21 @@ impl opentelemetry::trace::Span for Span {
 
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
-        // skip if data has already been exported
-        let mut data = match self.data.take() {
-            Some(data) => data,
-            None => return,
-        };
-
-        let provider = self.tracer.provider();
-        // skip if provider has been shut down
-        if provider.is_shutdown() {
-            return;
-        }
-
-        // ensure end time is set via explicit end or implicitly on drop
-        if let Some(timestamp) = timestamp {
-            data.end_time = timestamp;
-        } else if data.end_time == data.start_time {
-            data.end_time = opentelemetry::time::now();
-        }
-
-        match provider.span_processors() {
-            [] => {}
-            [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
-            }
-            processors => {
-                for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
+        // Take data, skip if it has already been exported
+        let data = match &mut self.data {
+            SpanInnerData::Unique(data) => match data.take() {
+                Some(d) => d,
+                None => return, // Already ended
+            },
+            SpanInnerData::Shared(data) => {
+                match data.lock().ok().and_then(|mut guard| guard.take()) {
+                    Some(d) => d,
+                    None => return, // Already ended
                 }
             }
-        }
+        };
+
+        end_and_export_span(data, self.span_context.clone(), &self.tracer, timestamp);
     }
 }
 
@@ -267,6 +442,93 @@ fn build_export_data(
         links: data.links,
         status: data.status,
         instrumentation_scope: tracer.instrumentation_scope().clone(),
+    }
+}
+
+fn data_set_attribute(data: &mut SpanData, attribute: KeyValue, span_attribute_limit: usize) {
+    if data.attributes.len() < span_attribute_limit {
+        data.attributes.push(attribute);
+    } else {
+        data.dropped_attributes_count += 1;
+    }
+}
+
+fn data_add_event(
+    data: &mut SpanData,
+    name: Cow<'static, str>,
+    timestamp: SystemTime,
+    mut attributes: Vec<KeyValue>,
+    span_events_limit: usize,
+    event_attributes_limit: usize,
+) {
+    if data.events.len() < span_events_limit {
+        let dropped_attributes_count = attributes.len().saturating_sub(event_attributes_limit);
+        attributes.truncate(event_attributes_limit);
+
+        data.events.add_event(Event::new(
+            name,
+            timestamp,
+            attributes,
+            dropped_attributes_count as u32,
+        ));
+    } else {
+        data.events.dropped_count += 1;
+    }
+}
+
+fn data_add_link(
+    data: &mut SpanData,
+    span_context: SpanContext,
+    mut attributes: Vec<KeyValue>,
+    span_links_limit: usize,
+    link_attributes_limit: usize,
+) {
+    if data.links.links.len() < span_links_limit {
+        let dropped_attributes_count = attributes.len().saturating_sub(link_attributes_limit);
+        attributes.truncate(link_attributes_limit);
+        data.links.add_link(Link::new(
+            span_context,
+            attributes,
+            dropped_attributes_count as u32,
+        ));
+    } else {
+        data.links.dropped_count += 1;
+    }
+}
+
+fn end_and_export_span(
+    mut data: SpanData,
+    span_context: SpanContext,
+    tracer: &crate::trace::SdkTracer,
+    timestamp: Option<SystemTime>,
+) {
+    let provider = tracer.provider();
+    // skip if provider has been shut down
+    if provider.is_shutdown() {
+        return;
+    }
+
+    // ensure end time is set via explicit end or implicitly on drop
+    if let Some(timestamp) = timestamp {
+        data.end_time = timestamp;
+    } else if data.end_time == data.start_time {
+        data.end_time = opentelemetry::time::now();
+    }
+
+    match provider.span_processors() {
+        [] => {}
+        [processor] => {
+            processor.on_end(build_export_data(data, span_context, tracer));
+        }
+        processors => {
+            for processor in processors {
+                processor.on_end(build_export_data(
+                    data.clone(),
+                    span_context.clone(),
+                    tracer,
+                ));
+            }
+        }
     }
 }
 
@@ -556,8 +818,7 @@ mod tests {
         span.set_attributes(span_attributes_after_creation);
 
         let actual_span = span
-            .data
-            .clone()
+            .data()
             .expect("span data should not be empty as we already set it before");
         assert_eq!(
             actual_span.attributes.len(),
@@ -594,8 +855,7 @@ mod tests {
         span.add_event("another test event", event2.attributes);
 
         let event_queue = span
-            .data
-            .clone()
+            .data()
             .expect("span data should not be empty as we already set it before")
             .events;
         let event_vec: Vec<_> = event_queue.iter().take(2).collect();
@@ -629,8 +889,7 @@ mod tests {
         let span_builder = tracer.span_builder("test").with_links(vec![link]);
         let span = tracer.build(span_builder);
         let link_queue = span
-            .data
-            .clone()
+            .data()
             .expect("span data should not be empty as we already set it before")
             .links;
         let link_vec: Vec<_> = link_queue.links;
@@ -672,8 +931,7 @@ mod tests {
             vec![],
         );
         let link_queue = span
-            .data
-            .clone()
+            .data()
             .expect("span data should not be empty as we already set it before")
             .links;
         let link_vec: Vec<_> = link_queue.links;
@@ -701,8 +959,7 @@ mod tests {
         span.add_event("test event again, after span builder", Vec::new());
         span.add_event("test event once again, after span builder", Vec::new());
         let span_events = span
-            .data
-            .clone()
+            .data()
             .expect("span data should not be empty as we already set it before")
             .events;
         let event_vec: Vec<_> = span_events.events;
@@ -728,5 +985,219 @@ mod tests {
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
+    }
+
+    #[test]
+    fn span_starts_in_unique_mode() {
+        let span = create_span();
+        assert!(!span.is_shared());
+    }
+
+    #[test]
+    fn get_handle_upgrades_to_shared_mode() {
+        let mut span = create_span();
+        assert!(!span.is_shared());
+        let _handle = span.get_handle();
+        assert!(span.is_shared());
+    }
+
+    #[test]
+    fn handle_and_span_are_recording_when_not_ended() {
+        let mut span = create_span();
+        let handle = span.get_handle();
+        assert!(handle.is_recording());
+        assert!(span.is_recording());
+    }
+
+    #[test]
+    fn handle_and_span_are_not_recording_after_span_end() {
+        let mut span = create_span();
+        let handle = span.get_handle();
+        span.end();
+        assert!(!handle.is_recording());
+        assert!(!span.is_recording());
+    }
+
+    #[test]
+    fn handle_modifications_visible_to_span() {
+        let mut span = create_span();
+        let mut handle = span.get_handle();
+
+        handle.set_attribute(KeyValue::new("handle_key", "handle_value"));
+        handle.set_status(Status::error("some error"));
+        handle.update_name("new_name_from_handle");
+
+        span.with_data(|data| {
+            assert_eq!(data.name, "new_name_from_handle");
+            assert!(matches!(data.status, Status::Error { ref description } if description == "some error"));
+            assert!(data
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "handle_key" && kv.value == "handle_value".into()));
+        });
+    }
+
+    #[test]
+    fn span_modifications_visible_to_handle() {
+        let mut span = create_span();
+        let handle = span.get_handle();
+
+        span.set_attribute(KeyValue::new("span_key", "span_value"));
+        span.set_status(Status::error("some error"));
+        span.update_name("new_name_from_span");
+
+        handle.with_data_ref(|data| {
+            assert_eq!(data.name, "new_name_from_span");
+            assert!(matches!(
+                data.status,
+                Status::Error { ref description } if description == "some error"
+            ));
+            assert!(data
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "span_key" && kv.value == "span_value".into()));
+        });
+    }
+
+    #[test]
+    fn handle_add_event() {
+        let mut span = create_span();
+        let mut handle = span.get_handle();
+
+        handle.add_event("ref_event", vec![KeyValue::new("event_key", "event_value")]);
+
+        span.with_data(|data| {
+            assert_eq!(data.events.len(), 1);
+            let event = data.events.iter().next().unwrap();
+            assert_eq!(event.name, "ref_event");
+        });
+    }
+
+    #[test]
+    fn handle_add_link() {
+        let mut span = create_span();
+        let mut handle = span.get_handle();
+
+        handle.add_link(
+            SpanContext::new(
+                TraceId::from(42),
+                SpanId::from(24),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            ),
+            vec![],
+        );
+
+        span.with_data(|data| {
+            assert_eq!(data.links.links.len(), 1);
+            assert_eq!(
+                data.links.links[0].span_context.trace_id(),
+                TraceId::from(42)
+            );
+        });
+    }
+
+    #[test]
+    fn handle_cloning_shares_same_data() {
+        let mut span = create_span();
+        let mut handle1 = span.get_handle();
+        let mut handle2 = handle1.clone();
+
+        // modify first handle
+        handle1.set_attribute(KeyValue::new("key1", "value1"));
+
+        // change is visible from second handle
+        handle2.with_data_ref(|data| {
+            assert!(data.attributes.iter().any(|kv| kv.key.as_str() == "key1"));
+        });
+
+        // modify second handle
+        handle2.set_attribute(KeyValue::new("key2", "value2"));
+
+        // change visible from first handle
+        handle1.with_data_ref(|data| {
+            assert!(data.attributes.iter().any(|kv| kv.key.as_str() == "key2"));
+        });
+    }
+
+    #[test]
+    fn handle_exported_data() {
+        let mut span = create_span();
+        let mut handle = span.get_handle();
+
+        handle.set_attribute(KeyValue::new("export_key", "export_value"));
+        handle.set_status(Status::Ok);
+
+        let exported = handle.exported_data();
+        assert!(exported.is_some());
+        let data = exported.unwrap();
+        assert_eq!(data.status, Status::Ok);
+        assert!(data
+            .attributes
+            .iter()
+            .any(|kv| kv.key.as_str() == "export_key"));
+        assert_eq!(data.status, Status::Ok);
+    }
+
+    #[test]
+    fn handle_span_context() {
+        let (tracer, data) = init();
+        let span_context = SpanContext::new(
+            TraceId::from(123),
+            SpanId::from(456),
+            TraceFlags::SAMPLED,
+            false,
+            Default::default(),
+        );
+        let mut span = Span::new(span_context.clone(), Some(data), tracer, Default::default());
+
+        let handle = span.get_handle();
+        assert_eq!(handle.span_context().trace_id(), span_context.trace_id());
+        assert_eq!(handle.span_context().span_id(), span_context.span_id());
+    }
+
+    #[test]
+    fn is_recording_works_in_unique_mode() {
+        let span = create_span();
+        assert!(!span.is_shared());
+        assert!(span.is_recording());
+    }
+
+    #[test]
+    fn is_recording_works_in_shared_mode() {
+        let mut span = create_span();
+        let _handle = span.get_handle();
+        assert!(span.is_shared());
+        assert!(span.is_recording());
+    }
+
+    #[test]
+    fn end_works_in_shared_mode() {
+        let mut span = create_span();
+        let handle = span.get_handle();
+        assert!(span.is_recording());
+        assert!(handle.is_recording());
+
+        span.end();
+
+        assert!(!span.is_recording());
+        assert!(!handle.is_recording());
+    }
+
+    #[test]
+    fn multiple_get_handle_calls_return_same_shared_state() {
+        let mut span = create_span();
+        let mut handle1 = span.get_handle();
+        let handle2 = span.get_handle();
+
+        handle1.set_attribute(KeyValue::new("from_handle1", "value1"));
+
+        handle2.with_data_ref(|data| {
+            assert!(data
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "from_handle1"));
+        });
     }
 }
