@@ -239,10 +239,10 @@ impl TonicExporterBuilder {
         let endpoint = Channel::from_shared(endpoint)
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
 
-        let is_https = http::Uri::from_str(&endpoint_clone)
-            .ok()
-            .and_then(|uri| uri.scheme().cloned())
-            .is_some_and(|s| s == http::uri::Scheme::HTTPS);
+        let is_https = endpoint
+            .uri()
+            .scheme()
+            .is_some_and(|s| *s == http::uri::Scheme::HTTPS);
 
         #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
         if is_https {
