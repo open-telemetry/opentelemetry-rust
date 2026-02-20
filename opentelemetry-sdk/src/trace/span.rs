@@ -229,12 +229,16 @@ impl Span {
                 ));
             }
             processors => {
-                for processor in processors {
-                    processor.on_end(build_export_data(
-                        data.clone(),
-                        self.span_context.clone(),
-                        &self.tracer,
-                    ));
+                let export_data =
+                    build_export_data(data, self.span_context.clone(), &self.tracer);
+                let last_idx = processors.len() - 1;
+                for (i, processor) in processors.iter().enumerate() {
+                    if i < last_idx {
+                        processor.on_end(export_data.clone());
+                    } else {
+                        processor.on_end(export_data);
+                        break;
+                    }
                 }
             }
         }
