@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Add `Value::truncate()` and `StringValue::truncate()` methods for truncating string values to a maximum number of Unicode characters. Respects UTF-8 character boundaries and avoids allocation when the string is already within the limit.
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`

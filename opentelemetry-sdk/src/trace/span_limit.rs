@@ -1,3 +1,5 @@
+use opentelemetry::KeyValue;
+
 /// # Span limit
 /// Erroneous code can add unintended attributes, events, and links to a span. If these collections
 /// are unbounded, they can quickly exhaust available memory, resulting in crashes that are
@@ -46,6 +48,20 @@ pub struct SpanLimits {
     /// [`Value::String`]: opentelemetry::Value::String
     /// [`Array::String`]: opentelemetry::Array::String
     pub max_attribute_value_length: Option<u32>,
+}
+
+impl SpanLimits {
+    /// Truncate string attribute values to the configured maximum length.
+    ///
+    /// If `max_attribute_value_length` is `None`, this is a no-op.
+    pub(crate) fn truncate_string_values(&self, attributes: &mut [KeyValue]) {
+        if let Some(max_chars) = self.max_attribute_value_length {
+            let max = max_chars as usize;
+            for attr in attributes.iter_mut() {
+                attr.value.truncate(max);
+            }
+        }
+    }
 }
 
 impl Default for SpanLimits {
