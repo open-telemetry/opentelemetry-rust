@@ -714,6 +714,35 @@ mod tests {
     }
 
     #[test]
+    fn multiple_processors_receive_span_data() {
+        use crate::trace::InMemorySpanExporterBuilder;
+
+        let exporter1 = InMemorySpanExporterBuilder::new().build();
+        let exporter2 = InMemorySpanExporterBuilder::new().build();
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter1.clone())
+            .with_simple_exporter(exporter2.clone())
+            .build();
+
+        let tracer = provider.tracer("test");
+        let mut span = tracer.start("multi_processor_span");
+        span.set_attribute(KeyValue::new("key", "value"));
+        span.end();
+
+        let spans1 = exporter1.get_finished_spans().unwrap();
+        let spans2 = exporter2.get_finished_spans().unwrap();
+
+        assert_eq!(spans1.len(), 1);
+        assert_eq!(spans2.len(), 1);
+        assert_eq!(spans1[0].name, "multi_processor_span");
+        assert_eq!(spans2[0].name, "multi_processor_span");
+        assert_eq!(spans1[0].attributes, spans2[0].attributes);
+
+        let _ = provider.shutdown();
+    }
+
+    #[test]
     fn test_span_exported_data() {
         let provider = crate::trace::SdkTracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
