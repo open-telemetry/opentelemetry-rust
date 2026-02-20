@@ -59,9 +59,9 @@ async-trait = { workspace = true }
 
 [features]
 # telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
-metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace", "opentelemetry-proto/with-sdk-trace"]
+metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics", "opentelemetry-proto/with-sdk-metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs", "opentelemetry-proto/with-sdk-logs"]
 internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
 
 # add ons

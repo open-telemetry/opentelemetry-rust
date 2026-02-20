@@ -305,5 +305,6 @@ pub mod tonic {
         pub mod v1development;
     }
 
+    #[cfg(feature = "with-sdk")]
     pub use crate::transform::common::tonic::Attributes;
 }
