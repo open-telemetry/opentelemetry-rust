@@ -533,7 +533,7 @@ impl Protocol {
     /// - The environment variable is not set
     /// - The value doesn't match a known protocol
     /// - The specified protocol's feature is not enabled
-    pub fn parse_from_env_var(env_var: &str) -> Option<Self> {
+    pub(crate) fn parse_from_env_var(env_var: &str) -> Option<Self> {
         use crate::exporter::{
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
@@ -595,7 +595,7 @@ impl Protocol {
     /// 1. http-json (if enabled)
     /// 2. http-proto (if enabled)
     /// 3. grpc-tonic (if enabled)
-    pub fn feature_default() -> Self {
+    pub(crate) fn feature_default() -> Self {
         #[cfg(feature = "http-json")]
         return Protocol::HttpJson;
 

@@ -2,6 +2,15 @@
 
 ## vNext
 
+- *Breaking* `ExportConfig.protocol` changed from `Protocol` to `Option<Protocol>` to enable
+  proper resolution priority (code config > signal env var > generic env var > feature default).
+  If you set `protocol` directly on `ExportConfig`, wrap it with `Some(...)`.
+- Add support for per-signal protocol environment variables:
+  `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`,
+  `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL`. These allow configuring different transport protocols
+  per signal type. Signal-specific vars take precedence over generic `OTEL_EXPORTER_OTLP_PROTOCOL`.
+- Add `resolve_protocol()` for protocol resolution with proper priority chain.
+  HTTP transport now validates that gRPC protocol is not requested (returns `InvalidConfig` error).
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
