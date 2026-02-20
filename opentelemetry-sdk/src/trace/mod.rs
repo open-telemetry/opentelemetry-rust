@@ -25,7 +25,7 @@ mod tracer;
 pub use config::Config;
 pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
-pub use export::{SpanData, SpanExporter};
+pub use export::{SpanBatch, SpanData, SpanExporter};
 
 /// In-Memory span exporter for testing purpose.
 #[cfg(any(feature = "testing", test))]

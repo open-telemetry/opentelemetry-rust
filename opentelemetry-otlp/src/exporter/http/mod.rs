@@ -14,7 +14,7 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
-use opentelemetry_sdk::trace::SpanData;
+use opentelemetry_sdk::trace::SpanBatch;
 #[cfg(feature = "http-proto")]
 use prost::Message;
 use std::collections::HashMap;
@@ -582,10 +582,11 @@ impl OtlpHttpClient {
     #[cfg(feature = "trace")]
     fn build_trace_export_body(
         &self,
-        spans: Vec<SpanData>,
+        spans: SpanBatch<'_>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-        let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
+        let span_data: Vec<_> = spans.iter().cloned().collect();
+        let resource_spans = group_spans_by_resource_and_scope(&span_data, &self.resource);
 
         let req = ExportTraceServiceRequest { resource_spans };
         let (body, content_type) = match self.protocol {
@@ -1322,10 +1323,14 @@ mod tests {
         #[cfg(feature = "trace")]
         #[test]
         fn test_build_trace_export_body_binary_protocol() {
+            use opentelemetry_sdk::trace::SpanBatch;
+
             let client = create_test_client(crate::Protocol::HttpBinary, None);
             let span_data = create_test_span_data();
 
-            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let result = client
+                .build_trace_export_body(SpanBatch::new(&[span_data]))
+                .unwrap();
             let (_body, content_type, content_encoding) = result;
 
             assert_eq!(content_type, "application/x-protobuf");
@@ -1335,10 +1340,14 @@ mod tests {
         #[cfg(all(feature = "trace", feature = "http-json"))]
         #[test]
         fn test_build_trace_export_body_json_protocol() {
+            use opentelemetry_sdk::trace::SpanBatch;
+
             let client = create_test_client(crate::Protocol::HttpJson, None);
             let span_data = create_test_span_data();
 
-            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let result = client
+                .build_trace_export_body(SpanBatch::new(&[span_data]))
+                .unwrap();
             let (_body, content_type, content_encoding) = result;
 
             assert_eq!(content_type, "application/json");
@@ -1348,11 +1357,15 @@ mod tests {
         #[cfg(all(feature = "trace", feature = "gzip-http"))]
         #[test]
         fn test_build_trace_export_body_with_compression() {
+            use opentelemetry_sdk::trace::SpanBatch;
+
             let client =
                 create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
             let span_data = create_test_span_data();
 
-            let result = client.build_trace_export_body(vec![span_data]).unwrap();
+            let result = client
+                .build_trace_export_body(SpanBatch::new(&[span_data]))
+                .unwrap();
             let (_body, content_type, content_encoding) = result;
 
             assert_eq!(content_type, "application/x-protobuf");

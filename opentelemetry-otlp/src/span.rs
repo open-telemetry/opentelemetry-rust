@@ -5,7 +5,7 @@
 use std::fmt::Debug;
 
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::trace::SpanData;
+use opentelemetry_sdk::trace::SpanBatch;
 
 use crate::ExporterBuildError;
 #[cfg(feature = "grpc-tonic")]
@@ -148,7 +148,7 @@ impl SpanExporter {
 }
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
         match &self.client {
             #[cfg(feature = "grpc-tonic")]
             SupportedTransportClient::Tonic(client) => client.export(batch).await,

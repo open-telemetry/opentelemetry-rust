@@ -3,13 +3,13 @@ use crate::Protocol;
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_sdk::{
     error::{OTelSdkError, OTelSdkResult},
-    trace::{SpanData, SpanExporter},
+    trace::{SpanBatch, SpanExporter},
 };
 #[cfg(feature = "http-proto")]
 use prost::Message;
 
 impl SpanExporter for OtlpHttpClient {
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
         let response_body = self
             .export_http_with_retry(
                 batch,
