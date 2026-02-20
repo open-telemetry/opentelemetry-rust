@@ -173,6 +173,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
+        signal_insecure_var: &str,
     ) -> Result<
         (
             Channel,
@@ -231,12 +232,29 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        let endpoint = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
+        let mut endpoint_str = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
+        let insecure = super::resolve_insecure(signal_insecure_var);
+
+        // Determine if endpoint has an explicit scheme
+        let has_scheme =
+            endpoint_str.starts_with("http://") || endpoint_str.starts_with("https://");
+        // Track whether we should auto-apply TLS config for schemeless secure endpoints
+        let auto_tls = if !has_scheme {
+            if insecure {
+                endpoint_str = format!("http://{endpoint_str}");
+                false
+            } else {
+                endpoint_str = format!("https://{endpoint_str}");
+                true
+            }
+        } else {
+            false
+        };
 
         // Used for logging the endpoint
-        let endpoint_clone = endpoint.clone();
+        let endpoint_clone = endpoint_str.clone();
 
-        let endpoint = Channel::from_shared(endpoint)
+        let endpoint = Channel::from_shared(endpoint_str)
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
         let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
 
@@ -245,13 +263,27 @@ impl TonicExporterBuilder {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
                 .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+            None if auto_tls => {
+                // INSECURE=false with schemeless endpoint: auto-apply default TLS config
+                endpoint
+                    .tls_config(ClientTlsConfig::new())
+                    .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?
+            }
             None => endpoint,
         }
         .timeout(timeout)
         .connect_lazy();
 
         #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
-        let channel = endpoint.timeout(timeout).connect_lazy();
+        let channel = {
+            if auto_tls {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.NoTlsFeature",
+                    message = "INSECURE=false with schemeless endpoint requires TLS, but no TLS feature is enabled. Connection may fail."
+                );
+            }
+            endpoint.timeout(timeout).connect_lazy()
+        };
 
         otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
         Ok((
@@ -305,6 +337,7 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            crate::logs::OTEL_EXPORTER_OTLP_LOGS_INSECURE,
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy);
@@ -328,6 +361,7 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy);
@@ -347,6 +381,7 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy);

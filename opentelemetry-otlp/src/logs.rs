@@ -30,6 +30,9 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
+/// Whether to enable client transport security for gRPC log exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSECURE";
 
 /// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]
