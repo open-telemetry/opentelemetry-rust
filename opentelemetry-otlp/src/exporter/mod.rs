@@ -52,7 +52,7 @@ pub(crate) mod http;
 pub(crate) mod tonic;
 
 /// Configuration for the OTLP exporter.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExportConfig {
     /// The address of the OTLP collector.
     /// Default address will be used based on the protocol.
@@ -61,7 +61,9 @@ pub struct ExportConfig {
     pub endpoint: Option<String>,
 
     /// The protocol to use when communicating with the collector.
-    pub protocol: Protocol,
+    /// `None` means the protocol will be resolved from environment variables
+    /// or feature defaults at build time.
+    pub protocol: Option<Protocol>,
 
     /// The timeout to the collector.
     /// The default value is 10 seconds.
@@ -70,19 +72,26 @@ pub struct ExportConfig {
     pub timeout: Option<Duration>,
 }
 
+/// Resolve protocol with priority:
+/// 1. Programmatic configuration (provided value)
+/// 2. Signal-specific environment variable
+/// 3. Generic OTEL_EXPORTER_OTLP_PROTOCOL environment variable
+/// 4. Feature-based default
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-impl Default for ExportConfig {
-    fn default() -> Self {
-        let protocol = Protocol::default();
-
-        Self {
-            endpoint: None,
-            // don't use default_endpoint(protocol) here otherwise we
-            // won't know if user provided a value
-            protocol,
-            timeout: None,
-        }
+pub(crate) fn resolve_protocol(
+    signal_protocol_var: &str,
+    provided_protocol: Option<Protocol>,
+) -> Protocol {
+    if let Some(protocol) = provided_protocol {
+        return protocol;
     }
+    if let Some(protocol) = Protocol::parse_from_env_var(signal_protocol_var) {
+        return protocol;
+    }
+    if let Some(protocol) = Protocol::from_env() {
+        return protocol;
+    }
+    Protocol::feature_default()
 }
 
 #[derive(Error, Debug)]
@@ -196,23 +205,7 @@ fn resolve_compression_from_env(
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl Default for Protocol {
     fn default() -> Self {
-        // Check environment variable first
-        if let Some(protocol) = Protocol::from_env() {
-            return protocol;
-        }
-
-        // Fall back to feature-based defaults
-        #[cfg(feature = "http-json")]
-        return Protocol::HttpJson;
-
-        #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
-        return Protocol::HttpBinary;
-
-        #[cfg(all(
-            feature = "grpc-tonic",
-            not(any(feature = "http-proto", feature = "http-json"))
-        ))]
-        return Protocol::Grpc;
+        Protocol::from_env().unwrap_or_else(Protocol::feature_default)
     }
 }
 
@@ -293,7 +286,7 @@ impl<B: HasExportConfig> WithExportConfig for B {
     }
 
     fn with_protocol(mut self, protocol: Protocol) -> Self {
-        self.export_config().protocol = protocol;
+        self.export_config().protocol = Some(protocol);
         self
     }
 
@@ -419,7 +412,7 @@ mod tests {
 
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::HttpBinary,
+            protocol: Some(Protocol::HttpBinary),
             timeout: Some(Duration::from_secs(10)),
         };
 
@@ -446,7 +439,7 @@ mod tests {
 
         let ex_config = ExportConfig {
             endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::Grpc,
+            protocol: Some(Protocol::Grpc),
             timeout: Some(Duration::from_secs(10)),
         };
 
@@ -651,6 +644,96 @@ mod tests {
         run_env_test(vec![], || {
             let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
             assert_eq!(timeout.as_millis(), 10_000);
+        });
+    }
+
+    #[test]
+    fn test_protocol_parse_from_env_var() {
+        use crate::Protocol;
+
+        // Test with custom env var name
+        temp_env::with_var_unset("MY_CUSTOM_PROTOCOL_VAR", || {
+            assert_eq!(Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"), None);
+        });
+
+        #[cfg(feature = "http-proto")]
+        run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "http/protobuf")], || {
+            assert_eq!(
+                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"),
+                Some(Protocol::HttpBinary)
+            );
+        });
+
+        #[cfg(feature = "grpc-tonic")]
+        run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "grpc")], || {
+            assert_eq!(
+                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"),
+                Some(Protocol::Grpc)
+            );
+        });
+
+        // Invalid value returns None
+        run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "invalid")], || {
+            assert_eq!(Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"), None);
+        });
+    }
+
+    #[cfg(feature = "http-proto")]
+    #[test]
+    fn test_resolve_protocol_signal_env_overrides_generic() {
+        use crate::Protocol;
+
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, "http/protobuf"),
+                (crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc"),
+            ],
+            || {
+                let protocol =
+                    super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+                assert_eq!(protocol, Protocol::HttpBinary);
+            },
+        );
+    }
+
+    #[cfg(feature = "http-proto")]
+    #[test]
+    fn test_resolve_protocol_code_overrides_all_envs() {
+        use crate::Protocol;
+
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, "grpc"),
+                (crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc"),
+            ],
+            || {
+                let protocol = super::resolve_protocol(
+                    crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+                    Some(Protocol::HttpBinary),
+                );
+                assert_eq!(protocol, Protocol::HttpBinary);
+            },
+        );
+    }
+
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn test_resolve_protocol_falls_back_to_generic_env() {
+        use crate::Protocol;
+
+        run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc")], || {
+            let protocol = super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+            assert_eq!(protocol, Protocol::Grpc);
+        });
+    }
+
+    #[test]
+    fn test_resolve_protocol_falls_back_to_feature_default() {
+        use crate::Protocol;
+
+        run_env_test(vec![], || {
+            let protocol = super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+            assert_eq!(protocol, Protocol::feature_default());
         });
     }
 }
