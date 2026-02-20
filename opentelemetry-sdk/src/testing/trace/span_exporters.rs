@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    trace::{SpanData, SpanExporter},
+    trace::{SpanBatch, SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
     ExportError,
 };
@@ -42,10 +42,10 @@ pub struct TokioSpanExporter {
 }
 
 impl SpanExporter for TokioSpanExporter {
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-        batch.into_iter().try_for_each(|span_data| {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
+        batch.iter().try_for_each(|span_data| {
             self.tx_export
-                .send(span_data)
+                .send(span_data.clone())
                 .map_err(|err| OTelSdkError::InternalFailure(format!("Export failed: {err:?}")))
         })
     }
@@ -111,7 +111,7 @@ impl NoopSpanExporter {
 }
 
 impl SpanExporter for NoopSpanExporter {
-    async fn export(&self, _: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _: SpanBatch<'_>) -> OTelSdkResult {
         Ok(())
     }
 }

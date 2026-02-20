@@ -61,6 +61,71 @@ pub mod tonic {
             }
         }
     }
+
+    impl From<&Link> for span::Link {
+        fn from(link: &Link) -> Self {
+            span::Link {
+                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+                span_id: link.span_context.span_id().to_bytes().to_vec(),
+                trace_state: link.span_context.trace_state().header(),
+                attributes: Attributes::from(link.attributes.iter().cloned()).0,
+                dropped_attributes_count: link.dropped_attributes_count,
+                flags: super::build_span_flags(
+                    link.span_context.is_remote(),
+                    link.span_context.trace_flags().to_u8() as u32,
+                ),
+            }
+        }
+    }
+
+    impl From<&opentelemetry_sdk::trace::SpanData> for Span {
+        fn from(source_span: &opentelemetry_sdk::trace::SpanData) -> Self {
+            let span_kind: span::SpanKind = source_span.span_kind.clone().into();
+            Span {
+                trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+                span_id: source_span.span_context.span_id().to_bytes().to_vec(),
+                trace_state: source_span.span_context.trace_state().header(),
+                parent_span_id: {
+                    if source_span.parent_span_id != SpanId::INVALID {
+                        source_span.parent_span_id.to_bytes().to_vec()
+                    } else {
+                        vec![]
+                    }
+                },
+                flags: super::build_span_flags(
+                    source_span.parent_span_is_remote,
+                    source_span.span_context.trace_flags().to_u8() as u32,
+                ),
+                name: source_span.name.to_string(),
+                kind: span_kind as i32,
+                start_time_unix_nano: to_nanos(source_span.start_time),
+                end_time_unix_nano: to_nanos(source_span.end_time),
+                dropped_attributes_count: source_span.dropped_attributes_count,
+                attributes: Attributes::from(source_span.attributes.iter().cloned()).0,
+                dropped_events_count: source_span.events.dropped_count,
+                events: source_span
+                    .events
+                    .iter()
+                    .map(|event| span::Event {
+                        time_unix_nano: to_nanos(event.timestamp),
+                        name: event.name.to_string(),
+                        attributes: Attributes::from(event.attributes.iter().cloned()).0,
+                        dropped_attributes_count: event.dropped_attributes_count,
+                    })
+                    .collect(),
+                dropped_links_count: source_span.links.dropped_count,
+                links: source_span.links.iter().map(Into::into).collect(),
+                status: Some(Status {
+                    code: status::StatusCode::from(&source_span.status).into(),
+                    message: match &source_span.status {
+                        trace::Status::Error { description } => description.to_string(),
+                        _ => Default::default(),
+                    },
+                }),
+            }
+        }
+    }
+
     impl From<opentelemetry_sdk::trace::SpanData> for Span {
         fn from(source_span: opentelemetry_sdk::trace::SpanData) -> Self {
             let span_kind: span::SpanKind = source_span.span_kind.into();
@@ -174,7 +239,7 @@ pub mod tonic {
     }
 
     pub fn group_spans_by_resource_and_scope(
-        spans: Vec<SpanData>,
+        spans: &[SpanData],
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
         // Group spans by their instrumentation scope
@@ -198,7 +263,7 @@ pub mod tonic {
                     .unwrap_or_default(),
                 spans: span_records
                     .into_iter()
-                    .map(|span_data| span_data.clone().into())
+                    .map(|span_data| span_data.into())
                     .collect(),
             })
             .collect();
@@ -364,7 +429,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
+            crate::transform::trace::tonic::group_spans_by_resource_and_scope(&spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 
@@ -413,7 +478,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
+            crate::transform::trace::tonic::group_spans_by_resource_and_scope(&spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
 
@@ -507,10 +572,9 @@ mod tests {
         };
 
         let resource: ResourceAttributesWithSchema = (&resource).into();
-        let grouped_spans = crate::transform::trace::tonic::group_spans_by_resource_and_scope(
-            vec![span_data],
-            &resource,
-        );
+        let spans = vec![span_data];
+        let grouped_spans =
+            crate::transform::trace::tonic::group_spans_by_resource_and_scope(&spans, &resource);
 
         assert_eq!(grouped_spans.len(), 1);
         let resource_spans = &grouped_spans[0];

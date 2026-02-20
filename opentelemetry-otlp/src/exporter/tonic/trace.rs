@@ -9,7 +9,7 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 use opentelemetry_sdk::error::OTelSdkError;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
-    trace::{SpanData, SpanExporter},
+    trace::{SpanBatch, SpanExporter},
 };
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
@@ -71,7 +71,7 @@ impl TonicTracesClient {
 }
 
 impl SpanExporter for TonicTracesClient {
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
         let batch = Arc::new(batch);
 
         match super::tonic_retry_with_backoff(
@@ -108,7 +108,7 @@ impl SpanExporter for TonicTracesClient {
                     })?;
 
                 let resource_spans =
-                    group_spans_by_resource_and_scope((*batch_clone).clone(), &self.resource);
+                    group_spans_by_resource_and_scope(batch_clone.as_slice(), &self.resource);
 
                 otel_debug!(name: "TonicTracesClient.ExportStarted");
 

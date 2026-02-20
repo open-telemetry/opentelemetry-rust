@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{SpanBatch, SpanData, SpanExporter};
 use crate::InMemoryExporterError;
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use std::time::Duration;
@@ -153,11 +153,11 @@ impl InMemorySpanExporter {
 }
 
 impl SpanExporter for InMemorySpanExporter {
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
         let result = self
             .spans
             .lock()
-            .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
+            .map(|mut spans_guard| spans_guard.extend(batch.iter().cloned()))
             .map_err(|err| OTelSdkError::InternalFailure(format!("Failed to lock spans: {err:?}")));
         result
     }
