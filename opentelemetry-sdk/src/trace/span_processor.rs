@@ -38,6 +38,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
+use crate::util::BlockingStrategy;
 use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::cmp::min;
@@ -347,6 +348,7 @@ impl BatchSpanProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let blocking_strategy = BlockingStrategy::new();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
@@ -361,6 +363,7 @@ impl BatchSpanProcessor {
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
                 let current_batch_size = current_batch_size_for_thread;
+                let blocking_strategy = blocking_strategy;
                 loop {
                     let remaining_time_option = config
                         .scheduled_delay
@@ -384,6 +387,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                             }
                             BatchMessage::ForceFlush(sender) => {
@@ -395,6 +399,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = sender.send(result);
                             }
@@ -407,6 +412,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = exporter.shutdown();
                                 let _ = sender.send(result);
@@ -436,6 +442,7 @@ impl BatchSpanProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 &config,
+                                &blocking_strategy,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -490,6 +497,7 @@ impl BatchSpanProcessor {
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
         config: &BatchConfig,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + Send + Sync + 'static,
@@ -510,7 +518,7 @@ impl BatchSpanProcessor {
             let count_of_spans = spans.len(); // Count of spans that will be exported
             total_exported_spans += count_of_spans;
 
-            result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
+            result = Self::export_batch_sync(exporter, spans, last_export_time, blocking_strategy); // This method clears the spans vec after exporting
 
             current_batch_size.fetch_sub(count_of_spans, Ordering::Relaxed);
         }
@@ -522,6 +530,7 @@ impl BatchSpanProcessor {
         exporter: &E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + ?Sized,
@@ -539,7 +548,7 @@ impl BatchSpanProcessor {
         // every export. See if this can be optimized by
         // *not* requiring ownership in the exporter.
         let export = exporter.export(batch.split_off(0));
-        let export_result = futures_executor::block_on(export);
+        let export_result = blocking_strategy.block_on(export);
 
         match export_result {
             Ok(_) => OTelSdkResult::Ok(()),
