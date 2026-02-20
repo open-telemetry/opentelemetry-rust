@@ -242,7 +242,7 @@ impl TonicExporterBuilder {
         let is_https = http::Uri::from_str(&endpoint_clone)
             .ok()
             .and_then(|uri| uri.scheme().cloned())
-            .map_or(false, |s| s == http::uri::Scheme::HTTPS);
+            .is_some_and(|s| s == http::uri::Scheme::HTTPS);
 
         #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
         if is_https {
