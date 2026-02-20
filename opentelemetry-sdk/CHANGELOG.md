@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking** `SpanExporter::export` now takes `SpanBatch<'_>` instead of `Vec<SpanData>`, matching the borrowed `LogBatch` pattern used in the logs pipeline. This eliminates per-export `Vec` allocations in `BatchSpanProcessor`. Implementors should update their `export` signatures and use `batch.iter()` to access spans.
+
 ## 0.32.1
 
 Released 2026-May-23

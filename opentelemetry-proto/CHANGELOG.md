@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Added borrowing conversions (`From<&SpanData>`, `From<&Link>`) for trace proto types to support zero-copy span export. Changed `group_spans_by_resource_and_scope` to accept `&[SpanData]` instead of `Vec<SpanData>`.
+
 ## 0.32.0
 
 Released 2026-May-08
