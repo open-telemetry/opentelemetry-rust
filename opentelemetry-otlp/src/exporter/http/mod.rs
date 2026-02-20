@@ -210,8 +210,11 @@ impl HttpExporterBuilder {
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
-        // Resolve TLS certificate data from env vars (only when TLS features are enabled)
-        #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+        // Resolve TLS certificate data from env vars (only when TLS features and a reqwest client are enabled)
+        #[cfg(all(
+            any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+            any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+        ))]
         let (tls_ca_cert, tls_client_key, tls_client_cert) = {
             use super::{
                 resolve_tls_env_and_read, OTEL_EXPORTER_OTLP_CERTIFICATE,
@@ -252,6 +255,7 @@ impl HttpExporterBuilder {
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
+                #[allow(unused_mut)] // mut needed when TLS features are enabled
                 let mut builder = reqwest::Client::builder().timeout(timeout);
 
                 #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]

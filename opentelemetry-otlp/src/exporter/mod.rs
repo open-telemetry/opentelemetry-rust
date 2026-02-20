@@ -214,11 +214,15 @@ pub(crate) struct SignalTlsEnvVars {
 /// Returns `Ok(None)` if neither env var is set.
 /// Returns `Err` if the env var is set but the file cannot be read.
 #[cfg(any(
-    feature = "tls",
-    feature = "tls-ring",
-    feature = "tls-aws-lc",
-    feature = "reqwest-rustls",
-    feature = "reqwest-rustls-webpki-roots"
+    all(
+        feature = "grpc-tonic",
+        any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+    ),
+    all(
+        any(feature = "http-proto", feature = "http-json"),
+        any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+        any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+    ),
 ))]
 pub(crate) fn resolve_tls_env_and_read(
     signal_var: &str,
