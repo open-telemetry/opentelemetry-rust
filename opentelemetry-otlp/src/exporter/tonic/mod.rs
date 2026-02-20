@@ -398,6 +398,92 @@ where
     operation().await
 }
 
+/// Log and convert a `tonic::Status` from a failed export into an `OTelSdkError`.
+///
+/// For connection-related errors (`Unavailable`, `DeadlineExceeded`,
+/// `ResourceExhausted`, `Aborted`, `Cancelled`), the message typically contains
+/// safe, actionable information (e.g., "Connection refused"), so it is included
+/// alongside the gRPC code in the debug log.
+///
+/// For all other errors — including `Unknown`, `Unauthenticated`, and
+/// `PermissionDenied` — the message and details are logged at DEBUG level only,
+/// since they may contain sensitive information such as authentication tokens
+/// echoed back by the server.
+///
+/// The returned `OTelSdkError` never contains the gRPC message, only the code.
+/// We don't log at WARN here because SDK processors (BatchLogProcessor,
+/// BatchSpanProcessor, PeriodicReader) already log the returned error via
+/// `otel_error!`.
+///
+/// `$client_name` must be a string literal so that `concat!` can produce
+/// compile-time event names consistent with the codebase naming convention.
+macro_rules! handle_tonic_export_error {
+    ($client_name:literal, $tonic_status:expr) => {{
+        let status = &$tonic_status;
+        let code = status.code();
+        let is_connection_error = matches!(
+            code,
+            tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::ResourceExhausted
+                | tonic::Code::Aborted
+                | tonic::Code::Cancelled
+        );
+        if is_connection_error {
+            otel_debug!(
+                name: concat!($client_name, ".ExportFailed"),
+                grpc_code = format!("{:?}", code),
+                grpc_message = status.message()
+            );
+        } else {
+            otel_debug!(
+                name: concat!($client_name, ".ExportFailed"),
+                grpc_code = format!("{:?}", code),
+                grpc_message = status.message(),
+                grpc_details = format!("{:?}", status.details())
+            );
+        }
+        Err(opentelemetry_sdk::error::OTelSdkError::InternalFailure(
+            format!(
+                concat!($client_name, " export failed with gRPC code: {:?}"),
+                code
+            ),
+        ))
+    }};
+}
+
+/// Log and convert a `tonic::Status` from a failed interceptor into a new
+/// `tonic::Status` suitable for retry classification.
+///
+/// Interceptor errors are always treated as potentially sensitive since
+/// interceptors are the primary mechanism for adding auth tokens. Only the
+/// gRPC code is included in the returned status message; the original message
+/// and details are logged at DEBUG level only.
+macro_rules! handle_interceptor_error {
+    ($client_name:literal, $e:expr) => {{
+        let status = &$e;
+        otel_debug!(
+            name: concat!($client_name, ".InterceptorFailed"),
+            grpc_code = format!("{:?}", status.code()),
+            grpc_message = status.message(),
+            grpc_details = format!("{:?}", status.details())
+        );
+        tonic::Status::internal(format!(
+            concat!(
+                $client_name,
+                " export failed in interceptor with gRPC code: {:?}"
+            ),
+            status.code()
+        ))
+    }};
+}
+
+// Make macros available to submodules (logs, trace, metrics).
+#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+pub(crate) use handle_interceptor_error;
+#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+pub(crate) use handle_tonic_export_error;
+
 fn merge_metadata_with_headers_from_env(
     metadata: MetadataMap,
     headers_from_env: HeaderMap,
@@ -883,5 +969,101 @@ mod tests {
         // a channel in a unit test. The default behavior is tested implicitly in integration tests.
         let builder = TonicExporterBuilder::default();
         assert!(builder.tonic_config.retry_policy.is_none());
+    }
+
+    #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+    mod error_handling_tests {
+        use opentelemetry::otel_debug;
+        use opentelemetry_sdk::error::OTelSdkError;
+
+        #[test]
+        fn export_error_includes_grpc_code_but_not_sensitive_message() {
+            let status = tonic::Status::unauthenticated("Bearer secret-token-123");
+            let result: Result<(), OTelSdkError> =
+                super::super::handle_tonic_export_error!("TestExporter", status);
+            let msg = format!("{}", result.unwrap_err());
+
+            assert!(
+                msg.contains("Unauthenticated"),
+                "Error should contain the gRPC code, got: {msg}"
+            );
+            assert!(
+                !msg.contains("secret-token-123"),
+                "Error must not contain the sensitive token, got: {msg}"
+            );
+        }
+
+        #[test]
+        fn export_error_includes_exporter_name() {
+            let status = tonic::Status::unavailable("connection refused");
+            let result: Result<(), OTelSdkError> =
+                super::super::handle_tonic_export_error!("TonicLogsClient", status);
+            let msg = format!("{}", result.unwrap_err());
+
+            assert!(
+                msg.contains("TonicLogsClient"),
+                "Error should identify the exporter, got: {msg}"
+            );
+        }
+
+        #[test]
+        fn export_error_never_includes_grpc_message() {
+            // Neither connection nor sensitive codes should leak the message
+            // into the returned error (messages are only logged, not returned)
+            let statuses = [
+                tonic::Status::unavailable("safe connection info"),
+                tonic::Status::unknown("safe connection info"),
+                tonic::Status::deadline_exceeded("safe connection info"),
+                tonic::Status::resource_exhausted("safe connection info"),
+                tonic::Status::aborted("safe connection info"),
+                tonic::Status::cancelled("safe connection info"),
+                tonic::Status::unauthenticated("Bearer my-secret-token"),
+                tonic::Status::permission_denied("Bearer my-secret-token"),
+                tonic::Status::internal("Bearer my-secret-token"),
+            ];
+            for status in &statuses {
+                let result: Result<(), OTelSdkError> =
+                    super::super::handle_tonic_export_error!("TestExporter", status);
+                let msg = format!("{}", result.unwrap_err());
+                assert!(
+                    msg.contains("TestExporter export failed with gRPC code"),
+                    "Expected structured error message, got: {msg}"
+                );
+                assert!(
+                    !msg.contains("safe connection info") && !msg.contains("my-secret-token"),
+                    "Error message should not include the gRPC message, got: {msg}"
+                );
+            }
+        }
+
+        #[test]
+        fn interceptor_error_returns_internal_status_without_sensitive_data() {
+            let original = tonic::Status::unauthenticated("Bearer secret");
+            let result = super::super::handle_interceptor_error!("TestExporter", original);
+
+            assert_eq!(result.code(), tonic::Code::Internal);
+            assert!(
+                result.message().contains("Unauthenticated"),
+                "Interceptor error should contain original gRPC code, got: {}",
+                result.message()
+            );
+            assert!(
+                !result.message().contains("secret"),
+                "Interceptor error must not leak sensitive data, got: {}",
+                result.message()
+            );
+        }
+
+        #[test]
+        fn interceptor_error_includes_exporter_name() {
+            let original = tonic::Status::internal("some error");
+            let result = super::super::handle_interceptor_error!("TonicTracesClient", original);
+
+            assert!(
+                result.message().contains("TonicTracesClient"),
+                "Interceptor error should identify the exporter, got: {}",
+                result.message()
+            );
+        }
     }
 }

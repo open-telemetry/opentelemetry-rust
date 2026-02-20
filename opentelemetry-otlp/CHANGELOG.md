@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Prevent auth tokens from leaking in export error messages. gRPC and HTTP
+  exporter errors no longer include potentially sensitive server responses
+  (e.g., authentication tokens echoed back). Error messages returned to SDK
+  processors contain only the gRPC status code or HTTP status code. Full
+  details are logged at DEBUG level only.
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
