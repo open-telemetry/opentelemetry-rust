@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Store `InstrumentationScope` in `Arc` internally in `SdkTracer`, making tracer cloning cheaper and avoiding redundant scope clones in the multi-processor span export path.
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
