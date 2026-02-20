@@ -85,17 +85,6 @@ impl Span {
     }
 }
 
-/// Truncate all string attribute values in `attributes` to `max_chars` Unicode
-/// scalar values when a limit is configured.
-fn truncate_attribute_values(attributes: &mut [KeyValue], limit: Option<u32>) {
-    if let Some(max_chars) = limit {
-        let max = max_chars as usize;
-        for attr in attributes.iter_mut() {
-            attr.value.truncate(max);
-        }
-    }
-}
-
 impl opentelemetry::trace::Span for Span {
     /// Records events at a specific time in the context of a given `Span`.
     ///
@@ -112,13 +101,13 @@ impl opentelemetry::trace::Span for Span {
     {
         let span_events_limit = self.span_limits.max_events_per_span as usize;
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
-        let value_length_limit = self.span_limits.max_attribute_value_length;
+        let span_limits = self.span_limits;
         self.with_data(|data| {
             if data.events.len() < span_events_limit {
                 let dropped_attributes_count =
                     attributes.len().saturating_sub(event_attributes_limit);
                 attributes.truncate(event_attributes_limit);
-                truncate_attribute_values(&mut attributes, value_length_limit);
+                span_limits.truncate_string_values(&mut attributes);
 
                 data.events.add_event(Event::new(
                     name,
@@ -151,12 +140,10 @@ impl opentelemetry::trace::Span for Span {
     /// that have prescribed semantic meanings.
     fn set_attribute(&mut self, mut attribute: KeyValue) {
         let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
-        let value_length_limit = self.span_limits.max_attribute_value_length;
+        let span_limits = self.span_limits;
         self.with_data(|data| {
             if data.attributes.len() < span_attribute_limit {
-                if let Some(max_chars) = value_length_limit {
-                    attribute.value.truncate(max_chars as usize);
-                }
+                span_limits.truncate_string_values(std::slice::from_mut(&mut attribute));
                 data.attributes.push(attribute);
             } else {
                 data.dropped_attributes_count += 1;
@@ -192,14 +179,14 @@ impl opentelemetry::trace::Span for Span {
     fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
         let span_links_limit = self.span_limits.max_links_per_span as usize;
         let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
-        let value_length_limit = self.span_limits.max_attribute_value_length;
+        let span_limits = self.span_limits;
         self.with_data(|data| {
             if data.links.links.len() < span_links_limit {
                 let dropped_attributes_count =
                     attributes.len().saturating_sub(link_attributes_limit);
                 let mut attributes = attributes;
                 attributes.truncate(link_attributes_limit);
-                truncate_attribute_values(&mut attributes, value_length_limit);
+                span_limits.truncate_string_values(&mut attributes);
                 data.links.add_link(Link::new(
                     span_context,
                     attributes,
