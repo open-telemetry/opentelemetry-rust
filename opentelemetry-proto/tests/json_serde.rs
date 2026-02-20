@@ -104,7 +104,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeSpans": [
         {
@@ -349,7 +350,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 1
+        "droppedAttributesCount": 1,
+        "entityRefs": []
       },
       "scopeSpans": [
         {
@@ -911,7 +913,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeMetrics": [
         {
@@ -1298,7 +1301,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeLogs": [
         {
