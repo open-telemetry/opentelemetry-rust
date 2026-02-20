@@ -174,6 +174,7 @@ impl HttpExporterBuilder {
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
         signal_compression_var: &str,
+        #[allow(unused_variables)] signal_tls_vars: super::SignalTlsEnvVars,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
@@ -209,6 +210,33 @@ impl HttpExporterBuilder {
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
+        // Resolve TLS certificate data from env vars (only when TLS features are enabled)
+        #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+        let (tls_ca_cert, tls_client_key, tls_client_cert) = {
+            use super::{
+                resolve_tls_env_and_read, OTEL_EXPORTER_OTLP_CERTIFICATE,
+                OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_KEY,
+            };
+            let ca =
+                resolve_tls_env_and_read(signal_tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)?;
+            let key = resolve_tls_env_and_read(
+                signal_tls_vars.client_key_var,
+                OTEL_EXPORTER_OTLP_CLIENT_KEY,
+            )?;
+            let cert = resolve_tls_env_and_read(
+                signal_tls_vars.client_cert_var,
+                OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+            )?;
+            // Warn if only one of key/cert is set
+            if key.is_some() != cert.is_some() {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.PartialMtls",
+                    message = "mTLS requires both CLIENT_KEY and CLIENT_CERTIFICATE to be set; only one was provided, skipping mTLS configuration"
+                );
+            }
+            (ca, key, cert)
+        };
+
         #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
         let mut http_client = self.http_config.client.take();
 
@@ -218,15 +246,38 @@ impl HttpExporterBuilder {
         // 1. reqwest-client (async)
         // 2. hyper-client
         // 3. reqwest-blocking-client (default)
+        //
+        // TLS certificates from env vars are only applied to auto-created reqwest clients.
+        // Custom clients provided via .with_http_client() are not affected.
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let mut builder = reqwest::Client::builder().timeout(timeout);
+
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                {
+                    if let Some(ref ca_cert) = tls_ca_cert {
+                        let cert = reqwest::Certificate::from_pem(ca_cert).map_err(|e| {
+                            ExporterBuildError::InternalFailure(format!(
+                                "Failed to parse CA certificate: {e}"
+                            ))
+                        })?;
+                        builder = builder.add_root_certificate(cert);
+                    }
+                    if let (Some(key), Some(cert)) = (&tls_client_key, &tls_client_cert) {
+                        let mut identity_pem = cert.clone();
+                        identity_pem.extend_from_slice(key);
+                        let identity = reqwest::Identity::from_pem(&identity_pem).map_err(|e| {
+                            ExporterBuildError::InternalFailure(format!(
+                                "Failed to parse client identity: {e}"
+                            ))
+                        })?;
+                        builder = builder.identity(identity);
+                    }
+                }
+
+                http_client =
+                    Some(Arc::new(builder.build().unwrap_or_default()) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
@@ -241,16 +292,45 @@ impl HttpExporterBuilder {
             ))]
             {
                 let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
-                        reqwest::blocking::Client::builder()
-                            .timeout(timeout_clone)
-                            .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
-                    })
-                    .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                let ca_cert_clone = tls_ca_cert.clone();
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                let client_key_clone = tls_client_key.clone();
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                let client_cert_clone = tls_client_cert.clone();
+
+                let client = std::thread::spawn(move || {
+                    let mut builder = reqwest::blocking::Client::builder().timeout(timeout_clone);
+
+                    #[cfg(any(
+                        feature = "reqwest-rustls",
+                        feature = "reqwest-rustls-webpki-roots"
+                    ))]
+                    {
+                        if let Some(ref ca_cert) = ca_cert_clone {
+                            if let Ok(cert) = reqwest::Certificate::from_pem(ca_cert) {
+                                builder = builder.add_root_certificate(cert);
+                            }
+                        }
+                        if let (Some(ref key), Some(ref cert)) =
+                            (&client_key_clone, &client_cert_clone)
+                        {
+                            let mut identity_pem = cert.clone();
+                            identity_pem.extend_from_slice(key);
+                            if let Ok(identity) = reqwest::Identity::from_pem(&identity_pem) {
+                                builder = builder.identity(identity);
+                            }
+                        }
+                    }
+
+                    builder
+                        .build()
+                        .unwrap_or_else(|_| reqwest::blocking::Client::new())
+                })
+                .join()
+                .unwrap(); // TODO: Return ExporterBuildError::ThreadSpawnFailed
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
         }
 
@@ -297,7 +377,7 @@ impl HttpExporterBuilder {
         super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
-    /// Create a log exporter with the current configuration
+    /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
@@ -311,6 +391,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -330,6 +415,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -352,6 +442,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))
