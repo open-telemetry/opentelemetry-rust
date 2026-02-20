@@ -85,6 +85,17 @@ impl Span {
     }
 }
 
+/// Truncate all string attribute values in `attributes` to `max_chars` Unicode
+/// scalar values when a limit is configured.
+fn truncate_attribute_values(attributes: &mut [KeyValue], limit: Option<u32>) {
+    if let Some(max_chars) = limit {
+        let max = max_chars as usize;
+        for attr in attributes.iter_mut() {
+            attr.value.truncate(max);
+        }
+    }
+}
+
 impl opentelemetry::trace::Span for Span {
     /// Records events at a specific time in the context of a given `Span`.
     ///
@@ -101,11 +112,13 @@ impl opentelemetry::trace::Span for Span {
     {
         let span_events_limit = self.span_limits.max_events_per_span as usize;
         let event_attributes_limit = self.span_limits.max_attributes_per_event as usize;
+        let value_length_limit = self.span_limits.max_attribute_value_length;
         self.with_data(|data| {
             if data.events.len() < span_events_limit {
                 let dropped_attributes_count =
                     attributes.len().saturating_sub(event_attributes_limit);
                 attributes.truncate(event_attributes_limit);
+                truncate_attribute_values(&mut attributes, value_length_limit);
 
                 data.events.add_event(Event::new(
                     name,
@@ -136,10 +149,14 @@ impl opentelemetry::trace::Span for Span {
     /// Note that the OpenTelemetry project documents certain ["standard
     /// attributes"](https://github.com/open-telemetry/opentelemetry-specification/tree/v0.5.0/specification/trace/semantic_conventions/README.md)
     /// that have prescribed semantic meanings.
-    fn set_attribute(&mut self, attribute: KeyValue) {
+    fn set_attribute(&mut self, mut attribute: KeyValue) {
         let span_attribute_limit = self.span_limits.max_attributes_per_span as usize;
+        let value_length_limit = self.span_limits.max_attribute_value_length;
         self.with_data(|data| {
             if data.attributes.len() < span_attribute_limit {
+                if let Some(max_chars) = value_length_limit {
+                    attribute.value.truncate(max_chars as usize);
+                }
                 data.attributes.push(attribute);
             } else {
                 data.dropped_attributes_count += 1;
@@ -175,12 +192,14 @@ impl opentelemetry::trace::Span for Span {
     fn add_link(&mut self, span_context: SpanContext, attributes: Vec<KeyValue>) {
         let span_links_limit = self.span_limits.max_links_per_span as usize;
         let link_attributes_limit = self.span_limits.max_attributes_per_link as usize;
+        let value_length_limit = self.span_limits.max_attribute_value_length;
         self.with_data(|data| {
             if data.links.links.len() < span_links_limit {
                 let dropped_attributes_count =
                     attributes.len().saturating_sub(link_attributes_limit);
                 let mut attributes = attributes;
                 attributes.truncate(link_attributes_limit);
+                truncate_attribute_values(&mut attributes, value_length_limit);
                 data.links.add_link(Link::new(
                     span_context,
                     attributes,
@@ -568,6 +587,206 @@ mod tests {
             actual_span.dropped_attributes_count, expected_dropped_count,
             "Dropped count should match the actual count of attributes dropped"
         );
+    }
+
+    #[test]
+    fn attribute_value_length_limit_via_builder() {
+        use opentelemetry::{Array, StringValue, Value};
+
+        let exporter = NoopSpanExporter::new();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .with_max_attribute_value_length(4)
+            .build();
+        let tracer = provider.tracer("test");
+
+        // Attributes set via SpanBuilder (at build time)
+        let initial_attributes = vec![
+            KeyValue::new("short", "hi"),
+            KeyValue::new("exact", "abcd"),
+            KeyValue::new("long", "abcdef"),
+            KeyValue::new("int_attr", 42),
+            KeyValue::new(
+                "string_array",
+                Value::Array(Array::String(vec![
+                    StringValue::from("ab"),
+                    StringValue::from(String::from("abcdef")),
+                ])),
+            ),
+        ];
+        let span_builder = SpanBuilder::from_name("test_span").with_attributes(initial_attributes);
+        let mut span = tracer.build(span_builder);
+
+        // Attribute set after span creation via set_attribute
+        span.set_attribute(KeyValue::new("post_build", "hello world"));
+
+        span.with_data(|data| {
+            for attr in &data.attributes {
+                match &attr.value {
+                    Value::String(s) => {
+                        assert!(
+                            s.as_str().chars().count() <= 4,
+                            "String attribute '{}' should be truncated to 4 chars, got '{}'",
+                            attr.key,
+                            s.as_str()
+                        );
+                    }
+                    Value::Array(Array::String(elems)) => {
+                        for elem in elems {
+                            assert!(
+                                elem.as_str().chars().count() <= 4,
+                                "String array element in '{}' should be truncated, got '{}'",
+                                attr.key,
+                                elem.as_str()
+                            );
+                        }
+                    }
+                    // Non-string values must not be modified
+                    Value::I64(v) => assert_eq!(*v, 42),
+                    _ => {}
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn attribute_value_length_limit_utf8_boundary() {
+        use opentelemetry::Value;
+
+        let exporter = NoopSpanExporter::new();
+        // Set limit to 5 characters. The string "hello\u{00e9}" has 6 chars.
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .with_max_attribute_value_length(5)
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span = tracer
+            .span_builder("test_span")
+            .with_attributes(vec![
+                // 7 chars, multi-byte: euro sign is 3 bytes in UTF-8
+                KeyValue::new("euro", String::from("hello\u{20AC}x")),
+                // 6 chars with 2-byte char
+                KeyValue::new("accent", String::from("hello\u{00e9}")),
+                // Already within limit
+                KeyValue::new("short", "abc"),
+            ])
+            .start(&tracer);
+
+        span.with_data(|data| {
+            for attr in &data.attributes {
+                if let Value::String(s) = &attr.value {
+                    assert!(
+                        s.as_str().chars().count() <= 5,
+                        "Attribute '{}' should be at most 5 chars, got {} ('{}')",
+                        attr.key,
+                        s.as_str().chars().count(),
+                        s.as_str()
+                    );
+                    // Verify the string is valid UTF-8 (it always is in Rust,
+                    // but this confirms we didn't corrupt anything)
+                    assert!(std::str::from_utf8(s.as_str().as_bytes()).is_ok());
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn attribute_value_length_limit_on_events() {
+        use opentelemetry::Value;
+
+        let exporter = NoopSpanExporter::new();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .with_max_attribute_value_length(3)
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span = tracer.start("test_span");
+        span.add_event(
+            "test_event",
+            vec![
+                KeyValue::new("ev_short", "ab"),
+                KeyValue::new("ev_long", "abcdefgh"),
+            ],
+        );
+
+        span.with_data(|data| {
+            let event = data.events.iter().next().expect("should have one event");
+            for attr in &event.attributes {
+                if let Value::String(s) = &attr.value {
+                    assert!(
+                        s.as_str().chars().count() <= 3,
+                        "Event attribute '{}' should be at most 3 chars, got '{}'",
+                        attr.key,
+                        s.as_str()
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn attribute_value_length_limit_on_links() {
+        use opentelemetry::Value;
+
+        let exporter = NoopSpanExporter::new();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .with_max_attribute_value_length(3)
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span = tracer.start("test_span");
+        span.add_link(
+            SpanContext::new(
+                TraceId::from(12),
+                SpanId::from(12),
+                TraceFlags::default(),
+                false,
+                Default::default(),
+            ),
+            vec![
+                KeyValue::new("link_short", "ab"),
+                KeyValue::new("link_long", "abcdefgh"),
+            ],
+        );
+
+        span.with_data(|data| {
+            let link = data.links.links.first().expect("should have one link");
+            for attr in &link.attributes {
+                if let Value::String(s) = &attr.value {
+                    assert!(
+                        s.as_str().chars().count() <= 3,
+                        "Link attribute '{}' should be at most 3 chars, got '{}'",
+                        attr.key,
+                        s.as_str()
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn no_truncation_when_limit_not_set() {
+        let exporter = NoopSpanExporter::new();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+        let tracer = provider.tracer("test");
+
+        let long_value = "a".repeat(1000);
+        let mut span = tracer.start("test_span");
+        span.set_attribute(KeyValue::new("long", long_value.clone()));
+
+        span.with_data(|data| {
+            let attr = data.attributes.first().expect("should have one attribute");
+            assert_eq!(
+                attr.value.as_str().as_ref(),
+                long_value.as_str(),
+                "Without a limit set, attribute values should not be truncated"
+            );
+        });
     }
 
     #[test]

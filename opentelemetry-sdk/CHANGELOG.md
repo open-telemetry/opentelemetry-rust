@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Add support for `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` environment variable and `TracerProviderBuilder::with_max_attribute_value_length()`. When configured, `Value::String` and `Array::String` attribute values on spans, span events, and span links are truncated to the specified number of Unicode characters.
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
