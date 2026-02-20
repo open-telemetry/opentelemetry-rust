@@ -109,7 +109,6 @@
 //! | `OTEL_BSP_SCHEDULE_DELAY` | Delay interval (in milliseconds) between two consecutive exports. | `5000` |
 //! | `OTEL_BSP_MAX_QUEUE_SIZE` | Maximum queue size. | `2048` |
 //! | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BSP_MAX_QUEUE_SIZE`. | `512` |
-//! | `OTEL_BSP_EXPORT_TIMEOUT` | Maximum allowed time (in milliseconds) to export data. | `30000` |
 //! | `OTEL_BSP_MAX_CONCURRENT_EXPORTS` | Maximum number of concurrent exports. | `1` |
 //!
 //! ### Logs: Batch Log Record Processor (BLRP)
@@ -119,14 +118,12 @@
 //! | `OTEL_BLRP_SCHEDULE_DELAY` | Delay interval (in milliseconds) between two consecutive exports. | `1000` |
 //! | `OTEL_BLRP_MAX_QUEUE_SIZE` | Maximum queue size. | `2048` |
 //! | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BLRP_MAX_QUEUE_SIZE`. | `512` |
-//! | `OTEL_BLRP_EXPORT_TIMEOUT` | Maximum allowed time (in milliseconds) to export data. | `30000` |
 //!
 //! ### Metrics: Periodic Metric Reader
 //!
 //! | Variable | Description | Default |
 //! |---|---|---|
 //! | `OTEL_METRIC_EXPORT_INTERVAL` | Interval (in milliseconds) between metrics exports. | `60000` |
-//! | `OTEL_METRIC_EXPORT_TIMEOUT` | Timeout (in milliseconds) for metrics exports. Only used by the async-runtime variant of `PeriodicReader`. | `30000` |
 //!
 //! ## Crate Feature Flags
 //!
