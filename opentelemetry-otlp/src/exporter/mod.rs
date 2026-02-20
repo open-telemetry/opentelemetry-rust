@@ -41,6 +41,16 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each signal batch.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(10000);
 
+/// Path to the TLS certificate to use for verifying an OTLP server's TLS credentials.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CERTIFICATE";
+/// Path to the TLS client key to use for mTLS authentication.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_CLIENT_KEY";
+/// Path to the TLS client certificate to use for mTLS authentication.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE";
+
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 #[cfg(feature = "grpc-tonic")]
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
@@ -183,6 +193,55 @@ fn resolve_compression_from_env(
         Ok(Some(compression.parse::<Compression>()?))
     } else {
         Ok(None)
+    }
+}
+
+/// Signal-specific TLS environment variable names.
+///
+/// Groups the per-signal TLS env var names for certificate, client key,
+/// and client certificate to avoid excessive function parameters.
+#[allow(dead_code)] // Fields are only read when TLS features are enabled
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+pub(crate) struct SignalTlsEnvVars {
+    pub cert_var: &'static str,
+    pub client_key_var: &'static str,
+    pub client_cert_var: &'static str,
+}
+
+/// Resolve a TLS file path from environment variables and read the PEM file.
+/// Signal-specific env var takes precedence over generic.
+///
+/// Returns `Ok(None)` if neither env var is set.
+/// Returns `Err` if the env var is set but the file cannot be read.
+#[cfg(any(
+    all(
+        feature = "grpc-tonic",
+        any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+    ),
+    all(
+        any(feature = "http-proto", feature = "http-json"),
+        any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+        any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+    ),
+))]
+pub(crate) fn resolve_tls_env_and_read(
+    signal_var: &str,
+    generic_var: &str,
+) -> Result<Option<Vec<u8>>, ExporterBuildError> {
+    let path = std::env::var(signal_var)
+        .ok()
+        .or_else(|| std::env::var(generic_var).ok());
+    match path {
+        Some(path) if !path.is_empty() => {
+            let data = std::fs::read(&path).map_err(|e| {
+                ExporterBuildError::InternalFailure(format!(
+                    "Failed to read TLS file '{}': {}",
+                    path, e
+                ))
+            })?;
+            Ok(Some(data))
+        }
+        _ => Ok(None),
     }
 }
 
