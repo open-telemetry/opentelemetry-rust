@@ -13,6 +13,7 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    util::BlockingStrategy,
     Resource,
 };
 
@@ -152,6 +153,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                 message_sender,
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
+                blocking_strategy: BlockingStrategy::new(),
             }),
         };
         let cloned_reader = reader.clone();
@@ -351,6 +353,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    blocking_strategy: BlockingStrategy,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
@@ -407,9 +410,8 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         });
         otel_debug!(name: "PeriodicReaderMetricsCollected", count = metrics_count, time_taken_in_millis = time_taken_for_collect.as_millis());
 
-        // Relying on futures executor to execute async call.
         // TODO: Pass timeout to exporter
-        futures_executor::block_on(self.exporter.export(rm))
+        self.blocking_strategy.block_on(self.exporter.export(rm))
     }
 
     fn force_flush(&self) -> OTelSdkResult {
