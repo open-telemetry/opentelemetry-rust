@@ -71,6 +71,14 @@ impl SdkTracer {
         attribute_options.truncate(span_attributes_limit);
         let dropped_attributes_count = dropped_attributes_count as u32;
 
+        // Truncate string attribute values if a length limit is configured.
+        if let Some(max_chars) = span_limits.max_attribute_value_length {
+            let max = max_chars as usize;
+            for attr in attribute_options.iter_mut() {
+                attr.value.truncate(max);
+            }
+        }
+
         // Links are available as Option<Vec<Link>> in the builder
         // If it is None, then there are no links to process.
         // In that case Span.Links will be default (empty Vec<Link>, 0 drop count)
@@ -90,6 +98,12 @@ impl SdkTracer {
                     link.attributes.len().saturating_sub(link_attributes_limit);
                 link.attributes.truncate(link_attributes_limit);
                 link.dropped_attributes_count = dropped_attributes_count as u32;
+                if let Some(max_chars) = span_limits.max_attribute_value_length {
+                    let max = max_chars as usize;
+                    for attr in link.attributes.iter_mut() {
+                        attr.value.truncate(max);
+                    }
+                }
             }
             SpanLinks {
                 links,
@@ -119,6 +133,12 @@ impl SdkTracer {
                     .saturating_sub(event_attributes_limit);
                 event.attributes.truncate(event_attributes_limit);
                 event.dropped_attributes_count = dropped_attributes_count as u32;
+                if let Some(max_chars) = span_limits.max_attribute_value_length {
+                    let max = max_chars as usize;
+                    for attr in event.attributes.iter_mut() {
+                        attr.value.truncate(max);
+                    }
+                }
             }
             SpanEvents {
                 events,
