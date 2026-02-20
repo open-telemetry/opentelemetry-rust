@@ -301,6 +301,7 @@ impl HttpExporterBuilder {
                 let client_cert_clone = tls_client_cert.clone();
 
                 let client = std::thread::spawn(move || {
+                    #[allow(unused_mut)] // mut needed when TLS features are enabled
                     let mut builder = reqwest::blocking::Client::builder().timeout(timeout_clone);
 
                     #[cfg(any(

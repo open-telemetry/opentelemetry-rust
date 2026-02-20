@@ -200,6 +200,7 @@ fn resolve_compression_from_env(
 ///
 /// Groups the per-signal TLS env var names for certificate, client key,
 /// and client certificate to avoid excessive function parameters.
+#[allow(dead_code)] // Fields are only read when TLS features are enabled
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 pub(crate) struct SignalTlsEnvVars {
     pub cert_var: &'static str,
