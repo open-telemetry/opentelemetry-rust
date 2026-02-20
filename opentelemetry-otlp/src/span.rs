@@ -35,6 +35,9 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
+/// Whether to enable client transport security for gRPC trace exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_TRACES_INSECURE: &str = "OTEL_EXPORTER_OTLP_TRACES_INSECURE";
 
 /// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]

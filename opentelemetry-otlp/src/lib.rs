@@ -223,6 +223,7 @@
 //! | `OTEL_EXPORTER_OTLP_TIMEOUT` | Maximum wait time (in milliseconds) for the backend to process each batch. | `10000` |
 //! | `OTEL_EXPORTER_OTLP_HEADERS` | Key-value pairs for request headers. Format: `key1=value1,key2=value2`. Values are URL-decoded. | (none) |
 //! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`. | (none) |
+//! | `OTEL_EXPORTER_OTLP_INSECURE` | Whether to disable TLS for gRPC connections. Only applies to gRPC; HTTP security is determined by URL scheme. Valid values: `true`, `false` (case-insensitive). | `false` |
 //!
 //! ## Traces
 //!
@@ -232,6 +233,7 @@
 //! | `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Signal-specific timeout (in milliseconds) for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | Signal-specific headers for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | Signal-specific compression for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_INSECURE` | Signal-specific insecure flag for gRPC trace exports. |
 //!
 //! ## Metrics
 //!
@@ -241,6 +243,7 @@
 //! | `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | Signal-specific timeout (in milliseconds) for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | Signal-specific headers for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | Signal-specific compression for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_INSECURE` | Signal-specific insecure flag for gRPC metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` | Temporality preference for metrics. Valid values: `cumulative`, `delta`, `lowmemory` (case-insensitive). | `cumulative` |
 //!
 //! ## Logs
@@ -251,6 +254,7 @@
 //! | `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` | Signal-specific timeout (in milliseconds) for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | Signal-specific headers for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_COMPRESSION` | Signal-specific compression for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_INSECURE` | Signal-specific insecure flag for gRPC log exports. |
 //!
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
@@ -431,7 +435,7 @@ pub use crate::exporter::ExporterBuildError;
 pub use crate::span::{
     SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TRACES_INSECURE, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
 #[cfg(feature = "metrics")]
@@ -439,7 +443,8 @@ pub use crate::span::{
 pub use crate::metric::{
     MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
     OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_INSECURE, OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
@@ -447,7 +452,7 @@ pub use crate::metric::{
 pub use crate::logs::{
     LogExporter, LogExporterBuilder, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
     OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-    OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_LOGS_INSECURE, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -458,10 +463,10 @@ pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
 
 pub use crate::exporter::{
     HasExportConfig, WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
-    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
-    OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
-    OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF, OTEL_EXPORTER_OTLP_TIMEOUT,
-    OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
+    OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_INSECURE,
+    OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_PROTOCOL_GRPC,
+    OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
+    OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
 #[cfg(feature = "experimental-http-retry")]
