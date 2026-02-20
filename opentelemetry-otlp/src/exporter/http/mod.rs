@@ -154,10 +154,7 @@ pub struct HttpExporterBuilder {
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
-            exporter_config: ExportConfig {
-                protocol: Protocol::default(),
-                ..ExportConfig::default()
-            },
+            exporter_config: ExportConfig::default(),
             http_config: HttpConfig {
                 headers: Some(default_headers()),
                 ..HttpConfig::default()
@@ -174,7 +171,19 @@ impl HttpExporterBuilder {
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
         signal_compression_var: &str,
+        signal_protocol_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
+        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+
+        // Validate protocol is compatible with HTTP transport
+        #[cfg(feature = "grpc-tonic")]
+        if matches!(protocol, Protocol::Grpc) {
+            return Err(ExporterBuildError::InvalidConfig {
+                name: "protocol".to_string(),
+                reason: "gRPC protocol is not compatible with HTTP transport. Use `.with_tonic()` instead.".to_string(),
+            });
+        }
+
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
@@ -282,7 +291,7 @@ impl HttpExporterBuilder {
             http_client,
             endpoint,
             headers,
-            self.exporter_config.protocol,
+            protocol,
             timeout,
             compression,
             #[cfg(feature = "experimental-http-retry")]
@@ -297,12 +306,13 @@ impl HttpExporterBuilder {
         super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
-    /// Create a log exporter with the current configuration
+    /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -311,6 +321,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -321,7 +332,8 @@ impl HttpExporterBuilder {
     pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -330,6 +342,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -343,7 +356,8 @@ impl HttpExporterBuilder {
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -352,6 +366,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))

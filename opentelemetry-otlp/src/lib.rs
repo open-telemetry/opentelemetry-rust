@@ -229,6 +229,7 @@
 //! | Variable | Description |
 //! |---|---|
 //! | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Signal-specific endpoint for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` | Signal-specific protocol for trace exports. Valid values: `grpc`, `http/protobuf`, `http/json`. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Signal-specific timeout (in milliseconds) for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | Signal-specific headers for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | Signal-specific compression for trace exports. |
@@ -238,6 +239,7 @@
 //! | Variable | Description |
 //! |---|---|
 //! | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Signal-specific endpoint for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` | Signal-specific protocol for metrics exports. Valid values: `grpc`, `http/protobuf`, `http/json`. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | Signal-specific timeout (in milliseconds) for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | Signal-specific headers for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | Signal-specific compression for metrics exports. |
@@ -248,6 +250,7 @@
 //! | Variable | Description |
 //! |---|---|
 //! | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | Signal-specific endpoint for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL` | Signal-specific protocol for log exports. Valid values: `grpc`, `http/protobuf`, `http/json`. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` | Signal-specific timeout (in milliseconds) for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | Signal-specific headers for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_COMPRESSION` | Signal-specific compression for log exports. |
@@ -431,7 +434,7 @@ pub use crate::exporter::ExporterBuildError;
 pub use crate::span::{
     SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
 #[cfg(feature = "metrics")]
@@ -439,7 +442,8 @@ pub use crate::span::{
 pub use crate::metric::{
     MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
     OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
@@ -447,7 +451,7 @@ pub use crate::metric::{
 pub use crate::logs::{
     LogExporter, LogExporterBuilder, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
     OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-    OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -520,12 +524,22 @@ impl Protocol {
     /// - The value doesn't match a known protocol
     /// - The specified protocol's feature is not enabled
     pub fn from_env() -> Option<Self> {
+        Self::parse_from_env_var(OTEL_EXPORTER_OTLP_PROTOCOL)
+    }
+
+    /// Attempts to parse a protocol from the given environment variable.
+    ///
+    /// Returns `None` if:
+    /// - The environment variable is not set
+    /// - The value doesn't match a known protocol
+    /// - The specified protocol's feature is not enabled
+    pub(crate) fn parse_from_env_var(env_var: &str) -> Option<Self> {
         use crate::exporter::{
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         };
 
-        let protocol = std::env::var(OTEL_EXPORTER_OTLP_PROTOCOL).ok()?;
+        let protocol = std::env::var(env_var).ok()?;
 
         match protocol.as_str() {
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
@@ -572,6 +586,27 @@ impl Protocol {
             }
             _ => None,
         }
+    }
+
+    /// Returns the default protocol based on enabled features, without
+    /// consulting environment variables.
+    ///
+    /// Priority order (first available wins):
+    /// 1. http-json (if enabled)
+    /// 2. http-proto (if enabled)
+    /// 3. grpc-tonic (if enabled)
+    pub(crate) fn feature_default() -> Self {
+        #[cfg(feature = "http-json")]
+        return Protocol::HttpJson;
+
+        #[cfg(all(feature = "http-proto", not(feature = "http-json")))]
+        return Protocol::HttpBinary;
+
+        #[cfg(all(
+            feature = "grpc-tonic",
+            not(any(feature = "http-proto", feature = "http-json"))
+        ))]
+        return Protocol::Grpc;
     }
 }
 
