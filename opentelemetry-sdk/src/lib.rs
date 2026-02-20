@@ -72,6 +72,59 @@
 //! [examples]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples
 //! [`metrics`]: https://docs.rs/opentelemetry/latest/opentelemetry/metrics/index.html
 //!
+//! ## Environment Variables
+//!
+//! The SDK respects the following environment variables, as defined by the
+//! [OpenTelemetry specification]. Programmatic configuration via builder methods
+//! takes precedence over environment variables.
+//!
+//! [OpenTelemetry specification]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+//!
+//! ### General / Resource
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_SERVICE_NAME` | Sets the value of the `service.name` resource attribute. Takes priority over `service.name` in `OTEL_RESOURCE_ATTRIBUTES`. | `unknown_service:<process_name>` |
+//! | `OTEL_RESOURCE_ATTRIBUTES` | Key-value pairs to be used as resource attributes. Format: `key1=value1,key2=value2`. | (none) |
+//!
+//! ### Trace: Sampler
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_TRACES_SAMPLER` | Sampler to use. Valid values: `always_on`, `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`. | `parentbased_always_on` |
+//! | `OTEL_TRACES_SAMPLER_ARG` | Argument for the sampler. Used when `OTEL_TRACES_SAMPLER` is `traceidratio` or `parentbased_traceidratio`. Must be a float between 0.0 and 1.0. | `1.0` |
+//!
+//! ### Trace: Span Limits
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` | Maximum number of attributes allowed on a span. | `128` |
+//! | `OTEL_SPAN_EVENT_COUNT_LIMIT` | Maximum number of events allowed on a span. | `128` |
+//! | `OTEL_SPAN_LINK_COUNT_LIMIT` | Maximum number of links allowed on a span. | `128` |
+//!
+//! ### Trace: Batch Span Processor (BSP)
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_BSP_SCHEDULE_DELAY` | Delay interval (in milliseconds) between two consecutive exports. | `5000` |
+//! | `OTEL_BSP_MAX_QUEUE_SIZE` | Maximum queue size. | `2048` |
+//! | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BSP_MAX_QUEUE_SIZE`. | `512` |
+//! | `OTEL_BSP_MAX_CONCURRENT_EXPORTS` | Maximum number of concurrent exports. | `1` |
+//!
+//! ### Logs: Batch Log Record Processor (BLRP)
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_BLRP_SCHEDULE_DELAY` | Delay interval (in milliseconds) between two consecutive exports. | `1000` |
+//! | `OTEL_BLRP_MAX_QUEUE_SIZE` | Maximum queue size. | `2048` |
+//! | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BLRP_MAX_QUEUE_SIZE`. | `512` |
+//!
+//! ### Metrics: Periodic Metric Reader
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_METRIC_EXPORT_INTERVAL` | Interval (in milliseconds) between metrics exports. | `60000` |
+//!
 //! ## Crate Feature Flags
 //!
 //! The following feature flags can used to control the telemetry signals to use:
