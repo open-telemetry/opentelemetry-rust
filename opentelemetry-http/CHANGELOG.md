@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Bump MSRV to 1.85.0
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0
