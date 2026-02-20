@@ -229,8 +229,7 @@ impl Span {
                 ));
             }
             processors => {
-                let export_data =
-                    build_export_data(data, self.span_context.clone(), &self.tracer);
+                let export_data = build_export_data(data, self.span_context.clone(), &self.tracer);
                 let (last, rest) = processors.split_last().unwrap();
                 for processor in rest {
                     processor.on_end(export_data.clone());
