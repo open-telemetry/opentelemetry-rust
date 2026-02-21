@@ -606,6 +606,75 @@ mod tests {
         }
     }
 
+    // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
+    // exporters where the export future depends on tokio tasks. Without
+    // BlockingStrategy, this deadlocks on constrained runtimes because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks.
+    #[derive(Debug, Clone, Default)]
+    struct TokioSpawnMetricExporter {
+        exported_count: Arc<AtomicUsize>,
+        is_shutdown: Arc<AtomicBool>,
+    }
+
+    impl PushMetricExporter for TokioSpawnMetricExporter {
+        async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
+            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
+            let result = tokio::spawn(async { 42 }).await.unwrap();
+            assert_eq!(result, 42);
+            self.exported_count.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            self.is_shutdown.store(true, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            self.shutdown()
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    // Regression test for deadlock on constrained tokio runtimes (#2802, #3356).
+    // Uses TokioSpawnMetricExporter which internally calls tokio::spawn(),
+    // simulating tonic/gRPC exporters where the export future depends on
+    // tokio-spawned tasks. Without BlockingStrategy, this deadlocks because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks
+    // without the runtime context.
+    //
+    // Note: current_thread runtime is not tested here because it has a
+    // fundamental limitation — the single runtime thread is blocked by
+    // force_flush()'s recv(), so no thread is available to drive spawned
+    // tasks. The multi_thread(1) scenario (1-vCPU k8s pods) is the primary
+    // target of this fix.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_periodic_reader_multi_thread_1_worker_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let exported_count = exporter.exported_count.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(Duration::from_secs(120))
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.force_flush().unwrap();
+
+        assert!(exported_count.load(Ordering::Relaxed) >= 1);
+    }
+
     #[test]
     fn collection_triggered_by_interval_multiple() {
         // Arrange
