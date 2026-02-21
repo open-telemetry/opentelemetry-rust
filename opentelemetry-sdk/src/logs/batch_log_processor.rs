@@ -1008,6 +1008,66 @@ mod tests {
         processor.shutdown().unwrap();
     }
 
+    // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
+    // exporters where the export future depends on tokio tasks. Without
+    // BlockingStrategy, this deadlocks on constrained runtimes because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks.
+    #[derive(Debug, Clone)]
+    struct TokioSpawnLogExporter {
+        exported_count: Arc<AtomicUsize>,
+    }
+
+    impl TokioSpawnLogExporter {
+        fn new() -> Self {
+            Self {
+                exported_count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    impl LogExporter for TokioSpawnLogExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            let count = batch.len();
+            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
+            let result = tokio::spawn(async move { count }).await.unwrap();
+            assert_eq!(result, count);
+            self.exported_count.fetch_add(count, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    // Regression test for deadlock on constrained tokio runtimes (#2802, #3356).
+    // Uses TokioSpawnLogExporter which internally calls tokio::spawn(),
+    // simulating tonic/gRPC exporters where the export future depends on
+    // tokio-spawned tasks. Without BlockingStrategy, this deadlocks because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks
+    // without the runtime context.
+    //
+    // Note: current_thread runtime is not tested here because it has a
+    // fundamental limitation — the single runtime thread is blocked by
+    // force_flush()'s recv(), so no thread is available to drive spawned
+    // tasks. The multi_thread(1) scenario (1-vCPU k8s pods) is the primary
+    // target of this fix.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();

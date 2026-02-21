@@ -1430,6 +1430,39 @@ mod tests {
         );
     }
 
+    // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
+    // exporters where the export future depends on tokio tasks. Without
+    // BlockingStrategy, this deadlocks on constrained runtimes because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks.
+    #[derive(Debug, Clone)]
+    struct TokioSpawnSpanExporter {
+        exported_spans: Arc<Mutex<Vec<SpanData>>>,
+    }
+
+    impl TokioSpawnSpanExporter {
+        fn new() -> Self {
+            Self {
+                exported_spans: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+    }
+
+    impl SpanExporter for TokioSpawnSpanExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
+            // Without tokio runtime context, this panics or deadlocks.
+            let count = batch.len();
+            let result = tokio::spawn(async move { count }).await.unwrap();
+            assert_eq!(result, batch.len());
+            self.exported_spans.lock().unwrap().extend(batch);
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_processor_current_thread_runtime() {
         let exporter = MockSpanExporter::new();
@@ -1456,6 +1489,42 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_batch_processor_multi_thread_count_1_runtime() {
         let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        processor.force_flush().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Regression test for deadlock on constrained tokio runtimes (#2802, #3356).
+    // Uses TokioSpawnSpanExporter which internally calls tokio::spawn(),
+    // simulating tonic/gRPC exporters where the export future depends on
+    // tokio-spawned tasks. Without BlockingStrategy, this deadlocks because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks
+    // without the runtime context.
+    //
+    // Note: current_thread runtime is not tested here because it has a
+    // fundamental limitation — the single runtime thread is blocked by
+    // force_flush()'s recv(), so no thread is available to drive spawned
+    // tasks. The multi_thread(1) scenario (1-vCPU k8s pods) is the primary
+    // target of this fix.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
 
         let config = BatchConfigBuilder::default()
