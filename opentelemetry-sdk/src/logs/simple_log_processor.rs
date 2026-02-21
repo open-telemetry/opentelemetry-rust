@@ -346,24 +346,25 @@ mod tests {
         );
     }
 
+    // KNOWN DEADLOCK: This test is intentionally #[ignore]d because it demonstrates
+    // an inherent limitation of SimpleLogProcessor with async exporters.
+    //
+    // SimpleLogProcessor uses futures_executor::block_on() to synchronously execute
+    // async export operations. When all tokio worker threads are occupied (one holding
+    // the exporter mutex in block_on, the rest waiting for the mutex), no thread is
+    // available to drive the tokio::spawn-ed tasks the exporter depends on.
+    //
+    // This is NOT a bug — it's a fundamental design trade-off of SimpleLogProcessor:
+    // - SimpleLogProcessor is designed for debugging/testing, not production use
+    // - For production with async exporters, use BatchLogProcessor which runs exports
+    //   on a dedicated background thread with BlockingStrategy
+    // - Unlike BatchLogProcessor's deadlock (#2802) which was fixable with BlockingStrategy,
+    //   this deadlock cannot be fixed without changing SimpleLogProcessor's synchronous design
+    //
+    // See: https://github.com/open-telemetry/opentelemetry-rust/issues/3381
+    //      https://github.com/open-telemetry/opentelemetry-rust/issues/2802
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[ignore]
-    // This test demonstrates a potential deadlock scenario in a multi-threaded Tokio runtime.
-    // It spawns Tokio tasks equal to the number of runtime worker threads (4) to emit log events.
-    // Each task attempts to acquire a mutex on the exporter in `SimpleLogProcessor::emit`.
-    // Only one task obtains the lock, while the others are blocked, waiting for its release.
-    //
-    // The task holding the lock invokes the LogExporterThatRequiresTokio, which performs an
-    // asynchronous operation (e.g., network I/O simulated by `tokio::sleep`). This operation
-    // requires yielding control back to the Tokio runtime to make progress.
-    //
-    // However, all worker threads are occupied:
-    // - One thread is executing the async exporter operation
-    // - Three threads are blocked waiting for the mutex
-    //
-    // This leads to a deadlock as there are no available threads to drive the async operation
-    // to completion, preventing the mutex from being released. Consequently, neither the blocked
-    // tasks nor the exporter can proceed.
     async fn test_simple_processor_async_exporter_with_all_runtime_worker_threads_blocked() {
         let exporter = LogExporterThatRequiresTokio::new();
         let processor = Arc::new(SimpleLogProcessor::new(exporter.clone()));
@@ -426,13 +427,22 @@ mod tests {
         assert_eq!(exporter.len(), 1);
     }
 
+    // KNOWN DEADLOCK: This test is intentionally #[ignore]d because it demonstrates
+    // a fundamental limitation of SimpleLogProcessor on current_thread runtimes.
+    //
+    // On a current_thread runtime, SimpleLogProcessor's futures_executor::block_on()
+    // blocks the only available thread. Any exporter that depends on tokio (e.g.,
+    // tokio::spawn, tokio::time::sleep, tonic gRPC) cannot make progress because
+    // there is no thread available to drive the tokio runtime.
+    //
+    // This applies to ALL processors on current_thread runtimes with tokio-dependent
+    // exporters — it's a fundamental limitation, not a bug. The multi_thread(1) scenario
+    // (common in 1-vCPU k8s pods) IS supported via BlockingStrategy in batch processors.
+    //
+    // See: https://github.com/open-telemetry/opentelemetry-rust/issues/3381
+    //      https://github.com/open-telemetry/opentelemetry-rust/issues/2802
     #[tokio::test(flavor = "current_thread")]
     #[ignore]
-    // This test uses a current-thread runtime, where all operations run on the main thread.
-    // The processor emits a log event while the runtime is blocked using `futures::block_on`
-    // to complete the export operation. The exporter, which performs an async operation and
-    // requires the runtime, cannot progress because the main thread is already blocked.
-    // This results in a deadlock, as the runtime cannot move forward.
     async fn test_simple_processor_async_exporter_with_current_thread_runtime() {
         let exporter = LogExporterThatRequiresTokio::new();
 
