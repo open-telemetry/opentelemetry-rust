@@ -4,9 +4,10 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-This crate contains helper implementations for sending HTTP requests. Uses
-include propagating and extracting context over http, exporting telemetry,
-requesting sampling strategies.
+This crate contains helper implementations for sending HTTP requests with
+[OpenTelemetry](https://opentelemetry.io/) integration. Uses include propagating
+and extracting context over HTTP, exporting telemetry data, and requesting
+sampling strategies.
 
 [![Crates.io: opentelemetry-http](https://img.shields.io/crates/v/opentelemetry-http.svg)](https://crates.io/crates/opentelemetry-http)
 [![Documentation](https://docs.rs/opentelemetry-http/badge.svg)](https://docs.rs/opentelemetry-http)
@@ -14,7 +15,7 @@ requesting sampling strategies.
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
-## OpenTelemetry Overview
+## Overview
 
 OpenTelemetry is an Observability framework and toolkit designed to create and
 manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
@@ -30,6 +31,40 @@ infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
+
+[Prometheus]: https://prometheus.io
+[Jaeger]: https://www.jaegertracing.io
+
+### What does this crate contain?
+
+This crate provides HTTP utilities and integrations for OpenTelemetry,
+including:
+
+- **Context Propagation**: Helper implementations for propagating and extracting
+  OpenTelemetry context over HTTP headers, enabling distributed tracing across
+  service boundaries.
+- **HTTP Client Support**: Integration with popular HTTP clients like `reqwest`
+  and `hyper` for automatic instrumentation and context propagation.
+- **Exporter Utilities**: Common HTTP functionality used by exporters to send
+  telemetry data to collection endpoints.
+- **Sampling Strategy Support**: Helper functions for requesting sampling
+  strategies from remote endpoints.
+
+This crate is typically used as a dependency by other OpenTelemetry components
+rather than directly by end users, though it can be useful for custom
+instrumentation scenarios.
+
+### Related crates
+
+This crate is commonly used alongside:
+
+- **[opentelemetry](https://crates.io/crates/opentelemetry):** The core OpenTelemetry API.
+- **[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk):** The OpenTelemetry SDK implementation.
+- **[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp):** OTLP exporter that uses this crate for HTTP transport.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-http).
 
 ## Release Notes
 

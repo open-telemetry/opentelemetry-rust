@@ -35,6 +35,20 @@ of telemetry is intentionally left to other tools.
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
 
+### What does this crate contain?
+
+This crate provides OTLP (OpenTelemetry Protocol) exporter implementations for sending telemetry data to OTLP-compatible backends. It includes:
+
+- **Trace Exporter**: Export distributed tracing data in OTLP format
+- **Metrics Exporter**: Export metrics data to OTLP endpoints  
+- **Logs Exporter**: Export log data using the OTLP protocol
+- **HTTP Transport**: Send telemetry over HTTP/1.1 and HTTP/2 with configurable compression
+- **gRPC Transport**: Send telemetry using gRPC protocol for high-performance scenarios
+- **Authentication Support**: Built-in support for various authentication mechanisms (headers, mTLS, etc.)
+- **Batch Processing**: Efficient batching and retry mechanisms for reliable telemetry delivery
+
+The OTLP format is the recommended way to export telemetry as it's vendor-neutral and supported by many observability backends including Jaeger, Prometheus, and commercial vendors.
+
 ## Getting started
 
 See [docs](https://docs.rs/opentelemetry-otlp).
