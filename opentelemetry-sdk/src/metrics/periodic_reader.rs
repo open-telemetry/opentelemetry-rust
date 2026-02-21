@@ -675,6 +675,39 @@ mod tests {
         assert!(exported_count.load(Ordering::Relaxed) >= 1);
     }
 
+    // Regression test: shutdown() goes through the same export path as force_flush()
+    // (collect_and_export via BlockingStrategy) and then calls exporter.shutdown().
+    // Without BlockingStrategy, this would deadlock on multi_thread(1) just like
+    // force_flush() did (#2802, #3356).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_periodic_reader_shutdown_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let exported_count = exporter.exported_count.clone();
+        let is_shutdown = exporter.is_shutdown.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(Duration::from_secs(120))
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.shutdown().unwrap();
+
+        assert!(exported_count.load(Ordering::Relaxed) >= 1);
+        assert!(is_shutdown.load(Ordering::Relaxed));
+    }
+
+    // Note: A timeout test for PeriodicReader with a hanging exporter is not
+    // included here because PeriodicReader::shutdown() has a hardcoded 5-second
+    // timeout (see TODO in shutdown()) that is not configurable, making the test
+    // too slow for the regular test suite. The timeout behavior is architecturally
+    // identical to BatchSpanProcessor and BatchLogProcessor (recv_timeout on the
+    // response channel), so those tests provide sufficient coverage.
+    // See: https://github.com/open-telemetry/opentelemetry-rust/issues/3381
+
     #[test]
     fn collection_triggered_by_interval_multiple() {
         // Arrange

@@ -1545,6 +1545,68 @@ mod tests {
         assert_eq!(exported_spans.len(), 4);
     }
 
+    // Regression test: shutdown() goes through the same export path as force_flush()
+    // (get_spans_and_export via BlockingStrategy) and then calls exporter.shutdown().
+    // Without BlockingStrategy, this would deadlock on multi_thread(1) just like
+    // force_flush() did (#2802, #3356).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_shutdown_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Test that shutdown() returns a timeout error when the exporter hangs.
+    // The BatchSpanProcessor's shutdown_with_timeout uses recv_timeout (default 5s),
+    // so a hanging exporter should result in Err(Timeout).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_shutdown_timeout_with_hanging_exporter() {
+        #[derive(Debug)]
+        struct HangingSpanExporter;
+
+        impl SpanExporter for HangingSpanExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                // Block forever, simulating an exporter that cannot complete
+                futures_util::future::pending::<()>().await;
+                Ok(())
+            }
+
+            fn shutdown(&self) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(HangingSpanExporter, config);
+
+        let span = new_test_export_span_data();
+        processor.on_end(span);
+
+        // Use a short timeout to avoid slow tests
+        let result = processor.shutdown_with_timeout(Duration::from_millis(500));
+        assert!(result.is_err(), "Expected timeout error from hanging exporter");
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_batch_processor_multi_thread() {
         let exporter = MockSpanExporter::new();
