@@ -1075,6 +1075,56 @@ mod tests {
         processor.shutdown().unwrap();
     }
 
+    // Regression test: shutdown() goes through the same export path as force_flush()
+    // (get_logs_and_export via BlockingStrategy) and then calls exporter.shutdown().
+    // Without BlockingStrategy, this would deadlock on multi_thread(1) just like
+    // force_flush() did (#2802, #3356).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_shutdown_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    // Test that shutdown() returns a timeout error when the exporter hangs.
+    // The BatchLogProcessor's shutdown_with_timeout uses recv_timeout (default 5s),
+    // so a hanging exporter should result in Err(Timeout).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_shutdown_timeout_with_hanging_exporter() {
+        #[derive(Debug)]
+        struct HangingLogExporter;
+
+        impl LogExporter for HangingLogExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                // Block forever, simulating an exporter that cannot complete
+                futures_util::future::pending::<()>().await;
+                Ok(())
+            }
+
+            fn shutdown(&self) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let processor = BatchLogProcessor::new(HangingLogExporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        // Use a short timeout to avoid slow tests
+        let result = processor.shutdown_with_timeout(Duration::from_millis(500));
+        assert!(result.is_err(), "Expected timeout error from hanging exporter");
+    }
+
     /// A slow exporter that counts the number of logs received.
     /// Used for stress testing the BatchLogProcessor.
     #[derive(Debug, Clone)]
