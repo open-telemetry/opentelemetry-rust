@@ -1122,7 +1122,10 @@ mod tests {
 
         // Use a short timeout to avoid slow tests
         let result = processor.shutdown_with_timeout(Duration::from_millis(500));
-        assert!(result.is_err(), "Expected timeout error from hanging exporter");
+        assert!(
+            result.is_err(),
+            "Expected timeout error from hanging exporter"
+        );
     }
 
     /// A slow exporter that counts the number of logs received.
