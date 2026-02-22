@@ -439,6 +439,25 @@ impl TracerProviderBuilder {
         TracerProviderBuilder { resource, ..self }
     }
 
+    /// Transforms the current [Resource] in this builder using a function.
+    ///
+    /// The transformed [Resource] represents the entity producing telemetry and
+    /// is associated with all [Tracer]s the [SdkTracerProvider] will create.
+    ///
+    /// By default, if this option is not used, the default [Resource] will be used.
+    ///
+    /// *Note*: Calls to this method are not additive, the returned resource will
+    /// completely replace the existing [Resource].
+    ///
+    /// [Tracer]: opentelemetry::trace::Tracer
+    pub fn transform_resource<F>(self, f: F) -> Self
+    where
+        F: FnOnce(Option<&Resource>) -> Resource,
+    {
+        let resource = Some(f(self.resource.as_ref()));
+        TracerProviderBuilder { resource, ..self }
+    }
+
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkTracerProvider {
         let mut config = self.config;
@@ -916,5 +935,139 @@ mod tests {
 
         // Verify that shutdown was only called once, even after drop
         assert_eq!(shutdown_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn transform_resource_with_none() {
+        // Test transform_resource when no resource is set initially
+        let provider = super::SdkTracerProvider::builder()
+            .transform_resource(|existing| {
+                assert!(existing.is_none());
+                Resource::new(vec![KeyValue::new("transformed", "value")])
+            })
+            .build();
+
+        assert_eq!(
+            provider.config().resource.get(&Key::new("transformed")),
+            Some(Value::from("value"))
+        );
+    }
+
+    #[test]
+    fn transform_resource_with_existing() {
+        // Test transform_resource when a resource already exists
+        let provider = super::SdkTracerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("original", "value1")]))
+            .transform_resource(|existing| {
+                assert!(existing.is_some());
+                let existing_resource = existing.unwrap();
+                assert_eq!(
+                    existing_resource.get(&Key::new("original")),
+                    Some(Value::from("value1"))
+                );
+
+                // Create a new resource that merges with the existing one
+                existing_resource
+                    .merge(&Resource::new(vec![KeyValue::new("transformed", "value2")]))
+            })
+            .build();
+
+        // Both original and transformed attributes should be present
+        assert_eq!(
+            provider.config().resource.get(&Key::new("original")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            provider.config().resource.get(&Key::new("transformed")),
+            Some(Value::from("value2"))
+        );
+    }
+
+    #[test]
+    fn transform_resource_replace_existing() {
+        // Test transform_resource that completely replaces the existing resource
+        let provider = super::SdkTracerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("original", "value1")]))
+            .transform_resource(|_existing| {
+                // Ignore existing and create a completely new resource
+                Resource::new(vec![KeyValue::new("replaced", "new_value")])
+            })
+            .build();
+
+        // Only the new resource should be present
+        assert_eq!(provider.config().resource.get(&Key::new("original")), None);
+        assert_eq!(
+            provider.config().resource.get(&Key::new("replaced")),
+            Some(Value::from("new_value"))
+        );
+    }
+
+    #[test]
+    fn transform_resource_multiple_calls() {
+        // Test multiple calls to transform_resource
+        let provider = super::SdkTracerProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("initial", "value")]))
+            .transform_resource(|existing| {
+                existing.unwrap().merge(&Resource::new(vec![KeyValue::new(
+                    "first_transform",
+                    "value1",
+                )]))
+            })
+            .transform_resource(|existing| {
+                existing.unwrap().merge(&Resource::new(vec![KeyValue::new(
+                    "second_transform",
+                    "value2",
+                )]))
+            })
+            .build();
+
+        // All attributes should be present
+        assert_eq!(
+            provider.config().resource.get(&Key::new("initial")),
+            Some(Value::from("value"))
+        );
+        assert_eq!(
+            provider.config().resource.get(&Key::new("first_transform")),
+            Some(Value::from("value1"))
+        );
+        assert_eq!(
+            provider
+                .config()
+                .resource
+                .get(&Key::new("second_transform")),
+            Some(Value::from("value2"))
+        );
+    }
+
+    #[test]
+    fn transform_resource_with_schema_url() {
+        // Test transform_resource preserving schema URL
+        let provider = super::SdkTracerProvider::builder()
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(
+                        vec![KeyValue::new("original", "value")],
+                        "http://example.com/schema",
+                    )
+                    .build(),
+            )
+            .transform_resource(|existing| {
+                let existing_resource = existing.unwrap();
+                existing_resource.merge(&Resource::new(vec![KeyValue::new("added", "new_value")]))
+            })
+            .build();
+
+        assert_eq!(
+            provider.config().resource.get(&Key::new("original")),
+            Some(Value::from("value"))
+        );
+        assert_eq!(
+            provider.config().resource.get(&Key::new("added")),
+            Some(Value::from("new_value"))
+        );
+        assert_eq!(
+            provider.config().resource.schema_url(),
+            Some("http://example.com/schema")
+        );
     }
 }
