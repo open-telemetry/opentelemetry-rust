@@ -205,6 +205,53 @@
 //!
 //! [`tokio`]: https://tokio.rs
 //!
+//! # Environment Variables
+//!
+//! The OTLP exporter respects the following environment variables, as defined by the
+//! [OpenTelemetry specification]. Programmatic configuration via builder methods
+//! takes precedence over environment variables. Signal-specific variables take
+//! precedence over the generic `OTEL_EXPORTER_OTLP_*` variables.
+//!
+//! [OpenTelemetry specification]: https://opentelemetry.io/docs/specs/otel/protocol/exporter/
+//!
+//! ## General (all signals)
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_EXPORTER_OTLP_ENDPOINT` | Target URL for the exporter. For HTTP, signal paths (`/v1/traces`, `/v1/metrics`, `/v1/logs`) are appended automatically. | `http://localhost:4318` (HTTP), `http://localhost:4317` (gRPC) |
+//! | `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol. Valid values: `grpc`, `http/protobuf`, `http/json`. Requires the corresponding crate feature. | Feature-dependent |
+//! | `OTEL_EXPORTER_OTLP_TIMEOUT` | Maximum wait time (in milliseconds) for the backend to process each batch. | `10000` |
+//! | `OTEL_EXPORTER_OTLP_HEADERS` | Key-value pairs for request headers. Format: `key1=value1,key2=value2`. Values are URL-decoded. | (none) |
+//! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`. | (none) |
+//!
+//! ## Traces
+//!
+//! | Variable | Description |
+//! |---|---|
+//! | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Signal-specific endpoint for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Signal-specific timeout (in milliseconds) for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | Signal-specific headers for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | Signal-specific compression for trace exports. |
+//!
+//! ## Metrics
+//!
+//! | Variable | Description |
+//! |---|---|
+//! | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Signal-specific endpoint for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | Signal-specific timeout (in milliseconds) for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | Signal-specific headers for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | Signal-specific compression for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` | Temporality preference for metrics. Valid values: `cumulative`, `delta`, `lowmemory` (case-insensitive). | `cumulative` |
+//!
+//! ## Logs
+//!
+//! | Variable | Description |
+//! |---|---|
+//! | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | Signal-specific endpoint for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` | Signal-specific timeout (in milliseconds) for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | Signal-specific headers for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_COMPRESSION` | Signal-specific compression for log exports. |
+//!
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
 //!
