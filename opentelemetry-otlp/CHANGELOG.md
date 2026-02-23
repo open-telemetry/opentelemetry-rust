@@ -4,9 +4,11 @@
 
 - **Breaking** Removed `ExportConfig`, `HasExportConfig`, `with_export_config()`, `HasTonicConfig`, `HasHttpConfig`, `TonicConfig`, and `HttpConfig` from public API.
   Use the public `WithExportConfig`, `WithTonicConfig`, and `WithHttpConfig` trait methods instead, which remain unchanged.
-- Error when `https://` endpoint is configured but no TLS feature (`tls-ring` or `tls-aws-lc`) is enabled,
-  instead of silently sending unencrypted traffic. Auto-apply default TLS config for `https://` endpoints
-  when a TLS feature is enabled but no explicit `.with_tls_config()` is set. [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- The gRPC/tonic OTLP exporter's build method now returns an error for all signals (traces, metrics, logs) when
+  an `https://` endpoint is configured but no TLS feature (`tls-ring` or `tls-aws-lc`) is enabled, instead of
+  silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
+  an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
+  [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
