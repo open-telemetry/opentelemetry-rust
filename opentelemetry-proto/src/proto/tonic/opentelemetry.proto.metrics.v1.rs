@@ -685,6 +685,13 @@ pub mod exponential_histogram_data_point {
         /// especially zeros, so uint64 has been selected to ensure
         /// varint encoding.
         #[prost(uint64, repeated, tag = "2")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_vec_u64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_vec_string_to_vec_u64"
+            )
+        )]
         pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
     }
 }
@@ -694,6 +701,7 @@ pub mod exponential_histogram_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SummaryDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -744,7 +752,6 @@ pub struct SummaryDataPoint {
     #[cfg_attr(
         feature = "with-serde",
         serde(
-            default,
             serialize_with = "crate::proto::serializers::serialize_u64_to_string",
             deserialize_with = "crate::proto::serializers::deserialize_string_to_u64"
         )
@@ -759,10 +766,6 @@ pub struct SummaryDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(default)
-    )]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
@@ -771,10 +774,6 @@ pub struct SummaryDataPoint {
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
     #[prost(uint32, tag = "8")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(default)
-    )]
     pub flags: u32,
 }
 /// Nested message and enum types in `SummaryDataPoint`.
@@ -799,7 +798,6 @@ pub mod summary_data_point {
         #[cfg_attr(
             feature = "with-serde",
             serde(
-                default,
                 serialize_with = "crate::proto::serializers::serialize_f64_special",
                 deserialize_with = "crate::proto::serializers::deserialize_f64_special"
             )
@@ -812,7 +810,6 @@ pub mod summary_data_point {
         #[cfg_attr(
             feature = "with-serde",
             serde(
-                default,
                 serialize_with = "crate::proto::serializers::serialize_f64_special",
                 deserialize_with = "crate::proto::serializers::deserialize_f64_special"
             )
