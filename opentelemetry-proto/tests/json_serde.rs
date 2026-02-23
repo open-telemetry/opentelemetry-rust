@@ -1598,7 +1598,8 @@ mod json_serde {
                     "value": null
                   }
                 ],
-                "droppedAttributesCount": 0
+                "droppedAttributesCount": 0,
+                "entityRefs": []
               },
               "scopeMetrics": [
                 {

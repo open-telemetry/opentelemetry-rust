@@ -156,7 +156,6 @@ fn build_tonic() {
     for path in [
         "metrics.v1.HistogramDataPoint.bucket_counts",
         "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
-        "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
     ] {
         builder = builder.field_attribute(
             path,
