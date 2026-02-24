@@ -58,7 +58,6 @@ Released 2025-Sep-25
   explicitly enabled.
 - **Fix**: Fix shutdown of `SimpleLogProcessor` and async `BatchLogProcessor`.
 - Default implementation of `LogProcessor::shutdown_with_timeout()` will now warn to encourage users to implement proper shutdown.
->>>>>>> main
 
 ## 0.30.0
 
