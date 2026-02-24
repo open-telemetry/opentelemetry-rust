@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Add optional `metrics-use-foldhash` feature flag to use [foldhash](https://github.com/orlp/foldhash) for `ValueMap` HashMaps in the metrics hot path, providing ~30% improvement over the default std `SipHash` hasher. [#3388](https://github.com/open-telemetry/opentelemetry-rust/pull/3388)
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
