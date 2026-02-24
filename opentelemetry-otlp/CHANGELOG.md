@@ -3,7 +3,7 @@
 ## vNext
 
 - **Breaking** Removed `ExportConfig`, `HasExportConfig`, and `with_export_config()` from public API.
-  These were internal plumbing not intended for external use. Use the `WithExportConfig` trait
+Use the `WithExportConfig` trait
   methods (`.with_endpoint()`, `.with_protocol()`, `.with_timeout()`) instead, which remain public.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
