@@ -80,12 +80,12 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
 
-    /// `on_ending` is called after a `Span` is ended before [`on_end`] is invoked on any processor.
+    /// `on_ending` is called after a `Span` is ended before [`SpanProcessor::on_end`] is invoked on any processor.
     /// The end timestamp has already been set.
     ///
-    /// Unlike [`on_start`], which only observes attributes provided at span creation,
+    /// Unlike [`SpanProcessor::on_start`], which only observes attributes provided at span creation,
     /// `on_ending` observes all attributes accumulated during the span's lifetime,
-    /// including those added via [`Span::set_attribute`].
+    /// including those added via `Span::set_attribute`.
     ///
     /// If multiple processors are registered, their `on_ending` methods are called
     /// in registration order and mutations are visible to subsequent processors.
