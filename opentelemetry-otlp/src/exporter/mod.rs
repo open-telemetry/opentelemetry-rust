@@ -251,8 +251,6 @@ impl HasExportConfig for HttpExporterBuilder {
 
 /// Expose methods to set export configuration on exporter builders.
 ///
-/// This trait is implemented for every struct that implements [`HasExportConfig`].
-///
 /// ## Examples
 /// ```
 /// # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
