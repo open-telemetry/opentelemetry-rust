@@ -745,9 +745,26 @@ mod tests {
         #[derive(Debug)]
         struct FirstProcessor;
         impl SpanProcessor for FirstProcessor {
-            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+            fn on_start(&self, span: &mut Span, _cx: &opentelemetry::Context) {
+                // on_start only sees attributes provided at span creation time
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(!data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
+            }
             fn on_end(&self, _span: crate::trace::SpanData) {}
             fn on_ending(&self, span: &mut Span) {
+                // on_ending sees all attributes, including those added after span creation
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
                 span.set_attribute(KeyValue::new("first_processor", "true"));
             }
 
@@ -766,9 +783,15 @@ mod tests {
             fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
             fn on_end(&self, _span: crate::trace::SpanData) {}
             fn on_ending(&self, span: &mut Span) {
-                assert!(span
-                    .exported_data()
-                    .unwrap()
+                // on_ending sees mutations from previous processors
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
+                assert!(data
                     .attributes
                     .contains(&KeyValue::new("first_processor", "true")));
                 span.set_attribute(KeyValue::new("second_processor", "true"));
@@ -791,15 +814,29 @@ mod tests {
             .with_span_processor(SecondProcessor)
             .with_simple_exporter(exporter)
             .build();
-        provider.tracer("test").start("test_span");
 
-        spans.lock().unwrap().iter().for_each(|span| {
-            assert!(span
-                .attributes
-                .contains(&KeyValue::new("first_processor", "true")));
-            assert!(span
-                .attributes
-                .contains(&KeyValue::new("second_processor", "true")));
-        });
+        let tracer = provider.tracer("test");
+        let mut span = tracer.build(
+            SpanBuilder::from_name("test_span")
+                .with_attributes(vec![KeyValue::new("created_at_start", "true")]),
+        );
+        span.set_attribute(KeyValue::new("added_at_runtime", "true"));
+        span.end();
+
+        let exported = spans.lock().unwrap();
+        assert_eq!(exported.len(), 1);
+        let exported_span = &exported[0];
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("created_at_start", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("added_at_runtime", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("first_processor", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("second_processor", "true")));
     }
 }
