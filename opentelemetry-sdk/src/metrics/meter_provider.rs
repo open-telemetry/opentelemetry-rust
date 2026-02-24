@@ -25,7 +25,7 @@ use super::{
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
 /// [Resource], have the same views applied to them, and have their produced
-/// metric telemetry passed to the configured [MetricReader]s. This is a
+/// metric telemetry passed to the configured `MetricReader`s. This is a
 /// clonable handle to the MeterProvider implementation itself, and cloning it
 /// will create a new reference, not a new instance of a MeterProvider. Dropping
 /// the last reference to it will trigger shutdown of the provider. Shutdown can
@@ -256,11 +256,11 @@ impl MeterProviderBuilder {
         self
     }
 
-    /// Associates a [MetricReader] with a [MeterProvider].
-    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
+    /// Associates a `MetricReader` with a [MeterProvider].
+    /// [`MeterProviderBuilder::with_periodic_exporter()`] can be used to add a PeriodicReader which is
     /// the most common use case.
     ///
-    /// A [MeterProvider] will export no metrics without [MetricReader]
+    /// A [MeterProvider] will export no metrics without a `MetricReader`
     /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
         self.readers.push(Box::new(reader));
@@ -461,10 +461,15 @@ mod tests {
             let default_meter_provider = super::SdkMeterProvider::builder()
                 .with_reader(reader)
                 .build();
-            assert_resource(
-                &default_meter_provider,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = default_meter_provider.inner.pipes.0[0]
+                .resource
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&default_meter_provider);
         });
@@ -491,10 +496,15 @@ mod tests {
                 let env_resource_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader3)
                     .build();
-                assert_resource(
-                    &env_resource_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = env_resource_provider.inner.pipes.0[0]
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
@@ -520,10 +530,15 @@ mod tests {
                             .build(),
                     )
                     .build();
-                assert_resource(
-                    &user_provided_resource_config_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = user_provided_resource_config_provider.inner.pipes.0[0]
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &user_provided_resource_config_provider,

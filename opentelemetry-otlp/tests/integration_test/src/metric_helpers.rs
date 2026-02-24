@@ -3,7 +3,7 @@ use crate::test_utils;
 use anyhow::Result;
 use anyhow::{Context, Ok};
 use opentelemetry_otlp::MetricExporter;
-use opentelemetry_sdk::metrics::{MeterProviderBuilder, SdkMeterProvider};
+use opentelemetry_sdk::metrics::{MeterProviderBuilder, SdkMeterProvider, Temporality};
 use opentelemetry_sdk::Resource;
 use serde_json::Value;
 use std::fs;
@@ -34,6 +34,7 @@ fn create_exporter() -> MetricExporter {
     let exporter_builder = exporter_builder.with_http();
 
     exporter_builder
+        .with_temporality(Temporality::Cumulative)
         .build()
         .expect("Failed to build MetricExporter")
 }
@@ -101,9 +102,7 @@ pub fn assert_metrics_results_contains(expected_content: &str) -> Result<()> {
     reader.read_to_string(&mut contents)?;
     assert!(
         contents.contains(expected_content),
-        "Expected content {} not found in actual content {}",
-        expected_content,
-        contents
+        "Expected content {expected_content} not found in actual content {contents}"
     );
     Ok(())
 }
@@ -162,12 +161,7 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
                     None
                 })
         })
-        .with_context(|| {
-            format!(
-                "No valid JSON line containing scope `{}` found.",
-                scope_name
-            )
-        })?;
+        .with_context(|| format!("No valid JSON line containing scope `{scope_name}` found."))?;
 
     Ok(json_line)
 }
@@ -178,18 +172,16 @@ pub fn fetch_latest_metrics_for_scope(scope_name: &str) -> Result<Value> {
 ///
 pub fn validate_metrics_against_results(scope_name: &str) -> Result<()> {
     // Define the results file path
-    let results_file_path = format!("./expected/metrics/{}.json", scope_name);
+    let results_file_path = format!("./expected/metrics/{scope_name}.json");
 
     // Fetch the actual metrics for the given scope
     let actual_metrics = fetch_latest_metrics_for_scope(scope_name)
-        .context(format!("Failed to fetch metrics for scope: {}", scope_name))?;
+        .context(format!("Failed to fetch metrics for scope: {scope_name}"))?;
 
     // Read the expected metrics from the results file
     let expected_metrics = {
-        let file = File::open(&results_file_path).context(format!(
-            "Failed to open results file: {}",
-            results_file_path
-        ))?;
+        let file = File::open(&results_file_path)
+            .context(format!("Failed to open results file: {results_file_path}"))?;
         read_metrics_from_json(file)
     }?;
 

@@ -44,6 +44,12 @@ pub use crate::attribute::APP_WIDGET_ID;
 pub use crate::attribute::APP_WIDGET_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_BEDROCK_GUARDRAIL_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_BEDROCK_KNOWLEDGE_BASE_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_DYNAMODB_ATTRIBUTE_DEFINITIONS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -116,6 +122,9 @@ pub use crate::attribute::AWS_EXTENDED_REQUEST_ID;
 pub use crate::attribute::AWS_LAMBDA_INVOKED_ARN;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AWS_LAMBDA_RESOURCE_MAPPING_ID;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AWS_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
@@ -137,9 +146,7 @@ pub use crate::attribute::AWS_S3_PART_NUMBER;
 pub use crate::attribute::AWS_S3_UPLOAD_ID;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::AZ_NAMESPACE;
-
-#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::AZ_SERVICE_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
@@ -162,6 +169,12 @@ pub use crate::attribute::AZURE_COSMOSDB_REQUEST_BODY_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::AZURE_COSMOSDB_RESPONSE_SUB_STATUS_CODE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_RESOURCE_PROVIDER_NAMESPACE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::AZURE_SERVICE_REQUEST_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CASSANDRA_CONSISTENCY_LEVEL;
@@ -204,6 +217,9 @@ pub use crate::attribute::CLIENT_ADDRESS;
 pub use crate::attribute::CLIENT_PORT;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::CLOUD_REGION;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::CLOUD_RESOURCE_ID;
 
 pub use crate::attribute::DB_COLLECTION_NAME;
@@ -232,6 +248,12 @@ pub use crate::attribute::DB_RESPONSE_STATUS_CODE;
 pub use crate::attribute::DB_STORED_PROCEDURE_NAME;
 
 pub use crate::attribute::DB_SYSTEM_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DNS_ANSWERS;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::DNS_QUESTION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
@@ -296,6 +318,9 @@ pub use crate::attribute::FEATURE_FLAG_PROVIDER_NAME;
 pub use crate::attribute::FEATURE_FLAG_RESULT_REASON;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_RESULT_VALUE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_RESULT_VARIANT;
 
 #[cfg(feature = "semconv_experimental")]
@@ -312,6 +337,12 @@ pub use crate::attribute::GEN_AI_AGENT_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_AGENT_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_CONVERSATION_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::GEN_AI_DATA_SOURCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GEN_AI_OPENAI_REQUEST_SERVICE_TIER;
@@ -487,6 +518,12 @@ pub use crate::attribute::SESSION_ID;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::SESSION_PREVIOUS_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::TLS_PROTOCOL_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::TLS_PROTOCOL_VERSION;
 
 pub use crate::attribute::URL_FULL;
 

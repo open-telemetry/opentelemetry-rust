@@ -1,12 +1,15 @@
 //! run with `$ cargo run --example logs-basic`
 
-/// This example shows how to use in_memory_exporter for logs. This uses opentelemetry-appender-log crate, which is a
-/// [logging appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge) that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to OpenTelemetry.
-/// The example setups a LoggerProvider with a in-memory exporter, so emitted logs are stored in memory.
+/// This example shows how to use stdout exporter for logs. This uses
+/// opentelemetry-appender-log crate, which is a [logging
+/// appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge)
+/// that bridges logs from the [log crate](https://docs.rs/log/latest/log/) to
+/// OpenTelemetry. The example setups a LoggerProvider with a stdout exporter,
+/// so emitted logs are written to stdout.
 ///
 use log::{error, info, warn, Level};
 use opentelemetry_appender_log::OpenTelemetryLogBridge;
-use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
+use opentelemetry_sdk::{logs::SdkLoggerProvider, Resource};
 use opentelemetry_stdout::LogExporter;
 
 #[tokio::main]
@@ -15,7 +18,12 @@ async fn main() {
     let exporter = LogExporter::default();
     //Create a LoggerProvider and register the exporter
     let logger_provider = SdkLoggerProvider::builder()
-        .with_log_processor(BatchLogProcessor::builder(exporter).build())
+        .with_resource(
+            Resource::builder()
+                .with_service_name("log-appender-log-example")
+                .build(),
+        )
+        .with_simple_exporter(exporter)
         .build();
 
     // Setup Log Appender for the log crate.

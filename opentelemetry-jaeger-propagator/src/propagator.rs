@@ -239,8 +239,8 @@ mod tests {
                 SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -251,8 +251,8 @@ mod tests {
                 SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -263,8 +263,8 @@ mod tests {
                 SHORT_SPAN_ID_STR,
                 1,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -275,8 +275,8 @@ mod tests {
                 SPAN_ID_STR,
                 3,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
@@ -287,8 +287,8 @@ mod tests {
                 SPAN_ID_STR,
                 0,
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::default(),
                     true,
                     TraceState::default(),
@@ -319,33 +319,33 @@ mod tests {
         vec![
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
                 ),
-                format!("{}:{}:0:1", LONG_TRACE_ID_STR, SPAN_ID_STR),
+                format!("{LONG_TRACE_ID_STR}:{SPAN_ID_STR}:0:1"),
             ),
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TraceFlags::default(),
                     true,
                     TraceState::default(),
                 ),
-                format!("{}:{}:0:0", LONG_TRACE_ID_STR, SPAN_ID_STR),
+                format!("{LONG_TRACE_ID_STR}:{SPAN_ID_STR}:0:0"),
             ),
             (
                 SpanContext::new(
-                    TraceId::from_u128(TRACE_ID),
-                    SpanId::from_u64(SPAN_ID),
+                    TraceId::from(TRACE_ID),
+                    SpanId::from(SPAN_ID),
                     TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
                     true,
                     TraceState::default(),
                 ),
-                format!("{}:{}:0:3", LONG_TRACE_ID_STR, SPAN_ID_STR),
+                format!("{LONG_TRACE_ID_STR}:{SPAN_ID_STR}:0:3"),
             ),
         ]
     }
@@ -356,7 +356,7 @@ mod tests {
         let propagator = Propagator::with_custom_header(construct_header);
         for (trace_id, span_id, flag, expected) in get_extract_data() {
             let mut map: HashMap<String, String> = HashMap::new();
-            map.set(context_key, format!("{}:{}:0:{}", trace_id, span_id, flag));
+            map.set(context_key, format!("{trace_id}:{span_id}:0:{flag}"));
             let context = propagator.extract(&map);
             assert_eq!(context.span().span_context(), &expected);
         }
@@ -392,7 +392,7 @@ mod tests {
 
         // Propagators implement debug
         assert_eq!(
-            format!("{:?}", default_propagator),
+            format!("{default_propagator:?}"),
             format!(
                 "Propagator {{ baggage_prefix: \"{}\", header_name: \"{}\", fields: [\"{}\"] }}",
                 JAEGER_BAGGAGE_PREFIX, JAEGER_HEADER, JAEGER_HEADER
@@ -550,10 +550,7 @@ mod tests {
     #[test]
     fn test_extract_span_id() {
         let propgator = Propagator::new();
-        assert_eq!(
-            propgator.extract_span_id("12345"),
-            Ok(SpanId::from_u64(74565))
-        );
+        assert_eq!(propgator.extract_span_id("12345"), Ok(SpanId::from(74565)));
 
         // Fail to extract span id with an invalid hex-string
         assert_eq!(propgator.extract_span_id("invalid"), Err(()));
@@ -641,10 +638,7 @@ mod tests {
         }
         for (trace_id, span_id, flag, expected) in get_extract_data() {
             let mut map: HashMap<String, String> = HashMap::new();
-            map.set(
-                JAEGER_HEADER,
-                format!("{}:{}:0:{}", trace_id, span_id, flag),
-            );
+            map.set(JAEGER_HEADER, format!("{trace_id}:{span_id}:0:{flag}"));
             let context = propagator.extract(&map);
             assert_eq!(context.span().span_context(), &expected);
         }
@@ -655,7 +649,7 @@ mod tests {
         let mut map: HashMap<String, String> = HashMap::new();
         map.set(
             JAEGER_HEADER,
-            format!("{}:{}:0:1:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
+            format!("{LONG_TRACE_ID_STR}:{SPAN_ID_STR}:0:1:aa"),
         );
         let propagator = Propagator::new();
         let context = propagator.extract(&map);
@@ -667,7 +661,7 @@ mod tests {
         let mut map: HashMap<String, String> = HashMap::new();
         map.set(
             JAEGER_HEADER,
-            format!("{}:{}:0:aa", LONG_TRACE_ID_STR, SPAN_ID_STR),
+            format!("{LONG_TRACE_ID_STR}:{SPAN_ID_STR}:0:aa"),
         );
         let propagator = Propagator::new();
         let context = propagator.extract(&map);
@@ -679,15 +673,15 @@ mod tests {
         let mut map: HashMap<String, String> = HashMap::new();
         map.set(
             JAEGER_HEADER,
-            format!("{}%3A{}%3A0%3A1", LONG_TRACE_ID_STR, SPAN_ID_STR),
+            format!("{LONG_TRACE_ID_STR}%3A{SPAN_ID_STR}%3A0%3A1"),
         );
         let propagator = Propagator::new();
         let context = propagator.extract(&map);
         assert_eq!(
             context.span().span_context(),
             &SpanContext::new(
-                TraceId::from_u128(TRACE_ID),
-                SpanId::from_u64(SPAN_ID),
+                TraceId::from(TRACE_ID),
+                SpanId::from(SPAN_ID),
                 TraceFlags::SAMPLED,
                 true,
                 TraceState::default(),

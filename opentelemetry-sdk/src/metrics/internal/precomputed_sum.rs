@@ -116,8 +116,10 @@ impl<T: Number> PrecomputedSum<T> {
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
+        // Use collect_and_reset to remove stale attributes (not observed in current callback)
+        // For cumulative, report absolute values (no delta calculation needed)
         self.value_map
-            .collect_readonly(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
+            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 value: aggr.value.get_value(),
                 exemplars: vec![],

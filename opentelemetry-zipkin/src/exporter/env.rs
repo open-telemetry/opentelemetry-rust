@@ -21,7 +21,7 @@ pub(crate) fn get_timeout() -> Duration {
         Some(timeout) => match timeout.parse() {
             Ok(timeout) => Duration::from_millis(timeout),
             Err(e) => {
-                eprintln!("{} malformed defaulting to 10000: {}", ENV_TIMEOUT, e);
+                eprintln!("{ENV_TIMEOUT} malformed defaulting to 10000: {e}");
                 DEFAULT_COLLECTOR_TIMEOUT
             }
         },

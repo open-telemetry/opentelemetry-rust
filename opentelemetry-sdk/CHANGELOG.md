@@ -2,10 +2,63 @@
 
 ## vNext
 
-- TODO: Placeholder for Span processor related things
-  - Add `on_ending` API on the span processor. This allows mutating spans while
-  they are teriminating.
+- Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
+- `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
+- Fix `service.name` Resource attribute fallback to follow OpenTelemetry
+  specification by using `unknown_service:<process.executable.name>` format when
+  service name is not explicitly configured. Previously, it only used
+  `unknown_service`.
+- Fix `SpanExporter::shutdown()` default timeout from 5 nanoseconds to 5 seconds.
+- **Breaking** `SpanExporter` trait methods `shutdown`, `shutdown_with_timeout`, and `force_flush` now take `&self` instead of `&mut self` for consistency with `LogExporter` and `PushMetricExporter`. Implementers using interior mutability (e.g., `Mutex`, `AtomicBool`) require no changes.
+- Added `Resource::get_ref(&self, key: &Key) -> Option<&Value>` to allow retrieving a reference to a resource value without cloning.
+- **Breaking** Removed the following public hidden methods from the `SdkTracer` [#3227][3227]:
+  - `id_generator`, `should_sample`
+- **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
+  - `SamplingDecision`, `SamplingResult`
+  - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
+- `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
+- Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
+- Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
+  - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 
+[3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
+[3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
+[3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
+[3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+
+- Add `on_ending` API on the span processor. This allows mutating spans while
+  they are terminating.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Updated `opentelemetry` and `opentelemetry-http` dependencies to version 0.31.0.
+- **Feature**: Add span flags support for `isRemote` property in OTLP exporter ([#3153](https://github.com/open-telemetry/opentelemetry-rust/pull/3153))
+- Updated span and link transformations to properly set flags field (0x100 for local, 0x300 for remote)
+
+- TODO: Placeholder for Span processor related things
+  - *Fix* SpanProcessor::on_start is no longer called on non recording spans
+- **Fix**: Restore true parallel exports in the async-native `BatchSpanProcessor` by honoring `OTEL_BSP_MAX_CONCURRENT_EXPORTS` ([#2959](https://github.com/open-telemetry/opentelemetry-rust/pull/3028)). A regression in [#2685](https://github.com/open-telemetry/opentelemetry-rust/pull/2685) inadvertently awaited the `export()` future directly in `opentelemetry-sdk/src/trace/span_processor_with_async_runtime.rs` instead of spawning it on the runtime, forcing all exports to run sequentially.
+- **Feature**: Added `Clone` implementation to `SdkLogger` for API consistency with `SdkTracer` ([#3058](https://github.com/open-telemetry/opentelemetry-rust/issues/3058)).
+- **Fix**: batch size accounting in BatchSpanProcessor when queue is full ([#3089](https://github.com/open-telemetry/opentelemetry-rust/pull/3089)).
+- **Fix**: Resolved dependency issue where the "logs" feature incorrectly
+  required the "trace" feature flag
+  ([#3096](https://github.com/open-telemetry/opentelemetry-rust/issues/3096)).
+  The logs functionality now operates independently, while automatic correlation
+  between logs and traces continues to work when the "trace" feature is
+  explicitly enabled.
+- **Fix**: Fix shutdown of `SimpleLogProcessor` and async `BatchLogProcessor`.
+- Default implementation of `LogProcessor::shutdown_with_timeout()` will now warn to encourage users to implement proper shutdown.
+>>>>>>> main
 
 ## 0.30.0
 
@@ -28,7 +81,7 @@ also modified to suppress telemetry before invoking exporters.
 
 - **Feature**: Implemented and enabled cardinality capping for Metrics by
   default. [#2901](https://github.com/open-telemetry/opentelemetry-rust/pull/2901)
-  - The default cardinality limit is 2000 and can be customized using Views.  
+  - The default cardinality limit is 2000 and can be customized using Views.
   - This feature was previously removed in version 0.28 due to the lack of
     configurability but has now been reintroduced with the ability to configure
     the limit.
@@ -169,7 +222,7 @@ Released 2025-Mar-21
   ```
 
   After:
-  
+
   ```rust
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult
   ```
@@ -191,7 +244,7 @@ Released 2025-Mar-21
  needs to mutate state, it should rely on interior mutability.
  [2764](https://github.com/open-telemetry/opentelemetry-rust/pull/2764)
 - *Breaking (Affects custom Exporter/Processor authors only)* Removed
- `opentelelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
+ `opentelemetry_sdk::logs::error::{LogError, LogResult}`. These were not
  intended to be public. If you are authoring custom processor/exporters, use
  `opentelemetry_sdk::error::OTelSdkError` and
  `opentelemetry_sdk::error::OTelSdkResult`.

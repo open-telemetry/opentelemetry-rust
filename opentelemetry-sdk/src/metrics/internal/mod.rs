@@ -6,10 +6,15 @@ mod precomputed_sum;
 mod sum;
 
 use core::fmt;
+#[cfg(not(target_has_atomic = "64"))]
+use portable_atomic::{AtomicI64, AtomicU64};
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+#[cfg(target_has_atomic = "64")]
+use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
@@ -17,6 +22,7 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
+use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -79,7 +85,9 @@ where
 {
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
+            trackers: RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
+            )),
             trackers_for_collect: OnceLock::new(),
             has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: A::create(&config),
@@ -91,8 +99,11 @@ where
 
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
-        self.trackers_for_collect
-            .get_or_init(|| RwLock::new(HashMap::with_capacity(1 + self.cardinality_limit)))
+        self.trackers_for_collect.get_or_init(|| {
+            RwLock::new(HashMap::with_capacity(
+                1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
+            ))
+        })
     }
 
     /// Checks whether aggregator has hit cardinality limit for metric streams
@@ -156,7 +167,8 @@ where
     }
 
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
-    /// This is used in Cumulative temporality mode, where [`ValueMap`] is not cleared.
+    /// This is used for synchronous instruments (Counter, Histogram, etc.) in Cumulative temporality mode,
+    /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
     pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
@@ -179,7 +191,12 @@ where
     }
 
     /// Iterate through all attribute sets, populate `DataPoints` and reset.
-    /// This is used in Delta temporality mode, where [`ValueMap`] is reset after collection.
+    /// This is used for:
+    /// - Synchronous instruments in Delta temporality mode
+    /// - Asynchronous instruments (Observable) in both Delta and Cumulative temporality modes
+    ///
+    /// For asynchronous instruments, this removes stale attribute sets that were not observed
+    /// in the current callback, ensuring only currently active attributes are reported.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
@@ -501,24 +518,35 @@ impl AtomicallyUpdate<f64> for f64 {
 
 #[cfg(test)]
 mod tests {
+    use crate::metrics::internal::last_value::Assign;
+
     use super::*;
+
+    // Test helpers that return boxed trait objects to avoid method shadowing
+    // from portable-atomic's inherent methods
+    fn new_u64_tracker(init: u64) -> Box<dyn AtomicTracker<u64>> {
+        Box::new(u64::new_atomic_tracker(init))
+    }
+
+    fn new_i64_tracker(init: i64) -> Box<dyn AtomicTracker<i64>> {
+        Box::new(i64::new_atomic_tracker(init))
+    }
 
     #[test]
     fn can_store_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker(0);
-        let atomic_tracker = &atomic as &dyn AtomicTracker<u64>;
+        let atomic = new_u64_tracker(0);
 
         let value = atomic.get_value();
         assert_eq!(value, 0);
 
-        atomic_tracker.store(25);
+        atomic.store(25);
         let value = atomic.get_value();
         assert_eq!(value, 25);
     }
 
     #[test]
     fn can_add_and_get_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker(0);
+        let atomic = new_u64_tracker(0);
         atomic.add(15);
         atomic.add(10);
 
@@ -528,7 +556,7 @@ mod tests {
 
     #[test]
     fn can_reset_u64_atomic_value() {
-        let atomic = u64::new_atomic_tracker(0);
+        let atomic = new_u64_tracker(0);
         atomic.add(15);
 
         let value = atomic.get_and_reset_value();
@@ -540,24 +568,23 @@ mod tests {
 
     #[test]
     fn can_store_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker(0);
-        let atomic_tracker = &atomic as &dyn AtomicTracker<i64>;
+        let atomic = new_i64_tracker(0);
 
         let value = atomic.get_value();
         assert_eq!(value, 0);
 
-        atomic_tracker.store(-25);
+        atomic.store(-25);
         let value = atomic.get_value();
         assert_eq!(value, -25);
 
-        atomic_tracker.store(25);
+        atomic.store(25);
         let value = atomic.get_value();
         assert_eq!(value, 25);
     }
 
     #[test]
     fn can_add_and_get_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker(0);
+        let atomic = new_i64_tracker(0);
         atomic.add(15);
         atomic.add(-10);
 
@@ -567,7 +594,7 @@ mod tests {
 
     #[test]
     fn can_reset_i64_atomic_value() {
-        let atomic = i64::new_atomic_tracker(0);
+        let atomic = new_i64_tracker(0);
         atomic.add(15);
 
         let value = atomic.get_and_reset_value();
@@ -615,5 +642,15 @@ mod tests {
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
         assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
+    }
+
+    #[test]
+    fn large_cardinality_limit() {
+        // This is a regression test for panics that used to occur for large cardinality limits
+
+        // Should not panic
+        let value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
+        // Should not panic
+        let _ = value_map.trackers_for_collect();
     }
 }

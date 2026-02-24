@@ -83,22 +83,14 @@ pub(crate) struct Histogram<T: Number> {
 }
 
 impl<T: Number> Histogram<T> {
-    #[allow(unused_mut)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
-        mut bounds: Vec<f64>,
+        bounds: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
     ) -> Self {
-        #[cfg(feature = "spec_unstable_metrics_views")]
-        {
-            // TODO: When views are used, validate this upfront
-            bounds.retain(|v| !v.is_nan());
-            bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
-        }
-
         let buckets_count = if bounds.is_empty() {
             0
         } else {

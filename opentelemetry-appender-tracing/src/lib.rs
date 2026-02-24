@@ -30,9 +30,9 @@
 //! tracing = ">=0.1.40"
 //! tracing-core = { version = ">=0.1.33" }
 //! tracing-subscriber = { version = "0.3", features = ["registry", "std", "fmt"] }
-//! opentelemetry = { version = "0.28", features = ["logs"] }
-//! opentelemetry-sdk = { version = "0.28", features = ["logs"] }
-//! opentelemetry-appender-tracing = { version = "0.28.1" }
+//! opentelemetry = { version = "0.31", features = ["logs"] }
+//! opentelemetry-sdk = { version = "0.31", features = ["logs"] }
+//! opentelemetry-appender-tracing = { version = "0.31.1" }
 //! ```
 //!
 //! ### 2. Set Up the OpenTelemetry Logger Provider
@@ -135,11 +135,9 @@
 //! >   spans to OpenTelemetry in the future.
 //!
 //! ## Feature Flags
-//! `spec_unstable_logs_enabled`: TODO
 //!
 //! `experimental_metadata_attributes`: TODO
 //!
-//! `experimental_use_tracing_span_context`: TODO
 //!
 //! ## Limitations
 //! 1. There is no support for `Valuable` crate. [2819](https://github.com/open-telemetry/opentelemetry-rust/issues/2819)

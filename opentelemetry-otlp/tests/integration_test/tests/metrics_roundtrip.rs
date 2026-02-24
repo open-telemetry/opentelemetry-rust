@@ -38,7 +38,7 @@ mod metrictests_roundtrip {
         let metrics: MetricsData = serde_json::from_str(metrics_in)?;
         let metrics_out = serde_json::to_string(&metrics)?;
 
-        println!("{:}", metrics_out);
+        println!("{metrics_out:}");
 
         let metrics_in_json: Value = serde_json::from_str(metrics_in)?;
         let metrics_out_json: Value = serde_json::from_str(&metrics_out)?;

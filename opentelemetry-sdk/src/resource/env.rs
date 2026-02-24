@@ -86,7 +86,19 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                             .detect()
                             .get(&Key::new(super::SERVICE_NAME))
                     })
-                    .unwrap_or_else(|| "unknown_service".into()),
+                    .unwrap_or_else(|| {
+                        // Fallback to unknown_service:<process.executable.name> per spec
+                        // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
+                        env::current_exe()
+                            .ok()
+                            .and_then(|path| {
+                                path.file_name()
+                                    .and_then(|name| name.to_str())
+                                    .map(|name| format!("unknown_service:{}", name))
+                            })
+                            .unwrap_or_else(|| "unknown_service".to_string())
+                            .into()
+                    }),
             )])
             .build()
     }
@@ -135,11 +147,18 @@ mod tests {
 
     #[test]
     fn test_sdk_provided_resource_detector() {
-        // Ensure no env var set
+        // Ensure no env var set - should fallback to unknown_service:<executable_name>
+        // For cargo tests, the executable name is typically <crate_name>-<hash>
         let no_env = SdkProvidedResourceDetector.detect();
-        assert_eq!(
-            no_env.get(&Key::from_static_str(crate::resource::SERVICE_NAME)),
-            Some(Value::from("unknown_service")),
+        let service_name = no_env
+            .get(&Key::from_static_str(crate::resource::SERVICE_NAME))
+            .map(|v| v.to_string())
+            .unwrap();
+
+        assert!(
+            service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+            "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+            service_name
         );
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {

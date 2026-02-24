@@ -119,7 +119,7 @@ impl SpanForest {
         }
 
         if !spans.is_empty() {
-            panic!("found spans with invalid parent: {:?}", spans);
+            panic!("found spans with invalid parent: {spans:?}");
         }
 
         forest

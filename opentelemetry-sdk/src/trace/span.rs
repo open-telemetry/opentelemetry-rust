@@ -27,6 +27,8 @@ pub struct Span {
 pub(crate) struct SpanData {
     /// Span parent id
     pub(crate) parent_span_id: SpanId,
+    /// Parent span is remote flag (for span flags)
+    pub(crate) parent_span_is_remote: bool,
     /// Span kind
     pub(crate) span_kind: SpanKind,
     /// Span name
@@ -261,6 +263,7 @@ fn build_export_data(
     crate::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
+        parent_span_is_remote: data.parent_span_is_remote,
         span_kind: data.span_kind,
         name: data.name,
         start_time: data.start_time,
@@ -292,7 +295,8 @@ mod tests {
         let provider = crate::trace::SdkTracerProvider::default();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
-            parent_span_id: SpanId::from_u64(0),
+            parent_span_id: SpanId::from(0),
+            parent_span_is_remote: false,
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
@@ -545,7 +549,7 @@ mod tests {
         let mut initial_attributes = Vec::new();
         let mut expected_dropped_count = 1;
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_SPAN + 1) {
-            initial_attributes.push(KeyValue::new(format!("key {}", i), i.to_string()))
+            initial_attributes.push(KeyValue::new(format!("key {i}"), i.to_string()))
         }
         let span_builder = SpanBuilder::from_name("test_span").with_attributes(initial_attributes);
 
@@ -585,7 +589,7 @@ mod tests {
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
             event1
                 .attributes
-                .push(KeyValue::new(format!("key {}", i), i.to_string()))
+                .push(KeyValue::new(format!("key {i}"), i.to_string()))
         }
         let event2 = event1.clone();
 
@@ -618,15 +622,15 @@ mod tests {
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut link = Link::with_context(SpanContext::new(
-            TraceId::from_u128(12),
-            SpanId::from_u64(12),
+            TraceId::from(12),
+            SpanId::from(12),
             TraceFlags::default(),
             false,
             Default::default(),
         ));
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_LINK * 2) {
             link.attributes
-                .push(KeyValue::new(format!("key {}", i), i.to_string()));
+                .push(KeyValue::new(format!("key {i}"), i.to_string()));
         }
 
         let span_builder = tracer.span_builder("test").with_links(vec![link]);
@@ -652,8 +656,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -666,8 +670,8 @@ mod tests {
         // add links using span api after building the span
         span.add_link(
             SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -726,7 +730,7 @@ mod tests {
         let exported_data = span.exported_data();
         assert!(exported_data.is_some());
         let res = provider.shutdown();
-        println!("{:?}", res);
+        println!("{res:?}");
         assert!(res.is_ok());
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped

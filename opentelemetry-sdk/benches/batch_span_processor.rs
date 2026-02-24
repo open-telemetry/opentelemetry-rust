@@ -15,13 +15,14 @@ fn get_span_data() -> Vec<SpanData> {
     (0..200)
         .map(|_| SpanData {
             span_context: SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 TraceState::default(),
             ),
-            parent_span_id: SpanId::from_u64(12),
+            parent_span_id: SpanId::from(12),
+            parent_span_is_remote: false,
             span_kind: SpanKind::Client,
             name: Default::default(),
             start_time: now(),
@@ -42,7 +43,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     for task_num in [1, 2, 4, 8, 16, 32].iter() {
         group.bench_with_input(
-            BenchmarkId::from_parameter(format!("with {} concurrent task", task_num)),
+            BenchmarkId::from_parameter(format!("with {task_num} concurrent task")),
             task_num,
             |b, &task_num| {
                 b.iter(|| {

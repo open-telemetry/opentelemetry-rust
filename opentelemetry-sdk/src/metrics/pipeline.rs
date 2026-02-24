@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry::{otel_debug, InstrumentationScope, KeyValue};
+use opentelemetry::{otel_debug, otel_warn, InstrumentationScope, KeyValue};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
@@ -50,7 +50,7 @@ impl fmt::Debug for Pipeline {
 /// Single or multi-instrument callbacks
 type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
-const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
+pub(crate) const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
 
 #[derive(Default)]
 struct PipelineInner {
@@ -279,6 +279,16 @@ where
                 stream.unit = Some(inst.unit.clone());
             }
 
+            // Override default histogram boundaries if provided.
+            if let Some(boundaries) = boundaries {
+                if kind == InstrumentKind::Histogram && stream.aggregation.is_none() {
+                    stream.aggregation = Some(Aggregation::ExplicitBucketHistogram {
+                        boundaries: boundaries.to_vec(),
+                        record_min_max: true,
+                    });
+                }
+            }
+
             let id = self.inst_id(kind, &stream);
             if seen.contains(&id) {
                 continue; // This aggregator has already been added
@@ -296,15 +306,25 @@ where
             measures.push(agg);
         }
 
-        if matched {
-            if errs.is_empty() {
-                return Ok(measures);
-            } else {
-                return Err(MetricError::Other(format!("{errs:?}")));
-            }
+        // If at least one view matched, check the outcome:
+        // - If we have aggregators, return them
+        // - If all views resulted in Drop (measures empty, no errors), return empty (instrument is dropped)
+        // - If all views failed with errors, fall through to default aggregation per spec
+        if matched && (errs.is_empty() || !measures.is_empty()) {
+            return Ok(measures);
         }
 
-        // Apply implicit default view if no explicit matched.
+        // Log warning if views matched but all failed
+        if matched && !errs.is_empty() {
+            otel_warn!(
+                name: "ViewAggregationIncompatible",
+                message = "All matching views have incompatible aggregation. Falling back to default aggregation.",
+                instrument_name = inst.name.as_ref(),
+                errors = format!("{errs:?}").as_str(),
+            );
+        }
+
+        // Apply implicit default view if no explicit matched, or if all views failed.
         let mut stream = Stream {
             name: Some(inst.name),
             description: Some(inst.description),
@@ -324,14 +344,10 @@ where
 
         match self.cached_aggregator(&inst.scope, kind, stream) {
             Ok(agg) => {
-                if errs.is_empty() {
-                    if let Some(agg) = agg {
-                        measures.push(agg);
-                    }
-                    Ok(measures)
-                } else {
-                    Err(MetricError::Other(format!("{errs:?}")))
+                if let Some(agg) = agg {
+                    measures.push(agg);
                 }
+                Ok(measures)
             }
             Err(err) => {
                 errs.push(err);
@@ -524,9 +540,8 @@ fn aggregate_fn<T: Number>(
         }
         Aggregation::Sum => {
             let fns = match kind {
-                // TODO implement: observable instruments should not report data points on every collect
-                // from SDK: For asynchronous instruments with Delta or Cumulative aggregation temporality,
-                // MetricReader.Collect MUST only receive data points with measurements recorded since the previous collection
+                // Observable instruments use collect_and_reset to report only data points
+                // measured in the current callback, removing stale attributes
                 InstrumentKind::ObservableCounter => b.precomputed_sum(true),
                 InstrumentKind::ObservableUpDownCounter => b.precomputed_sum(false),
                 InstrumentKind::Counter | InstrumentKind::Histogram => b.sum(true),

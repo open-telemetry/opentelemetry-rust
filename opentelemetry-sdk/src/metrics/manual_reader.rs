@@ -118,7 +118,7 @@ impl MetricReader for ManualReader {
         let mut inner = self
             .inner
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {}", e)))?;
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?;
 
         // Any future call to collect will now return an error.
         inner.sdk_producer = None;

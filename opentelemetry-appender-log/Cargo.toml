@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-appender-log"
-version = "0.30.0"
+version = "0.31.0"
 description = "An OpenTelemetry appender for the log crate"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-appender-log"
@@ -15,25 +15,17 @@ autobenches = false
 bench = false
 
 [dependencies]
-opentelemetry = { version = "0.30", path = "../opentelemetry", features = [
-  "logs",
-] }
+opentelemetry = { workspace = true, features = ["logs"] }
 log = { workspace = true, features = ["kv", "std"] }
 serde = { workspace = true, optional = true, features = ["std"] }
-opentelemetry-semantic-conventions = { version = "0.30", path = "../opentelemetry-semantic-conventions", optional = true, features = [
-  "semconv_experimental",
-] }
+opentelemetry-semantic-conventions = { workspace = true, optional = true, features = ["semconv_experimental"] }
 
 [features]
-spec_unstable_logs_enabled = ["opentelemetry/spec_unstable_logs_enabled"]
 with-serde = ["log/kv_serde", "serde"]
 experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = [
-  "testing",
-  "spec_unstable_logs_enabled",
-] }
+opentelemetry_sdk = { workspace = true, features = ["testing"] }
 opentelemetry-stdout = { workspace = true, features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
 tokio = { workspace = true }

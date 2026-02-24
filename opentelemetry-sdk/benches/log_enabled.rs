@@ -9,7 +9,7 @@
     | exporter_disabled_simple_processor          |  5.3 ns     |
 */
 
-// cargo bench --bench log_enabled --features="spec_unstable_logs_enabled,experimental_logs_concurrent_log_processor"
+// cargo bench --bench log_enabled --features="experimental_logs_concurrent_log_processor"
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{Logger, LoggerProvider};
@@ -53,7 +53,7 @@ where
 
     c.bench_function(name, |b| {
         b.iter(|| {
-            criterion::black_box(logger.event_enabled(
+            std::hint::black_box(logger.event_enabled(
                 opentelemetry::logs::Severity::Debug,
                 "target",
                 Some("name"),

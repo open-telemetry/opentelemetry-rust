@@ -70,7 +70,7 @@ async fn test_set_provider_in_tokio<R: RuntimeChannel>(
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
     let tracer_provider = build_batch_tracer_provider(exporter, runtime);
-    let _ = set_tracer_provider(tracer_provider.clone());
+    set_tracer_provider(tracer_provider.clone());
     let tracer = tracer("opentelemetery");
 
     tracer.in_span("test", |_cx| {});
@@ -123,7 +123,7 @@ async fn test_set_provider_single_thread_tokio_with_simple_processor() {
     let exporter = SpanCountExporter::new();
     let span_count = exporter.span_count.clone();
     let tracer_provider = build_simple_tracer_provider(exporter);
-    let _ = set_tracer_provider(tracer_provider.clone());
+    set_tracer_provider(tracer_provider.clone());
     let tracer = tracer("opentelemetry");
 
     tracer.in_span("test", |_cx| {});
