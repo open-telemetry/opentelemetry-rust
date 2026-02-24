@@ -105,43 +105,38 @@ async fn router(
     response
 }
 
-fn obfuscate_http_auth_url(s: &str) -> Option<String> {
-    #[allow(clippy::unnecessary_to_owned)]
-    let uri = hyper::http::Uri::from_maybe_shared(s.to_string()).ok()?;
-    let authority = uri.authority()?;
-    let (_, url) = authority.as_str().split_once('@')?;
-    let new_auth = format!("REDACTED_USERNAME:REDACTED_PASSWORD@{url}");
-    let mut parts = uri.into_parts();
-    parts.authority = Some(hyper::http::uri::Authority::from_maybe_shared(new_auth).ok()?);
-    Some(hyper::Uri::from_parts(parts).ok()?.to_string())
-}
-
+/// A span processor that sets the span status to Error when the HTTP response
+/// status code indicates a client or server error (>= 400).
 #[derive(Debug)]
-/// A custom span processor that uses on_ending to obfuscate sensitive information in span attributes.
-///
-/// Currently this only overrides http auth information in the URI.
-struct SpanObfuscationProcessor;
+struct HttpErrorStatusProcessor;
 
-impl SpanProcessor for SpanObfuscationProcessor {
+impl SpanProcessor for HttpErrorStatusProcessor {
     fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 
     fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {}
 
     fn on_ending(&self, span: &mut opentelemetry_sdk::trace::Span) {
-        let mut obfuscated_attributes = Vec::new();
-        let Some(span) = span.exported_data() else {
-            return;
-        };
-        for KeyValue { key, value, .. } in span.attributes {
-            if let Some(redacted_uri) = obfuscate_http_auth_url(value.as_str().as_ref()) {
-                obfuscated_attributes.push((key.clone(), KeyValue::new(key.clone(), redacted_uri)));
-            }
+        let is_error = span
+            .exported_data()
+            .and_then(|d| {
+                let status_code = d
+                    .attributes
+                    .iter()
+                    .find(|kv| kv.key.as_str() == trace::HTTP_RESPONSE_STATUS_CODE)?;
+                let opentelemetry::Value::I64(code) = &status_code.value else {
+                    return None;
+                };
+                Some(*code >= 400)
+            })
+            .unwrap_or(false);
+        if is_error {
+            span.set_status(opentelemetry::trace::Status::error("HTTP error response"));
         }
     }
 
@@ -206,7 +201,7 @@ fn init_tracer() -> SdkTracerProvider {
     // that prints the spans to stdout.
     let provider = SdkTracerProvider::builder()
         .with_span_processor(EnrichWithBaggageSpanProcessor)
-        .with_span_processor(SpanObfuscationProcessor)
+        .with_span_processor(HttpErrorStatusProcessor)
         .with_simple_exporter(SpanExporter::default())
         .build();
 
