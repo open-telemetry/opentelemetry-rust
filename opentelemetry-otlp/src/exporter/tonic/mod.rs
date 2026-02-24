@@ -48,7 +48,7 @@ pub(crate) mod trace;
 /// [tonic]: https://github.com/hyperium/tonic
 #[derive(Debug, Default)]
 #[non_exhaustive]
-pub struct TonicConfig {
+pub(crate) struct TonicConfig {
     /// Custom metadata entries to send to the collector.
     pub(crate) metadata: Option<MetadataMap>,
     /// TLS settings for the collector endpoint.
@@ -435,7 +435,7 @@ fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<(String, 
 }
 
 /// Expose interface for modifying [TonicConfig] fields within the exporter builders.
-pub trait HasTonicConfig {
+pub(crate) trait HasTonicConfig {
     /// Return a mutable reference to the export config within the exporter builders.
     fn tonic_config(&mut self) -> &mut TonicConfig;
 }
@@ -449,7 +449,7 @@ impl HasTonicConfig for TonicExporterBuilder {
 
 /// Expose methods to override [TonicConfig].
 ///
-/// This trait will be implemented for every struct that implemented [`HasTonicConfig`] trait.
+/// Expose methods to override tonic-specific configuration.
 ///
 /// ## Examples
 /// ```

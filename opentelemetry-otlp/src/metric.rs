@@ -7,10 +7,16 @@
 use crate::exporter::HasExportConfig;
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::{exporter::http::HttpExporterBuilder, HasHttpConfig, HttpExporterBuilderSet};
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporterBuilderSet};
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 use crate::{ExporterBuildError, NoExporterBuilderSet};
 
@@ -141,7 +147,7 @@ impl HasExportConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl HasTonicConfig for MetricExporterBuilder<TonicExporterBuilderSet> {
-    fn tonic_config(&mut self) -> &mut crate::TonicConfig {
+    fn tonic_config(&mut self) -> &mut crate::exporter::tonic::TonicConfig {
         &mut self.client.0.tonic_config
     }
 }

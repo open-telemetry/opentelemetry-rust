@@ -450,10 +450,10 @@ pub use crate::logs::{
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-pub use crate::exporter::http::{HasHttpConfig, WithHttpConfig};
+pub use crate::exporter::http::WithHttpConfig;
 
 #[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::{HasTonicConfig, WithTonicConfig};
+pub use crate::exporter::tonic::WithTonicConfig;
 
 pub use crate::exporter::{
     WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
@@ -490,7 +490,7 @@ pub struct HttpExporterBuilderSet(HttpExporterBuilder);
 pub use crate::exporter::http::HttpExporterBuilder;
 
 #[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::{TonicConfig, TonicExporterBuilder};
+pub use crate::exporter::tonic::TonicExporterBuilder;
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};

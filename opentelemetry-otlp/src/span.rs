@@ -100,7 +100,7 @@ impl HasExportConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl HasTonicConfig for SpanExporterBuilder<TonicExporterBuilderSet> {
-    fn tonic_config(&mut self) -> &mut crate::TonicConfig {
+    fn tonic_config(&mut self) -> &mut crate::exporter::tonic::TonicConfig {
         &mut self.client.0.tonic_config
     }
 }
