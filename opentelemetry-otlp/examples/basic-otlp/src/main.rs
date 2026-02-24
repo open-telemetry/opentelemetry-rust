@@ -2,7 +2,7 @@ use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
+use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter, WithExportConfig};
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -50,6 +50,7 @@ fn init_metrics() -> SdkMeterProvider {
 fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
         .with_tonic()
+        .with_endpoint("http://localhost:4317")
         .build()
         .expect("Failed to create log exporter");
 

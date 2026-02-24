@@ -86,14 +86,14 @@ impl SpanExporterBuilder<HttpExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl HasExportConfig for SpanExporterBuilder<TonicExporterBuilderSet> {
-    fn export_config(&mut self) -> &mut crate::ExportConfig {
+    fn export_config(&mut self) -> &mut crate::exporter::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl HasExportConfig for SpanExporterBuilder<HttpExporterBuilderSet> {
-    fn export_config(&mut self) -> &mut crate::ExportConfig {
+    fn export_config(&mut self) -> &mut crate::exporter::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }

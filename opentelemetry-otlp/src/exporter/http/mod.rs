@@ -2,7 +2,7 @@ use super::{
     default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
@@ -1042,7 +1042,7 @@ mod tests {
                 #[cfg(feature = "experimental-http-retry")]
                 retry_policy: None,
             },
-            exporter_config: crate::ExportConfig::default(),
+            exporter_config: crate::exporter::ExportConfig::default(),
         };
 
         // Act

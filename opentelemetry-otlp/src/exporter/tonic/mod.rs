@@ -14,7 +14,7 @@ use tonic::transport::ClientTlsConfig;
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
-use crate::{ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 
 #[cfg(all(
     feature = "experimental-grpc-retry",
@@ -502,7 +502,7 @@ pub trait WithTonicConfig {
     /// this will override tls config and should only be used
     /// when working with non-HTTP transports.
     ///
-    /// Users MUST make sure the [`ExportConfig::timeout`] is
+    /// Users MUST make sure the timeout is
     /// the same as the channel's timeout.
     fn with_channel(self, channel: tonic::transport::Channel) -> Self;
 
