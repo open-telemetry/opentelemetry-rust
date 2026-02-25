@@ -183,6 +183,56 @@ where
         }
     }
 
+    /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.
+    /// The caller can then call `tracker.aggregator.update()` directly, bypassing the
+    /// full lookup path on subsequent measurements.
+    fn bind(&self, attributes: &[KeyValue]) -> Arc<TrackerEntry<A>> {
+        if attributes.is_empty() {
+            let sorted_attrs: Vec<KeyValue> = vec![];
+            return self.bind_sorted(sorted_attrs);
+        }
+
+        let sorted_attrs = sort_and_dedup(attributes);
+        self.bind_sorted(sorted_attrs)
+    }
+
+    fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Arc<TrackerEntry<A>> {
+        // Fast path: read lock lookup
+        if let Ok(trackers) = self.trackers.read() {
+            if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+                return Arc::clone(tracker);
+            }
+        }
+
+        // Slow path: write lock, insert if missing
+        let Ok(mut trackers) = self.trackers.write() else {
+            // Lock poisoned — return a detached tracker (will work but won't be collected)
+            return Arc::new(TrackerEntry::<A>::new(&self.config));
+        };
+
+        // Recheck after acquiring write lock
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            return Arc::clone(tracker);
+        }
+
+        if self.is_under_cardinality_limit() {
+            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+            trackers.insert(sorted_attrs, new_tracker.clone());
+            self.count.fetch_add(1, Ordering::SeqCst);
+            new_tracker
+        } else {
+            // Over cardinality limit — bind to the overflow tracker
+            let overflow_attrs = stream_overflow_attributes().clone();
+            if let Some(tracker) = trackers.get(overflow_attrs.as_slice()) {
+                Arc::clone(tracker)
+            } else {
+                let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+                trackers.insert(overflow_attrs, new_tracker.clone());
+                new_tracker
+            }
+        }
+    }
+
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
     /// This is used for synchronous instruments (Counter, Histogram, etc.) in Cumulative temporality mode,
     /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
