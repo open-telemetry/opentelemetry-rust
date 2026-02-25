@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
@@ -10,7 +11,7 @@ use crate::metrics::{
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
-    Aggregator, ComputeAggregation, Measure, Number, ValueMap,
+    Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, ValueMap,
 };
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
@@ -523,6 +524,10 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    fn bind(&self, _attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        unimplemented!("Bound instruments are not supported for this aggregator type")
     }
 }
 
