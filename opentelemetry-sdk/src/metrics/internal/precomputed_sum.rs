@@ -141,7 +141,11 @@ where
         })
     }
 
-    fn bind(&self, _attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(
+        &self,
+        _attrs: &[KeyValue],
+        _fallback: Arc<dyn Measure<T>>,
+    ) -> Box<dyn BoundMeasure<T>> {
         unimplemented!("Bound instruments are not supported for this aggregator type")
     }
 }

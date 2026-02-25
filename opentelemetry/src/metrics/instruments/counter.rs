@@ -74,10 +74,7 @@ pub struct BoundCounter<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
 
 impl<T> fmt::Debug for BoundCounter<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!(
-            "BoundCounter<{}>",
-            std::any::type_name::<T>()
-        ))
+        f.write_fmt(format_args!("BoundCounter<{}>", std::any::type_name::<T>()))
     }
 }
 
