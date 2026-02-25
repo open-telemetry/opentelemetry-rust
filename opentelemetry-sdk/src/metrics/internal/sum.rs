@@ -6,7 +6,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{Aggregator, AtomicTracker, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry};
+use super::{
+    Aggregator, AtomicTracker, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry,
+};
 use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
