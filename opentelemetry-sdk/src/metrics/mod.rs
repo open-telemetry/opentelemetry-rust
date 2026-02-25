@@ -4680,4 +4680,124 @@ mod tests {
         assert!("".parse::<Temporality>().is_err());
         assert!("cumulativ".parse::<Temporality>().is_err());
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        bound.add(10);
+        bound.add(20);
+        bound.add(30);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(sum.data_points.len(), 1, "Expected one data point");
+        assert!(sum.is_monotonic);
+        assert_eq!(sum.temporality, Temporality::Cumulative);
+
+        let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 60);
+        assert_eq!(
+            data_point.attributes,
+            vec![KeyValue::new("key1", "bound_value")]
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_delta() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        bound.add(50);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.temporality, Temporality::Delta);
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 50);
+
+        // After delta collect, add more and collect again
+        test_context.reset_metrics();
+        bound.add(25);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 25,
+            "Delta should reset between collections"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![5.0, 10.0, 25.0, 50.0])
+            .build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = histogram.bind(&attrs);
+
+        bound.record(1.0);
+        bound.record(7.5);
+        bound.record(15.0);
+        bound.record(30.0);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(histogram_data) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(histogram_data.data_points.len(), 1);
+        assert_eq!(histogram_data.temporality, Temporality::Cumulative);
+
+        let dp = &histogram_data.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 53.5);
+        assert_eq!(dp.min.unwrap(), 1.0);
+        assert_eq!(dp.max.unwrap(), 30.0);
+        assert_eq!(dp.attributes, vec![KeyValue::new("key1", "bound_value")]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_matches_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "shared")];
+        let bound = counter.bind(&attrs);
+
+        // Mix bound and unbound additions to the same attribute set
+        counter.add(10, &attrs);
+        bound.add(20);
+        counter.add(30, &attrs);
+        bound.add(40);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound should share the same data point"
+        );
+        assert_eq!(sum.data_points[0].value, 100);
+    }
 }

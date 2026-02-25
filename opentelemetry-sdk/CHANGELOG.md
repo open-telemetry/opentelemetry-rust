@@ -5,6 +5,13 @@
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
+- **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
+  return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
+  Bound instruments resolve the attribute-to-aggregator mapping once at bind time
+  and cache the result, eliminating per-call HashMap lookups. After delta
+  collection evicts the underlying tracker, bound handles transparently fall back
+  to the standard unbound measurement path. Benchmarks show 5-28x speedup for
+  counter operations and 5-7x for histograms.
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
