@@ -13,6 +13,10 @@
 //!
 //! ## Quickstart with OpenTelemetry Collector
 //!
+//! The examples below show traces, but the same pattern applies to metrics
+//! ([`MetricExporter`]) and logs ([`LogExporter`]) — just swap the exporter
+//! builder and the corresponding SDK provider.
+//!
 //! ### HTTP Transport (Port 4318)
 //!
 //! Run the OpenTelemetry Collector:
@@ -102,7 +106,7 @@
 //!
 //! - Without `[tokio::main]`
 //!
-//!  ```no_run
+//! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
 //! use opentelemetry::{global, trace::Tracer};
@@ -201,9 +205,6 @@
 //!
 //! After running your application configured with the OTLP exporter, view metrics at:
 //! `http://localhost:9090`
-//! ## Show Logs, Metrics too (TODO)
-//!
-//! [`tokio`]: https://tokio.rs
 //!
 //! # Environment Variables
 //!
@@ -284,109 +285,274 @@
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
 //! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
 //!
-//! # Kitchen Sink Full Configuration
+//! # Full Configuration Reference
 //!
-//! Example showing how to override all configuration options.
 //!
-//! Generally there are two parts of configuration. One is the exporter, the other is the provider.
-//! Users can configure the exporter using [SpanExporter::builder()] for traces,
-//! and [MetricExporter::builder()] + [opentelemetry_sdk::metrics::PeriodicReader::builder()] for metrics.
-//! Once you have an exporter, you can add it to either a [opentelemetry_sdk::trace::SdkTracerProvider::builder()] for traces,
-//! or [opentelemetry_sdk::metrics::SdkMeterProvider::builder()] for metrics.
+//! There are two layers of configuration for the OTLP exporter:
+//!
+//! 1. **Exporter configuration** – controls how telemetry is sent (endpoint, transport, headers, TLS, compression, timeout).
+//!    Built via the signal-specific builder: [`SpanExporter::builder()`], [`MetricExporter::builder()`], [`LogExporter::builder()`].
+//! 2. **Provider/SDK configuration** – controls how telemetry is collected and batched (sampling, batch size, resource, etc.).
+//!    Built via [`opentelemetry_sdk::trace::SdkTracerProvider::builder()`],
+//!    [`opentelemetry_sdk::metrics::SdkMeterProvider::builder()`], or
+//!    [`opentelemetry_sdk::logs::SdkLoggerProvider::builder()`].
+//!
+//! **Configuration precedence** (highest wins):
+//! 1. Programmatic configuration via builder methods — always wins when set
+//! 2. Signal-specific environment variables (e.g. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) — used when no programmatic value is set
+//! 3. Generic environment variables (e.g. `OTEL_EXPORTER_OTLP_ENDPOINT`) — used when neither programmatic nor signal-specific env var is set
+//! 4. Built-in defaults — used when nothing else is configured
+//!
+//! ## gRPC (tonic) — all configuration options
+//!
+//! Requires the `grpc-tonic` feature. The methods below come from two traits:
+//! - [`WithExportConfig`]: `with_endpoint`, `with_timeout` (shared with HTTP)
+//! - `WithTonicConfig`: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`
+//!
+//! The examples here use [`SpanExporter`], but the same builder methods are
+//! available on [`MetricExporter`] and [`LogExporter`].
 //!
 //! ```no_run
-//! use opentelemetry::{global, KeyValue, trace::Tracer};
-//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-//! # #[cfg(feature = "metrics")]
-//! use opentelemetry_sdk::metrics::Temporality;
-//! use opentelemetry_otlp::{Protocol, WithExportConfig, Compression};
-//! # #[cfg(feature = "grpc-tonic")]
-//! use opentelemetry_otlp::WithTonicConfig;
-//! # #[cfg(any(feature = "http-proto", feature = "http-json"))]
-//! use opentelemetry_otlp::WithHttpConfig;
-//! use std::time::Duration;
-//! # #[cfg(feature = "grpc-tonic")]
-//! use tonic::metadata::*;
-//!
-//! fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-//!     # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
-//!     # let tracer = {
-//!     let mut map = MetadataMap::with_capacity(3);
-//!
-//!     map.insert("x-host", "example.com".parse().unwrap());
-//!     map.insert("x-number", "123".parse().unwrap());
-//!     map.insert_bin("trace-proto-bin", MetadataValue::from_bytes(b"[binary data]"));
-//!     let exporter = opentelemetry_otlp::SpanExporter::builder()
-//!         .with_tonic()
-//!         .with_endpoint("http://localhost:4317")
-//!         .with_timeout(Duration::from_secs(3))
-//!         .with_metadata(map)
-//!         .build()?;
-//!
-//!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-//!         .with_batch_exporter(exporter)
-//!         .with_sampler(Sampler::AlwaysOn)
-//!         .with_id_generator(RandomIdGenerator::default())
-//!         .with_max_events_per_span(64)
-//!         .with_max_attributes_per_span(16)
-//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
-//!         .build();
-//!     global::set_tracer_provider(tracer_provider.clone());
-//!     let tracer = global::tracer("tracer-name");
-//!         # tracer
-//!     # };
-//!
-//!     // HTTP exporter example with compression
-//!     # #[cfg(all(feature = "trace", feature = "http-proto"))]
-//!     # let _http_tracer = {
-//!     let exporter = opentelemetry_otlp::SpanExporter::builder()
-//!         .with_http()
-//!         .with_endpoint("http://localhost:4318/v1/traces")
-//!         .with_timeout(Duration::from_secs(3))
-//!         .with_protocol(Protocol::HttpBinary)
-//!         .with_compression(Compression::Gzip)  // Requires gzip-http feature
-//!         .build()?;
-//!         # exporter
-//!     # };
-//!
-//!     # #[cfg(all(feature = "metrics", feature = "grpc-tonic"))]
-//!     # {
-//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
-//!        .with_tonic()
-//!        .with_endpoint("http://localhost:4318/v1/metrics")
-//!        .with_protocol(Protocol::Grpc)
-//!        .with_timeout(Duration::from_secs(3))
-//!        .build()
-//!        .unwrap();
-//!
-//!    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
-//!         .with_periodic_exporter(exporter)
-//!         .with_resource(Resource::builder_empty().with_attributes([KeyValue::new("service.name", "example")]).build())
-//!         .build();
-//!     # }
-//!
-//!     // HTTP metrics exporter example with compression
-//!     # #[cfg(all(feature = "metrics", feature = "http-proto"))]
-//!     # {
-//!     let exporter = opentelemetry_otlp::MetricExporter::builder()
-//!        .with_http()
-//!        .with_endpoint("http://localhost:4318/v1/metrics")
-//!        .with_protocol(Protocol::HttpBinary)
-//!        .with_timeout(Duration::from_secs(3))
-//!        .with_compression(Compression::Zstd)  // Requires zstd-http feature
-//!        .build()
-//!        .unwrap();
-//!     # }
-//!
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
-//!     tracer.in_span("doing_work", |cx| {
-//!         // Traced app logic here...
-//!     });
-//! # }
+//! use opentelemetry_otlp::{WithExportConfig, WithTonicConfig, Compression};
+//! use std::time::Duration;
+//! use tonic::metadata::MetadataMap;
 //!
-//!     Ok(())
+//! // ── gRPC metadata (custom request headers) ───────────────────────────────
+//! // MetadataMap carries per-call key/value pairs sent as HTTP/2 headers.
+//! // with_metadata() is additive: calling it multiple times merges entries.
+//! let mut metadata = MetadataMap::with_capacity(3);
+//! metadata.insert("x-host", "example.com".parse().unwrap());
+//! metadata.insert("x-api-key", "secret".parse().unwrap());
+//! metadata.insert_bin("trace-proto-bin", tonic::metadata::MetadataValue::from_bytes(b"[bin]"));
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     // Target gRPC endpoint. Defaults to http://localhost:4317.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or OTEL_EXPORTER_OTLP_ENDPOINT).
+//!     .with_endpoint("http://my-collector:4317")
+//!     // Per-export timeout. Defaults to 10 s.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_TIMEOUT (or OTEL_EXPORTER_OTLP_TIMEOUT).
+//!     .with_timeout(Duration::from_secs(5))
+//!     // Custom gRPC metadata (auth tokens, routing headers, …).
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_HEADERS (or OTEL_EXPORTER_OTLP_HEADERS).
+//!     .with_metadata(metadata)
+//!     // Compression. Requires the `gzip-tonic` or `zstd-tonic` feature.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_COMPRESSION (or OTEL_EXPORTER_OTLP_COMPRESSION).
+//!     .with_compression(Compression::Gzip)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ### TLS (grpc-tonic)
+//!
+//! Requires the `tls-ring` or `tls-aws-lc` feature (plus optionally `tls-roots` or `tls-webpki-roots`
+//! to load CA roots automatically).
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic", any(feature = "tls-ring", feature = "tls-aws-lc")))]
+//! # {
+//! use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+//! use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
+//!
+//! let tls = ClientTlsConfig::new()
+//!     .domain_name("my-collector.example.com")
+//!     // Optionally verify the server with a CA certificate:
+//!     // .ca_certificate(tonic::transport::Certificate::from_pem(CA_PEM))
+//!     // Or present a client identity for mutual TLS (mTLS):
+//!     // .identity(tonic::transport::Identity::from_pem(CERT_PEM, KEY_PEM))
+//!     ;
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     .with_endpoint("https://my-collector.example.com:4317")
+//!     .with_tls_config(tls)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ### Pre-built tonic channel
+//!
+//! Use `with_channel` when you need full control over the transport (e.g. Unix sockets,
+//! custom load-balancing). **Note:** `with_channel` overrides any TLS config set via
+//! `with_tls_config`, and you are responsible for matching the channel timeout to
+//! the exporter timeout.
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+//! use std::time::Duration;
+//!
+//! let channel = tonic::transport::Channel::from_static("http://localhost:4317")
+//!     .timeout(Duration::from_secs(5))
+//!     .connect_lazy();
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     .with_channel(channel)
+//!     .with_timeout(Duration::from_secs(5)) // keep in sync with channel timeout above
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ### gRPC interceptors
+//!
+//! Use `with_interceptor` to modify every outbound gRPC request — useful for injecting
+//! auth tokens or dynamic metadata. Only one interceptor can be set; chain multiple together
+//! before passing them in.
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry_otlp::WithTonicConfig;
+//! use tonic::{Request, Status};
+//!
+//! fn auth_interceptor(mut req: Request<()>) -> Result<Request<()>, Status> {
+//!     req.metadata_mut().insert("authorization", "Bearer my-token".parse().unwrap());
+//!     Ok(req)
 //! }
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     .with_interceptor(auth_interceptor)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ## HTTP — all configuration options
+//!
+//! Requires the `http-proto` (default) or `http-json` feature. The methods below come from:
+//! - [`WithExportConfig`]: `with_endpoint`, `with_timeout`, `with_protocol`
+//! - [`WithHttpConfig`]: `with_headers`, `with_compression`, `with_http_client`
+//!
+//! The examples here use [`SpanExporter`], but the same builder methods are
+//! available on [`MetricExporter`] and [`LogExporter`].
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "http-proto"))]
+//! # {
+//! use opentelemetry_otlp::{WithExportConfig, WithHttpConfig, Protocol, Compression};
+//! use std::time::Duration;
+//! use std::collections::HashMap;
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_http()
+//!     // Target base URL. Defaults to http://localhost:4318.
+//!     // The path /v1/traces (or /v1/metrics, /v1/logs) is appended automatically.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or OTEL_EXPORTER_OTLP_ENDPOINT).
+//!     .with_endpoint("http://my-collector:4318")
+//!     // Per-export timeout. Defaults to 10 s.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_TIMEOUT (or OTEL_EXPORTER_OTLP_TIMEOUT).
+//!     .with_timeout(Duration::from_secs(5))
+//!     // Transport encoding. HttpBinary (protobuf) is the default.
+//!     // HttpJson requires the `http-json` feature.
+//!     // Env var: OTEL_EXPORTER_OTLP_PROTOCOL.
+//!     .with_protocol(Protocol::HttpBinary)
+//!     // Custom HTTP headers (auth tokens, routing headers, …).
+//!     // Values are URL-decoded when read from environment variables.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_HEADERS (or OTEL_EXPORTER_OTLP_HEADERS).
+//!     .with_headers(HashMap::from([
+//!         ("x-api-key".to_string(), "secret".to_string()),
+//!     ]))
+//!     // Compression. Requires the `gzip-http` or `zstd-http` feature.
+//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_COMPRESSION (or OTEL_EXPORTER_OTLP_COMPRESSION).
+//!     .with_compression(Compression::Gzip)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ### Custom HTTP client
+//!
+//! By default the exporter uses a `reqwest` blocking client (`reqwest-blocking-client` feature,
+//! enabled by default). Supply your own client to control TLS, proxies, connection pooling, etc.
+//! The client must implement the [`opentelemetry_http::HttpClient`] trait.
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "http-proto", feature = "reqwest-client"))]
+//! # {
+//! use opentelemetry_otlp::WithHttpConfig;
+//!
+//! // reqwest async client (requires the `reqwest-client` feature)
+//! let http_client = reqwest::Client::builder()
+//!     .timeout(std::time::Duration::from_secs(5))
+//!     // .danger_accept_invalid_certs(true) // for testing only
+//!     .build()
+//!     .expect("Failed to build reqwest client");
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_http()
+//!     .with_http_client(http_client)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ## All three signals (Traces, Metrics, Logs)
+//!
+//! The same exporter configuration options apply to all three signals. The only differences are:
+//! - The builder entry point: [`SpanExporter::builder()`], [`MetricExporter::builder()`], [`LogExporter::builder()`]
+//! - The signal-specific environment variables (e.g. `OTEL_EXPORTER_OTLP_TRACES_*` vs `OTEL_EXPORTER_OTLP_METRICS_*`)
+//! - Metrics has an additional `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` variable
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "metrics", feature = "logs", feature = "grpc-tonic"))]
+//! # {
+//! use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
+//! use opentelemetry_sdk::{
+//!     trace::SdkTracerProvider,
+//!     metrics::SdkMeterProvider,
+//!     logs::SdkLoggerProvider,
+//!     Resource,
+//! };
+//! use std::time::Duration;
+//!
+//! let resource = Resource::builder()
+//!     .with_service_name("my-service")
+//!     .build();
+//!
+//! // Traces
+//! let span_exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     .with_endpoint("http://my-collector:4317")
+//!     .with_timeout(Duration::from_secs(5))
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! let tracer_provider = SdkTracerProvider::builder()
+//!     .with_resource(resource.clone())
+//!     .with_batch_exporter(span_exporter)
+//!     .build();
+//!
+//! // Metrics
+//! let metric_exporter = opentelemetry_otlp::MetricExporter::builder()
+//!     .with_tonic()
+//!     .with_endpoint("http://my-collector:4317")
+//!     .with_timeout(Duration::from_secs(5))
+//!     .build()
+//!     .expect("Failed to build MetricExporter");
+//! let meter_provider = SdkMeterProvider::builder()
+//!     .with_resource(resource.clone())
+//!     .with_periodic_exporter(metric_exporter)
+//!     .build();
+//!
+//! // Logs
+//! let log_exporter = opentelemetry_otlp::LogExporter::builder()
+//!     .with_tonic()
+//!     .with_endpoint("http://my-collector:4317")
+//!     .with_timeout(Duration::from_secs(5))
+//!     .build()
+//!     .expect("Failed to build LogExporter");
+//! let logger_provider = SdkLoggerProvider::builder()
+//!     .with_resource(resource)
+//!     .with_batch_exporter(log_exporter)
+//!     .build();
+//! # }
 //! ```
 #![warn(
     future_incompatible,
