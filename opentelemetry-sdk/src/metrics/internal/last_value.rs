@@ -8,7 +8,8 @@ use std::sync::Arc;
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
-    Aggregator, AtomicTracker, AtomicallyUpdate, BoundMeasure, ComputeAggregation, Measure, Number, ValueMap,
+    Aggregator, AtomicTracker, AtomicallyUpdate, BoundMeasure, ComputeAggregation, Measure, Number,
+    ValueMap,
 };
 
 /// this is reused by PrecomputedSum
@@ -145,7 +146,11 @@ where
         })
     }
 
-    fn bind(&self, _attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(
+        &self,
+        _attrs: &[KeyValue],
+        _fallback: Arc<dyn Measure<T>>,
+    ) -> Box<dyn BoundMeasure<T>> {
         unimplemented!("Bound instruments are not supported for this aggregator type")
     }
 }

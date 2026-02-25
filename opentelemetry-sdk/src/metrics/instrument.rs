@@ -392,7 +392,7 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
         }
     }
 
-    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T>> {
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
         let bound_measures: Vec<Box<dyn BoundMeasure<T>>> = self
             .measures
             .iter()

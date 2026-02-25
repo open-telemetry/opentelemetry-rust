@@ -66,22 +66,19 @@ fn bench_bound_instruments(c: &mut Criterion) {
         let counter = meter.u64_counter("mt_bound").build();
         let bound = counter.bind(&attrs);
 
-        group.bench_function(
-            &format!("Counter_Bound_Multithread/{num_threads}"),
-            |b| {
-                b.iter(|| {
-                    std::thread::scope(|s| {
-                        for _ in 0..num_threads {
-                            s.spawn(|| {
-                                for _ in 0..100 {
-                                    bound.add(1);
-                                }
-                            });
-                        }
-                    });
+        group.bench_function(format!("Counter_Bound_Multithread/{num_threads}"), |b| {
+            b.iter(|| {
+                std::thread::scope(|s| {
+                    for _ in 0..num_threads {
+                        s.spawn(|| {
+                            for _ in 0..100 {
+                                bound.add(1);
+                            }
+                        });
+                    }
                 });
-            },
-        );
+            });
+        });
     }
 
     group.finish();

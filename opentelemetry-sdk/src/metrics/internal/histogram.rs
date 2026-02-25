@@ -10,7 +10,9 @@ use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
 use super::aggregate::AttributeSetFilter;
-use super::{Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry, ValueMap};
+use super::{
+    Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry, ValueMap,
+};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where

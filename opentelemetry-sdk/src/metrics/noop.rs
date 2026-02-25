@@ -36,7 +36,7 @@ impl<T> SyncInstrument<T> for NoopSyncInstrument {
         // Ignored
     }
 
-    fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T>> {
+    fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
         Box::new(NoopBoundSyncInstrument { _private: () })
     }
 }

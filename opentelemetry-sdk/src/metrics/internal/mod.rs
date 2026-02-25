@@ -17,7 +17,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub(crate) use aggregate::{AggregateBuilder, AggregateFns, BoundMeasure, ComputeAggregation, Measure};
+pub(crate) use aggregate::{
+    AggregateBuilder, AggregateFns, BoundMeasure, ComputeAggregation, Measure,
+};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
@@ -69,6 +71,9 @@ impl<A: Aggregator> TrackerEntry<A> {
     }
 }
 
+/// Map from attribute sets to their aggregator tracker entries.
+type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
@@ -78,12 +83,12 @@ where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>>,
+    trackers: RwLock<TrackerMap<A>>,
 
     /// Used ONLY by Delta collect. The data type must match the one used in
     /// `trackers` to allow mem::swap. Wrapping the type in `OnceLock` to
     /// avoid this allocation for Cumulative aggregation.
-    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>>>,
+    trackers_for_collect: OnceLock<RwLock<TrackerMap<A>>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
@@ -115,7 +120,7 @@ where
     }
 
     #[inline]
-    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>> {
+    fn trackers_for_collect(&self) -> &RwLock<TrackerMap<A>> {
         self.trackers_for_collect.get_or_init(|| {
             RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
@@ -288,7 +293,10 @@ where
             let mut seen = HashSet::new();
             for (attrs, tracker) in trackers_collect.drain() {
                 if seen.insert(Arc::as_ptr(&tracker)) {
-                    dest.push(map_fn(attrs, tracker.aggregator.clone_and_reset(&self.config)));
+                    dest.push(map_fn(
+                        attrs,
+                        tracker.aggregator.clone_and_reset(&self.config),
+                    ));
                     tracker.evicted.store(true, Ordering::Release);
                 }
             }

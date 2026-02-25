@@ -31,7 +31,7 @@ pub trait SyncInstrument<T>: Send + Sync {
 
     /// Binds this instrument to a fixed set of attributes, returning a handle
     /// that records measurements without per-call attribute lookup.
-    fn bind(&self, attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T>>;
+    fn bind(&self, attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync>;
 }
 
 /// A pre-bound synchronous instrument that records measurements without attributes.
