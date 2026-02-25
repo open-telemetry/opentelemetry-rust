@@ -52,6 +52,23 @@ pub(crate) trait Aggregator {
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
 }
 
+/// Wraps an aggregator with lifecycle metadata for bound instruments.
+pub(crate) struct TrackerEntry<A: Aggregator> {
+    pub(crate) aggregator: A,
+    /// Set to true when this entry is removed from the map during delta collect.
+    /// Bound handles check this flag to detect eviction and fall back to unbound path.
+    pub(crate) evicted: AtomicBool,
+}
+
+impl<A: Aggregator> TrackerEntry<A> {
+    fn new(config: &A::InitConfig) -> Self {
+        TrackerEntry {
+            aggregator: A::create(config),
+            evicted: AtomicBool::new(false),
+        }
+    }
+}
+
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
@@ -61,12 +78,12 @@ where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
+    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>>,
 
     /// Used ONLY by Delta collect. The data type must match the one used in
     /// `trackers` to allow mem::swap. Wrapping the type in `OnceLock` to
     /// avoid this allocation for Cumulative aggregation.
-    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<A>>>>,
+    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
@@ -98,7 +115,7 @@ where
     }
 
     #[inline]
-    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
+    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>> {
         self.trackers_for_collect.get_or_init(|| {
             RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
@@ -124,14 +141,14 @@ where
 
         // Try to retrieve and update the tracker with the attributes in the provided order first
         if let Some(tracker) = trackers.get(attributes) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
             return;
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
         let sorted_attrs = sort_and_dedup(attributes);
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
             return;
         }
 
@@ -145,12 +162,12 @@ where
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
         if let Some(tracker) = trackers.get(attributes) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
         } else if self.is_under_cardinality_limit() {
-            let new_tracker = Arc::new(A::create(&self.config));
-            new_tracker.update(value);
+            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+            new_tracker.aggregator.update(value);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
@@ -158,10 +175,10 @@ where
 
             self.count.fetch_add(1, Ordering::SeqCst);
         } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
-            overflow_value.update(value);
+            overflow_value.aggregator.update(value);
         } else {
-            let new_tracker = A::create(&self.config);
-            new_tracker.update(value);
+            let new_tracker = TrackerEntry::<A>::new(&self.config);
+            new_tracker.aggregator.update(value);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
         }
     }
@@ -185,7 +202,7 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), tracker));
+                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
             }
         }
     }
@@ -221,7 +238,8 @@ where
             let mut seen = HashSet::new();
             for (attrs, tracker) in trackers_collect.drain() {
                 if seen.insert(Arc::as_ptr(&tracker)) {
-                    dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
+                    dest.push(map_fn(attrs, tracker.aggregator.clone_and_reset(&self.config)));
+                    tracker.evicted.store(true, Ordering::Release);
                 }
             }
         } else {
