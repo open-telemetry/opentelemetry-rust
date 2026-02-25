@@ -1,6 +1,7 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::sync::Mutex;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
 
 use crate::metrics::data::{self, MetricData};
 use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
@@ -9,10 +10,7 @@ use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
 use super::aggregate::AttributeSetFilter;
-use super::ComputeAggregation;
-use super::Measure;
-use super::ValueMap;
-use super::{Aggregator, Number};
+use super::{Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry, ValueMap};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -66,6 +64,25 @@ impl<T: Number> Buckets<T> {
             min: T::max(),
             max: T::min(),
             ..Default::default()
+        }
+    }
+}
+
+struct BoundHistogramHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
+    bounds: Vec<f64>,
+    fallback: Arc<dyn Measure<T>>,
+    attrs: Vec<KeyValue>,
+}
+
+impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
+    fn call(&self, measurement: T) {
+        if !self.tracker.evicted.load(Ordering::Relaxed) {
+            let f = measurement.into_float();
+            let index = self.bounds.partition_point(|&x| x < f);
+            self.tracker.aggregator.update((measurement, index));
+        } else {
+            self.fallback.call(measurement, &self.attrs);
         }
     }
 }
@@ -233,6 +250,20 @@ where
 
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure((measurement, index), filtered);
+        })
+    }
+
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        let tracker = self.value_map.bind(&bound_attrs);
+        Box::new(BoundHistogramHandle {
+            tracker,
+            bounds: self.bounds.clone(),
+            fallback,
+            attrs: bound_attrs,
         })
     }
 }
