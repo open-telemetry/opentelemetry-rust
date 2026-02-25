@@ -4,9 +4,11 @@ use crate::metrics::{
 };
 use opentelemetry::KeyValue;
 
+use std::sync::Arc;
+
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
-    Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
+    Aggregator, AtomicTracker, AtomicallyUpdate, BoundMeasure, ComputeAggregation, Measure, Number, ValueMap,
 };
 
 /// this is reused by PrecomputedSum
@@ -141,6 +143,10 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    fn bind(&self, _attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        unimplemented!("Bound instruments are not supported for this aggregator type")
     }
 }
 
