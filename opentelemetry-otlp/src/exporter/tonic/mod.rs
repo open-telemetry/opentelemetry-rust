@@ -447,8 +447,6 @@ impl HasTonicConfig for TonicExporterBuilder {
     }
 }
 
-/// Expose methods to override [TonicConfig].
-///
 /// Expose methods to override tonic-specific configuration.
 ///
 /// ## Examples
