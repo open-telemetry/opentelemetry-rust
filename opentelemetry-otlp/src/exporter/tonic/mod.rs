@@ -238,12 +238,32 @@ impl TonicExporterBuilder {
 
         let endpoint = Channel::from_shared(endpoint)
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
+
+        let is_https = endpoint
+            .uri()
+            .scheme()
+            .is_some_and(|s| *s == http::uri::Scheme::HTTPS);
+
+        #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
+        if is_https {
+            return Err(ExporterBuildError::InvalidConfig {
+                name: "endpoint".to_string(),
+                reason: format!(
+                    "endpoint '{}' uses HTTPS but no TLS feature is enabled; \
+                     enable one of the `tls-ring` or `tls-aws-lc` features on `opentelemetry-otlp`",
+                    endpoint_clone
+                ),
+            });
+        }
         let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
 
         #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
         let channel = match self.tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
+                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+            None if is_https => endpoint
+                .tls_config(ClientTlsConfig::new())
                 .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
             None => endpoint,
         }
@@ -881,5 +901,65 @@ mod tests {
         // a channel in a unit test. The default behavior is tested implicitly in integration tests.
         let builder = TonicExporterBuilder::default();
         assert!(builder.tonic_config.retry_policy.is_none());
+    }
+
+    #[test]
+    #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
+    fn test_https_endpoint_errors_without_tls_feature() {
+        use crate::exporter::ExporterBuildError;
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint("https://example.com")
+            .build();
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, ExporterBuildError::InvalidConfig { .. }),
+            "expected InvalidConfig error, got: {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("HTTPS") && msg.contains("TLS"),
+            "error message should mention HTTPS and TLS, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    #[cfg(any(feature = "tls-ring", feature = "tls-aws-lc"))]
+    async fn test_https_endpoint_succeeds_with_tls_feature() {
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint("https://example.com")
+            .build();
+
+        assert!(
+            result.is_ok(),
+            "https endpoint should succeed when TLS feature is enabled, got: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_http_endpoint_succeeds_without_tls_feature() {
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint("http://localhost:4317")
+            .build();
+
+        assert!(
+            result.is_ok(),
+            "http endpoint should always succeed, got: {:?}",
+            result.unwrap_err()
+        );
     }
 }
