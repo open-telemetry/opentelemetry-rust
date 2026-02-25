@@ -6,9 +6,9 @@ mod instruments;
 mod meter;
 pub mod noop;
 pub use instruments::{
-    counter::{Counter, ObservableCounter},
+    counter::{BoundCounter, Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},
-    histogram::Histogram,
+    histogram::{BoundHistogram, Histogram},
     up_down_counter::{ObservableUpDownCounter, UpDownCounter},
     AsyncInstrument, AsyncInstrumentBuilder, BoundSyncInstrument, Callback, HistogramBuilder,
     InstrumentBuilder, SyncInstrument,
