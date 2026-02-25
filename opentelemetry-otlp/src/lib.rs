@@ -285,6 +285,13 @@
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
 //! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
 //!
+//! The following feature flags enable experimental retry support:
+//!
+//! * `experimental-grpc-retry`: Enable automatic retry with exponential backoff for gRPC exports.
+//!   Requires a Tokio runtime (`rt-tokio` SDK feature is enabled transitively).
+//! * `experimental-http-retry`: Enable automatic retry with exponential backoff for HTTP exports.
+//!   Requires a Tokio runtime (`rt-tokio` SDK feature is enabled transitively).
+//!
 //! # Full Configuration Reference
 //!
 //!
@@ -425,6 +432,29 @@
 //! # }
 //! ```
 //!
+//! ### gRPC retry policy
+//!
+//! Requires the `experimental-grpc-retry` feature. When enabled, failed exports are retried
+//! with exponential backoff and jitter. Without this feature, failed exports are not retried.
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "experimental-grpc-retry"))]
+//! # {
+//! use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_tonic()
+//!     .with_retry_policy(RetryPolicy {
+//!         max_retries: 5,        // number of attempts after the first failure
+//!         initial_delay_ms: 500, // delay before the first retry
+//!         max_delay_ms: 30_000,  // cap on the delay between retries
+//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
+//!     })
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
 //! ## HTTP — all configuration options
 //!
 //! Requires the `http-proto` (default) or `http-json` feature. The methods below come from:
@@ -489,6 +519,29 @@
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()
 //!     .with_http_client(http_client)
+//!     .build()
+//!     .expect("Failed to build SpanExporter");
+//! # }
+//! ```
+//!
+//! ### HTTP retry policy
+//!
+//! Requires the `experimental-http-retry` feature. When enabled, failed exports are retried
+//! with exponential backoff and jitter. Without this feature, failed exports are not retried.
+//!
+//! ```no_run
+//! # #[cfg(all(feature = "trace", feature = "experimental-http-retry"))]
+//! # {
+//! use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
+//!
+//! let exporter = opentelemetry_otlp::SpanExporter::builder()
+//!     .with_http()
+//!     .with_retry_policy(RetryPolicy {
+//!         max_retries: 5,        // number of attempts after the first failure
+//!         initial_delay_ms: 500, // delay before the first retry
+//!         max_delay_ms: 30_000,  // cap on the delay between retries
+//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
+//!     })
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -629,7 +682,10 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-#[cfg(feature = "experimental-http-retry")]
+#[cfg(any(
+    feature = "experimental-http-retry",
+    feature = "experimental-grpc-retry"
+))]
 pub use retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
