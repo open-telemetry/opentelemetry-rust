@@ -18,6 +18,12 @@ use super::{
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>>;
+}
+
+/// A pre-bound measurement handle that bypasses attribute lookup.
+pub(crate) trait BoundMeasure<T>: Send + Sync + 'static {
+    fn call(&self, measurement: T);
 }
 
 /// Stores the aggregate of measurements into the aggregation and returns the number
