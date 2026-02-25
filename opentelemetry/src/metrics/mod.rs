@@ -10,8 +10,8 @@ pub use instruments::{
     gauge::{Gauge, ObservableGauge},
     histogram::Histogram,
     up_down_counter::{ObservableUpDownCounter, UpDownCounter},
-    AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
-    SyncInstrument,
+    AsyncInstrument, AsyncInstrumentBuilder, BoundSyncInstrument, Callback, HistogramBuilder,
+    InstrumentBuilder, SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
 pub use noop::NoopMeterProvider;
