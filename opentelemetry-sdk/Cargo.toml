@@ -125,6 +125,11 @@ name = "log"
 harness = false
 required-features = ["logs"]
 
+[[bench]]
+name = "bound_instruments"
+harness = false
+required-features = ["metrics", "experimental_metrics_custom_reader"]
+
 [lib]
 bench = false
 
