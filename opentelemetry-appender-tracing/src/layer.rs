@@ -182,18 +182,18 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
 
 /// Visitor to extract fields from a tracing span.
 /// Takes a mutable reference to a Vec to append fields to, and an optional
-/// filter to include only named attributes.
+/// allowlist to include only named attributes.
 #[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor<'a> {
     attributes: &'a mut Vec<(Key, AnyValue)>,
-    filter: Option<&'a HashSet<Key>>,
+    allowlist: Option<&'a HashSet<&'static str>>,
 }
 
 #[cfg(feature = "experimental_span_attributes")]
 impl SpanFieldVisitor<'_> {
     fn allowed(&self, field: &tracing::field::Field) -> bool {
-        self.filter
-            .map_or(true, |f| f.contains(&Key::from(field.name())))
+        self.allowlist
+            .map_or(true, |set| set.contains(field.name()))
     }
 }
 
@@ -311,7 +311,7 @@ where
     logger: L,
     _phantom: std::marker::PhantomData<P>, // P is not used.
     #[cfg(feature = "experimental_span_attributes")]
-    span_attribute_filter: Option<HashSet<Key>>,
+    span_attribute_allowlist: Option<HashSet<&'static str>>,
 }
 
 impl<P, L> OpenTelemetryTracingBridge<P, L>
@@ -320,7 +320,11 @@ where
     L: Logger + Send + Sync,
 {
     pub fn new(provider: &P) -> Self {
-        OpenTelemetryTracingBridge {
+        Self::builder(provider).build()
+    }
+
+    pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        OpenTelemetryTracingBridgeBuilder {
             // Using empty scope name.
             // The name/version of this library itself can be added
             // as a Scope attribute, once a semantic convention is
@@ -329,18 +333,45 @@ where
             logger: provider.logger(""),
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
-            span_attribute_filter: None,
+            span_attribute_allowlist: None,
         }
     }
+}
 
-    /// Only copy span attributes with the given keys to log records.
+pub struct OpenTelemetryTracingBridgeBuilder<P, L>
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    logger: L,
+    _phantom: std::marker::PhantomData<P>,
     #[cfg(feature = "experimental_span_attributes")]
-    pub fn with_span_attribute_filter(
+    span_attribute_allowlist: Option<HashSet<&'static str>>,
+}
+
+impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    /// Only copy span attributes whose keys are in the given allowlist to log
+    /// records. When no allowlist is set, all span attributes are copied.
+    #[cfg(feature = "experimental_span_attributes")]
+    pub fn with_span_attribute_allowlist(
         mut self,
-        keys: impl IntoIterator<Item = impl Into<Key>>,
+        keys: impl IntoIterator<Item = &'static str>,
     ) -> Self {
-        self.span_attribute_filter = Some(keys.into_iter().map(Into::into).collect());
+        self.span_attribute_allowlist = Some(keys.into_iter().collect());
         self
+    }
+
+    pub fn build(self) -> OpenTelemetryTracingBridge<P, L> {
+        OpenTelemetryTracingBridge {
+            logger: self.logger,
+            _phantom: self._phantom,
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attribute_allowlist: self.span_attribute_allowlist,
+        }
     }
 }
 
@@ -411,7 +442,7 @@ where
         let mut fields = Vec::with_capacity(attrs.fields().len());
         let mut visitor = SpanFieldVisitor {
             attributes: &mut fields,
-            filter: self.span_attribute_filter.as_ref(),
+            allowlist: self.span_attribute_allowlist.as_ref(),
         };
         attrs.record(&mut visitor);
 
@@ -438,7 +469,7 @@ where
             // Append to existing attributes - extensions_mut() gives us mutable access
             let mut visitor = SpanFieldVisitor {
                 attributes: &mut stored.attributes,
-                filter: self.span_attribute_filter.as_ref(),
+                allowlist: self.span_attribute_allowlist.as_ref(),
             };
             values.record(&mut visitor);
         } else {
@@ -446,7 +477,7 @@ where
             let mut fields = Vec::with_capacity(values.len());
             let mut visitor = SpanFieldVisitor {
                 attributes: &mut fields,
-                filter: self.span_attribute_filter.as_ref(),
+                allowlist: self.span_attribute_allowlist.as_ref(),
             };
             values.record(&mut visitor);
             if !fields.is_empty() {
@@ -1300,14 +1331,15 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_attribute_filter_includes_only_named() {
+    fn tracing_appender_span_attribute_allowlist_includes_only_named() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider)
-            .with_span_attribute_filter(["session.id"]);
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(["session.id"])
+            .build();
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1333,14 +1365,15 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_attribute_filter_nested_spans() {
+    fn tracing_appender_span_attribute_allowlist_nested_spans() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider)
-            .with_span_attribute_filter(["session.id"]);
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(["session.id"])
+            .build();
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1374,14 +1407,15 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_attribute_filter_empty_copies_none() {
+    fn tracing_appender_span_attribute_allowlist_empty_copies_none() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider)
-            .with_span_attribute_filter(std::iter::empty::<&str>());
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(std::iter::empty::<&str>())
+            .build();
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1407,14 +1441,15 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_attribute_filter_with_on_record() {
+    fn tracing_appender_span_attribute_allowlist_with_on_record() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider)
-            .with_span_attribute_filter(["session.id"]);
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(["session.id"])
+            .build();
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
