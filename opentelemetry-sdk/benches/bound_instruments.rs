@@ -2,6 +2,20 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{metrics::MeterProvider as _, KeyValue};
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider, Temporality};
 
+// Run this benchmark with:
+// cargo bench --bench bound_instruments --features metrics,experimental_metrics_custom_reader,experimental_metrics_bound_instruments
+//
+// Apple M4 Max, 16 cores (12 performance + 4 efficiency), macOS 15.4
+//
+// Results (3 attributes: method, status, path):
+// Counter_Unbound_Delta             time:   [53.20 ns]
+// Counter_Bound_Delta               time:   [1.87 ns]    ~28x faster
+// Histogram_Unbound_Delta           time:   [58.58 ns]
+// Histogram_Bound_Delta             time:   [6.57 ns]    ~8.9x faster
+// Counter_Bound_Multithread/2       time:   [22.19 µs]   (100 adds/thread)
+// Counter_Bound_Multithread/4       time:   [35.32 µs]   (100 adds/thread)
+// Counter_Bound_Multithread/8       time:   [66.49 µs]   (100 adds/thread)
+
 fn create_provider(temporality: Temporality) -> SdkMeterProvider {
     let reader = ManualReader::builder()
         .with_temporality(temporality)
