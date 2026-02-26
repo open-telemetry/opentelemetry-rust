@@ -74,7 +74,7 @@ impl<A: Aggregator> TrackerEntry<A> {
     fn new(config: &A::InitConfig) -> Self {
         TrackerEntry {
             aggregator: A::create(config),
-            has_been_updated: AtomicBool::new(true),
+            has_been_updated: AtomicBool::new(false),
             bound_count: AtomicUsize::new(0),
         }
     }
@@ -178,6 +178,7 @@ where
         } else if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Relaxed);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
@@ -192,6 +193,7 @@ where
         } else {
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Relaxed);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
         }
     }
@@ -249,6 +251,15 @@ where
             // 1. Overflow data is attributed correctly (same as unbound at overflow)
             // 2. Automatic recovery when delta collect evicts stale entries
             // 3. bound_count is not inflated on the overflow tracker
+            //
+            // TODO: If bind() is called during overflow, the handle remains in fallback
+            // mode permanently even after delta collect frees space. Not an issue in
+            // practice since bind() typically occurs at application startup before
+            // cardinality fills up. Future options to revisit:
+            // - Internally adjust bindings from overflow to normal during delta collect
+            // - Exclude bind() from cardinality capping (users leveraging bind() know
+            //   their bound instruments always report properly and never overflow)
+            // See: https://github.com/open-telemetry/opentelemetry-rust/pull/3392#discussion_r2860376315
             otel_debug!(
                 name: "BoundInstrument.CardinalityOverflow",
                 message = "bind() called at cardinality limit, falling back to unbound path"
