@@ -3,10 +3,13 @@ use opentelemetry::KeyValue;
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{last_value::Assign, AtomicTracker, BoundMeasure, Number, ValueMap};
+use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::BoundMeasure;
 use super::{ComputeAggregation, Measure};
 use std::{collections::HashMap, sync::Mutex};
 
@@ -141,6 +144,7 @@ where
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
         _attrs: &[KeyValue],

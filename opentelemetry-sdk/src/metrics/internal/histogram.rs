@@ -1,7 +1,10 @@
 use std::mem::replace;
 use std::ops::DerefMut;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::metrics::data::{self, MetricData};
 use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
@@ -10,9 +13,9 @@ use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
 use super::aggregate::AttributeSetFilter;
-use super::{
-    Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry, ValueMap,
-};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, TrackerEntry};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -70,6 +73,7 @@ impl<T: Number> Buckets<T> {
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 enum BoundHistogramInner<T: Number> {
     /// Fast path: dedicated tracker for this attribute set.
     Direct {
@@ -83,10 +87,12 @@ enum BoundHistogramInner<T: Number> {
     },
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 struct BoundHistogramHandle<T: Number> {
     inner: BoundHistogramInner<T>,
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
         match &self.inner {
@@ -105,6 +111,7 @@ impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> Drop for BoundHistogramHandle<T> {
     fn drop(&mut self) {
         if let BoundHistogramInner::Direct { tracker, .. } = &self.inner {
@@ -281,6 +288,7 @@ where
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {

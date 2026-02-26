@@ -1,3 +1,4 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
@@ -11,8 +12,10 @@ use crate::metrics::{
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
-    Aggregator, BoundMeasure, ComputeAggregation, Measure, Number, ValueMap,
+    Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::BoundMeasure;
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -528,6 +531,7 @@ where
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
         _attrs: &[KeyValue],

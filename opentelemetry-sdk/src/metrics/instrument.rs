@@ -1,14 +1,18 @@
 use std::{borrow::Cow, collections::HashSet, error::Error, sync::Arc};
 
 use opentelemetry::{
-    metrics::{AsyncInstrument, BoundSyncInstrument, SyncInstrument},
+    metrics::{AsyncInstrument, SyncInstrument},
     InstrumentationScope, Key, KeyValue,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 
 use crate::metrics::{
     aggregation::Aggregation,
-    internal::{BoundMeasure, Measure},
+    internal::Measure,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use crate::metrics::internal::BoundMeasure;
 
 use super::meter::{
     INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
@@ -392,6 +396,7 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
         }
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
         let bound_measures: Vec<Box<dyn BoundMeasure<T>>> = self
             .measures
@@ -404,10 +409,12 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) struct ResolvedBoundMeasures<T> {
     measures: Vec<Box<dyn BoundMeasure<T>>>,
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Copy + 'static> BoundSyncInstrument<T> for ResolvedBoundMeasures<T> {
     fn measure(&self, val: T) {
         for measure in &self.measures {

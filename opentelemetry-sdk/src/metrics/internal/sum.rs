@@ -2,13 +2,15 @@ use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{
-    Aggregator, AtomicTracker, BoundMeasure, ComputeAggregation, Measure, Number, TrackerEntry,
-};
+use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, TrackerEntry};
 use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
@@ -42,6 +44,7 @@ where
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 enum BoundSumInner<T: Number> {
     /// Fast path: dedicated tracker for this attribute set.
     Direct {
@@ -57,10 +60,12 @@ enum BoundSumInner<T: Number> {
     },
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 struct BoundSumHandle<T: Number> {
     inner: BoundSumInner<T>,
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
         match &self.inner {
@@ -77,6 +82,7 @@ impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> Drop for BoundSumHandle<T> {
     fn drop(&mut self) {
         if let BoundSumInner::Direct { tracker } = &self.inner {
@@ -202,6 +208,7 @@ where
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {

@@ -16,9 +16,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub(crate) use aggregate::{
-    AggregateBuilder, AggregateFns, BoundMeasure, ComputeAggregation, Measure,
-};
+pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) use aggregate::BoundMeasure;
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
 
@@ -202,6 +202,7 @@ where
     /// fall back to the unbound `Measure::call()` path, which handles overflow
     /// correctly and enables automatic recovery when space opens up after delta
     /// collection evicts stale entries.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
         if attributes.is_empty() {
             let sorted_attrs: Vec<KeyValue> = vec![];
@@ -212,6 +213,7 @@ where
         self.bind_sorted(sorted_attrs)
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Option<Arc<TrackerEntry<A>>> {
         // Fast path: read lock lookup
         if let Ok(trackers) = self.trackers.read() {
