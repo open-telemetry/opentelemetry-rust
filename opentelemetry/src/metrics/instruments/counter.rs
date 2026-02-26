@@ -74,6 +74,7 @@ impl<T> fmt::Debug for ObservableCounter<T> {
 /// [`add`](BoundCounter::add) calls use the pre-resolved attributes, bypassing
 /// per-call attribute lookup for significantly better performance.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
+#[must_use = "dropping a BoundCounter immediately is a no-op; store it to benefit from pre-bound attributes"]
 pub struct BoundCounter<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
