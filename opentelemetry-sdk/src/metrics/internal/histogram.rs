@@ -73,19 +73,22 @@ impl<T: Number> Buckets<T> {
 struct BoundHistogramHandle<T: Number> {
     tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
     bounds: Vec<f64>,
-    fallback: Arc<dyn Measure<T>>,
-    attrs: Vec<KeyValue>,
 }
 
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
-        if !self.tracker.evicted.load(Ordering::Relaxed) {
-            let f = measurement.into_float();
-            let index = self.bounds.partition_point(|&x| x < f);
-            self.tracker.aggregator.update((measurement, index));
-        } else {
-            self.fallback.call(measurement, &self.attrs);
-        }
+        let f = measurement.into_float();
+        let index = self.bounds.partition_point(|&x| x < f);
+        self.tracker.aggregator.update((measurement, index));
+        self.tracker
+            .has_been_updated
+            .store(true, Ordering::Relaxed);
+    }
+}
+
+impl<T: Number> Drop for BoundHistogramHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -152,9 +155,11 @@ impl<T: Number> Histogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let buckets_count = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = aggr.clone_and_reset(&buckets_count);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -255,7 +260,7 @@ where
         })
     }
 
-    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
@@ -264,8 +269,6 @@ where
         Box::new(BoundHistogramHandle {
             tracker,
             bounds: self.bounds.clone(),
-            fallback,
-            attrs: bound_attrs,
         })
     }
 }

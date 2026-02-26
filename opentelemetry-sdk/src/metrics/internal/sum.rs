@@ -44,17 +44,20 @@ where
 
 struct BoundSumHandle<T: Number> {
     tracker: Arc<TrackerEntry<Increment<T>>>,
-    fallback: Arc<dyn Measure<T>>,
-    attrs: Vec<KeyValue>,
 }
 
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
-        if !self.tracker.evicted.load(Ordering::Relaxed) {
-            self.tracker.aggregator.update(measurement);
-        } else {
-            self.fallback.call(measurement, &self.attrs);
-        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker
+            .has_been_updated
+            .store(true, Ordering::Relaxed);
+    }
+}
+
+impl<T: Number> Drop for BoundSumHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -117,7 +120,7 @@ impl<T: Number> Sum<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
-                value: aggr.value.get_value(),
+                value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
 
@@ -175,17 +178,13 @@ where
         })
     }
 
-    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
         });
         let tracker = self.value_map.bind(&bound_attrs);
-        Box::new(BoundSumHandle {
-            tracker,
-            fallback,
-            attrs: bound_attrs,
-        })
+        Box::new(BoundSumHandle { tracker })
     }
 }
 
