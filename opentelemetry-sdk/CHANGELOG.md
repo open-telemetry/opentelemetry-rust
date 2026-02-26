@@ -5,10 +5,12 @@
 - **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
   return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
   Bound instruments resolve the attribute-to-aggregator mapping once at bind time
-  and cache the result, eliminating per-call HashMap lookups. After delta
-  collection evicts the underlying tracker, bound handles transparently fall back
-  to the standard unbound measurement path. Benchmarks show 5-28x speedup for
-  counter operations and 5-7x for histograms.
+  and cache the result, eliminating per-call HashMap lookups. Bound entries are
+  never evicted during delta collection — idle cycles produce no export but the
+  tracker persists. If `bind()` is called at the cardinality limit, the handle
+  transparently falls back to the unbound measurement path. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag. Benchmarks show ~28x
+  speedup for counter operations and ~9x for histograms.
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
