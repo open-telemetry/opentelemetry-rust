@@ -70,25 +70,46 @@ impl<T: Number> Buckets<T> {
     }
 }
 
+enum BoundHistogramInner<T: Number> {
+    /// Fast path: dedicated tracker for this attribute set.
+    Direct {
+        tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
+        bounds: Vec<f64>,
+    },
+    /// Overflow fallback: delegates to the unbound Measure::call() path.
+    Fallback {
+        measure: Arc<dyn Measure<T>>,
+        attrs: Vec<KeyValue>,
+    },
+}
+
 struct BoundHistogramHandle<T: Number> {
-    tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
-    bounds: Vec<f64>,
+    inner: BoundHistogramInner<T>,
 }
 
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
-        let f = measurement.into_float();
-        let index = self.bounds.partition_point(|&x| x < f);
-        self.tracker.aggregator.update((measurement, index));
-        self.tracker
-            .has_been_updated
-            .store(true, Ordering::Relaxed);
+        match &self.inner {
+            BoundHistogramInner::Direct { tracker, bounds } => {
+                let f = measurement.into_float();
+                let index = bounds.partition_point(|&x| x < f);
+                tracker.aggregator.update((measurement, index));
+                tracker
+                    .has_been_updated
+                    .store(true, Ordering::Relaxed);
+            }
+            BoundHistogramInner::Fallback { measure, attrs } => {
+                measure.call(measurement, attrs);
+            }
+        }
     }
 }
 
 impl<T: Number> Drop for BoundHistogramHandle<T> {
     fn drop(&mut self) {
-        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+        if let BoundHistogramInner::Direct { tracker, .. } = &self.inner {
+            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+        }
     }
 }
 
@@ -260,16 +281,22 @@ where
         })
     }
 
-    fn bind(&self, attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
         });
-        let tracker = self.value_map.bind(&bound_attrs);
-        Box::new(BoundHistogramHandle {
-            tracker,
-            bounds: self.bounds.clone(),
-        })
+        let inner = match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => BoundHistogramInner::Direct {
+                tracker,
+                bounds: self.bounds.clone(),
+            },
+            None => BoundHistogramInner::Fallback {
+                measure: fallback,
+                attrs: bound_attrs,
+            },
+        };
+        Box::new(BoundHistogramHandle { inner })
     }
 }
 
