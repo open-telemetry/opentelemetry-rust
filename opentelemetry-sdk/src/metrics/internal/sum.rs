@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
+use super::{AtomicallyUpdate, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, TrackerEntry};
-use super::{AtomicallyUpdate, ValueMap};
 
 struct Increment<T>
 where
@@ -71,9 +71,7 @@ impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
         match &self.inner {
             BoundSumInner::Direct { tracker } => {
                 tracker.aggregator.update(measurement);
-                tracker
-                    .has_been_updated
-                    .store(true, Ordering::Relaxed);
+                tracker.has_been_updated.store(true, Ordering::Relaxed);
             }
             BoundSumInner::Fallback { measure, attrs } => {
                 measure.call(measurement, attrs);

@@ -100,9 +100,7 @@ impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
                 let f = measurement.into_float();
                 let index = bounds.partition_point(|&x| x < f);
                 tracker.aggregator.update((measurement, index));
-                tracker
-                    .has_been_updated
-                    .store(true, Ordering::Relaxed);
+                tracker.has_been_updated.store(true, Ordering::Relaxed);
             }
             BoundHistogramInner::Fallback { measure, attrs } => {
                 measure.call(measurement, attrs);

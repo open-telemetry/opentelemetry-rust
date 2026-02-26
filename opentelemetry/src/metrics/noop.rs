@@ -9,9 +9,9 @@ use crate::{
 };
 use std::sync::Arc;
 
-use super::instruments::SyncInstrument;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::instruments::BoundSyncInstrument;
+use super::instruments::SyncInstrument;
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]

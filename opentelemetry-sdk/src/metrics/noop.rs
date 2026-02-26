@@ -1,9 +1,9 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
     metrics::{InstrumentProvider, SyncInstrument},
     KeyValue,
 };
-#[cfg(feature = "experimental_metrics_bound_instruments")]
-use opentelemetry::metrics::BoundSyncInstrument;
 
 /// A no-op instance of a `Meter`
 #[derive(Debug, Default)]
