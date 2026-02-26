@@ -4975,10 +4975,17 @@ mod tests {
         };
 
         // The bound handle should have a dedicated tracker, NOT overflow
-        assert_eq!(sum.data_points.len(), 1, "Only the bound entry should be exported");
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Only the bound entry should be exported"
+        );
         let dp = find_sum_datapoint_with_key_value(&sum.data_points, "A", "recovered")
             .expect("should find dedicated data point for recovered attrs");
-        assert_eq!(dp.value, 99, "Bound handle after recovery should have dedicated tracker");
+        assert_eq!(
+            dp.value, 99,
+            "Bound handle after recovery should have dedicated tracker"
+        );
         assert!(
             find_overflow_sum_datapoint(&sum.data_points).is_none(),
             "Should not have overflow — bind() after eviction should get a dedicated tracker"
@@ -5064,8 +5071,7 @@ mod tests {
         bound.record(12.0);
         test_context.flush_metrics();
 
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5079,8 +5085,7 @@ mod tests {
         bound.record(40.0);
         test_context.flush_metrics();
 
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5114,8 +5119,7 @@ mod tests {
         bound.record(35.0);
         test_context.flush_metrics();
 
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5146,8 +5150,7 @@ mod tests {
         // Cycle 1: record and collect
         bound.record(5.0);
         test_context.flush_metrics();
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5170,8 +5173,7 @@ mod tests {
         test_context.reset_metrics();
         bound.record(20.0);
         test_context.flush_metrics();
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5216,8 +5218,7 @@ mod tests {
         bound.record(42.0);
 
         test_context.flush_metrics();
-        let MetricData::Histogram(hist) =
-            test_context.get_aggregation::<f64>("my_histogram", None)
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
         else {
             unreachable!()
         };
@@ -5229,8 +5230,8 @@ mod tests {
             cardinality_limit
         );
 
-        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
-            .expect("overflow point expected");
+        let overflow_dp =
+            find_overflow_histogram_datapoint(&hist.data_points).expect("overflow point expected");
         assert_eq!(
             overflow_dp.sum, 42.0,
             "Bound-at-overflow data should go to overflow bucket"
@@ -5252,8 +5253,7 @@ mod tests {
             bound.add(100);
             test_context.flush_metrics();
 
-            let MetricData::Sum(sum) =
-                test_context.get_aggregation::<u64>("my_counter", None)
+            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
             else {
                 unreachable!()
             };

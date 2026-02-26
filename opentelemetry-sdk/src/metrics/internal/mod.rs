@@ -20,7 +20,9 @@ pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, M
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) use aggregate::{BoundFallbackHandle, BoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use opentelemetry::{otel_debug, otel_warn, KeyValue};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::otel_debug;
+use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
 use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
@@ -291,14 +293,13 @@ where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.load(Ordering::Acquire) {
-            if self
+        if self.has_no_attribute_value.load(Ordering::Acquire)
+            && self
                 .no_attribute_tracker
                 .has_been_updated
                 .swap(false, Ordering::AcqRel)
-            {
-                dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
-            }
+        {
+            dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
 
         let overflow_attrs = stream_overflow_attributes();
@@ -334,11 +335,9 @@ where
 
                 if !stale_entries.is_empty() {
                     let stale_pointers: HashSet<*const TrackerEntry<A>> =
-                        stale_entries.iter().map(|e| Arc::as_ptr(e)).collect();
-                    trackers
-                        .retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
-                    self.count
-                        .fetch_sub(stale_entries.len(), Ordering::SeqCst);
+                        stale_entries.iter().map(Arc::as_ptr).collect();
+                    trackers.retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
+                    self.count.fetch_sub(stale_entries.len(), Ordering::SeqCst);
                 }
             }
         }

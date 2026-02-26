@@ -145,11 +145,7 @@ where
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind(
-        &self,
-        attrs: &[KeyValue],
-        fallback: Arc<dyn Measure<T>>,
-    ) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
