@@ -48,6 +48,7 @@ impl<T> Histogram<T> {
 /// [`record`](BoundHistogram::record) calls use the pre-resolved attributes, bypassing
 /// per-call attribute lookup for significantly better performance.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
+#[must_use = "dropping a BoundHistogram immediately is a no-op; store it to benefit from pre-bound attributes"]
 pub struct BoundHistogram<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
