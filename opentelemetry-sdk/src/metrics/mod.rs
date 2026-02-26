@@ -4693,6 +4693,7 @@ mod tests {
         assert!("cumulativ".parse::<Temporality>().is_err());
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_cumulative() {
         let mut test_context = TestContext::new(Temporality::Cumulative);
@@ -4721,6 +4722,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_delta() {
         let mut test_context = TestContext::new(Temporality::Delta);
@@ -4753,6 +4755,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_histogram_cumulative() {
         let mut test_context = TestContext::new(Temporality::Cumulative);
@@ -4787,6 +4790,7 @@ mod tests {
         assert_eq!(dp.attributes, vec![KeyValue::new("key1", "bound_value")]);
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_matches_unbound() {
         let mut test_context = TestContext::new(Temporality::Cumulative);
@@ -4813,6 +4817,7 @@ mod tests {
         assert_eq!(sum.data_points[0].value, 100);
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_delta_no_update_no_export() {
         // A bound handle that has no new measurements between delta collections
@@ -4858,6 +4863,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_overflow_falls_back_to_unbound() {
         // When bind() is called at the cardinality limit, the handle should
@@ -4910,6 +4916,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_overflow_recovery_after_delta_eviction() {
         // After delta collect evicts stale unbound entries, a new bind() call
@@ -4967,6 +4974,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn bound_counter_overflow_fallback_still_works() {
         // Even when bound at overflow, the handle should still correctly

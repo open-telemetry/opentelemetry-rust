@@ -2,7 +2,9 @@ use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
-use super::{BoundSyncInstrument, SyncInstrument};
+use super::SyncInstrument;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::BoundSyncInstrument;
 
 /// An instrument that records increasing values.
 ///
@@ -34,6 +36,7 @@ impl<T> Counter<T> {
     }
 
     /// Binds this counter to a fixed set of attributes.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     pub fn bind(&self, attributes: &[KeyValue]) -> BoundCounter<T> {
         BoundCounter(self.0.bind(attributes))
     }
@@ -70,14 +73,17 @@ impl<T> fmt::Debug for ObservableCounter<T> {
 /// Created by calling [`Counter::bind`] with an attribute set. All subsequent
 /// [`add`](BoundCounter::add) calls use the pre-resolved attributes, bypassing
 /// per-call attribute lookup for significantly better performance.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 pub struct BoundCounter<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T> fmt::Debug for BoundCounter<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("BoundCounter<{}>", std::any::type_name::<T>()))
     }
 }
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T> BoundCounter<T> {
     /// Records an increment to the counter using the pre-bound attributes.
     pub fn add(&self, value: T) {

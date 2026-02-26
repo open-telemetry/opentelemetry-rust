@@ -6,12 +6,17 @@ mod instruments;
 mod meter;
 pub mod noop;
 pub use instruments::{
-    counter::{BoundCounter, Counter, ObservableCounter},
+    counter::Counter,
+    counter::ObservableCounter,
     gauge::{Gauge, ObservableGauge},
-    histogram::{BoundHistogram, Histogram},
+    histogram::Histogram,
     up_down_counter::{ObservableUpDownCounter, UpDownCounter},
-    AsyncInstrument, AsyncInstrumentBuilder, BoundSyncInstrument, Callback, HistogramBuilder,
-    InstrumentBuilder, SyncInstrument,
+    AsyncInstrument, AsyncInstrumentBuilder, Callback, HistogramBuilder, InstrumentBuilder,
+    SyncInstrument,
+};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub use instruments::{
+    counter::BoundCounter, histogram::BoundHistogram, BoundSyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
 pub use noop::NoopMeterProvider;

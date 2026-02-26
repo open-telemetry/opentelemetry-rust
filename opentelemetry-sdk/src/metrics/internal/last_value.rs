@@ -4,13 +4,15 @@ use crate::metrics::{
 };
 use opentelemetry::KeyValue;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
-    Aggregator, AtomicTracker, AtomicallyUpdate, BoundMeasure, ComputeAggregation, Measure, Number,
-    ValueMap,
+    Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::BoundMeasure;
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -146,6 +148,7 @@ where
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
         _attrs: &[KeyValue],
