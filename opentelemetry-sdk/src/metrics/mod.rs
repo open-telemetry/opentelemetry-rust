@@ -4075,9 +4075,15 @@ mod tests {
             "Empty attributes value should be 3+3=6"
         );
 
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
+        // Phase 2 - for delta temporality, collect_and_reset uses in-place eviction:
+        // the first collect marks entries as not-updated, and the second collect evicts
+        // those still-stale entries. We need an extra flush to trigger that eviction
+        // before adding new measurements that should fit under the cardinality limit.
         test_context.reset_metrics();
+        if temporality == Temporality::Delta {
+            test_context.flush_metrics();
+            test_context.reset_metrics();
+        }
         // The following should be aggregated normally for Delta,
         // and should go into overflow for Cumulative.
         counter.add(100, &[KeyValue::new("A", "foo")]);
@@ -4181,9 +4187,15 @@ mod tests {
             "Empty attributes value should be 3+3=6"
         );
 
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
+        // Phase 2 - for delta temporality, collect_and_reset uses in-place eviction:
+        // the first collect marks entries as not-updated, and the second collect evicts
+        // those still-stale entries. We need an extra flush to trigger that eviction
+        // before adding new measurements that should fit under the cardinality limit.
         test_context.reset_metrics();
+        if temporality == Temporality::Delta {
+            test_context.flush_metrics();
+            test_context.reset_metrics();
+        }
         // The following should be aggregated normally for Delta,
         // and should go into overflow for Cumulative.
         counter.add(100, &[KeyValue::new("A", "foo")]);
@@ -4799,5 +4811,220 @@ mod tests {
             "Bound and unbound should share the same data point"
         );
         assert_eq!(sum.data_points[0].value, 100);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_delta_no_update_no_export() {
+        // A bound handle that has no new measurements between delta collections
+        // should not produce an export, but the handle should remain valid and
+        // produce a fresh delta when measurements resume.
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        // Cycle 1: add and collect
+        bound.add(10);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 10);
+
+        // Cycle 2: no add, collect — should export nothing
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let resource_metrics = test_context
+            .exporter
+            .get_finished_metrics()
+            .expect("metrics export should succeed");
+        assert!(
+            resource_metrics.is_empty(),
+            "Bound handle with no updates should not export"
+        );
+
+        // Cycle 3: add again — handle is still alive, produces fresh delta
+        test_context.reset_metrics();
+        bound.add(5);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 5,
+            "Bound handle should produce fresh delta after quiet cycle"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_falls_back_to_unbound() {
+        // When bind() is called at the cardinality limit, the handle should
+        // fall back to the unbound measure() path. Data goes to the overflow
+        // bucket, same as unbound calls at overflow.
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to cardinality limit with unbound calls
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow — should fall back to unbound path
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = counter.bind(&overflow_attrs);
+        bound.add(42);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // Expect: cardinality_limit unique + 1 overflow = cardinality_limit + 1
+        assert_eq!(
+            sum.data_points.len(),
+            cardinality_limit + 1,
+            "Expected {} unique + 1 overflow data points",
+            cardinality_limit
+        );
+
+        // The bound handle's value should appear in the overflow bucket
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 42,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_recovery_after_delta_eviction() {
+        // After delta collect evicts stale unbound entries, a new bind() call
+        // should get a dedicated tracker (not overflow).
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to cardinality limit with unbound calls (these are one-shot, not bound)
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // Collect cycle 1: exports the 3 unique entries, then evicts them (no new updates)
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), cardinality_limit);
+
+        // Cycle 2: no unbound adds, so the stale entries get evicted.
+        // Space is now open. A new bind() should get a dedicated tracker.
+        test_context.reset_metrics();
+        test_context.flush_metrics(); // triggers eviction of stale entries
+
+        let new_attrs = vec![KeyValue::new("A", "recovered")];
+        let bound = counter.bind(&new_attrs);
+        bound.add(99);
+
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // The bound handle should have a dedicated tracker, NOT overflow
+        assert_eq!(sum.data_points.len(), 1, "Only the bound entry should be exported");
+        let dp = find_sum_datapoint_with_key_value(&sum.data_points, "A", "recovered")
+            .expect("should find dedicated data point for recovered attrs");
+        assert_eq!(dp.value, 99, "Bound handle after recovery should have dedicated tracker");
+        assert!(
+            find_overflow_sum_datapoint(&sum.data_points).is_none(),
+            "Should not have overflow — bind() after eviction should get a dedicated tracker"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_fallback_still_works() {
+        // Even when bound at overflow, the handle should still correctly
+        // record measurements (via the unbound fallback path).
+        let cardinality_limit = 2;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to limit
+        counter.add(1, &[KeyValue::new("A", "0")]);
+        counter.add(1, &[KeyValue::new("A", "1")]);
+
+        // Bind two distinct attribute sets at overflow
+        let bound_a = counter.bind(&[KeyValue::new("A", "overflow_a")]);
+        let bound_b = counter.bind(&[KeyValue::new("A", "overflow_b")]);
+
+        bound_a.add(10);
+        bound_b.add(20);
+        bound_a.add(5);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 35,
+            "All overflow-bound measurements should accumulate in overflow bucket"
+        );
+
+        // Cycle 2: bound handles still work after delta collect
+        test_context.reset_metrics();
+        bound_a.add(7);
+        bound_b.add(3);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 10,
+            "Overflow-bound handles should continue working across delta cycles"
+        );
     }
 }

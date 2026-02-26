@@ -197,7 +197,12 @@ where
     /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.
     /// The caller can then call `tracker.aggregator.update()` directly, bypassing the
     /// full lookup path on subsequent measurements.
-    fn bind(&self, attributes: &[KeyValue]) -> Arc<TrackerEntry<A>> {
+    ///
+    /// Returns `None` if the cardinality limit has been reached. The caller should
+    /// fall back to the unbound `Measure::call()` path, which handles overflow
+    /// correctly and enables automatic recovery when space opens up after delta
+    /// collection evicts stale entries.
+    fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
         if attributes.is_empty() {
             let sorted_attrs: Vec<KeyValue> = vec![];
             return self.bind_sorted(sorted_attrs);
@@ -207,25 +212,25 @@ where
         self.bind_sorted(sorted_attrs)
     }
 
-    fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Arc<TrackerEntry<A>> {
+    fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Option<Arc<TrackerEntry<A>>> {
         // Fast path: read lock lookup
         if let Ok(trackers) = self.trackers.read() {
             if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
                 tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-                return Arc::clone(tracker);
+                return Some(Arc::clone(tracker));
             }
         }
 
         // Slow path: write lock, insert if missing
         let Ok(mut trackers) = self.trackers.write() else {
-            // Lock poisoned — return a detached tracker (will work but won't be collected)
-            return Arc::new(TrackerEntry::<A>::new(&self.config));
+            // Lock poisoned — return None so caller falls back to unbound path
+            return None;
         };
 
         // Recheck after acquiring write lock
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-            return Arc::clone(tracker);
+            return Some(Arc::clone(tracker));
         }
 
         if self.is_under_cardinality_limit() {
@@ -233,19 +238,14 @@ where
             new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             trackers.insert(sorted_attrs, new_tracker.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
-            new_tracker
+            Some(new_tracker)
         } else {
-            // Over cardinality limit — bind to the overflow tracker
-            let overflow_attrs = stream_overflow_attributes().clone();
-            if let Some(tracker) = trackers.get(overflow_attrs.as_slice()) {
-                tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-                Arc::clone(tracker)
-            } else {
-                let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
-                new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-                trackers.insert(overflow_attrs, new_tracker.clone());
-                new_tracker
-            }
+            // Over cardinality limit — return None so the caller falls back to the
+            // unbound Measure::call() path. This ensures:
+            // 1. Overflow data is attributed correctly (same as unbound at overflow)
+            // 2. Automatic recovery when delta collect evicts stale entries
+            // 3. bound_count is not inflated on the overflow tracker
+            None
         }
     }
 

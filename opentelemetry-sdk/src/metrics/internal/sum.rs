@@ -42,22 +42,46 @@ where
     }
 }
 
+enum BoundSumInner<T: Number> {
+    /// Fast path: dedicated tracker for this attribute set.
+    Direct {
+        tracker: Arc<TrackerEntry<Increment<T>>>,
+    },
+    /// Overflow fallback: delegates to the unbound Measure::call() path.
+    /// This happens when bind() is called at/over the cardinality limit.
+    /// Using the unbound path ensures correct overflow attribution and
+    /// automatic recovery when delta collect opens up space.
+    Fallback {
+        measure: Arc<dyn Measure<T>>,
+        attrs: Vec<KeyValue>,
+    },
+}
+
 struct BoundSumHandle<T: Number> {
-    tracker: Arc<TrackerEntry<Increment<T>>>,
+    inner: BoundSumInner<T>,
 }
 
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
-        self.tracker.aggregator.update(measurement);
-        self.tracker
-            .has_been_updated
-            .store(true, Ordering::Relaxed);
+        match &self.inner {
+            BoundSumInner::Direct { tracker } => {
+                tracker.aggregator.update(measurement);
+                tracker
+                    .has_been_updated
+                    .store(true, Ordering::Relaxed);
+            }
+            BoundSumInner::Fallback { measure, attrs } => {
+                measure.call(measurement, attrs);
+            }
+        }
     }
 }
 
 impl<T: Number> Drop for BoundSumHandle<T> {
     fn drop(&mut self) {
-        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+        if let BoundSumInner::Direct { tracker } = &self.inner {
+            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+        }
     }
 }
 
@@ -178,13 +202,19 @@ where
         })
     }
 
-    fn bind(&self, attrs: &[KeyValue], _fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
         });
-        let tracker = self.value_map.bind(&bound_attrs);
-        Box::new(BoundSumHandle { tracker })
+        let inner = match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => BoundSumInner::Direct { tracker },
+            None => BoundSumInner::Fallback {
+                measure: fallback,
+                attrs: bound_attrs,
+            },
+        };
+        Box::new(BoundSumHandle { inner })
     }
 }
 
