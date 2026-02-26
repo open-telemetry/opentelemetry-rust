@@ -982,7 +982,8 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1026,7 +1027,8 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1080,7 +1082,8 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1185,7 +1188,8 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider);
+        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
