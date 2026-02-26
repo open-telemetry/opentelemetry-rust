@@ -15,7 +15,7 @@ use super::{
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::BoundMeasure;
+use super::{BoundFallbackHandle, BoundMeasure};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -534,10 +534,10 @@ where
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
-        _attrs: &[KeyValue],
-        _fallback: Arc<dyn Measure<T>>,
+        attrs: &[KeyValue],
+        fallback: Arc<dyn Measure<T>>,
     ) -> Box<dyn BoundMeasure<T>> {
-        unimplemented!("Bound instruments are not supported for this aggregator type")
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 

@@ -12,7 +12,7 @@ use super::{
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::BoundMeasure;
+use super::{BoundFallbackHandle, BoundMeasure};
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -151,10 +151,10 @@ where
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
-        _attrs: &[KeyValue],
-        _fallback: Arc<dyn Measure<T>>,
+        attrs: &[KeyValue],
+        fallback: Arc<dyn Measure<T>>,
     ) -> Box<dyn BoundMeasure<T>> {
-        unimplemented!("Bound instruments are not supported for this aggregator type")
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 

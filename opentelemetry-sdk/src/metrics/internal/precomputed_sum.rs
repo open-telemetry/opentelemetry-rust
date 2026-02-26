@@ -9,7 +9,7 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::BoundMeasure;
+use super::{BoundFallbackHandle, BoundMeasure};
 use super::{ComputeAggregation, Measure};
 use std::{collections::HashMap, sync::Mutex};
 
@@ -147,10 +147,10 @@ where
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(
         &self,
-        _attrs: &[KeyValue],
-        _fallback: Arc<dyn Measure<T>>,
+        attrs: &[KeyValue],
+        fallback: Arc<dyn Measure<T>>,
     ) -> Box<dyn BoundMeasure<T>> {
-        unimplemented!("Bound instruments are not supported for this aggregator type")
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 

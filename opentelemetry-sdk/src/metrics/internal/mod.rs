@@ -18,9 +18,9 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-pub(crate) use aggregate::BoundMeasure;
+pub(crate) use aggregate::{BoundFallbackHandle, BoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use opentelemetry::{otel_warn, KeyValue};
+use opentelemetry::{otel_debug, otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
 use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
@@ -247,6 +247,10 @@ where
             // 1. Overflow data is attributed correctly (same as unbound at overflow)
             // 2. Automatic recovery when delta collect evicts stale entries
             // 3. bound_count is not inflated on the overflow tracker
+            otel_debug!(
+                name: "BoundInstrument.CardinalityOverflow",
+                message = "bind() called at cardinality limit, falling back to unbound path"
+            );
             None
         }
     }
