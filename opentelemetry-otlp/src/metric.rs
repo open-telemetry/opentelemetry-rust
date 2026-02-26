@@ -52,6 +52,28 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
     pub fn new() -> Self {
         MetricExporterBuilder::default()
     }
+
+    /// Build the [MetricExporter] with the default transport selected by environment
+    /// variable or feature flags.
+    ///
+    /// The transport is chosen based on:
+    /// 1. The `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable (if set and the
+    ///    corresponding feature is enabled)
+    /// 2. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
+    ///
+    /// Use [`with_tonic`](Self::with_tonic) or [`with_http`](Self::with_http) to
+    /// explicitly select a transport and access transport-specific configuration.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
+        match crate::Protocol::default() {
+            #[cfg(feature = "grpc-tonic")]
+            crate::Protocol::Grpc => self.with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            crate::Protocol::HttpBinary => self.with_http().build(),
+            #[cfg(feature = "http-json")]
+            crate::Protocol::HttpJson => self.with_http().build(),
+        }
+    }
 }
 
 impl<C> MetricExporterBuilder<C> {
