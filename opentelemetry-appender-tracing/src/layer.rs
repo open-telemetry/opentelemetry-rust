@@ -3,6 +3,8 @@ use opentelemetry::{
     Key,
 };
 #[cfg(feature = "experimental_span_attributes")]
+use std::borrow::Cow;
+#[cfg(feature = "experimental_span_attributes")]
 use std::collections::HashSet;
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
@@ -186,11 +188,12 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
 #[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor<'a> {
     attributes: &'a mut Vec<(Key, AnyValue)>,
-    allowlist: Option<&'a HashSet<&'static str>>,
+    allowlist: Option<&'a HashSet<Cow<'static, str>>>,
 }
 
 #[cfg(feature = "experimental_span_attributes")]
 impl SpanFieldVisitor<'_> {
+    #[inline]
     fn allowed(&self, field: &tracing::field::Field) -> bool {
         self.allowlist
             .map_or(true, |set| set.contains(field.name()))
@@ -311,7 +314,7 @@ where
     logger: L,
     _phantom: std::marker::PhantomData<P>, // P is not used.
     #[cfg(feature = "experimental_span_attributes")]
-    span_attribute_allowlist: Option<HashSet<&'static str>>,
+    span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
 }
 
 impl<P, L> OpenTelemetryTracingBridge<P, L>
@@ -346,7 +349,7 @@ where
     logger: L,
     _phantom: std::marker::PhantomData<P>,
     #[cfg(feature = "experimental_span_attributes")]
-    span_attribute_allowlist: Option<HashSet<&'static str>>,
+    span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
 }
 
 impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
@@ -359,9 +362,9 @@ where
     #[cfg(feature = "experimental_span_attributes")]
     pub fn with_span_attribute_allowlist(
         mut self,
-        keys: impl IntoIterator<Item = &'static str>,
+        keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>,
     ) -> Self {
-        self.span_attribute_allowlist = Some(keys.into_iter().collect());
+        self.span_attribute_allowlist = Some(keys.into_iter().map(Into::into).collect());
         self
     }
 
@@ -370,7 +373,8 @@ where
             logger: self.logger,
             _phantom: self._phantom,
             #[cfg(feature = "experimental_span_attributes")]
-            span_attribute_allowlist: self.span_attribute_allowlist,
+            // Treat empty allowlist as not set - disable the feature flag instead.
+            span_attribute_allowlist: self.span_attribute_allowlist.filter(|s| !s.is_empty()),
         }
     }
 }
@@ -1407,7 +1411,9 @@ mod tests {
 
     #[test]
     #[cfg(feature = "experimental_span_attributes")]
-    fn tracing_appender_span_attribute_allowlist_empty_copies_none() {
+    fn tracing_appender_span_attribute_allowlist_empty_treated_as_none() {
+        // Empty allowlist is normalized to None in build(), so all span
+        // attributes are copied (same as default behavior).
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1433,10 +1439,11 @@ mod tests {
             &Key::new("event_attr"),
             &AnyValue::String("val".into())
         ));
-        assert!(!log
-            .record
-            .attributes_iter()
-            .any(|(k, _)| k == &Key::new("foo")));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("foo"),
+            &AnyValue::String("bar".into())
+        ));
     }
 
     #[test]
