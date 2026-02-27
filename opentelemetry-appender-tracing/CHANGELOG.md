@@ -6,7 +6,6 @@
   tracing spans (`experimental_span_attributes`). Use
   `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`
   to control which span attributes are copied to log records.
-  [#3387](https://github.com/open-telemetry/opentelemetry-rust/pull/3387)
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
