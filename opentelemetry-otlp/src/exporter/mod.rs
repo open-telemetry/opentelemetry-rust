@@ -53,7 +53,7 @@ pub(crate) mod tonic;
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug)]
-pub struct ExportConfig {
+pub(crate) struct ExportConfig {
     /// The address of the OTLP collector.
     /// Default address will be used based on the protocol.
     ///
@@ -228,7 +228,7 @@ fn default_headers() -> std::collections::HashMap<String, String> {
 }
 
 /// Provide access to the [ExportConfig] field within the exporter builders.
-pub trait HasExportConfig {
+pub(crate) trait HasExportConfig {
     /// Return a mutable reference to the [ExportConfig] within the exporter builders.
     fn export_config(&mut self) -> &mut ExportConfig;
 }
@@ -249,9 +249,7 @@ impl HasExportConfig for HttpExporterBuilder {
     }
 }
 
-/// Expose methods to override [ExportConfig].
-///
-/// This trait will be implemented for every struct that implemented [`HasExportConfig`] trait.
+/// Expose methods to set export configuration on exporter builders.
 ///
 /// ## Examples
 /// ```
@@ -280,10 +278,6 @@ pub trait WithExportConfig {
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
-    /// Set export config. This will override all previous configurations.
-    ///
-    /// Note: Programmatically setting this will override any value set via environment variables.
-    fn with_export_config(self, export_config: ExportConfig) -> Self;
 }
 
 impl<B: HasExportConfig> WithExportConfig for B {
@@ -299,13 +293,6 @@ impl<B: HasExportConfig> WithExportConfig for B {
 
     fn with_timeout(mut self, timeout: Duration) -> Self {
         self.export_config().timeout = Some(timeout);
-        self
-    }
-
-    fn with_export_config(mut self, exporter_config: ExportConfig) -> Self {
-        self.export_config().endpoint = exporter_config.endpoint;
-        self.export_config().protocol = exporter_config.protocol;
-        self.export_config().timeout = exporter_config.timeout;
         self
     }
 }
@@ -413,19 +400,12 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn export_builder_error_invalid_http_endpoint() {
-        use std::time::Duration;
-
-        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
-
-        let ex_config = ExportConfig {
-            endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::HttpBinary,
-            timeout: Some(Duration::from_secs(10)),
-        };
+        use crate::{LogExporter, WithExportConfig};
 
         let exporter_result = LogExporter::builder()
             .with_http()
-            .with_export_config(ex_config)
+            .with_endpoint("invalid_uri/something")
+            .with_timeout(std::time::Duration::from_secs(10))
             .build();
 
         assert!(
@@ -440,19 +420,12 @@ mod tests {
     #[cfg(feature = "grpc-tonic")]
     #[tokio::test]
     async fn export_builder_error_invalid_grpc_endpoint() {
-        use std::time::Duration;
-
-        use crate::{ExportConfig, LogExporter, Protocol, WithExportConfig};
-
-        let ex_config = ExportConfig {
-            endpoint: Some("invalid_uri/something".to_string()),
-            protocol: Protocol::Grpc,
-            timeout: Some(Duration::from_secs(10)),
-        };
+        use crate::{LogExporter, WithExportConfig};
 
         let exporter_result = LogExporter::builder()
             .with_tonic()
-            .with_export_config(ex_config)
+            .with_endpoint("invalid_uri/something")
+            .with_timeout(std::time::Duration::from_secs(10))
             .build();
 
         assert!(matches!(

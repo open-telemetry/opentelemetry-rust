@@ -2,7 +2,9 @@ use super::{
     default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{
+    exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
@@ -103,7 +105,7 @@ use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
 #[derive(Debug, Default)]
-pub struct HttpConfig {
+pub(crate) struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
@@ -727,7 +729,7 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 }
 
 /// Expose interface for modifying builder config.
-pub trait HasHttpConfig {
+pub(crate) trait HasHttpConfig {
     /// Return a mutable reference to the config within the exporter builders.
     fn http_client_config(&mut self) -> &mut HttpConfig;
 }
@@ -739,7 +741,7 @@ impl HasHttpConfig for HttpExporterBuilder {
     }
 }
 
-/// This trait will be implemented for every struct that implemented [`HasHttpConfig`] trait.
+/// Expose methods to override HTTP-specific configuration.
 ///
 /// ## Examples
 /// ```
@@ -1042,7 +1044,7 @@ mod tests {
                 #[cfg(feature = "experimental-http-retry")]
                 retry_policy: None,
             },
-            exporter_config: crate::ExportConfig::default(),
+            exporter_config: crate::exporter::ExportConfig::default(),
         };
 
         // Act
