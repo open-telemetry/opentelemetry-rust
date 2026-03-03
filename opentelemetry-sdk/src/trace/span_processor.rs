@@ -71,6 +71,9 @@ pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_mill
 /// This setting is only honored by
 /// `span_processor_with_async_runtime::BatchSpanProcessor`.
 /// The thread-based `BatchSpanProcessor` exports serially.
+/// For concurrent exports, enable
+/// `experimental_trace_batch_span_processor_with_async_runtime` and use the
+/// async-runtime processor.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
@@ -345,14 +348,6 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + 'static,
     {
-        if config.max_concurrent_exports > OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT {
-            otel_warn!(
-                name: "BatchSpanProcessor.MaxConcurrentExportsIgnored",
-                max_concurrent_exports = config.max_concurrent_exports,
-                message = "Thread-based BatchSpanProcessor exports serially and ignores max_concurrent_exports values greater than 1. Use span_processor_with_async_runtime::BatchSpanProcessor for concurrent exports."
-            );
-        }
-
         let (span_sender, span_receiver) = sync_channel::<SpanData>(config.max_queue_size);
         let (message_sender, message_receiver) = sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;
@@ -798,12 +793,16 @@ pub struct BatchConfig {
     /// The maximum duration to export a batch of data.
     pub(crate) max_export_timeout: Duration,
 
-    #[allow(dead_code)]
     /// Maximum number of concurrent exports
     ///
-    /// Limits the number of spawned tasks for exports and thus memory consumed
-    /// by an exporter. A value of 1 will cause exports to be performed
-    /// synchronously on the BatchSpanProcessor task.
+    /// Honored by `span_processor_with_async_runtime::BatchSpanProcessor`.
+    ///
+    /// The thread-based `BatchSpanProcessor` exports serially and ignores this
+    /// setting.
+    ///
+    /// For concurrent exports, enable
+    /// `experimental_trace_batch_span_processor_with_async_runtime` and use the
+    /// async-runtime processor.
     pub(crate) max_concurrent_exports: usize,
 }
 
@@ -876,18 +875,19 @@ impl BatchConfigBuilder {
 
     #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     /// Set max_concurrent_exports for [`BatchConfigBuilder`].
-    /// It's the maximum number of concurrent exports.
-    /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
-    /// The default value is 1.
-    /// If the max_concurrent_exports value is default value, it will cause exports to be performed
-    /// synchronously on the BatchSpanProcessor task.
-    /// The default value is 1.
+    ///
+    /// This value is honored by
+    /// `span_processor_with_async_runtime::BatchSpanProcessor`, where it limits
+    /// the number of concurrent export tasks.
+    ///
+    /// The thread-based `BatchSpanProcessor` exports serially and ignores this
+    /// setting.
     ///
     /// Corresponding environment variable: `OTEL_BSP_MAX_CONCURRENT_EXPORTS`.
     ///
-    /// This setting is honored by
-    /// `span_processor_with_async_runtime::BatchSpanProcessor`.
-    /// The thread-based `BatchSpanProcessor` exports serially and ignores values > 1.
+    /// For concurrent exports, enable
+    /// `experimental_trace_batch_span_processor_with_async_runtime` and use the
+    /// async-runtime processor.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
@@ -1382,11 +1382,13 @@ mod tests {
         struct TrackingExporter {
             active: Arc<AtomicUsize>,
             concurrent_seen: Arc<AtomicBool>,
+            export_calls: Arc<AtomicUsize>,
             delay: Duration,
         }
 
         impl SpanExporter for TrackingExporter {
             async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                self.export_calls.fetch_add(1, Ordering::SeqCst);
                 let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
                 if inflight > 1 {
                     self.concurrent_seen.store(true, Ordering::SeqCst);
@@ -1400,9 +1402,11 @@ mod tests {
 
         let active = Arc::new(AtomicUsize::new(0));
         let concurrent_seen = Arc::new(AtomicBool::new(false));
+        let export_calls = Arc::new(AtomicUsize::new(0));
         let exporter = TrackingExporter {
             active: active.clone(),
             concurrent_seen: concurrent_seen.clone(),
+            export_calls: export_calls.clone(),
             delay: Duration::from_millis(50),
         };
 
@@ -1423,9 +1427,14 @@ mod tests {
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
 
+        assert_eq!(
+            export_calls.load(Ordering::SeqCst),
+            3,
+            "expected three exports for three spans with max_export_batch_size=1"
+        );
         assert!(
             !concurrent_seen.load(Ordering::SeqCst),
-            "sync BatchSpanProcessor should export serially, even with max_concurrent_exports > 1"
+            "sync BatchSpanProcessor should export serially regardless of max_concurrent_exports"
         );
     }
 
