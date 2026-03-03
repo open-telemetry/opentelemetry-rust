@@ -73,22 +73,41 @@ job should use a pinned toolchain (e.g. `+1.85.0`) and run at minimum
    helps reviewers — it is not a gate.
 4. Standard review and approval process applies.
 
+### When to bump
+
+MSRV bumps should be motivated by concrete downstream benefit, not merely
+because the trailing window permits it. Examples of valid motivations include:
+
+- A dependency release that the project needs is only available at a higher
+  MSRV (upstream deduplication benefit for all downstreams).
+- A `std` API replaces an external dependency, reducing the transitive
+  dependency tree for all consumers.
+- A new Rust edition brings safety or correctness improvements relevant to
+  the project (e.g. stricter `unsafe` defaults).
+- A `core`/`alloc` API enables meaningful `no_std` support improvements.
+
+The 12-month window defines what is *permissible*, not what is *expected*.
+Maintainers should exercise judgment and prefer the lowest MSRV that
+satisfies the project's current needs.
+
 ## Practical impact
 
-Under this policy the MSRV could immediately move from 1.75 (December 2023) to
-1.85 (February 2025), which would enable:
+As an example, if this policy were adopted today, the 12-month window would
+permit raising the MSRV up to 1.85 (February 2025). Some capabilities that
+would become available at various MSRV levels include:
 
-- Replacing `once_cell`, `lazy_static`, `num-format`, and `num_cpus` with std
-  APIs (`LazyLock`, `available_parallelism`).
-- `#[expect(lint)]` (stable in 1.81) — works like `#[allow]` but warns when
-  the suppressed lint stops firing, preventing stale suppressions from
+- **1.80+**: `std::sync::LazyLock` — could replace `once_cell` / `lazy_static`
+  for internal static initialization.
+- **1.81+**: `#[expect(lint)]` — works like `#[allow]` but warns when the
+  suppressed lint stops firing, preventing stale suppressions from
   accumulating.
-- `core::error::Error` (stable in 1.81) — the `Error` trait in `core`
-  strengthens the `no_std` story.
-- Edition 2024 eligibility — Rust 1.85 is the minimum version for Edition
-  2024, which brings the MSRV-aware dependency resolver (resolver v3),
-  stricter `unsafe_op_in_unsafe_fn` defaults, and improved lifetime capture
-  rules.
+- **1.81+**: `core::error::Error` — the `Error` trait in `core` strengthens
+  the `no_std` story and may benefit downstream library consumers.
+- **1.85+**: Edition 2024 eligibility — brings stricter `unsafe_op_in_unsafe_fn`
+  defaults and improved lifetime capture rules.
+
+Any actual MSRV bump would be proposed and evaluated separately based on
+concrete need at the time.
 
 For reference, here is what the 12-month window looks like over time:
 
@@ -105,16 +124,18 @@ For reference, here is what the 12-month window looks like over time:
 The most widely-used Rust crates with formal, documented MSRV policies use a
 time-based or version-count approach:
 
-| Project | Documented Policy | Window |
-|---------|-------------------|--------|
-| [tokio](https://github.com/tokio-rs/tokio#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months |
-| [hyper](https://github.com/hyperium/hyper/blob/master/docs/MSRV.md) | "A compiler version released within the last 6 months can compile hyper" | 6 months |
-| [tower](https://github.com/tower-rs/tower#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months |
-| [tracing](https://github.com/tokio-rs/tracing#supported-rust-versions) | "The current stable Rust compiler and the three most recent minor versions before it will always be supported" | N-3 |
+| Project | Documented Policy | Window | Actual MSRV |
+|---------|-------------------|--------|-------------|
+| [tokio](https://github.com/tokio-rs/tokio#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.71 (~2 years) |
+| [hyper](https://github.com/hyperium/hyper/blob/master/docs/MSRV.md) | "A compiler version released within the last 6 months can compile hyper" | 6 months | 1.63 (~3 years) |
+| [tower](https://github.com/tower-rs/tower#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.64 (~3 years) |
+| [tracing](https://github.com/tokio-rs/tracing#supported-rust-versions) | "The current stable Rust compiler and the three most recent minor versions before it will always be supported" | N-3 | — |
 
-Our proposed 12-month window is twice as conservative as the 6-month policy
-used by tokio, hyper, and tower, reflecting opentelemetry-rust's role as
-infrastructure depended on by downstream libraries and instrumentation.
+In practice, even projects with aggressive stated policies bump conservatively
+— their actual MSRVs are often years behind what the policy permits. Our
+12-month window is twice as conservative as the 6-month policies above, and the
+[when to bump](#when-to-bump) guidelines ensure the window functions as a
+ceiling rather than a schedule.
 
 ### OpenTelemetry language SDKs
 
@@ -154,13 +175,14 @@ the three most recent minor versions before it. This is equivalent to roughly
 
 There are two problems with keeping this policy:
 
-1. It is paradoxically more aggressive than 6-month policies while being
-   perceived as conservative. N-3 allows bumping to a version that may be only
-   ~4.5 months old.
-2. The policy and practice are misaligned. The current MSRV (1.75) is over
-   two years old while the N-3 policy would currently allow up to 1.90 (with
-   stable at 1.93). This gap suggests the policy does not reflect how the
-   project actually manages MSRV in practice.
+1. On paper, N-3 allows bumping to a version that may be only ~4.5 months
+   old — more aggressive than 6-month policies. In practice, the project has
+   been far more conservative, which is exactly the policy-vs-practice
+   disconnect this ADR aims to resolve.
+2. The current MSRV (1.75) is over two years old while the N-3 policy would
+   currently allow up to 1.90 (with stable at 1.93). A documented policy that
+   diverges this far from practice provides little value as a guide for
+   contributors or consumers.
 
 A 12-month window is genuinely more conservative than both alternatives while
 still allowing the project to benefit from language improvements within a
