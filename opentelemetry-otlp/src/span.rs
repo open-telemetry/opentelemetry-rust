@@ -188,3 +188,15 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod tests {
+    use crate::SpanExporter;
+
+    #[test]
+    fn build_with_default_transport() {
+        let result = SpanExporter::builder().build();
+        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+    }
+}

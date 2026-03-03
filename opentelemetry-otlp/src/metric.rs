@@ -273,6 +273,20 @@ impl MetricExporter {
 }
 
 #[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod build_tests {
+    use crate::MetricExporter;
+
+    #[test]
+    fn build_with_default_transport() {
+        // Verify that `MetricExporter::builder().build()` succeeds
+        // when at least one transport feature is enabled.
+        let result = MetricExporter::builder().build();
+        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

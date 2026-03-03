@@ -194,3 +194,15 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod tests {
+    use crate::LogExporter;
+
+    #[test]
+    fn build_with_default_transport() {
+        let result = LogExporter::builder().build();
+        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+    }
+}
