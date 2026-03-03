@@ -109,7 +109,7 @@
 //! | `OTEL_BSP_SCHEDULE_DELAY` | Delay interval (in milliseconds) between two consecutive exports. | `5000` |
 //! | `OTEL_BSP_MAX_QUEUE_SIZE` | Maximum queue size. | `2048` |
 //! | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BSP_MAX_QUEUE_SIZE`. | `512` |
-//! | `OTEL_BSP_MAX_CONCURRENT_EXPORTS` | Maximum number of concurrent exports. | `1` |
+//! | `OTEL_BSP_MAX_CONCURRENT_EXPORTS` | Maximum number of concurrent exports. Honored by `span_processor_with_async_runtime::BatchSpanProcessor`; thread-based `BatchSpanProcessor` exports serially. | `1` |
 //!
 //! ### Logs: Batch Log Record Processor (BLRP)
 //!

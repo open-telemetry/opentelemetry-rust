@@ -67,6 +67,10 @@ pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Environment variable to configure max concurrent exports for batch span
 /// processor.
+///
+/// This setting is only honored by
+/// `span_processor_with_async_runtime::BatchSpanProcessor`.
+/// The thread-based `BatchSpanProcessor` exports serially.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
@@ -341,6 +345,14 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + 'static,
     {
+        if config.max_concurrent_exports > OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT {
+            otel_warn!(
+                name: "BatchSpanProcessor.MaxConcurrentExportsIgnored",
+                max_concurrent_exports = config.max_concurrent_exports,
+                message = "Thread-based BatchSpanProcessor exports serially and ignores max_concurrent_exports values greater than 1. Use span_processor_with_async_runtime::BatchSpanProcessor for concurrent exports."
+            );
+        }
+
         let (span_sender, span_receiver) = sync_channel::<SpanData>(config.max_queue_size);
         let (message_sender, message_receiver) = sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;
@@ -357,6 +369,7 @@ impl BatchSpanProcessor {
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
                     max_export_batch_size = config.max_export_batch_size,
                     max_queue_size = config.max_queue_size,
+                    max_concurrent_exports = config.max_concurrent_exports,
                 );
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
@@ -872,6 +885,10 @@ impl BatchConfigBuilder {
     ///
     /// Corresponding environment variable: `OTEL_BSP_MAX_CONCURRENT_EXPORTS`.
     ///
+    /// This setting is honored by
+    /// `span_processor_with_async_runtime::BatchSpanProcessor`.
+    /// The thread-based `BatchSpanProcessor` exports serially and ignores values > 1.
+    ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
         self.max_concurrent_exports = max_concurrent_exports;
@@ -1181,7 +1198,10 @@ mod tests {
 
     use crate::Resource;
     use opentelemetry::{Key, KeyValue, Value};
-    use std::sync::{atomic::Ordering, Arc, Mutex};
+    use std::sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
 
     // Mock exporter to test functionality
     #[derive(Debug)]
@@ -1353,6 +1373,59 @@ mod tests {
             dropped > 0,
             "Expected some spans to be dropped due to full queue. Exported: {}",
             exported
+        );
+    }
+
+    #[test]
+    fn batchspanprocessor_sync_ignores_max_concurrent_exports() {
+        #[derive(Debug)]
+        struct TrackingExporter {
+            active: Arc<AtomicUsize>,
+            concurrent_seen: Arc<AtomicBool>,
+            delay: Duration,
+        }
+
+        impl SpanExporter for TrackingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+                if inflight > 1 {
+                    self.concurrent_seen.store(true, Ordering::SeqCst);
+                }
+
+                std::thread::sleep(self.delay);
+                self.active.fetch_sub(1, Ordering::SeqCst);
+                Ok(())
+            }
+        }
+
+        let active = Arc::new(AtomicUsize::new(0));
+        let concurrent_seen = Arc::new(AtomicBool::new(false));
+        let exporter = TrackingExporter {
+            active: active.clone(),
+            concurrent_seen: concurrent_seen.clone(),
+            delay: Duration::from_millis(50),
+        };
+
+        let config = BatchConfig {
+            max_export_batch_size: 1,
+            max_queue_size: 16,
+            scheduled_delay: Duration::from_secs(3600),
+            max_export_timeout: Duration::from_secs(5),
+            max_concurrent_exports: 4,
+        };
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        processor.on_end(new_test_export_span_data());
+        processor.on_end(new_test_export_span_data());
+        processor.on_end(new_test_export_span_data());
+
+        processor.force_flush().expect("force flush failed");
+        processor.shutdown().expect("shutdown failed");
+
+        assert!(
+            !concurrent_seen.load(Ordering::SeqCst),
+            "sync BatchSpanProcessor should export serially, even with max_concurrent_exports > 1"
         );
     }
 
