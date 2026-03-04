@@ -792,6 +792,7 @@ pub struct BatchConfig {
     /// The maximum duration to export a batch of data.
     pub(crate) max_export_timeout: Duration,
 
+    #[allow(dead_code)]
     /// Maximum number of concurrent exports
     ///
     /// Honored by `span_processor_with_async_runtime::BatchSpanProcessor`.
