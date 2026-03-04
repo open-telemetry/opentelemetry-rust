@@ -364,7 +364,6 @@ impl BatchSpanProcessor {
                     interval_in_millisecs = config.scheduled_delay.as_millis(),
                     max_export_batch_size = config.max_export_batch_size,
                     max_queue_size = config.max_queue_size,
-                    max_concurrent_exports = config.max_concurrent_exports,
                 );
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
