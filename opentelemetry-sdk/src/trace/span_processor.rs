@@ -1199,7 +1199,7 @@ mod tests {
     use crate::Resource;
     use opentelemetry::{Key, KeyValue, Value};
     use std::sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc, Mutex,
     };
 
@@ -1381,7 +1381,7 @@ mod tests {
         #[derive(Debug)]
         struct TrackingExporter {
             active: Arc<AtomicUsize>,
-            concurrent_seen: Arc<AtomicBool>,
+            max_inflight: Arc<AtomicUsize>,
             export_calls: Arc<AtomicUsize>,
             delay: Duration,
         }
@@ -1390,9 +1390,7 @@ mod tests {
             async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
                 self.export_calls.fetch_add(1, Ordering::SeqCst);
                 let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
-                if inflight > 1 {
-                    self.concurrent_seen.store(true, Ordering::SeqCst);
-                }
+                self.max_inflight.fetch_max(inflight, Ordering::SeqCst);
 
                 std::thread::sleep(self.delay);
                 self.active.fetch_sub(1, Ordering::SeqCst);
@@ -1401,11 +1399,11 @@ mod tests {
         }
 
         let active = Arc::new(AtomicUsize::new(0));
-        let concurrent_seen = Arc::new(AtomicBool::new(false));
+        let max_inflight = Arc::new(AtomicUsize::new(0));
         let export_calls = Arc::new(AtomicUsize::new(0));
         let exporter = TrackingExporter {
             active: active.clone(),
-            concurrent_seen: concurrent_seen.clone(),
+            max_inflight: max_inflight.clone(),
             export_calls: export_calls.clone(),
             delay: Duration::from_millis(50),
         };
@@ -1432,8 +1430,9 @@ mod tests {
             3,
             "expected three exports for three spans with max_export_batch_size=1"
         );
-        assert!(
-            !concurrent_seen.load(Ordering::SeqCst),
+        assert_eq!(
+            max_inflight.load(Ordering::SeqCst),
+            1,
             "sync BatchSpanProcessor should export serially regardless of max_concurrent_exports"
         );
     }
