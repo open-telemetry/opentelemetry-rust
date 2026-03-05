@@ -705,7 +705,10 @@ mod tests {
         #[test]
         fn resolve_tls_env_returns_none_when_unset() {
             temp_env::with_vars_unset(
-                [SIGNAL_CERT_VAR, super::super::OTEL_EXPORTER_OTLP_CERTIFICATE],
+                [
+                    SIGNAL_CERT_VAR,
+                    super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                ],
                 || {
                     let result = super::super::resolve_tls_env_and_read(
                         SIGNAL_CERT_VAR,
@@ -750,14 +753,14 @@ mod tests {
 
         #[test]
         fn resolve_tls_env_signal_overrides_generic() {
-            let signal_path = std::env::temp_dir().join("otel_test_signal_cert.pem");
-            let generic_path = std::env::temp_dir().join("otel_test_generic_cert.pem");
-            std::fs::write(&signal_path, b"signal-cert-data").unwrap();
-            std::fs::write(&generic_path, b"generic-cert-data").unwrap();
+            use std::io::Write;
+            let mut signal_file = tempfile::NamedTempFile::new().unwrap();
+            signal_file.write_all(b"signal-cert-data").unwrap();
+            let mut generic_file = tempfile::NamedTempFile::new().unwrap();
+            generic_file.write_all(b"generic-cert-data").unwrap();
 
-            // Use temp_env directly instead of run_env_test to avoid 'static requirement
-            let signal_str = signal_path.to_str().unwrap().to_string();
-            let generic_str = generic_path.to_str().unwrap().to_string();
+            let signal_str = signal_file.path().to_str().unwrap().to_string();
+            let generic_str = generic_file.path().to_str().unwrap().to_string();
             temp_env::with_vars(
                 [
                     (SIGNAL_CERT_VAR, Some(signal_str.as_str())),
@@ -774,17 +777,15 @@ mod tests {
                     assert_eq!(result.unwrap().unwrap(), b"signal-cert-data");
                 },
             );
-
-            let _ = std::fs::remove_file(&signal_path);
-            let _ = std::fs::remove_file(&generic_path);
         }
 
         #[test]
         fn resolve_tls_env_falls_back_to_generic() {
-            let generic_path = std::env::temp_dir().join("otel_test_generic_fallback.pem");
-            std::fs::write(&generic_path, b"generic-cert-data").unwrap();
+            use std::io::Write;
+            let mut generic_file = tempfile::NamedTempFile::new().unwrap();
+            generic_file.write_all(b"generic-cert-data").unwrap();
 
-            let generic_str = generic_path.to_str().unwrap().to_string();
+            let generic_str = generic_file.path().to_str().unwrap().to_string();
             temp_env::with_vars(
                 [
                     (SIGNAL_CERT_VAR, None),
@@ -801,8 +802,6 @@ mod tests {
                     assert_eq!(result.unwrap().unwrap(), b"generic-cert-data");
                 },
             );
-
-            let _ = std::fs::remove_file(&generic_path);
         }
     }
 }

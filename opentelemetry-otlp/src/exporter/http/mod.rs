@@ -187,17 +187,14 @@ struct ReqwestTlsCerts {
 ))]
 impl ReqwestTlsCerts {
     /// Apply TLS certs to an async reqwest client builder.
-    fn apply(
-        &self,
-        mut builder: reqwest::ClientBuilder,
-    ) -> Result<reqwest::ClientBuilder, ExporterBuildError> {
+    fn apply(&self, mut builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
         if let Some(ref cert) = self.ca_cert {
             builder = builder.add_root_certificate(cert.clone());
         }
         if let Some(ref identity) = self.identity {
             builder = builder.identity(identity.clone());
         }
-        Ok(builder)
+        builder
     }
 
     /// Apply TLS certs to a blocking reqwest client builder.
@@ -288,7 +285,7 @@ impl HttpExporterBuilder {
 
                 #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
                 if let Some(ref certs) = tls_certs {
-                    builder = certs.apply(builder)?;
+                    builder = certs.apply(builder);
                 }
 
                 http_client =
@@ -390,8 +387,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_KEY,
         };
 
-        let ca_pem =
-            resolve_tls_env_and_read(tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)?;
+        let ca_pem = resolve_tls_env_and_read(tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)?;
         let client_key_pem =
             resolve_tls_env_and_read(tls_vars.client_key_var, OTEL_EXPORTER_OTLP_CLIENT_KEY)?;
         let client_cert_pem = resolve_tls_env_and_read(
@@ -419,13 +415,11 @@ impl HttpExporterBuilder {
             (Some(key), Some(cert)) => {
                 let mut identity_pem = cert;
                 identity_pem.extend_from_slice(&key);
-                Some(
-                    reqwest::Identity::from_pem(&identity_pem).map_err(|e| {
-                        ExporterBuildError::InternalFailure(format!(
-                            "Failed to parse client identity: {e}"
-                        ))
-                    })?,
-                )
+                Some(reqwest::Identity::from_pem(&identity_pem).map_err(|e| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to parse client identity: {e}"
+                    ))
+                })?)
             }
             (Some(_), None) | (None, Some(_)) => {
                 opentelemetry::otel_warn!(
