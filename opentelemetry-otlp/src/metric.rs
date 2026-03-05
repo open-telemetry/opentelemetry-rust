@@ -44,6 +44,13 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 /// Protocol to use for metrics exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
+/// Path to the TLS certificate for verifying the server's TLS credentials for metrics exports.
+pub const OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE";
+/// Path to the TLS client key for mTLS authentication for metrics exports.
+pub const OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY";
+/// Path to the TLS client certificate for mTLS authentication for metrics exports.
+pub const OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE: &str =
+    "OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE";
 /// Temporality preference for metrics, defaults to cumulative.
 pub const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
