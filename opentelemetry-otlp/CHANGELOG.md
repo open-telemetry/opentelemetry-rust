@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
+  (before selecting a transport), which auto-selects the transport based on the
+  `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
+  [#3394](https://github.com/open-telemetry/opentelemetry-rust/pull/3394)
 - **Breaking** Removed `ExportConfig`, `HasExportConfig`, `with_export_config()`, `HasTonicConfig`, `HasHttpConfig`, `TonicConfig`, and `HttpConfig` from public API.
   Use the public `WithExportConfig`, `WithTonicConfig`, and `WithHttpConfig` trait methods instead, which remain unchanged.
 - The gRPC/tonic OTLP exporter's build method now returns an error for all signals (traces, metrics, logs) when
