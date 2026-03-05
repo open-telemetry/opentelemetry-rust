@@ -65,15 +65,6 @@ pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-/// Environment variable to configure max concurrent exports for batch span
-/// processor.
-///
-/// This setting is only honored by
-/// `span_processor_with_async_runtime::BatchSpanProcessor`.
-/// The thread-based `BatchSpanProcessor` exports serially.
-/// For concurrent exports, enable
-/// `experimental_trace_batch_span_processor_with_async_runtime` and use the
-/// async-runtime processor.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
@@ -793,16 +784,6 @@ pub struct BatchConfig {
     pub(crate) max_export_timeout: Duration,
 
     #[allow(dead_code)]
-    /// Maximum number of concurrent exports
-    ///
-    /// Honored by `span_processor_with_async_runtime::BatchSpanProcessor`.
-    ///
-    /// The thread-based `BatchSpanProcessor` exports serially and ignores this
-    /// setting.
-    ///
-    /// For concurrent exports, enable
-    /// `experimental_trace_batch_span_processor_with_async_runtime` and use the
-    /// async-runtime processor.
     pub(crate) max_concurrent_exports: usize,
 }
 
