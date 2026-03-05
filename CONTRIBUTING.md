@@ -326,6 +326,8 @@ regressions
 Benchmarks are run automatically on every push to `main` and results are
 tracked over time. The continuous benchmark dashboard is published at
 <https://open-telemetry.github.io/opentelemetry-rust/dev/bench/>.
+PRs with the `performance` label will also get a benchmark comparison
+comment showing any regressions or improvements.
 
 ## FAQ
 
