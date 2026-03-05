@@ -38,6 +38,13 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
+
+/// Whether to enable client transport security for the exporter's gRPC connection.
+/// Per the spec, this only applies to gRPC. For HTTP, security is determined by the URL scheme.
+/// There is intentionally no programmatic builder method — this is env-var-only per the
+/// [OTLP exporter spec](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
+/// Default: `false` (TLS is used).
+pub const OTEL_EXPORTER_OTLP_INSECURE: &str = "OTEL_EXPORTER_OTLP_INSECURE";
 /// Default max waiting time for the backend to process each signal batch.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(10000);
 
@@ -183,6 +190,26 @@ fn resolve_compression_from_env(
         Ok(Some(compression.parse::<Compression>()?))
     } else {
         Ok(None)
+    }
+}
+
+/// Resolve whether the connection should be insecure (no TLS).
+///
+/// Priority:
+/// 1. Signal-specific env var (e.g., `OTEL_EXPORTER_OTLP_TRACES_INSECURE`)
+/// 2. Generic `OTEL_EXPORTER_OTLP_INSECURE`
+/// 3. Default: `false` (secure/TLS)
+///
+/// Values: `"true"` (case-insensitive) = insecure, everything else = secure.
+/// Per the spec, this only applies to gRPC connections.
+#[cfg(feature = "grpc-tonic")]
+pub(crate) fn resolve_insecure(signal_insecure_var: &str) -> bool {
+    let value = std::env::var(signal_insecure_var)
+        .ok()
+        .or_else(|| std::env::var(OTEL_EXPORTER_OTLP_INSECURE).ok());
+    match value {
+        Some(val) => val.eq_ignore_ascii_case("true"),
+        None => false,
     }
 }
 
@@ -422,9 +449,11 @@ mod tests {
     async fn export_builder_error_invalid_grpc_endpoint() {
         use crate::{LogExporter, WithExportConfig};
 
+        // Use a URI with an explicit scheme but malformed host to ensure it
+        // fails URI parsing regardless of INSECURE scheme-prepending logic
         let exporter_result = LogExporter::builder()
             .with_tonic()
-            .with_endpoint("invalid_uri/something")
+            .with_endpoint("http://[invalid")
             .with_timeout(std::time::Duration::from_secs(10))
             .build();
 
@@ -625,5 +654,84 @@ mod tests {
             let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
             assert_eq!(timeout.as_millis(), 10_000);
         });
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_resolve_insecure_signal_overrides_generic() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, "true"),
+                (super::OTEL_EXPORTER_OTLP_INSECURE, "false"),
+            ],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(insecure);
+            },
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_resolve_insecure_default_is_false() {
+        temp_env::with_vars_unset(
+            [
+                crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+                super::OTEL_EXPORTER_OTLP_INSECURE,
+            ],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(!insecure);
+            },
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_resolve_insecure_case_insensitive() {
+        run_env_test(
+            vec![(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, "True")],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(insecure);
+            },
+        );
+        run_env_test(
+            vec![(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, "TRUE")],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(insecure);
+            },
+        );
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_resolve_insecure_falls_back_to_generic() {
+        temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
+            run_env_test(vec![(super::OTEL_EXPORTER_OTLP_INSECURE, "true")], || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(insecure);
+            });
+        });
+    }
+
+    #[cfg(feature = "grpc-tonic")]
+    #[test]
+    fn test_resolve_insecure_non_true_is_false() {
+        run_env_test(
+            vec![(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, "false")],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(!insecure);
+            },
+        );
+        run_env_test(
+            vec![(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, "invalid")],
+            || {
+                let insecure = super::resolve_insecure(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE);
+                assert!(!insecure);
+            },
+        );
     }
 }

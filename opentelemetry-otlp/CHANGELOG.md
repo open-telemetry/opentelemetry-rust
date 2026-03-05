@@ -13,6 +13,16 @@
   silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
   an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
   [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
+  `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
+  `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
+  Per the spec, these only apply to gRPC connections. When an endpoint has no explicit scheme,
+  `INSECURE=true` uses `http://`, `INSECURE=false` (default) uses `https://` with auto-TLS.
+  **Note:** Schemeless endpoints (e.g., `collector.example.com:4317`) now default to `https://`
+  instead of being passed as-is. Set `OTEL_EXPORTER_OTLP_INSECURE=true` for plaintext connections.
+  Endpoints with an explicit `http://` or `https://` scheme are unaffected.
+  [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
+  [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
