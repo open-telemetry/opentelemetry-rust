@@ -733,6 +733,13 @@ mod tests {
         assert_eq!(spans1[0].name, "multi_processor_span");
         assert_eq!(spans2[0].name, "multi_processor_span");
         assert_eq!(spans1[0].attributes, spans2[0].attributes);
+        // Verify instrumentation scope is correctly propagated to both processors
+        assert_eq!(spans1[0].instrumentation_scope.name(), "test");
+        assert_eq!(spans2[0].instrumentation_scope.name(), "test");
+        assert_eq!(
+            spans1[0].instrumentation_scope,
+            spans2[0].instrumentation_scope
+        );
 
         let _ = provider.shutdown();
     }
