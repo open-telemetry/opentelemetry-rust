@@ -97,6 +97,7 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-block
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
 reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]
+reqwest-native-tls = ["reqwest", "opentelemetry-http/reqwest-native-tls"]
 hyper-client = ["opentelemetry-http/hyper"]
 
 # test

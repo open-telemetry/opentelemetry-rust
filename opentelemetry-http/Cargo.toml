@@ -17,6 +17,7 @@ reqwest = ["dep:reqwest"]
 reqwest-blocking = ["dep:reqwest", "reqwest/blocking"]
 reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 reqwest-rustls-webpki-roots = ["dep:reqwest", "reqwest/default-tls", "reqwest/webpki-roots"]
+reqwest-native-tls = ["dep:reqwest", "reqwest/native-tls"]
 internal-logs = ["opentelemetry/internal-logs"]
 
 [dependencies]
