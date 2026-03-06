@@ -2,6 +2,15 @@
 
 ## vNext
 
+- **Breaking** `SpanProcessor::on_end` now takes `&mut FinishedSpan` instead of `SpanData`.
+  Processors that only need to read span data can use the `ReadableSpan` trait without cloning.
+  Processors that need ownership call `FinishedSpan::consume()` — the last processor receives
+  ownership via move (zero-copy), earlier processors receive a clone.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+
 ## 0.32.0
 
 Released 2026-May-08
