@@ -194,8 +194,7 @@ impl TonicExporterBuilder {
         // Env var-based transport selection is handled at the auto-select layer
         // (e.g., SpanExporter::builder().build()), which routes to the correct
         // transport before reaching this code.
-        let protocol =
-            super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
 
         let is_http_protocol = false;
         #[cfg(feature = "http-proto")]

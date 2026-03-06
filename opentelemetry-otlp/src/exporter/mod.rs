@@ -197,8 +197,8 @@ fn resolve_compression_from_env(
 
 /// Returns the default protocol based on enabled features.
 ///
-/// Note: This does not consult environment variables. Use [`resolve_protocol`]
-/// for full priority resolution including signal-specific and generic env vars.
+/// Note: This does not consult environment variables. Protocol resolution
+/// from environment variables is handled internally by the exporter builders.
 ///
 /// Priority order (first available wins):
 /// 1. http-json (if enabled)
