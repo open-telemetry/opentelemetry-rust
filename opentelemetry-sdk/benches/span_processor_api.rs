@@ -12,17 +12,17 @@ use pprof::criterion::{Output, PProfProfiler};
 
 /*
 Adding results in comments for a quick reference.
-  Chip:	Apple M1 Max
-  Total Number of Cores:	10 (8 performance and 2 efficiency)
+  Chip:  Apple M4 Max
+  Total Number of Cores: 16 (12 performance and 4 efficiency)
 
 SpanProcessorApi/0_processors
-    time:   [385.15 ns 386.14 ns 387.25 ns]
+    time:   [190.51 ns 190.82 ns 191.13 ns]
 SpanProcessorApi/1_processors
-    time:   [385.73 ns 387.17 ns 388.85 ns]
+    time:   [191.60 ns 192.53 ns 193.42 ns]
 SpanProcessorApi/2_processors
-    time:   [384.84 ns 385.66 ns 386.50 ns]
+    time:   [191.24 ns 191.67 ns 192.15 ns]
 SpanProcessorApi/4_processors
-    time:   [386.78 ns 388.17 ns 389.58 ns]
+    time:   [192.94 ns 193.48 ns 194.12 ns]
 */
 
 #[derive(Debug)]

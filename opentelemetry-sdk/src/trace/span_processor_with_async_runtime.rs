@@ -654,9 +654,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish three spans in rapid succession.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
 
         // Wait until everything has been exported.
         processor.force_flush().expect("force flush failed");
@@ -691,9 +691,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish several spans quickly.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
