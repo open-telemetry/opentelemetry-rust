@@ -20,7 +20,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
-    trace::{self as sdktrace, SpanData, SpanProcessor},
+    trace::{self as sdktrace, FinishedSpan, SpanProcessor},
 };
 use std::time::Duration;
 
@@ -42,7 +42,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         // No-op
     }
 
-    fn on_end(&self, _span: SpanData) {
+    fn on_end(&self, _span: &mut FinishedSpan) {
         // No-op
     }
 
