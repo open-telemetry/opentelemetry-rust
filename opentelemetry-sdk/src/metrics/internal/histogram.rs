@@ -1,5 +1,9 @@
 use std::mem::replace;
 use std::ops::DerefMut;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::metrics::data::{self, MetricData};
@@ -9,10 +13,9 @@ use opentelemetry::KeyValue;
 
 use super::aggregate::AggregateTimeInitiator;
 use super::aggregate::AttributeSetFilter;
-use super::ComputeAggregation;
-use super::Measure;
-use super::ValueMap;
-use super::{Aggregator, Number};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, TrackerEntry};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -66,6 +69,51 @@ impl<T: Number> Buckets<T> {
             min: T::max(),
             max: T::min(),
             ..Default::default()
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+enum BoundHistogramInner<T: Number> {
+    /// Fast path: dedicated tracker for this attribute set.
+    Direct {
+        tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
+        bounds: Vec<f64>,
+    },
+    /// Overflow fallback: delegates to the unbound Measure::call() path.
+    Fallback {
+        measure: Arc<dyn Measure<T>>,
+        attrs: Vec<KeyValue>,
+    },
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundHistogramHandle<T: Number> {
+    inner: BoundHistogramInner<T>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
+    fn call(&self, measurement: T) {
+        match &self.inner {
+            BoundHistogramInner::Direct { tracker, bounds } => {
+                let f = measurement.into_float();
+                let index = bounds.partition_point(|&x| x < f);
+                tracker.aggregator.update((measurement, index));
+                tracker.has_been_updated.store(true, Ordering::Relaxed);
+            }
+            BoundHistogramInner::Fallback { measure, attrs } => {
+                measure.call(measurement, attrs);
+            }
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundHistogramHandle<T> {
+    fn drop(&mut self) {
+        if let BoundHistogramInner::Direct { tracker, .. } = &self.inner {
+            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
@@ -133,9 +181,11 @@ impl<T: Number> Histogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let buckets_count = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = aggr.clone_and_reset(&buckets_count);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -234,6 +284,25 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure((measurement, index), filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        let inner = match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => BoundHistogramInner::Direct {
+                tracker,
+                bounds: self.bounds.clone(),
+            },
+            None => BoundHistogramInner::Fallback {
+                measure: fallback,
+                attrs: bound_attrs,
+            },
+        };
+        Box::new(BoundHistogramHandle { inner })
     }
 }
 

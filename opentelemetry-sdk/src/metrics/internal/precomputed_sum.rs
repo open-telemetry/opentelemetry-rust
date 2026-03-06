@@ -3,8 +3,13 @@ use opentelemetry::KeyValue;
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
+
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundFallbackHandle, BoundMeasure};
 use super::{ComputeAggregation, Measure};
 use std::{collections::HashMap, sync::Mutex};
 
@@ -69,7 +74,7 @@ impl<T: Number> PrecomputedSum<T> {
         let mut new_reported = HashMap::with_capacity(reported.len());
 
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
                 let value = aggr.value.get_value();
                 new_reported.insert(attributes.clone(), value);
                 let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
@@ -116,10 +121,10 @@ impl<T: Number> PrecomputedSum<T> {
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
-        // Use collect_and_reset to remove stale attributes (not observed in current callback)
+        // Use drain_and_reset to remove stale attributes (not observed in current callback)
         // For cumulative, report absolute values (no delta calculation needed)
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
@@ -137,6 +142,11 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 

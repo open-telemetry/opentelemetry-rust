@@ -4,10 +4,15 @@ use crate::metrics::{
 };
 use opentelemetry::KeyValue;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
+
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundFallbackHandle, BoundMeasure};
 
 /// this is reused by PrecomputedSum
 pub(crate) struct Assign<T>
@@ -89,7 +94,7 @@ impl<T: Number> LastValue<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
                 attributes,
-                value: aggr.value.get_value(),
+                value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
 
@@ -141,6 +146,11 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 
