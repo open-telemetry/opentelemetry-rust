@@ -77,7 +77,7 @@ pub(crate) struct ExportConfig {
 /// 2. Signal-specific environment variable
 /// 3. Generic OTEL_EXPORTER_OTLP_PROTOCOL environment variable
 /// 4. Feature-based default
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 pub(crate) fn resolve_protocol(
     signal_protocol_var: &str,
     provided_protocol: Option<Protocol>,
@@ -195,17 +195,19 @@ fn resolve_compression_from_env(
     }
 }
 
-/// Returns the default protocol based on environment variable or enabled features.
+/// Returns the default protocol based on enabled features.
+///
+/// Note: This does not consult environment variables. Use [`resolve_protocol`]
+/// for full priority resolution including signal-specific and generic env vars.
 ///
 /// Priority order (first available wins):
-/// 1. OTEL_EXPORTER_OTLP_PROTOCOL environment variable (if set and feature is enabled)
-/// 2. http-json (if enabled)
-/// 3. http-proto (if enabled)
-/// 4. grpc-tonic (if enabled)
+/// 1. http-json (if enabled)
+/// 2. http-proto (if enabled)
+/// 3. grpc-tonic (if enabled)
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl Default for Protocol {
     fn default() -> Self {
-        Protocol::from_env().unwrap_or_else(Protocol::feature_default)
+        Protocol::feature_default()
     }
 }
 
@@ -496,21 +498,26 @@ mod tests {
     }
 
     #[test]
-    fn test_default_protocol_respects_env() {
-        // Test that env var takes precedence over feature-based defaults
-        #[cfg(all(feature = "http-json", feature = "http-proto"))]
-        run_env_test(
-            vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "http/protobuf")],
-            || {
-                // Even though http-json would be the default, env var should override
-                assert_eq!(crate::Protocol::default(), crate::Protocol::HttpBinary);
-            },
-        );
+    fn test_default_protocol_ignores_env() {
+        // Protocol::default() should always return the feature-based default,
+        // NOT consult environment variables. Env var resolution is handled
+        // by resolve_protocol().
 
+        // Without any env vars, default() equals feature_default()
+        run_env_test(vec![], || {
+            assert_eq!(
+                crate::Protocol::default(),
+                crate::Protocol::feature_default()
+            );
+        });
+
+        // Even with a valid env var set, default() still equals feature_default()
         #[cfg(all(feature = "grpc-tonic", feature = "http-json"))]
         run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc")], || {
-            // Even though http-json would be the default, env var should override
-            assert_eq!(crate::Protocol::default(), crate::Protocol::Grpc);
+            assert_eq!(
+                crate::Protocol::default(),
+                crate::Protocol::feature_default()
+            );
         });
     }
 

@@ -70,15 +70,19 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
     /// variable or feature flags.
     ///
     /// The transport is chosen based on:
-    /// 1. The `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable (if set and the
-    ///    corresponding feature is enabled)
-    /// 2. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
+    /// 1. `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` environment variable
+    /// 2. `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable
+    /// 3. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
     ///
     /// Use [`with_tonic`](Self::with_tonic) or [`with_http`](Self::with_http) to
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
-        match crate::Protocol::default() {
+        // NOTE: The transport-specific builder will call resolve_protocol again
+        // internally (for HTTP sub-protocol selection or tonic validation), but
+        // that's harmless — the result is the same.
+        let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+        match protocol {
             #[cfg(feature = "grpc-tonic")]
             crate::Protocol::Grpc => self.with_tonic().build(),
             #[cfg(feature = "http-proto")]
@@ -200,5 +204,118 @@ mod tests {
     fn build_with_default_transport() {
         let result = SpanExporter::builder().build();
         assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+    }
+
+    /// Verifies that `SpanExporter::builder().build()` respects the
+    /// signal-specific `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` env var
+    /// when selecting the transport.
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn build_auto_select_respects_signal_protocol_env() {
+        // Tokio runtime is required because tonic's channel setup needs an active reactor.
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            // With signal-specific env var set to grpc, build() should pick tonic
+            temp_env::with_vars(
+                vec![
+                    (super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, Some("grpc")),
+                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, None::<&str>),
+                ],
+                || {
+                    let result = SpanExporter::builder().build();
+                    assert!(
+                        result.is_ok(),
+                        "build() with TRACES_PROTOCOL=grpc should succeed: {:?}",
+                        result.err()
+                    );
+                },
+            );
+
+            // With signal-specific env var set to http/protobuf, build() should pick HTTP
+            temp_env::with_vars(
+                vec![
+                    (
+                        super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+                        Some("http/protobuf"),
+                    ),
+                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, None::<&str>),
+                ],
+                || {
+                    let result = SpanExporter::builder().build();
+                    assert!(
+                        result.is_ok(),
+                        "build() with TRACES_PROTOCOL=http/protobuf should succeed: {:?}",
+                        result.err()
+                    );
+                },
+            );
+        });
+    }
+
+    /// Verifies that signal-specific protocol env var takes precedence
+    /// over the generic `OTEL_EXPORTER_OTLP_PROTOCOL` for transport selection.
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn build_auto_select_signal_env_overrides_generic() {
+        // Tokio runtime is required because tonic's channel setup needs an active reactor.
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            temp_env::with_vars(
+                vec![
+                    (super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, Some("grpc")),
+                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some("http/protobuf")),
+                ],
+                || {
+                    let result = SpanExporter::builder().build();
+                    assert!(
+                        result.is_ok(),
+                        "signal-specific protocol should override generic: {:?}",
+                        result.err()
+                    );
+                },
+            );
+        });
+    }
+
+    /// Verifies that explicitly selecting tonic transport with an HTTP protocol
+    /// via `.with_protocol()` returns an error.
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn build_tonic_with_http_protocol_returns_error() {
+        use crate::exporter::WithExportConfig;
+
+        // Tokio runtime is required because tonic's channel setup needs an active reactor.
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let result = SpanExporter::builder()
+                .with_tonic()
+                .with_protocol(crate::Protocol::HttpBinary)
+                .build();
+            assert!(result.is_err(), "tonic with HTTP protocol should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("not compatible with gRPC transport"),
+                "error should mention transport incompatibility, got: {err}"
+            );
+        });
+    }
+
+    /// Verifies that explicitly selecting HTTP transport with a gRPC protocol
+    /// via `.with_protocol()` returns an error.
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn build_http_with_grpc_protocol_returns_error() {
+        use crate::exporter::WithExportConfig;
+
+        let result = SpanExporter::builder()
+            .with_http()
+            .with_protocol(crate::Protocol::Grpc)
+            .build();
+        assert!(result.is_err(), "HTTP with gRPC protocol should fail");
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("not compatible with HTTP transport"),
+            "error should mention transport incompatibility, got: {err}"
+        );
     }
 }
