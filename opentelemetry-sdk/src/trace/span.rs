@@ -229,12 +229,13 @@ impl Span {
                 ));
             }
             processors => {
-                let export_data = build_export_data(data, self.span_context.clone(), &self.tracer);
-                let (last, rest) = processors.split_last().unwrap();
-                for processor in rest {
-                    processor.on_end(export_data.clone());
+                for processor in processors {
+                    processor.on_end(build_export_data(
+                        data.clone(),
+                        self.span_context.clone(),
+                        &self.tracer,
+                    ));
                 }
-                last.on_end(export_data);
             }
         }
     }
