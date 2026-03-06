@@ -173,6 +173,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
+        signal_tls_vars: super::SignalTlsEnvVars,
     ) -> Result<
         (
             Channel,
@@ -259,13 +260,24 @@ impl TonicExporterBuilder {
 
         #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
         let channel = match self.tonic_config.tls_config {
+            // Programmatic TLS config takes full precedence over env vars
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
                 .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
-            None if is_https => endpoint
-                .tls_config(ClientTlsConfig::new())
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
-            None => endpoint,
+            None => {
+                // Try to build TLS config from environment variables
+                let tls_config_from_env = Self::build_tls_config_from_env(&signal_tls_vars)?;
+                match tls_config_from_env {
+                    Some(tls_config) => endpoint
+                        .tls_config(tls_config)
+                        .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                    // No env vars set, but HTTPS endpoint: apply default TLS config
+                    None if is_https => endpoint
+                        .tls_config(ClientTlsConfig::new())
+                        .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                    None => endpoint,
+                }
+            }
         }
         .timeout(timeout)
         .connect_lazy();
@@ -283,6 +295,57 @@ impl TonicExporterBuilder {
             #[cfg(not(feature = "experimental-grpc-retry"))]
             None,
         ))
+    }
+
+    /// Build a `ClientTlsConfig` from TLS-related environment variables.
+    /// Returns `None` if no TLS env vars are set.
+    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
+    fn build_tls_config_from_env(
+        tls_vars: &super::SignalTlsEnvVars,
+    ) -> Result<Option<ClientTlsConfig>, ExporterBuildError> {
+        use super::{
+            resolve_tls_env_and_read, OTEL_EXPORTER_OTLP_CERTIFICATE,
+            OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_KEY,
+        };
+        use tonic::transport::{Certificate, Identity};
+
+        let ca_cert = resolve_tls_env_and_read(tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)?;
+        let client_key =
+            resolve_tls_env_and_read(tls_vars.client_key_var, OTEL_EXPORTER_OTLP_CLIENT_KEY)?;
+        let client_cert = resolve_tls_env_and_read(
+            tls_vars.client_cert_var,
+            OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+        )?;
+
+        // Warn and skip if only one of key/cert is set (incomplete mTLS)
+        let has_identity = match (&client_key, &client_cert) {
+            (Some(_), Some(_)) => true,
+            (Some(_), None) | (None, Some(_)) => {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.PartialMtls",
+                    message = "mTLS requires both CLIENT_KEY and CLIENT_CERTIFICATE to be set; only one was provided, skipping mTLS configuration"
+                );
+                false
+            }
+            (None, None) => false,
+        };
+
+        // If nothing usable is set, return None so the caller falls through to default behavior
+        if ca_cert.is_none() && !has_identity {
+            return Ok(None);
+        }
+
+        let mut tls_config = ClientTlsConfig::new();
+
+        if let Some(ca_cert) = ca_cert {
+            tls_config = tls_config.ca_certificate(Certificate::from_pem(ca_cert));
+        }
+
+        if let (Some(key), Some(cert)) = (client_key, client_cert) {
+            tls_config = tls_config.identity(Identity::from_pem(cert, key));
+        }
+
+        Ok(Some(tls_config))
     }
 
     fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
@@ -325,6 +388,11 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            super::SignalTlsEnvVars {
+                cert_var: crate::logs::OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE,
+                client_key_var: crate::logs::OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY,
+                client_cert_var: crate::logs::OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy);
@@ -348,6 +416,11 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            super::SignalTlsEnvVars {
+                cert_var: crate::metric::OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE,
+                client_key_var: crate::metric::OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY,
+                client_cert_var: crate::metric::OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy);
@@ -367,6 +440,11 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            super::SignalTlsEnvVars {
+                cert_var: crate::span::OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+                client_key_var: crate::span::OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+                client_cert_var: crate::span::OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+            },
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy);
