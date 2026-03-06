@@ -1,3 +1,5 @@
+use opentelemetry::KeyValue;
+
 /// # Span limit
 /// Erroneous code can add unintended attributes, events, and links to a span. If these collections
 /// are unbounded, they can quickly exhaust available memory, resulting in crashes that are
@@ -9,6 +11,7 @@
 ///  - Maximum allowed span link count
 ///  - Maximum allowed attribute per span event count
 ///  - Maximum allowed attribute per span link count
+///  - Maximum allowed attribute value length
 ///
 /// If the limit has been breached. The attributes, events or links will be dropped based on their
 /// index in the collection. The one added to collections later will be dropped first.
@@ -31,6 +34,34 @@ pub struct SpanLimits {
     pub max_attributes_per_event: u32,
     /// The max attributes that can be added into a `Link`
     pub max_attributes_per_link: u32,
+    /// The maximum length of string attribute values. Applies to
+    /// [`Value::String`] and [`Array::String`] only. When set, values that
+    /// exceed this limit are truncated to the specified number of Unicode
+    /// characters. Truncation is silent -- no indicator is appended.
+    /// Non-string attribute types are never affected.
+    ///
+    /// Defaults to `None` (unlimited).
+    ///
+    /// Can be configured via the `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT`
+    /// environment variable.
+    ///
+    /// [`Value::String`]: opentelemetry::Value::String
+    /// [`Array::String`]: opentelemetry::Array::String
+    pub max_attribute_value_length: Option<u32>,
+}
+
+impl SpanLimits {
+    /// Truncate string attribute values to the configured maximum length.
+    ///
+    /// If `max_attribute_value_length` is `None`, this is a no-op.
+    pub(crate) fn truncate_string_values(&self, attributes: &mut [KeyValue]) {
+        if let Some(max_chars) = self.max_attribute_value_length {
+            let max = max_chars as usize;
+            for attr in attributes.iter_mut() {
+                attr.value.truncate(max);
+            }
+        }
+    }
 }
 
 impl Default for SpanLimits {
@@ -41,6 +72,7 @@ impl Default for SpanLimits {
             max_links_per_span: DEFAULT_MAX_LINKS_PER_SPAN,
             max_attributes_per_link: DEFAULT_MAX_ATTRIBUTES_PER_LINK,
             max_attributes_per_event: DEFAULT_MAX_ATTRIBUTES_PER_EVENT,
+            max_attribute_value_length: None,
         }
     }
 }
