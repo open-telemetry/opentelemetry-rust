@@ -1105,22 +1105,19 @@ mod tests {
         // INSECURE=false (default) + schemeless endpoint → https:// prepended → error (no TLS)
         // Unset signal-specific var to ensure generic takes effect
         temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
-            run_env_test(
-                vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")],
-                || {
-                    let result = SpanExporter::builder()
-                        .with_tonic()
-                        .with_endpoint("collector.example.com:4317")
-                        .build();
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("collector.example.com:4317")
+                    .build();
 
-                    assert!(result.is_err());
-                    let err = result.unwrap_err();
-                    assert!(
-                        matches!(err, ExporterBuildError::InvalidConfig { .. }),
-                        "expected InvalidConfig error for schemeless+secure without TLS, got: {err:?}"
-                    );
-                },
-            );
+                assert!(result.is_err());
+                let err = result.unwrap_err();
+                assert!(
+                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
+                    "expected InvalidConfig error for schemeless+secure without TLS, got: {err:?}"
+                );
+            });
         });
     }
 
@@ -1139,21 +1136,18 @@ mod tests {
         // INSECURE=true + schemeless endpoint → http:// prepended → no TLS needed
         // Unset signal-specific var to ensure generic takes effect
         temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
-            run_env_test(
-                vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "true")],
-                || {
-                    let result = SpanExporter::builder()
-                        .with_tonic()
-                        .with_endpoint("collector.example.com:4317")
-                        .build();
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "true")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("collector.example.com:4317")
+                    .build();
 
-                    assert!(
-                        result.is_ok(),
-                        "schemeless + INSECURE=true should succeed without TLS, got: {:?}",
-                        result.unwrap_err()
-                    );
-                },
-            );
+                assert!(
+                    result.is_ok(),
+                    "schemeless + INSECURE=true should succeed without TLS, got: {:?}",
+                    result.unwrap_err()
+                );
+            });
         });
     }
 
@@ -1201,21 +1195,18 @@ mod tests {
         // Explicit http:// scheme should succeed regardless of INSECURE value
         // Unset signal-specific var to ensure generic takes effect
         temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
-            run_env_test(
-                vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")],
-                || {
-                    let result = SpanExporter::builder()
-                        .with_tonic()
-                        .with_endpoint("http://collector.example.com:4317")
-                        .build();
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("http://collector.example.com:4317")
+                    .build();
 
-                    assert!(
-                        result.is_ok(),
-                        "explicit http:// should succeed even with INSECURE=false, got: {:?}",
-                        result.unwrap_err()
-                    );
-                },
-            );
+                assert!(
+                    result.is_ok(),
+                    "explicit http:// should succeed even with INSECURE=false, got: {:?}",
+                    result.unwrap_err()
+                );
+            });
         });
     }
 
