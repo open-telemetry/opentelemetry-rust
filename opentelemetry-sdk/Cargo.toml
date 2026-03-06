@@ -12,6 +12,7 @@ autobenches = false
 
 [dependencies]
 opentelemetry = { workspace = true }
+foldhash = { version = "0.1", optional = true }
 opentelemetry-http = { workspace = true, optional = true }
 futures-channel = { workspace = true }
 futures-executor = { workspace = true }
@@ -59,6 +60,7 @@ experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimenta
 experimental_logs_concurrent_log_processor = ["logs"]
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
+metrics-use-foldhash = ["metrics", "foldhash"]
 bench_profiling = []
 
 [[bench]]
