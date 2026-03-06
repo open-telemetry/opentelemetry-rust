@@ -7,6 +7,12 @@
 /// - `shoppingcart`
 pub(crate) const SERVICE_NAME: &str = "service.name";
 
+/// The name of the process executable.
+///
+/// On Linux based systems, can be set to the `Name` in `proc/[pid]/status`.
+/// On Windows, can be set to the base name of `GetProcessImageFileNameW`.
+pub(crate) const PROCESS_EXECUTABLE_NAME: &str = "process.executable.name";
+
 /// The language of the telemetry SDK.
 pub(crate) const TELEMETRY_SDK_LANGUAGE: &str = "telemetry.sdk.language";
 
