@@ -41,7 +41,7 @@ jobs:
 
       - name: Setup container environment
         run: |
-          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
+          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git libssl-dev
           cargo install cargo-criterion
 
       - name: Make repo safe for Git inside container
