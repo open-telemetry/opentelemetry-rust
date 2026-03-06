@@ -66,9 +66,6 @@ jobs:
       with:
         toolchain: stable
         components: rustfmt, clippy
-    - uses: taiki-e/install-action@68675c5a5f1a6950c3975d33f3ae0ef155e5bf3d # v2.68.15
-      with:
-          tool: cargo-hack
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -76,6 +73,29 @@ jobs:
       run: cargo fmt --all -- --check
     - name: Lint
       run: bash ./scripts/lint.sh
+  lint-feature-matrix:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: true
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+      with:
+        toolchain: stable
+        components: clippy
+    - uses: taiki-e/install-action@68675c5a5f1a6950c3975d33f3ae0ef155e5bf3d # v2.68.15
+      with:
+          tool: cargo-hack
+    - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Lint (per-feature matrix)
+      run: bash ./scripts/lint_feature_matrix.sh
   external-types:
     strategy:
       matrix:
