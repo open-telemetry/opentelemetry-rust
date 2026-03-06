@@ -1366,7 +1366,7 @@ mod tests {
         }
 
         impl SpanExporter for TrackingExporter {
-            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            async fn export(&self, _batch: SpanBatch<'_>) -> OTelSdkResult {
                 self.export_calls.fetch_add(1, Ordering::SeqCst);
                 let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
                 self.max_inflight.fetch_max(inflight, Ordering::SeqCst);
