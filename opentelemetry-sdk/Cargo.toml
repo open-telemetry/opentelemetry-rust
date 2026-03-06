@@ -129,7 +129,6 @@ name = "span_processor_api"
 harness = false
 required-features = ["testing"]
 
-
 [lib]
 bench = false
 
