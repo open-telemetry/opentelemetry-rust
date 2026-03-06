@@ -418,6 +418,7 @@ where
     operation().await
 }
 
+#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 /// Log and convert a `tonic::Status` from a failed export into an `OTelSdkError`.
 ///
 /// For connection-related errors (`Unavailable`, `DeadlineExceeded`,
@@ -472,6 +473,7 @@ macro_rules! handle_tonic_export_error {
     }};
 }
 
+#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 /// Log and convert a `tonic::Status` from a failed interceptor into a new
 /// `tonic::Status` suitable for retry classification.
 ///
