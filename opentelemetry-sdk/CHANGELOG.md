@@ -22,6 +22,19 @@
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
 - Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
+- **Breaking** `SpanProcessor::on_end` now takes `&mut FinishedSpan` instead of `SpanData`.
+  Processors that only need to read span data can use the `ReadableSpan` trait without cloning.
+  Processors that need ownership call `FinishedSpan::consume()` — the last processor receives
+  ownership via move (zero-copy), earlier processors receive a clone. Both `Span` (live) and
+  `FinishedSpan` (ended) implement `ReadableSpan`, enabling processors to inspect span data
+  in both `on_start` and `on_end` hooks. New `FinishedSpan::is_consumed()` method allows
+  checking whether span data has been consumed.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+- Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
+  instead of silently overwriting with the current time.
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
