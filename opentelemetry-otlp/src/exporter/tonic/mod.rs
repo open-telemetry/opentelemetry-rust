@@ -14,7 +14,9 @@ use tonic::transport::ClientTlsConfig;
 use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
 use super::{resolve_timeout, ExporterBuildError};
 use crate::exporter::Compression;
-use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{
+    exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+};
 
 #[cfg(all(
     feature = "experimental-grpc-retry",
@@ -173,6 +175,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
+        signal_protocol_var: &str,
     ) -> Result<
         (
             Channel,
@@ -182,6 +185,30 @@ impl TonicExporterBuilder {
         ),
         ExporterBuildError,
     > {
+        // Resolve protocol and validate compatibility with gRPC transport.
+        // Note: TonicExporterBuilder defaults protocol to Some(Grpc), so for the
+        // typical `.with_tonic().build()` path, resolve_protocol returns Grpc
+        // immediately (env vars are skipped because programmatic config takes
+        // precedence). This validation primarily catches programmatic misuse like
+        // `.with_tonic().with_protocol(Protocol::HttpBinary).build()`.
+        // Env var-based transport selection is handled at the auto-select layer
+        // (e.g., SpanExporter::builder().build()), which routes to the correct
+        // transport before reaching this code.
+        let protocol =
+            super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+
+        let is_http_protocol = false;
+        #[cfg(feature = "http-proto")]
+        let is_http_protocol = is_http_protocol || matches!(protocol, Protocol::HttpBinary);
+        #[cfg(feature = "http-json")]
+        let is_http_protocol = is_http_protocol || matches!(protocol, Protocol::HttpJson);
+        if is_http_protocol {
+            return Err(ExporterBuildError::InvalidConfig {
+                name: "protocol".to_string(),
+                reason: "HTTP protocol is not compatible with gRPC transport. Use `.with_http()` instead.".to_string(),
+            });
+        }
+
         let compression = self.resolve_compression(signal_compression_var)?;
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
@@ -325,6 +352,7 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            crate::logs::OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy);
@@ -348,6 +376,7 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            crate::metric::OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy);
@@ -367,6 +396,7 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            crate::span::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy);
