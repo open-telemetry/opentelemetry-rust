@@ -2,7 +2,7 @@ use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
-use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_info, otel_warn, InstrumentationScope};
 use std::time::Duration;
 use std::{
     borrow::Cow,
@@ -12,16 +12,32 @@ use std::{
     },
 };
 
-// a no nop logger provider used as placeholder when the provider is shutdown
+// a no op logger provider used as placeholder when the provider is shutdown
 // TODO - replace it with LazyLock once it is stable
-static NOOP_LOGGER_PROVIDER: OnceLock<SdkLoggerProvider> = OnceLock::new();
+static SHUTDOWN_LOGGER_PROVIDER: OnceLock<SdkLoggerProvider> = OnceLock::new();
 
 #[inline]
-fn noop_logger_provider() -> &'static SdkLoggerProvider {
-    NOOP_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
+fn shutdown_logger_provider() -> &'static SdkLoggerProvider {
+    SHUTDOWN_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
             is_shutdown: AtomicBool::new(true),
+            is_disabled: false,
+        }),
+    })
+}
+// a no op logger provider used as placeholder when sdk is disabled with
+// help of environment variable `OTEL_SDK_DISABLED`
+// TODO - replace it with LazyLock once it is stable
+static DISABLED_LOGGER_PROVIDER: OnceLock<SdkLoggerProvider> = OnceLock::new();
+
+#[inline]
+fn disabled_logger_provider() -> &'static SdkLoggerProvider {
+    DISABLED_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
+        inner: Arc::new(LoggerProviderInner {
+            processors: Vec::new(),
+            is_shutdown: AtomicBool::new(false),
+            is_disabled: true,
         }),
     })
 }
@@ -53,13 +69,23 @@ impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
     }
 
     fn logger_with_scope(&self, scope: InstrumentationScope) -> Self::Logger {
-        // If the provider is shutdown, new logger will refer a no-op logger provider.
+        // If the provider is shutdown, new logger will refer a shutdown no-op logger provider.
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
             otel_debug!(
                 name: "LoggerProvider.NoOpLoggerReturned",
                 logger_name = scope.name(),
+                reason = "already_shutdown"
             );
-            return SdkLogger::new(scope, noop_logger_provider().clone());
+            return SdkLogger::new(scope, shutdown_logger_provider().clone());
+        }
+        // If the provider is disabled, new logger will refer a disabled no-op logger provider.
+        if self.inner.is_disabled {
+            otel_debug!(
+                name: "LoggerProvider.NoOpLoggerReturned",
+                logger_name = scope.name(),
+                reason = "disabled_via_env_variable"
+            );
+            return SdkLogger::new(scope, disabled_logger_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "LoggerNameEmpty",  message = "Logger name is empty; consider providing a meaningful name. Logger will function normally and the provided name will be used as-is.");
@@ -135,6 +161,7 @@ impl SdkLoggerProvider {
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     is_shutdown: AtomicBool,
+    is_disabled: bool,
 }
 
 impl LoggerProviderInner {
@@ -267,10 +294,18 @@ impl LoggerProviderBuilder {
             processor.set_resource(&resource);
         }
 
+        let is_disabled =
+            std::env::var("OTEL_SDK_DISABLED").is_ok_and(|var| var.to_lowercase() == "true");
+
+        if is_disabled {
+            otel_warn!(name: "LoggerProvider.Disabled", message = "SDK is disabled through environment variable");
+        }
+
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors,
                 is_shutdown: AtomicBool::new(false),
+                is_disabled,
             }),
         };
 
@@ -765,6 +800,7 @@ mod tests {
                     flush_called.clone(),
                 ))],
                 is_shutdown: AtomicBool::new(false),
+                is_disabled: false,
             });
 
             {
@@ -794,6 +830,32 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other test"]
+    fn otel_sdk_disabled_env() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let exporter = InMemoryLogExporter::default();
+            let logger_provider = SdkLoggerProvider::builder()
+                .with_simple_exporter(exporter.clone())
+                .build();
+            let logger = logger_provider.logger("noop");
+            let mut record = logger.create_log_record();
+            record.set_body("Testing sdk disabled logger".into());
+            logger.emit(record);
+            let mut record = logger.create_log_record();
+            record.set_body("Testing sdk disabled logger".into());
+            logger.emit(record);
+            let mut record = logger.create_log_record();
+            record.set_body("Testing sdk disabled logger".into());
+            logger.emit(record);
+            let emitted_logs = exporter.get_emitted_logs().unwrap();
+            assert_eq!(emitted_logs.len(), 0);
+
+            assert!(logger.provider().shutdown().is_ok());
+            assert!(logger.provider().shutdown().is_err());
+        });
+    }
+
+    #[test]
     fn drop_after_shutdown_test_with_multiple_providers() {
         let shutdown_called = Arc::new(Mutex::new(0)); // Count the number of times shutdown is called
         let flush_called = Arc::new(Mutex::new(false));
@@ -805,6 +867,7 @@ mod tests {
                 flush_called.clone(),
             ))],
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         // Create a scope to test behavior when providers are dropped

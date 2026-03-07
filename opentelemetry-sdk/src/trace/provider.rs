@@ -70,7 +70,7 @@ use crate::trace::{
 };
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
-use opentelemetry::otel_debug;
+use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry::{otel_info, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -79,12 +79,12 @@ use std::time::Duration;
 
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
-// a no nop tracer provider used as placeholder when the provider is shutdown
+// a no op tracer provider used as placeholder when the provider is shutdown
 // TODO Replace with LazyLock once it is stable
-static NOOP_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
+static SHUTDOWN_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 #[inline]
-fn noop_tracer_provider() -> &'static SdkTracerProvider {
-    NOOP_TRACER_PROVIDER.get_or_init(|| {
+fn shutdown_tracer_provider() -> &'static SdkTracerProvider {
+    SHUTDOWN_TRACER_PROVIDER.get_or_init(|| {
         SdkTracerProvider {
             inner: Arc::new(TracerProviderInner {
                 processors: Vec::new(),
@@ -96,6 +96,31 @@ fn noop_tracer_provider() -> &'static SdkTracerProvider {
                     resource: Cow::Owned(Resource::empty()),
                 },
                 is_shutdown: AtomicBool::new(true),
+                is_disabled: false,
+            }),
+        }
+    })
+}
+
+// a no op tracer provider used as placeholder when sdk is disabled with
+// help of environment variable `OTEL_SDK_DISABLED`
+// TODO Replace with LazyLock once it is stable
+static DISABLED_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
+#[inline]
+fn disabled_tracer_provider() -> &'static SdkTracerProvider {
+    DISABLED_TRACER_PROVIDER.get_or_init(|| {
+        SdkTracerProvider {
+            inner: Arc::new(TracerProviderInner {
+                processors: Vec::new(),
+                config: Config {
+                    // cannot use default here as the default resource is not empty
+                    sampler: Box::new(Sampler::ParentBased(Box::new(Sampler::AlwaysOn))),
+                    id_generator: Box::<RandomIdGenerator>::default(),
+                    span_limits: SpanLimits::default(),
+                    resource: Cow::Owned(Resource::empty()),
+                },
+                is_shutdown: AtomicBool::new(false),
+                is_disabled: true,
             }),
         }
     })
@@ -107,6 +132,7 @@ pub(crate) struct TracerProviderInner {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
     is_shutdown: AtomicBool,
+    is_disabled: bool,
 }
 
 impl TracerProviderInner {
@@ -286,7 +312,20 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
         if self.inner.is_shutdown.load(Ordering::Relaxed) {
-            return SdkTracer::new(scope, noop_tracer_provider().clone());
+            otel_debug!(
+                name: "TracerProvider.NoOpTracerReturned",
+                scope = scope.name(),
+                reason = "already_shutdown"
+            );
+            return SdkTracer::new(scope, shutdown_tracer_provider().clone());
+        }
+        if self.inner.is_disabled {
+            otel_debug!(
+                name: "TracerProvider.NoOpTracerReturned",
+                scope = scope.name(),
+                reason = "disabled_via_env_variable"
+            );
+            return SdkTracer::new(scope, disabled_tracer_provider().clone());
         }
         if scope.name().is_empty() {
             otel_info!(name: "TracerNameEmpty",  message = "Tracer name is empty; consider providing a meaningful name. Tracer will function normally and the provided name will be used as-is.");
@@ -472,11 +511,19 @@ impl TracerProviderBuilder {
             p.set_resource(config.resource.as_ref());
         }
 
+        let is_disabled =
+            std::env::var("OTEL_SDK_DISABLED").is_ok_and(|var| var.to_lowercase() == "true");
+
+        if is_disabled {
+            otel_warn!(name: "TracerProvider.Disabled", message = "SDK is disabled through environment variable");
+        }
+
         let is_shutdown = AtomicBool::new(false);
         SdkTracerProvider::new(TracerProviderInner {
             processors,
             config,
             is_shutdown,
+            is_disabled,
         })
     }
 }
@@ -579,6 +626,7 @@ mod tests {
             ],
             config: Default::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         let results = tracer_provider.force_flush();
@@ -740,6 +788,7 @@ mod tests {
             processors: vec![Box::from(processor)],
             config: Default::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         let test_tracer_1 = tracer_provider.tracer("test1");
@@ -773,6 +822,34 @@ mod tests {
 
         // also existing tracer's tracer provider are in shutdown state
         assert!(test_tracer_1.provider().is_shutdown());
+    }
+
+    #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other test"]
+    fn otel_sdk_disabled_env() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let processor = TestSpanProcessor::new(true);
+            let assert_handle = processor.assert_info();
+            let tracer_provider = super::SdkTracerProvider::builder()
+                .with_span_processor(processor)
+                .build();
+
+            assert!(assert_handle.started_span_count(0));
+            let noop_tracer = tracer_provider.tracer("noop");
+
+            // noop tracer cannot start anything
+            let _ = noop_tracer.start("test");
+            let _ = noop_tracer.start("test2");
+            let _ = noop_tracer.start("test3");
+            assert!(assert_handle.started_span_count(0));
+
+            // noop tracer should have 0 processor
+            assert_eq!(noop_tracer.provider().span_processors().len(), 0);
+
+            // shutdown noop tracer
+            assert!(noop_tracer.provider().shutdown().is_ok());
+            assert!(noop_tracer.provider().shutdown().is_err());
+        });
     }
 
     #[test]
@@ -850,6 +927,7 @@ mod tests {
                 ))],
                 config: Config::default(),
                 is_shutdown: AtomicBool::new(false),
+                is_disabled: false,
             });
 
             {
@@ -888,6 +966,7 @@ mod tests {
             ))],
             config: Config::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         // Create a scope to test behavior when providers are dropped
