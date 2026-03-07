@@ -3,6 +3,7 @@
 ## vNext
 
 - Updated `schemars` dependency to version 1.0.0.
+- Fix JSON deserialization of kvList entries that serialize `None` values as `{key: "name", value: {}}`
 
 ## 0.31.0
 
