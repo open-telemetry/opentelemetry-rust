@@ -775,6 +775,20 @@ mod json_serde {
                 let expected: Event = value();
                 assert_eq!(actual, expected);
             }
+
+            /// OTLP spec: 64-bit integers may be encoded as either strings or integers.
+            #[test]
+            fn deserialize_integer_timestamp() {
+                // language=json
+                const JSON: &str = r#"{
+  "timeUnixNano": 1234567890,
+  "name": "my_event"
+}"#;
+                let actual: Event =
+                    serde_json::from_str(JSON).expect("deserialization must succeed");
+                let expected: Event = value();
+                assert_eq!(actual, expected);
+            }
         }
     }
 
