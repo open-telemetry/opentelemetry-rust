@@ -35,4 +35,5 @@ mod proto;
 #[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
 
+#[cfg(feature = "with-sdk")]
 pub mod transform;

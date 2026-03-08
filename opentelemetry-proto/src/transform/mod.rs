@@ -1,16 +1,17 @@
+#[cfg(feature = "with-sdk")]
 pub mod common;
 
-#[cfg(feature = "metrics")]
+#[cfg(all(feature = "with-sdk-metrics", feature = "gen-tonic-messages"))]
 pub mod metrics;
 
-#[cfg(feature = "trace")]
+#[cfg(all(feature = "with-sdk-trace", feature = "gen-tonic-messages"))]
 pub mod trace;
 
-#[cfg(feature = "logs")]
+#[cfg(all(feature = "with-sdk-logs", feature = "gen-tonic-messages"))]
 pub mod logs;
 
-#[cfg(feature = "zpages")]
+#[cfg(all(feature = "with-sdk-trace", feature = "gen-tonic-messages", feature = "zpages"))]
 pub mod tracez;
 
-#[cfg(feature = "profiles")]
+#[cfg(all(feature = "with-sdk", feature = "gen-tonic-messages", feature = "profiles"))]
 pub mod profiles;

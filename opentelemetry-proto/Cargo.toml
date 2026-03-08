@@ -31,23 +31,29 @@ path = "tests/json_serde.rs"
 
 
 [features]
-default = ["full"]
-full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
+default = []
+full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs", "with-sdk"]
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic/channel"]
 gen-tonic-messages = ["tonic", "tonic-prost", "prost"]
 
-# telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
-metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
+# telemetry pillars and functions - just enable proto generation
+trace = []
+metrics = []
+logs = []
 zpages = ["trace"]
 profiles = []
-testing = ["opentelemetry/testing"]
+testing = []
+
+# SDK integration - enables transform logic
+with-sdk = ["opentelemetry_sdk", "opentelemetry"]
+with-sdk-trace = ["with-sdk", "trace", "opentelemetry/trace", "opentelemetry_sdk/trace"]
+with-sdk-metrics = ["with-sdk", "metrics", "opentelemetry/metrics", "opentelemetry_sdk/metrics"]
+with-sdk-logs = ["with-sdk", "logs", "opentelemetry/logs", "opentelemetry_sdk/logs"]
 
 # add ons
-internal-logs = ["opentelemetry/internal-logs"]
+internal-logs = ["opentelemetry?/internal-logs"]
 with-schemars = ["schemars"]
 with-serde = ["serde", "const-hex", "base64"]
 
@@ -55,8 +61,8 @@ with-serde = ["serde", "const-hex", "base64"]
 tonic = { workspace = true, optional = true, features = ["codegen"] }
 tonic-prost = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
-opentelemetry = { workspace = true, default-features = false }
-opentelemetry_sdk = { workspace = true, default-features = false }
+opentelemetry = { workspace = true, optional = true, default-features = false }
+opentelemetry_sdk = { workspace = true, optional = true, default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 const-hex = { workspace = true, optional = true }
