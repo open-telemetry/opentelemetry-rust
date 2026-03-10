@@ -1,17 +1,18 @@
 # This workflow has two jobs:
 # 1. compareBenchmark: Runs on PRs with the "performance" label, comparing Criterion
 #    benchmark results against the base branch using criterion-compare-action.
-# 2. continuousBenchmark: Runs on pushes to main, storing benchmark results in the
-#    gh-pages branch and publishing a dashboard via github-action-benchmark.
+# 2. continuousBenchmark: Runs daily on main via schedule, storing benchmark results
+#    in the gh-pages branch and publishing a dashboard via github-action-benchmark.
+#    Skips runs where the HEAD commit has already been benchmarked.
 #
 # The PR job runs on shared GitHub runners to save resources.
 # The continuous job runs on a self-hosted bare-metal runner for consistent, accurate results.
 on:
   pull_request:
     types: [labeled, synchronize]
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: '0 6 * * *' # daily at 06:00 UTC
+  workflow_dispatch:
 name: benchmark
 permissions:
   contents: read
@@ -57,11 +58,11 @@ jobs:
           branchName: ${{ env.BRANCH_NAME }}
 
   # ---------------------------------------------------------------------------
-  # Continuous benchmark tracking (push to main only)
+  # Continuous benchmark tracking (daily schedule)
   # ---------------------------------------------------------------------------
   continuousBenchmark:
     name: continuous benchmark tracking
-    if: github.event_name == 'push'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     # Use bare-metal runner on the upstream repo for consistent results; fall back to shared runners elsewhere
     runs-on: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && 'oracle-bare-metal-64cpu-512gb-x86-64' || 'ubuntu-latest' }}
     permissions:
@@ -85,14 +86,29 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Check if commit already benchmarked
+        id: check_duplicate
+        run: |
+          # Fetch the benchmark data file from gh-pages and see if this commit is already recorded
+          DATA_URL="https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/dev/bench/data.js"
+          if curl -sf "$DATA_URL" | grep -q "${{ github.sha }}"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Commit ${{ github.sha }} already benchmarked, skipping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        if: steps.check_duplicate.outputs.skip != 'true'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run benchmarks
+        if: steps.check_duplicate.outputs.skip != 'true'
         run: cargo bench --workspace --all-features -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
+        if: steps.check_duplicate.outputs.skip != 'true'
         uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1.21.0
         with:
           tool: 'cargo'
