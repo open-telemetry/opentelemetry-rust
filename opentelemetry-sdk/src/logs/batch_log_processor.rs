@@ -860,7 +860,7 @@ mod tests {
             .build();
         processor.emit(&mut SdkLogRecord::new(), &scope);
         processor.force_flush().unwrap();
-        assert_eq!(exporter.export_called.load(Ordering::SeqCst), true);
+        assert!(exporter.export_called.load(Ordering::SeqCst));
     }
 
     #[test]
