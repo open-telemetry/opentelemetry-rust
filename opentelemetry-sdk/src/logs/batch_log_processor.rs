@@ -756,7 +756,7 @@ mod tests {
     use opentelemetry::logs::LogRecord;
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -838,6 +838,29 @@ mod tests {
         assert_eq!(config.max_export_timeout, Duration::from_millis(60000));
         assert_eq!(config.max_queue_size, 4096);
         assert_eq!(config.max_export_batch_size, 1024);
+    }
+    #[test]
+    fn test_force_flush_being_called() {
+        #[derive(Debug , Clone)]
+        struct MockExporter {
+            export_called: Arc<AtomicBool>,
+        }
+        impl LogExporter for MockExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                self.export_called.store(true, Ordering::SeqCst);
+                Ok(())
+            }
+        }
+        let exporter = MockExporter {
+            export_called:Arc::new(AtomicBool::new(false))
+        };
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let scope = opentelemetry::InstrumentationScope::builder("my-crate")
+            .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
+            .build();
+        processor.emit(&mut SdkLogRecord::new(), &scope);
+        processor.force_flush().unwrap();
+        assert_eq!(exporter.export_called.load(Ordering::SeqCst) , true);
     }
 
     #[test]
