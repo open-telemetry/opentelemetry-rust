@@ -841,7 +841,7 @@ mod tests {
     }
     #[test]
     fn test_force_flush_being_called() {
-        #[derive(Debug , Clone)]
+        #[derive(Debug, Clone)]
         struct MockExporter {
             export_called: Arc<AtomicBool>,
         }
@@ -852,7 +852,7 @@ mod tests {
             }
         }
         let exporter = MockExporter {
-            export_called:Arc::new(AtomicBool::new(false))
+            export_called: Arc::new(AtomicBool::new(false)),
         };
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         let scope = opentelemetry::InstrumentationScope::builder("my-crate")
@@ -860,7 +860,7 @@ mod tests {
             .build();
         processor.emit(&mut SdkLogRecord::new(), &scope);
         processor.force_flush().unwrap();
-        assert_eq!(exporter.export_called.load(Ordering::SeqCst) , true);
+        assert_eq!(exporter.export_called.load(Ordering::SeqCst), true);
     }
 
     #[test]
