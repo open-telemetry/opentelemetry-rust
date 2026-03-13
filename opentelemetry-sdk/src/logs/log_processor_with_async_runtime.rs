@@ -775,13 +775,17 @@ mod tests {
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
-            .with_resource(Resource::new(vec![
-                KeyValue::new("k1", "v1"),
-                KeyValue::new("k2", "v3"),
-                KeyValue::new("k3", "v3"),
-                KeyValue::new("k4", "v4"),
-                KeyValue::new("k5", "v5"),
-            ]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![
+                        KeyValue::new("k1", "v1"),
+                        KeyValue::new("k2", "v3"),
+                        KeyValue::new("k3", "v3"),
+                        KeyValue::new("k4", "v4"),
+                        KeyValue::new("k5", "v5"),
+                    ])
+                    .build(),
+            )
             .build();
         provider.force_flush().unwrap();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);

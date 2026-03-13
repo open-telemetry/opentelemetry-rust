@@ -243,10 +243,32 @@ impl MeterProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
+    /// When constructing a [Resource], use [`Resource::builder()`] to preserve
+    /// SDK-provided defaults such as `telemetry.sdk.*` and `service.name`.
+    /// Using [`Resource::builder_empty()`] will **not** include these attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::{Resource, metrics::SdkMeterProvider};
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    ///     .with_resource(
+    ///         Resource::builder()
+    ///             .with_service_name("my-service")
+    ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    ///
     /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
     ///
     /// [Meter]: opentelemetry::metrics::Meter
+    /// [`Resource::builder()`]: Resource::builder
+    /// [`Resource::builder_empty()`]: Resource::builder_empty
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = match self.resource {
             Some(existing) => Some(existing.merge(&resource)),
@@ -719,14 +741,26 @@ mod tests {
     #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkMeterProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
-            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key1", "value1")])
+                    .build(),
+            )
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key2", "value2")])
+                    .build(),
+            )
             .with_resource(
                 Resource::builder_empty()
                     .with_schema_url(vec![], "http://example.com")
                     .build(),
             )
-            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key3", "value3")])
+                    .build(),
+            );
 
         let resource = builder.resource.unwrap();
 
