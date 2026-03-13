@@ -1,55 +1,53 @@
-# This workflow runs a Criterion benchmark on a PR and compares the results against the base branch.
-# It is triggered on a PR or a push to main.
+# This workflow has two jobs:
+# 1. compareBenchmark: Runs on PRs with the "performance" label, comparing Criterion
+#    benchmark results against the base branch using criterion-compare-action.
+# 2. continuousBenchmark: Runs daily on main via schedule, storing benchmark results
+#    in the gh-pages branch and publishing a dashboard via github-action-benchmark.
+#    Skips runs where the HEAD commit has already been benchmarked.
 #
-# The workflow is gated on the presence of the "performance" label on the PR.
-#
-# The workflow runs on a self-hosted runner pool. We can't use the shared runners for this,
-# because they are only permitted to run on the default branch to preserve resources. 
-#
-# In the future, we might like to consider using bencher.dev or the framework used by otel-golang here. 
-on: 
+# The PR job runs on shared GitHub runners to save resources.
+# The continuous job runs on a self-hosted bare-metal runner for consistent, accurate results.
+on:
   pull_request:
     types: [labeled, synchronize]
-  push:
-    branches:
-      - main
-name: benchmark pull requests
+  schedule:
+    - cron: '0 6 * * *' # daily at 06:00 UTC
+  workflow_dispatch:
+name: benchmark
 permissions:
   contents: read
 jobs:
-  runBenchmark:
-    name: run benchmark
+  # ---------------------------------------------------------------------------
+  # PR benchmark comparison
+  # ---------------------------------------------------------------------------
+  compareBenchmark:
+    name: compare benchmarks (PR)
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')
+    runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-
-    # If we're running on main, use our oracle bare-metal runner for accuracy. 
-    # If we're running on a PR, use github's shared workers to save resources.
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'oracle-bare-metal-64cpu-512gb-x86-64' }}
-    if: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'performance')) || github.event_name == 'push' }}
     container:
       image: rust:slim-bullseye
     env:
-      # For PRs, compare against the base branch - e.g., 'main'. 
-      # For pushes to main, compare against the previous commit
-      BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.base_ref || github.event.before }}
+      BRANCH_NAME: ${{ github.base_ref }}
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
       - name: Setup container environment
         run: |
-          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git
+          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git libssl-dev
           cargo install cargo-criterion
 
       - name: Make repo safe for Git inside container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 10 # Fetch a bit of history so we can do perf diffs
+          fetch-depth: 10
 
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
@@ -58,3 +56,67 @@ jobs:
       - uses: boa-dev/criterion-compare-action@adfd3a94634fe2041ce5613eb7df09d247555b87 # v3.2.4
         with:
           branchName: ${{ env.BRANCH_NAME }}
+
+  # ---------------------------------------------------------------------------
+  # Continuous benchmark tracking (daily schedule)
+  # ---------------------------------------------------------------------------
+  continuousBenchmark:
+    name: continuous benchmark tracking
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Use bare-metal runner on the upstream repo for consistent results; fall back to shared runners elsewhere
+    runs-on: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && 'oracle-bare-metal-64cpu-512gb-x86-64' || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+    container:
+      image: rust:slim-bullseye
+    env:
+      GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        with:
+          egress-policy: audit
+
+      - name: Setup container environment
+        run: |
+          apt-get update && apt-get install --fix-missing -y unzip cmake build-essential pkg-config curl git libssl-dev
+
+      - name: Make repo safe for Git inside container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check if commit already benchmarked
+        id: check_duplicate
+        run: |
+          # Fetch the benchmark data file from gh-pages and see if this commit is already recorded
+          DATA_URL="https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/dev/bench/data.js"
+          if curl -sf "$DATA_URL" | grep -q "${{ github.sha }}"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Commit ${{ github.sha }} already benchmarked, skipping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        if: steps.check_duplicate.outputs.skip != 'true'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run benchmarks
+        if: steps.check_duplicate.outputs.skip != 'true'
+        run: cargo bench --workspace --all-features -- --output-format bencher | tee output.txt
+
+      - name: Store benchmark result
+        if: steps.check_duplicate.outputs.skip != 'true'
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1.21.0
+        with:
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          benchmark-data-dir-path: dev/bench
+          # Alert if a benchmark regresses by more than 20%
+          alert-threshold: '120%'
+          comment-on-alert: true
+          fail-on-alert: false

@@ -26,7 +26,6 @@ fn get_resource() -> Resource {
 
 fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create span exporter");
     SdkTracerProvider::builder()
@@ -37,7 +36,6 @@ fn init_traces() -> SdkTracerProvider {
 
 fn init_metrics() -> SdkMeterProvider {
     let exporter = MetricExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create metric exporter");
 
@@ -49,7 +47,6 @@ fn init_metrics() -> SdkMeterProvider {
 
 fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create log exporter");
 

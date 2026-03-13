@@ -4,13 +4,19 @@
 //!
 
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-use crate::HasExportConfig;
+use crate::exporter::HasExportConfig;
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::{exporter::http::HttpExporterBuilder, HasHttpConfig, HttpExporterBuilderSet};
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::TonicExporterBuilder, HasTonicConfig, TonicExporterBuilderSet};
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 use crate::{ExporterBuildError, NoExporterBuilderSet};
 
@@ -51,6 +57,28 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
     /// Create a new [MetricExporterBuilder] with default settings.
     pub fn new() -> Self {
         MetricExporterBuilder::default()
+    }
+
+    /// Build the [MetricExporter] with the default transport selected by environment
+    /// variable or feature flags.
+    ///
+    /// The transport is chosen based on:
+    /// 1. The `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable (if set and the
+    ///    corresponding feature is enabled)
+    /// 2. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
+    ///
+    /// Use [`with_tonic`](Self::with_tonic) or [`with_http`](Self::with_http) to
+    /// explicitly select a transport and access transport-specific configuration.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
+        match crate::Protocol::default() {
+            #[cfg(feature = "grpc-tonic")]
+            crate::Protocol::Grpc => self.with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            crate::Protocol::HttpBinary => self.with_http().build(),
+            #[cfg(feature = "http-json")]
+            crate::Protocol::HttpJson => self.with_http().build(),
+        }
     }
 }
 
@@ -127,21 +155,21 @@ impl MetricExporterBuilder<HttpExporterBuilderSet> {
 
 #[cfg(feature = "grpc-tonic")]
 impl HasExportConfig for MetricExporterBuilder<TonicExporterBuilderSet> {
-    fn export_config(&mut self) -> &mut crate::ExportConfig {
+    fn export_config(&mut self) -> &mut crate::exporter::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 impl HasExportConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
-    fn export_config(&mut self) -> &mut crate::ExportConfig {
+    fn export_config(&mut self) -> &mut crate::exporter::ExportConfig {
         &mut self.client.0.exporter_config
     }
 }
 
 #[cfg(feature = "grpc-tonic")]
 impl HasTonicConfig for MetricExporterBuilder<TonicExporterBuilderSet> {
-    fn tonic_config(&mut self) -> &mut crate::TonicConfig {
+    fn tonic_config(&mut self) -> &mut crate::exporter::tonic::TonicConfig {
         &mut self.client.0.tonic_config
     }
 }
@@ -241,6 +269,20 @@ impl MetricExporter {
             client: SupportedTransportClient::Http(client),
             temporality,
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod build_tests {
+    use crate::MetricExporter;
+
+    #[test]
+    fn build_with_default_transport() {
+        // Verify that `MetricExporter::builder().build()` succeeds
+        // when at least one transport feature is enabled.
+        let result = MetricExporter::builder().build();
+        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }
 }
 
