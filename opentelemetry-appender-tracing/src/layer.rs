@@ -1077,8 +1077,14 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1122,8 +1128,14 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1177,8 +1189,14 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1283,8 +1301,14 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let level_filter = tracing_subscriber::filter::LevelFilter::INFO;
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(level_filter);
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1343,7 +1367,10 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
-            .build();
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1377,7 +1404,10 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
-            .build();
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1421,7 +1451,10 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(std::iter::empty::<&str>())
-            .build();
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1456,7 +1489,10 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
-            .build();
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
