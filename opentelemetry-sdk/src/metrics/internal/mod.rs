@@ -15,7 +15,7 @@ use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
@@ -24,13 +24,8 @@ use opentelemetry::{otel_warn, KeyValue};
 use super::data::{AggregatedMetrics, MetricData};
 use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
 
-// TODO Replace it with LazyLock once it is stable
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
-
-#[inline]
-fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
-}
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: LazyLock<Vec<KeyValue>> =
+    LazyLock::new(|| vec![KeyValue::new("otel.metric.overflow", true)]);
 
 pub(crate) trait Aggregator {
     /// A static configuration that is needed in order to initialize aggregator.
@@ -157,12 +152,12 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(STREAM_OVERFLOW_ATTRIBUTES.as_slice()) {
             overflow_value.update(value);
         } else {
             let new_tracker = A::create(&self.config);
             new_tracker.update(value);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            trackers.insert(STREAM_OVERFLOW_ATTRIBUTES.clone(), Arc::new(new_tracker));
         }
     }
 

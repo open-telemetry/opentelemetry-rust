@@ -13,7 +13,7 @@ categories = [
 keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version.workspace = true
 autobenches = false
 
 [package.metadata.docs.rs]
@@ -27,7 +27,6 @@ reqwest-client = ["dep:reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 
 [dependencies]
-once_cell = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true, features = ["trace"] }
 opentelemetry-http = { workspace = true }

@@ -1,7 +1,7 @@
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 use crate::metrics::{
     data::{self, AggregatedMetrics, MetricData},
@@ -134,7 +134,7 @@ impl<T: Number> ExpoHistogramDataPoint<T> {
             }
             return (exp - correction) >> -self.scale;
         }
-        (exp << self.scale) + (frac.ln() * scale_factors()[self.scale as usize]) as i32 - 1
+        (exp << self.scale) + (frac.ln() * SCALE_FACTORS[self.scale as usize]) as i32 - 1
     }
 }
 
@@ -168,38 +168,32 @@ fn scale_change(max_size: i32, bin: i32, start_bin: i32, length: i32) -> u32 {
     count
 }
 
-// TODO - replace it with LazyLock once it is stable
-static SCALE_FACTORS: OnceLock<[f64; 21]> = OnceLock::new();
-
-/// returns constants used in calculating the logarithm index.
-#[inline]
-fn scale_factors() -> &'static [f64; 21] {
-    SCALE_FACTORS.get_or_init(|| {
-        [
-            LOG2_E * 2f64.powi(0),
-            LOG2_E * 2f64.powi(1),
-            LOG2_E * 2f64.powi(2),
-            LOG2_E * 2f64.powi(3),
-            LOG2_E * 2f64.powi(4),
-            LOG2_E * 2f64.powi(5),
-            LOG2_E * 2f64.powi(6),
-            LOG2_E * 2f64.powi(7),
-            LOG2_E * 2f64.powi(8),
-            LOG2_E * 2f64.powi(9),
-            LOG2_E * 2f64.powi(10),
-            LOG2_E * 2f64.powi(11),
-            LOG2_E * 2f64.powi(12),
-            LOG2_E * 2f64.powi(13),
-            LOG2_E * 2f64.powi(14),
-            LOG2_E * 2f64.powi(15),
-            LOG2_E * 2f64.powi(16),
-            LOG2_E * 2f64.powi(17),
-            LOG2_E * 2f64.powi(18),
-            LOG2_E * 2f64.powi(19),
-            LOG2_E * 2f64.powi(20),
-        ]
-    })
-}
+/// Constants used in calculating the logarithm index.
+static SCALE_FACTORS: LazyLock<[f64; 21]> = LazyLock::new(|| {
+    [
+        LOG2_E * 2f64.powi(0),
+        LOG2_E * 2f64.powi(1),
+        LOG2_E * 2f64.powi(2),
+        LOG2_E * 2f64.powi(3),
+        LOG2_E * 2f64.powi(4),
+        LOG2_E * 2f64.powi(5),
+        LOG2_E * 2f64.powi(6),
+        LOG2_E * 2f64.powi(7),
+        LOG2_E * 2f64.powi(8),
+        LOG2_E * 2f64.powi(9),
+        LOG2_E * 2f64.powi(10),
+        LOG2_E * 2f64.powi(11),
+        LOG2_E * 2f64.powi(12),
+        LOG2_E * 2f64.powi(13),
+        LOG2_E * 2f64.powi(14),
+        LOG2_E * 2f64.powi(15),
+        LOG2_E * 2f64.powi(16),
+        LOG2_E * 2f64.powi(17),
+        LOG2_E * 2f64.powi(18),
+        LOG2_E * 2f64.powi(19),
+        LOG2_E * 2f64.powi(20),
+    ]
+});
 
 /// Breaks the number into a normalized fraction and a base-2 exponent.
 ///
@@ -270,9 +264,10 @@ impl ExpoBuckets {
                 return;
             }
 
-            self.counts.extend(
-                std::iter::repeat(0).take((bin - self.start_bin) as usize - self.counts.len() + 1),
-            );
+            self.counts.extend(std::iter::repeat_n(
+                0,
+                (bin - self.start_bin) as usize - self.counts.len() + 1,
+            ));
             self.counts[(bin - self.start_bin) as usize] = 1
         }
     }

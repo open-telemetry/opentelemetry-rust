@@ -13,12 +13,12 @@
 //!
 //! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
 //! and extract. Otherwise, separate headers are used to inject and extract.
-use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
     trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
 };
+use std::sync::LazyLock;
 
 const B3_SINGLE_HEADER: &str = "b3";
 /// As per spec, the multiple header should be case sensitive. But different protocol will use
@@ -34,8 +34,8 @@ const B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
 const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
-static B3_SINGLE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [B3_SINGLE_HEADER.to_owned()]);
-static B3_MULTI_FIELDS: Lazy<[String; 4]> = Lazy::new(|| {
+static B3_SINGLE_FIELDS: LazyLock<[String; 1]> = LazyLock::new(|| [B3_SINGLE_HEADER.to_owned()]);
+static B3_MULTI_FIELDS: LazyLock<[String; 4]> = LazyLock::new(|| {
     [
         B3_TRACE_ID_HEADER.to_owned(),
         B3_SPAN_ID_HEADER.to_owned(),
@@ -43,7 +43,7 @@ static B3_MULTI_FIELDS: Lazy<[String; 4]> = Lazy::new(|| {
         B3_DEBUG_FLAG_HEADER.to_owned(),
     ]
 });
-static B3_SINGLE_AND_MULTI_FIELDS: Lazy<[String; 5]> = Lazy::new(|| {
+static B3_SINGLE_AND_MULTI_FIELDS: LazyLock<[String; 5]> = LazyLock::new(|| {
     [
         B3_SINGLE_HEADER.to_owned(),
         B3_TRACE_ID_HEADER.to_owned(),
