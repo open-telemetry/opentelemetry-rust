@@ -37,6 +37,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 criterion = { workspace = true, features = ["html_reports"] }
 rstest = { workspace = true }
 temp-env = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }
@@ -47,7 +48,7 @@ trace = ["opentelemetry/trace", "rand", "percent-encoding"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
 logs = ["opentelemetry/logs"]
 metrics = ["opentelemetry/metrics"]
-testing = ["opentelemetry/testing", "trace", "metrics", "logs", "rt-tokio", "rt-tokio-current-thread", "tokio/macros", "tokio/rt-multi-thread"]
+testing = ["opentelemetry/testing", "trace", "metrics", "logs", "tokio/sync"]
 experimental_async_runtime = []
 rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]

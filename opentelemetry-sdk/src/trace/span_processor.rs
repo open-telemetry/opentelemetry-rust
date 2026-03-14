@@ -1476,7 +1476,9 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(exporter, config);
 
         // Set a resource for the processor
-        let resource = Resource::new(vec![KeyValue::new("service.name", "test_service")]);
+        let resource = Resource::builder_empty()
+            .with_attributes(vec![KeyValue::new("service.name", "test_service")])
+            .build();
         processor.set_resource(&resource);
 
         // Create a span and send it to the processor
