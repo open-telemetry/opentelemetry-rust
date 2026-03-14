@@ -18,6 +18,37 @@ use super::{
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>>;
+}
+
+/// A pre-bound measurement handle that bypasses attribute lookup.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) trait BoundMeasure<T>: Send + Sync + 'static {
+    fn call(&self, measurement: T);
+}
+
+/// Fallback bound handle for aggregator types that don't support direct binding.
+/// Delegates every call to the unbound `Measure::call()` path.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct BoundFallbackHandle<T> {
+    measure: Arc<dyn Measure<T>>,
+    attrs: Vec<KeyValue>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Send + Sync + 'static> BoundMeasure<T> for BoundFallbackHandle<T> {
+    fn call(&self, measurement: T) {
+        self.measure.call(measurement, &self.attrs);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> BoundFallbackHandle<T> {
+    pub(crate) fn new(measure: Arc<dyn Measure<T>>, attrs: Vec<KeyValue>) -> Self {
+        Self { measure, attrs }
+    }
 }
 
 /// Stores the aggregate of measurements into the aggregation and returns the number

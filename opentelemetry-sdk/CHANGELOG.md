@@ -5,6 +5,15 @@
 - Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
   feature flag. The use cases it was designed for (ETW/user_events exporters) are
   better served by modeling those exporters as processors directly.
+- **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
+  return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
+  Bound instruments resolve the attribute-to-aggregator mapping once at bind time
+  and cache the result, eliminating per-call HashMap lookups. Bound entries are
+  never evicted during delta collection — idle cycles produce no export but the
+  tracker persists. If `bind()` is called at the cardinality limit, the handle
+  transparently falls back to the unbound measurement path. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag. Benchmarks show ~28x
+  speedup for counter operations and ~9x for histograms.
 - Delta metrics collection now uses in-place eviction instead of draining the
   HashMap on every collect cycle. Stale attribute sets that received no measurements
   since the last collection are evicted. Note: recovery from cardinality overflow

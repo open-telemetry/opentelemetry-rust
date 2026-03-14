@@ -3,6 +3,8 @@ use core::fmt;
 use std::sync::Arc;
 
 use super::SyncInstrument;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::BoundSyncInstrument;
 
 /// An instrument that records increasing values.
 ///
@@ -32,6 +34,12 @@ impl<T> Counter<T> {
     pub fn add(&self, value: T, attributes: &[KeyValue]) {
         self.0.measure(value, attributes)
     }
+
+    /// Binds this counter to a fixed set of attributes.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    pub fn bind(&self, attributes: &[KeyValue]) -> BoundCounter<T> {
+        BoundCounter(self.0.bind(attributes))
+    }
 }
 
 /// An async instrument that records increasing values.
@@ -57,5 +65,29 @@ impl<T> fmt::Debug for ObservableCounter<T> {
             "ObservableCounter<{}>",
             std::any::type_name::<T>()
         ))
+    }
+}
+
+/// A counter bound to a fixed set of attributes.
+///
+/// Created by calling [`Counter::bind`] with an attribute set. All subsequent
+/// [`add`](BoundCounter::add) calls use the pre-resolved attributes, bypassing
+/// per-call attribute lookup for significantly better performance.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+#[must_use = "dropping a BoundCounter immediately is a no-op; store it to benefit from pre-bound attributes"]
+pub struct BoundCounter<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> fmt::Debug for BoundCounter<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("BoundCounter<{}>", std::any::type_name::<T>()))
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> BoundCounter<T> {
+    /// Records an increment to the counter using the pre-bound attributes.
+    pub fn add(&self, value: T) {
+        self.0.measure(value)
     }
 }
