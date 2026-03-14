@@ -7,8 +7,8 @@ use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
