@@ -13,6 +13,19 @@
   silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
   an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
   [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- Add support for per-signal protocol environment variables:
+  `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`,
+  `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL`. These allow configuring different transport protocols
+  per signal type. Signal-specific vars take precedence over generic `OTEL_EXPORTER_OTLP_PROTOCOL`.
+  The auto-select `build()` method on each exporter builder now respects the full priority chain:
+  signal-specific env var > generic env var > feature-based default.
+- Transport/protocol mismatch validation: HTTP transport returns `InvalidConfig` when gRPC protocol
+  is requested; gRPC transport returns `InvalidConfig` when an HTTP protocol is requested.
+- **Breaking**: `Protocol::default()` no longer consults the `OTEL_EXPORTER_OTLP_PROTOCOL`
+  environment variable. It now returns only the feature-based default (http-json > http-proto >
+  grpc-tonic). Protocol resolution from environment variables is handled internally by the
+  exporter builders. Users who relied on `Protocol::default()` to read env vars should use
+  `Protocol::from_env()` instead.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
