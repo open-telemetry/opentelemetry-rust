@@ -7,12 +7,8 @@ use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::AggregateTimeInitiator;
-use super::aggregate::AttributeSetFilter;
-use super::ComputeAggregation;
-use super::Measure;
-use super::ValueMap;
-use super::{Aggregator, Number};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -133,9 +129,11 @@ impl<T: Number> Histogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let buckets_count = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = aggr.clone_and_reset(&buckets_count);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
