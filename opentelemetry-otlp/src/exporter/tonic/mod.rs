@@ -236,7 +236,7 @@ impl TonicExporterBuilder {
         // Used for logging the endpoint
         let endpoint_clone = endpoint.clone();
 
-        let endpoint = Channel::from_shared(endpoint)
+        let endpoint = tonic::transport::Endpoint::from_shared(endpoint)
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
 
         let is_https = endpoint
@@ -1051,6 +1051,23 @@ mod tests {
         assert!(
             result.is_ok(),
             "zstd compression should succeed when zstd-tonic feature is enabled, got: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_unix_socket_endpoint_succeeds() {
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint("unix:///tmp/test")
+            .build();
+
+        assert!(
+            result.is_ok(),
+            "unix socket endpoint should succeed, got: {:?}",
             result.unwrap_err()
         );
     }
