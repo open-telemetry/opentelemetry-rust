@@ -1,10 +1,10 @@
 use std::mem::replace;
 use std::ops::DerefMut;
-use std::sync::Mutex;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::metrics::data::{self, MetricData};
 use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
