@@ -43,6 +43,13 @@ impl Default for Config {
             config.span_limits.max_attributes_per_span = max_attributes_per_span;
         }
 
+        if let Some(max_attribute_value_length) = env::var("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT")
+            .ok()
+            .and_then(|limit| u32::from_str(&limit).ok())
+        {
+            config.span_limits.max_attribute_value_length = Some(max_attribute_value_length);
+        }
+
         if let Some(max_events_per_span) = env::var("OTEL_SPAN_EVENT_COUNT_LIMIT")
             .ok()
             .and_then(|max_events| u32::from_str(&max_events).ok())
@@ -133,5 +140,50 @@ impl Default for Config {
         }
 
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_has_no_attribute_value_length_limit() {
+        temp_env::with_var_unset("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", || {
+            let config = Config::default();
+            assert_eq!(config.span_limits.max_attribute_value_length, None);
+        });
+    }
+
+    #[test]
+    fn env_var_sets_attribute_value_length_limit() {
+        temp_env::with_var(
+            "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+            Some("128"),
+            || {
+                let config = Config::default();
+                assert_eq!(config.span_limits.max_attribute_value_length, Some(128));
+            },
+        );
+    }
+
+    #[test]
+    fn invalid_env_var_is_ignored() {
+        temp_env::with_var(
+            "OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+            Some("not_a_number"),
+            || {
+                let config = Config::default();
+                assert_eq!(config.span_limits.max_attribute_value_length, None);
+            },
+        );
+    }
+
+    #[test]
+    fn negative_env_var_is_ignored() {
+        temp_env::with_var("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", Some("-1"), || {
+            let config = Config::default();
+            assert_eq!(config.span_limits.max_attribute_value_length, None);
+        });
     }
 }
