@@ -421,14 +421,8 @@ where
 #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 /// Log and convert a `tonic::Status` from a failed export into an `OTelSdkError`.
 ///
-/// For connection-related errors (`Unavailable`, `DeadlineExceeded`,
-/// `ResourceExhausted`, `Aborted`, `Cancelled`), the message typically contains
-/// safe, actionable information (e.g., "Connection refused"), so it is included
-/// alongside the gRPC code in the debug log.
-///
-/// For all other errors — including `Unknown`, `Unauthenticated`, and
-/// `PermissionDenied` — the message and details are logged at DEBUG level only,
-/// since they may contain sensitive information such as authentication tokens
+/// The gRPC code, message, and details are logged at DEBUG level only, since
+/// the message may contain sensitive information such as authentication tokens
 /// echoed back by the server.
 ///
 /// The returned `OTelSdkError` never contains the gRPC message, only the code.
@@ -442,28 +436,12 @@ macro_rules! handle_tonic_export_error {
     ($client_name:literal, $tonic_status:expr) => {{
         let status = &$tonic_status;
         let code = status.code();
-        let is_connection_error = matches!(
-            code,
-            tonic::Code::Unavailable
-                | tonic::Code::DeadlineExceeded
-                | tonic::Code::ResourceExhausted
-                | tonic::Code::Aborted
-                | tonic::Code::Cancelled
+        otel_debug!(
+            name: concat!($client_name, ".ExportFailed"),
+            grpc_code = format!("{:?}", code),
+            grpc_message = status.message(),
+            grpc_details = format!("{:?}", status.details())
         );
-        if is_connection_error {
-            otel_debug!(
-                name: concat!($client_name, ".ExportFailed"),
-                grpc_code = format!("{:?}", code),
-                grpc_message = status.message()
-            );
-        } else {
-            otel_debug!(
-                name: concat!($client_name, ".ExportFailed"),
-                grpc_code = format!("{:?}", code),
-                grpc_message = status.message(),
-                grpc_details = format!("{:?}", status.details())
-            );
-        }
         Err(opentelemetry_sdk::error::OTelSdkError::InternalFailure(
             format!(
                 concat!($client_name, " export failed with gRPC code: {:?}"),

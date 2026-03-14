@@ -492,7 +492,7 @@ impl OtlpHttpClient {
         let response = client.send_bytes(request).await.map_err(|e| {
             // Connection errors (e.g., "Connection refused", DNS failures) typically
             // indicate user-side misconfigurations and don't contain sensitive data.
-            // We don't log here because SDK processors (BatchLogProcessor,
+            // We don't log at WARN here because SDK processors (BatchLogProcessor,
             // BatchSpanProcessor, PeriodicReader) already log the returned error
             // via otel_error!.
             otel_debug!(
