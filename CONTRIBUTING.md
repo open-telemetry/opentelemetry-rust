@@ -324,8 +324,13 @@ All such features should adhere to naming convention  `<signal>_<feature_name>`
 - Run `cargo test --all` - this will execute code and doc tests for all
 projects in this workspace.
 - Run `cargo bench` - this will run benchmarks to show performance
-- Run `cargo bench` - this will run benchmarks to show performance
 regressions
+
+Benchmarks are run daily against `main` and results are tracked over time.
+The continuous benchmark dashboard is published at
+<https://open-telemetry.github.io/opentelemetry-rust/dev/bench/>.
+PRs with the `performance` label will also get a benchmark comparison
+comment showing any regressions or improvements.
 
 ## FAQ
 
