@@ -89,7 +89,7 @@ impl<T: Number> LastValue<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
                 attributes,
-                value: aggr.value.get_value(),
+                value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
 

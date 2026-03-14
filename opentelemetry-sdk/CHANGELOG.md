@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Refactored delta metrics collection to use in-place iteration instead of
+  swap-and-drain. Entries are now tracked via a `has_been_updated` flag and only
+  exported when updated since the last collection cycle. Stale unbound entries are
+  evicted under a write lock with TOCTOU re-check. This eliminates O(n) write-lock
+  acquisitions on the hot path per collection cycle in steady state.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
