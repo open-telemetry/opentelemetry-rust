@@ -2,9 +2,9 @@ use crate::KeyValue;
 use core::fmt;
 use std::sync::Arc;
 
-use super::SyncInstrument;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::BoundSyncInstrument;
+use super::SyncInstrument;
 
 /// An instrument that records increasing values.
 ///

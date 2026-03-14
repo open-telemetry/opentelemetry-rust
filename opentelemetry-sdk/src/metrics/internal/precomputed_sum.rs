@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
-use super::{ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundFallbackHandle, BoundMeasure};
+use super::{ComputeAggregation, Measure};
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
