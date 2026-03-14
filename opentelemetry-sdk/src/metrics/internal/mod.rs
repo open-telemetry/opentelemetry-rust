@@ -86,8 +86,6 @@ where
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
-    /// Indicates whether a value with no attributes has been stored.
-    has_no_attribute_value: AtomicBool,
     /// Tracker for values with no attributes attached.
     no_attribute_tracker: TrackerEntry<A>,
     /// Configuration for an Aggregator
@@ -108,7 +106,6 @@ where
             trackers: RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
             )),
-            has_no_attribute_value: AtomicBool::new(false),
             no_attribute_tracker: TrackerEntry::new(&config),
             count: AtomicUsize::new(0),
             config,
@@ -126,8 +123,7 @@ where
             self.no_attribute_tracker.aggregator.update(value);
             self.no_attribute_tracker
                 .has_been_updated
-                .store(true, Ordering::Relaxed);
-            self.has_no_attribute_value.store(true, Ordering::Release);
+                .store(true, Ordering::Release);
             return;
         }
 
@@ -196,7 +192,11 @@ where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.load(Ordering::Acquire) {
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .load(Ordering::Acquire)
+        {
             dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
 
@@ -222,11 +222,10 @@ where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.load(Ordering::Acquire)
-            && self
-                .no_attribute_tracker
-                .has_been_updated
-                .swap(false, Ordering::AcqRel)
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .swap(false, Ordering::AcqRel)
         {
             dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
@@ -278,7 +277,11 @@ where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.swap(false, Ordering::AcqRel) {
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .swap(false, Ordering::AcqRel)
+        {
             dest.push(map_fn(
                 vec![],
                 self.no_attribute_tracker
