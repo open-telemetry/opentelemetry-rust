@@ -2,10 +2,14 @@ use opentelemetry::KeyValue;
 
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 use super::{ComputeAggregation, Measure};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundFallbackHandle, BoundMeasure};
 use std::{collections::HashMap, sync::Mutex};
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
@@ -137,6 +141,11 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 

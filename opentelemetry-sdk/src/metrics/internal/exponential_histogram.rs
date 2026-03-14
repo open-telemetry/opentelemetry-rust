@@ -1,4 +1,6 @@
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;
@@ -12,6 +14,8 @@ use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundFallbackHandle, BoundMeasure};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -525,6 +529,11 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 
