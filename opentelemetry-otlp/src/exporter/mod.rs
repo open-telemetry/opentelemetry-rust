@@ -41,6 +41,16 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 /// Default max waiting time for the backend to process each signal batch.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(10000);
 
+/// Path to the TLS certificate to use for verifying an OTLP server's TLS credentials.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CERTIFICATE";
+/// Path to the TLS client key to use for mTLS authentication.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_CLIENT_KEY";
+/// Path to the TLS client certificate to use for mTLS authentication.
+/// The file must contain PEM encoded data.
+pub const OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE";
+
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 #[cfg(feature = "grpc-tonic")]
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
@@ -183,6 +193,55 @@ fn resolve_compression_from_env(
         Ok(Some(compression.parse::<Compression>()?))
     } else {
         Ok(None)
+    }
+}
+
+/// Signal-specific TLS environment variable names.
+///
+/// Groups the per-signal TLS env var names for certificate, client key,
+/// and client certificate to avoid excessive function parameters.
+#[allow(dead_code)] // Fields are only read when TLS features are enabled
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+pub(crate) struct SignalTlsEnvVars {
+    pub cert_var: &'static str,
+    pub client_key_var: &'static str,
+    pub client_cert_var: &'static str,
+}
+
+/// Resolve a TLS file path from environment variables and read the PEM file.
+/// Signal-specific env var takes precedence over generic.
+///
+/// Returns `Ok(None)` if neither env var is set.
+/// Returns `Err` if the env var is set but the file cannot be read.
+#[cfg(any(
+    all(
+        feature = "grpc-tonic",
+        any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+    ),
+    all(
+        any(feature = "http-proto", feature = "http-json"),
+        any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+        any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+    ),
+))]
+pub(crate) fn resolve_tls_env_and_read(
+    signal_var: &str,
+    generic_var: &str,
+) -> Result<Option<Vec<u8>>, ExporterBuildError> {
+    let path = std::env::var(signal_var)
+        .ok()
+        .or_else(|| std::env::var(generic_var).ok());
+    match path {
+        Some(path) if !path.is_empty() => {
+            let data = std::fs::read(&path).map_err(|e| {
+                ExporterBuildError::InternalFailure(format!(
+                    "Failed to read TLS file '{}': {}",
+                    path, e
+                ))
+            })?;
+            Ok(Some(data))
+        }
+        _ => Ok(None),
     }
 }
 
@@ -625,5 +684,124 @@ mod tests {
             let timeout = super::resolve_timeout(crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, None);
             assert_eq!(timeout.as_millis(), 10_000);
         });
+    }
+
+    #[cfg(any(
+        all(
+            feature = "grpc-tonic",
+            any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+        ),
+        all(
+            any(feature = "http-proto", feature = "http-json"),
+            any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+            any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+        ),
+    ))]
+    mod tls_env_tests {
+        use super::*;
+
+        const SIGNAL_CERT_VAR: &str = "OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE";
+
+        #[test]
+        fn resolve_tls_env_returns_none_when_unset() {
+            temp_env::with_vars_unset(
+                [
+                    SIGNAL_CERT_VAR,
+                    super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                ],
+                || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert!(result.unwrap().is_none());
+                },
+            );
+        }
+
+        #[test]
+        fn resolve_tls_env_returns_none_for_empty_string() {
+            run_env_test(vec![(SIGNAL_CERT_VAR, "")], || {
+                temp_env::with_var_unset(super::super::OTEL_EXPORTER_OTLP_CERTIFICATE, || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert!(result.unwrap().is_none());
+                });
+            });
+        }
+
+        #[test]
+        fn resolve_tls_env_errors_on_missing_file() {
+            run_env_test(
+                vec![(SIGNAL_CERT_VAR, "/nonexistent/path/cert.pem")],
+                || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert!(result.is_err());
+                    let err = result.unwrap_err().to_string();
+                    assert!(
+                        err.contains("/nonexistent/path/cert.pem"),
+                        "Error should contain the file path, got: {err}"
+                    );
+                },
+            );
+        }
+
+        #[test]
+        fn resolve_tls_env_signal_overrides_generic() {
+            use std::io::Write;
+            let mut signal_file = tempfile::NamedTempFile::new().unwrap();
+            signal_file.write_all(b"signal-cert-data").unwrap();
+            let mut generic_file = tempfile::NamedTempFile::new().unwrap();
+            generic_file.write_all(b"generic-cert-data").unwrap();
+
+            let signal_str = signal_file.path().to_str().unwrap().to_string();
+            let generic_str = generic_file.path().to_str().unwrap().to_string();
+            temp_env::with_vars(
+                [
+                    (SIGNAL_CERT_VAR, Some(signal_str.as_str())),
+                    (
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                        Some(generic_str.as_str()),
+                    ),
+                ],
+                || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert_eq!(result.unwrap().unwrap(), b"signal-cert-data");
+                },
+            );
+        }
+
+        #[test]
+        fn resolve_tls_env_falls_back_to_generic() {
+            use std::io::Write;
+            let mut generic_file = tempfile::NamedTempFile::new().unwrap();
+            generic_file.write_all(b"generic-cert-data").unwrap();
+
+            let generic_str = generic_file.path().to_str().unwrap().to_string();
+            temp_env::with_vars(
+                [
+                    (SIGNAL_CERT_VAR, None),
+                    (
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                        Some(generic_str.as_str()),
+                    ),
+                ],
+                || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert_eq!(result.unwrap().unwrap(), b"generic-cert-data");
+                },
+            );
+        }
     }
 }
