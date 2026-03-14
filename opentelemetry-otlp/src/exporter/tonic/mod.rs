@@ -173,6 +173,7 @@ impl TonicExporterBuilder {
         signal_timeout_var: &str,
         signal_compression_var: &str,
         signal_headers_var: &str,
+        signal_insecure_var: &str,
     ) -> Result<
         (
             Channel,
@@ -231,12 +232,29 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        let endpoint = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
+        let mut endpoint_str = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
+        let insecure = super::resolve_insecure(signal_insecure_var);
+
+        // Per OTLP spec, INSECURE only applies to schemeless endpoints.
+        // Endpoints with explicit http:// or https:// are used as-is (case-insensitive).
+        let has_scheme = endpoint_str
+            .get(..8)
+            .is_some_and(|p| p.eq_ignore_ascii_case("https://"))
+            || endpoint_str
+                .get(..7)
+                .is_some_and(|p| p.eq_ignore_ascii_case("http://"));
+        if !has_scheme {
+            if insecure {
+                endpoint_str = format!("http://{endpoint_str}");
+            } else {
+                endpoint_str = format!("https://{endpoint_str}");
+            }
+        }
 
         // Used for logging the endpoint
-        let endpoint_clone = endpoint.clone();
+        let endpoint_clone = endpoint_str.clone();
 
-        let endpoint = Channel::from_shared(endpoint)
+        let endpoint = Channel::from_shared(endpoint_str)
             .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
 
         let is_https = endpoint
@@ -325,6 +343,7 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_HEADERS,
+            crate::logs::OTEL_EXPORTER_OTLP_LOGS_INSECURE,
         )?;
 
         let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy);
@@ -348,6 +367,7 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+            crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
         )?;
 
         let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy);
@@ -367,6 +387,7 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+            crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
         )?;
 
         let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy);
@@ -901,6 +922,112 @@ mod tests {
         // a channel in a unit test. The default behavior is tested implicitly in integration tests.
         let builder = TonicExporterBuilder::default();
         assert!(builder.tonic_config.retry_policy.is_none());
+    }
+
+    #[test]
+    #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
+    fn test_schemeless_endpoint_insecure_false_errors_without_tls() {
+        use crate::exporter::tests::run_env_test;
+        use crate::exporter::ExporterBuildError;
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        // INSECURE=false (default) + schemeless endpoint → https:// prepended → error (no TLS)
+        // Unset signal-specific var to ensure generic takes effect
+        temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("collector.example.com:4317")
+                    .build();
+
+                assert!(result.is_err());
+                let err = result.unwrap_err();
+                assert!(
+                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
+                    "expected InvalidConfig error for schemeless+secure without TLS, got: {err:?}"
+                );
+            });
+        });
+    }
+
+    #[test]
+    #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
+    fn test_schemeless_endpoint_insecure_true_succeeds_without_tls() {
+        use crate::exporter::tests::run_env_test;
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        // INSECURE=true + schemeless endpoint → http:// prepended → no TLS needed
+        // Unset signal-specific var to ensure generic takes effect
+        temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "true")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("collector.example.com:4317")
+                    .build();
+
+                assert!(
+                    result.is_ok(),
+                    "schemeless + INSECURE=true should succeed without TLS, got: {:?}",
+                    result.unwrap_err()
+                );
+            });
+        });
+    }
+
+    #[test]
+    #[cfg(not(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")))]
+    fn test_schemeless_endpoint_defaults_to_https() {
+        use crate::exporter::ExporterBuildError;
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        // No INSECURE env var set → defaults to secure (https://) → error without TLS
+        // This verifies the behavioral change: schemeless endpoints now get https:// prepended
+        temp_env::with_vars_unset(
+            [
+                crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
+                crate::OTEL_EXPORTER_OTLP_INSECURE,
+            ],
+            || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("collector.example.com:4317")
+                    .build();
+
+                assert!(result.is_err());
+                let err = result.unwrap_err();
+                assert!(
+                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
+                    "schemeless endpoint should default to https:// and fail without TLS, got: {err:?}"
+                );
+            },
+        );
+    }
+
+    #[tokio::test]
+    async fn test_explicit_http_scheme_ignores_insecure_env() {
+        use crate::exporter::tests::run_env_test;
+        use crate::SpanExporter;
+        use crate::WithExportConfig;
+
+        // Explicit http:// scheme should succeed regardless of INSECURE value
+        // Unset signal-specific var to ensure generic takes effect
+        temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
+            run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_INSECURE, "false")], || {
+                let result = SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint("http://collector.example.com:4317")
+                    .build();
+
+                assert!(
+                    result.is_ok(),
+                    "explicit http:// should succeed even with INSECURE=false, got: {:?}",
+                    result.unwrap_err()
+                );
+            });
+        });
     }
 
     #[test]
