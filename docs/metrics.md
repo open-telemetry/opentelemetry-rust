@@ -730,10 +730,12 @@ Follow these guidelines when deciding where to attach metric attributes:
 
     ```rust
     // Example: Setting resource-level attributes
-    let resource = Resource::new(vec![
-        KeyValue::new("service.name", "payment-processor"),
-        KeyValue::new("deployment.environment", "production"),
-    ]);
+    // Use Resource::builder() to preserve SDK-provided defaults
+    // (telemetry.sdk.*, service.name).
+    let resource = Resource::builder()
+        .with_service_name("payment-processor")
+        .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+        .build();
     ```
 
   * **Meter-level attributes**: If the dimension applies only to a subset of

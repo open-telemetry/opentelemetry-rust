@@ -28,7 +28,7 @@ experimental_metadata_attributes = ["dep:opentelemetry-semantic-conventions"]
 opentelemetry_sdk = { workspace = true, features = ["testing"] }
 opentelemetry-stdout = { workspace = true, features = ["logs"] }
 log = { workspace = true, features = ["kv_serde"] }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 serde = { workspace = true, features = ["std", "derive"] }
 
 [lints]
