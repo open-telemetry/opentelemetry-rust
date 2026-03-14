@@ -997,4 +997,96 @@ mod tests {
             result.unwrap_err()
         );
     }
+
+    #[test]
+    #[cfg(not(feature = "gzip-tonic"))]
+    fn test_gzip_compression_errors_without_feature() {
+        use crate::exporter::ExporterBuildError;
+        use crate::SpanExporter;
+        use crate::WithTonicConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_compression(crate::Compression::Gzip)
+            .build();
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
+            ),
+            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("gzip-tonic"),
+            "error message should mention 'gzip-tonic' feature, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "gzip-tonic")]
+    async fn test_gzip_compression_succeeds_with_feature() {
+        use crate::SpanExporter;
+        use crate::WithTonicConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_compression(crate::Compression::Gzip)
+            .build();
+
+        assert!(
+            result.is_ok(),
+            "gzip compression should succeed when gzip-tonic feature is enabled, got: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "zstd-tonic"))]
+    fn test_zstd_compression_errors_without_feature() {
+        use crate::exporter::ExporterBuildError;
+        use crate::SpanExporter;
+        use crate::WithTonicConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_compression(crate::Compression::Zstd)
+            .build();
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
+            ),
+            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("zstd-tonic"),
+            "error message should mention 'zstd-tonic' feature, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "zstd-tonic")]
+    async fn test_zstd_compression_succeeds_with_feature() {
+        use crate::SpanExporter;
+        use crate::WithTonicConfig;
+
+        let result = SpanExporter::builder()
+            .with_tonic()
+            .with_compression(crate::Compression::Zstd)
+            .build();
+
+        assert!(
+            result.is_ok(),
+            "zstd compression should succeed when zstd-tonic feature is enabled, got: {:?}",
+            result.unwrap_err()
+        );
+    }
 }
