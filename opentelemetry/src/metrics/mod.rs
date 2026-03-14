@@ -5,6 +5,8 @@ use std::sync::Arc;
 mod instruments;
 mod meter;
 pub mod noop;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub use instruments::{counter::BoundCounter, histogram::BoundHistogram, BoundSyncInstrument};
 pub use instruments::{
     counter::{Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},

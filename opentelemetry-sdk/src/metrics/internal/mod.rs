@@ -17,8 +17,12 @@ use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) use aggregate::{BoundFallbackHandle, BoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 use opentelemetry::{otel_warn, KeyValue};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::otel_debug;
 
 use super::data::{AggregatedMetrics, MetricData};
 use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
@@ -181,6 +185,76 @@ where
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Relaxed);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+        }
+    }
+
+    /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.
+    /// The caller can then call `tracker.aggregator.update()` directly, bypassing the
+    /// full lookup path on subsequent measurements.
+    ///
+    /// Returns `None` if the cardinality limit has been reached. The caller should
+    /// fall back to the unbound `Measure::call()` path, which handles overflow
+    /// correctly and enables automatic recovery when space opens up after delta
+    /// collection evicts stale entries.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
+        if attributes.is_empty() {
+            let sorted_attrs: Vec<KeyValue> = vec![];
+            return self.bind_sorted(sorted_attrs);
+        }
+
+        let sorted_attrs = sort_and_dedup(attributes);
+        self.bind_sorted(sorted_attrs)
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Option<Arc<TrackerEntry<A>>> {
+        // Fast path: read lock lookup
+        if let Ok(trackers) = self.trackers.read() {
+            if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+                tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+                return Some(Arc::clone(tracker));
+            }
+        }
+
+        // Slow path: write lock, insert if missing
+        let Ok(mut trackers) = self.trackers.write() else {
+            // Lock poisoned — return None so caller falls back to unbound path
+            return None;
+        };
+
+        // Recheck after acquiring write lock
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            return Some(Arc::clone(tracker));
+        }
+
+        if self.is_under_cardinality_limit() {
+            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+            new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            trackers.insert(sorted_attrs, new_tracker.clone());
+            self.count.fetch_add(1, Ordering::SeqCst);
+            Some(new_tracker)
+        } else {
+            // Over cardinality limit — return None so the caller falls back to the
+            // unbound Measure::call() path. This ensures:
+            // 1. Overflow data is attributed correctly (same as unbound at overflow)
+            // 2. Automatic recovery when delta collect evicts stale entries
+            // 3. bound_count is not inflated on the overflow tracker
+            //
+            // TODO: If bind() is called during overflow, the handle remains in fallback
+            // mode permanently even after delta collect frees space. Not an issue in
+            // practice since bind() typically occurs at application startup before
+            // cardinality fills up. Future options to revisit:
+            // - Internally adjust bindings from overflow to normal during delta collect
+            // - Exclude bind() from cardinality capping (users leveraging bind() know
+            //   their bound instruments always report properly and never overflow)
+            // See: https://github.com/open-telemetry/opentelemetry-rust/pull/3392#discussion_r2860376315
+            otel_debug!(
+                name: "BoundInstrument.CardinalityOverflow",
+                message = "bind() called at cardinality limit, falling back to unbound path"
+            );
+            None
         }
     }
 

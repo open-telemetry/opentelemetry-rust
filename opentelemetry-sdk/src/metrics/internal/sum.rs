@@ -1,10 +1,16 @@
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, TrackerEntry};
 
 struct Increment<T>
 where
@@ -33,6 +39,51 @@ where
     fn clone_and_reset(&self, _: &()) -> Self {
         Self {
             value: T::new_atomic_tracker(self.value.get_and_reset_value()),
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+enum BoundSumInner<T: Number> {
+    /// Fast path: dedicated tracker for this attribute set.
+    Direct {
+        tracker: Arc<TrackerEntry<Increment<T>>>,
+    },
+    /// Overflow fallback: delegates to the unbound Measure::call() path.
+    /// This happens when bind() is called at/over the cardinality limit.
+    /// Using the unbound path ensures correct overflow attribution and
+    /// automatic recovery when delta collect opens up space.
+    Fallback {
+        measure: Arc<dyn Measure<T>>,
+        attrs: Vec<KeyValue>,
+    },
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundSumHandle<T: Number> {
+    inner: BoundSumInner<T>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
+    fn call(&self, measurement: T) {
+        match &self.inner {
+            BoundSumInner::Direct { tracker } => {
+                tracker.aggregator.update(measurement);
+                tracker.has_been_updated.store(true, Ordering::Relaxed);
+            }
+            BoundSumInner::Fallback { measure, attrs } => {
+                measure.call(measurement, attrs);
+            }
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundSumHandle<T> {
+    fn drop(&mut self) {
+        if let BoundSumInner::Direct { tracker } = &self.inner {
+            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
         }
     }
 }
@@ -152,6 +203,22 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        let inner = match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => BoundSumInner::Direct { tracker },
+            None => BoundSumInner::Fallback {
+                measure: fallback,
+                attrs: bound_attrs,
+            },
+        };
+        Box::new(BoundSumHandle { inner })
     }
 }
 
