@@ -1,6 +1,6 @@
-use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
+use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
 use std::sync::OnceLock;

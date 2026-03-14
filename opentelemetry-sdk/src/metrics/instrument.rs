@@ -1,15 +1,15 @@
 use std::{borrow::Cow, collections::HashSet, error::Error, sync::Arc};
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncInstrument},
     InstrumentationScope, Key, KeyValue,
 };
-#[cfg(feature = "experimental_metrics_bound_instruments")]
-use opentelemetry::metrics::BoundSyncInstrument;
 
-use crate::metrics::{aggregation::Aggregation, internal::Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use crate::metrics::internal::BoundMeasure;
+use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
 use super::meter::{
     INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
