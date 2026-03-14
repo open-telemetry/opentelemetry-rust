@@ -51,19 +51,14 @@ pub(crate) trait Aggregator {
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
 }
 
-/// Wraps an aggregator with status tracking for delta collection and bound instruments.
+/// Wraps an aggregator with status tracking for delta collection.
 ///
 /// `has_been_updated` tracks whether the aggregator received measurements since the last
 /// collection cycle. This enables in-place delta collection: only updated entries are exported,
-/// and stale unbound entries are evicted to prevent unbounded memory growth.
-///
-/// `bound_count` tracks how many bound instrument handles reference this entry. Entries with
-/// bound_count > 0 are never evicted from the map, even if they had no updates in a cycle
-/// (they simply produce no export). This ensures bound handles always point to a live tracker.
+/// and stale entries are evicted to prevent unbounded memory growth.
 pub(crate) struct TrackerEntry<A: Aggregator> {
     pub(crate) aggregator: A,
     pub(crate) has_been_updated: AtomicBool,
-    pub(crate) bound_count: AtomicUsize,
 }
 
 impl<A: Aggregator> TrackerEntry<A> {
@@ -71,7 +66,6 @@ impl<A: Aggregator> TrackerEntry<A> {
         TrackerEntry {
             aggregator: A::create(config),
             has_been_updated: AtomicBool::new(false),
-            bound_count: AtomicUsize::new(0),
         }
     }
 }
@@ -220,9 +214,7 @@ where
 
     /// Iterate through all attribute sets in-place, populate `DataPoints` and reset.
     /// Only entries updated since the last collection (tracked via `has_been_updated`)
-    /// are exported. Stale unbound entries are evicted to prevent unbounded memory growth.
-    /// Bound entries (bound_count > 0) are never evicted — they persist until explicitly
-    /// unbound, but produce no export when they have no updates.
+    /// are exported. Stale entries are evicted to prevent unbounded memory growth.
     ///
     /// Used for synchronous instruments (Counter, Histogram, etc.) in Delta temporality mode.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
@@ -252,10 +244,8 @@ where
                 if seen.insert(Arc::as_ptr(tracker)) {
                     if tracker.has_been_updated.swap(false, Ordering::Relaxed) {
                         dest.push(map_fn(attrs.clone(), &tracker.aggregator));
-                    } else if attrs.as_slice() != overflow_attrs.as_slice()
-                        && tracker.bound_count.load(Ordering::Relaxed) == 0
-                    {
-                        // Stale and not bound — candidate for eviction
+                    } else if attrs.as_slice() != overflow_attrs.as_slice() {
+                        // Stale — candidate for eviction
                         stale_entries.push(Arc::clone(tracker));
                     }
                 }
