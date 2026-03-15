@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, Joinable, JoinError, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
@@ -17,7 +17,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::fmt;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -28,20 +28,13 @@ use tokio::sync::RwLock;
 /// Batch span processors need to run a background task to collect and send
 /// spans. Different runtimes need different ways to handle the background task.
 ///
-/// Note: Configuring an opentelemetry `Runtime` that's not compatible with the
-/// underlying runtime can cause deadlocks (see tokio section).
-///
 /// ### Use with Tokio
 ///
-/// Tokio currently offers two different schedulers. One is
-/// `current_thread_scheduler`, the other is `multiple_thread_scheduler`. Both
-/// of them default to use batch span processors to install span exporters.
-///
-/// Tokio's `current_thread_scheduler` can cause the program to hang forever if
-/// blocking work is scheduled with other tasks in the same runtime. To avoid
-/// this, be sure to enable the `rt-tokio-current-thread` feature in this crate
-/// if you are using that runtime (e.g. users of actix-web), and blocking tasks
-/// will then be scheduled on a different thread.
+/// Tokio currently offers two different schedulers: `current_thread_scheduler`
+/// and `multi_thread_scheduler`. The `runtime::Tokio` type automatically detects
+/// which scheduler is being used and spawns tasks appropriately to avoid deadlocks.
+/// When running in a single-threaded runtime, tasks are spawned on a dedicated
+/// OS thread to prevent blocking the main runtime.
 ///
 /// # Examples
 ///
@@ -84,6 +77,9 @@ use tokio::sync::RwLock;
 /// [`tokio`]: https://tokio.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    /// Handle to the background worker task. Used to join on shutdown.
+    worker_handle: Arc<Mutex<Option<Joinable<OTelSdkResult>>>>,
 
     // Track dropped spans
     dropped_spans_count: AtomicUsize,
@@ -148,16 +144,31 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
             );
         }
 
-        let (res_sender, res_receiver) = oneshot::channel();
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))
+            .try_send(BatchMessage::Shutdown)
             .map_err(|err| {
                 OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {err}"))
             })?;
 
-        futures_executor::block_on(res_receiver).map_err(|err| {
-            OTelSdkError::InternalFailure(format!("Shutdown response channel error: {err}"))
-        })?
+        // Take the worker handle and join it to get the shutdown result
+        let handle = self
+            .worker_handle
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Lock poisoned: {e}")))?
+            .take();
+
+        match handle {
+            Some(h) => h.join().map_err(|e| match e {
+                JoinError::Panic(_) => {
+                    OTelSdkError::InternalFailure("Worker task panicked".to_string())
+                }
+                #[cfg(feature = "rt-tokio")]
+                JoinError::Cancelled => {
+                    OTelSdkError::InternalFailure("Worker task was cancelled".to_string())
+                }
+            })?,
+            None => Ok(()), // Already shut down
+        }
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -181,7 +192,8 @@ enum BatchMessage {
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all spans in buffer to the backend.
-    Shutdown(oneshot::Sender<OTelSdkResult>),
+    /// The result is returned through the worker's join handle.
+    Shutdown,
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -239,8 +251,8 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
 
     /// Process a single message
     ///
-    /// A return value of false indicates shutdown
-    async fn process_message(&mut self, message: BatchMessage) -> bool {
+    /// Returns `Some(result)` if shutdown was requested, `None` to continue processing.
+    async fn process_message(&mut self, message: BatchMessage) -> Option<OTelSdkResult> {
         match message {
             // Span has finished, add to buffer of pending spans.
             BatchMessage::ExportSpan(span) => {
@@ -304,17 +316,28 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                 self.flush(res_channel).await;
             }
             // Stream has terminated or processor is shutdown, return to finish execution.
-            BatchMessage::Shutdown(ch) => {
-                self.flush(Some(ch)).await;
+            BatchMessage::Shutdown => {
+                // Wait for pending export tasks to complete
+                while self.export_tasks.next().await.is_some() {}
+
+                // Export any remaining spans
+                let export_result = Self::export(
+                    self.spans.split_off(0),
+                    self.exporter.clone(),
+                    self.runtime.clone(),
+                    self.config.max_export_timeout,
+                )
+                .await;
+
                 let _ = self.exporter.write().await.shutdown();
-                return false;
+                return Some(export_result);
             }
             // propagate the resource
             BatchMessage::SetResource(resource) => {
                 self.exporter.write().await.set_resource(&resource);
             }
         }
-        true
+        None
     }
 
     async fn export(
@@ -342,7 +365,10 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
         }
     }
 
-    async fn run(mut self, mut messages: impl FusedStream<Item = BatchMessage> + Unpin) {
+    async fn run(
+        mut self,
+        mut messages: impl FusedStream<Item = BatchMessage> + Unpin,
+    ) -> OTelSdkResult {
         loop {
             select! {
                 // FuturesUnordered implements Fuse intelligently such that it
@@ -353,11 +379,11 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                 message = messages.next() => {
                     match message {
                         Some(message) => {
-                            if !self.process_message(message).await {
-                                break;
+                            if let Some(result) = self.process_message(message).await {
+                                return result;
                             }
                         },
-                        None => break,
+                        None => return Ok(()), // Channel closed without explicit shutdown
                     }
                 },
             }
@@ -377,7 +403,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
 
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(async move {
+        let worker_handle = runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
@@ -400,6 +426,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender,
+            worker_handle: Arc::new(Mutex::new(Some(worker_handle))),
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
         }
@@ -567,7 +594,7 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(60 * 60 * 24)) // set the tick to 24 hours so we know the span must be exported via force_flush
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
         let handle = tokio::spawn(async move {
             loop {
                 if let Some(span) = export_receiver.recv().await {
@@ -602,7 +629,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
@@ -702,5 +729,16 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    #[tokio::test]
+    async fn shutdown_does_not_deadlock_on_current_thread_tokio_runtime() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(10))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+        processor.shutdown().expect("shutdown should succeed");
     }
 }
