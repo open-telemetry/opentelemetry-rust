@@ -90,6 +90,9 @@ pub struct BatchSpanProcessor<R: RuntimeChannel> {
 
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
+
+    // Whether to export unsampled spans that are recording
+    export_unsampled: bool,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -106,7 +109,8 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
     }
 
     fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+        // Check if span should be exported based on sampling and config
+        if !span.span_context.is_sampled() && !self.export_unsampled {
             return;
         }
 
@@ -374,15 +378,17 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             runtime.batch_message_channel(config.max_queue_size);
 
         let max_queue_size = config.max_queue_size;
+        let config_for_worker = config.clone();
 
         let inner_runtime = runtime.clone();
         // Spawn worker process via user-defined spawn function.
         runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
-            let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
-                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                .map(|_| BatchMessage::Flush(None));
+            let ticker =
+                to_interval_stream(inner_runtime.clone(), config_for_worker.scheduled_delay)
+                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                    .map(|_| BatchMessage::Flush(None));
             let timeout_runtime = inner_runtime.clone();
 
             let messages = Box::pin(stream::select(message_receiver, ticker));
@@ -390,7 +396,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
                 spans: Vec::new(),
                 export_tasks: FuturesUnordered::new(),
                 runtime: timeout_runtime,
-                config,
+                config: config_for_worker,
                 exporter: Arc::new(RwLock::new(exporter)),
             };
 
@@ -402,6 +408,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             message_sender,
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
+            export_unsampled: config.export_unsampled,
         }
     }
 
@@ -647,6 +654,7 @@ mod tests {
             scheduled_delay: Duration::from_secs(3600), // effectively disabled
             max_export_timeout: Duration::from_secs(5),
             max_concurrent_exports: 2, // what we want to verify
+            export_unsampled: false,
         };
 
         // Spawn the processor.
@@ -685,6 +693,7 @@ mod tests {
             scheduled_delay: Duration::from_secs(3600),
             max_export_timeout: Duration::from_secs(5),
             max_concurrent_exports: 1, // what we want to verify
+            export_unsampled: false,
         };
 
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
