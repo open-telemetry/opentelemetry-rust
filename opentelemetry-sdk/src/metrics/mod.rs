@@ -4075,9 +4075,15 @@ mod tests {
             "Empty attributes value should be 3+3=6"
         );
 
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
+        // Phase 2 - for delta temporality, collect_and_reset uses in-place eviction:
+        // the first collect marks entries as not-updated, and the second collect evicts
+        // those still-stale entries. We need an extra flush to trigger that eviction
+        // before adding new measurements that should fit under the cardinality limit.
         test_context.reset_metrics();
+        if temporality == Temporality::Delta {
+            test_context.flush_metrics();
+            test_context.reset_metrics();
+        }
         // The following should be aggregated normally for Delta,
         // and should go into overflow for Cumulative.
         counter.add(100, &[KeyValue::new("A", "foo")]);
@@ -4181,9 +4187,15 @@ mod tests {
             "Empty attributes value should be 3+3=6"
         );
 
-        // Phase 2 - for delta temporality, after each collect, data points are cleared
-        // but for cumulative, they are not cleared.
+        // Phase 2 - for delta temporality, collect_and_reset uses in-place eviction:
+        // the first collect marks entries as not-updated, and the second collect evicts
+        // those still-stale entries. We need an extra flush to trigger that eviction
+        // before adding new measurements that should fit under the cardinality limit.
         test_context.reset_metrics();
+        if temporality == Temporality::Delta {
+            test_context.flush_metrics();
+            test_context.reset_metrics();
+        }
         // The following should be aggregated normally for Delta,
         // and should go into overflow for Cumulative.
         counter.add(100, &[KeyValue::new("A", "foo")]);

@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Delta metrics collection now uses in-place eviction instead of draining the
+  HashMap on every collect cycle. Stale attribute sets that received no measurements
+  since the last collection are evicted. Note: recovery from cardinality overflow
+  now requires 2 collect cycles — the first marks entries as stale, the second
+  evicts them.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
