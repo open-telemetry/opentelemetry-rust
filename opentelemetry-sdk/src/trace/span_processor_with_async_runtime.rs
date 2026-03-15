@@ -90,6 +90,9 @@ pub struct BatchSpanProcessor<R: RuntimeChannel> {
 
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
+
+    // Error handler for background errors (like span drops)
+    error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
 }
 
 impl<R: RuntimeChannel> fmt::Debug for BatchSpanProcessor<R> {
@@ -116,9 +119,18 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         if result.is_err() {
             // Increment the number of dropped spans. If this is the first time we've had to drop,
             // emit a warning.
-            if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
+            let previous_count = self.dropped_spans_count.fetch_add(1, Ordering::Relaxed);
+            if previous_count == 0 {
                 otel_warn!(name: "BatchSpanProcessor.SpanDroppingStarted",
-                    message = "Beginning to drop span messages due to full/internal errors. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
+                    message = "Beginning to drop span messages due to full queue. No further log will be emitted for further drops until Shutdown. During Shutdown time, a log will be emitted with exact count of total spans dropped.");
+            }
+
+            // Also invoke error handler if registered
+            if let Some(ref handler) = self.error_handler {
+                handler(OTelSdkError::InternalFailure(format!(
+                    "Span dropped due to full queue (total dropped: {})",
+                    previous_count + 1
+                )));
             }
         }
     }
@@ -138,14 +150,21 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
     fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_spans = self.dropped_spans_count.load(Ordering::Relaxed);
-        let max_queue_size = self.max_queue_size;
         if dropped_spans > 0 {
+            // Log warning for observability (always happens)
             otel_warn!(
                 name: "BatchSpanProcessor.Shutdown",
                 dropped_spans = dropped_spans,
-                max_queue_size = max_queue_size,
-                message = "Spans were dropped due to a full or closed queue. The count represents the total count of span records dropped in the lifetime of the BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
+                max_queue_size = self.max_queue_size,
+                message = "Spans were dropped due to a full queue. The count represents the total count of span records dropped in the lifetime of the BatchSpanProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
+
+            // Also return error so user code can handle it programmatically
+            return Err(OTelSdkError::InternalFailure(format!(
+                "BatchSpanProcessor dropped {} spans during its lifetime due to full queue (max queue size: {}). Consider increasing queue size or decreasing delay between intervals.",
+                dropped_spans,
+                self.max_queue_size
+            )));
         }
 
         let (res_sender, res_receiver) = oneshot::channel();
@@ -195,6 +214,7 @@ struct BatchSpanProcessorInternal<E, R> {
     // for all methods. This would allow us to remove the `RwLock` and just use `Arc<E>`,
     // similar to how `crate::logs::LogExporter` is implemented.
     exporter: Arc<RwLock<E>>,
+    error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
 }
 
 impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E, R> {
@@ -206,34 +226,56 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
             self.config.max_export_timeout,
         )
         .await;
-        let task = Box::pin(async move {
-            if let Some(channel) = res_channel {
-                // If a response channel is provided, attempt to send the export result through it.
-                if let Err(result) = channel.send(export_result) {
-                    otel_debug!(
-                        name: "BatchSpanProcessor.Flush.SendResultError",
-                        reason = format!("{:?}", result)
-                    );
-                }
-            } else if let Err(err) = export_result {
-                // If no channel is provided and the export operation encountered an error,
-                // log the error directly here.
-                // TODO: Consider returning the status instead of logging it.
+
+        if let Some(channel) = res_channel {
+            // If a response channel is provided, attempt to send the export result through it.
+            if let Err(result) = channel.send(export_result) {
+                otel_debug!(
+                    name: "BatchSpanProcessor.Flush.SendResultError",
+                    reason = format!("{:?}", result)
+                );
+            }
+        } else {
+            // For timer-based/automatic flushes, check if export failed
+            if let Err(err) = export_result {
                 otel_error!(
                     name: "BatchSpanProcessor.Flush.ExportError",
                     reason = format!("{:?}", err),
                     message = "Failed during the export process"
                 );
+                if let Some(ref handler) = self.error_handler {
+                    handler(err);
+                }
             }
-
-            Ok(())
-        });
+        }
 
         if self.config.max_concurrent_exports == 1 {
-            let _ = task.await;
+            let export_result = export_result.await;
+            if let Err(err) = export_result {
+                otel_error!(
+                    name: "BatchSpanProcessor.ConcurrentExport.Error",
+                    reason = format!("{}", err)
+                );
+
+                if let Some(ref handler) = self.error_handler {
+                    handler(err);
+                }
+            }
         } else {
             self.export_tasks.push(task);
-            while self.export_tasks.next().await.is_some() {}
+            // Wait for any concurrent export tasks to complete
+            while let Some(result) = self.export_tasks.next().await {
+                if let Err(err) = result {
+                    otel_error!(
+                        name: "BatchSpanProcessor.ConcurrentExport.Error",
+                        reason = format!("{}", err)
+                    );
+
+                    if let Some(ref handler) = self.error_handler {
+                        handler(err);
+                    }
+                }
+            }
         }
     }
 
@@ -251,13 +293,27 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                     if !self.export_tasks.is_empty()
                         && self.export_tasks.len() == self.config.max_concurrent_exports
                     {
-                        self.export_tasks.next().await;
+                        if let Some(result) = self.export_tasks.next().await {
+                            if let Err(err) = result {
+                                // Log error for observability
+                                otel_error!(
+                                    name: "BatchSpanProcessor.Export.Error",
+                                    reason = format!("{}", err)
+                                );
+
+                                // Also invoke error handler if registered
+                                if let Some(ref handler) = self.error_handler {
+                                    handler(err);
+                                }
+                            }
+                        }
                     }
 
                     let batch = self.spans.split_off(0);
                     let exporter = self.exporter.clone();
                     let runtime = self.runtime.clone();
                     let max_export_timeout = self.config.max_export_timeout;
+                    let error_handler = self.error_handler.clone();
 
                     let task = async move {
                         if let Err(err) =
@@ -267,6 +323,9 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                                 name: "BatchSpanProcessor.Export.Error",
                                 reason = format!("{}", err)
                             );
+                            if let Some(ref handler) = error_handler {
+                                handler(err);
+                            }
                         }
 
                         Ok(())
@@ -274,7 +333,15 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
 
                     // Special case when not using concurrent exports
                     if self.config.max_concurrent_exports == 1 {
-                        let _ = task.await;
+                        if let Err(err) = task.await {
+                            otel_error!(
+                                name: "BatchSpanProcessor.Export.Error",
+                                reason = format!("{}", err)
+                            );
+                            if let Some(ref handler) = error_handler {
+                                handler(err);
+                            }
+                        }
                     } else {
                         self.export_tasks.push(Box::pin(task));
                     }
@@ -347,8 +414,16 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
             select! {
                 // FuturesUnordered implements Fuse intelligently such that it
                 // will become eligible again once new tasks are added to it.
-                _ = self.export_tasks.next() => {
-                    // An export task completed; do we need to do anything with it?
+                result = self.export_tasks.next() => {
+                    if let Some(Err(err)) = result {
+                        otel_error!(
+                            name: "BatchSpanProcessor.Export.Error",
+                            reason = format!("{}", err)
+                        );
+                        if let Some(ref handler) = self.error_handler {
+                            handler(err);
+                        }
+                    }
                 },
                 message = messages.next() => {
                     match message {
@@ -366,7 +441,12 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
 }
 
 impl<R: RuntimeChannel> BatchSpanProcessor<R> {
-    pub(crate) fn new<E>(exporter: E, config: BatchConfig, runtime: R) -> Self
+    pub(crate) fn new<E>(
+        exporter: E,
+        config: BatchConfig,
+        runtime: R,
+        error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
+    ) -> Self
     where
         E: SpanExporter + Send + Sync + 'static,
     {
@@ -392,6 +472,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
                 runtime: timeout_runtime,
                 config,
                 exporter: Arc::new(RwLock::new(exporter)),
+                error_handler,
             };
 
             processor.run(messages).await
@@ -402,6 +483,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             message_sender,
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
+            error_handler: error_handler.clone(),
         }
     }
 
@@ -414,6 +496,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
             exporter,
             config: Default::default(),
             runtime,
+            error_handler: None,
         }
     }
 }
@@ -425,6 +508,21 @@ pub struct BatchSpanProcessorBuilder<E, R> {
     exporter: E,
     config: BatchConfig,
     runtime: R,
+    error_handler: Option<Arc<dyn Fn(OTelSdkError) + Send + Sync + 'static>>,
+}
+
+impl<E: fmt::Debug, R: fmt::Debug> fmt::Debug for BatchSpanProcessorBuilder<E, R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BatchSpanProcessorBuilder")
+            .field("exporter", &self.exporter)
+            .field("config", &self.config)
+            .field("runtime", &self.runtime)
+            .field(
+                "error_handler",
+                &self.error_handler.as_ref().map(|_| "<function>"),
+            )
+            .finish()
+    }
 }
 
 impl<E, R> BatchSpanProcessorBuilder<E, R>
@@ -437,9 +535,37 @@ where
         BatchSpanProcessorBuilder { config, ..self }
     }
 
+    /// Set an error handler for background export failures.
+    ///
+    /// When background exports fail (e.g., timer-based flushes, batch-size-triggered exports),
+    /// this callback will be invoked with the error. This allows users to log, metric, or
+    /// otherwise handle export failures that occur outside of user-initiated operations.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use opentelemetry_sdk::trace::BatchSpanProcessor;
+    /// use opentelemetry_sdk::runtime;
+    /// use opentelemetry_sdk::testing::trace::NoopSpanExporter;
+    ///
+    /// let processor = BatchSpanProcessor::builder(NoopSpanExporter::new(), runtime::Tokio)
+    ///     .with_error_handler(|err| {
+    ///         eprintln!("Background span export failed: {}", err);
+    ///     })
+    ///     .build();
+    /// ```
+    pub fn with_error_handler<F>(self, handler: F) -> Self
+    where
+        F: Fn(OTelSdkError) + Send + Sync + 'static,
+    {
+        BatchSpanProcessorBuilder {
+            error_handler: Some(Arc::new(handler)),
+            ..self
+        }
+    }
+
     /// Build a batch processor
     pub fn build(self) -> BatchSpanProcessor<R> {
-        BatchSpanProcessor::new(self.exporter, self.config, self.runtime)
+        BatchSpanProcessor::new(self.exporter, self.config, self.runtime, self.error_handler)
     }
 }
 
@@ -567,7 +693,8 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(60 * 60 * 24)) // set the tick to 24 hours so we know the span must be exported via force_flush
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor =
+            BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread, None);
         let handle = tokio::spawn(async move {
             loop {
                 if let Some(span) = export_receiver.recv().await {
@@ -602,7 +729,8 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor =
+            BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread, None);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
@@ -650,7 +778,7 @@ mod tests {
         };
 
         // Spawn the processor.
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio, None);
 
         // Finish three spans in rapid succession.
         processor.on_end(new_test_export_span_data());
@@ -687,7 +815,7 @@ mod tests {
             max_concurrent_exports: 1, // what we want to verify
         };
 
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio, None);
 
         // Finish several spans quickly.
         processor.on_end(new_test_export_span_data());
