@@ -651,9 +651,9 @@ mod tests {
                 .get(&Key::from_static_str(SERVICE_NAME))
                 .map(|v| v.to_string())
                 .unwrap();
-            assert!(
-                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
-                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+            assert_eq!(
+                service_name, "unknown_service",
+                "Expected service name to be 'unknown_service', got: {}",
                 service_name
             );
             assert_telemetry_resource(&default_config_provider);
@@ -682,9 +682,9 @@ mod tests {
                     .get(&Key::from_static_str(SERVICE_NAME))
                     .map(|v| v.to_string())
                     .unwrap();
-                assert!(
-                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
-                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                assert_eq!(
+                    service_name, "unknown_service",
+                    "Expected service name to be 'unknown_service', got: {}",
                     service_name
                 );
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
@@ -715,9 +715,9 @@ mod tests {
                     .get(&Key::from_static_str(SERVICE_NAME))
                     .map(|v| v.to_string())
                     .unwrap();
-                assert!(
-                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
-                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                assert_eq!(
+                    service_name, "unknown_service",
+                    "Expected service name to be 'unknown_service', got: {}",
                     service_name
                 );
                 assert_resource(

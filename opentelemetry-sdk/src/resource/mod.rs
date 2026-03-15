@@ -66,6 +66,7 @@ impl Resource {
                 Box::new(TelemetryResourceDetector),
                 Box::new(EnvResourceDetector::new()),
             ]),
+            apply_service_name_fallback: true,
         }
     }
 
@@ -75,6 +76,7 @@ impl Resource {
     pub fn builder_empty() -> ResourceBuilder {
         ResourceBuilder {
             resource: Resource::empty(),
+            apply_service_name_fallback: false,
         }
     }
 
@@ -274,6 +276,11 @@ pub trait ResourceDetector {
 #[derive(Debug)]
 pub struct ResourceBuilder {
     resource: Resource,
+    /// When true, `build()` will resolve the `service.name` fallback per the
+    /// OpenTelemetry spec: if `service.name` is still `"unknown_service"` and
+    /// `process.executable.name` is available, set it to
+    /// `"unknown_service:<process.executable.name>"`.
+    apply_service_name_fallback: bool,
 }
 
 impl ResourceBuilder {
@@ -324,7 +331,26 @@ impl ResourceBuilder {
     }
 
     /// Create a [Resource] with the options provided to the [ResourceBuilder].
-    pub fn build(self) -> Resource {
+    ///
+    /// Per the [OpenTelemetry spec], if `service.name` was not explicitly set,
+    /// the SDK falls back to `unknown_service:` concatenated with
+    /// `process.executable.name`. If `process.executable.name` is not available,
+    /// it remains `unknown_service`.
+    ///
+    /// [OpenTelemetry spec]: https://opentelemetry.io/docs/specs/semconv/resource/service/
+    pub fn build(mut self) -> Resource {
+        if self.apply_service_name_fallback {
+            let service_name_key = Key::new(SERVICE_NAME);
+            if self.resource.get_ref(&service_name_key).is_none() {
+                let fallback = self
+                    .resource
+                    .get_ref(&Key::new(PROCESS_EXECUTABLE_NAME))
+                    .map(|name| format!("unknown_service:{}", name.as_str()))
+                    .unwrap_or_else(|| "unknown_service".to_string());
+                let inner = Arc::make_mut(&mut self.resource.inner);
+                inner.attrs.insert(service_name_key, Value::from(fallback));
+            }
+        }
         self.resource
     }
 }
@@ -495,10 +521,12 @@ mod tests {
         let base_builder = if let Some(url) = schema_url_a {
             ResourceBuilder {
                 resource: Resource::from_schema_url(vec![KeyValue::new("key", "")], url),
+                apply_service_name_fallback: false,
             }
         } else {
             ResourceBuilder {
                 resource: Resource::empty(),
+                apply_service_name_fallback: false,
             }
         };
 
@@ -551,6 +579,53 @@ mod tests {
                         ])
                         .build()
                 )
+            },
+        )
+    }
+
+    #[test]
+    fn service_name_fallback_with_process_executable_name() {
+        temp_env::with_vars(
+            [
+                ("OTEL_SERVICE_NAME", None::<&str>),
+                ("OTEL_RESOURCE_ATTRIBUTES", None::<&str>),
+            ],
+            || {
+                // When process.executable.name is set, service.name should become
+                // unknown_service:<process.executable.name>
+                let resource = Resource::builder()
+                    .with_attribute(KeyValue::new(PROCESS_EXECUTABLE_NAME, "myapp"))
+                    .build();
+                assert_eq!(
+                    resource.get(&Key::new(SERVICE_NAME)),
+                    Some(Value::from("unknown_service:myapp")),
+                );
+
+                // When process.executable.name is NOT set, service.name stays unknown_service
+                let resource = Resource::builder().build();
+                assert_eq!(
+                    resource.get(&Key::new(SERVICE_NAME)),
+                    Some(Value::from("unknown_service")),
+                );
+
+                // When service.name is explicitly set, process.executable.name doesn't affect it
+                let resource = Resource::builder()
+                    .with_attribute(KeyValue::new(PROCESS_EXECUTABLE_NAME, "myapp"))
+                    .with_service_name("my-service")
+                    .build();
+                assert_eq!(
+                    resource.get(&Key::new(SERVICE_NAME)),
+                    Some(Value::from("my-service")),
+                );
+
+                // builder_empty() should NOT apply the fallback
+                let resource = Resource::builder_empty()
+                    .with_attribute(KeyValue::new(PROCESS_EXECUTABLE_NAME, "myapp"))
+                    .build();
+                assert!(
+                    resource.get(&Key::new(SERVICE_NAME)).is_none(),
+                    "builder_empty() should not add service.name automatically"
+                );
             },
         )
     }
