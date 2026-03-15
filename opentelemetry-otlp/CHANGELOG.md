@@ -28,6 +28,7 @@
 - Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
+- Add `reqwest-native-tls` feature flag to enable system native TLS (OpenSSL on Linux, Schannel on Windows, Secure Transport on macOS).
 
 ## 0.31.0
 
