@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Add feature flags for selecting TLS crypto provider: `tls-ring`, `tls-aws-lc`, and `tls-provider-agnostic`. The `tls` feature defaults to `tls-ring` for backward compatibility. Users in FIPS/OpenSSL environments can use `tls-provider-agnostic` to avoid bundling `ring`.
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
 
