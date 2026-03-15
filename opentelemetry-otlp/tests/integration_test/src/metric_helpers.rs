@@ -11,9 +11,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 use std::time::Duration;
-use tracing::info;
 
-static RESULT_PATH: &str = "actual/metrics.json";
 pub const SLEEP_DURATION: Duration = Duration::from_secs(5);
 
 ///
@@ -58,10 +56,6 @@ fn init_meter_provider() -> SdkMeterProvider {
 ///
 pub async fn setup_metrics_tokio() -> SdkMeterProvider {
     let _ = test_utils::start_collector_container().await;
-    // Truncate results
-    _ = File::create(RESULT_PATH).expect("it's good");
-    info!("Truncated metrics file");
-
     init_meter_provider()
 }
 
