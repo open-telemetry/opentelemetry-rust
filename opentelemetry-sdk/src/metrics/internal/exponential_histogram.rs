@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
@@ -12,6 +14,8 @@ use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundFallbackHandle, BoundMeasure};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -412,9 +416,11 @@ impl<T: Number> ExpoHistogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let config = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, attr| {
-                let b = attr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = attr.clone_and_reset(&config);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -523,6 +529,11 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+        Box::new(BoundFallbackHandle::new(fallback, attrs.to_vec()))
     }
 }
 
@@ -721,7 +732,7 @@ mod tests {
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribute_tracker.aggregator.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
@@ -778,7 +789,7 @@ mod tests {
             for v in test.values {
                 Measure::call(&h, v, &[]);
             }
-            let dp = h.value_map.no_attribute_tracker.lock().unwrap();
+            let dp = h.value_map.no_attribute_tracker.aggregator.lock().unwrap();
 
             assert_eq!(test.expected.max, dp.max);
             assert_eq!(test.expected.min, dp.min);
