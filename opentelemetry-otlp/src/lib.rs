@@ -271,6 +271,9 @@
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
 //! * `tls-ring`: Enable rustls TLS support using ring for `tonic`.
 //! * `tls-aws-lc`: Enable rustls TLS support using aws-lc for `tonic`.
+//! * `tls-provider-agnostic`: Provider-agnostic TLS — enables TLS code paths with native OS trust roots
+//!   but does not bundle a crypto provider. Use this when you install a `CryptoProvider` globally
+//!   (e.g., via `rustls-openssl` for FIPS/OpenSSL environments).
 //! * `tls` (deprecated): Use `tls-ring` or `tls-aws-lc` instead.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate (use with `tls-ring` or `tls-aws-lc`).
 //! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate (use with `tls-ring` or `tls-aws-lc`).
@@ -811,7 +814,12 @@ pub mod tonic_types {
     }
 
     /// Re-exported types from `tonic::transport`.
-    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(any(
+        feature = "tls",
+        feature = "tls-ring",
+        feature = "tls-aws-lc",
+        feature = "tls-provider-agnostic"
+    ))]
     pub mod transport {
         #[doc(no_inline)]
         pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
