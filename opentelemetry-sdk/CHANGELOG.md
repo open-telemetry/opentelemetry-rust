@@ -38,6 +38,9 @@
   backing specification) is now stable and is enabled by default.
   [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
 
+- Add `on_ending` API on the span processor. This allows mutating spans while
+  they are terminating.
+
 ## 0.31.0
 
 Released 2025-Sep-25

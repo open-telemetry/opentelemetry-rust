@@ -200,18 +200,15 @@ impl opentelemetry::trace::Span for Span {
 
 impl Span {
     fn ensure_ended_and_exported(&mut self, timestamp: Option<SystemTime>) {
-        // skip if data has already been exported
-        let mut data = match self.data.take() {
-            Some(data) => data,
-            None => return,
-        };
-
-        let provider = self.tracer.provider();
         // skip if provider has been shut down
-        if provider.is_shutdown() {
+        if self.tracer.provider().is_shutdown() {
             return;
         }
 
+        // skip if data has already been exported
+        let Some(data) = self.data.as_mut() else {
+            return;
+        };
         // ensure end time is set via explicit end or implicitly on drop
         if let Some(timestamp) = timestamp {
             data.end_time = timestamp;
@@ -219,7 +216,17 @@ impl Span {
             data.end_time = opentelemetry::time::now();
         }
 
-        match provider.span_processors() {
+        #[cfg(feature = "experimental_span_processor_on_ending")]
+        {
+            let provider = self.tracer.provider().clone();
+            for processor in provider.span_processors() {
+                processor.on_ending(self);
+            }
+        }
+
+        let Some(data) = self.data.take() else { return };
+
+        match self.tracer.provider().span_processors() {
             [] => {}
             [processor] => {
                 processor.on_end(build_export_data(
@@ -728,5 +735,108 @@ mod tests {
         let dropped_span = tracer.start("span_with_dropped_provider");
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_processor_on_ending")]
+    fn test_on_ending_mutate_span() {
+        use crate::trace::SpanProcessor;
+
+        #[derive(Debug)]
+        struct FirstProcessor;
+        impl SpanProcessor for FirstProcessor {
+            fn on_start(&self, span: &mut Span, _cx: &opentelemetry::Context) {
+                // on_start only sees attributes provided at span creation time
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(!data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
+            }
+            fn on_end(&self, _span: crate::trace::SpanData) {}
+            fn on_ending(&self, span: &mut Span) {
+                // on_ending sees all attributes, including those added after span creation
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
+                span.set_attribute(KeyValue::new("first_processor", "true"));
+            }
+
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        #[derive(Debug)]
+        struct SecondProcessor;
+        impl SpanProcessor for SecondProcessor {
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+            fn on_end(&self, _span: crate::trace::SpanData) {}
+            fn on_ending(&self, span: &mut Span) {
+                // on_ending sees mutations from previous processors
+                let data = span.exported_data().unwrap();
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("created_at_start", "true")));
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("added_at_runtime", "true")));
+                assert!(data
+                    .attributes
+                    .contains(&KeyValue::new("first_processor", "true")));
+                span.set_attribute(KeyValue::new("second_processor", "true"));
+            }
+
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let exporter = crate::trace::span_processor::tests::MockSpanExporter::new();
+        let spans = exporter.exported_spans.clone();
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(FirstProcessor)
+            .with_span_processor(SecondProcessor)
+            .with_simple_exporter(exporter)
+            .build();
+
+        let tracer = provider.tracer("test");
+        let mut span = tracer.build(
+            SpanBuilder::from_name("test_span")
+                .with_attributes(vec![KeyValue::new("created_at_start", "true")]),
+        );
+        span.set_attribute(KeyValue::new("added_at_runtime", "true"));
+        span.end();
+
+        let exported = spans.lock().unwrap();
+        assert_eq!(exported.len(), 1);
+        let exported_span = &exported[0];
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("created_at_start", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("added_at_runtime", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("first_processor", "true")));
+        assert!(exported_span
+            .attributes
+            .contains(&KeyValue::new("second_processor", "true")));
     }
 }

@@ -78,6 +78,23 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// not block or throw exceptions.
     fn on_start(&self, span: &mut Span, cx: &Context);
 
+    /// `on_ending` is called after a `Span` is ended before [`SpanProcessor::on_end`] is invoked on any processor.
+    /// The end timestamp has already been set.
+    ///
+    /// Unlike [`SpanProcessor::on_start`], which only observes attributes provided at span creation,
+    /// `on_ending` observes all attributes accumulated during the span's lifetime,
+    /// including those added via `Span::set_attribute`.
+    ///
+    /// If multiple processors are registered, their `on_ending` methods are called
+    /// in registration order and mutations are visible to subsequent processors.
+    ///
+    /// Should not block or panic.
+    #[cfg(feature = "experimental_span_processor_on_ending")]
+    fn on_ending(&self, _span: &mut Span) {
+        // Default implementation is a no-op so existing processor implementations
+        // don't break if this feature is enabled transitively.
+    }
+
     /// `on_end` is called after a `Span` is ended (i.e., the end timestamp is
     /// already set). This method is called synchronously within the `Span::end`
     /// API, therefore it should not block or throw an exception.
@@ -964,7 +981,7 @@ impl BatchConfigBuilder {
 }
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]
-mod tests {
+pub(crate) mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{
         BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT,
@@ -1186,13 +1203,13 @@ mod tests {
 
     // Mock exporter to test functionality
     #[derive(Debug)]
-    struct MockSpanExporter {
-        exported_spans: Arc<Mutex<Vec<SpanData>>>,
-        exported_resource: Arc<Mutex<Option<Resource>>>,
+    pub(crate) struct MockSpanExporter {
+        pub exported_spans: Arc<Mutex<Vec<SpanData>>>,
+        pub exported_resource: Arc<Mutex<Option<Resource>>>,
     }
 
     impl MockSpanExporter {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             Self {
                 exported_spans: Arc::new(Mutex::new(Vec::new())),
                 exported_resource: Arc::new(Mutex::new(None)),
