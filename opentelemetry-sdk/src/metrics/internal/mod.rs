@@ -733,4 +733,56 @@ mod tests {
         // Should not panic
         let _value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
     }
+
+    #[test]
+    fn stale_entry_evicts_both_unsorted_and_sorted_keys() {
+        // ValueMap stores two HashMap keys per attribute set: one for the insertion
+        // order and one for the sorted (canonical) order, both pointing to the same
+        // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
+        // keys so no zombie entries remain in the map.
+        let value_map = ValueMap::<Assign<i64>>::new((), 10);
+
+        // Insert with attributes deliberately in non-sorted order.
+        // measure() inserts two keys:
+        //   - unsorted: [("b", ...), ("a", ...)]
+        //   - sorted:   [("a", ...), ("b", ...)]
+        // both pointing to the same Arc<TrackerEntry>.
+        let attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
+        value_map.measure(1_i64, attrs.as_slice());
+
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                2,
+                "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
+            );
+        }
+        assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
+
+        // First collect: entry was updated, so it is exported and has_been_updated is reset.
+        let mut dest: Vec<Vec<KeyValue>> = Vec::new();
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 1, "first collect should export the entry");
+
+        // Second collect: entry was not updated since last collect, so it is stale.
+        // Both HashMap keys (unsorted + sorted) must be evicted.
+        dest.clear();
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 0, "stale entry should not be exported");
+
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                0,
+                "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
+            );
+        }
+        assert_eq!(
+            value_map.count.load(Ordering::SeqCst),
+            0,
+            "count should reach 0 after eviction"
+        );
+    }
 }
