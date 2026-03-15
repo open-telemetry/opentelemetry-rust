@@ -42,6 +42,7 @@ enum BatchMessage {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+    runtime: R,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -82,7 +83,8 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .try_send(BatchMessage::Flush(Some(res_sender)))
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        futures_executor::block_on(res_receiver)
+        self.runtime
+            .block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
@@ -103,7 +105,8 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .try_send(BatchMessage::Shutdown(res_sender))
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        futures_executor::block_on(res_receiver)
+        self.runtime
+            .block_on(res_receiver)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
             .and_then(std::convert::identity)
     }
@@ -208,6 +211,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
+            runtime,
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size: config.max_queue_size,
         }
@@ -551,40 +555,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        processor.shutdown().unwrap();
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-    async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
-    ) {
-        let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
-
-        //
-        // deadlock happens in shutdown with tokio current_thread runtime
-        //
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
         processor.shutdown().unwrap();
     }
 
@@ -831,11 +812,8 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread()
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
     }
@@ -852,11 +830,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
     }
