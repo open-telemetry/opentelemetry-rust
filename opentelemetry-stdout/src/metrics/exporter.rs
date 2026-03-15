@@ -6,8 +6,8 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
         data::{
-            Gauge, GaugeDataPoint, Histogram, HistogramDataPoint, ResourceMetrics, ScopeMetrics,
-            Sum, SumDataPoint,
+            ExponentialHistogram, ExponentialHistogramDataPoint, Gauge, GaugeDataPoint, Histogram,
+            HistogramDataPoint, ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
         },
         exporter::PushMetricExporter,
     },
@@ -120,9 +120,9 @@ fn print_metrics<'a>(metrics: impl Iterator<Item = &'a ScopeMetrics>) {
                         println!("\t\tType         : Histogram");
                         print_histogram(hist);
                     }
-                    MetricData::ExponentialHistogram(_) => {
+                    MetricData::ExponentialHistogram(hist) => {
                         println!("\t\tType         : Exponential Histogram");
-                        // TODO: add support for ExponentialHistogram
+                        print_exponential_histogram(hist);
                     }
                 }
             }
@@ -191,6 +191,26 @@ fn print_histogram<T: Debug + Copy>(histogram: &Histogram<T>) {
     );
     println!("\t\tHistogram DataPoints");
     print_hist_data_points(histogram.data_points());
+}
+
+fn print_exponential_histogram<T: Debug + Copy>(histogram: &ExponentialHistogram<T>) {
+    if histogram.temporality() == Temporality::Cumulative {
+        println!("\t\tTemporality  : Cumulative");
+    } else {
+        println!("\t\tTemporality  : Delta");
+    }
+    let datetime: DateTime<Utc> = histogram.start_time().into();
+    println!(
+        "\t\tStartTime    : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
+    let datetime: DateTime<Utc> = histogram.time().into();
+    println!(
+        "\t\tEndTime      : {}",
+        datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+    );
+    println!("\t\tExponential Histogram DataPoints");
+    print_exponential_hist_data_points(histogram.data_points());
 }
 
 fn print_sum_data_points<'a, T: Debug + Copy + 'a>(
@@ -262,6 +282,70 @@ fn print_hist_data_points<'a, T: Debug + Copy + 'a>(
         if header_printed {
             let last_count = bucket_counts_iter.next().unwrap_or(0);
             println!("\t\t\t\t{lower_bound} to +Infinity : {last_count}");
+        }
+    }
+}
+
+fn print_exponential_hist_data_points<'a, T: Debug + Copy + 'a>(
+    data_points: impl Iterator<Item = &'a ExponentialHistogramDataPoint<T>>,
+) {
+    for (i, data_point) in data_points.enumerate() {
+        println!("\t\tDataPoint #{i}");
+        println!("\t\t\tCount          : {}", data_point.count());
+        println!("\t\t\tSum            : {:?}", data_point.sum());
+        if let Some(min) = &data_point.min() {
+            println!("\t\t\tMin            : {min:?}");
+        }
+
+        if let Some(max) = &data_point.max() {
+            println!("\t\t\tMax            : {max:?}");
+        }
+
+        let scale = data_point.scale();
+        let base = 2.0f64.powf(2.0f64.powf(-scale as f64));
+
+        println!("\t\t\tScale          : {:?}", scale);
+        println!("\t\t\tBase           : {:?}", base);
+        println!("\t\t\tZeroCount      : {}", data_point.zero_count());
+        println!("\t\t\tZeroThreshold  : {}", data_point.zero_threshold());
+
+        println!("\t\t\tAttributes     :");
+        for kv in data_point.attributes() {
+            println!("\t\t\t\t ->  {}  : {}", kv.key, kv.value.as_str());
+        }
+
+        // Bucket upper-bounds are inclusive while bucket lower-bounds are
+        // exclusive. Details if a bound is including/excluding can be found in:
+        // https://opentelemetry.io/docs/specs/otel/metrics/data-model/#histogram-bucket-inclusivity
+
+        let negative_bucket = data_point.negative_bucket();
+        let negative_offset = negative_bucket.offset();
+        println!("\t\t\tNegativeOffset : {}", negative_offset);
+        for (i, count) in negative_bucket
+            .counts()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .enumerate()
+            .rev()
+        {
+            let lower = -base.powf(i as f64 + negative_offset as f64 + 1.0f64);
+            let upper = -base.powf(i as f64 + negative_offset as f64);
+            println!(
+                "\t\t\t\tBucket {} ({:?}, {:?}] : {}",
+                i, lower, upper, count
+            );
+        }
+
+        let positive_bucket = data_point.positive_bucket();
+        let positive_offset = positive_bucket.offset();
+        println!("\t\t\tPositiveOffset : {}", positive_offset);
+        for (i, count) in positive_bucket.counts().enumerate() {
+            let lower = base.powf(i as f64 + positive_offset as f64);
+            let upper = base.powf(i as f64 + positive_offset as f64 + 1.0f64);
+            println!(
+                "\t\t\t\tBucket {} ({:?}, {:?}] : {}",
+                i, lower, upper, count
+            );
         }
     }
 }

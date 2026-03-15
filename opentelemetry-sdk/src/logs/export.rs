@@ -2,7 +2,6 @@
 use crate::error::OTelSdkResult;
 use crate::logs::SdkLogRecord;
 use crate::Resource;
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
 use std::fmt::Debug;
@@ -63,6 +62,15 @@ impl<'a> LogBatch<'a> {
 }
 
 impl LogBatch<'_> {
+    /// Returns the number of log records in the batch.
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        match &self.data {
+            LogBatchData::SliceOfOwnedData(data) => data.len(),
+            LogBatchData::SliceOfBorrowedData(data) => data.len(),
+        }
+    }
+
     /// Returns an iterator over the log records and instrumentation scopes in the batch.
     ///
     /// Each item yielded by the iterator is a tuple containing references to a `LogRecord`
@@ -143,7 +151,7 @@ pub trait LogExporter: Send + Sync + Debug {
     fn shutdown(&self) -> OTelSdkResult {
         self.shutdown_with_timeout(time::Duration::from_secs(5))
     }
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+
     /// Check if logs are enabled.
     fn event_enabled(&self, _level: Severity, _target: &str, _name: Option<&str>) -> bool {
         // By default, all logs are enabled

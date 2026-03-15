@@ -355,8 +355,25 @@ impl TracerProviderBuilder {
     }
 
     /// Specify the sampler to be used.
-    pub fn with_sampler<T: crate::trace::ShouldSample + 'static>(mut self, sampler: T) -> Self {
-        self.config.sampler = Box::new(sampler);
+    ///
+    /// ## Dynamic sampler selection
+    ///
+    /// ```
+    /// use opentelemetry_sdk::trace::{Sampler, ShouldSample};
+    ///
+    /// fn should_return_dynamic_sampler() -> Box<dyn ShouldSample + 'static> {
+    ///     Box::new(opentelemetry_sdk::trace::Sampler::AlwaysOn)
+    /// }
+    ///
+    /// opentelemetry_sdk::trace::SdkTracerProvider::builder()
+    ///     // You can pass already boxed sampler if you need to configure your sampler in a simple fashion
+    ///     // This can be useful if you create your own sampler that implements `ShouldSample`
+    ///     .with_sampler(should_return_dynamic_sampler())
+    ///     // Or you can pass exact instance if you do not have complex configuration
+    ///     .with_sampler(Sampler::AlwaysOff);
+    /// ```
+    pub fn with_sampler(mut self, sampler: impl Into<Box<dyn crate::trace::ShouldSample>>) -> Self {
+        self.config.sampler = sampler.into();
         self
     }
 
@@ -409,10 +426,32 @@ impl TracerProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
+    /// When constructing a [Resource], use [`Resource::builder()`] to preserve
+    /// SDK-provided defaults such as `telemetry.sdk.*` and `service.name`.
+    /// Using [`Resource::builder_empty()`] will **not** include these attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::{Resource, trace::SdkTracerProvider};
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let provider = SdkTracerProvider::builder()
+    ///     .with_resource(
+    ///         Resource::builder()
+    ///             .with_service_name("my-service")
+    ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    ///
     /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
     ///
     /// [Tracer]: opentelemetry::trace::Tracer
+    /// [`Resource::builder()`]: Resource::builder
+    /// [`Resource::builder_empty()`]: Resource::builder_empty
     pub fn with_resource(self, resource: Resource) -> Self {
         let resource = match self.resource {
             Some(existing) => Some(existing.merge(&resource)),
@@ -606,10 +645,16 @@ mod tests {
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
             let default_config_provider = super::SdkTracerProvider::builder().build();
-            assert_resource(
-                &default_config_provider,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = default_config_provider
+                .config()
+                .resource
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&default_config_provider);
         });
@@ -631,10 +676,16 @@ mod tests {
             Some("key1=value1, k2, k3=value2"),
             || {
                 let env_resource_provider = super::SdkTracerProvider::builder().build();
-                assert_resource(
-                    &env_resource_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = env_resource_provider
+                    .config()
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
@@ -658,10 +709,16 @@ mod tests {
                             .build(),
                     )
                     .build();
-                assert_resource(
-                    &user_provided_resource_config_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = user_provided_resource_config_provider
+                    .config()
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -743,14 +800,26 @@ mod tests {
     #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let resource = SdkTracerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
-            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key1", "value1")])
+                    .build(),
+            )
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key2", "value2")])
+                    .build(),
+            )
             .with_resource(
                 Resource::builder_empty()
                     .with_schema_url(vec![], "http://example.com")
                     .build(),
             )
-            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key3", "value3")])
+                    .build(),
+            )
             .build()
             .inner
             .config

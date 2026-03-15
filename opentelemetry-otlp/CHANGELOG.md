@@ -3,8 +3,32 @@
 ## vNext
 
 - Add feature flags for selecting TLS crypto provider: `tls-ring`, `tls-aws-lc`, and `tls-provider-agnostic`. The `tls` feature defaults to `tls-ring` for backward compatibility. Users in FIPS/OpenSSL environments can use `tls-provider-agnostic` to avoid bundling `ring`.
+- Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
+  (before selecting a transport), which auto-selects the transport based on the
+  `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
+  [#3394](https://github.com/open-telemetry/opentelemetry-rust/pull/3394)
+- **Breaking** Removed `ExportConfig`, `HasExportConfig`, `with_export_config()`, `HasTonicConfig`, `HasHttpConfig`, `TonicConfig`, and `HttpConfig` from public API.
+  Use the public `WithExportConfig`, `WithTonicConfig`, and `WithHttpConfig` trait methods instead, which remain unchanged.
+- The gRPC/tonic OTLP exporter's build method now returns an error for all signals (traces, metrics, logs) when
+  an `https://` endpoint is configured but no TLS feature (`tls-ring` or `tls-aws-lc`) is enabled, instead of
+  silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
+  an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
+  [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- Prevent auth tokens from leaking in export error messages. gRPC and HTTP
+  exporter errors no longer include potentially sensitive server responses
+  (e.g., authentication tokens echoed back). Error messages returned to SDK
+  processors contain only the gRPC status code or HTTP status code. Full
+  details are logged at DEBUG level only.
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
+- Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
+  to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
+  `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
+- Fix `NoHttpClient` error when multiple HTTP client features are enabled by using priority-based selection (`reqwest-client` > `hyper-client` > `reqwest-blocking-client`). [#2994](https://github.com/open-telemetry/opentelemetry-rust/issues/2994)
 - Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
 - Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
+- Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
+- Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
+  **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
 
 ## 0.31.0
 
@@ -13,6 +37,7 @@ Released 2025-Sep-25
 - Update `opentelemetry-proto` and `opentelemetry-http` dependency version to 0.31.0
 - Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
 - Add retry with exponential backoff and throttling support for HTTP and gRPC exporters
+  This behaviour is opt in via the `experimental-grpc-retry` and `experimental-http-retry` flags on this crate. You can customize the retry policy using the `with_retry_policy` on the exporter builders.
 
 ## 0.30.0
 

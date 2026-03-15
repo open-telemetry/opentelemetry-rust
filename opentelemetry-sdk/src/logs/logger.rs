@@ -5,7 +5,6 @@ use super::{SdkLogRecord, SdkLoggerProvider};
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::{Context, InstrumentationScope};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::time::now;
 
@@ -57,12 +56,13 @@ impl opentelemetry::logs::Logger for SdkLogger {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         if Context::is_current_telemetry_suppressed() {
             return false;
         }
+        // Returns false if there are no log processors.
+        // Returns true if at least one processor returns true.
         self.provider
             .log_processors()
             .iter()

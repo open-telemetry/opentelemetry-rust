@@ -1,8 +1,10 @@
 use super::{
-    default_headers, default_protocol, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{
+    exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
@@ -15,6 +17,7 @@ use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_sc
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::SpanData;
+#[cfg(feature = "http-proto")]
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
@@ -102,7 +105,7 @@ use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
 #[derive(Debug, Default)]
-pub struct HttpConfig {
+pub(crate) struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
@@ -154,7 +157,7 @@ impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
             exporter_config: ExportConfig {
-                protocol: default_protocol(),
+                protocol: Protocol::default(),
                 ..ExportConfig::default()
             },
             http_config: HttpConfig {
@@ -211,22 +214,14 @@ impl HttpExporterBuilder {
         #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
         let mut http_client = self.http_config.client.take();
 
+        // When multiple HTTP client features are enabled, we use a priority order
+        // to select the client. This follows Rust's feature unification principle
+        // where features should be additive. Priority (highest to lowest):
+        // 1. reqwest-client (async)
+        // 2. hyper-client
+        // 3. reqwest-blocking-client (default)
         if http_client.is_none() {
-            #[cfg(all(
-                not(feature = "reqwest-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "hyper-client"
-            ))]
-            {
-                // TODO - support configuring custom connector and executor
-                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
-                    as Arc<dyn HttpClient>);
-            }
-            #[cfg(all(
-                not(feature = "hyper-client"),
-                not(feature = "reqwest-blocking-client"),
-                feature = "reqwest-client"
-            ))]
+            #[cfg(feature = "reqwest-client")]
             {
                 http_client = Some(Arc::new(
                     reqwest::Client::builder()
@@ -235,9 +230,15 @@ impl HttpExporterBuilder {
                         .unwrap_or_default(),
                 ) as Arc<dyn HttpClient>);
             }
+            #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
+            {
+                // TODO - support configuring custom connector and executor
+                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
+                    as Arc<dyn HttpClient>);
+            }
             #[cfg(all(
-                not(feature = "hyper-client"),
                 not(feature = "reqwest-client"),
+                not(feature = "hyper-client"),
                 feature = "reqwest-blocking-client"
             ))]
             {
@@ -489,7 +490,17 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
-            HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
+            // Connection errors (e.g., "Connection refused", DNS failures) typically
+            // indicate user-side misconfigurations and don't contain sensitive data.
+            // We don't log at WARN here because SDK processors (BatchLogProcessor,
+            // BatchSpanProcessor, PeriodicReader) already log the returned error
+            // via otel_error!.
+            otel_debug!(
+                name: "HttpClient.NetworkError",
+                url = request_uri.as_str(),
+                error = format!("{e}")
+            );
+            HttpExportError::new(0, "HTTP export failed: network error".to_string())
         })?;
 
         let status_code = response.status().as_u16();
@@ -500,12 +511,18 @@ impl OtlpHttpClient {
             .map(|s| s.to_string());
 
         if !response.status().is_success() {
-            let message = format!(
-                "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
-                request_uri,
-                status_code,
-                response.body()
+            // We don't log at WARN here because SDK processors (BatchLogProcessor,
+            // BatchSpanProcessor, PeriodicReader) already log the returned error
+            // via otel_error!. Response body may contain sensitive information
+            // (e.g., auth tokens echoed back by the server), so log it at DEBUG
+            // level only.
+            otel_debug!(
+                name: "HttpClient.StatusError",
+                status_code = status_code,
+                url = request_uri.as_str(),
+                response_body = format!("{:?}", response.body())
             );
+            let message = format!("HTTP export failed with status code: {status_code}");
             return Err(match retry_after {
                 Some(retry_after) => {
                     HttpExportError::with_retry_after(status_code, retry_after, message)
@@ -595,7 +612,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -617,7 +639,12 @@ impl OtlpHttpClient {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => return Err(e.to_string()),
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         let (processed_body, content_encoding) = self.process_body(body)?;
@@ -642,7 +669,12 @@ impl OtlpHttpClient {
                     return None;
                 }
             },
-            _ => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => {
+                unreachable!("HTTP client should not receive Grpc protocol")
+            }
         };
 
         match self.process_body(body) {
@@ -713,7 +745,7 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 }
 
 /// Expose interface for modifying builder config.
-pub trait HasHttpConfig {
+pub(crate) trait HasHttpConfig {
     /// Return a mutable reference to the config within the exporter builders.
     fn http_client_config(&mut self) -> &mut HttpConfig;
 }
@@ -725,7 +757,7 @@ impl HasHttpConfig for HttpExporterBuilder {
     }
 }
 
-/// This trait will be implemented for every struct that implemented [`HasHttpConfig`] trait.
+/// Expose methods to override HTTP-specific configuration.
 ///
 /// ## Examples
 /// ```
@@ -1028,7 +1060,7 @@ mod tests {
                 #[cfg(feature = "experimental-http-retry")]
                 retry_policy: None,
             },
-            exporter_config: crate::ExportConfig::default(),
+            exporter_config: crate::exporter::ExportConfig::default(),
         };
 
         // Act

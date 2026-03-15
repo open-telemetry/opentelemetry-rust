@@ -2,6 +2,8 @@
 
 ## vNext
 
+- ExponentialHistogram supported in stdout
+
 ## 0.31.0
 
 Released 2025-Sep-25

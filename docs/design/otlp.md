@@ -112,6 +112,7 @@ Notes:
 * `default_protocol()` – chosen from compile-time defaults.
 * `resolve_timeout()` – precedence: signal-specific env → generic env → builder → default 10 s.
 * `parse_header_string()` – parses comma-separated `k=v` pairs with URL-decoding.
+* `resolve_temporality()` – precedence: builder → `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` env → default Cumulative.
 
 Signal builders read **signal-specific env vars** (e.g. `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) _before_ generic ones, matching the spec.
 

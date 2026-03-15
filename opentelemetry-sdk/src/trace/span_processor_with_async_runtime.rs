@@ -449,7 +449,7 @@ mod tests {
     use super::{BatchSpanProcessor, SpanProcessor};
     use crate::error::OTelSdkResult;
     use crate::runtime;
-    use crate::testing::trace::{new_test_export_span_data, new_tokio_test_exporter};
+    use crate::testing::trace::{new_test_export_span_data, new_test_exporter};
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
@@ -563,7 +563,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_batch_span_processor() {
-        let (exporter, mut export_receiver, _shutdown_receiver) = new_tokio_test_exporter();
+        let (exporter, mut export_receiver, _shutdown_receiver) = new_test_exporter();
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(60 * 60 * 24)) // set the tick to 24 hours so we know the span must be exported via force_flush
             .build();

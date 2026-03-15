@@ -2,6 +2,16 @@
 
 ## vNext
 
+## v0.31.1
+
+- Remove `protobuf` dependency from `prometheus`
+
+## v0.31.0
+
+- Update `opentelemetry` dependency version to 0.31.0
+- Update `opentelemetry_sdk` dependency version to 0.31.0
+- Update `opentelemetry-semantic-conventions` dependency version to 0.31.0
+
 ## 0.29.1
 
 Released 2025-April-11
