@@ -93,11 +93,18 @@ thread_local! {
 /// assert_eq!(current.get::<ValueB>(), None);
 /// ```
 #[derive(Clone, Default)]
+#[cfg_attr(target_pointer_width = "64", repr(align(16)))]
+#[cfg_attr(target_pointer_width = "32", repr(align(8)))]
 pub struct Context {
+    pub(crate) inner: Option<Arc<InnerContext>>,
+    flags: ContextFlags,
+}
+
+#[derive(Default)]
+pub(crate) struct InnerContext {
     #[cfg(feature = "trace")]
     pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
-    suppress_telemetry: bool,
 }
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
@@ -216,7 +223,9 @@ impl Context {
     /// assert_eq!(cx.get::<MyUser>(), None);
     /// ```
     pub fn get<T: 'static>(&self) -> Option<&T> {
-        self.entries
+        self.inner
+            .as_ref()?
+            .entries
             .as_ref()?
             .get(&TypeId::of::<T>())?
             .downcast_ref()
@@ -250,20 +259,29 @@ impl Context {
     /// assert_eq!(cx_with_a_and_b.get::<ValueB>(), Some(&ValueB(42)));
     /// ```
     pub fn with_value<T: 'static + Send + Sync>(&self, value: T) -> Self {
-        let entries = if let Some(current_entries) = &self.entries {
-            let mut inner_entries = (**current_entries).clone();
-            inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
-            Some(Arc::new(inner_entries))
-        } else {
+        fn new_entries<T: 'static + Send + Sync>(value: T) -> Option<Arc<EntryMap>> {
             let mut entries = EntryMap::default();
             entries.insert(TypeId::of::<T>(), Arc::new(value));
             Some(Arc::new(entries))
+        }
+        let (entries, span) = if let Some(inner) = &self.inner {
+            if let Some(current_entries) = &inner.entries {
+                let mut inner_entries = (**current_entries).clone();
+                inner_entries.insert(TypeId::of::<T>(), Arc::new(value));
+                (Some(Arc::new(inner_entries)), &inner.span)
+            } else {
+                (new_entries(value), &inner.span)
+            }
+        } else {
+            (new_entries(value), &None)
         };
         Context {
-            entries,
-            #[cfg(feature = "trace")]
-            span: self.span.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+            inner: Some(Arc::new(InnerContext {
+                entries,
+                #[cfg(feature = "trace")]
+                span: span.clone(),
+            })),
+            flags: self.flags,
         }
     }
 
@@ -353,16 +371,14 @@ impl Context {
     /// Returns whether telemetry is suppressed in this context.
     #[inline]
     pub fn is_telemetry_suppressed(&self) -> bool {
-        self.suppress_telemetry
+        self.flags.is_telemetry_suppressed()
     }
 
     /// Returns a new context with telemetry suppression enabled.
     pub fn with_telemetry_suppressed(&self) -> Self {
         Context {
-            entries: self.entries.clone(),
-            #[cfg(feature = "trace")]
-            span: self.span.clone(),
-            suppress_telemetry: true,
+            inner: self.inner.clone(),
+            flags: self.flags.with_telemetry_suppressed(),
         }
     }
 
@@ -427,21 +443,44 @@ impl Context {
     }
 
     #[cfg(feature = "trace")]
-    pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Self::map_current(|cx| Context {
-            span: Some(Arc::new(value)),
-            entries: cx.entries.clone(),
-            suppress_telemetry: cx.suppress_telemetry,
-        })
+    pub(crate) fn current_with_synchronized_span(span: Option<Arc<SynchronizedSpan>>) -> Self {
+        Self::map_current(|cx| cx.with_synchronized_span(span))
     }
 
     #[cfg(feature = "trace")]
-    pub(crate) fn with_synchronized_span(&self, value: SynchronizedSpan) -> Self {
-        Context {
-            span: Some(Arc::new(value)),
-            entries: self.entries.clone(),
-            suppress_telemetry: self.suppress_telemetry,
+    pub(crate) fn with_synchronized_span(&self, span: Option<Arc<SynchronizedSpan>>) -> Self {
+        let active = span.is_some();
+        if let Some(inner) = &self.inner {
+            if span.is_none() && inner.span.is_none() {
+                self.clone()
+            } else {
+                Context {
+                    inner: Some(Arc::new(InnerContext {
+                        span,
+                        entries: inner.entries.clone(),
+                    })),
+                    flags: self.flags.with_active_span(active),
+                }
+            }
+        } else {
+            if span.is_none() {
+                self.clone()
+            } else {
+                Context {
+                    inner: Some(Arc::new(InnerContext {
+                        span,
+                        entries: None,
+                    })),
+                    flags: self.flags.with_active_span(active),
+                }
+            }
         }
+    }
+
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    pub(crate) const fn has_active_span_flag(&self) -> bool {
+        self.flags.is_span_active()
     }
 }
 
@@ -450,10 +489,13 @@ impl fmt::Debug for Context {
         let mut dbg = f.debug_struct("Context");
 
         #[cfg(feature = "trace")]
-        let mut entries = self.entries.as_ref().map_or(0, |e| e.len());
+        let mut entries = self
+            .inner
+            .as_ref()
+            .map_or(0, |i| i.entries.as_ref().map_or(0, |e| e.len()));
         #[cfg(feature = "trace")]
         {
-            if let Some(span) = &self.span {
+            if let Some(Some(span)) = self.inner.as_ref().map(|i| i.span.as_ref()) {
                 dbg.field("span", &span.span_context());
                 entries += 1;
             } else {
@@ -461,11 +503,77 @@ impl fmt::Debug for Context {
             }
         }
         #[cfg(not(feature = "trace"))]
-        let entries = self.entries.as_ref().map_or(0, |e| e.len());
+        let entries = self
+            .inner
+            .as_ref()
+            .map_or(0, |i| i.entries.as_ref().map_or(0, |e| e.len()));
 
         dbg.field("entries count", &entries)
-            .field("suppress_telemetry", &self.suppress_telemetry)
+            .field("flags", &self.flags)
             .finish()
+    }
+}
+
+/// Bit flags for context state.
+#[derive(Clone, Copy, Default)]
+struct ContextFlags(u16);
+
+impl ContextFlags {
+    const SUPPRESS_TELEMETRY: u16 = 1 << 0;
+    #[cfg(feature = "trace")]
+    const ACTIVE_SPAN: u16 = 1 << 1;
+
+    /// Returns true if telemetry suppression is enabled.
+    #[inline(always)]
+    const fn is_telemetry_suppressed(self) -> bool {
+        (self.0 & Self::SUPPRESS_TELEMETRY) != 0
+    }
+
+    /// Returns a new ContextFlags with telemetry suppression enabled.
+    #[inline(always)]
+    const fn with_telemetry_suppressed(self) -> Self {
+        ContextFlags(self.0 | Self::SUPPRESS_TELEMETRY)
+    }
+
+    /// Returns true if the active span flag is set.
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    const fn is_span_active(self) -> bool {
+        (self.0 & Self::ACTIVE_SPAN) != 0
+    }
+
+    /// Returns a new ContextFlags with the active span flag set.
+    #[cfg(feature = "trace")]
+    #[inline(always)]
+    const fn with_active_span(self, active: bool) -> Self {
+        if active {
+            ContextFlags(self.0 | Self::ACTIVE_SPAN)
+        } else {
+            ContextFlags(self.0 & !Self::ACTIVE_SPAN)
+        }
+    }
+}
+
+impl fmt::Debug for ContextFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[cfg(feature = "trace")]
+        let mut comma = false;
+        f.write_str("ContextFlags(")?;
+        if self.is_telemetry_suppressed() {
+            f.write_str("TELEMETRY_SUPPRESSED")?;
+            #[cfg(feature = "trace")]
+            {
+                comma = true;
+            }
+        }
+        #[cfg(feature = "trace")]
+        if self.is_span_active() {
+            if comma {
+                f.write_str(", ")?;
+            }
+            f.write_str("ACTIVE_SPAN")?;
+        }
+        f.write_str(")")
     }
 }
 
