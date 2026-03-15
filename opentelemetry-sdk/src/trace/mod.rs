@@ -39,7 +39,7 @@ pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
 pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
-pub use span::Span;
+pub use span::{FinishedSpan, ReadableSpan, Span};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
@@ -138,7 +138,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, span: SpanData) {
+        fn on_end(&self, span: &mut FinishedSpan) {
             // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             Context::current();
@@ -149,7 +149,7 @@ mod tests {
 
             // Verify: on_start stored the baggage as an attribute
             assert!(
-                span.attributes
+                span.attributes()
                     .iter()
                     .any(|kv| kv.key.as_str() == "bag-key"),
                 "Baggage should have been stored as span attribute in on_start"

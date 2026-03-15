@@ -92,7 +92,14 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// **Best Practice**: Extract any needed context information in [`on_start`]
     /// and store it as span attributes. This ensures the information is available
-    /// in the [`SpanData`] passed to `on_end`.
+    /// via the [`ReadableSpan`] trait on the [`FinishedSpan`] passed to `on_end`.
+    ///
+    /// # Reading vs Consuming
+    ///
+    /// Processors can read span data without cloning via the [`ReadableSpan`] trait.
+    /// If ownership of the [`SpanData`] is needed, call [`FinishedSpan::consume()`].
+    /// The last processor receives the data via move (zero-copy); earlier processors
+    /// receive a clone.
     ///
     /// # Example
     ///
@@ -105,19 +112,22 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///         }
     ///     }
     ///
-    ///     fn on_end(&self, span: SpanData) {
-    ///         // Access the attribute stored in on_start
-    ///         let my_value = span.attributes.iter()
+    ///     fn on_end(&self, span: &mut FinishedSpan) {
+    ///         // Read attributes via ReadableSpan trait (no clone)
+    ///         let my_value = span.attributes().iter()
     ///             .find(|kv| kv.key.as_str() == "my-key");
+    ///
+    ///         // Or consume to take ownership (clones if not last processor)
+    ///         if let Some(span_data) = span.consume() {
+    ///             // use span_data
+    ///         }
     ///     }
     /// }
     /// ```
     ///
     /// [`on_start`]: SpanProcessor::on_start
     /// [`Context::current()`]: opentelemetry::Context::current
-    ///
-    /// TODO - This method should take reference to `SpanData`
-    fn on_end(&self, span: SpanData);
+    fn on_end(&self, span: &mut FinishedSpan);
     /// Force the spans lying in the cache to be exported.
     fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
@@ -167,10 +177,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: &mut FinishedSpan) {
+        if !span.context().is_sampled() {
             return;
         }
+        let Some(span) = span.consume() else { return };
 
         let result = self
             .exporter
@@ -272,6 +283,9 @@ use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::mpsc::SyncSender;
+
+use super::span::FinishedSpan;
+use super::ReadableSpan;
 
 /// Messages exchanged between the main thread and the background thread.
 #[allow(clippy::large_enum_variant)]
@@ -559,7 +573,10 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Handles span end.
-    fn on_end(&self, span: SpanData) {
+    fn on_end(&self, span: &mut FinishedSpan) {
+        let Some(span) = span.consume() else {
+            return;
+        };
         let result = self.span_sender.try_send(span);
 
         // match for result and handle each separately
@@ -977,8 +994,8 @@ mod tests {
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
-    use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
+    use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -989,7 +1006,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
@@ -1013,7 +1030,7 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        processor.on_end(unsampled);
+        processor.on_end(&mut FinishedSpan::new(unsampled));
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
@@ -1022,7 +1039,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
         // Assume shutdown is called by ensuring spans are empty in the exporter
@@ -1228,7 +1245,7 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Wait for flush interval to ensure the span is processed
         std::thread::sleep(Duration::from_secs(6));
@@ -1251,7 +1268,7 @@ mod tests {
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Call force_flush to immediately export the spans
         let flush_result = processor.force_flush();
@@ -1277,12 +1294,14 @@ mod tests {
 
         let record = create_test_span("test_span");
 
-        processor.on_end(record);
+        processor.on_end(&mut FinishedSpan::new(record));
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
         // todo: expect to see errors here. How should we assert this?
-        processor.on_end(create_test_span("after_shutdown_span"));
+        processor.on_end(&mut FinishedSpan::new(create_test_span(
+            "after_shutdown_span",
+        )));
 
         assert_eq!(1, exporter.get_finished_spans().unwrap().len());
         assert!(exporter.is_shutdown_called());
@@ -1330,7 +1349,7 @@ mod tests {
         let total_spans_to_send = 100;
         for i in 0..total_spans_to_send {
             let span = create_test_span(&format!("span_{}", i));
-            processor.on_end(span);
+            processor.on_end(&mut FinishedSpan::new(span));
         }
 
         // Force flush any remaining spans - this waits for export to complete
@@ -1399,9 +1418,9 @@ mod tests {
 
         let processor = BatchSpanProcessor::new(exporter, config);
 
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
+        processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
@@ -1431,7 +1450,7 @@ mod tests {
             KeyValue::new("key1", "value1"),
             KeyValue::new("key2", "value2"),
         ];
-        processor.on_end(span_data.clone());
+        processor.on_end(&mut FinishedSpan::new(span_data.clone()));
 
         // Force flush to export the span
         let _ = processor.force_flush();
@@ -1464,7 +1483,7 @@ mod tests {
 
         // Create a span and send it to the processor
         let test_span = create_test_span("resource_test");
-        processor.on_end(test_span.clone());
+        processor.on_end(&mut FinishedSpan::new(test_span.clone()));
 
         // Force flush to ensure the span is exported
         let _ = processor.force_flush();
@@ -1499,7 +1518,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&mut FinishedSpan::new(span));
         }
 
         processor.force_flush().unwrap();
@@ -1522,7 +1541,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(&mut FinishedSpan::new(span));
         }
 
         processor.force_flush().unwrap();
@@ -1549,7 +1568,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let span = new_test_export_span_data();
-                processor_clone.on_end(span);
+                processor_clone.on_end(&mut FinishedSpan::new(span));
             });
             handles.push(handle);
         }
