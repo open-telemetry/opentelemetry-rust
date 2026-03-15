@@ -269,14 +269,14 @@
 //! * `grpc-tonic`: Use `tonic` as grpc layer.
 //! * `gzip-tonic`: Use gzip compression for `tonic` grpc layer.
 //! * `zstd-tonic`: Use zstd compression for `tonic` grpc layer.
-//! * `tls`: TLS with the `ring` crypto provider (default, backward-compatible). Alias for `tls-ring`.
-//! * `tls-ring`: TLS with the `ring` crypto provider.
-//! * `tls-aws-lc`: TLS with the `aws-lc-rs` crypto provider (for AWS environments or broader algorithm support).
+//! * `tls-ring`: Enable rustls TLS support using ring for `tonic`.
+//! * `tls-aws-lc`: Enable rustls TLS support using aws-lc for `tonic`.
 //! * `tls-provider-agnostic`: Provider-agnostic TLS — enables TLS code paths with native OS trust roots
 //!   but does not bundle a crypto provider. Use this when you install a `CryptoProvider` globally
 //!   (e.g., via `rustls-openssl` for FIPS/OpenSSL environments).
-//! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate.
-//! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate.
+//! * `tls` (deprecated): Use `tls-ring` or `tls-aws-lc` instead.
+//! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate (use with `tls-ring` or `tls-aws-lc`).
+//! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate (use with `tls-ring` or `tls-aws-lc`).
 //!
 //! The following feature flags offer additional configurations on http:
 //!
@@ -814,21 +814,14 @@ pub mod tonic_types {
     }
 
     /// Re-exported types from `tonic::transport`.
-    #[cfg(feature = "_tls-base")]
+    #[cfg(any(
+        feature = "tls",
+        feature = "tls-ring",
+        feature = "tls-aws-lc",
+        feature = "tls-provider-agnostic"
+    ))]
     pub mod transport {
         #[doc(no_inline)]
         pub use tonic::transport::{Certificate, ClientTlsConfig, Identity};
     }
 }
-
-// Guard against using _tls-base directly without a concrete TLS feature.
-#[cfg(all(
-    feature = "_tls-base",
-    not(feature = "tls-ring"),
-    not(feature = "tls-aws-lc"),
-    not(feature = "tls-provider-agnostic"),
-))]
-compile_error!(
-    "_tls-base is an internal feature and must not be enabled directly. \
-     Use one of: tls, tls-ring, tls-aws-lc, or tls-provider-agnostic."
-);

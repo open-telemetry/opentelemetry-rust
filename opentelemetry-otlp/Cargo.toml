@@ -80,20 +80,15 @@ experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_r
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-# tls defaults to ring for backward compatibility. Use tls-aws-lc or
-# tls-provider-agnostic for alternative crypto backends.
-tls = ["tls-ring"]
-tls-ring = ["_tls-base", "tonic/tls-ring"]
-tls-aws-lc = ["_tls-base", "tonic/tls-aws-lc"]
+tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc.
+tls-ring = ["tonic/tls-ring"]
+tls-aws-lc = ["tonic/tls-aws-lc"]
 # Provider-agnostic TLS: enables TLS code paths with native OS trust roots
 # but does NOT bundle a specific crypto provider. Use this when you install a
 # CryptoProvider globally (e.g., via rustls-openssl for FIPS/OpenSSL environments).
-tls-provider-agnostic = ["_tls-base", "tonic/tls-native-roots"]
-# Internal feature for cfg-gating TLS code paths. Not intended for direct use.
-# Enables tonic's TLS plumbing so types resolve, without choosing a crypto backend.
-_tls-base = ["tonic/_tls-any"]
-tls-roots = ["tls", "tonic/tls-native-roots"]
-tls-webpki-roots = ["tls", "tonic/tls-webpki-roots"]
+tls-provider-agnostic = ["tonic/_tls-any", "tonic/tls-native-roots"]
+tls-roots = ["tonic/tls-native-roots"]
+tls-webpki-roots = ["tonic/tls-webpki-roots"]
 
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]

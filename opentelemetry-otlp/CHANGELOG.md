@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Add feature flags for selecting TLS crypto provider: `tls-ring`, `tls-aws-lc`, and `tls-provider-agnostic`. The `tls` feature defaults to `tls-ring` for backward compatibility. Users in FIPS/OpenSSL environments can use `tls-provider-agnostic` to avoid bundling `ring`.
+- Add `tls-provider-agnostic` feature flag for environments that require a custom crypto backend (e.g., OpenSSL for FIPS compliance). Enables TLS code paths without bundling `ring` or `aws-lc-rs`.
 - Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
   (before selecting a transport), which auto-selects the transport based on the
   `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
