@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
+  (before selecting a transport), which auto-selects the transport based on the
+  `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
+  [#3394](https://github.com/open-telemetry/opentelemetry-rust/pull/3394)
 - **Breaking** Removed `ExportConfig`, `HasExportConfig`, `with_export_config()`, `HasTonicConfig`, `HasHttpConfig`, `TonicConfig`, and `HttpConfig` from public API.
   Use the public `WithExportConfig`, `WithTonicConfig`, and `WithHttpConfig` trait methods instead, which remain unchanged.
 - The gRPC/tonic OTLP exporter's build method now returns an error for all signals (traces, metrics, logs) when
@@ -9,6 +13,12 @@
   silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
   an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
   [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- Prevent auth tokens from leaking in export error messages. gRPC and HTTP
+  exporter errors no longer include potentially sensitive server responses
+  (e.g., authentication tokens echoed back). Error messages returned to SDK
+  processors contain only the gRPC status code or HTTP status code. Full
+  details are logged at DEBUG level only.
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.

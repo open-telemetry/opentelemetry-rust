@@ -61,6 +61,28 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
             endpoint: self.endpoint,
         }
     }
+
+    /// Build the [LogExporter] with the default transport selected by environment
+    /// variable or feature flags.
+    ///
+    /// The transport is chosen based on:
+    /// 1. The `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable (if set and the
+    ///    corresponding feature is enabled)
+    /// 2. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
+    ///
+    /// Use [`with_tonic`](Self::with_tonic) or [`with_http`](Self::with_http) to
+    /// explicitly select a transport and access transport-specific configuration.
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
+        match crate::Protocol::default() {
+            #[cfg(feature = "grpc-tonic")]
+            crate::Protocol::Grpc => self.with_tonic().build(),
+            #[cfg(feature = "http-proto")]
+            crate::Protocol::HttpBinary => self.with_http().build(),
+            #[cfg(feature = "http-json")]
+            crate::Protocol::HttpJson => self.with_http().build(),
+        }
+    }
 }
 
 #[cfg(feature = "grpc-tonic")]
@@ -170,5 +192,17 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
             #[cfg(any(feature = "http-proto", feature = "http-json"))]
             SupportedTransportClient::Http(client) => client.shutdown(),
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod tests {
+    use crate::LogExporter;
+
+    #[test]
+    fn build_with_default_transport() {
+        let result = LogExporter::builder().build();
+        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }
 }

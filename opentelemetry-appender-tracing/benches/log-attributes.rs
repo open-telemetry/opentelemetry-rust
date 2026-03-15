@@ -4,22 +4,24 @@
  // Adding results in comments for a quick reference.
  // Apple M4 Pro
  //     Total Number of Cores:	14 (10 performance and 4 efficiency)
+ // rustc 1.93.0 (254b59607 2026-01-19)
+ // cargo 1.93.0 (083ac5135 2025-12-15)
 
 | Test                 | Average time | Increment |
 |----------------------|--------------|-----------|
-| otel_0_attributes    | 72 ns        | -         |
-| otel_1_attributes    | 117 ns       | +45 ns    |
-| otel_2_attributes    | 155 ns       | +38 ns    |
-| otel_3_attributes    | 196 ns       | +41 ns    |
-| otel_4_attributes    | 240 ns       | +44 ns    |
-| otel_5_attributes    | 278 ns       | +38 ns    |
-| otel_6_attributes    | 346 ns       | +68 ns    | // Array is full. 6th attribute causes vec! to be allocated
-| otel_7_attributes    | 390 ns       | +44 ns    |
-| otel_8_attributes    | 431 ns       | +41 ns    |
-| otel_9_attributes    | 480 ns       | +49 ns    |
-| otel_10_attributes   | 519 ns       | +39 ns    |
-| otel_11_attributes   | 625 ns       | +106 ns   | // vec! initial capacity is 5. 11th attribute causes vec! to be reallocated
-| otel_12_attributes   | 676 ns       | +51 ns    |
+| otel_0_attributes    | 51 ns        | -         |
+| otel_1_attributes    | 79 ns        | +28 ns    |
+| otel_2_attributes    | 101 ns       | +22 ns    |
+| otel_3_attributes    | 125 ns       | +24 ns    |
+| otel_4_attributes    | 157 ns       | +32 ns    |
+| otel_5_attributes    | 181 ns       | +24 ns    |
+| otel_6_attributes    | 225 ns       | +44 ns    | // Array is full. 6th attribute causes vec! to be allocated
+| otel_7_attributes    | 260 ns       | +35 ns    |
+| otel_8_attributes    | 285 ns       | +25 ns    |
+| otel_9_attributes    | 302 ns       | +17 ns    |
+| otel_10_attributes   | 333 ns       | +31 ns    |
+| otel_11_attributes   | 403 ns       | +70 ns    | // vec! initial capacity is 5. 11th attribute causes vec! to be reallocated
+| otel_12_attributes   | 429 ns       | +26 ns    |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -251,7 +253,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     create_benchmark(c, 2);
     // Run benchmarks for 0 to 12 attributes
     // for num_attributes in 0..=12 {
-    //     create_benchmark(c, 2);
+    //     create_benchmark(c, num_attributes);
     // }
 }
 
