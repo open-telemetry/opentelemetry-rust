@@ -2,7 +2,10 @@
 
 ## vNext
 
-- New *experimental* feature to enrich log records with attributes from active tracing spans (`experimental_span_attributes`)
+- New *experimental* feature to enrich log records with attributes from active
+  tracing spans (`experimental_span_attributes`). Use
+  `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`
+  to control which span attributes are copied to log records.
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry

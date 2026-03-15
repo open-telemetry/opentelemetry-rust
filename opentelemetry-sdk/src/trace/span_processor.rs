@@ -65,8 +65,6 @@ pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-/// Environment variable to configure max concurrent exports for batch span
-/// processor.
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
 pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
@@ -786,11 +784,6 @@ pub struct BatchConfig {
     pub(crate) max_export_timeout: Duration,
 
     #[allow(dead_code)]
-    /// Maximum number of concurrent exports
-    ///
-    /// Limits the number of spawned tasks for exports and thus memory consumed
-    /// by an exporter. A value of 1 will cause exports to be performed
-    /// synchronously on the BatchSpanProcessor task.
     pub(crate) max_concurrent_exports: usize,
 }
 
@@ -863,14 +856,19 @@ impl BatchConfigBuilder {
 
     #[cfg(feature = "experimental_trace_batch_span_processor_with_async_runtime")]
     /// Set max_concurrent_exports for [`BatchConfigBuilder`].
-    /// It's the maximum number of concurrent exports.
-    /// Limits the number of spawned tasks for exports and thus memory consumed by an exporter.
-    /// The default value is 1.
-    /// If the max_concurrent_exports value is default value, it will cause exports to be performed
-    /// synchronously on the BatchSpanProcessor task.
-    /// The default value is 1.
+    ///
+    /// This value is honored by
+    /// `span_processor_with_async_runtime::BatchSpanProcessor`, where it limits
+    /// the number of concurrent export tasks.
+    ///
+    /// The thread-based `BatchSpanProcessor` exports serially and ignores this
+    /// setting.
     ///
     /// Corresponding environment variable: `OTEL_BSP_MAX_CONCURRENT_EXPORTS`.
+    ///
+    /// For concurrent exports, enable
+    /// `experimental_trace_batch_span_processor_with_async_runtime` and use the
+    /// async-runtime processor.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     pub fn with_max_concurrent_exports(mut self, max_concurrent_exports: usize) -> Self {
@@ -1181,7 +1179,10 @@ mod tests {
 
     use crate::Resource;
     use opentelemetry::{Key, KeyValue, Value};
-    use std::sync::{atomic::Ordering, Arc, Mutex};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
 
     // Mock exporter to test functionality
     #[derive(Debug)]
@@ -1357,6 +1358,67 @@ mod tests {
     }
 
     #[test]
+    fn batchspanprocessor_sync_ignores_max_concurrent_exports() {
+        #[derive(Debug)]
+        struct TrackingExporter {
+            active: Arc<AtomicUsize>,
+            max_inflight: Arc<AtomicUsize>,
+            export_calls: Arc<AtomicUsize>,
+            delay: Duration,
+        }
+
+        impl SpanExporter for TrackingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                self.export_calls.fetch_add(1, Ordering::SeqCst);
+                let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+                self.max_inflight.fetch_max(inflight, Ordering::SeqCst);
+
+                std::thread::sleep(self.delay);
+                self.active.fetch_sub(1, Ordering::SeqCst);
+                Ok(())
+            }
+        }
+
+        let active = Arc::new(AtomicUsize::new(0));
+        let max_inflight = Arc::new(AtomicUsize::new(0));
+        let export_calls = Arc::new(AtomicUsize::new(0));
+        let exporter = TrackingExporter {
+            active: active.clone(),
+            max_inflight: max_inflight.clone(),
+            export_calls: export_calls.clone(),
+            delay: Duration::from_millis(50),
+        };
+
+        let config = BatchConfig {
+            max_export_batch_size: 1,
+            max_queue_size: 16,
+            scheduled_delay: Duration::from_secs(3600),
+            max_export_timeout: Duration::from_secs(5),
+            max_concurrent_exports: 4,
+        };
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        processor.on_end(new_test_export_span_data());
+        processor.on_end(new_test_export_span_data());
+        processor.on_end(new_test_export_span_data());
+
+        processor.force_flush().expect("force flush failed");
+        processor.shutdown().expect("shutdown failed");
+
+        assert_eq!(
+            export_calls.load(Ordering::SeqCst),
+            3,
+            "expected three exports for three spans with max_export_batch_size=1"
+        );
+        assert_eq!(
+            max_inflight.load(Ordering::SeqCst),
+            1,
+            "sync BatchSpanProcessor should export serially regardless of max_concurrent_exports"
+        );
+    }
+
+    #[test]
     fn validate_span_attributes_exported_correctly() {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
@@ -1395,7 +1457,9 @@ mod tests {
         let mut processor = BatchSpanProcessor::new(exporter, config);
 
         // Set a resource for the processor
-        let resource = Resource::new(vec![KeyValue::new("service.name", "test_service")]);
+        let resource = Resource::builder_empty()
+            .with_attributes(vec![KeyValue::new("service.name", "test_service")])
+            .build();
         processor.set_resource(&resource);
 
         // Create a span and send it to the processor
