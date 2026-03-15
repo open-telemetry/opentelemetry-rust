@@ -9,7 +9,7 @@ use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
 use std::cmp::min;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::mem::swap;
 use std::ops::{Add, AddAssign, DerefMut, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -23,6 +23,23 @@ use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
 use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
+
+#[cfg(feature = "metrics-use-foldhash")]
+type HashMap<K, V> = std::collections::HashMap<K, V, foldhash::fast::RandomState>;
+#[cfg(not(feature = "metrics-use-foldhash"))]
+type HashMap<K, V> = std::collections::HashMap<K, V>;
+
+#[cfg(feature = "metrics-use-foldhash")]
+fn new_hashmap<K, V>(capacity: usize) -> HashMap<K, V> {
+    std::collections::HashMap::with_capacity_and_hasher(
+        capacity,
+        foldhash::fast::RandomState::default(),
+    )
+}
+#[cfg(not(feature = "metrics-use-foldhash"))]
+fn new_hashmap<K, V>(capacity: usize) -> HashMap<K, V> {
+    std::collections::HashMap::with_capacity(capacity)
+}
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -85,7 +102,7 @@ where
 {
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(
+            trackers: RwLock::new(new_hashmap(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
             )),
             trackers_for_collect: OnceLock::new(),
@@ -100,7 +117,7 @@ where
     #[inline]
     fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
         self.trackers_for_collect.get_or_init(|| {
-            RwLock::new(HashMap::with_capacity(
+            RwLock::new(new_hashmap(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
             ))
         })
