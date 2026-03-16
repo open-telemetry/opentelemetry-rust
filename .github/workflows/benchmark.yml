@@ -64,7 +64,7 @@ jobs:
     name: continuous benchmark tracking
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     # Use bare-metal runner on the upstream repo for consistent results; fall back to shared runners elsewhere
-    runs-on: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && 'oracle-bare-metal-64cpu-512gb-x86-64' || 'ubuntu-latest' }}
+    runs-on: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && 'oracle-bare-metal-64cpu-1024gb-x86-64-ubuntu-24' || 'ubuntu-latest' }}
     permissions:
       contents: write
     container:
