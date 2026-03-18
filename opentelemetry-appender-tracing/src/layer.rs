@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_span_attributes")]
 use std::borrow::Cow;
@@ -326,14 +326,15 @@ where
         Self::builder(provider).build()
     }
 
-    pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+    pub fn builder<'a>(provider: &'a P) -> OpenTelemetryTracingBridgeBuilder<'a, P, L> {
         OpenTelemetryTracingBridgeBuilder {
             // Using empty scope name.
             // The name/version of this library itself can be added
             // as a Scope attribute, once a semantic convention is
             // defined for the same.
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
-            logger: provider.logger(""),
+            provider,
+            scope: None,
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
             span_attribute_allowlist: None,
@@ -341,18 +342,19 @@ where
     }
 }
 
-pub struct OpenTelemetryTracingBridgeBuilder<P, L>
+pub struct OpenTelemetryTracingBridgeBuilder<'a, P, L>
 where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    logger: L,
+    provider: &'a P,
+    scope: Option<InstrumentationScope>,
     _phantom: std::marker::PhantomData<P>,
     #[cfg(feature = "experimental_span_attributes")]
     span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
 }
 
-impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
+impl<'a, P, L> OpenTelemetryTracingBridgeBuilder<'a, P, L>
 where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
@@ -368,9 +370,21 @@ where
         self
     }
 
+    /// Configures the OpenTelemetry `InstrumentationScope` used to create the
+    /// logger for this bridge.
+    ///
+    /// When not set, the bridge preserves the existing behavior and creates a
+    /// logger with an empty scope name.
+    pub fn with_scope(mut self, scope: InstrumentationScope) -> Self {
+        self.scope = Some(scope);
+        self
+    }
+
     pub fn build(self) -> OpenTelemetryTracingBridge<P, L> {
         OpenTelemetryTracingBridge {
-            logger: self.logger,
+            logger: self.scope.map(|scope|
+                self.provider.logger_with_scope(scope)
+            ).unwrap_or_else(||self.provider.logger("")),
             _phantom: self._phantom,
             #[cfg(feature = "experimental_span_attributes")]
             // Treat empty allowlist as not set - disable the feature flag instead.
@@ -509,7 +523,7 @@ mod tests {
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::InstrumentationScope;
-    use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
@@ -829,6 +843,49 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+    }
+
+    #[test]
+    fn tracing_appender_with_custom_scope() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let scope = InstrumentationScope::builder("test.scope")
+            .with_version("1.2.3")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
+            .with_attributes([KeyValue::new("scope-key", "scope-value")])
+            .build();
+
+        let subscriber = tracing_subscriber::registry().with(
+            layer::OpenTelemetryTracingBridge::builder(&logger_provider)
+                .with_scope(scope)
+                .build(),
+        );
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        error!(name: "scoped-event", target: "my-system", event_id = 20);
+        assert!(logger_provider.force_flush().is_ok());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("At least one log is expected to be present.");
+
+        let instrumentation_scope = &log.instrumentation;
+        assert_eq!(instrumentation_scope.name(), "test.scope");
+        assert_eq!(instrumentation_scope.version(), Some("1.2.3"));
+        assert_eq!(
+            instrumentation_scope.schema_url(),
+            Some("https://opentelemetry.io/schemas/1.0.0")
+        );
+        assert!(instrumentation_scope
+            .attributes()
+            .eq([KeyValue::new("scope-key", "scope-value")].iter()));
     }
 
     #[test]

@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Add `OpenTelemetryTracingBridgeBuilder::with_scope()` to configure the
+  OpenTelemetry `InstrumentationScope` used by the appender logger.
+  [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
+
 - New *experimental* feature to enrich log records with attributes from active
   tracing spans (`experimental_span_attributes`). Use
   `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`
