@@ -80,9 +80,13 @@ experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_r
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc.
+tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc or tls-provider-agnostic
 tls-ring = ["tonic/tls-ring"]
 tls-aws-lc = ["tonic/tls-aws-lc"]
+# Provider-agnostic TLS: enables TLS code paths without bundling a specific 
+# crypto provider. Use this when you install a
+# CryptoProvider globally (e.g., via rustls-openssl for FIPS/OpenSSL environments).
+tls-provider-agnostic = ["tonic/_tls-any"]
 tls-roots = ["tonic/tls-native-roots"]
 tls-webpki-roots = ["tonic/tls-webpki-roots"]
 
