@@ -2,6 +2,44 @@
 
 ## vNext
 
+## 0.31.1
+
+Released 2026-Mar-18
+
+- Add `tls-ring` and `tls-aws-lc` feature flags for explicit crypto provider selection.
+- Add `tls-provider-agnostic` feature flag for environments that require a custom crypto backend (e.g., OpenSSL for FIPS compliance). Enables TLS code paths without bundling `ring` or `aws-lc-rs`.
+
+### Feature combination guidance
+
+The new TLS features should be used **individually** — do not combine multiple
+crypto provider features. The existing `tls-roots` and `tls-webpki-roots`
+features implicitly enable `tls` (which pulls in `ring`), so combining them
+with `tls-aws-lc` or `tls-provider-agnostic` will compile both providers and
+may cause unexpected behavior.
+
+**Recommended usage:**
+
+| Goal | Features to enable |
+|---|---|
+| TLS with ring + system roots | `tls-ring`, `tls-roots` |
+| TLS with ring + Mozilla roots | `tls-ring`, `tls-webpki-roots` |
+| TLS with aws-lc + custom CA | `tls-aws-lc` (provide CA via `ClientTlsConfig`) |
+| TLS with custom provider (e.g., FIPS) | `tls-provider-agnostic` (call `CryptoProvider::install_default()` in your app) |
+
+**Avoid these combinations:**
+
+| Combination | Problem |
+|---|---|
+| `tls-aws-lc` + `tls-roots` | Pulls in `ring` via `tls-roots` → `tls`; both providers compiled, which can cause runtime panics or unpredictable provider selection |
+| `tls-aws-lc` + `tls-webpki-roots` | Same issue — both providers compiled, which can cause runtime panics or unpredictable provider selection |
+| `tls-provider-agnostic` + `tls-roots` | Defeats the purpose — bundles ring, which can cause runtime panics or unpredictable provider selection |
+| `tls-provider-agnostic` + `tls-webpki-roots` | Same issue — bundles ring, which can cause runtime panics or unpredictable provider selection |
+| `tls-ring` + `tls-aws-lc` | Both providers compiled, which can cause runtime panics or unpredictable provider selection |
+
+> **Note:** If you need root certificates with `tls-aws-lc`, depend on
+> `tonic/tls-native-roots` or `tonic/tls-webpki-roots` directly in your own
+> `Cargo.toml` instead of using `tls-roots`/`tls-webpki-roots` from this crate.
+
 ## 0.31.0
 
 Released 2025-Sep-25
