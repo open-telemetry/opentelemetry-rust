@@ -243,6 +243,7 @@
 //! | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | Signal-specific headers for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | Signal-specific compression for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` | Temporality preference for metrics. Valid values: `cumulative`, `delta`, `lowmemory` (case-insensitive). | `cumulative` |
+//! | `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` | Default histogram aggregation. Valid values: `explicit_bucket_histogram`, `base2_exponential_bucket_histogram` (case-insensitive). | `explicit_bucket_histogram` |
 //!
 //! ## Logs
 //!
@@ -659,8 +660,9 @@ pub use crate::span::{
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
     MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
-    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]

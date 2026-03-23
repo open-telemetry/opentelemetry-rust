@@ -24,7 +24,7 @@ use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
 
 use opentelemetry_sdk::metrics::{
-    data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
+    data::ResourceMetrics, exporter::PushMetricExporter, HistogramAggregation, Temporality,
 };
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;
@@ -45,12 +45,18 @@ pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS
 /// Temporality preference for metrics, defaults to cumulative.
 pub const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
+/// Default histogram aggregation for metrics.
+/// Valid values: `explicit_bucket_histogram`, `base2_exponential_bucket_histogram` (case-insensitive).
+/// Defaults to `explicit_bucket_histogram`.
+pub const OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION: &str =
+    "OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION";
 
 /// A builder for creating a new [MetricExporter].
 #[derive(Debug, Default, Clone)]
 pub struct MetricExporterBuilder<C> {
     client: C,
     temporality: Option<Temporality>,
+    histogram_aggregation: Option<HistogramAggregation>,
 }
 
 impl MetricExporterBuilder<NoExporterBuilderSet> {
@@ -89,6 +95,7 @@ impl<C> MetricExporterBuilder<C> {
         MetricExporterBuilder {
             client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
             temporality: self.temporality,
+            histogram_aggregation: self.histogram_aggregation,
         }
     }
 
@@ -98,6 +105,7 @@ impl<C> MetricExporterBuilder<C> {
         MetricExporterBuilder {
             client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
             temporality: self.temporality,
+            histogram_aggregation: self.histogram_aggregation,
         }
     }
 
@@ -108,6 +116,25 @@ impl<C> MetricExporterBuilder<C> {
         MetricExporterBuilder {
             client: self.client,
             temporality: Some(temporality),
+            histogram_aggregation: self.histogram_aggregation,
+        }
+    }
+
+    /// Set the default histogram aggregation for the metrics.
+    ///
+    /// Valid values: [HistogramAggregation::ExplicitBucketHistogram] (default),
+    /// [HistogramAggregation::Base2ExponentialBucketHistogram].
+    ///
+    /// Note: Programmatically setting this will override any value set via the
+    /// `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` environment variable.
+    pub fn with_histogram_aggregation(
+        self,
+        histogram_aggregation: HistogramAggregation,
+    ) -> MetricExporterBuilder<C> {
+        MetricExporterBuilder {
+            client: self.client,
+            temporality: self.temporality,
+            histogram_aggregation: Some(histogram_aggregation),
         }
     }
 }
@@ -132,12 +159,40 @@ fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, Exp
     Ok(Temporality::default())
 }
 
+/// Resolve histogram aggregation with priority:
+/// 1. Provided config value
+/// 2. OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION environment variable
+/// 3. Default (ExplicitBucketHistogram)
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+fn resolve_histogram_aggregation(
+    provided: Option<HistogramAggregation>,
+) -> Result<HistogramAggregation, ExporterBuildError> {
+    if let Some(histogram_aggregation) = provided {
+        return Ok(histogram_aggregation);
+    }
+    if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION) {
+        return val
+            .parse::<HistogramAggregation>()
+            .map_err(|_| ExporterBuildError::InvalidConfig {
+                name: OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION.to_string(),
+                reason: format!(
+                    "Invalid value '{val}'. Expected: explicit_bucket_histogram or base2_exponential_bucket_histogram"
+                ),
+            });
+    }
+    Ok(HistogramAggregation::default())
+}
+
 #[cfg(feature = "grpc-tonic")]
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
     /// Build the [MetricExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let temporality = resolve_temporality(self.temporality)?;
-        let exporter = self.client.0.build_metrics_exporter(temporality)?;
+        let histogram_aggregation = resolve_histogram_aggregation(self.histogram_aggregation)?;
+        let exporter = self
+            .client
+            .0
+            .build_metrics_exporter(temporality, histogram_aggregation)?;
         opentelemetry::otel_debug!(name: "MetricExporterBuilt");
         Ok(exporter)
     }
@@ -148,7 +203,11 @@ impl MetricExporterBuilder<HttpExporterBuilderSet> {
     /// Build the [MetricExporter] with the HTTP transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         let temporality = resolve_temporality(self.temporality)?;
-        let exporter = self.client.0.build_metrics_exporter(temporality)?;
+        let histogram_aggregation = resolve_histogram_aggregation(self.histogram_aggregation)?;
+        let exporter = self
+            .client
+            .0
+            .build_metrics_exporter(temporality, histogram_aggregation)?;
         Ok(exporter)
     }
 }
@@ -194,6 +253,7 @@ pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
 pub struct MetricExporter {
     client: SupportedTransportClient,
     temporality: Temporality,
+    histogram_aggregation: HistogramAggregation,
 }
 
 #[derive(Debug)]
@@ -241,6 +301,10 @@ impl PushMetricExporter for MetricExporter {
     fn temporality(&self) -> Temporality {
         self.temporality
     }
+
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        self.histogram_aggregation
+    }
 }
 
 impl MetricExporter {
@@ -253,10 +317,12 @@ impl MetricExporter {
     pub(crate) fn from_tonic(
         client: crate::exporter::tonic::metrics::TonicMetricsClient,
         temporality: Temporality,
+        histogram_aggregation: HistogramAggregation,
     ) -> Self {
         Self {
             client: SupportedTransportClient::Tonic(client),
             temporality,
+            histogram_aggregation,
         }
     }
 
@@ -264,10 +330,12 @@ impl MetricExporter {
     pub(crate) fn from_http(
         client: crate::exporter::http::OtlpHttpClient,
         temporality: Temporality,
+        histogram_aggregation: HistogramAggregation,
     ) -> Self {
         Self {
             client: SupportedTransportClient::Http(client),
             temporality,
+            histogram_aggregation,
         }
     }
 }
@@ -372,5 +440,98 @@ mod tests {
             let result = resolve_temporality(None).unwrap();
             assert_eq!(result, Temporality::Cumulative);
         });
+    }
+
+    #[test]
+    fn histogram_aggregation_code_config_overrides_env_var() {
+        run_env_test(
+            vec![(
+                OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+                "explicit_bucket_histogram",
+            )],
+            || {
+                let result = resolve_histogram_aggregation(Some(
+                    HistogramAggregation::Base2ExponentialBucketHistogram,
+                ))
+                .unwrap();
+                assert_eq!(
+                    result,
+                    HistogramAggregation::Base2ExponentialBucketHistogram
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn histogram_aggregation_env_var_sets_explicit_bucket() {
+        run_env_test(
+            vec![(
+                OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+                "explicit_bucket_histogram",
+            )],
+            || {
+                let result = resolve_histogram_aggregation(None).unwrap();
+                assert_eq!(result, HistogramAggregation::ExplicitBucketHistogram);
+            },
+        );
+    }
+
+    #[test]
+    fn histogram_aggregation_env_var_sets_base2_exponential() {
+        run_env_test(
+            vec![(
+                OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+                "base2_exponential_bucket_histogram",
+            )],
+            || {
+                let result = resolve_histogram_aggregation(None).unwrap();
+                assert_eq!(
+                    result,
+                    HistogramAggregation::Base2ExponentialBucketHistogram
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn histogram_aggregation_env_var_case_insensitive() {
+        run_env_test(
+            vec![(
+                OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+                "BASE2_EXPONENTIAL_BUCKET_HISTOGRAM",
+            )],
+            || {
+                let result = resolve_histogram_aggregation(None).unwrap();
+                assert_eq!(
+                    result,
+                    HistogramAggregation::Base2ExponentialBucketHistogram
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn histogram_aggregation_invalid_env_var_returns_error() {
+        run_env_test(
+            vec![(
+                OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+                "invalid",
+            )],
+            || {
+                let result = resolve_histogram_aggregation(None);
+                assert!(result.is_err());
+            },
+        );
+    }
+
+    #[test]
+    fn histogram_aggregation_default_when_nothing_set() {
+        temp_env::with_var_unset(
+            OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION,
+            || {
+                let result = resolve_histogram_aggregation(None).unwrap();
+                assert_eq!(result, HistogramAggregation::ExplicitBucketHistogram);
+            },
+        );
     }
 }
