@@ -23,7 +23,7 @@ use crate::{
 
 use self::internal::AggregateFns;
 
-use super::{aggregation::Aggregation, Temporality};
+use super::{aggregation::Aggregation, HistogramAggregation, Temporality};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -378,14 +378,15 @@ where
         // TODO: Create a separate pub (crate) Stream struct for the pipeline,
         // as Stream will not have any optional fields as None at this point and
         // new struct can better reflect this.
+        let histogram_agg = self.pipeline.reader.default_histogram_aggregation();
         let mut agg = stream
             .aggregation
             .take()
-            .unwrap_or_else(|| default_aggregation_selector(kind));
+            .unwrap_or_else(|| default_aggregation_selector(kind, histogram_agg));
 
         // Apply default if stream or reader aggregation returns default
         if matches!(agg, aggregation::Aggregation::Default) {
-            agg = default_aggregation_selector(kind);
+            agg = default_aggregation_selector(kind, histogram_agg);
         }
 
         if let Err(err) = is_aggregator_compatible(&kind, &agg) {
@@ -421,7 +422,8 @@ where
                 filter,
                 cardinality_limit,
             );
-            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
+            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind, histogram_agg)
+            {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
@@ -497,10 +499,13 @@ where
 /// * Observable UpDownCounter ⇨ Sum
 /// * Gauge ⇨ LastValue
 /// * Observable Gauge ⇨ LastValue
-/// * Histogram ⇨ ExplicitBucketHistogram
+/// * Histogram ⇨ determined by `histogram_agg`
 ///
 /// [the spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.19.0/specification/metrics/sdk.md#default-aggregation
-fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
+fn default_aggregation_selector(
+    kind: InstrumentKind,
+    histogram_agg: HistogramAggregation,
+) -> Aggregation {
     match kind {
         InstrumentKind::Counter
         | InstrumentKind::UpDownCounter
@@ -508,12 +513,21 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
         | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
         InstrumentKind::Gauge => Aggregation::LastValue,
         InstrumentKind::ObservableGauge => Aggregation::LastValue,
-        InstrumentKind::Histogram => Aggregation::ExplicitBucketHistogram {
-            boundaries: vec![
-                0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
-                5000.0, 7500.0, 10000.0,
-            ],
-            record_min_max: true,
+        InstrumentKind::Histogram => match histogram_agg {
+            HistogramAggregation::ExplicitBucketHistogram => Aggregation::ExplicitBucketHistogram {
+                boundaries: vec![
+                    0.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0, 1000.0, 2500.0,
+                    5000.0, 7500.0, 10000.0,
+                ],
+                record_min_max: true,
+            },
+            HistogramAggregation::Base2ExponentialBucketHistogram => {
+                Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: 20,
+                    record_min_max: true,
+                }
+            }
         },
     }
 }
@@ -525,9 +539,15 @@ fn aggregate_fn<T: Number>(
     b: AggregateBuilder<T>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
+    histogram_agg: HistogramAggregation,
 ) -> MetricResult<Option<AggregateFns<T>>> {
     match agg {
-        Aggregation::Default => aggregate_fn(b, &default_aggregation_selector(kind), kind),
+        Aggregation::Default => aggregate_fn(
+            b,
+            &default_aggregation_selector(kind, histogram_agg),
+            kind,
+            histogram_agg,
+        ),
         Aggregation::Drop => Ok(None),
         Aggregation::LastValue => {
             match kind {

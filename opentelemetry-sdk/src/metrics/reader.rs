@@ -3,7 +3,10 @@ use crate::error::OTelSdkResult;
 use std::time::Duration;
 use std::{fmt, sync::Weak};
 
-use super::{data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, Temporality};
+use super::{
+    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, HistogramAggregation,
+    Temporality,
+};
 
 /// The interface used between the SDK and an exporter.
 ///
@@ -58,6 +61,14 @@ pub trait MetricReader: fmt::Debug + Send + Sync + 'static {
     ///
     /// If not configured, the Cumulative temporality SHOULD be used.
     fn temporality(&self, kind: InstrumentKind) -> Temporality;
+
+    /// The default histogram aggregation.
+    /// This SHOULD be obtained from the exporter.
+    ///
+    /// If not configured, [`HistogramAggregation::ExplicitBucketHistogram`] is used.
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        HistogramAggregation::default()
+    }
 }
 
 /// Produces metrics for a [MetricReader].

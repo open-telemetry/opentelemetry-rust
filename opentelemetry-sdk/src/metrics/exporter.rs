@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::metrics::data::ResourceMetrics;
 
-use super::Temporality;
+use super::{HistogramAggregation, Temporality};
 
 /// Exporter handles the delivery of metric data to external receivers.
 ///
@@ -37,4 +37,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
 
     /// Access the [Temporality] of the MetricExporter.
     fn temporality(&self) -> Temporality;
+
+    /// The default aggregation to use for histogram instruments.
+    fn default_histogram_aggregation(&self) -> HistogramAggregation;
 }
