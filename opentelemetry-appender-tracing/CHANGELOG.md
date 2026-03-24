@@ -2,7 +2,7 @@
 
 ## vNext
 
-- Add `OpenTelemetryTracingBridgeBuilder::with_scope()` to configure the
+- Add `OpenTelemetryTracingBridge::with_scope()` to configure the
   OpenTelemetry `InstrumentationScope` used by the appender logger.
   [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
 
