@@ -956,33 +956,48 @@ mod tests {
             .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes([KeyValue::new("scope-key", "scope-value")])
             .build();
+        let subscribers = [
+            tracing_subscriber::registry().with(
+                layer::OpenTelemetryTracingBridge::builder_with_scope(
+                    &logger_provider,
+                    scope.clone(),
+                )
+                .build(),
+            ),
+            tracing_subscriber::registry().with(layer::OpenTelemetryTracingBridge::with_scope(
+                &logger_provider,
+                scope,
+            )),
+        ];
 
-        let subscriber = tracing_subscriber::registry().with(
-            layer::OpenTelemetryTracingBridge::builder_with_scope(&logger_provider, scope).build(),
-        );
-        let _guard = tracing::subscriber::set_default(subscriber);
+        for subscriber in subscribers {
+            let _guard = tracing::subscriber::set_default(subscriber);
 
-        error!(name: "scoped-event", target: "my-system", event_id = 20);
-        assert!(logger_provider.force_flush().is_ok());
+            error!(name: "scoped-event", target: "my-system", event_id = 20);
+            assert!(logger_provider.force_flush().is_ok());
 
-        let exported_logs = exporter
-            .get_emitted_logs()
-            .expect("Logs are expected to be exported.");
-        assert_eq!(exported_logs.len(), 1);
-        let log = exported_logs
-            .first()
-            .expect("At least one log is expected to be present.");
+            let exported_logs = exporter
+                .get_emitted_logs()
+                .expect("Logs are expected to be exported.");
+            assert_eq!(exported_logs.len(), 1);
+            let log = exported_logs
+                .first()
+                .expect("At least one log is expected to be present.");
 
-        let instrumentation_scope = &log.instrumentation;
-        assert_eq!(instrumentation_scope.name(), "test.scope");
-        assert_eq!(instrumentation_scope.version(), Some("1.2.3"));
-        assert_eq!(
-            instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schemas/1.0.0")
-        );
-        assert!(instrumentation_scope
-            .attributes()
-            .eq([KeyValue::new("scope-key", "scope-value")].iter()));
+            let instrumentation_scope = &log.instrumentation;
+            assert_eq!(instrumentation_scope.name(), "test.scope");
+            assert_eq!(instrumentation_scope.version(), Some("1.2.3"));
+            assert_eq!(
+                instrumentation_scope.schema_url(),
+                Some("https://opentelemetry.io/schemas/1.0.0")
+            );
+            assert!(instrumentation_scope.attributes().eq([KeyValue::new(
+                "scope-key",
+                "scope-value"
+            )]
+            .iter()));
+            exporter.reset();
+        }
     }
 
     #[test]
