@@ -322,33 +322,43 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
+    /// Creates a bridge using the default OpenTelemetry logger scope.
+    ///
+    /// The default scope uses an empty scope name for the appender logger.
+    /// Use [`Self::with_scope`] or [`Self::builder_with_scope`] to provide a
+    /// custom [`InstrumentationScope`].
     pub fn new(provider: &P) -> Self {
-        Self::builder(provider, None).build()
+        Self::builder(provider).build()
     }
 
-    /// Creates the bridge with a custom OpenTelemetry `InstrumentationScope`.
-    ///
-    /// Use this when you want emitted logs to carry a specific scope name,
-    /// version, schema URL, or scope attributes.
-    ///
-    /// For the default behavior (empty scope name), use [`Self::new`].
+    /// Creates the bridge with a custom OpenTelemetry [`InstrumentationScope`].
     pub fn with_scope(provider: &P, scope: InstrumentationScope) -> Self {
-        Self::builder(provider, Some(scope)).build()
+        Self::builder_with_scope(provider, scope).build()
     }
 
-    pub fn builder(
-        provider: &P,
-        scope: Option<InstrumentationScope>,
-    ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+    /// Creates a builder using the default OpenTelemetry logger scope.
+    pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
         OpenTelemetryTracingBridgeBuilder {
             // Using empty scope name.
             // The name/version of this library itself can be added
             // as a Scope attribute, once a semantic convention is
             // defined for the same.
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
-            logger: scope
-                .map(|scope| provider.logger_with_scope(scope))
-                .unwrap_or_else(|| provider.logger("")),
+            logger: provider.logger(""),
+            _phantom: Default::default(),
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attribute_allowlist: None,
+        }
+    }
+
+    /// Creates a builder that uses a custom OpenTelemetry [`InstrumentationScope`]
+    /// for the appender logger.
+    pub fn builder_with_scope(
+        provider: &P,
+        scope: InstrumentationScope,
+    ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        OpenTelemetryTracingBridgeBuilder {
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
             span_attribute_allowlist: None,
@@ -860,7 +870,7 @@ mod tests {
             .build();
 
         let subscriber = tracing_subscriber::registry().with(
-            layer::OpenTelemetryTracingBridge::with_scope(&logger_provider, scope),
+            layer::OpenTelemetryTracingBridge::builder_with_scope(&logger_provider, scope).build(),
         );
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1421,7 +1431,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::builder(&provider, None)
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1458,7 +1468,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::builder(&provider, None)
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1505,7 +1515,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::builder(&provider, None)
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(std::iter::empty::<&str>())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1543,7 +1553,7 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::builder(&provider, None)
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
