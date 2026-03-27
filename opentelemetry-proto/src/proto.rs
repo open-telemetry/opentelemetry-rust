@@ -213,6 +213,82 @@ pub(crate) mod serializers {
         let s: String = Deserialize::deserialize(deserializer)?;
         s.parse::<i64>().map_err(de::Error::custom)
     }
+    pub fn serialize_vec_u64_to_strings<S>(vec: &Vec<u64>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let str_vec: Vec<String> = vec.iter().map(|&num| num.to_string()).collect();
+        serializer.collect_seq(str_vec)
+    }
+    
+    pub fn deserialize_strings_to_vec_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let str_vec: Vec<String> = Deserialize::deserialize(deserializer)?;
+        str_vec
+            .into_iter()
+            .map(|s| s.parse::<u64>().map_err(de::Error::custom))
+            .collect()
+    }
+
+
+// Special serializer and deserializer for NaN, Infinity, and -Infinity
+pub fn serialize_f64_special<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if value.is_nan() {
+        serializer.serialize_str("NaN")
+    } else if value.is_infinite() {
+        if value.is_sign_positive() {
+            serializer.serialize_str("Infinity")
+        } else {
+            serializer.serialize_str("-Infinity")
+        }
+    } else {
+        serializer.serialize_f64(*value)
+    }
+}
+
+pub fn deserialize_f64_special<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct F64Visitor;
+
+    impl<'de> de::Visitor<'de> for F64Visitor {
+        type Value = f64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
+        }
+
+        fn visit_f64<E>(self, value: f64) -> Result<f64, E>
+        where
+            E: de::Error,
+        {
+            Ok(value)
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<f64, E>
+        where
+            E: de::Error,
+        {
+            match value {
+                "NaN" => Ok(f64::NAN),
+                "Infinity" => Ok(f64::INFINITY),
+                "-Infinity" => Ok(f64::NEG_INFINITY),
+                _ => Err(E::custom(format!(
+                    "Invalid string for f64: expected NaN, Infinity, or -Infinity but got '{}'",
+                    value
+                ))),
+            }
+        }
+    }
+
+    deserializer.deserialize_any(F64Visitor)
+   }
 }
 
 #[cfg(feature = "gen-tonic-messages")]
