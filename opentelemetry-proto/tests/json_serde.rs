@@ -1715,4 +1715,140 @@ mod json_serde {
             }
         }
     }
+
+    #[cfg(feature = "metrics")]
+    mod bare_number_deserialization {
+        use super::*;
+
+        #[test]
+        fn u64_bare_number() {
+            // parsers must accept both bare and quoted numbers
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1544712660000000000,
+                    "timeUnixNano": "1544712661000000000",
+                    "asInt": "42"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("bare u64 numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(Data::Gauge(gauge)) = &dp.data {
+                assert_eq!(
+                    gauge.data_points[0].start_time_unix_nano,
+                    1544712660000000000
+                );
+                assert_eq!(gauge.data_points[0].time_unix_nano, 1544712661000000000);
+            } else {
+                panic!("expected gauge data");
+            }
+        }
+
+        #[test]
+        fn vec_u64_bare_numbers() {
+            // bucket_counts should accept both quoted and bare numbers in arrays
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test_histogram",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": "0",
+                    "timeUnixNano": "0",
+                    "count": 10,
+                    "sum": 100.0,
+                    "bucketCounts": [1, "2", 3],
+                    "explicitBounds": [10.0, 20.0]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("bare u64 vec numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(Data::Histogram(hist)) = &dp.data {
+                assert_eq!(hist.data_points[0].bucket_counts, vec![1, 2, 3]);
+                assert_eq!(hist.data_points[0].count, 10);
+            } else {
+                panic!("expected histogram data");
+            }
+        }
+
+        #[test]
+        fn f64_bare_number_in_summary_quantile() {
+            // deserialize_f64_special should accept both quoted and bare numeric strings
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test_summary",
+              "summary": {
+                "dataPoints": [
+                  {
+                    "count": "1",
+                    "sum": 100.0,
+                    "quantileValues": [
+                      {
+                        "quantile": "0.5",
+                        "value": 99.0
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("quoted f64 numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
+                &dp.data
+            {
+                let qv = &summary.data_points[0].quantile_values[0];
+                // assert!((qv.quantile - 0.5).abs() < f64::EPSILON);
+                // assert!((qv.value - 99.0).abs() < f64::EPSILON);
+                assert_eq!(qv.quantile, 0.5);
+                assert_eq!(qv.value, 99.0);
+            } else {
+                panic!("expected summary data");
+            }
+        }
+    }
 }

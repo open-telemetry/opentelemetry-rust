@@ -170,8 +170,39 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<u64>().map_err(de::Error::custom)
+        struct U64Visitor;
+
+        impl<'de> de::Visitor<'de> for U64Visitor {
+            type Value = u64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a u64 integer or a string containing a u64 integer")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                u64::try_from(value)
+                    .map_err(|_| E::custom(format!("i64 value {} is out of range for u64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<u64>().map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_any(U64Visitor)
     }
 
     pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
@@ -190,10 +221,73 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: Vec<String> = Deserialize::deserialize(deserializer)?;
-        s.into_iter()
-            .map(|v| v.parse::<u64>().map_err(de::Error::custom))
-            .collect()
+        struct U64ElemVisitor;
+
+        impl<'de> de::Visitor<'de> for U64ElemVisitor {
+            type Value = u64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a u64 integer or a string containing a u64 integer")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                u64::try_from(value)
+                    .map_err(|_| E::custom(format!("i64 value {} is out of range for u64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<u64>().map_err(de::Error::custom)
+            }
+        }
+
+        struct VecU64Visitor;
+
+        impl<'de> de::Visitor<'de> for VecU64Visitor {
+            type Value = Vec<u64>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence of u64 integers or strings containing u64 integers")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Vec<u64>, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(value) = seq.next_element_seed(U64ElemSeed)? {
+                    values.push(value);
+                }
+                Ok(values)
+            }
+        }
+
+        struct U64ElemSeed;
+
+        impl<'de> de::DeserializeSeed<'de> for U64ElemSeed {
+            type Value = u64;
+
+            fn deserialize<D2>(self, deserializer: D2) -> Result<u64, D2::Error>
+            where
+                D2: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(U64ElemVisitor)
+            }
+        }
+
+        deserializer.deserialize_seq(VecU64Visitor)
     }
 
     pub fn serialize_i64_to_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -208,8 +302,39 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<i64>().map_err(de::Error::custom)
+        struct I64Visitor;
+
+        impl<'de> de::Visitor<'de> for I64Visitor {
+            type Value = i64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an i64 integer or a string containing an i64 integer")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                i64::try_from(value)
+                    .map_err(|_| E::custom(format!("u64 value {} is out of range for i64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<i64>().map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_any(I64Visitor)
     }
 
     // Special serializer and deserializer for NaN, Infinity, and -Infinity
@@ -272,10 +397,12 @@ pub(crate) mod serializers {
                     "NaN" => Ok(f64::NAN),
                     "Infinity" => Ok(f64::INFINITY),
                     "-Infinity" => Ok(f64::NEG_INFINITY),
-                    _ => Err(E::custom(format!(
-                        "Invalid string for f64: expected NaN, Infinity, or -Infinity but got '{}'",
-                        value
-                    ))),
+                    _ => value.parse::<f64>().map_err(|_| {
+                        E::custom(format!(
+                            "invalid string for f64: expected a number, NaN, Infinity, or -Infinity but got '{}'",
+                            value
+                        ))
+                    }),
                 }
             }
         }
