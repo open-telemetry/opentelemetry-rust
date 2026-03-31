@@ -14,6 +14,7 @@ opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
 testcontainers = { version = "0.27.2", features = ["http_wait"] }
+time = ">=0.3.47" # transitive dep of testcontainers (via bollard); pinned to fix RUSTSEC-2026-0066
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 tracing = {workspace = true}
