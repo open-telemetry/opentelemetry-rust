@@ -164,7 +164,7 @@ impl LogProcessor for BatchLogProcessor {
                 // Successfully sent the log record to the data channel.
                 // Increment the current batch size and check if it has reached
                 // the max export batch size.
-                if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1
+                if self.current_batch_size.fetch_add(1, Ordering::AcqRel) + 1
                     >= self.max_export_batch_size
                 {
                     // Check if the a control message for exporting logs is
@@ -372,25 +372,30 @@ impl BatchLogProcessor {
                 where
                     E: LogExporter + Send + Sync + 'static,
                 {
-                    let target = current_batch_size.load(Ordering::Relaxed); // `target` is used to determine the stopping criteria for exporting logs.
+                    let target = current_batch_size.load(Ordering::Acquire); // `target` is used to determine the stopping criteria for exporting logs.
                     let mut result = OTelSdkResult::Ok(());
                     let mut total_exported_logs: usize = 0;
 
                     while target > 0 && total_exported_logs < target {
-                        // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
+                        let batch_limit = max_export_size.min(target - total_exported_logs);
+
+                        // Get up to the remaining target batch size from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
                             logs.push(log);
-                            if logs.len() == max_export_size {
+                            if logs.len() == batch_limit {
                                 break;
                             }
                         }
 
                         let count_of_logs = logs.len(); // Count of logs that will be exported
+                        if count_of_logs == 0 {
+                            break;
+                        }
                         total_exported_logs += count_of_logs;
 
                         result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
-                        current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
+                        current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
                     result
                 }
