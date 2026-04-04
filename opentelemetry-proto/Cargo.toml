@@ -6,9 +6,9 @@ homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opent
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 readme = "README.md"
 categories = [
-	"development-tools::debugging",
-	"development-tools::profiling",
-	"asynchronous",
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
 ]
 keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
@@ -33,13 +33,13 @@ path = "tests/json_serde.rs"
 [features]
 default = ["full"]
 full = [
-	"gen-tonic",
-	"trace",
-	"logs",
-	"metrics",
-	"zpages",
-	"with-serde",
-	"internal-logs",
+    "gen-tonic",
+    "trace",
+    "logs",
+    "metrics",
+    "zpages",
+    "with-serde",
+    "internal-logs",
 ]
 
 # crates used to generate rs files
@@ -68,8 +68,8 @@ opentelemetry = { workspace = true, default-features = false }
 opentelemetry_sdk = { workspace = true, default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = [
-	"serde_derive",
-	"std",
+    "serde_derive",
+    "std",
 ] }
 const-hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
