@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct TracezCounts {
     #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
     pub spanname: ::std::string::String,
@@ -20,6 +21,7 @@ pub struct TracezCounts {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LatencyData {
     #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
     pub traceid: ::std::vec::Vec<u8>,
@@ -46,6 +48,7 @@ pub struct LatencyData {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct RunningData {
     #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
     pub traceid: ::std::vec::Vec<u8>,
@@ -70,6 +73,7 @@ pub struct RunningData {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ErrorData {
     #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
     pub traceid: ::std::vec::Vec<u8>,

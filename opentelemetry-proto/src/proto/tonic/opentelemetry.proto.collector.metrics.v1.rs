@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsServiceRequest {
     /// An array of ResourceMetrics.
     /// For data coming from a single resource this array will typically contain one
@@ -20,6 +21,7 @@ pub struct ExportMetricsServiceRequest {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -44,6 +46,7 @@ pub struct ExportMetricsServiceResponse {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsPartialSuccess {
     /// The number of rejected data points.
     ///

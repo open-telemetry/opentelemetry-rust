@@ -27,6 +27,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ProfilesDictionary {
     /// Mappings from address ranges to the image/binary/library mapped
     /// into that address range referenced by locations via Location.mapping_index.
@@ -97,6 +98,7 @@ pub struct ProfilesDictionary {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ProfilesData {
     /// An array of ResourceProfiles.
     /// For data coming from an SDK profiler, this array will typically contain one
@@ -119,6 +121,7 @@ pub struct ProfilesData {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceProfiles {
     /// The resource for the profiles in this message.
     /// If this field is not set then no resource info is known.
@@ -142,6 +145,7 @@ pub struct ResourceProfiles {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeProfiles {
     /// The instrumentation scope information for the profiles in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
@@ -173,6 +177,7 @@ pub struct ScopeProfiles {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Profile {
     /// The type and unit of all Sample.values in this profile.
     /// For a cpu or off-cpu profile this might be:
@@ -258,6 +263,7 @@ pub struct Profile {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Link {
     /// A unique identifier of a trace that this linked span is part of. The ID is a
     /// 16-byte array.
@@ -273,6 +279,7 @@ pub struct Link {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ValueType {
     /// Index into ProfilesDictionary.string_table.
     #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
@@ -315,6 +322,7 @@ pub struct ValueType {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Sample {
     /// Reference to stack in ProfilesDictionary.stack_table.
     #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
@@ -350,6 +358,7 @@ pub struct Sample {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Mapping {
     /// Address at which the binary (or DLL) is loaded into memory.
     #[cfg_attr(feature = "with-prost", prost(uint64, tag = "1"))]
@@ -377,6 +386,7 @@ pub struct Mapping {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Stack {
     /// References to locations in ProfilesDictionary.location_table.
     /// The first location is the leaf frame.
@@ -389,6 +399,7 @@ pub struct Stack {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Location {
     /// Reference to mapping in ProfilesDictionary.mapping_table.
     /// It can be unset / set to 0 if the mapping is unknown or not applicable for
@@ -421,6 +432,7 @@ pub struct Location {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Line {
     /// Reference to function in ProfilesDictionary.function_table.
     #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
@@ -440,6 +452,7 @@ pub struct Line {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Function {
     /// The function name. Empty string if not available.
     #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
@@ -463,6 +476,7 @@ pub struct Function {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct KeyValueAndUnit {
     /// The index into the string table for the attribute's key.
     #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]

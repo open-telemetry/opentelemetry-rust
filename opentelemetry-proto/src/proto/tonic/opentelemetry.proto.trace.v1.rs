@@ -14,6 +14,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct TracesData {
     /// An array of ResourceSpans.
     /// For data coming from a single resource this array will typically contain
@@ -30,6 +31,7 @@ pub struct TracesData {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
     /// If this field is not set then no resource info is known.
@@ -54,6 +56,7 @@ pub struct ResourceSpans {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeSpans {
     /// The instrumentation scope information for the spans in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
@@ -81,6 +84,7 @@ pub struct ScopeSpans {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
     /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR
@@ -249,6 +253,7 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
     pub struct Event {
         /// The time the event occurred.
         #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "1"))]
@@ -287,6 +292,7 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
         /// 16-byte array.
@@ -349,17 +355,8 @@ pub mod span {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Enumeration))]
     #[repr(i32)]
     pub enum SpanKind {
         /// Unspecified. Do NOT use as default.
@@ -420,6 +417,7 @@ pub mod span {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Status {
     /// A developer-facing human readable error message.
     #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
@@ -435,17 +433,8 @@ pub mod status {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Enumeration))]
     #[repr(i32)]
     pub enum StatusCode {
         /// The default status.
@@ -455,6 +444,12 @@ pub mod status {
         Ok = 1,
         /// The Span contains an error.
         Error = 2,
+    }
+    #[cfg(not(feature = "with-prost"))]
+    impl From<StatusCode> for i32 {
+        fn from(value: StatusCode) -> Self {
+            value as i32
+        }
     }
     impl StatusCode {
         /// String value of the enum field names used in the ProtoBuf definition.

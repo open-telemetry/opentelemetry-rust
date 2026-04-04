@@ -32,6 +32,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct MetricsData {
     /// An array of ResourceMetrics.
     /// For data coming from a single resource this array will typically contain
@@ -48,6 +49,7 @@ pub struct MetricsData {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceMetrics {
     /// The resource for the metrics in this message.
     /// If this field is not set then no resource info is known.
@@ -72,6 +74,7 @@ pub struct ResourceMetrics {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeMetrics {
     /// The instrumentation scope information for the metrics in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
@@ -184,6 +187,7 @@ pub struct ScopeMetrics {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Metric {
     /// The name of the metric.
     #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
@@ -222,6 +226,7 @@ pub mod metric {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Oneof))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug))]
     pub enum Data {
         #[cfg_attr(feature = "with-prost", prost(message, tag = "5"))]
         Gauge(super::Gauge),
@@ -250,6 +255,7 @@ pub mod metric {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Gauge {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
@@ -264,6 +270,7 @@ pub struct Gauge {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Sum {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
@@ -285,6 +292,7 @@ pub struct Sum {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Histogram {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
@@ -303,6 +311,7 @@ pub struct Histogram {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExponentialHistogram {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
@@ -328,6 +337,7 @@ pub struct ExponentialHistogram {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Summary {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
@@ -342,6 +352,7 @@ pub struct Summary {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct NumberDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
@@ -400,6 +411,7 @@ pub mod number_data_point {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Oneof))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug))]
     pub enum Value {
         #[cfg_attr(feature = "with-prost", prost(double, tag = "4"))]
         AsDouble(f64),
@@ -423,6 +435,7 @@ pub mod number_data_point {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct HistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
@@ -540,6 +553,7 @@ pub struct HistogramDataPoint {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExponentialHistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
@@ -669,6 +683,7 @@ pub mod exponential_histogram_data_point {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
     pub struct Buckets {
         /// The bucket index of the first entry in the bucket_counts array.
         ///
@@ -704,6 +719,7 @@ pub mod exponential_histogram_data_point {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct SummaryDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
@@ -784,6 +800,7 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
         /// \[0.0, 1.0\].
@@ -819,6 +836,7 @@ pub mod summary_data_point {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but
     /// recorded alongside the original measurement. Only key/value pairs that were
@@ -880,6 +898,7 @@ pub mod exemplar {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Oneof))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug))]
     pub enum Value {
         #[cfg_attr(feature = "with-prost", prost(double, tag = "3"))]
         AsDouble(f64),
@@ -961,6 +980,12 @@ pub enum AggregationTemporality {
     /// value was reset (e.g. Prometheus).
     Cumulative = 2,
 }
+#[cfg(not(feature = "with-prost"))]
+impl From<AggregationTemporality> for i32 {
+    fn from(value: AggregationTemporality) -> Self {
+        value as i32
+    }
+}
 impl AggregationTemporality {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
@@ -1003,6 +1028,12 @@ pub enum DataPointFlags {
     /// SHOULD be used to reflect explicitly missing data in a series, as
     /// for an equivalent to the Prometheus "staleness marker".
     NoRecordedValueMask = 1,
+}
+#[cfg(not(feature = "with-prost"))]
+impl Default for DataPointFlags {
+    fn default() -> Self {
+        Self::DoNotUse
+    }
 }
 impl DataPointFlags {
     /// String value of the enum field names used in the ProtoBuf definition.

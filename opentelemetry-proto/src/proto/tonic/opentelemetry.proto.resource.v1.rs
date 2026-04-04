@@ -6,6 +6,7 @@
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Resource {
     /// Set of attributes that describe the resource.
     /// Attribute keys MUST be unique (it is not allowed to have more than one

@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportProfilesServiceRequest {
     /// An array of ResourceProfiles.
     /// For data coming from a single resource this array will typically contain one
@@ -25,6 +26,7 @@ pub struct ExportProfilesServiceRequest {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportProfilesServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -49,6 +51,7 @@ pub struct ExportProfilesServiceResponse {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportProfilesPartialSuccess {
     /// The number of rejected profiles.
     ///

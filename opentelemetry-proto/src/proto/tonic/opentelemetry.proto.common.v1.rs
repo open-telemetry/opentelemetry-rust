@@ -7,6 +7,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct AnyValue {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
     /// in which case this AnyValue is considered to be "empty".
@@ -30,6 +31,7 @@ pub mod any_value {
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Oneof))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug))]
     pub enum Value {
         #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
         StringValue(::std::string::String),
@@ -66,6 +68,7 @@ pub mod any_value {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ArrayValue {
     /// Array of values. The array may be empty (contain 0 elements).
     #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
@@ -81,6 +84,7 @@ pub struct ArrayValue {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct KeyValueList {
     /// A collection of key/value pairs of key-value pairs. The list may be empty (may
     /// contain 0 elements).
@@ -98,6 +102,7 @@ pub struct KeyValueList {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct KeyValue {
     /// The key name of the pair.
     /// key_ref MUST NOT be set if key is used.
@@ -132,6 +137,7 @@ pub struct KeyValue {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct InstrumentationScope {
     /// A name denoting the Instrumentation scope.
     /// An empty instrumentation scope name means the name is unknown.
@@ -162,6 +168,7 @@ pub struct InstrumentationScope {
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct EntityRef {
     /// The Schema URL, if known. This is the identifier of the Schema that the entity data
     /// is recorded in. To learn more about Schema URL see

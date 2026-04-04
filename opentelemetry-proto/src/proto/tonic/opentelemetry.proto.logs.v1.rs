@@ -14,6 +14,7 @@
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LogsData {
     /// An array of ResourceLogs.
     /// For data coming from a single resource this array will typically contain
@@ -30,6 +31,7 @@ pub struct LogsData {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceLogs {
     /// The resource for the logs in this message.
     /// If this field is not set then resource info is unknown.
@@ -54,6 +56,7 @@ pub struct ResourceLogs {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeLogs {
     /// The instrumentation scope information for the logs in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
@@ -80,6 +83,7 @@ pub struct ScopeLogs {
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LogRecord {
     /// time_unix_nano is the time when the event occurred.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
@@ -235,6 +239,12 @@ pub enum SeverityNumber {
     Fatal2 = 22,
     Fatal3 = 23,
     Fatal4 = 24,
+}
+#[cfg(not(feature = "with-prost"))]
+impl From<SeverityNumber> for i32 {
+    fn from(value: SeverityNumber) -> Self {
+        value as i32
+    }
 }
 impl SeverityNumber {
     /// String value of the enum field names used in the ProtoBuf definition.
