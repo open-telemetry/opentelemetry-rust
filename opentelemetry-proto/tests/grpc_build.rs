@@ -200,6 +200,20 @@ fn build_tonic() {
         .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
+    // Post-process each generated file to gate prost-specific derives and types
+    // behind the `with-prost` feature, so that http-json users don't pull in prost.
+    for entry in std::fs::read_dir(out_dir.path())
+        .expect("cannot open temp out dir")
+        .flatten()
+    {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "rs") {
+            let original = std::fs::read_to_string(&path).expect("cannot read generated file");
+            let processed = post_process_generated(original);
+            std::fs::write(&path, processed).expect("cannot write processed generated file");
+        }
+    }
+
     let after_build = build_content_map(out_dir.path(), true);
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
@@ -254,4 +268,78 @@ fn ensure_files_are_same(
     }
 
     panic!("generated file has changed, please commit the change file and rerun the test");
+}
+
+/// Post-processes a prost-generated `.rs` file to make all prost-specific
+/// derives and types conditional on the `with-prost` feature flag.
+///
+/// This decouples the struct definitions from `prost` so that consumers using
+/// only `http-json` (which needs only `serde` derives) don't transitively
+/// compile prost. See: https://github.com/open-telemetry/opentelemetry-rust/issues/3419
+fn post_process_generated(content: String) -> String {
+    // --- Step 1: Split #[derive(..., ::prost::Trait)] into two attributes ---
+    // prost generates a small fixed set of derive combinations; handle each explicitly
+    // to avoid a regex dep. ::prost::Message/Oneof/Enumeration is always last.
+    let content = content
+        .replace(
+            "#[derive(Clone, PartialEq, ::prost::Message)]",
+            "#[derive(Clone, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, ::prost::Message)]",
+            "#[derive(Clone, Copy, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]",
+        )
+        .replace(
+            "#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]",
+            "#[derive(Clone, PartialEq, Eq, Hash)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]",
+            "#[derive(Clone, Copy, PartialEq, Eq, Hash)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]",
+        )
+        .replace(
+            "#[derive(Clone, PartialEq, ::prost::Oneof)]",
+            "#[derive(Clone, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Oneof))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, ::prost::Oneof)]",
+            "#[derive(Clone, Copy, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Oneof))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]",
+            "#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Enumeration))]",
+        );
+
+    // --- Step 2: Replace ::prost::alloc types with std equivalents ---
+    // These are just thin re-exports; switching to std is always valid.
+    let content = content
+        .replace("::prost::alloc::vec::Vec", "::std::vec::Vec")
+        .replace("::prost::alloc::string::String", "::std::string::String");
+
+    // --- Step 3: Gate #[prost(...)] field/variant helper attributes ---
+    // These helper attrs are only valid when the prost::Message/Oneof derive is
+    // present. They must be cfg_attr'd with the same feature.
+    let trailing_newline = content.ends_with('\n');
+    let mut out = content
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with("#[prost(") {
+                return line.to_string();
+            }
+            let indent = &line[..line.len() - trimmed.len()];
+            // trimmed is "#[prost(ARGS)]"; strip outer #[...] to get "prost(ARGS)"
+            let inner = trimmed
+                .strip_prefix("#[")
+                .and_then(|s| s.strip_suffix(']'))
+                .expect("malformed #[prost(...)] attribute in generated file");
+            format!("{indent}#[cfg_attr(feature = \"with-prost\", {inner})]")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if trailing_newline {
+        out.push('\n');
+    }
+    out
 }

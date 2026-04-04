@@ -12,62 +12,65 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct TracesData {
     /// An array of ResourceSpans.
     /// For data coming from a single resource this array will typically contain
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag = "1")]
-    pub resource_spans: ::prost::alloc::vec::Vec<ResourceSpans>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub resource_spans: ::std::vec::Vec<ResourceSpans>,
 }
 /// A collection of ScopeSpans from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct ResourceSpans {
     /// The resource for the spans in this message.
     /// If this field is not set then no resource info is known.
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of ScopeSpans that originate from a resource.
-    #[prost(message, repeated, tag = "2")]
-    pub scope_spans: ::prost::alloc::vec::Vec<ScopeSpans>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub scope_spans: ::std::vec::Vec<ScopeSpans>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_spans" field which have their own schema_url field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// A collection of Spans produced by an InstrumentationScope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct ScopeSpans {
     /// The instrumentation scope information for the spans in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
     /// an empty instrumentation scope name (unknown).
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of Spans that originate from an instrumentation scope.
-    #[prost(message, repeated, tag = "2")]
-    pub spans: ::prost::alloc::vec::Vec<Span>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub spans: ::std::vec::Vec<Span>,
     /// The Schema URL, if known. This is the identifier of the Schema that the span data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "scope" field and all spans and span
     /// events in the "spans" field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// A Span represents a single operation performed by a single component of the system.
 ///
@@ -76,7 +79,8 @@ pub struct ScopeSpans {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct Span {
     /// A unique identifier for a trace. All spans from the same trace share
     /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR
@@ -84,7 +88,7 @@ pub struct Span {
     /// is zero-length and thus is also invalid).
     ///
     /// This field is required.
-    #[prost(bytes = "vec", tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -92,14 +96,14 @@ pub struct Span {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub trace_id: ::prost::alloc::vec::Vec<u8>,
+    pub trace_id: ::std::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
     /// other than 8 bytes is considered invalid (empty string in OTLP/JSON
     /// is zero-length and thus is also invalid).
     ///
     /// This field is required.
-    #[prost(bytes = "vec", tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -107,15 +111,15 @@ pub struct Span {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub span_id: ::prost::alloc::vec::Vec<u8>,
+    pub span_id: ::std::vec::Vec<u8>,
     /// trace_state conveys information about request position in multiple distributed tracing graphs.
     /// It is a trace_state in w3c-trace-context format: <https://www.w3.org/TR/trace-context/#tracestate-header>
     /// See also <https://github.com/w3c/distributed-tracing> for more details about this field.
-    #[prost(string, tag = "3")]
-    pub trace_state: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub trace_state: ::std::string::String,
     /// The `span_id` of this span's parent span. If this is a root span, then this
     /// field must be empty. The ID is an 8-byte array.
-    #[prost(bytes = "vec", tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "4"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -123,7 +127,7 @@ pub struct Span {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub parent_span_id: ::prost::alloc::vec::Vec<u8>,
+    pub parent_span_id: ::std::vec::Vec<u8>,
     /// Flags, a bit field.
     ///
     /// Bits 0-7 (8 least significant bits) are the trace flags as defined in W3C Trace
@@ -145,7 +149,7 @@ pub struct Span {
     /// Readers MUST NOT assume that bits 10-31 (22 most significant bits) will be zero.
     ///
     /// \[Optional\].
-    #[prost(fixed32, tag = "16")]
+    #[cfg_attr(feature = "with-prost", prost(fixed32, tag = "16"))]
     pub flags: u32,
     /// A description of the span's operation.
     ///
@@ -158,12 +162,12 @@ pub struct Span {
     /// Empty value is equivalent to an unknown span name.
     ///
     /// This field is required.
-    #[prost(string, tag = "5")]
-    pub name: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "5"))]
+    pub name: ::std::string::String,
     /// Distinguishes between spans generated in a particular context. For example,
     /// two spans with the same name may be distinguished using `CLIENT` (caller)
     /// and `SERVER` (callee) to identify queueing latency associated with the span.
-    #[prost(enumeration = "span::SpanKind", tag = "6")]
+    #[cfg_attr(feature = "with-prost", prost(enumeration = "span::SpanKind", tag = "6"))]
     pub kind: i32,
     /// The start time of the span. On the client side, this is the time
     /// kept by the local machine where the span execution starts. On the server side, this
@@ -171,7 +175,7 @@ pub struct Span {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
-    #[prost(fixed64, tag = "7")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "7"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -186,7 +190,7 @@ pub struct Span {
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     ///
     /// This field is semantically required and it is expected that end_time >= start_time.
-    #[prost(fixed64, tag = "8")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "8"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -208,31 +212,31 @@ pub struct Span {
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "9")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "9"))]
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// The number of attributes that were discarded. Attributes
     /// can be discarded because their keys are too long or because there are too many
     /// attributes. If this value is 0, then no attributes were dropped.
-    #[prost(uint32, tag = "10")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "10"))]
     pub dropped_attributes_count: u32,
     /// A collection of Event items.
-    #[prost(message, repeated, tag = "11")]
-    pub events: ::prost::alloc::vec::Vec<span::Event>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "11"))]
+    pub events: ::std::vec::Vec<span::Event>,
     /// The number of dropped events. If the value is 0, then no
     /// events were dropped.
-    #[prost(uint32, tag = "12")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "12"))]
     pub dropped_events_count: u32,
     /// A collection of Links, which are references from this span to a span
     /// in the same or different trace.
-    #[prost(message, repeated, tag = "13")]
-    pub links: ::prost::alloc::vec::Vec<span::Link>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "13"))]
+    pub links: ::std::vec::Vec<span::Link>,
     /// The number of dropped links after the maximum size was
     /// enforced. If this value is 0, then no links were dropped.
-    #[prost(uint32, tag = "14")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "14"))]
     pub dropped_links_count: u32,
     /// An optional final status for this span. Semantically when Status isn't set, it means
     /// span's status code is unset, i.e. assume STATUS_CODE_UNSET (code = 0).
-    #[prost(message, optional, tag = "15")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "15"))]
     pub status: ::core::option::Option<Status>,
 }
 /// Nested message and enum types in `Span`.
@@ -243,10 +247,11 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
     pub struct Event {
         /// The time the event occurred.
-        #[prost(fixed64, tag = "1")]
+        #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "1"))]
         #[cfg_attr(
             feature = "with-serde",
             serde(
@@ -257,19 +262,19 @@ pub mod span {
         pub time_unix_nano: u64,
         /// The name of the event.
         /// This field is semantically required to be set to non-empty string.
-        #[prost(string, tag = "2")]
-        pub name: ::prost::alloc::string::String,
+        #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
+        pub name: ::std::string::String,
         /// A collection of attribute key/value pairs on the event.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
         /// The behavior of software that receives duplicated keys can be unpredictable.
-        #[prost(message, repeated, tag = "3")]
-        pub attributes: ::prost::alloc::vec::Vec<
+        #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "3"))]
+        pub attributes: ::std::vec::Vec<
             super::super::super::common::v1::KeyValue,
         >,
         /// The number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
-        #[prost(uint32, tag = "4")]
+        #[cfg_attr(feature = "with-prost", prost(uint32, tag = "4"))]
         pub dropped_attributes_count: u32,
     }
     /// A pointer from the current span to another span in the same trace or in a
@@ -280,11 +285,12 @@ pub mod span {
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
     #[cfg_attr(feature = "with-serde", serde(default))]
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
     pub struct Link {
         /// A unique identifier of a trace that this linked span is part of. The ID is a
         /// 16-byte array.
-        #[prost(bytes = "vec", tag = "1")]
+        #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
         #[cfg_attr(
             feature = "with-serde",
             serde(
@@ -292,9 +298,9 @@ pub mod span {
                 deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
             )
         )]
-        pub trace_id: ::prost::alloc::vec::Vec<u8>,
+        pub trace_id: ::std::vec::Vec<u8>,
         /// A unique identifier for the linked span. The ID is an 8-byte array.
-        #[prost(bytes = "vec", tag = "2")]
+        #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
         #[cfg_attr(
             feature = "with-serde",
             serde(
@@ -302,21 +308,21 @@ pub mod span {
                 deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
             )
         )]
-        pub span_id: ::prost::alloc::vec::Vec<u8>,
+        pub span_id: ::std::vec::Vec<u8>,
         /// The trace_state associated with the link.
-        #[prost(string, tag = "3")]
-        pub trace_state: ::prost::alloc::string::String,
+        #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+        pub trace_state: ::std::string::String,
         /// A collection of attribute key/value pairs on the link.
         /// Attribute keys MUST be unique (it is not allowed to have more than one
         /// attribute with the same key).
         /// The behavior of software that receives duplicated keys can be unpredictable.
-        #[prost(message, repeated, tag = "4")]
-        pub attributes: ::prost::alloc::vec::Vec<
+        #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "4"))]
+        pub attributes: ::std::vec::Vec<
             super::super::super::common::v1::KeyValue,
         >,
         /// The number of dropped attributes. If the value is 0,
         /// then no attributes were dropped.
-        #[prost(uint32, tag = "5")]
+        #[cfg_attr(feature = "with-prost", prost(uint32, tag = "5"))]
         pub dropped_attributes_count: u32,
         /// Flags, a bit field.
         ///
@@ -335,7 +341,7 @@ pub mod span {
         /// When creating new spans, bits 10-31 (most-significant 22-bits) MUST be zero.
         ///
         /// \[Optional\].
-        #[prost(fixed32, tag = "6")]
+        #[cfg_attr(feature = "with-prost", prost(fixed32, tag = "6"))]
         pub flags: u32,
     }
     /// SpanKind is the type of span. Can be used to specify additional relationships between spans
@@ -412,13 +418,14 @@ pub mod span {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct Status {
     /// A developer-facing human readable error message.
-    #[prost(string, tag = "2")]
-    pub message: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
+    pub message: ::std::string::String,
     /// The status code.
-    #[prost(enumeration = "status::StatusCode", tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(enumeration = "status::StatusCode", tag = "3"))]
     pub code: i32,
 }
 /// Nested message and enum types in `Status`.
@@ -489,7 +496,8 @@ pub mod status {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Enumeration))]
 #[repr(i32)]
 pub enum SpanFlags {
     /// The zero value for the enum. Should not be used for comparisons.

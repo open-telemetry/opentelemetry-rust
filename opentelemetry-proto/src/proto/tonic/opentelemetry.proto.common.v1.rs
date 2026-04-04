@@ -5,11 +5,12 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct AnyValue {
     /// The value is one of the listed fields. It is valid for all values to be unspecified
     /// in which case this AnyValue is considered to be "empty".
-    #[prost(oneof = "any_value::Value", tags = "1, 2, 3, 4, 5, 6, 7, 8")]
+    #[cfg_attr(feature = "with-prost", prost(oneof = "any_value::Value", tags = "1, 2, 3, 4, 5, 6, 7, 8"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -27,22 +28,23 @@ pub mod any_value {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Oneof))]
     pub enum Value {
-        #[prost(string, tag = "1")]
-        StringValue(::prost::alloc::string::String),
-        #[prost(bool, tag = "2")]
+        #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
+        StringValue(::std::string::String),
+        #[cfg_attr(feature = "with-prost", prost(bool, tag = "2"))]
         BoolValue(bool),
-        #[prost(int64, tag = "3")]
+        #[cfg_attr(feature = "with-prost", prost(int64, tag = "3"))]
         IntValue(i64),
-        #[prost(double, tag = "4")]
+        #[cfg_attr(feature = "with-prost", prost(double, tag = "4"))]
         DoubleValue(f64),
-        #[prost(message, tag = "5")]
+        #[cfg_attr(feature = "with-prost", prost(message, tag = "5"))]
         ArrayValue(super::ArrayValue),
-        #[prost(message, tag = "6")]
+        #[cfg_attr(feature = "with-prost", prost(message, tag = "6"))]
         KvlistValue(super::KeyValueList),
-        #[prost(bytes, tag = "7")]
-        BytesValue(::prost::alloc::vec::Vec<u8>),
+        #[cfg_attr(feature = "with-prost", prost(bytes, tag = "7"))]
+        BytesValue(::std::vec::Vec<u8>),
         /// Reference to the string value in ProfilesDictionary.string_table.
         ///
         /// Note: This is currently used exclusively in the Profiling signal.
@@ -53,7 +55,7 @@ pub mod any_value {
         /// empty, ignoring its semantic content for the non-Profiling signal.
         ///
         /// Status: \[Development\]
-        #[prost(int32, tag = "8")]
+        #[cfg_attr(feature = "with-prost", prost(int32, tag = "8"))]
         StringValueStrindex(i32),
     }
 }
@@ -62,11 +64,12 @@ pub mod any_value {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct ArrayValue {
     /// Array of values. The array may be empty (contain 0 elements).
-    #[prost(message, repeated, tag = "1")]
-    pub values: ::prost::alloc::vec::Vec<AnyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub values: ::std::vec::Vec<AnyValue>,
 }
 /// KeyValueList is a list of KeyValue messages. We need KeyValueList as a message
 /// since `oneof` in AnyValue does not allow repeated fields. Everywhere else where we need
@@ -76,7 +79,8 @@ pub struct ArrayValue {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct KeyValueList {
     /// A collection of key/value pairs of key-value pairs. The list may be empty (may
     /// contain 0 elements).
@@ -84,22 +88,23 @@ pub struct KeyValueList {
     /// The keys MUST be unique (it is not allowed to have more than one
     /// value with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "1")]
-    pub values: ::prost::alloc::vec::Vec<KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub values: ::std::vec::Vec<KeyValue>,
 }
 /// Represents a key-value pair that is used to store Span attributes, Link
 /// attributes, etc.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct KeyValue {
     /// The key name of the pair.
     /// key_ref MUST NOT be set if key is used.
-    #[prost(string, tag = "1")]
-    pub key: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
+    pub key: ::std::string::String,
     /// The value of the pair.
-    #[prost(message, optional, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "2"))]
     pub value: ::core::option::Option<AnyValue>,
     /// Reference to the string key in ProfilesDictionary.string_table.
     /// key MUST NOT be set if key_strindex is used.
@@ -112,7 +117,7 @@ pub struct KeyValue {
     /// empty, ignoring its semantic content for the non-Profiling signal.
     ///
     /// Status: \[Development\]
-    #[prost(int32, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "3"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(default, skip_serializing_if = "crate::proto::serializers::is_default")
@@ -125,26 +130,27 @@ pub struct KeyValue {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct InstrumentationScope {
     /// A name denoting the Instrumentation scope.
     /// An empty instrumentation scope name means the name is unknown.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
+    pub name: ::std::string::String,
     /// Defines the version of the instrumentation scope.
     /// An empty instrumentation scope version means the version is unknown.
-    #[prost(string, tag = "2")]
-    pub version: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
+    pub version: ::std::string::String,
     /// Additional attributes that describe the scope. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "3")]
-    pub attributes: ::prost::alloc::vec::Vec<KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "3"))]
+    pub attributes: ::std::vec::Vec<KeyValue>,
     /// The number of attributes that were discarded. Attributes
     /// can be discarded because their keys are too long or because there are too many
     /// attributes. If this value is 0, then no attributes were dropped.
-    #[prost(uint32, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "4"))]
     pub dropped_attributes_count: u32,
 }
 /// A reference to an Entity.
@@ -154,7 +160,8 @@ pub struct InstrumentationScope {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
 pub struct EntityRef {
     /// The Schema URL, if known. This is the identifier of the Schema that the entity data
     /// is recorded in. To learn more about Schema URL see
@@ -166,22 +173,22 @@ pub struct EntityRef {
     /// the schema_url applies to.
     ///
     /// This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
-    #[prost(string, tag = "1")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
+    pub schema_url: ::std::string::String,
     /// Defines the type of the entity. MUST not change during the lifetime of the entity.
     /// For example: "service" or "host". This field is required and MUST not be empty
     /// for valid entities.
-    #[prost(string, tag = "2")]
-    pub r#type: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
+    pub r#type: ::std::string::String,
     /// Attribute Keys that identify the entity.
     /// MUST not change during the lifetime of the entity. The Id must contain at least one attribute.
     /// These keys MUST exist in the containing {message}.attributes.
-    #[prost(string, repeated, tag = "3")]
-    pub id_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[cfg_attr(feature = "with-prost", prost(string, repeated, tag = "3"))]
+    pub id_keys: ::std::vec::Vec<::std::string::String>,
     /// Descriptive (non-identifying) attribute keys of the entity.
     /// MAY change over the lifetime of the entity. MAY be empty.
     /// These attribute keys are not part of entity's identity.
     /// These keys MUST exist in the containing {message}.attributes.
-    #[prost(string, repeated, tag = "4")]
-    pub description_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[cfg_attr(feature = "with-prost", prost(string, repeated, tag = "4"))]
+    pub description_keys: ::std::vec::Vec<::std::string::String>,
 }
