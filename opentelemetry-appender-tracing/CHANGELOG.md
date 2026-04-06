@@ -3,7 +3,6 @@
 ## vNext
 
 - Add custom `InstrumentationScope` support via
-  `OpenTelemetryTracingBridge::with_scope()` and
   `OpenTelemetryTracingBridge::builder_with_scope()`.
   [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
 
