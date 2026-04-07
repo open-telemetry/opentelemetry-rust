@@ -36,3 +36,6 @@ mod proto;
 pub use proto::tonic;
 
 pub mod transform;
+
+#[cfg(feature = "process-context")]
+pub mod process_context;
