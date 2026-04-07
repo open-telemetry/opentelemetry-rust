@@ -203,11 +203,11 @@ For more information about the approver role, see the [community repository](htt
 
 ### Emeritus
 
-* [Dirkjan Ochtman](https://github.com/djc)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
-* [Jan Kühle](https://github.com/frigus02)
-* [Julian Tescher](https://github.com/jtescher)
-* [Mike Goldsmith](https://github.com/MikeGoldsmith)
+* [Dirkjan Ochtman](https://github.com/djc), Maintainer
+* [Isobel Redelmeier](https://github.com/iredelmeier), Maintainer
+* [Jan Kühle](https://github.com/frigus02), Approver
+* [Julian Tescher](https://github.com/jtescher), Maintainer
+* [Mike Goldsmith](https://github.com/MikeGoldsmith), Approver
 
 For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 
