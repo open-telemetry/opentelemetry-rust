@@ -8,16 +8,21 @@ use tracing::{error, info};
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 fn main() {
+    let resource = Resource::builder()
+        .with_service_name("log-appender-tracing-example")
+        .build();
+
+    // Publish resource attributes via a memory-mapped region so external readers
+    // (e.g. the OpenTelemetry eBPF Profiler) can discover this process.
+    // This is a no-op on non-Linux platforms.
+    opentelemetry_proto::process_context::publish(&resource);
+
     let exporter = opentelemetry_stdout::LogExporter::default();
     let processor = FilteringLogProcessor::new(EnrichmentLogProcessor::new(
         SimpleLogProcessor::new(exporter),
     ));
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
-        .with_resource(
-            Resource::builder()
-                .with_service_name("log-appender-tracing-example")
-                .build(),
-        )
+        .with_resource(resource)
         .with_log_processor(processor)
         .build();
 
@@ -57,6 +62,8 @@ fn main() {
     info!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     error!(name: "my-event-name", target: "my-system", event_id = 50, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     let _ = provider.shutdown();
+
+    opentelemetry_proto::process_context::unpublish();
 }
 
 /// A log processor that drops records when `event_id` is `20` and delegates
