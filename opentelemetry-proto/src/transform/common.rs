@@ -97,6 +97,7 @@ pub mod tonic {
                     .map(|api_kv| KeyValue {
                         key: api_kv.key.as_str().to_string(),
                         value: Some(api_kv.value.into()),
+                        key_strindex: 0,
                     })
                     .collect(),
             )
@@ -111,6 +112,7 @@ pub mod tonic {
                     .map(|(k, v)| KeyValue {
                         key: k.into(),
                         value: Some(v.into()),
+                        key_strindex: 0,
                     })
                     .collect(),
             )

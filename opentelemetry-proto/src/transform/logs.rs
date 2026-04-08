@@ -47,6 +47,7 @@ pub mod tonic {
                             value: Some(AnyValue {
                                 value: Some(value.into()),
                             }),
+                            key_strindex: 0,
                         })
                         .collect(),
                 }),
@@ -98,6 +99,7 @@ pub mod tonic {
                             value: Some(AnyValue {
                                 value: Some(kv.1.clone().into()),
                             }),
+                            key_strindex: 0,
                         })
                         .collect()
                 },
