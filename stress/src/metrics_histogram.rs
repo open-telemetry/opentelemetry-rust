@@ -15,10 +15,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-use rand::{
-    rngs::{self},
-    Rng, SeedableRng,
-};
+use rand::{rngs, RngExt};
 use std::cell::RefCell;
 
 mod throughput;
@@ -36,7 +33,7 @@ lazy_static! {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rand::make_rng());
 
     static PROVIDER_PER_THREAD: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())

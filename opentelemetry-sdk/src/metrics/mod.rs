@@ -134,7 +134,7 @@ mod tests {
     use opentelemetry::InstrumentationScope;
     use opentelemetry::Value;
     use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-    use rand::{rngs, Rng, SeedableRng};
+    use rand::{rngs, RngExt};
     use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
@@ -3388,7 +3388,7 @@ mod tests {
         let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
-        let mut rand = rngs::SmallRng::from_os_rng();
+        let mut rand: rngs::SmallRng = rand::make_rng();
         let values_kv1 = (0..50)
             .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
