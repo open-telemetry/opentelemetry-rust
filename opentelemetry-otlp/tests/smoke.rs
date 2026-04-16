@@ -101,7 +101,9 @@ async fn smoke_tracer() {
                     .build()
                     .expect("NON gzip-tonic SpanExporter failed to build"),
             )
-            .build();
+            .unwrap()
+            .build()
+            .unwrap();
 
         global::set_tracer_provider(tracer_provider.clone());
 
@@ -208,7 +210,9 @@ async fn partial_success_handling() {
                     .build()
                     .expect("SpanExporter failed to build"),
             )
-            .build();
+            .unwrap()
+            .build()
+            .unwrap();
 
         global::set_tracer_provider(tracer_provider.clone());
         let tracer = global::tracer("partial-success-test");

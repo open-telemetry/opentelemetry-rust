@@ -73,7 +73,8 @@ use tokio::sync::RwLock;
 ///     // Then use the `with_batch_exporter` method to have the provider export spans in batches.
 ///     let provider = trace::SdkTracerProvider::builder()
 ///         .with_span_processor(batch)
-///         .build();
+///         .build()
+///         .unwrap();
 ///
 ///     let _ = global::set_tracer_provider(provider);
 /// }

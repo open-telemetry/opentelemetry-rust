@@ -31,7 +31,9 @@ fn init_traces() -> SdkTracerProvider {
     SdkTracerProvider::builder()
         .with_resource(get_resource())
         .with_batch_exporter(exporter)
+        .unwrap()
         .build()
+        .unwrap()
 }
 
 fn init_metrics() -> SdkMeterProvider {

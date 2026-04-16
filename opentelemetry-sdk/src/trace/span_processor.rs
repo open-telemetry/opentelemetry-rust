@@ -34,7 +34,7 @@
 //! [`is_recording`]: opentelemetry::trace::Span::is_recording()
 //! [`TracerProvider`]: opentelemetry::trace::TracerProvider
 
-use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::error::{OTelSdkError, OTelSdkResult, ProviderBuildError};
 use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
@@ -251,12 +251,14 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 ///             .with_scheduled_delay(Duration::from_secs(5)) // Export every 5 seconds.
 ///             .build(),
 ///     )
-///     .build();
+///     .build()
+///     .unwrap();
 ///
 /// // Step 3: Set up a TracerProvider with the configured processor.
 /// let provider = SdkTracerProvider::builder()
 ///     .with_span_processor(batch_processor)
-///     .build();
+///     .build()
+///     .unwrap();
 /// global::set_tracer_provider(provider.clone());
 ///
 /// // Step 4: Create spans and record operations.
@@ -335,7 +337,7 @@ impl BatchSpanProcessor {
         //max_queue_size: usize,
         //scheduled_delay: Duration,
         //shutdown_timeout: Duration,
-    ) -> Self
+    ) -> Result<Self, ProviderBuildError>
     where
         E: SpanExporter + Send + 'static,
     {
@@ -451,9 +453,9 @@ impl BatchSpanProcessor {
                     name: "BatchSpanProcessor.ThreadStopped"
                 );
             })
-            .expect("Failed to spawn thread"); //TODO: Handle thread spawn failure
+            .map_err(ProviderBuildError::ThreadSpawnFailed)?;
 
-        Self {
+        Ok(Self {
             span_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
@@ -463,7 +465,7 @@ impl BatchSpanProcessor {
             export_span_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
-        }
+        })
     }
 
     /// builder
@@ -762,7 +764,7 @@ where
     }
 
     /// Build a new instance of `BatchSpanProcessor`.
-    pub fn build(self) -> BatchSpanProcessor {
+    pub fn build(self) -> Result<BatchSpanProcessor, ProviderBuildError> {
         BatchSpanProcessor::new(self.exporter, self.config)
     }
 }
@@ -1235,7 +1237,7 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         let test_span = create_test_span("test_span");
         processor.on_end(test_span.clone());
@@ -1257,7 +1259,7 @@ mod tests {
             .with_max_export_batch_size(10)
             .with_scheduled_delay(Duration::from_secs(5))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
@@ -1325,7 +1327,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new()
             .keep_records_on_shutdown()
             .build();
-        let processor = BatchSpanProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchSpanProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
 
         let record = create_test_span("test_span");
 
@@ -1376,7 +1378,7 @@ mod tests {
             .with_max_export_batch_size(5)
             .with_scheduled_delay(Duration::from_millis(10))
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         // Rapidly send many more spans than the queue can hold
         let total_spans_to_send = 100;
@@ -1449,7 +1451,7 @@ mod tests {
             max_concurrent_exports: 4,
         };
 
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         processor.on_end(new_test_export_span_data());
         processor.on_end(new_test_export_span_data());
@@ -1475,7 +1477,7 @@ mod tests {
         let exporter = MockSpanExporter::new();
         let exporter_shared = exporter.exported_spans.clone();
         let config = BatchConfigBuilder::default().build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         // Create a span with attributes
         let mut span_data = create_test_span("attribute_validation");
@@ -1506,7 +1508,7 @@ mod tests {
         let exporter_shared = exporter.exported_spans.clone();
         let resource_shared = exporter.exported_resource.clone();
         let config = BatchConfigBuilder::default().build();
-        let mut processor = BatchSpanProcessor::new(exporter, config);
+        let mut processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         // Set a resource for the processor
         let resource = Resource::builder_empty()
@@ -1547,7 +1549,7 @@ mod tests {
             .with_max_export_batch_size(3)
             .build();
 
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
@@ -1570,7 +1572,7 @@ mod tests {
             .with_max_export_batch_size(3)
             .build();
 
-        let processor = BatchSpanProcessor::new(exporter, config);
+        let processor = BatchSpanProcessor::new(exporter, config).unwrap();
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
@@ -1594,7 +1596,7 @@ mod tests {
             .build();
 
         // Create the processor with the thread-safe exporter
-        let processor = Arc::new(BatchSpanProcessor::new(exporter, config));
+        let processor = Arc::new(BatchSpanProcessor::new(exporter, config).unwrap());
 
         let mut handles = vec![];
         for _ in 0..10 {

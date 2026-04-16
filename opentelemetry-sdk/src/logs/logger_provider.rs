@@ -648,7 +648,7 @@ mod tests {
 
         let logger = logger_provider.logger("test-logger");
 
-        let tracer_provider = SdkTracerProvider::builder().build();
+        let tracer_provider = SdkTracerProvider::builder().build().unwrap();
 
         let tracer = tracer_provider.tracer("test-tracer");
 

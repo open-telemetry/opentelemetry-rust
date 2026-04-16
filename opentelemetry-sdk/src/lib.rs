@@ -22,7 +22,8 @@
 //!     // Create a new trace pipeline that prints to stdout
 //!     let provider = SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
-//!         .build();
+//!         .build()
+//!         .unwrap();
 //!     let tracer = provider.tracer("readme_example");
 //!
 //!     tracer.in_span("doing_work", |cx| {
@@ -196,6 +197,7 @@ pub use resource::Resource;
 
 pub mod error;
 pub use error::ExportError;
+pub use error::ProviderBuildError;
 
 #[cfg(any(feature = "testing", test))]
 #[derive(thiserror::Error, Debug)]

@@ -84,7 +84,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
         let tracer = provider.tracer("test_tracer");
 
         #[derive(Debug, PartialEq)]
@@ -169,7 +170,8 @@ mod tests {
     fn span_and_baggage() {
         let provider = SdkTracerProvider::builder()
             .with_span_processor(BaggageInspectingSpanProcessor)
-            .build();
+            .build()
+            .unwrap();
 
         let cx_with_baggage =
             Context::current_with_baggage(vec![KeyValue::new("bag-key", "bag-value")]);
@@ -238,7 +240,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = provider.tracer("test_tracer");
@@ -285,7 +288,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = provider.tracer("test_tracer");
@@ -321,7 +325,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = provider.tracer("test_tracer");
@@ -357,7 +362,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = provider.tracer("test_tracer");
@@ -393,7 +399,8 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let provider = SdkTracerProvider::builder()
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = provider.tracer("test_tracer");
@@ -429,7 +436,8 @@ mod tests {
         let provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOff)
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         let tracer = provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
@@ -482,7 +490,8 @@ mod tests {
         let provider = SdkTracerProvider::builder()
             .with_sampler(TestRecordOnlySampler::default())
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         let tracer = provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
@@ -513,7 +522,7 @@ mod tests {
 
     #[test]
     fn tracer_attributes() {
-        let provider = SdkTracerProvider::builder().build();
+        let provider = SdkTracerProvider::builder().build().unwrap();
         let scope = InstrumentationScope::builder("basic")
             .with_attributes(vec![KeyValue::new("test_k", "test_v")])
             .build();
@@ -554,7 +563,8 @@ mod tests {
         let span_processor = SimpleSpanProcessor::new(exporter.clone());
         let tracer_provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
-            .build();
+            .build()
+            .unwrap();
 
         // Test Tracer creation in 2 ways, both with empty string as tracer name
         let tracer1 = tracer_provider.tracer("");
@@ -572,7 +582,8 @@ mod tests {
         let span_processor = SimpleSpanProcessor::new(exporter.clone());
         let tracer_provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let tracer = tracer_provider.tracer("test");

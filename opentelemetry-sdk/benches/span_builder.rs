@@ -56,7 +56,8 @@ fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::SdkTracer) 
     let provider = sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOff)
         .with_simple_exporter(NoopExporter)
-        .build();
+        .build()
+        .unwrap();
     let tracer = provider.tracer("not-sampled");
     (provider, tracer)
 }

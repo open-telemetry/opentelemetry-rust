@@ -45,7 +45,9 @@
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(otlp_exporter)
-//!         .build();
+//!         .unwrap()
+//!         .build()
+//!         .unwrap();
 //!
 //!     // Set it as the global provider
 //!     global::set_tracer_provider(tracer_provider);
@@ -88,7 +90,9 @@
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(otlp_exporter)
-//!         .build();
+//!         .unwrap()
+//!         .build()
+//!         .unwrap();
 //!
 //!     // Set it as the global provider
 //!     global::set_tracer_provider(tracer_provider);
@@ -121,7 +125,9 @@
 //!             .expect("Failed to create span exporter");
 //!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!             .with_batch_exporter(exporter)
+//!             .unwrap()
 //!             .build()
+//!             .unwrap()
 //!     });
 //!
 //!     // Set it as the global provider
@@ -583,7 +589,9 @@
 //! let tracer_provider = SdkTracerProvider::builder()
 //!     .with_resource(resource.clone())
 //!     .with_batch_exporter(span_exporter)
-//!     .build();
+//!     .unwrap()
+//!     .build()
+//!     .unwrap();
 //!
 //! // Metrics
 //! let metric_exporter = opentelemetry_otlp::MetricExporter::builder()

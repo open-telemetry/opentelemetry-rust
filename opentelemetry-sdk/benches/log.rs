@@ -66,7 +66,8 @@ fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
         // setup tracing as well.
         let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("bench-tracer");
 
         // Act

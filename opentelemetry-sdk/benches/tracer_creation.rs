@@ -39,7 +39,7 @@ fn get_tracer_with_scope_attrs() -> &'static BoxedTracer {
 fn create_provider() -> sdktrace::SdkTracerProvider {
     // Provider is empty, no exporters, no processors etc.
     // as the goal is measurement of tracer creation time.
-    sdktrace::SdkTracerProvider::builder().build()
+    sdktrace::SdkTracerProvider::builder().build().unwrap()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

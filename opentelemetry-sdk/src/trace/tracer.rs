@@ -310,7 +310,8 @@ mod tests {
         let sampler = TestSampler {};
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
@@ -335,7 +336,8 @@ mod tests {
         let sampler: Box<dyn ShouldSample> = Box::new(TestSampler {});
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
@@ -359,7 +361,8 @@ mod tests {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
-            .build();
+            .build()
+            .unwrap();
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
         let tracer = tracer_provider.tracer("test");
@@ -373,7 +376,8 @@ mod tests {
         let sampler = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(sampler)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
 
         let _attached = Context::current_with_span(TestSpan(SpanContext::empty_context())).attach();
@@ -403,7 +407,8 @@ mod tests {
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
 
         // Create a parent context explicitly
@@ -457,7 +462,8 @@ mod tests {
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
 
         // Create a parent span and attach it to the current context
@@ -502,7 +508,8 @@ mod tests {
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
 
         // Create a parent context explicitly
@@ -557,7 +564,8 @@ mod tests {
         let tracer_provider = crate::trace::SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
             .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test");
 
         // Create an active context with a specific trace context

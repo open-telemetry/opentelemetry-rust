@@ -20,7 +20,8 @@ fn init_tracer() -> SdkTracerProvider {
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces.
     let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
-        .build();
+        .build()
+        .unwrap();
 
     global::set_tracer_provider(provider.clone());
     provider

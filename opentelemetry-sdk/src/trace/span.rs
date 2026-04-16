@@ -536,7 +536,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
             crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
-        let provider = provider_builder.build();
+        let provider = provider_builder.build().unwrap();
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut initial_attributes = Vec::new();
@@ -575,7 +575,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
             crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
-        let provider = provider_builder.build();
+        let provider = provider_builder.build().unwrap();
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut event1 = Event::with_name("test event");
@@ -611,7 +611,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
             crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
-        let provider = provider_builder.build();
+        let provider = provider_builder.build().unwrap();
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut link = Link::with_context(SpanContext::new(
@@ -643,7 +643,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
             crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
-        let provider = provider_builder.build();
+        let provider = provider_builder.build().unwrap();
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut links = Vec::new();
@@ -685,7 +685,7 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder =
             crate::trace::SdkTracerProvider::builder().with_simple_exporter(exporter);
-        let provider = provider_builder.build();
+        let provider = provider_builder.build().unwrap();
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut events = Vec::new();
@@ -713,7 +713,8 @@ mod tests {
     fn test_span_exported_data() {
         let provider = crate::trace::SdkTracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
-            .build();
+            .build()
+            .unwrap();
         let tracer = provider.tracer("test");
 
         let mut span = tracer.start("test_span");

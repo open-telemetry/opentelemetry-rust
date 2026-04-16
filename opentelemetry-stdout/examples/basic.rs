@@ -25,7 +25,8 @@ fn init_trace() -> SdkTracerProvider {
     let provider = SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
-        .build();
+        .build()
+        .unwrap();
     global::set_tracer_provider(provider.clone());
     provider
 }

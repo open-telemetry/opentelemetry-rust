@@ -64,6 +64,7 @@ impl<'a> LogBatch<'a> {
 impl LogBatch<'_> {
     /// Returns the number of log records in the batch.
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         match &self.data {
             LogBatchData::SliceOfOwnedData(data) => data.len(),

@@ -732,7 +732,8 @@ mod tests {
         // setup tracing as well.
         let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test-tracer");
 
         // Act
@@ -927,7 +928,8 @@ mod tests {
         // setup tracing as well.
         let tracer_provider = SdkTracerProvider::builder()
             .with_sampler(Sampler::AlwaysOn)
-            .build();
+            .build()
+            .unwrap();
         let tracer = tracer_provider.tracer("test-tracer");
 
         // Act

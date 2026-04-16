@@ -164,7 +164,8 @@ fn init_tracer() -> SdkTracerProvider {
     let provider = SdkTracerProvider::builder()
         .with_span_processor(EnrichWithBaggageSpanProcessor)
         .with_simple_exporter(SpanExporter::default())
-        .build();
+        .build()
+        .unwrap();
 
     global::set_tracer_provider(provider.clone());
     provider

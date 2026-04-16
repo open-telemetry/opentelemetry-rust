@@ -30,6 +30,7 @@
 //!     SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build()
+//!         .unwrap()
 //! }
 //!
 //! fn init_metrics() -> SdkMeterProvider {
