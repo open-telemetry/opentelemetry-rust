@@ -38,7 +38,7 @@ impl LogExporter for OtlpHttpClient {
     }
 
     fn requires_async_runtime(&self) -> bool {
-        self.requires_async_runtime()
+        self.needs_async_runtime
     }
 }
 

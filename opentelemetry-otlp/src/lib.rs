@@ -45,7 +45,6 @@
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(otlp_exporter)
-//!         .unwrap()
 //!         .build()
 //!         .unwrap();
 //!
@@ -90,7 +89,6 @@
 //!     // Create a tracer provider with the exporter
 //!     let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!         .with_batch_exporter(otlp_exporter)
-//!         .unwrap()
 //!         .build()
 //!         .unwrap();
 //!
@@ -125,7 +123,6 @@
 //!             .expect("Failed to create span exporter");
 //!         opentelemetry_sdk::trace::SdkTracerProvider::builder()
 //!             .with_batch_exporter(exporter)
-//!             .unwrap()
 //!             .build()
 //!             .unwrap()
 //!     });
@@ -589,7 +586,6 @@
 //! let tracer_provider = SdkTracerProvider::builder()
 //!     .with_resource(resource.clone())
 //!     .with_batch_exporter(span_exporter)
-//!     .unwrap()
 //!     .build()
 //!     .unwrap();
 //!
@@ -615,7 +611,6 @@
 //! let logger_provider = SdkLoggerProvider::builder()
 //!     .with_resource(resource)
 //!     .with_batch_exporter(log_exporter)
-//!     .unwrap()
 //!     .build()
 //!     .unwrap();
 //! # }

@@ -96,6 +96,10 @@ pub trait HttpClient: Debug + Send + Sync {
     ///
     /// This is used by batch processors to detect invalid client/processor combinations
     /// at build time, before they would panic at export time.
+    ///
+    /// **Note:** This check is best-effort. Third-party clients that wrap async HTTP
+    /// clients but do not override this method will return `false` and may panic at
+    /// export time when used with a sync batch processor.
     fn requires_async_runtime(&self) -> bool {
         false
     }

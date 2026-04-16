@@ -601,10 +601,6 @@ impl OtlpHttpClient {
         }
     }
 
-    pub(crate) fn requires_async_runtime(&self) -> bool {
-        self.needs_async_runtime
-    }
-
     #[cfg(feature = "trace")]
     fn build_trace_export_body(
         &self,

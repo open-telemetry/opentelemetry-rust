@@ -165,6 +165,10 @@ pub trait LogExporter: Send + Sync + Debug {
     ///
     /// Exporters backed by async HTTP clients (reqwest::Client, HyperClient) return `true`.
     /// This is used by batch processors to detect invalid combinations at build time.
+    ///
+    /// **Note:** This check is best-effort. Third-party exporters that wrap async HTTP
+    /// clients but do not override this method will return `false` and may panic at
+    /// export time when used with a sync batch processor.
     fn requires_async_runtime(&self) -> bool {
         false
     }

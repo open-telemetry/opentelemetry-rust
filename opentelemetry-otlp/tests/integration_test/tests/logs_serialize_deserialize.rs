@@ -21,7 +21,7 @@ pub async fn test_logs() -> Result<()> {
     let exporter_builder = LogExporter::builder().with_tonic();
     let exporter = exporter_builder.build()?;
     let mut logger_provider_builder = SdkLoggerProvider::builder();
-    logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter)?;
+    logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter);
     let logger_provider = logger_provider_builder
         .with_resource(
             Resource::builder_empty()

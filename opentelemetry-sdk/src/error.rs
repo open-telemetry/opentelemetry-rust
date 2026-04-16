@@ -44,20 +44,23 @@ pub enum OTelSdkError {
 /// A specialized `Result` type for Shutdown operations.
 pub type OTelSdkResult = Result<(), OTelSdkError>;
 
-#[derive(Error, Debug)]
 /// Errors that can occur during provider construction.
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum ProviderBuildError {
     /// Failed to spawn a background thread for batch processing.
     #[error("Failed to spawn background thread: {0}")]
     ThreadSpawnFailed(std::io::Error),
 
-    /// Internal failure during provider construction.
+    /// The exporter requires an async runtime (e.g. Tokio), but the batch
+    /// processor uses a dedicated OS thread with a synchronous executor.
     ///
-    /// The error message is intended for logging purposes only and should not
-    /// be used to make programmatic decisions. It is implementation-specific
-    /// and subject to change without notice. Consumers of this error should not
-    /// rely on its content beyond logging.
-    #[error("Provider build failed: {0}")]
-    InternalFailure(String),
+    /// Use a synchronous HTTP client (e.g. `reqwest::blocking::Client`) instead,
+    /// or switch to an async batch processor that runs inside a Tokio runtime.
+    #[error(
+        "Exporter requires an async runtime (e.g. Tokio), but the batch processor uses a \
+         dedicated OS thread with a synchronous executor. Use a synchronous HTTP client \
+         (e.g. reqwest::blocking::Client) instead, or use an async batch processor."
+    )]
+    AsyncRuntimeRequired,
 }

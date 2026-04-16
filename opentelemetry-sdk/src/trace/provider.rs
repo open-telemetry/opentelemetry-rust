@@ -303,6 +303,7 @@ pub struct TracerProviderBuilder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
     resource: Option<Resource>,
+    pending_error: Option<ProviderBuildError>,
 }
 
 impl TracerProviderBuilder {
@@ -331,14 +332,17 @@ impl TracerProviderBuilder {
     /// # Returns
     ///
     /// A new `Builder` instance with the BatchSpanProcessor added to the pipeline.
+    /// Any error is deferred and returned when [`build`](TracerProviderBuilder::build) is called.
     ///
     /// Processors are invoked in the order they are added.
-    pub fn with_batch_exporter<T: SpanExporter + 'static>(
-        self,
-        exporter: T,
-    ) -> Result<Self, ProviderBuildError> {
-        let batch = BatchSpanProcessor::builder(exporter).build()?;
-        Ok(self.with_span_processor(batch))
+    pub fn with_batch_exporter<T: SpanExporter + 'static>(mut self, exporter: T) -> Self {
+        match BatchSpanProcessor::builder(exporter).build() {
+            Ok(batch) => self.with_span_processor(batch),
+            Err(e) => {
+                self.pending_error = Some(e);
+                self
+            }
+        }
     }
 
     /// Adds a custom [SpanProcessor] to the pipeline.
@@ -469,6 +473,10 @@ impl TracerProviderBuilder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> Result<SdkTracerProvider, ProviderBuildError> {
+        if let Some(e) = self.pending_error {
+            return Err(e);
+        }
+
         let mut config = self.config;
 
         // Now, we can update the config with the resource.

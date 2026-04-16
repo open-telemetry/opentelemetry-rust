@@ -184,6 +184,7 @@ impl Drop for LoggerProviderInner {
 pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
+    pending_error: Option<ProviderBuildError>,
 }
 
 impl LoggerProviderBuilder {
@@ -223,12 +224,14 @@ impl LoggerProviderBuilder {
     /// A new `LoggerProviderBuilder` instance with the `BatchLogProcessor` added to the pipeline.
     ///
     /// Processors are invoked in the order they are added.
-    pub fn with_batch_exporter<T: LogExporter + 'static>(
-        self,
-        exporter: T,
-    ) -> Result<Self, ProviderBuildError> {
-        let batch = BatchLogProcessor::builder(exporter).build()?;
-        Ok(self.with_log_processor(batch))
+    pub fn with_batch_exporter<T: LogExporter + 'static>(mut self, exporter: T) -> Self {
+        match BatchLogProcessor::builder(exporter).build() {
+            Ok(batch) => self.with_log_processor(batch),
+            Err(e) => {
+                self.pending_error = Some(e);
+                self
+            }
+        }
     }
 
     /// Adds a custom [LogProcessor] to the pipeline.
@@ -293,6 +296,10 @@ impl LoggerProviderBuilder {
 
     /// Create a new provider from this configuration.
     pub fn build(self) -> Result<SdkLoggerProvider, ProviderBuildError> {
+        if let Some(e) = self.pending_error {
+            return Err(e);
+        }
+
         let resource = self.resource.unwrap_or(Resource::builder().build());
         let mut processors = self.processors;
         for processor in &mut processors {
