@@ -44,6 +44,12 @@ ignore = true
 [advisories]
 unmaintained = "none"
 yanked = "deny"
+ignore = [
+    # Transitive dependency via testcontainers -> bollard -> time.
+    # The `time` crate is not a direct dependency; this advisory cannot be
+    # resolved until testcontainers/bollard update their dependency.
+    { id = "RUSTSEC-2026-0009" },
+]
 
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:
