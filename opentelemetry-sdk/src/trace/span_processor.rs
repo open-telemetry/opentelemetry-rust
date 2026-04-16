@@ -1622,4 +1622,28 @@ mod tests {
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 10);
     }
+
+    #[test]
+    fn test_batch_span_processor_rejects_async_runtime_exporter() {
+        use crate::error::ProviderBuildError;
+
+        #[derive(Debug)]
+        struct AsyncRequiringExporter;
+
+        impl SpanExporter for AsyncRequiringExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn requires_async_runtime(&self) -> bool {
+                true
+            }
+        }
+
+        let result = BatchSpanProcessor::builder(AsyncRequiringExporter).build();
+        assert!(
+            matches!(result, Err(ProviderBuildError::AsyncRuntimeRequired)),
+            "Expected AsyncRuntimeRequired, got: {result:?}"
+        );
+    }
 }

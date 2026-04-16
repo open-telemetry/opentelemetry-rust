@@ -930,6 +930,41 @@ mod tests {
     }
 
     #[test]
+    fn test_with_batch_exporter_defers_async_runtime_error() {
+        use crate::error::ProviderBuildError;
+        use crate::error::OTelSdkResult;
+        use crate::trace::{SpanData, SpanExporter};
+
+        #[derive(Debug)]
+        struct AsyncRequiringExporter;
+
+        impl SpanExporter for AsyncRequiringExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn requires_async_runtime(&self) -> bool {
+                true
+            }
+        }
+
+        // with_batch_exporter should return Self (deferred error), not Err immediately
+        let builder = super::SdkTracerProvider::builder()
+            .with_batch_exporter(AsyncRequiringExporter);
+        assert!(
+            builder.pending_error.is_some(),
+            "Expected pending_error to be set"
+        );
+
+        // build() should surface the deferred error
+        let result = builder.build();
+        assert!(
+            matches!(result, Err(ProviderBuildError::AsyncRuntimeRequired)),
+            "Expected AsyncRuntimeRequired, got: {result:?}"
+        );
+    }
+
+    #[test]
     fn drop_after_shutdown_test_with_multiple_providers() {
         let shutdown_count = Arc::new(AtomicU32::new(0));
 

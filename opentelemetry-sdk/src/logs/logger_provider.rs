@@ -884,6 +884,40 @@ mod tests {
     }
 
     #[test]
+    fn test_with_batch_exporter_defers_async_runtime_error() {
+        use crate::error::{OTelSdkResult, ProviderBuildError};
+        use crate::logs::{LogBatch, LogExporter};
+
+        #[derive(Debug, Clone)]
+        struct AsyncRequiringLogExporter;
+
+        impl LogExporter for AsyncRequiringLogExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn requires_async_runtime(&self) -> bool {
+                true
+            }
+        }
+
+        // with_batch_exporter should return Self (deferred error), not Err immediately
+        let builder = super::SdkLoggerProvider::builder()
+            .with_batch_exporter(AsyncRequiringLogExporter);
+        assert!(
+            builder.pending_error.is_some(),
+            "Expected pending_error to be set"
+        );
+
+        // build() should surface the deferred error
+        let result = builder.build();
+        assert!(
+            matches!(result, Err(ProviderBuildError::AsyncRuntimeRequired)),
+            "Expected AsyncRuntimeRequired, got: {result:?}"
+        );
+    }
+
+    #[test]
     fn test_empty_logger_name() {
         let exporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()

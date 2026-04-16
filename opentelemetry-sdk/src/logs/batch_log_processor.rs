@@ -1124,4 +1124,28 @@ mod tests {
              Consider reducing queue size or increasing thread count/log volume."
         );
     }
+
+    #[test]
+    fn test_batch_log_processor_rejects_async_runtime_exporter() {
+        use crate::error::ProviderBuildError;
+
+        #[derive(Debug, Clone)]
+        struct AsyncRequiringLogExporter;
+
+        impl LogExporter for AsyncRequiringLogExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn requires_async_runtime(&self) -> bool {
+                true
+            }
+        }
+
+        let result = BatchLogProcessor::builder(AsyncRequiringLogExporter).build();
+        assert!(
+            matches!(result, Err(ProviderBuildError::AsyncRuntimeRequired)),
+            "Expected AsyncRuntimeRequired, got: {result:?}"
+        );
+    }
 }
