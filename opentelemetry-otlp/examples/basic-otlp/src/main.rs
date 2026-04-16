@@ -55,7 +55,9 @@ fn init_logs() -> SdkLoggerProvider {
     SdkLoggerProvider::builder()
         .with_resource(get_resource())
         .with_batch_exporter(exporter)
+        .unwrap()
         .build()
+        .unwrap()
 }
 
 #[tokio::main]

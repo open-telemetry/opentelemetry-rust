@@ -24,7 +24,8 @@ async fn main() {
                 .build(),
         )
         .with_simple_exporter(exporter)
-        .build();
+        .build()
+        .unwrap();
 
     // Setup Log Appender for the log crate.
     let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);

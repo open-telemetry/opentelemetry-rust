@@ -2,7 +2,7 @@
 
 ## vNext
 
-- **Breaking** `TracerProviderBuilder::build()` now returns `Result<SdkTracerProvider, ProviderBuildError>` instead of `SdkTracerProvider`. `TracerProviderBuilder::with_batch_exporter()` now returns `Result<Self, ProviderBuildError>`. `BatchSpanProcessorBuilder::build()` now returns `Result<BatchSpanProcessor, ProviderBuildError>`. These changes prevent panics from thread spawn failures during provider construction. Callers should add `?` or `.unwrap()` / `.expect()`.
+- **Breaking** `TracerProviderBuilder::build()` now returns `Result<SdkTracerProvider, ProviderBuildError>`. `LoggerProviderBuilder::build()` now returns `Result<SdkLoggerProvider, ProviderBuildError>`. Both `with_batch_exporter()` methods now return `Result<Self, ProviderBuildError>`. `BatchSpanProcessorBuilder::build()` and `BatchLogProcessorBuilder::build()` also return `Result`. These changes prevent panics from thread spawn failures during provider construction. Callers should add `?` or `.unwrap()` / `.expect()`.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`

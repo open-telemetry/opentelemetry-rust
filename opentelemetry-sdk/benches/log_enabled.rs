@@ -48,7 +48,8 @@ where
 {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(processor)
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("test_logger");
 
     c.bench_function(name, |b| {

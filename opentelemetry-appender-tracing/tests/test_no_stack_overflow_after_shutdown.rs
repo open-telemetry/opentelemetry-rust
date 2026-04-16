@@ -9,7 +9,9 @@ fn test_logging_after_shutdown_does_not_cause_telemetry_induced_telemetry() {
     let exporter = opentelemetry_stdout::LogExporter::default();
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_batch_exporter(exporter)
-        .build();
+        .unwrap()
+        .build()
+        .unwrap();
 
     let otel_layer = layer::OpenTelemetryTracingBridge::new(&provider);
 

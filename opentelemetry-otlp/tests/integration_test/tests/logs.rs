@@ -32,7 +32,7 @@ fn init_logs(is_simple: bool) -> Result<sdklogs::SdkLoggerProvider> {
     if is_simple {
         logger_provider_builder = logger_provider_builder.with_simple_exporter(exporter)
     } else {
-        logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter)
+        logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter)?
     };
 
     let logger_provider = logger_provider_builder
@@ -41,7 +41,7 @@ fn init_logs(is_simple: bool) -> Result<sdklogs::SdkLoggerProvider> {
                 .with_service_name("logs-integration-test")
                 .build(),
         )
-        .build();
+        .build()?;
 
     Ok(logger_provider)
 }

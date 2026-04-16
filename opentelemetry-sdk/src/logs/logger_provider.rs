@@ -1,5 +1,5 @@
 use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
-use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::error::{OTelSdkError, OTelSdkResult, ProviderBuildError};
 use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
@@ -223,9 +223,12 @@ impl LoggerProviderBuilder {
     /// A new `LoggerProviderBuilder` instance with the `BatchLogProcessor` added to the pipeline.
     ///
     /// Processors are invoked in the order they are added.
-    pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
-        let batch = BatchLogProcessor::builder(exporter).build();
-        self.with_log_processor(batch)
+    pub fn with_batch_exporter<T: LogExporter + 'static>(
+        self,
+        exporter: T,
+    ) -> Result<Self, ProviderBuildError> {
+        let batch = BatchLogProcessor::builder(exporter).build()?;
+        Ok(self.with_log_processor(batch))
     }
 
     /// Adds a custom [LogProcessor] to the pipeline.
@@ -270,7 +273,8 @@ impl LoggerProviderBuilder {
     ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
     ///             .build(),
     ///     )
-    ///     .build();
+    ///     .build()
+    ///     .unwrap();
     /// ```
     ///
     /// *Note*: Calls to this method are additive, each call merges the provided
@@ -288,7 +292,7 @@ impl LoggerProviderBuilder {
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> SdkLoggerProvider {
+    pub fn build(self) -> Result<SdkLoggerProvider, ProviderBuildError> {
         let resource = self.resource.unwrap_or(Resource::builder().build());
         let mut processors = self.processors;
         for processor in &mut processors {
@@ -305,7 +309,7 @@ impl LoggerProviderBuilder {
         otel_debug!(
             name: "LoggerProvider.Built",
         );
-        logger_provider
+        Ok(logger_provider)
     }
 }
 
@@ -504,7 +508,8 @@ mod tests {
                 TestProcessorForResource::new(exporter_with_resource.clone());
             let _ = super::SdkLoggerProvider::builder()
                 .with_log_processor(processor_with_resource.clone())
-                .build();
+                .build()
+                .unwrap();
             let service_name = processor_with_resource
                 .resource()
                 .get(&Key::from_static_str(SERVICE_NAME))
@@ -528,7 +533,8 @@ mod tests {
                     .build(),
             )
             .with_log_processor(processor_with_resource.clone())
-            .build();
+            .build()
+            .unwrap();
         assert_resource(
             &processor_with_resource,
             &exporter_with_resource,
@@ -547,7 +553,8 @@ mod tests {
                     TestProcessorForResource::new(exporter_with_resource.clone());
                 let _ = super::SdkLoggerProvider::builder()
                     .with_log_processor(processor_with_resource.clone())
-                    .build();
+                    .build()
+                    .unwrap();
                 let service_name = processor_with_resource
                     .resource()
                     .get(&Key::from_static_str(SERVICE_NAME))
@@ -593,7 +600,8 @@ mod tests {
                             .build(),
                     )
                     .with_log_processor(processor_with_resource.clone())
-                    .build();
+                    .build()
+                    .unwrap();
                 let service_name = processor_with_resource
                     .resource()
                     .get(&Key::from_static_str(SERVICE_NAME))
@@ -633,7 +641,8 @@ mod tests {
         let _ = super::SdkLoggerProvider::builder()
             .with_resource(Resource::empty())
             .with_log_processor(processor_with_resource.clone())
-            .build();
+            .build()
+            .unwrap();
         assert_eq!(processor_with_resource.resource().len(), 0);
     }
 
@@ -644,7 +653,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let logger = logger_provider.logger("test-logger");
 
@@ -709,7 +719,8 @@ mod tests {
         let counter = Arc::new(AtomicU64::new(0));
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         let logger1 = logger_provider.logger("test-logger1");
         let logger2 = logger_provider.logger("test-logger2");
@@ -733,7 +744,8 @@ mod tests {
         let counter = Arc::new(AtomicU64::new(0));
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(ShutdownTestLogProcessor::new(counter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         let shutdown_res = logger_provider.shutdown();
         assert!(shutdown_res.is_ok());
@@ -759,7 +771,8 @@ mod tests {
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))
-            .build();
+            .build()
+            .unwrap();
         //set_logger_provider(logger_provider);
         let logger1 = logger_provider.logger("test-logger1");
         let logger2 = logger_provider.logger("test-logger2");
@@ -868,7 +881,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
         let logger = logger_provider.logger("");
         let mut record = logger.create_log_record();
         record.set_body("Testing empty logger name".into());

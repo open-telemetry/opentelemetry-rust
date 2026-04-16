@@ -32,7 +32,8 @@ fn init_logs() -> SdkLoggerProvider {
     // that prints the spans to stdout.
     let logger_provider = SdkLoggerProvider::builder()
         .with_simple_exporter(LogExporter::default())
-        .build();
+        .build()
+        .unwrap();
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry()
         .with(otel_layer)

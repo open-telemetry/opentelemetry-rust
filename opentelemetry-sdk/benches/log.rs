@@ -49,7 +49,8 @@ fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
     group.bench_function("no-context", |b| {
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
-            .build();
+            .build()
+            .unwrap();
 
         let logger = provider.logger("no-context");
 
@@ -59,7 +60,8 @@ fn log_benchmark_group<F: Fn(&SdkLogger)>(c: &mut Criterion, name: &str, f: F) {
     group.bench_function("with-context", |b| {
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(NoopProcessor {})
-            .build();
+            .build()
+            .unwrap();
 
         let logger = provider.logger("with-context");
 
@@ -93,7 +95,8 @@ fn logger_creation(c: &mut Criterion) {
     // Provider is created once, outside of the benchmark
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
-        .build();
+        .build()
+        .unwrap();
 
     c.bench_function("Logger_Creation", |b| {
         b.iter(|| {
@@ -105,7 +108,8 @@ fn logger_creation(c: &mut Criterion) {
 fn logging_comparable_to_appender(c: &mut Criterion) {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     // This mimics the logic from opentelemetry-tracing-appender closely, but

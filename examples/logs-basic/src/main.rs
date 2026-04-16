@@ -13,7 +13,8 @@ fn main() {
                 .build(),
         )
         .with_simple_exporter(exporter)
-        .build();
+        .build()
+        .unwrap();
 
     // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
     // logging is properly suppressed. However, logs emitted by external components

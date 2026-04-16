@@ -205,7 +205,8 @@ pub(crate) mod tests {
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(first_processor)
             .with_log_processor(second_processor)
-            .build();
+            .build()
+            .unwrap();
 
         let logger = logger_provider.logger("test-logger");
         let mut log_record = logger.create_log_record();

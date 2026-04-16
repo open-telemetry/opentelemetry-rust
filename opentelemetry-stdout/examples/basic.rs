@@ -52,7 +52,8 @@ fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
     let provider: SdkLoggerProvider = SdkLoggerProvider::builder()
         .with_simple_exporter(exporter)
         .with_resource(RESOURCE.clone())
-        .build();
+        .build()
+        .unwrap();
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);
     tracing_subscriber::registry().with(layer).init();
     provider

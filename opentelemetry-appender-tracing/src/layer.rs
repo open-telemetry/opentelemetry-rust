@@ -540,7 +540,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let subscriber = create_tracing_subscriber(&logger_provider);
 
@@ -721,7 +722,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let subscriber = create_tracing_subscriber(&logger_provider);
 
@@ -839,7 +841,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let subscriber = create_tracing_subscriber(&logger_provider);
 
@@ -916,7 +919,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let subscriber = create_tracing_subscriber(&logger_provider);
 
@@ -1057,7 +1061,8 @@ mod tests {
                 "my-event-name".to_string(),
                 "my-system".to_string(),
             ))
-            .build();
+            .build()
+            .unwrap();
 
         let subscriber = create_tracing_subscriber(&logger_provider);
 
@@ -1077,7 +1082,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
             tracing_subscriber::filter::filter_fn(|meta| {
@@ -1128,7 +1134,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
             tracing_subscriber::filter::filter_fn(|meta| {
@@ -1189,7 +1196,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
             tracing_subscriber::filter::filter_fn(|meta| {
@@ -1301,7 +1309,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
             tracing_subscriber::filter::filter_fn(|meta| {
@@ -1365,7 +1374,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
@@ -1402,7 +1412,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
@@ -1449,7 +1460,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(std::iter::empty::<&str>())
@@ -1487,7 +1499,8 @@ mod tests {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
