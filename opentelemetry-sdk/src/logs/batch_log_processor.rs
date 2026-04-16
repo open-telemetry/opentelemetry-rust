@@ -338,6 +338,16 @@ impl BatchLogProcessor {
     where
         E: LogExporter + Send + Sync + 'static,
     {
+        if exporter.requires_async_runtime() {
+            return Err(ProviderBuildError::InternalFailure(
+                "The exporter requires an async runtime (e.g. Tokio), but BatchLogProcessor \
+                 uses a dedicated OS thread with a synchronous executor. Use an async runtime \
+                 compatible processor, or switch to a synchronous HTTP client (e.g. \
+                 reqwest::blocking::Client)."
+                    .to_string(),
+            ));
+        }
+
         let (logs_sender, logs_receiver) = mpsc::sync_channel::<LogsData>(config.max_queue_size);
         let (message_sender, message_receiver) = mpsc::sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;

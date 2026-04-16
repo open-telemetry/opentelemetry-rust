@@ -341,6 +341,16 @@ impl BatchSpanProcessor {
     where
         E: SpanExporter + Send + 'static,
     {
+        if exporter.requires_async_runtime() {
+            return Err(ProviderBuildError::InternalFailure(
+                "The exporter requires an async runtime (e.g. Tokio), but BatchSpanProcessor \
+                 uses a dedicated OS thread with a synchronous executor. Use an async runtime \
+                 compatible processor, or switch to a synchronous HTTP client (e.g. \
+                 reqwest::blocking::Client)."
+                    .to_string(),
+            ));
+        }
+
         let (span_sender, span_receiver) = sync_channel::<SpanData>(config.max_queue_size);
         let (message_sender, message_receiver) = sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;

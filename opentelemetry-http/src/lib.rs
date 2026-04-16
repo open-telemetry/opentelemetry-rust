@@ -88,6 +88,17 @@ pub trait HttpClient: Debug + Send + Sync {
     /// Returns an error if it can't connect to the server or the request could not be completed,
     /// e.g. because of a timeout, infinite redirects, or a loss of connection.
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
+
+    /// Returns `true` if this client requires an async runtime (e.g. Tokio) to be active.
+    ///
+    /// Async clients like `reqwest::Client` and `HyperClient` require a Tokio runtime.
+    /// Sync clients like `reqwest::blocking::Client` do not.
+    ///
+    /// This is used by batch processors to detect invalid client/processor combinations
+    /// at build time, before they would panic at export time.
+    fn requires_async_runtime(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "reqwest")]
@@ -109,6 +120,10 @@ mod reqwest {
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
+        }
+
+        fn requires_async_runtime(&self) -> bool {
+            true
         }
     }
 
@@ -208,6 +223,10 @@ pub mod hyper {
             *http_response.headers_mut() = headers;
 
             Ok(http_response.error_for_status()?)
+        }
+
+        fn requires_async_runtime(&self) -> bool {
+            true
         }
     }
 

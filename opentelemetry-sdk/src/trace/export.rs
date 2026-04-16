@@ -72,6 +72,14 @@ pub trait SpanExporter: Send + Sync + Debug {
 
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
+
+    /// Returns `true` if this exporter requires an async runtime (e.g. Tokio) to be active.
+    ///
+    /// Exporters backed by async HTTP clients (reqwest::Client, HyperClient) return `true`.
+    /// This is used by batch processors to detect invalid combinations at build time.
+    fn requires_async_runtime(&self) -> bool {
+        false
+    }
 }
 
 /// `SpanData` contains all the information collected by a `Span` and can be used

@@ -373,6 +373,8 @@ pub(crate) struct OtlpHttpClient {
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    /// Whether the underlying HTTP client requires an async runtime (e.g. Tokio).
+    needs_async_runtime: bool,
 }
 
 impl OtlpHttpClient {
@@ -579,6 +581,7 @@ impl OtlpHttpClient {
         compression: Option<crate::Compression>,
         #[cfg(feature = "experimental-http-retry")] retry_policy: Option<RetryPolicy>,
     ) -> Self {
+        let needs_async_runtime = client.requires_async_runtime();
         OtlpHttpClient {
             client: Mutex::new(Some(client)),
             collector_endpoint,
@@ -594,7 +597,12 @@ impl OtlpHttpClient {
                 jitter_ms: 100,
             }),
             resource: ResourceAttributesWithSchema::default(),
+            needs_async_runtime,
         }
+    }
+
+    pub(crate) fn requires_async_runtime(&self) -> bool {
+        self.needs_async_runtime
     }
 
     #[cfg(feature = "trace")]
