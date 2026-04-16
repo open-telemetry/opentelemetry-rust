@@ -902,8 +902,8 @@ mod tests {
         }
 
         // with_batch_exporter should return Self (deferred error), not Err immediately
-        let builder = super::SdkLoggerProvider::builder()
-            .with_batch_exporter(AsyncRequiringLogExporter);
+        let builder =
+            super::SdkLoggerProvider::builder().with_batch_exporter(AsyncRequiringLogExporter);
         assert!(
             builder.pending_error.is_some(),
             "Expected pending_error to be set"

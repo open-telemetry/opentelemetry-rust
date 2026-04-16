@@ -26,7 +26,6 @@ fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, ExporterBuildEr
 
     Ok(opentelemetry_sdk::trace::SdkTracerProvider::builder()
         .with_batch_exporter(exporter)
-        .unwrap()
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("basic-otlp-tracing-example")

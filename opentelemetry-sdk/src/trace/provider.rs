@@ -931,8 +931,8 @@ mod tests {
 
     #[test]
     fn test_with_batch_exporter_defers_async_runtime_error() {
-        use crate::error::ProviderBuildError;
         use crate::error::OTelSdkResult;
+        use crate::error::ProviderBuildError;
         use crate::trace::{SpanData, SpanExporter};
 
         #[derive(Debug)]
@@ -949,8 +949,8 @@ mod tests {
         }
 
         // with_batch_exporter should return Self (deferred error), not Err immediately
-        let builder = super::SdkTracerProvider::builder()
-            .with_batch_exporter(AsyncRequiringExporter);
+        let builder =
+            super::SdkTracerProvider::builder().with_batch_exporter(AsyncRequiringExporter);
         assert!(
             builder.pending_error.is_some(),
             "Expected pending_error to be set"

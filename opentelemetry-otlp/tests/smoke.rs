@@ -101,7 +101,6 @@ async fn smoke_tracer() {
                     .build()
                     .expect("NON gzip-tonic SpanExporter failed to build"),
             )
-            .unwrap()
             .build()
             .unwrap();
 
@@ -210,7 +209,6 @@ async fn partial_success_handling() {
                     .build()
                     .expect("SpanExporter failed to build"),
             )
-            .unwrap()
             .build()
             .unwrap();
 
