@@ -4,9 +4,11 @@
 //! # A note on race conditions
 //!
 //! Process context sharing implies concurrently writing to a memory area that another process
-//! might be actively reading. However, reading isn't done as direct memory accesses but goes
-//! through the OS, so the Rust definition of race conditions doesn't really apply. We also use
-//! atomics and fences, see MappingHeader's documentation.
+//! might be actively reading. Reading isn't done as direct memory accesses but
+//! goes through the OS, and is done by a separate process, which lies outside
+//! of the Rust/C++ memory model. Our best bet is to use atomics and fences
+//! defensively as if the reader was another thread of the same process. See
+//! MappingHeader's documentation.
 
 use std::{
     ffi::c_void,
@@ -341,13 +343,6 @@ fn lock_context_handle() -> Result<MutexGuard<'static, Option<ProcessContextHand
 /// Otherwise, if a context has been previously published from the same process and hasn't been
 /// unpublished since, we follow the Update protocol.
 ///
-/// # Fork safety
-///
-/// If we're a forked children of the original publisher, we are extremely restricted in the
-/// set of operations that we can do (we must be async-signal-safe). On paper, heap allocation
-/// is Undefined Behavior, for example. We assume that a forking runtime (such as Python or
-/// Ruby) that doesn't follow with an immediate `exec` is already "taking that risk", so to
-/// speak (typically, if no thread is ever spawned before the fork, things are mostly fine).
 pub(crate) fn publish_raw_payload(payload: Vec<u8>) -> Result<(), Error> {
     let mut guard = lock_context_handle()?;
 
