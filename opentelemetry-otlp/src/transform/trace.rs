@@ -115,8 +115,7 @@ pub(crate) mod tonic {
             .schema_url()
             .map(ToOwned::to_owned)
             .unwrap_or_default();
-        let scope =
-            instrumentation_scope_to_proto(source_span.instrumentation_scope.clone(), None);
+        let scope = instrumentation_scope_to_proto(source_span.instrumentation_scope.clone(), None);
         ResourceSpans {
             resource: Some(Resource {
                 attributes: resource.attributes.0.clone(),

@@ -34,7 +34,8 @@ impl LogExporter for OtlpHttpClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = crate::transform::common::tonic::resource_to_attributes_with_schema(resource);
+        self.resource =
+            crate::transform::common::tonic::resource_to_attributes_with_schema(resource);
     }
 }
 

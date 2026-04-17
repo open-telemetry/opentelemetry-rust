@@ -34,5 +34,3 @@ mod proto;
 
 #[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
-
-pub mod transform;

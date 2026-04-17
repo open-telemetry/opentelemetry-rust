@@ -2,17 +2,17 @@ use super::{
     default_headers, parse_header_string, read_env_var, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
+use crate::transform::common::tonic::ResourceAttributesWithSchema;
+#[cfg(feature = "logs")]
+use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
+#[cfg(feature = "trace")]
+use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 use crate::{
     exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
-use crate::transform::common::tonic::ResourceAttributesWithSchema;
-#[cfg(feature = "logs")]
-use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
-#[cfg(feature = "trace")]
-use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]

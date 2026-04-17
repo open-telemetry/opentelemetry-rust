@@ -22,8 +22,7 @@ pub(crate) mod tonic {
         common::v1::KeyValue,
         metrics::v1::{
             exemplar, exponential_histogram_data_point::Buckets as TonicBuckets,
-            metric::Data as TonicMetricData, number_data_point,
-            AggregationTemporality,
+            metric::Data as TonicMetricData, number_data_point, AggregationTemporality,
             DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar,
             ExponentialHistogram as TonicExponentialHistogram,
             ExponentialHistogramDataPoint as TonicExponentialHistogramDataPoint,
@@ -117,10 +116,12 @@ pub(crate) mod tonic {
 
     pub(crate) fn scope_metrics_to_proto(sm: &SdkScopeMetrics) -> TonicScopeMetrics {
         TonicScopeMetrics {
-            scope: Some(crate::transform::common::tonic::instrumentation_scope_ref_to_proto(
-                sm.scope(),
-                None,
-            )),
+            scope: Some(
+                crate::transform::common::tonic::instrumentation_scope_ref_to_proto(
+                    sm.scope(),
+                    None,
+                ),
+            ),
             metrics: sm.metrics().map(metric_to_proto).collect(),
             schema_url: sm
                 .scope()
@@ -292,10 +293,7 @@ pub(crate) mod tonic {
                 .data_points()
                 .map(|dp| TonicNumberDataPoint {
                     attributes: dp.attributes().map(api_key_value_ref_to_proto).collect(),
-                    start_time_unix_nano: gauge
-                        .start_time()
-                        .map(to_nanos)
-                        .unwrap_or_default(),
+                    start_time_unix_nano: gauge.start_time().map(to_nanos).unwrap_or_default(),
                     time_unix_nano: to_nanos(gauge.time()),
                     exemplars: dp.exemplars().map(exemplar_to_proto).collect(),
                     flags: TonicDataPointFlags::default() as u32,

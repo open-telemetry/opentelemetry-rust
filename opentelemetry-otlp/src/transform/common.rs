@@ -46,20 +46,11 @@ pub(crate) mod tonic {
         library: opentelemetry::InstrumentationScope,
         target: Option<Cow<'static, str>>,
     ) -> InstrumentationScope {
-        if let Some(t) = target {
-            InstrumentationScope {
-                name: t.to_string(),
-                version: String::new(),
-                attributes: vec![],
-                ..Default::default()
-            }
-        } else {
-            InstrumentationScope {
-                name: library.name().to_owned(),
-                version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                attributes: keyvalues_to_proto(library.attributes().cloned()),
-                ..Default::default()
-            }
+        InstrumentationScope {
+            name: target.map_or_else(|| library.name().to_owned(), Cow::into_owned),
+            version: library.version().unwrap_or_default().to_owned(),
+            attributes: keyvalues_to_proto(library.attributes().cloned()),
+            ..Default::default()
         }
     }
 
@@ -67,20 +58,11 @@ pub(crate) mod tonic {
         library: &opentelemetry::InstrumentationScope,
         target: Option<Cow<'static, str>>,
     ) -> InstrumentationScope {
-        if let Some(t) = target {
-            InstrumentationScope {
-                name: t.to_string(),
-                version: String::new(),
-                attributes: vec![],
-                ..Default::default()
-            }
-        } else {
-            InstrumentationScope {
-                name: library.name().to_owned(),
-                version: library.version().map(ToOwned::to_owned).unwrap_or_default(),
-                attributes: keyvalues_to_proto(library.attributes().cloned()),
-                ..Default::default()
-            }
+        InstrumentationScope {
+            name: target.map_or_else(|| library.name().to_owned(), Cow::into_owned),
+            version: library.version().unwrap_or_default().to_owned(),
+            attributes: keyvalues_to_proto(library.attributes().cloned()),
+            ..Default::default()
         }
     }
 
@@ -160,5 +142,53 @@ pub(crate) mod tonic {
                 .iter()
                 .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone())),
         ))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use opentelemetry::KeyValue;
+
+        fn assert_scope_fields(
+            proto_scope: &InstrumentationScope,
+            expected_name: &str,
+            expected_version: &str,
+            expected_attr_key: &str,
+        ) {
+            assert_eq!(proto_scope.name, expected_name);
+            assert_eq!(proto_scope.version, expected_version);
+            assert_eq!(proto_scope.attributes.len(), 1);
+            assert_eq!(proto_scope.attributes[0].key, expected_attr_key);
+        }
+
+        #[test]
+        fn instrumentation_scope_with_target_overrides_name_but_preserves_version_and_attributes() {
+            let scope = opentelemetry::InstrumentationScope::builder("my-lib")
+                .with_version("1.0.0")
+                .with_attributes([KeyValue::new("feature", "metrics")])
+                .build();
+            let target: Option<Cow<'static, str>> = Some(Cow::Borrowed("my_app::handlers"));
+
+            let from_owned = instrumentation_scope_to_proto(scope.clone(), target.clone());
+            let from_ref = instrumentation_scope_ref_to_proto(&scope, target);
+
+            assert_scope_fields(&from_owned, "my_app::handlers", "1.0.0", "feature");
+            assert_scope_fields(&from_ref, "my_app::handlers", "1.0.0", "feature");
+        }
+
+        #[test]
+        fn instrumentation_scope_without_target_preserves_all_fields() {
+            let scope = opentelemetry::InstrumentationScope::builder("my-lib")
+                .with_version("1.0.0")
+                .with_attributes([KeyValue::new("feature", "metrics")])
+                .build();
+            let target: Option<Cow<'static, str>> = None;
+
+            let from_owned = instrumentation_scope_to_proto(scope.clone(), target.clone());
+            let from_ref = instrumentation_scope_ref_to_proto(&scope, target);
+
+            assert_scope_fields(&from_owned, "my-lib", "1.0.0", "feature");
+            assert_scope_fields(&from_ref, "my-lib", "1.0.0", "feature");
+        }
     }
 }

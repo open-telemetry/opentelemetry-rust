@@ -39,9 +39,9 @@ gen-tonic = ["gen-tonic-messages", "tonic", "tonic-prost", "tonic/channel"]
 gen-tonic-messages = ["prost"]
 
 # telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
-metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
+trace = ["opentelemetry/trace"]
+metrics = ["opentelemetry/metrics"]
+logs = ["opentelemetry/logs"]
 zpages = ["trace"]
 profiles = []
 testing = ["opentelemetry/testing"]
@@ -56,7 +56,6 @@ tonic = { workspace = true, optional = true, features = ["codegen"] }
 tonic-prost = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 opentelemetry = { workspace = true, default-features = false }
-opentelemetry_sdk = { workspace = true, default-features = false }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
 const-hex = { workspace = true, optional = true }
