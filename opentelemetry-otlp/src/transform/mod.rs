@@ -1,10 +1,10 @@
-pub mod common;
+pub(crate) mod common;
 
 #[cfg(feature = "metrics")]
-pub mod metrics;
+pub(crate) mod metrics;
 
 #[cfg(feature = "trace")]
-pub mod trace;
+pub(crate) mod trace;
 
 #[cfg(feature = "logs")]
-pub mod logs;
+pub(crate) mod logs;

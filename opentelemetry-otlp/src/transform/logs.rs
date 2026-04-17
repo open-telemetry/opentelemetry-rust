@@ -1,4 +1,4 @@
-pub mod tonic {
+pub(crate) mod tonic {
     use crate::transform::common::{
         to_nanos,
         tonic::{instrumentation_scope_ref_to_proto, ResourceAttributesWithSchema},
@@ -121,7 +121,7 @@ pub mod tonic {
         }
     }
 
-    pub fn group_logs_by_resource_and_scope<'a>(
+    pub(crate) fn group_logs_by_resource_and_scope<'a>(
         logs: &'a LogBatch<'a>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {

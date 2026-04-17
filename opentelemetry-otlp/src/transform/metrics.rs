@@ -3,7 +3,7 @@
 // We cannot ignore it as it's not an optional field.
 // We can remove this after we removed the labels field from proto.
 #[allow(deprecated)]
-pub mod tonic {
+pub(crate) mod tonic {
     use std::fmt::Debug;
 
     use opentelemetry::{otel_debug, Key, Value};
@@ -23,7 +23,7 @@ pub mod tonic {
         metrics::v1::{
             exemplar, exponential_histogram_data_point::Buckets as TonicBuckets,
             metric::Data as TonicMetricData, number_data_point,
-            AggregationTemporality as TonicTemporality, AggregationTemporality,
+            AggregationTemporality,
             DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar,
             ExponentialHistogram as TonicExponentialHistogram,
             ExponentialHistogramDataPoint as TonicExponentialHistogramDataPoint,
@@ -91,7 +91,7 @@ pub mod tonic {
         }
     }
 
-    pub fn resource_metrics_to_export_request(
+    pub(crate) fn resource_metrics_to_export_request(
         rm: &ResourceMetrics,
     ) -> ExportMetricsServiceRequest {
         ExportMetricsServiceRequest {

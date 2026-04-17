@@ -10,7 +10,7 @@ pub(crate) fn build_span_flags(parent_span_is_remote: bool, base_flags: u32) -> 
     flags
 }
 
-pub mod tonic {
+pub(crate) mod tonic {
     use crate::transform::common::{
         to_nanos,
         tonic::{
@@ -105,7 +105,8 @@ pub mod tonic {
         }
     }
 
-    pub fn span_data_to_resource_spans(
+    #[allow(dead_code)]
+    pub(crate) fn span_data_to_resource_spans(
         source_span: SpanData,
         resource: &ResourceAttributesWithSchema,
     ) -> ResourceSpans {
@@ -131,7 +132,7 @@ pub mod tonic {
         }
     }
 
-    pub fn group_spans_by_resource_and_scope(
+    pub(crate) fn group_spans_by_resource_and_scope(
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {

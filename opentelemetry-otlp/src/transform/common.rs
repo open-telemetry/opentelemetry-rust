@@ -8,7 +8,7 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
-pub mod tonic {
+pub(crate) mod tonic {
     use opentelemetry::{Array, Value};
     use opentelemetry_proto::tonic::common::v1::{
         any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
@@ -17,9 +17,9 @@ pub mod tonic {
 
     #[cfg(any(feature = "trace", feature = "logs"))]
     #[derive(Debug, Default)]
-    pub struct ResourceAttributesWithSchema {
-        pub attributes: Attributes,
-        pub schema_url: Option<String>,
+    pub(crate) struct ResourceAttributesWithSchema {
+        pub(crate) attributes: Attributes,
+        pub(crate) schema_url: Option<String>,
     }
 
     #[cfg(any(feature = "trace", feature = "logs"))]
@@ -86,7 +86,7 @@ pub mod tonic {
 
     /// Wrapper type for Vec<`KeyValue`>
     #[derive(Default, Debug)]
-    pub struct Attributes(pub ::std::vec::Vec<KeyValue>);
+    pub(crate) struct Attributes(pub(crate) ::std::vec::Vec<KeyValue>);
 
     pub(crate) fn keyvalues_to_proto<I: IntoIterator<Item = opentelemetry::KeyValue>>(
         kvs: I,
