@@ -500,7 +500,7 @@ impl OtlpHttpClient {
                 url = request_uri.as_str(),
                 error = format!("{e}")
             );
-            HttpExportError::new(0, format!("HTTP export failed: network error: {e}"))
+            HttpExportError::new(0, "HTTP export failed: network error".to_string())
         })?;
 
         let status_code = response.status().as_u16();

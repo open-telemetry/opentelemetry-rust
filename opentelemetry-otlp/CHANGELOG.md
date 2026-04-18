@@ -20,15 +20,13 @@
   processors contain only the gRPC status code or HTTP status code. Full
   details are logged at DEBUG level only.
   [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
-- Surface pre-flight transport error details at ERROR level when OTLP export
-  fails due to a local misconfiguration. For `grpc-tonic`, when the returned
+- Surface pre-flight transport error details at ERROR level when `grpc-tonic`
+  OTLP export fails due to a local misconfiguration. When the returned
   `tonic::Status` wraps a local transport error (invalid URL, connect failure,
-  DNS), its source chain (e.g., `"transport error: invalid URL, scheme is
-  missing"`) is appended to the returned error so SDK processors surface it
-  at ERROR without requiring DEBUG logging. For HTTP, network-layer errors
-  (connect refused, DNS failures) now include the underlying error text in
-  the returned error. Server-returned gRPC status messages and HTTP response
-  bodies remain DEBUG-only to preserve the auth-token leak safeguards from
+  DNS), its source chain (e.g., `"transport error: invalid URI"`) is appended
+  to the returned error so SDK processors surface it at ERROR without
+  requiring DEBUG logging. Server-returned gRPC status messages remain
+  DEBUG-only to preserve the auth-token leak safeguards from
   [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021).
   [#3331](https://github.com/open-telemetry/opentelemetry-rust/issues/3331)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
