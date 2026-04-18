@@ -44,6 +44,10 @@ ignore = true
 [advisories]
 unmaintained = "none"
 yanked = "deny"
+# `time` is only used transitively in test infrastructure (integration_test_runner → testcontainers → bollard → time).
+# No published crate depends on it. If a published crate ever adds a dependency on `time`,
+# this ignore will silently suppress the advisory — revisit this entry if that happens.
+ignore = [{ id = "RUSTSEC-2026-0009", reason = "currently dev-only via test infra" }]
 
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:
