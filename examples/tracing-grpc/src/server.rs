@@ -15,7 +15,8 @@ fn init_tracer() -> SdkTracerProvider {
     // Install stdout exporter pipeline to be able to retrieve the collected spans.
     let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
-        .build();
+        .build()
+        .expect("Failed to build tracer provider");
 
     global::set_tracer_provider(provider.clone());
     provider

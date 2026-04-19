@@ -37,6 +37,10 @@ impl SpanExporter for OtlpHttpClient {
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
         self.resource = resource.into();
     }
+
+    fn requires_async_runtime(&self) -> bool {
+        self.needs_async_runtime
+    }
 }
 
 /// Handles partial success returned by OTLP endpoints. We log the rejected spans,

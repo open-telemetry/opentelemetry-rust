@@ -64,6 +64,7 @@ impl<'a> LogBatch<'a> {
 impl LogBatch<'_> {
     /// Returns the number of log records in the batch.
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         match &self.data {
             LogBatchData::SliceOfOwnedData(data) => data.len(),
@@ -159,4 +160,16 @@ pub trait LogExporter: Send + Sync + Debug {
     }
     /// Set the resource for the exporter.
     fn set_resource(&mut self, _resource: &Resource) {}
+
+    /// Returns `true` if this exporter requires an async runtime (e.g. Tokio) to be active.
+    ///
+    /// Exporters backed by async HTTP clients (reqwest::Client, HyperClient) return `true`.
+    /// This is used by batch processors to detect invalid combinations at build time.
+    ///
+    /// **Note:** This check is best-effort. Third-party exporters that wrap async HTTP
+    /// clients but do not override this method will return `false` and may panic at
+    /// export time when used with a sync batch processor.
+    fn requires_async_runtime(&self) -> bool {
+        false
+    }
 }

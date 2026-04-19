@@ -1,5 +1,5 @@
 use super::IdGenerator;
-use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::error::{OTelSdkError, OTelSdkResult, ProviderBuildError};
 /// # Trace Provider SDK
 ///
 /// The `TracerProvider` handles the creation and management of [`Tracer`] instances and coordinates
@@ -65,8 +65,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 /// }
 /// ```
 use crate::trace::{
-    BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SdkTracer, SimpleSpanProcessor,
-    SpanLimits,
+    Config, RandomIdGenerator, Sampler, SdkTracer, SimpleSpanProcessor, SpanLimits,
 };
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
@@ -161,7 +160,12 @@ pub struct SdkTracerProvider {
 
 impl Default for SdkTracerProvider {
     fn default() -> Self {
-        SdkTracerProvider::builder().build()
+        // Default builder has no batch processors, so build() is infallible.
+        // ProviderBuildError only arises from batch processor construction,
+        // which happens before build() is called.
+        SdkTracerProvider::builder()
+            .build()
+            .expect("default TracerProvider build is infallible")
     }
 }
 
@@ -320,22 +324,6 @@ impl TracerProviderBuilder {
         self.with_span_processor(simple)
     }
 
-    /// Adds a [BatchSpanProcessor] with the configured exporter to the pipeline.
-    ///
-    /// # Arguments
-    ///
-    /// * `exporter` - The exporter to be used by the BatchSpanProcessor.
-    ///
-    /// # Returns
-    ///
-    /// A new `Builder` instance with the BatchSpanProcessor added to the pipeline.
-    ///
-    /// Processors are invoked in the order they are added.
-    pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
-        let batch = BatchSpanProcessor::builder(exporter).build();
-        self.with_span_processor(batch)
-    }
-
     /// Adds a custom [SpanProcessor] to the pipeline.
     ///
     /// # Arguments
@@ -443,7 +431,8 @@ impl TracerProviderBuilder {
     ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
     ///             .build(),
     ///     )
-    ///     .build();
+    ///     .build()
+    ///     .expect("Failed to build TracerProvider");
     /// ```
     ///
     /// *Note*: Calls to this method are additive, each call merges the provided
@@ -462,7 +451,16 @@ impl TracerProviderBuilder {
     }
 
     /// Create a new provider from this configuration.
-    pub fn build(self) -> SdkTracerProvider {
+    ///
+    /// # Errors
+    ///
+    /// Currently the provider-level build is infallible. The `Result` return
+    /// type exists so that future validation (e.g. incompatible configuration)
+    /// can be added without a breaking change. Batch processor construction
+    /// can fail, but that happens in
+    /// [`BatchSpanProcessor::builder().build()`](crate::trace::BatchSpanProcessor)
+    /// *before* this method is called.
+    pub fn build(self) -> Result<SdkTracerProvider, ProviderBuildError> {
         let mut config = self.config;
 
         // Now, we can update the config with the resource.
@@ -495,11 +493,11 @@ impl TracerProviderBuilder {
         }
 
         let is_shutdown = AtomicBool::new(false);
-        SdkTracerProvider::new(TracerProviderInner {
+        Ok(SdkTracerProvider::new(TracerProviderInner {
             processors,
             config,
             is_shutdown,
-        })
+        }))
     }
 }
 
@@ -644,7 +642,7 @@ mod tests {
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
-            let default_config_provider = super::SdkTracerProvider::builder().build();
+            let default_config_provider = super::SdkTracerProvider::builder().build().unwrap();
             let service_name = default_config_provider
                 .config()
                 .resource
@@ -666,7 +664,8 @@ mod tests {
                     .with_service_name("test_service")
                     .build(),
             )
-            .build();
+            .build()
+            .unwrap();
         assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
         assert_eq!(custom_config_provider.config().resource.len(), 1);
 
@@ -675,7 +674,7 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("key1=value1, k2, k3=value2"),
             || {
-                let env_resource_provider = super::SdkTracerProvider::builder().build();
+                let env_resource_provider = super::SdkTracerProvider::builder().build().unwrap();
                 let service_name = env_resource_provider
                     .config()
                     .resource
@@ -708,7 +707,8 @@ mod tests {
                             ])
                             .build(),
                     )
-                    .build();
+                    .build()
+                    .unwrap();
                 let service_name = user_provided_resource_config_provider
                     .config()
                     .resource
@@ -749,7 +749,8 @@ mod tests {
         // If user provided a resource, it takes priority during collision.
         let no_service_name = super::SdkTracerProvider::builder()
             .with_resource(Resource::empty())
-            .build();
+            .build()
+            .unwrap();
 
         assert_eq!(no_service_name.config().resource.len(), 0)
     }
@@ -821,6 +822,7 @@ mod tests {
                     .build(),
             )
             .build()
+            .unwrap()
             .inner
             .config
             .resource

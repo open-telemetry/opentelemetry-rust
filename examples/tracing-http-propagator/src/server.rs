@@ -164,7 +164,8 @@ fn init_tracer() -> SdkTracerProvider {
     let provider = SdkTracerProvider::builder()
         .with_span_processor(EnrichWithBaggageSpanProcessor)
         .with_simple_exporter(SpanExporter::default())
-        .build();
+        .build()
+        .expect("Failed to build tracer provider");
 
     global::set_tracer_provider(provider.clone());
     provider
@@ -176,7 +177,8 @@ fn init_logs() -> SdkLoggerProvider {
     let logger_provider = SdkLoggerProvider::builder()
         .with_log_processor(EnrichWithBaggageLogProcessor)
         .with_simple_exporter(LogExporter::default())
-        .build();
+        .build()
+        .expect("Failed to build logger provider");
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry().with(otel_layer).init();
 

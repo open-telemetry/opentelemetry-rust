@@ -62,7 +62,8 @@ mod tests {
         let logger_provider = SdkLoggerProvider::builder()
             .with_resource(resource.clone())
             .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let logger = logger_provider.logger("test-logger");
@@ -124,7 +125,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         let scope = InstrumentationScope::builder("test_logger")
             .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
@@ -182,7 +184,8 @@ mod tests {
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(EnrichWithBaggageProcessor)
             .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let logger = logger_provider.logger("test-logger");
@@ -221,7 +224,8 @@ mod tests {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         // Act
         let logger = logger_provider.logger("test-logger");
@@ -287,7 +291,8 @@ mod tests {
         let processor: ReentrantLogProcessor = ReentrantLogProcessor::new();
         let logger_provider = SdkLoggerProvider::builder()
             .with_log_processor(processor.clone())
-            .build();
+            .build()
+            .unwrap();
         processor.set_logger(logger_provider.logger("processor-logger"));
 
         let logger = logger_provider.logger("test-logger");

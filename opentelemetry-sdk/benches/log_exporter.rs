@@ -117,7 +117,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn exporter_with_future(c: &mut Criterion) {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(ExportingProcessorWithFuture::new(NoOpExporterWithFuture {}))
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     c.bench_function("LogExporterWithFuture", |b| {
@@ -143,7 +144,8 @@ fn exporter_without_future(c: &mut Criterion) {
         .with_log_processor(ExportingProcessorWithoutFuture::new(
             NoOpExporterWithoutFuture {},
         ))
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     c.bench_function("LogExporterWithoutFuture", |b| {

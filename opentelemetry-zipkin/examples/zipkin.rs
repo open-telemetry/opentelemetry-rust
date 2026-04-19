@@ -25,7 +25,8 @@ fn init_traces() -> Result<SdkTracerProvider, ExporterBuildError> {
                 .with_service_name("trace-demo")
                 .build(),
         )
-        .build())
+        .build()
+        .unwrap())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {

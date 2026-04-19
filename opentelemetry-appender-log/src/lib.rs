@@ -17,8 +17,9 @@
 //! let exporter = opentelemetry_stdout::LogExporter::default();
 //!
 //! let logger_provider = SdkLoggerProvider::builder()
-//!     .with_log_processor(BatchLogProcessor::builder(exporter).build())
-//!     .build();
+//!     .with_log_processor(BatchLogProcessor::builder(exporter).build().unwrap())
+//!     .build()
+//!     .unwrap();
 //! # }
 //! ```
 //!
@@ -31,8 +32,9 @@
 //! # use opentelemetry_appender_log::OpenTelemetryLogBridge;
 //! # let exporter = opentelemetry_stdout::LogExporter::default();
 //! # let logger_provider = SdkLoggerProvider::builder()
-//! #     .with_log_processor(BatchLogProcessor::builder(exporter).build())
-//! #     .build();
+//! #     .with_log_processor(BatchLogProcessor::builder(exporter).build().unwrap())
+//! #     .build()
+//! #     .unwrap();
 //! let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 //!
 //! log::set_boxed_logger(Box::new(otel_log_appender)).unwrap();
@@ -777,7 +779,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
-            .build();
+            .build()
+            .unwrap();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
@@ -793,7 +796,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
@@ -907,7 +911,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
@@ -1177,7 +1182,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
 
@@ -1224,7 +1230,8 @@ mod tests {
 
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter)
-            .build();
+            .build()
+            .unwrap();
 
         let otel_log_appender = OpenTelemetryLogBridge::new(&logger_provider);
         otel_log_appender.flush();

@@ -20,7 +20,8 @@
 //!
 //! let _tracer = SdkTracerProvider::builder()
 //!     .with_resource(Resource::builder_empty().with_service_name("my-service").build())
-//!     .build();
+//!     .build()
+//!     .unwrap();
 //! ```
 
 #[cfg(feature = "semconv_experimental")]

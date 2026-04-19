@@ -71,7 +71,8 @@ fn trace_benchmark_group<F: Fn(&sdktrace::SdkTracer)>(c: &mut Criterion, name: &
         let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOn)
             .with_simple_exporter(VoidExporter)
-            .build();
+            .build()
+            .unwrap();
         let always_sample = provider.tracer("always-sample");
 
         b.iter(|| f(&always_sample));
@@ -81,7 +82,8 @@ fn trace_benchmark_group<F: Fn(&sdktrace::SdkTracer)>(c: &mut Criterion, name: &
         let provider = sdktrace::SdkTracerProvider::builder()
             .with_sampler(sdktrace::Sampler::AlwaysOff)
             .with_simple_exporter(VoidExporter)
-            .build();
+            .build()
+            .unwrap();
         let never_sample = provider.tracer("never-sample");
         b.iter(|| f(&never_sample));
     });

@@ -55,7 +55,8 @@ fn criterion_benchmark(c: &mut Criterion) {
                                     .with_max_queue_size(10_000)
                                     .build(),
                             )
-                            .build();
+                            .build()
+                            .unwrap();
                         let mut shared_span_processor = Arc::new(span_processor);
                         let mut handles = Vec::with_capacity(10);
                         for _ in 0..task_num {

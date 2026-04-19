@@ -65,7 +65,8 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
                 .build(),
         )
         .with_log_processor(NoopProcessor)
-        .build();
+        .build()
+        .unwrap();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
     let subscriber = Registry::default().with(ot_layer);
@@ -127,7 +128,8 @@ fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
                 .build(),
         )
         .with_log_processor(NoopProcessor)
-        .build();
+        .build()
+        .unwrap();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
     let subscriber = Registry::default().with(ot_layer);
@@ -238,6 +240,7 @@ fn make_provider() -> SdkLoggerProvider {
         )
         .with_log_processor(NoopProcessor)
         .build()
+        .unwrap()
 }
 
 /// Baseline: emit an error log with 1 attribute, no enclosing span (total = 1 attr).

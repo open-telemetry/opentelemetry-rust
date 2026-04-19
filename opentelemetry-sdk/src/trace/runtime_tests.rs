@@ -53,6 +53,7 @@ fn build_batch_tracer_provider<R: RuntimeChannel>(
     SdkTracerProvider::builder()
         .with_span_processor(processor)
         .build()
+        .unwrap()
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
@@ -61,6 +62,7 @@ fn build_simple_tracer_provider(exporter: SpanCountExporter) -> crate::trace::Sd
     SdkTracerProvider::builder()
         .with_simple_exporter(exporter)
         .build()
+        .unwrap()
 }
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]

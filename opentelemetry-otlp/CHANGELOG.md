@@ -2,6 +2,7 @@
 
 ## vNext
 
+- OTLP HTTP span and log exporters now propagate `requires_async_runtime()` from the underlying `HttpClient`, enabling batch processors to reject async-only clients at build time instead of panicking at export time.
 - Add `tls-provider-agnostic` feature flag for environments that require a custom crypto backend (e.g., OpenSSL for FIPS compliance). Enables TLS code paths without bundling `ring` or `aws-lc-rs`.
 - Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
   (before selecting a transport), which auto-selects the transport based on the
