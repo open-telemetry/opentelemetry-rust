@@ -131,7 +131,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 fn log_noop_processor(c: &mut Criterion) {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(NoopProcessor {})
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     c.bench_function("log_noop_processor", |b| {
@@ -145,7 +146,8 @@ fn log_noop_processor(c: &mut Criterion) {
 fn log_cloning_processor(c: &mut Criterion) {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(CloningProcessor {})
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     c.bench_function("log_cloning_processor", |b| {
@@ -159,7 +161,8 @@ fn log_cloning_processor(c: &mut Criterion) {
 fn log_cloning_and_send_to_channel_processor(c: &mut Criterion) {
     let provider = SdkLoggerProvider::builder()
         .with_log_processor(SendToChannelProcessor::new())
-        .build();
+        .build()
+        .unwrap();
     let logger = provider.logger("benchmark");
 
     c.bench_function("log_clone_and_send_to_channel_processor", |b| {

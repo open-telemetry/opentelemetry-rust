@@ -57,7 +57,8 @@ use std::time::Duration;
 /// let exporter = InMemoryLogExporter::default(); // Replace with an actual exporter
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
-///     .build();
+///     .build()
+///     .unwrap();
 /// # }
 /// ```
 ///
@@ -222,7 +223,8 @@ mod tests {
                     ])
                     .build(),
             )
-            .build();
+            .build()
+            .unwrap();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);
     }
 
@@ -485,7 +487,8 @@ mod tests {
         let exporter: ReentrantLogExporter = ReentrantLogExporter::new();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
-            .build();
+            .build()
+            .unwrap();
         exporter.set_logger(logger_provider.logger("processor-logger"));
 
         let logger = logger_provider.logger("test-logger");

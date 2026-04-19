@@ -3,14 +3,14 @@
 use std::{fs::File, os::unix::fs::MetadataExt};
 
 use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
-use opentelemetry_otlp::{ExporterBuildError, SpanExporter};
+use opentelemetry_otlp::SpanExporter;
 
 use anyhow::Result;
 use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry_sdk::{trace as sdktrace, Resource};
 
-fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, ExporterBuildError> {
+fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider> {
     let exporter_builder = SpanExporter::builder();
     #[cfg(feature = "tonic-client")]
     let exporter_builder = exporter_builder.with_tonic();
@@ -24,14 +24,15 @@ fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, ExporterBuildEr
 
     let exporter = exporter_builder.build()?;
 
+    let processor = opentelemetry_sdk::trace::BatchSpanProcessor::builder(exporter).build()?;
     Ok(opentelemetry_sdk::trace::SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_span_processor(processor)
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("basic-otlp-tracing-example")
                 .build(),
         )
-        .build())
+        .build()?)
 }
 
 pub fn assert_traces_results(result: &str, expected: &str) -> Result<()> {

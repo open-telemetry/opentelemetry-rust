@@ -2,6 +2,15 @@
 
 ## vNext
 
+- **Breaking** `TracerProviderBuilder::build()` now returns `Result<SdkTracerProvider, ProviderBuildError>`. `LoggerProviderBuilder::build()` now returns `Result<SdkLoggerProvider, ProviderBuildError>`. `BatchSpanProcessorBuilder::build()` and `BatchLogProcessorBuilder::build()` also return `Result`. These changes prevent panics from thread spawn failures during provider construction. Callers of `build()` should add `?` or `.unwrap()` / `.expect()`.
+- **Breaking** Removed `TracerProviderBuilder::with_batch_exporter()` and `LoggerProviderBuilder::with_batch_exporter()`. Build the batch processor explicitly and pass it via `with_span_processor()` / `with_log_processor()`:
+  ```rust
+  let processor = BatchSpanProcessor::builder(exporter).build()?;
+  let provider = SdkTracerProvider::builder()
+      .with_span_processor(processor)
+      .build()?;
+  ```
+- `BatchSpanProcessor::new()` and `BatchLogProcessor::new()` now return `Err(ProviderBuildError::AsyncRuntimeRequired)` if the exporter requires an async runtime (e.g. `reqwest::Client`, `HyperClient`) but the batch processor uses a synchronous OS thread. Previously, this combination would panic at export time with "no reactor running". `SpanExporter` and `LogExporter` gain a new `requires_async_runtime() -> bool` method (default: `false`) to declare this requirement. This check is best-effort: third-party exporters that do not override the method will still return `false`.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`

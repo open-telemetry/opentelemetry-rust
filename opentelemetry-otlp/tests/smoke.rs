@@ -83,25 +83,28 @@ async fn smoke_tracer() {
         println!("Installing tracer provider...");
         let mut metadata = tonic::metadata::MetadataMap::new();
         metadata.insert("x-header-key", "header-value".parse().unwrap());
+        #[cfg(feature = "gzip-tonic")]
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_compression(opentelemetry_otlp::Compression::Gzip)
+            .with_endpoint(format!("http://{addr}"))
+            .with_metadata(metadata)
+            .build()
+            .expect("gzip-tonic SpanExporter failed to build");
+        #[cfg(not(feature = "gzip-tonic"))]
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(format!("http://{}", addr))
+            .with_metadata(metadata)
+            .build()
+            .expect("NON gzip-tonic SpanExporter failed to build");
+        let processor = opentelemetry_sdk::trace::BatchSpanProcessor::builder(exporter)
+            .build()
+            .unwrap();
         let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-            .with_batch_exporter(
-                #[cfg(feature = "gzip-tonic")]
-                opentelemetry_otlp::SpanExporter::builder()
-                    .with_tonic()
-                    .with_compression(opentelemetry_otlp::Compression::Gzip)
-                    .with_endpoint(format!("http://{addr}"))
-                    .with_metadata(metadata)
-                    .build()
-                    .expect("gzip-tonic SpanExporter failed to build"),
-                #[cfg(not(feature = "gzip-tonic"))]
-                opentelemetry_otlp::SpanExporter::builder()
-                    .with_tonic()
-                    .with_endpoint(format!("http://{}", addr))
-                    .with_metadata(metadata)
-                    .build()
-                    .expect("NON gzip-tonic SpanExporter failed to build"),
-            )
-            .build();
+            .with_span_processor(processor)
+            .build()
+            .unwrap();
 
         global::set_tracer_provider(tracer_provider.clone());
 
@@ -200,15 +203,18 @@ async fn partial_success_handling() {
 
     {
         println!("Installing tracer provider for partial success test...");
+        let exporter = opentelemetry_otlp::SpanExporter::builder()
+            .with_tonic()
+            .with_endpoint(format!("http://{}", addr))
+            .build()
+            .expect("SpanExporter failed to build");
+        let processor = opentelemetry_sdk::trace::BatchSpanProcessor::builder(exporter)
+            .build()
+            .unwrap();
         let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-            .with_batch_exporter(
-                opentelemetry_otlp::SpanExporter::builder()
-                    .with_tonic()
-                    .with_endpoint(format!("http://{}", addr))
-                    .build()
-                    .expect("SpanExporter failed to build"),
-            )
-            .build();
+            .with_span_processor(processor)
+            .build()
+            .unwrap();
 
         global::set_tracer_provider(tracer_provider.clone());
         let tracer = global::tracer("partial-success-test");

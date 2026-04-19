@@ -30,6 +30,7 @@
 //!     SdkTracerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build()
+//!         .unwrap()
 //! }
 //!
 //! fn init_metrics() -> SdkMeterProvider {
@@ -42,6 +43,7 @@
 //!     SdkLoggerProvider::builder()
 //!         .with_simple_exporter(exporter)
 //!         .build()
+//!         .unwrap()
 //! }
 //!
 //! let tracer_provider = init_trace();

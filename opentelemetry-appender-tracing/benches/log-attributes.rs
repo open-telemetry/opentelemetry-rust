@@ -60,7 +60,8 @@ fn create_benchmark(c: &mut Criterion, num_attributes: usize) {
                 .build(),
         )
         .with_log_processor(NoopProcessor)
-        .build();
+        .build()
+        .unwrap();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
     let subscriber = Registry::default().with(ot_layer);

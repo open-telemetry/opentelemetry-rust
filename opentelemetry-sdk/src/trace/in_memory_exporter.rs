@@ -23,8 +23,9 @@ use std::time::Duration;
 ///# async fn main() {
 ///     let exporter = InMemorySpanExporterBuilder::new().build();
 ///     let provider = SdkTracerProvider::builder()
-///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build())
-///         .build();
+///         .with_span_processor(BatchSpanProcessor::builder(exporter.clone()).build().unwrap())
+///         .build()
+///         .unwrap();
 ///
 ///     global::set_tracer_provider(provider.clone());
 ///

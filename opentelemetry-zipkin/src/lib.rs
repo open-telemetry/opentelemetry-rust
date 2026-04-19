@@ -38,7 +38,8 @@
 //!                 .with_service_name("trace-demo")
 //!                 .build(),
 //!         )
-//!         .build();
+//!         .build()
+//!         .unwrap();
 //!     global::set_tracer_provider(provider.clone());
 //!
 //!     let tracer = global::tracer("zipkin-tracer");
@@ -76,7 +77,8 @@
 //!
 //!     let batch = BatchSpanProcessor::builder(exporter)
 //!         .with_batch_config(BatchConfigBuilder::default().with_max_queue_size(4096).build())
-//!         .build();
+//!         .build()
+//!         .unwrap();
 //!
 //!     let provider = SdkTracerProvider::builder()
 //!         .with_span_processor(batch)
@@ -85,7 +87,8 @@
 //!                 .with_service_name("runtime-demo")
 //!                 .build(),
 //!         )
-//!         .build();
+//!         .build()
+//!         .unwrap();
 //!
 //!     Ok(())
 //! }
@@ -157,7 +160,7 @@
 //!     }
 //! }
 //!
-//! fn init_traces() -> Result<trace::SdkTracerProvider, ExporterBuildError> {
+//! fn init_traces() -> Result<trace::SdkTracerProvider, Box<dyn Error + Send + Sync + 'static>> {
 //!     let exporter = ZipkinExporter::builder()
 //!         .with_http_client(
 //!             HyperClient(
@@ -173,9 +176,10 @@
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
 //!         .build()?;
 //!
+//!     let processor = trace::BatchSpanProcessor::builder(exporter).build()?;
 //!     Ok(trace::SdkTracerProvider::builder()
 //!         .with_sampler(Sampler::AlwaysOn)
-//!         .with_batch_exporter(exporter)
+//!         .with_span_processor(processor)
 //!         .with_id_generator(RandomIdGenerator::default())
 //!         .with_max_events_per_span(64)
 //!         .with_max_attributes_per_span(16)
@@ -186,7 +190,7 @@
 //!                 .with_attribute(KeyValue::new("key", "value"))
 //!                 .build()
 //!         )
-//!         .build())
+//!         .build()?)
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {

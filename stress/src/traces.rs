@@ -25,7 +25,8 @@ lazy_static! {
     static ref PROVIDER: sdktrace::SdkTracerProvider = sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOn)
         .with_span_processor(NoOpSpanProcessor {})
-        .build();
+        .build()
+        .unwrap();
     static ref TRACER: sdktrace::SdkTracer = PROVIDER.tracer("stress");
 }
 

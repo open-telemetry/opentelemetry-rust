@@ -3,9 +3,9 @@ use opentelemetry::KeyValue;
 use opentelemetry::{global, InstrumentationScope};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
-use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::logs::{BatchLogProcessor, SdkLoggerProvider};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
-use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::{BatchSpanProcessor, SdkTracerProvider};
 use opentelemetry_sdk::Resource;
 use std::error::Error;
 use std::sync::OnceLock;
@@ -28,10 +28,14 @@ fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
         .build()
         .expect("Failed to create span exporter");
+    let processor = BatchSpanProcessor::builder(exporter)
+        .build()
+        .expect("Failed to create batch span processor");
     SdkTracerProvider::builder()
         .with_resource(get_resource())
-        .with_batch_exporter(exporter)
+        .with_span_processor(processor)
         .build()
+        .expect("Failed to build tracer provider")
 }
 
 fn init_metrics() -> SdkMeterProvider {
@@ -50,10 +54,14 @@ fn init_logs() -> SdkLoggerProvider {
         .build()
         .expect("Failed to create log exporter");
 
+    let processor = BatchLogProcessor::builder(exporter)
+        .build()
+        .expect("Failed to create batch log processor");
     SdkLoggerProvider::builder()
         .with_resource(get_resource())
-        .with_batch_exporter(exporter)
+        .with_log_processor(processor)
         .build()
+        .expect("Failed to build logger provider")
 }
 
 #[tokio::main]

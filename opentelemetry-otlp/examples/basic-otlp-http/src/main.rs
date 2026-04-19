@@ -8,7 +8,9 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_otlp::{LogExporter, MetricExporter, Protocol, SpanExporter};
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
-    logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
+    logs::{BatchLogProcessor, SdkLoggerProvider},
+    metrics::SdkMeterProvider,
+    trace::{BatchSpanProcessor, SdkTracerProvider},
 };
 use std::{error::Error, sync::OnceLock};
 use tracing::info;
@@ -33,10 +35,14 @@ fn init_logs() -> SdkLoggerProvider {
         .build()
         .expect("Failed to create log exporter");
 
+    let processor = BatchLogProcessor::builder(exporter)
+        .build()
+        .expect("Failed to create batch log processor");
     SdkLoggerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_log_processor(processor)
         .with_resource(get_resource())
         .build()
+        .expect("Failed to build logger provider")
 }
 
 fn init_traces() -> SdkTracerProvider {
@@ -46,10 +52,14 @@ fn init_traces() -> SdkTracerProvider {
         .build()
         .expect("Failed to create trace exporter");
 
+    let processor = BatchSpanProcessor::builder(exporter)
+        .build()
+        .expect("Failed to create batch span processor");
     SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_span_processor(processor)
         .with_resource(get_resource())
         .build()
+        .expect("Failed to build tracer provider")
 }
 
 fn init_metrics() -> SdkMeterProvider {

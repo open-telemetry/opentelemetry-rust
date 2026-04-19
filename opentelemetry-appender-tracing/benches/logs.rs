@@ -122,7 +122,8 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
                 .build(),
         )
         .with_log_processor(processor)
-        .build();
+        .build()
+        .unwrap();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::new(&provider);
     let subscriber = Registry::default().with(ot_layer);
 

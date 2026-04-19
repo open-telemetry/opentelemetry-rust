@@ -82,7 +82,8 @@ fn main() {
         .with_log_processor(SimpleConcurrentLogProcessor::new(NoopExporter::new(
             enabled,
         )))
-        .build();
+        .build()
+        .unwrap();
 
     // Use the OpenTelemetryTracingBridge to test the throughput of the appender-tracing.
     let layer = layer::OpenTelemetryTracingBridge::new(&provider);

@@ -46,7 +46,8 @@
 //! let exporter = LogExporter::default();
 //! let provider = SdkLoggerProvider::builder()
 //!     .with_simple_exporter(exporter)
-//!     .build();
+//!     .build()
+//!     .unwrap();
 //! ```
 //!
 //! In this example, `SdkLoggerProvider` is configured to use the `opentelemetry_stdout` crate to export logs to stdout. You can replace it with any other OpenTelemetry-compatible exporter.
@@ -63,7 +64,8 @@
 //! # let exporter = LogExporter::default();
 //! # let provider = SdkLoggerProvider::builder()
 //! #    .with_simple_exporter(exporter)
-//! #    .build();
+//! #    .build()
+//! #    .unwrap();
 //! let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! ```
 //!
@@ -75,7 +77,7 @@
 //! # use opentelemetry_sdk::logs::SdkLoggerProvider;
 //! # use opentelemetry_stdout::LogExporter;
 //! # let exporter = LogExporter::default();
-//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
+//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build().unwrap();
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 //! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
 //! use tracing_subscriber::prelude::*;

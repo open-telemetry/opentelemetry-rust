@@ -20,15 +20,16 @@ pub async fn test_logs() -> Result<()> {
     test_utils::cleanup_file("./actual/logs.json"); // Ensure logs.json is empty before the test
     let exporter_builder = LogExporter::builder().with_tonic();
     let exporter = exporter_builder.build()?;
+    let processor = opentelemetry_sdk::logs::BatchLogProcessor::builder(exporter).build()?;
     let mut logger_provider_builder = SdkLoggerProvider::builder();
-    logger_provider_builder = logger_provider_builder.with_batch_exporter(exporter);
+    logger_provider_builder = logger_provider_builder.with_log_processor(processor);
     let logger_provider = logger_provider_builder
         .with_resource(
             Resource::builder_empty()
                 .with_service_name("logs-integration-test")
                 .build(),
         )
-        .build();
+        .build()?;
     let layer = layer::OpenTelemetryTracingBridge::new(&logger_provider);
     let subscriber = tracing_subscriber::registry().with(layer);
 

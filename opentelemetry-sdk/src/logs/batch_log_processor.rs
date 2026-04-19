@@ -15,7 +15,7 @@
 //!   +-----+---------------+   +-----------------------+   +-------------------+
 //! ```
 
-use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::error::{OTelSdkError, OTelSdkResult, ProviderBuildError};
 use crate::logs::log_processor::LogProcessor;
 use crate::{
     logs::{LogBatch, LogExporter, SdkLogRecord},
@@ -121,11 +121,13 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 ///             .with_scheduled_delay(Duration::from_secs(5))
 ///             .build(),
 ///     )
-///     .build();
+///     .build()
+///     .unwrap();
 ///
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_log_processor(processor)
-///     .build();
+///     .build()
+///     .unwrap();
 /// # }
 ///
 pub struct BatchLogProcessor {
@@ -332,10 +334,14 @@ impl LogProcessor for BatchLogProcessor {
 }
 
 impl BatchLogProcessor {
-    pub(crate) fn new<E>(mut exporter: E, config: BatchConfig) -> Self
+    pub(crate) fn new<E>(mut exporter: E, config: BatchConfig) -> Result<Self, ProviderBuildError>
     where
         E: LogExporter + Send + Sync + 'static,
     {
+        if exporter.requires_async_runtime() {
+            return Err(ProviderBuildError::AsyncRuntimeRequired);
+        }
+
         let (logs_sender, logs_receiver) = mpsc::sync_channel::<LogsData>(config.max_queue_size);
         let (message_sender, message_receiver) = mpsc::sync_channel::<BatchMessage>(64); // Is this a reasonable bound?
         let max_queue_size = config.max_queue_size;
@@ -490,10 +496,10 @@ impl BatchLogProcessor {
                     name: "BatchLogProcessor.ThreadStopped"
                 );
             })
-            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
+            .map_err(ProviderBuildError::ThreadSpawnFailed)?;
 
         // Return batch processor with link to worker
-        BatchLogProcessor {
+        Ok(BatchLogProcessor {
             logs_sender,
             message_sender,
             handle: Mutex::new(Some(handle)),
@@ -503,7 +509,7 @@ impl BatchLogProcessor {
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
-        }
+        })
     }
 
     /// Create a new batch processor builder
@@ -570,7 +576,7 @@ where
     }
 
     /// Build a batch processor
-    pub fn build(self) -> BatchLogProcessor {
+    pub fn build(self) -> Result<BatchLogProcessor, ProviderBuildError> {
         BatchLogProcessor::new(self.exporter, self.config)
     }
 }
@@ -859,7 +865,7 @@ mod tests {
         let exporter = MockExporter {
             export_called: Arc::new(AtomicBool::new(false)),
         };
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
         let scope = opentelemetry::InstrumentationScope::builder("my-crate")
             .with_schema_url("https://opentelemetry.io/schemas/1.17.0")
             .build();
@@ -961,7 +967,7 @@ mod tests {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
         };
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .with_resource(
@@ -975,7 +981,8 @@ mod tests {
                     ])
                     .build(),
             )
-            .build();
+            .build()
+            .unwrap();
 
         provider.force_flush().unwrap();
 
@@ -990,7 +997,7 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default()
             .keep_records_on_shutdown()
             .build();
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
 
         let mut record = SdkLogRecord::new();
         let instrumentation = InstrumentationScope::default();
@@ -1007,7 +1014,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
 
         processor.shutdown().unwrap();
     }
@@ -1015,21 +1022,21 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default()).unwrap();
         processor.shutdown().unwrap();
     }
 
@@ -1073,7 +1080,7 @@ mod tests {
             .with_scheduled_delay(Duration::from_millis(5))
             .build();
 
-        let processor = BatchLogProcessor::new(exporter, config);
+        let processor = BatchLogProcessor::new(exporter, config).unwrap();
 
         let total_logs_per_thread = 100_000;
         let num_threads = 4;
@@ -1115,6 +1122,30 @@ mod tests {
             logs_dropped > 0,
             "Expected some logs to be dropped under stress, but none were. \
              Consider reducing queue size or increasing thread count/log volume."
+        );
+    }
+
+    #[test]
+    fn test_batch_log_processor_rejects_async_runtime_exporter() {
+        use crate::error::ProviderBuildError;
+
+        #[derive(Debug, Clone)]
+        struct AsyncRequiringLogExporter;
+
+        impl LogExporter for AsyncRequiringLogExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn requires_async_runtime(&self) -> bool {
+                true
+            }
+        }
+
+        let result = BatchLogProcessor::builder(AsyncRequiringLogExporter).build();
+        assert!(
+            matches!(result, Err(ProviderBuildError::AsyncRuntimeRequired)),
+            "Expected AsyncRuntimeRequired, got: {result:?}"
         );
     }
 }

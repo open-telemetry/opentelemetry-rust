@@ -20,7 +20,8 @@ fn init_tracer() -> SdkTracerProvider {
     // For the demonstration, use `Sampler::AlwaysOn` sampler to sample all traces.
     let provider = SdkTracerProvider::builder()
         .with_simple_exporter(SpanExporter::default())
-        .build();
+        .build()
+        .expect("Failed to build tracer provider");
 
     global::set_tracer_provider(provider.clone());
     provider
@@ -31,7 +32,8 @@ fn init_logs() -> SdkLoggerProvider {
     // that prints the spans to stdout.
     let logger_provider = SdkLoggerProvider::builder()
         .with_simple_exporter(LogExporter::default())
-        .build();
+        .build()
+        .expect("Failed to build logger provider");
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
     tracing_subscriber::registry()
         .with(otel_layer)

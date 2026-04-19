@@ -3,6 +3,7 @@
 ## vNext
 
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+- Added `HttpClient::requires_async_runtime() -> bool` method (default: `false`). `reqwest::Client` and `HyperClient` return `true`. Used by batch processors to detect invalid client/processor combinations at build time.
 
 ## 0.31.0
 

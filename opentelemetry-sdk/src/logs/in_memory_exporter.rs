@@ -27,8 +27,9 @@ use std::time;
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
 ///    //Create a LoggerProvider and register the exporter
 ///    let logger_provider = SdkLoggerProvider::builder()
-///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
-///        .build();
+///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build().unwrap())
+///        .build()
+///        .unwrap();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
 ///    let emitted_logs = exporter.get_emitted_logs().unwrap();
@@ -87,8 +88,9 @@ pub struct LogDataWithResource {
 ///    let exporter: InMemoryLogExporter = InMemoryLogExporterBuilder::default().build();
 ///    //Create a LoggerProvider and register the exporter
 ///    let logger_provider = SdkLoggerProvider::builder()
-///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build())
-///        .build();
+///        .with_log_processor(BatchLogProcessor::builder(exporter.clone()).build().unwrap())
+///        .build()
+///        .unwrap();
 ///    // Setup Log Appenders and emit logs. (Not shown here)
 ///    logger_provider.force_flush();
 ///    let emitted_logs = exporter.get_emitted_logs().unwrap();

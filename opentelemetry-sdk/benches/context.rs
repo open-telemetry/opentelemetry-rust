@@ -157,7 +157,8 @@ fn parent_sampled_tracer(inner_sampler: Sampler) -> (SdkTracerProvider, BoxedTra
     let provider = SdkTracerProvider::builder()
         .with_sampler(Sampler::ParentBased(Box::new(inner_sampler)))
         .with_simple_exporter(NoopExporter)
-        .build();
+        .build()
+        .unwrap();
     let tracer = provider.tracer(module_path!());
     (provider, BoxedTracer::new(Box::new(tracer)))
 }

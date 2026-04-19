@@ -257,6 +257,7 @@ mod tests {
         let logger = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .build()
+            .unwrap()
             .logger("test");
         let mut logrecord = logger.create_log_record();
         logrecord.set_timestamp(now());

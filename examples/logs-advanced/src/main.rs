@@ -17,7 +17,8 @@ fn main() {
                 .build(),
         )
         .with_log_processor(enriching_processor)
-        .build();
+        .build()
+        .expect("Failed to build logger provider");
 
     // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
     // logging is properly suppressed. However, logs emitted by external components
