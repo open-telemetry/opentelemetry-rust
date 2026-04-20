@@ -200,6 +200,20 @@ fn build_tonic() {
         .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
+    // Post-process each generated file to gate prost-specific derives and types
+    // behind the `with-prost` feature, so that http-json users don't pull in prost.
+    for entry in std::fs::read_dir(out_dir.path())
+        .expect("cannot open temp out dir")
+        .flatten()
+    {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "rs") {
+            let original = std::fs::read_to_string(&path).expect("cannot read generated file");
+            let processed = post_process_generated(original);
+            std::fs::write(&path, processed).expect("cannot write processed generated file");
+        }
+    }
+
     let after_build = build_content_map(out_dir.path(), true);
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
@@ -254,4 +268,125 @@ fn ensure_files_are_same(
     }
 
     panic!("generated file has changed, please commit the change file and rerun the test");
+}
+
+/// Post-processes a prost-generated `.rs` file to make all prost-specific
+/// derives and types conditional on the `with-prost` feature flag.
+///
+/// This decouples the struct definitions from `prost` so that consumers using
+/// only `http-json` (which needs only `serde` derives) don't transitively
+/// compile prost. See: https://github.com/open-telemetry/opentelemetry-rust/issues/3419
+fn post_process_generated(content: String) -> String {
+    let content = content
+        .replace(
+            "#[derive(Clone, PartialEq, ::prost::Message)]",
+            "#[derive(Clone, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug, Default))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, ::prost::Message)]",
+            "#[derive(Clone, Copy, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug, Default))]",
+        )
+        .replace(
+            "#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]",
+            "#[derive(Clone, PartialEq, Eq, Hash)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug, Default))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]",
+            "#[derive(Clone, Copy, PartialEq, Eq, Hash)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Message))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug, Default))]",
+        )
+        .replace(
+            "#[derive(Clone, PartialEq, ::prost::Oneof)]",
+            "#[derive(Clone, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Oneof))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug))]",
+        )
+        .replace(
+            "#[derive(Clone, Copy, PartialEq, ::prost::Oneof)]",
+            "#[derive(Clone, Copy, PartialEq)]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Oneof))]\n#[cfg_attr(not(feature = \"with-prost\"), derive(Debug))]",
+        );
+    let content = rewrite_prost_enumeration_derives(content);
+
+    let content = content
+        .replace("::prost::alloc::vec::Vec", "::std::vec::Vec")
+        .replace("::prost::alloc::string::String", "::std::string::String");
+    let content = content
+        .replace(
+            "impl AggregationTemporality {",
+            "#[cfg(not(feature = \"with-prost\"))]\nimpl From<AggregationTemporality> for i32 {\n    fn from(value: AggregationTemporality) -> Self {\n        value as i32\n    }\n}\nimpl AggregationTemporality {",
+        )
+        .replace(
+            "impl DataPointFlags {",
+            "#[cfg(not(feature = \"with-prost\"))]\nimpl Default for DataPointFlags {\n    fn default() -> Self {\n        Self::DoNotUse\n    }\n}\nimpl DataPointFlags {",
+        )
+        .replace(
+            "impl SeverityNumber {",
+            "#[cfg(not(feature = \"with-prost\"))]\nimpl From<SeverityNumber> for i32 {\n    fn from(value: SeverityNumber) -> Self {\n        value as i32\n    }\n}\nimpl SeverityNumber {",
+        )
+        .replace(
+            "impl StatusCode {",
+            "#[cfg(not(feature = \"with-prost\"))]\n    impl From<StatusCode> for i32 {\n        fn from(value: StatusCode) -> Self {\n            value as i32\n        }\n    }\n    impl StatusCode {",
+        );
+
+    let trailing_newline = content.ends_with('\n');
+    let mut out = content
+        .lines()
+        .map(|line| {
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with("#[prost(") {
+                return line.to_string();
+            }
+            let indent = &line[..line.len() - trimmed.len()];
+            // trimmed is "#[prost(ARGS)]"; strip outer #[...] to get "prost(ARGS)"
+            let inner = trimmed
+                .strip_prefix("#[")
+                .and_then(|s| s.strip_suffix(']'))
+                .expect("malformed #[prost(...)] attribute in generated file");
+            format!("{indent}#[cfg_attr(feature = \"with-prost\", {inner})]")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if trailing_newline {
+        out.push('\n');
+    }
+    out
+}
+
+fn rewrite_prost_enumeration_derives(content: String) -> String {
+    let mut out = String::with_capacity(content.len());
+    let mut rest = content.as_str();
+
+    while let Some(start) = rest.find("#[derive(") {
+        let (before, candidate) = rest.split_at(start);
+        out.push_str(before);
+
+        let Some(end) = candidate.find(")]") else {
+            out.push_str(candidate);
+            return out;
+        };
+        let (block, after) = candidate.split_at(end + 2);
+
+        if !block.contains("::prost::Enumeration") {
+            out.push_str(block);
+            rest = after;
+            continue;
+        }
+
+        let inner = block
+            .strip_prefix("#[derive(")
+            .and_then(|s| s.strip_suffix(")]"))
+            .expect("malformed #[derive(...)] attribute in generated file");
+        let derives = inner
+            .split(',')
+            .map(str::trim)
+            .filter(|item| !item.is_empty() && *item != "::prost::Enumeration")
+            .collect::<Vec<_>>();
+
+        out.push_str(&format!(
+            "#[derive({})]\n#[cfg_attr(feature = \"with-prost\", derive(::prost::Enumeration))]",
+            derives.join(", ")
+        ));
+        rest = after;
+    }
+
+    out.push_str(rest);
+    out
 }

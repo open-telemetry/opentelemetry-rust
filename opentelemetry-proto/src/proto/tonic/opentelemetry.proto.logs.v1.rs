@@ -12,62 +12,68 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LogsData {
     /// An array of ResourceLogs.
     /// For data coming from a single resource this array will typically contain
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag = "1")]
-    pub resource_logs: ::prost::alloc::vec::Vec<ResourceLogs>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub resource_logs: ::std::vec::Vec<ResourceLogs>,
 }
 /// A collection of ScopeLogs from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceLogs {
     /// The resource for the logs in this message.
     /// If this field is not set then resource info is unknown.
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of ScopeLogs that originate from a resource.
-    #[prost(message, repeated, tag = "2")]
-    pub scope_logs: ::prost::alloc::vec::Vec<ScopeLogs>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub scope_logs: ::std::vec::Vec<ScopeLogs>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_logs" field which have their own schema_url field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// A collection of Logs produced by a Scope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeLogs {
     /// The instrumentation scope information for the logs in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
     /// an empty instrumentation scope name (unknown).
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of log records.
-    #[prost(message, repeated, tag = "2")]
-    pub log_records: ::prost::alloc::vec::Vec<LogRecord>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub log_records: ::std::vec::Vec<LogRecord>,
     /// The Schema URL, if known. This is the identifier of the Schema that the log data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "scope" field and all logs in the
     /// "log_records" field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// A log record according to OpenTelemetry Log Data Model:
 /// <https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md>
@@ -75,12 +81,14 @@ pub struct ScopeLogs {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LogRecord {
     /// time_unix_nano is the time when the event occurred.
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
-    #[prost(fixed64, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "1"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -105,7 +113,7 @@ pub struct LogRecord {
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January 1970.
     /// Value of 0 indicates unknown or missing timestamp.
-    #[prost(fixed64, tag = "11")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "11"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -116,31 +124,31 @@ pub struct LogRecord {
     pub observed_time_unix_nano: u64,
     /// Numerical value of the severity, normalized to values described in Log Data Model.
     /// \[Optional\].
-    #[prost(enumeration = "SeverityNumber", tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(enumeration = "SeverityNumber", tag = "2"))]
     pub severity_number: i32,
     /// The severity text (also known as log level). The original string representation as
     /// it is known at the source. \[Optional\].
-    #[prost(string, tag = "3")]
-    pub severity_text: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub severity_text: ::std::string::String,
     /// A value containing the body of the log record. Can be for example a human-readable
     /// string message (including multi-line) describing the event in a free form or it can
     /// be a structured data composed of arrays and maps of other values. \[Optional\].
-    #[prost(message, optional, tag = "5")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "5"))]
     pub body: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// Additional attributes that describe the specific event occurrence. \[Optional\].
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "6")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
-    #[prost(uint32, tag = "7")]
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "6"))]
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "7"))]
     pub dropped_attributes_count: u32,
     /// Flags, a bit field. 8 least significant bits are the trace flags as
     /// defined in W3C Trace Context specification. 24 most significant bits are reserved
     /// and must be set to 0. Readers must not assume that 24 most significant bits
     /// will be zero and must correctly mask the bits when reading 8-bit trace flag (use
     /// flags & LOG_RECORD_FLAGS_TRACE_FLAGS_MASK). \[Optional\].
-    #[prost(fixed32, tag = "8")]
+    #[cfg_attr(feature = "with-prost", prost(fixed32, tag = "8"))]
     pub flags: u32,
     /// A unique identifier for a trace. All logs from the same trace share
     /// the same `trace_id`. The ID is a 16-byte array. An ID with all zeroes OR
@@ -154,7 +162,7 @@ pub struct LogRecord {
     ///
     /// * the field is not present,
     /// * the field contains an invalid value.
-    #[prost(bytes = "vec", tag = "9")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "9"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -162,7 +170,7 @@ pub struct LogRecord {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub trace_id: ::prost::alloc::vec::Vec<u8>,
+    pub trace_id: ::std::vec::Vec<u8>,
     /// A unique identifier for a span within a trace, assigned when the span
     /// is created. The ID is an 8-byte array. An ID with all zeroes OR of length
     /// other than 8 bytes is considered invalid (empty string in OTLP/JSON
@@ -176,7 +184,7 @@ pub struct LogRecord {
     ///
     /// * the field is not present,
     /// * the field contains an invalid value.
-    #[prost(bytes = "vec", tag = "10")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "10"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -184,7 +192,7 @@ pub struct LogRecord {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub span_id: ::prost::alloc::vec::Vec<u8>,
+    pub span_id: ::std::vec::Vec<u8>,
     /// A unique identifier of event category/type.
     /// All events with the same event_name are expected to conform to the same
     /// schema for both their attributes and their body.
@@ -195,14 +203,15 @@ pub struct LogRecord {
     /// as an event.
     ///
     /// \[Optional\].
-    #[prost(string, tag = "12")]
-    pub event_name: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "12"))]
+    pub event_name: ::std::string::String,
 }
 /// Possible values for LogRecord.SeverityNumber.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Enumeration))]
 #[repr(i32)]
 pub enum SeverityNumber {
     Unspecified = 0,
@@ -230,6 +239,12 @@ pub enum SeverityNumber {
     Fatal2 = 22,
     Fatal3 = 23,
     Fatal4 = 24,
+}
+#[cfg(not(feature = "with-prost"))]
+impl From<SeverityNumber> for i32 {
+    fn from(value: SeverityNumber) -> Self {
+        value as i32
+    }
 }
 impl SeverityNumber {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -307,7 +322,8 @@ impl SeverityNumber {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Enumeration))]
 #[repr(i32)]
 pub enum LogRecordFlags {
     /// The zero value for the enum. Should not be used for comparisons.

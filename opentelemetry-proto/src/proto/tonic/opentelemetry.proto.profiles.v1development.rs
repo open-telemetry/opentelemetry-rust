@@ -25,34 +25,36 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ProfilesDictionary {
     /// Mappings from address ranges to the image/binary/library mapped
     /// into that address range referenced by locations via Location.mapping_index.
     ///
     /// mapping_table\[0\] must always be zero value (Mapping{}) and present.
-    #[prost(message, repeated, tag = "1")]
-    pub mapping_table: ::prost::alloc::vec::Vec<Mapping>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub mapping_table: ::std::vec::Vec<Mapping>,
     /// Locations referenced by samples via Stack.location_indices.
     ///
     /// location_table\[0\] must always be zero value (Location{}) and present.
-    #[prost(message, repeated, tag = "2")]
-    pub location_table: ::prost::alloc::vec::Vec<Location>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub location_table: ::std::vec::Vec<Location>,
     /// Functions referenced by locations via Line.function_index.
     ///
     /// function_table\[0\] must always be zero value (Function{}) and present.
-    #[prost(message, repeated, tag = "3")]
-    pub function_table: ::prost::alloc::vec::Vec<Function>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "3"))]
+    pub function_table: ::std::vec::Vec<Function>,
     /// Links referenced by samples via Sample.link_index.
     ///
     /// link_table\[0\] must always be zero value (Link{}) and present.
-    #[prost(message, repeated, tag = "4")]
-    pub link_table: ::prost::alloc::vec::Vec<Link>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "4"))]
+    pub link_table: ::std::vec::Vec<Link>,
     /// A common table for strings referenced by various messages.
     ///
     /// string_table\[0\] must always be "" and present.
-    #[prost(string, repeated, tag = "5")]
-    pub string_table: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[cfg_attr(feature = "with-prost", prost(string, repeated, tag = "5"))]
+    pub string_table: ::std::vec::Vec<::std::string::String>,
     /// A common table for attributes referenced by the Profile, Sample, Mapping
     /// and Location messages below through attribute_indices field. Each entry is
     /// a key/value pair with an optional unit. Since this is a dictionary table,
@@ -73,13 +75,13 @@ pub struct ProfilesDictionary {
     /// "allocation_size": 128 bytes
     ///
     /// attribute_table\[0\] must always be zero value (KeyValueAndUnit{}) and present.
-    #[prost(message, repeated, tag = "6")]
-    pub attribute_table: ::prost::alloc::vec::Vec<KeyValueAndUnit>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "6"))]
+    pub attribute_table: ::std::vec::Vec<KeyValueAndUnit>,
     /// Stacks referenced by samples via Sample.stack_index.
     ///
     /// stack_table\[0\] must always be zero value (Stack{}) and present.
-    #[prost(message, repeated, tag = "7")]
-    pub stack_table: ::prost::alloc::vec::Vec<Stack>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "7"))]
+    pub stack_table: ::std::vec::Vec<Stack>,
 }
 /// ProfilesData represents the profiles data that can be stored in persistent storage,
 /// OR can be embedded by other protocols that transfer OTLP profiles data but do not
@@ -94,7 +96,9 @@ pub struct ProfilesDictionary {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ProfilesData {
     /// An array of ResourceProfiles.
     /// For data coming from an SDK profiler, this array will typically contain one
@@ -105,56 +109,60 @@ pub struct ProfilesData {
     /// Resource.attributes and semantic conventions.
     /// Tools that visualize profiles should prefer displaying
     /// resources_profiles\[0\].scope_profiles\[0\].profiles\[0\] by default.
-    #[prost(message, repeated, tag = "1")]
-    pub resource_profiles: ::prost::alloc::vec::Vec<ResourceProfiles>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub resource_profiles: ::std::vec::Vec<ResourceProfiles>,
     /// One instance of ProfilesDictionary
-    #[prost(message, optional, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "2"))]
     pub dictionary: ::core::option::Option<ProfilesDictionary>,
 }
 /// A collection of ScopeProfiles from a Resource.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ResourceProfiles {
     /// The resource for the profiles in this message.
     /// If this field is not set then no resource info is known.
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of ScopeProfiles that originate from a resource.
-    #[prost(message, repeated, tag = "2")]
-    pub scope_profiles: ::prost::alloc::vec::Vec<ScopeProfiles>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub scope_profiles: ::std::vec::Vec<ScopeProfiles>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_profiles" field which have their own schema_url field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// A collection of Profiles produced by an InstrumentationScope.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ScopeProfiles {
     /// The instrumentation scope information for the profiles in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
     /// an empty instrumentation scope name (unknown).
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of Profiles that originate from an instrumentation scope.
-    #[prost(message, repeated, tag = "2")]
-    pub profiles: ::prost::alloc::vec::Vec<Profile>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub profiles: ::std::vec::Vec<Profile>,
     /// The Schema URL, if known. This is the identifier of the Schema that the profile data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "scope" field and all profiles in the
     /// "profiles" field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "3"))]
+    pub schema_url: ::std::string::String,
 }
 /// Represents a complete profile, including sample types, samples, mappings to
 /// binaries, stacks, locations, functions, string table, and additional
@@ -167,35 +175,37 @@ pub struct ScopeProfiles {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Profile {
     /// The type and unit of all Sample.values in this profile.
     /// For a cpu or off-cpu profile this might be:
     /// \["cpu","nanoseconds"\] or \["off_cpu","nanoseconds"\]
     /// For a heap profile, this might be:
     /// \["allocated_objects","count"\] or \["allocated_space","bytes"\],
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub sample_type: ::core::option::Option<ValueType>,
     /// The set of samples recorded in this profile.
-    #[prost(message, repeated, tag = "2")]
-    pub samples: ::prost::alloc::vec::Vec<Sample>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "2"))]
+    pub samples: ::std::vec::Vec<Sample>,
     /// Time of collection. Value is UNIX Epoch time in nanoseconds since 00:00:00
     /// UTC on 1 January 1970.
-    #[prost(fixed64, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "3"))]
     pub time_unix_nano: u64,
     /// Duration of the profile. For instant profiles like live heap snapshot, the
     /// duration can be zero but it may be preferable to set time_unix_nano to the
     /// process start time and duration_nano to the relative time when the profile
     /// was gathered. This ensures Sample.timestamps_unix_nano values such as
     /// allocation timestamp fall into the profile time range.
-    #[prost(uint64, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(uint64, tag = "4"))]
     pub duration_nano: u64,
     /// The kind of events between sampled occurrences.
     /// e.g \[ "cpu","cycles" \] or \[ "heap","bytes" \]
-    #[prost(message, optional, tag = "5")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "5"))]
     pub period_type: ::core::option::Option<ValueType>,
     /// The number of events between sampled occurrences.
-    #[prost(int64, tag = "6")]
+    #[cfg_attr(feature = "with-prost", prost(int64, tag = "6"))]
     pub period: i64,
     /// A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
     /// all zeroes is considered invalid. It may be used for deduplication and signal
@@ -203,7 +213,7 @@ pub struct Profile {
     /// in this field as not equal, even if they represented the same object at an earlier
     /// time.
     /// This field is optional; an ID may be assigned to an ID-less profile in a later step.
-    #[prost(bytes = "vec", tag = "7")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "7"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -211,11 +221,11 @@ pub struct Profile {
             deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
         )
     )]
-    pub profile_id: ::prost::alloc::vec::Vec<u8>,
+    pub profile_id: ::std::vec::Vec<u8>,
     /// The number of attributes that were discarded. Attributes
     /// can be discarded because their keys are too long or because there are too many
     /// attributes. If this value is 0, then no attributes were dropped.
-    #[prost(uint32, tag = "8")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "8"))]
     pub dropped_attributes_count: u32,
     /// The original payload format. See also original_payload. Optional, but the
     /// format and the bytes must be set or unset together.
@@ -236,42 +246,46 @@ pub struct Profile {
     /// The original payload can be large in size, so including the original
     /// payload should be configurable by the profiler or collector options. The
     /// default behavior should be to not include the original payload.
-    #[prost(string, tag = "9")]
-    pub original_payload_format: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "9"))]
+    pub original_payload_format: ::std::string::String,
     /// The original payload bytes. See also original_payload_format. Optional, but
     /// format and the bytes must be set or unset together.
-    #[prost(bytes = "vec", tag = "10")]
-    pub original_payload: ::prost::alloc::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "10"))]
+    pub original_payload: ::std::vec::Vec<u8>,
     /// References to attributes in attribute_table. \[optional\]
-    #[prost(int32, repeated, tag = "11")]
-    pub attribute_indices: ::prost::alloc::vec::Vec<i32>,
+    #[cfg_attr(feature = "with-prost", prost(int32, repeated, tag = "11"))]
+    pub attribute_indices: ::std::vec::Vec<i32>,
 }
 /// A pointer from a profile Sample to a trace Span.
 /// Connects a profile sample to a trace span, identified by unique trace and span IDs.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Link {
     /// A unique identifier of a trace that this linked span is part of. The ID is a
     /// 16-byte array.
-    #[prost(bytes = "vec", tag = "1")]
-    pub trace_id: ::prost::alloc::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
+    pub trace_id: ::std::vec::Vec<u8>,
     /// A unique identifier for the linked span. The ID is an 8-byte array.
-    #[prost(bytes = "vec", tag = "2")]
-    pub span_id: ::prost::alloc::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
+    pub span_id: ::std::vec::Vec<u8>,
 }
 /// ValueType describes the type and units of a value.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ValueType {
     /// Index into ProfilesDictionary.string_table.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub type_strindex: i32,
     /// Index into ProfilesDictionary.string_table.
-    #[prost(int32, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "2"))]
     pub unit_strindex: i32,
 }
 /// Each Sample records values encountered in some program context. The program
@@ -306,26 +320,28 @@ pub struct ValueType {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Sample {
     /// Reference to stack in ProfilesDictionary.stack_table.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub stack_index: i32,
     /// References to attributes in ProfilesDictionary.attribute_table. \[optional\]
-    #[prost(int32, repeated, tag = "2")]
-    pub attribute_indices: ::prost::alloc::vec::Vec<i32>,
+    #[cfg_attr(feature = "with-prost", prost(int32, repeated, tag = "2"))]
+    pub attribute_indices: ::std::vec::Vec<i32>,
     /// Reference to link in ProfilesDictionary.link_table. \[optional\]
     /// It can be unset / set to 0 if no link exists, as link_table\[0\] is always a 'null' default value.
-    #[prost(int32, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "3"))]
     pub link_index: i32,
     /// The type and unit of each value is defined by Profile.sample_type.
-    #[prost(int64, repeated, tag = "4")]
-    pub values: ::prost::alloc::vec::Vec<i64>,
+    #[cfg_attr(feature = "with-prost", prost(int64, repeated, tag = "4"))]
+    pub values: ::std::vec::Vec<i64>,
     /// Timestamps associated with Sample. Value is UNIX Epoch time in nanoseconds
     /// since 00:00:00 UTC on 1 January 1970. The timestamps should fall within the
     /// \[Profile.time_unix_nano, Profile.time_unix_nano + Profile.duration_nano)
     /// time range.
-    #[prost(fixed64, repeated, tag = "5")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, repeated, tag = "5"))]
     #[cfg_attr(
         feature = "with-serde",
         serde(
@@ -333,63 +349,69 @@ pub struct Sample {
             deserialize_with = "crate::proto::serializers::deserialize_vec_string_to_vec_u64"
         )
     )]
-    pub timestamps_unix_nano: ::prost::alloc::vec::Vec<u64>,
+    pub timestamps_unix_nano: ::std::vec::Vec<u64>,
 }
 /// Describes the mapping of a binary in memory, including its address range,
 /// file offset, and metadata like build ID
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Mapping {
     /// Address at which the binary (or DLL) is loaded into memory.
-    #[prost(uint64, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(uint64, tag = "1"))]
     pub memory_start: u64,
     /// The limit of the address range occupied by this mapping.
-    #[prost(uint64, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(uint64, tag = "2"))]
     pub memory_limit: u64,
     /// Offset in the binary that corresponds to the first mapped address.
-    #[prost(uint64, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(uint64, tag = "3"))]
     pub file_offset: u64,
     /// The object this entry is loaded from.  This can be a filename on
     /// disk for the main binary and shared libraries, or virtual
     /// abstractions like "\[vdso\]".
     ///
     /// Index into ProfilesDictionary.string_table.
-    #[prost(int32, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "4"))]
     pub filename_strindex: i32,
     /// References to attributes in ProfilesDictionary.attribute_table. \[optional\]
-    #[prost(int32, repeated, tag = "5")]
-    pub attribute_indices: ::prost::alloc::vec::Vec<i32>,
+    #[cfg_attr(feature = "with-prost", prost(int32, repeated, tag = "5"))]
+    pub attribute_indices: ::std::vec::Vec<i32>,
 }
 /// A Stack represents a stack trace as a list of locations.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Stack {
     /// References to locations in ProfilesDictionary.location_table.
     /// The first location is the leaf frame.
-    #[prost(int32, repeated, tag = "1")]
-    pub location_indices: ::prost::alloc::vec::Vec<i32>,
+    #[cfg_attr(feature = "with-prost", prost(int32, repeated, tag = "1"))]
+    pub location_indices: ::std::vec::Vec<i32>,
 }
 /// Describes function and line table debug information.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Location {
     /// Reference to mapping in ProfilesDictionary.mapping_table.
     /// It can be unset / set to 0 if the mapping is unknown or not applicable for
     /// this profile type, as mapping_table\[0\] is always a 'null' default mapping.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub mapping_index: i32,
     /// The instruction address for this location, if available.  It
     /// should be within \[Mapping.memory_start...Mapping.memory_limit\]
     /// for the corresponding mapping. A non-leaf address may be in the
     /// middle of a call instruction. It is up to display tools to find
     /// the beginning of the instruction if necessary.
-    #[prost(uint64, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(uint64, tag = "2"))]
     pub address: u64,
     /// Multiple line indicates this location has inlined functions,
     /// where the last entry represents the caller into which the
@@ -398,26 +420,28 @@ pub struct Location {
     /// E.g., if memcpy() is inlined into printf:
     /// lines\[0\].function_name == "memcpy"
     /// lines\[1\].function_name == "printf"
-    #[prost(message, repeated, tag = "3")]
-    pub lines: ::prost::alloc::vec::Vec<Line>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "3"))]
+    pub lines: ::std::vec::Vec<Line>,
     /// References to attributes in ProfilesDictionary.attribute_table. \[optional\]
-    #[prost(int32, repeated, tag = "4")]
-    pub attribute_indices: ::prost::alloc::vec::Vec<i32>,
+    #[cfg_attr(feature = "with-prost", prost(int32, repeated, tag = "4"))]
+    pub attribute_indices: ::std::vec::Vec<i32>,
 }
 /// Details a specific line in a source code, linked to a function.
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Line {
     /// Reference to function in ProfilesDictionary.function_table.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub function_index: i32,
     /// Line number in source code. 0 means unset.
-    #[prost(int64, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(int64, tag = "2"))]
     pub line: i64,
     /// Column number in source code. 0 means unset.
-    #[prost(int64, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(int64, tag = "3"))]
     pub column: i64,
 }
 /// Describes a function, including its human-readable name, system name,
@@ -426,20 +450,22 @@ pub struct Line {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct Function {
     /// The function name. Empty string if not available.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub name_strindex: i32,
     /// Function name, as identified by the system. For instance,
     /// it can be a C++ mangled name. Empty string if not available.
-    #[prost(int32, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "2"))]
     pub system_name_strindex: i32,
     /// Source file containing the function. Empty string if not available.
-    #[prost(int32, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "3"))]
     pub filename_strindex: i32,
     /// Line number in source file. 0 means unset.
-    #[prost(int64, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(int64, tag = "4"))]
     pub start_line: i64,
 }
 /// A custom 'dictionary native' style of encoding attributes which is more convenient
@@ -448,16 +474,18 @@ pub struct Function {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct KeyValueAndUnit {
     /// The index into the string table for the attribute's key.
-    #[prost(int32, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "1"))]
     pub key_strindex: i32,
     /// The value of the attribute.
-    #[prost(message, optional, tag = "2")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "2"))]
     pub value: ::core::option::Option<super::super::common::v1::AnyValue>,
     /// The index into the string table for the attribute's unit.
     /// zero indicates implicit (by semconv) or non-defined unit.
-    #[prost(int32, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(int32, tag = "3"))]
     pub unit_strindex: i32,
 }

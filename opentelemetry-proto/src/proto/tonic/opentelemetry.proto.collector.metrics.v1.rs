@@ -2,22 +2,26 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsServiceRequest {
     /// An array of ResourceMetrics.
     /// For data coming from a single resource this array will typically contain one
     /// element. Intermediary nodes (such as OpenTelemetry Collector) that receive
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
-    #[prost(message, repeated, tag = "1")]
-    pub resource_metrics: ::prost::alloc::vec::Vec<
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "1"))]
+    pub resource_metrics: ::std::vec::Vec<
         super::super::super::metrics::v1::ResourceMetrics,
     >,
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -34,19 +38,21 @@ pub struct ExportMetricsServiceResponse {
     /// A `partial_success` message with an empty value (rejected\_<signal> = 0 and
     /// `error_message` = "") is equivalent to it not being set/present. Senders
     /// SHOULD interpret it the same way as in the full success case.
-    #[prost(message, optional, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "1"))]
     pub partial_success: ::core::option::Option<ExportMetricsPartialSuccess>,
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ExportMetricsPartialSuccess {
     /// The number of rejected data points.
     ///
     /// A `rejected_<signal>` field holding a `0` value indicates that the
     /// request was fully accepted.
-    #[prost(int64, tag = "1")]
+    #[cfg_attr(feature = "with-prost", prost(int64, tag = "1"))]
     pub rejected_data_points: i64,
     /// A developer-facing human-readable message in English. It should be used
     /// either to explain why the server rejected parts of the data during a partial
@@ -55,8 +61,8 @@ pub struct ExportMetricsPartialSuccess {
     ///
     /// error_message is an optional field. An error_message with an empty value
     /// is equivalent to it not being set.
-    #[prost(string, tag = "2")]
-    pub error_message: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "2"))]
+    pub error_message: ::std::string::String,
 }
 /// Generated client implementations.
 #[cfg(feature = "gen-tonic")]

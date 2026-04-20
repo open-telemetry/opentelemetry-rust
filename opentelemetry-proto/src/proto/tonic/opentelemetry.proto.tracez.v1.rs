@@ -2,89 +2,97 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct TracezCounts {
-    #[prost(string, tag = "1")]
-    pub spanname: ::prost::alloc::string::String,
+    #[cfg_attr(feature = "with-prost", prost(string, tag = "1"))]
+    pub spanname: ::std::string::String,
     /// \[A\]
-    #[prost(uint32, repeated, tag = "2")]
-    pub latency: ::prost::alloc::vec::Vec<u32>,
-    #[prost(uint32, tag = "3")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, repeated, tag = "2"))]
+    pub latency: ::std::vec::Vec<u32>,
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "3"))]
     pub running: u32,
-    #[prost(uint32, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(uint32, tag = "4"))]
     pub error: u32,
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct LatencyData {
-    #[prost(bytes = "vec", tag = "1")]
-    pub traceid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "2")]
-    pub spanid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "3")]
-    pub parentid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(fixed64, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
+    pub traceid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
+    pub spanid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "3"))]
+    pub parentid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "4"))]
     pub starttime: u64,
-    #[prost(fixed64, tag = "5")]
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "5"))]
     pub endtime: u64,
     /// \[1\]
-    #[prost(message, repeated, tag = "6")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "6"))]
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// \[2\]
-    #[prost(message, repeated, tag = "7")]
-    pub events: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Event>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "7"))]
+    pub events: ::std::vec::Vec<super::super::trace::v1::span::Event>,
     /// \[3\]
-    #[prost(message, repeated, tag = "8")]
-    pub links: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Link>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "8"))]
+    pub links: ::std::vec::Vec<super::super::trace::v1::span::Link>,
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct RunningData {
-    #[prost(bytes = "vec", tag = "1")]
-    pub traceid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "2")]
-    pub spanid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "3")]
-    pub parentid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(fixed64, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
+    pub traceid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
+    pub spanid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "3"))]
+    pub parentid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "4"))]
     pub starttime: u64,
     /// \[1\]
-    #[prost(message, repeated, tag = "5")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "5"))]
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// \[2\]
-    #[prost(message, repeated, tag = "6")]
-    pub events: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Event>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "6"))]
+    pub events: ::std::vec::Vec<super::super::trace::v1::span::Event>,
     /// \[3\]
-    #[prost(message, repeated, tag = "7")]
-    pub links: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Link>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "7"))]
+    pub links: ::std::vec::Vec<super::super::trace::v1::span::Link>,
 }
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "with-prost", derive(::prost::Message))]
+#[cfg_attr(not(feature = "with-prost"), derive(Debug, Default))]
 pub struct ErrorData {
-    #[prost(bytes = "vec", tag = "1")]
-    pub traceid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "2")]
-    pub spanid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(bytes = "vec", tag = "3")]
-    pub parentid: ::prost::alloc::vec::Vec<u8>,
-    #[prost(fixed64, tag = "4")]
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "1"))]
+    pub traceid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "2"))]
+    pub spanid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(bytes = "vec", tag = "3"))]
+    pub parentid: ::std::vec::Vec<u8>,
+    #[cfg_attr(feature = "with-prost", prost(fixed64, tag = "4"))]
     pub starttime: u64,
     /// \[1\]
-    #[prost(message, repeated, tag = "5")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "5"))]
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// \[2\]
-    #[prost(message, repeated, tag = "6")]
-    pub events: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Event>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "6"))]
+    pub events: ::std::vec::Vec<super::super::trace::v1::span::Event>,
     /// \[3\]
-    #[prost(message, repeated, tag = "7")]
-    pub links: ::prost::alloc::vec::Vec<super::super::trace::v1::span::Link>,
+    #[cfg_attr(feature = "with-prost", prost(message, repeated, tag = "7"))]
+    pub links: ::std::vec::Vec<super::super::trace::v1::span::Link>,
     /// \[4\]
-    #[prost(message, optional, tag = "8")]
+    #[cfg_attr(feature = "with-prost", prost(message, optional, tag = "8"))]
     pub status: ::core::option::Option<super::super::trace::v1::Status>,
 }
