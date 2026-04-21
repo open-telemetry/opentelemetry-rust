@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Propagate tracing span names to log records.
+
 - New *experimental* feature to enrich log records with attributes from active
   tracing spans (`experimental_span_attributes`). Use
   `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`

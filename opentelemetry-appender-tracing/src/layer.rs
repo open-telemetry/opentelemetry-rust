@@ -303,6 +303,7 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
 #[cfg(feature = "experimental_span_attributes")]
 #[derive(Debug)]
 struct StoredSpanAttributes {
+    span_name: &'static str,
     attributes: Vec<(Key, AnyValue)>,
 }
 
@@ -414,14 +415,20 @@ where
         {
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
+                // Track the current (leaf) span's name to propagate it
+                let mut current_span_name: Option<&'static str> = None;
                 for span_ref in scope.from_root() {
                     // Access extensions inline - each span has its own extension lock
                     let extensions = span_ref.extensions();
                     if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
+                        current_span_name = Some(stored.span_name);
                         for (key, value) in stored.attributes.iter() {
                             log_record.add_attribute(key.clone(), value.clone());
                         }
                     }
+                }
+                if let Some(name) = current_span_name {
+                    log_record.add_attribute(Key::new("span.name"), AnyValue::from(name));
                 }
             }
         }
@@ -443,6 +450,7 @@ where
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let span = ctx.span(id).expect("Span not found; this is a bug");
+        let span_name = attrs.metadata().name();
         let mut fields = Vec::with_capacity(attrs.fields().len());
         let mut visitor = SpanFieldVisitor {
             attributes: &mut fields,
@@ -450,13 +458,13 @@ where
         };
         attrs.record(&mut visitor);
 
-        // Only store if we actually found attributes to avoid empty allocations
-        if !fields.is_empty() {
-            let stored = StoredSpanAttributes { attributes: fields };
+        let stored = StoredSpanAttributes {
+            span_name,
+            attributes: fields,
+        };
 
-            let mut extensions = span.extensions_mut();
-            extensions.insert(stored);
-        }
+        let mut extensions = span.extensions_mut();
+        extensions.insert(stored);
     }
 
     #[cfg(feature = "experimental_span_attributes")]
@@ -478,16 +486,18 @@ where
             values.record(&mut visitor);
         } else {
             // No existing attributes, create new storage
+            let span_name = span.metadata().name();
             let mut fields = Vec::with_capacity(values.len());
             let mut visitor = SpanFieldVisitor {
                 attributes: &mut fields,
                 allowlist: self.span_attribute_allowlist.as_ref(),
             };
             values.record(&mut visitor);
-            if !fields.is_empty() {
-                let stored = StoredSpanAttributes { attributes: fields };
-                extensions.insert(stored);
-            }
+            let stored = StoredSpanAttributes {
+                span_name,
+                attributes: fields,
+            };
+            extensions.insert(stored);
         }
     }
 }
@@ -1519,5 +1529,72 @@ mod tests {
             .record
             .attributes_iter()
             .any(|(k, _)| k == &Key::new("ignored")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_propagates_span_name() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("my_span_name", some_field = "value");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("span.name"),
+            &AnyValue::String("my_span_name".into())
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_propagates_current_span_name_from_nested_spans() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let outer = tracing::info_span!("outer_span");
+        let _outer_guard = outer.enter();
+        let inner = tracing::info_span!("inner_span");
+        let _inner_guard = inner.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // The span.name should be the current (leaf/innermost) span
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("span.name"),
+            &AnyValue::String("inner_span".into())
+        ));
     }
 }
