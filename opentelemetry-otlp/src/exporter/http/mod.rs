@@ -786,7 +786,10 @@ impl HasHttpConfig for HttpExporterBuilder {
 /// ```
 pub trait WithHttpConfig {
     /// Assign client implementation
-    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
+    fn with_http_client<T: HttpClient + 'static>(
+        self,
+        client: impl Into<std::sync::Arc<T>>,
+    ) -> Self;
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
@@ -800,8 +803,11 @@ pub trait WithHttpConfig {
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
-    fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.http_client_config().client = Some(Arc::new(client));
+    fn with_http_client<T: HttpClient + 'static>(
+        mut self,
+        client: impl Into<std::sync::Arc<T>>,
+    ) -> Self {
+        self.http_client_config().client = Some(client.into());
         self
     }
 
