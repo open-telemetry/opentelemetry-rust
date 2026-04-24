@@ -51,7 +51,7 @@ pub(crate) mod trace;
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic
-#[derive(Debug, Default)]
+#[derive(Default)]
 #[non_exhaustive]
 pub(crate) struct TonicConfig {
     /// Custom metadata entries to send to the collector.
@@ -71,6 +71,29 @@ pub(crate) struct TonicConfig {
     /// The retry policy to use for gRPC requests.
     #[cfg(feature = "experimental-grpc-retry")]
     pub(crate) retry_policy: Option<RetryPolicy>,
+}
+
+impl std::fmt::Debug for TonicConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut dbg = f.debug_struct("TonicConfig");
+        dbg.field("metadata", &self.metadata);
+        #[cfg(any(
+            feature = "tls",
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))]
+        dbg.field(
+            "tls_config",
+            &self.tls_config.as_ref().map(|_| "<redacted>"),
+        );
+        dbg.field("compression", &self.compression);
+        dbg.field("channel", &self.channel);
+        dbg.field("interceptor", &self.interceptor);
+        #[cfg(feature = "experimental-grpc-retry")]
+        dbg.field("retry_policy", &self.retry_policy);
+        dbg.finish()
+    }
 }
 
 impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
