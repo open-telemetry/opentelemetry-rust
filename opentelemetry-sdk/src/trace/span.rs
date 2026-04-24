@@ -261,11 +261,11 @@ impl ReadableSpan for Span {
             .unwrap_or(SpanId::INVALID)
     }
 
-    fn span_kind(&self) -> SpanKind {
+    fn span_kind(&self) -> &SpanKind {
         self.data
             .as_ref()
-            .map(|data| data.span_kind.clone())
-            .unwrap_or(SpanKind::Internal)
+            .map(|data| &data.span_kind)
+            .unwrap_or(&SpanKind::Internal)
     }
 
     fn name(&self) -> Option<&str> {
@@ -421,10 +421,10 @@ impl ReadableSpan for FinishedSpan {
         }
     }
 
-    fn span_kind(&self) -> SpanKind {
+    fn span_kind(&self) -> &SpanKind {
         match self.span {
-            Some(ref data) => data.span_kind.clone(),
-            None => SpanKind::Internal,
+            Some(ref data) => &data.span_kind,
+            None => &SpanKind::Internal,
         }
     }
 
@@ -532,7 +532,7 @@ pub trait ReadableSpan {
     /// Returns the `SpanKind` of the span.
     ///
     /// Returns `SpanKind::Internal` if the span is not recording.
-    fn span_kind(&self) -> SpanKind;
+    fn span_kind(&self) -> &SpanKind;
 
     /// Returns the name of the span.
     ///
@@ -1088,7 +1088,7 @@ mod tests {
 
         assert!(span.context().span_id() != SpanId::INVALID);
         assert_eq!(span.name(), None);
-        assert_eq!(span.span_kind(), SpanKind::Internal);
+        assert_eq!(span.span_kind(), &SpanKind::Internal);
         assert!(span.start_time().is_none());
         assert!(span.end_time().is_none());
         assert_eq!(span.attributes(), &[]);
@@ -1191,7 +1191,6 @@ mod tests {
             .build();
         drop(make_test_span(&provider.tracer("test")));
         let res = provider.shutdown();
-        println!("{:?}", res);
         assert!(res.is_ok());
     }
 
@@ -1222,7 +1221,6 @@ mod tests {
         drop(make_test_span(&provider.tracer("test")));
 
         let res = provider.shutdown();
-        println!("{:?}", res);
         assert!(res.is_ok());
     }
 
@@ -1265,7 +1263,7 @@ mod tests {
 
         // After consume, ReadableSpan returns defaults
         assert_eq!(finished.name(), None);
-        assert_eq!(finished.span_kind(), SpanKind::Internal);
+        assert_eq!(finished.span_kind(), &SpanKind::Internal);
         assert_eq!(finished.attributes(), &[]);
         assert_eq!(finished.events().len(), 0);
         assert_eq!(finished.links().len(), 0);
