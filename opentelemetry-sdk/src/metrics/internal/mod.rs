@@ -134,7 +134,7 @@ where
         // Try to retrieve and update the tracker with the attributes in the provided order first
         if let Some(tracker) = trackers.get(attributes) {
             tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Relaxed);
+            tracker.has_been_updated.store(true, Ordering::Release);
             return;
         }
 
@@ -142,7 +142,7 @@ where
         let sorted_attrs = sort_and_dedup(attributes);
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Relaxed);
+            tracker.has_been_updated.store(true, Ordering::Release);
             return;
         }
 
@@ -157,14 +157,14 @@ where
         // in case another thread has pushed an update in the meantime.
         if let Some(tracker) = trackers.get(attributes) {
             tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Relaxed);
+            tracker.has_been_updated.store(true, Ordering::Release);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Relaxed);
+            tracker.has_been_updated.store(true, Ordering::Release);
         } else if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.aggregator.update(value);
-            new_tracker.has_been_updated.store(true, Ordering::Relaxed);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
@@ -175,11 +175,11 @@ where
             overflow_value.aggregator.update(value);
             overflow_value
                 .has_been_updated
-                .store(true, Ordering::Relaxed);
+                .store(true, Ordering::Release);
         } else {
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
-            new_tracker.has_been_updated.store(true, Ordering::Relaxed);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
         }
     }
@@ -241,7 +241,7 @@ where
             let mut seen = HashSet::new();
             for (attrs, tracker) in trackers.iter() {
                 if seen.insert(Arc::as_ptr(tracker)) {
-                    if tracker.has_been_updated.swap(false, Ordering::Relaxed) {
+                    if tracker.has_been_updated.swap(false, Ordering::Acquire) {
                         dest.push(map_fn(attrs.clone(), &tracker.aggregator));
                     } else if attrs.as_slice() != overflow_attrs.as_slice() {
                         // Stale — candidate for eviction
@@ -257,7 +257,7 @@ where
                 // Re-check under write lock to avoid TOCTOU race: a measure() call between
                 // dropping the read lock and acquiring the write lock could have updated
                 // an entry we marked as stale.
-                stale_entries.retain(|entry| !entry.has_been_updated.load(Ordering::Relaxed));
+                stale_entries.retain(|entry| !entry.has_been_updated.load(Ordering::Acquire));
 
                 if !stale_entries.is_empty() {
                     let stale_pointers: HashSet<*const TrackerEntry<A>> =
