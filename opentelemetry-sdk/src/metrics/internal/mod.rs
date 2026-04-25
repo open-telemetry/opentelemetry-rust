@@ -97,7 +97,7 @@ where
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Tracker for values with no attributes attached.
-    no_attribute_tracker: TrackerEntry<A>,
+    no_attribute_tracker: Arc<TrackerEntry<A>>,
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
@@ -116,7 +116,7 @@ where
             trackers: RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
             )),
-            no_attribute_tracker: TrackerEntry::new(&config),
+            no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
@@ -205,8 +205,10 @@ where
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
         if attributes.is_empty() {
-            let sorted_attrs: Vec<KeyValue> = vec![];
-            return self.bind_sorted(sorted_attrs);
+            self.no_attribute_tracker
+                .bound_count
+                .fetch_add(1, Ordering::Relaxed);
+            return Some(Arc::clone(&self.no_attribute_tracker));
         }
 
         let sorted_attrs = sort_and_dedup(attributes);
@@ -338,10 +340,13 @@ where
 
         if !stale_entries.is_empty() {
             if let Ok(mut trackers) = self.trackers.write() {
-                // Re-check under write lock to avoid TOCTOU race: a measure() call between
-                // dropping the read lock and acquiring the write lock could have updated
-                // an entry we marked as stale.
-                stale_entries.retain(|entry| !entry.has_been_updated.load(Ordering::Acquire));
+                // Re-check under write lock to avoid TOCTOU race: a measure() or bind() call
+                // between dropping the read lock and acquiring the write lock could have
+                // updated an entry or bound a handle to one we marked as stale.
+                stale_entries.retain(|entry| {
+                    !entry.has_been_updated.load(Ordering::Acquire)
+                        && entry.bound_count.load(Ordering::Acquire) == 0
+                });
 
                 if !stale_entries.is_empty() {
                     let stale_pointers: HashSet<*const TrackerEntry<A>> =
