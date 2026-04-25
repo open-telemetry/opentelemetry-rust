@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
+  feature flag. The use cases it was designed for (ETW/user_events exporters) are
+  better served by modeling those exporters as processors directly.
 - Delta metrics collection now uses in-place eviction instead of draining the
   HashMap on every collect cycle. Stale attribute sets that received no measurements
   since the last collection are evicted. Note: recovery from cardinality overflow
