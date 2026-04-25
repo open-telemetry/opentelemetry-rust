@@ -5337,4 +5337,31 @@ mod tests {
         assert_eq!(sum.data_points.len(), 1);
         assert_eq!(sum.data_points[0].value, 40);
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let bound = counter.bind(&[]);
+
+        // Mix bound and unbound calls with empty attributes — they must share
+        // the same data point (both route to no_attribute_tracker).
+        counter.add(10, &[]);
+        bound.add(20);
+        counter.add(30, &[]);
+        bound.add(40);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        assert_eq!(sum.data_points[0].value, 100);
+    }
 }

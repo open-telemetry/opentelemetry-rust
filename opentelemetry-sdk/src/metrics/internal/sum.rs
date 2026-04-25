@@ -70,7 +70,7 @@ impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
         match &self.inner {
             BoundSumInner::Direct { tracker } => {
                 tracker.aggregator.update(measurement);
-                tracker.has_been_updated.store(true, Ordering::Relaxed);
+                tracker.has_been_updated.store(true, Ordering::Release);
             }
             BoundSumInner::Fallback { measure, attrs } => {
                 measure.call(measurement, attrs);
