@@ -110,8 +110,10 @@ pub(crate) mod serializers {
                 V: de::MapAccess<'de>,
             {
                 let mut value: Option<any_value::Value> = None;
+                let mut has_any_key = false;
 
                 while let Some(key) = map.next_key::<String>()? {
+                    has_any_key = true;
                     let key_str = key.as_str();
                     match key_str {
                         "stringValue" => {
@@ -153,9 +155,13 @@ pub(crate) mod serializers {
 
                 if let Some(v) = value {
                     Ok(Some(v))
+                } else if !has_any_key {
+                    // { "key": "some.attribute", "value": {} }
+                    // will deserialize as None for the value associated to `some.attribute`
+                    Ok(None)
                 } else {
                     Err(de::Error::custom(
-                        "Invalid data for Value, no known keys found",
+                        "Invalid data for Value, not empty, but no known keys found",
                     ))
                 }
             }
