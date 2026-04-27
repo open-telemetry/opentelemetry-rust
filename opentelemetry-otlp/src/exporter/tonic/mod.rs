@@ -1070,6 +1070,20 @@ mod tests {
             crate::retry_classification::grpc::classify_tonic_status,
             "test.retry.no_runtime",
             || async {
+                // Force at least one Pending poll so the local no-runtime poll loop
+                // exercises both branches.
+                let mut first_poll = true;
+                futures_util::future::poll_fn(move |cx| {
+                    if first_poll {
+                        first_poll = false;
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    } else {
+                        Poll::Ready(())
+                    }
+                })
+                .await;
+
                 let current = attempts.fetch_add(1, Ordering::SeqCst);
                 if current == 0 {
                     Err(tonic::Status::unavailable("transient"))
@@ -1081,6 +1095,74 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(feature = "experimental-grpc-retry")]
+    #[tokio::test]
+    async fn test_retry_wrapper_uses_tokio_runtime_when_available() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let attempts = AtomicUsize::new(0);
+        let policy = crate::retry::RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        };
+
+        let result = super::tonic_retry_with_backoff(
+            policy,
+            crate::retry_classification::grpc::classify_tonic_status,
+            "test.retry.with_tokio_runtime",
+            || async {
+                let current = attempts.fetch_add(1, Ordering::SeqCst);
+                if current == 0 {
+                    Err(tonic::Status::unavailable("transient"))
+                } else {
+                    Ok(())
+                }
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(all(
+        feature = "grpc-tonic",
+        not(feature = "experimental-grpc-retry"),
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    ))]
+    #[tokio::test]
+    async fn test_retry_wrapper_executes_operation_once_without_retry_feature() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let attempts = AtomicUsize::new(0);
+        let policy = crate::retry::RetryPolicy {
+            max_retries: 5,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        };
+
+        let result = super::tonic_retry_with_backoff(
+            policy,
+            crate::retry_classification::grpc::classify_tonic_status,
+            "test.retry.no_feature",
+            || async {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Ok::<(), tonic::Status>(())
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(
+            attempts.load(Ordering::SeqCst),
+            1,
+            "operation should run exactly once when retry feature is disabled"
+        );
     }
 
     #[test]
