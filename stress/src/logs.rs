@@ -5,12 +5,12 @@
     ~27 M/sec
     ~1.4 B/sec (when disabled)
 */
-use opentelemetry_appender_tracing::layer;
 use opentelemetry::logs::Severity;
+use opentelemetry::InstrumentationScope;
+use opentelemetry_appender_tracing::layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
-use opentelemetry::InstrumentationScope;
 use tracing::error;
 use tracing_subscriber::prelude::*;
 
