@@ -10,8 +10,8 @@
 use anyhow::{Ok, Result};
 use ctor::dtor;
 use integration_test_runner::test_utils;
-use opentelemetry::KeyValue;
 use opentelemetry::metrics::MeterProvider as _;
+use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::net::TcpStream;
 use std::time::Duration;
@@ -122,10 +122,7 @@ mod metrictests {
                 std::thread::sleep(FLUSH_RETRY_SLEEP);
             }
         }
-        panic!(
-            "force_flush failed after {} attempts",
-            FLUSH_MAX_RETRIES
-        );
+        panic!("force_flush failed after {} attempts", FLUSH_MAX_RETRIES);
     }
 
     fn wait_for_collector_grpc() {
