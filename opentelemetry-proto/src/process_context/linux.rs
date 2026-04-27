@@ -25,7 +25,7 @@ use rustix::{
     fd::AsFd as _,
     fs::{ftruncate, memfd_create, MemfdFlags},
     mm::{madvise, mmap, mmap_anonymous, munmap, Advice, MapFlags, ProtFlags},
-    process::{getpid, set_virtual_memory_region_name, Pid},
+    process::set_virtual_memory_region_name,
     time::{clock_gettime, ClockId},
 };
 
@@ -201,9 +201,6 @@ struct ProcessContextHandle {
     /// or drop).
     #[allow(unused)]
     payload: Vec<u8>,
-    /// The process id of the last publisher. This is useful to detect forks(), and publish a
-    /// new context accordingly.
-    pid: Pid,
 }
 
 impl ProcessContextHandle {
@@ -252,11 +249,7 @@ impl ProcessContextHandle {
 
         let _ = mapping.set_name();
 
-        Ok(ProcessContextHandle {
-            mapping,
-            payload,
-            pid: getpid(),
-        })
+        Ok(ProcessContextHandle { mapping, payload })
     }
 
     /// Updates the context after initial publication
@@ -330,38 +323,16 @@ fn lock_context_handle() -> Result<MutexGuard<'static, Option<ProcessContextHand
 
 /// Publishes or updates the process context for it to be visible by external readers.
 ///
-/// If any of the following conditions hold:
+/// If this is the first publication or [`unpublish`] has been called last, we follow the
+/// Publish protocol of the OTel process context specification (allocating a fresh mapping).
 ///
-/// - this is the first publication
-/// - [`unpublish`] has been called last
-/// - the previous context has been published from a different process id (that is, a `fork()`
-///   happened and we're the child process)
-///
-/// Then we follow the Publish protocol of the OTel process context specification (allocating a
-/// fresh mapping).
-///
-/// Otherwise, if a context has been previously published from the same process and hasn't been
-/// unpublished since, we follow the Update protocol.
-///
+/// Otherwise, if a context has been previously published and hasn't been unpublished since,
+/// we follow the Update protocol.
 pub(crate) fn publish_raw_payload(payload: Vec<u8>) -> Result<(), Error> {
     let mut guard = lock_context_handle()?;
 
     match &mut *guard {
-        Some(handle) if handle.pid == getpid() => handle.update(payload),
-        Some(handle) => {
-            let mut local_handle = ProcessContextHandle::publish(payload)?;
-            // If we've been forked, we need to prevent the mapping from being dropped
-            // normally, as it would try to unmap a region that isn't mapped anymore in the
-            // child process, or worse, could have been remapped to something else in the
-            // meantime.
-            //
-            // To do so, we get the old handle back in `local_handle` and prevent `mapping`
-            // from being dropped specifically.
-            std::mem::swap(&mut local_handle, handle);
-            let _: ManuallyDrop<MemMapping> = ManuallyDrop::new(local_handle.mapping);
-
-            Ok(())
-        }
+        Some(handle) => handle.update(payload),
         None => {
             *guard = Some(ProcessContextHandle::publish(payload)?);
             Ok(())
