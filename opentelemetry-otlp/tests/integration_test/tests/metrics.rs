@@ -11,10 +11,14 @@ use anyhow::{Ok, Result};
 use ctor::dtor;
 use integration_test_runner::test_utils;
 use opentelemetry::KeyValue;
+use opentelemetry::metrics::MeterProvider as _;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
+use std::net::TcpStream;
 use std::time::Duration;
 
 const SLEEP_DURATION: Duration = Duration::from_secs(5);
+const FLUSH_RETRY_SLEEP: Duration = Duration::from_millis(250);
+const FLUSH_MAX_RETRIES: usize = 60;
 
 #[cfg(test)]
 #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
@@ -48,25 +52,15 @@ mod metrictests {
 
     async fn metric_helper_tokio() -> Result<()> {
         let meter_provider = setup_metrics_tokio().await;
+        wait_for_collector_grpc();
         emit_and_validate_metrics(meter_provider)
     }
 
     async fn metric_helper_tokio_current() -> Result<()> {
         let meter_provider = setup_metrics_tokio().await;
-
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
-        let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
-        counter.add(
-            10,
-            &[
-                KeyValue::new("mykey1", expected_uuid.clone()),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        );
+        wait_for_collector_grpc();
+        let expected_uuid = emit_metrics_with_provider(&meter_provider);
+        force_flush_with_retry(&meter_provider);
 
         // In tokio::current_thread flavor, shutdown must be done in a separate thread
         let shutdown_result = Handle::current()
@@ -87,20 +81,9 @@ mod metrictests {
 
     fn metric_helper_non_tokio() -> Result<()> {
         let (meter_provider, _rt) = setup_metrics_non_tokio(true);
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
-        let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
-        counter.add(
-            10,
-            &[
-                KeyValue::new("mykey1", expected_uuid.clone()),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        );
+        wait_for_collector_grpc();
+        let expected_uuid = emit_metrics_with_provider(&meter_provider);
+        force_flush_with_retry(&meter_provider);
 
         let shutdown_result = meter_provider.shutdown();
         assert!(shutdown_result.is_ok());
@@ -114,20 +97,8 @@ mod metrictests {
     }
 
     fn emit_and_validate_metrics(meter_provider: SdkMeterProvider) -> Result<()> {
-        const METER_NAME: &str = "test_meter";
-        const INSTRUMENT_NAME: &str = "test_counter";
-
-        // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
-        let expected_uuid = Uuid::new_v4().to_string();
-        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
-        counter.add(
-            10,
-            &[
-                KeyValue::new("mykey1", expected_uuid.clone()),
-                KeyValue::new("mykey2", "myvalue2"),
-            ],
-        );
+        let expected_uuid = emit_metrics_with_provider(&meter_provider);
+        force_flush_with_retry(&meter_provider);
 
         let shutdown_result = meter_provider.shutdown();
         assert!(shutdown_result.is_ok());
@@ -140,6 +111,49 @@ mod metrictests {
         assert_metrics_results_contains(&expected_uuid)?;
 
         Ok(())
+    }
+
+    fn force_flush_with_retry(meter_provider: &SdkMeterProvider) {
+        for attempt in 1..=FLUSH_MAX_RETRIES {
+            if meter_provider.force_flush().is_ok() {
+                return;
+            }
+            if attempt < FLUSH_MAX_RETRIES {
+                std::thread::sleep(FLUSH_RETRY_SLEEP);
+            }
+        }
+        panic!(
+            "force_flush failed after {} attempts",
+            FLUSH_MAX_RETRIES
+        );
+    }
+
+    fn wait_for_collector_grpc() {
+        for _ in 1..=FLUSH_MAX_RETRIES {
+            if TcpStream::connect("127.0.0.1:4317").is_ok() {
+                return;
+            }
+            std::thread::sleep(FLUSH_RETRY_SLEEP);
+        }
+        panic!("collector gRPC endpoint is not reachable on 127.0.0.1:4317");
+    }
+
+    fn emit_metrics_with_provider(meter_provider: &SdkMeterProvider) -> String {
+        const METER_NAME: &str = "test_meter";
+        const INSTRUMENT_NAME: &str = "test_counter";
+
+        // Use the test-local provider directly to avoid cross-test global races.
+        let meter = meter_provider.meter(METER_NAME);
+        let expected_uuid = Uuid::new_v4().to_string();
+        let counter = meter.u64_counter(INSTRUMENT_NAME).build();
+        counter.add(
+            10,
+            &[
+                KeyValue::new("mykey1", expected_uuid.clone()),
+                KeyValue::new("mykey2", "myvalue2"),
+            ],
+        );
+        expected_uuid
     }
 }
 
