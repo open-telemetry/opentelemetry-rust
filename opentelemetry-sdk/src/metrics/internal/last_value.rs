@@ -69,6 +69,14 @@ where
             value: T::new_atomic_tracker(self.value.get_and_reset_value()),
         }
     }
+
+    fn merge_to(&self, target: &Self) {
+        target.value.store(self.value.get_value());
+    }
+
+    fn is_order_dependent() -> bool {
+        true
+    }
 }
 
 /// Summarizes a set of measurements as the last one made.
@@ -245,8 +253,8 @@ mod tests {
         bound.call(5);
 
         // While the handle exists, the entry's bound_count is 1.
-        let trackers = last_value.value_map.trackers.read().unwrap();
-        let entry = trackers
+        let shard = last_value.value_map.shards[0].read().unwrap();
+        let entry = shard
             .values()
             .next()
             .expect("entry should exist after bind+call");
@@ -255,12 +263,12 @@ mod tests {
             1,
             "bound_count should reflect a live handle"
         );
-        drop(trackers);
+        drop(shard);
 
         drop(bound);
 
-        let trackers = last_value.value_map.trackers.read().unwrap();
-        let entry = trackers
+        let shard = last_value.value_map.shards[0].read().unwrap();
+        let entry = shard
             .values()
             .next()
             .expect("entry should still exist post-drop");
