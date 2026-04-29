@@ -786,6 +786,20 @@ impl HasHttpConfig for HttpExporterBuilder {
 /// ```
 pub trait WithHttpConfig {
     /// Assign client implementation
+    ///
+    /// Internally client is stored behind shared pointer, which can be passed directly by user in
+    /// order to avoid creating multiple of these shared pointers
+    ///
+    /// ```rust
+    /// # use opentelemetry_http::HttpClient;
+    /// # use opentelemetry_otlp::WithHttpConfig;
+    /// fn init_client<C: WithHttpConfig, T1: HttpClient + 'static, T2: HttpClient + 'static>(http_config: C, client1: T1, client2: T2) -> C  {
+    ///     // Pass raw HTTP client
+    ///     http_config.with_http_client(client1)
+    ///     // or wrap it into Arc shared across multiple recorders
+    ///                .with_http_client::<T2>(std::sync::Arc::new(client2))
+    /// }
+    /// ```
     fn with_http_client<T: HttpClient + 'static>(
         self,
         client: impl Into<std::sync::Arc<T>>,
