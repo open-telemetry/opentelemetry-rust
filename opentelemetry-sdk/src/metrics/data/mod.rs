@@ -27,6 +27,14 @@ impl Default for ResourceMetrics {
 }
 
 impl ResourceMetrics {
+    /// Creates a new [ResourceMetrics] with the given [Resource] and [ScopeMetrics].
+    pub fn new(resource: Resource, scope_metrics: Vec<ScopeMetrics>) -> Self {
+        Self {
+            resource,
+            scope_metrics,
+        }
+    }
+
     /// Returns a reference to the [Resource] in [ResourceMetrics].
     pub fn resource(&self) -> &Resource {
         &self.resource
@@ -48,6 +56,11 @@ pub struct ScopeMetrics {
 }
 
 impl ScopeMetrics {
+    /// Creates a new [ScopeMetrics] with the given [InstrumentationScope] and [Metric]s.
+    pub fn new(scope: InstrumentationScope, metrics: Vec<Metric>) -> Self {
+        Self { scope, metrics }
+    }
+
     /// Returns a reference to the [InstrumentationScope] in [ScopeMetrics].
     pub fn scope(&self) -> &InstrumentationScope {
         &self.scope
@@ -75,6 +88,21 @@ pub struct Metric {
 }
 
 impl Metric {
+    /// Creates a new [Metric] with the given name, description, unit, and aggregated data.
+    pub fn new(
+        name: impl Into<Cow<'static, str>>,
+        description: impl Into<Cow<'static, str>>,
+        unit: impl Into<Cow<'static, str>>,
+        data: AggregatedMetrics,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            unit: unit.into(),
+            data,
+        }
+    }
+
     /// Returns the name of the instrument that created this data.
     pub fn name(&self) -> &str {
         &self.name
@@ -175,6 +203,15 @@ pub struct GaugeDataPoint<T> {
 }
 
 impl<T> GaugeDataPoint<T> {
+    /// Creates a new [GaugeDataPoint] with the given attributes, value, and exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T, exemplars: Vec<Exemplar<T>>) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars,
+        }
+    }
+
     /// Returns an iterator over the attributes in [GaugeDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -205,6 +242,19 @@ pub struct Gauge<T> {
 }
 
 impl<T> Gauge<T> {
+    /// Creates a new [Gauge] with the given data points, start time, and time.
+    pub fn new(
+        data_points: Vec<GaugeDataPoint<T>>,
+        start_time: Option<SystemTime>,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+        }
+    }
+
     /// Returns an iterator over the [GaugeDataPoint]s in [Gauge].
     pub fn data_points(&self) -> impl Iterator<Item = &GaugeDataPoint<T>> {
         self.data_points.iter()
@@ -234,6 +284,15 @@ pub struct SumDataPoint<T> {
 }
 
 impl<T> SumDataPoint<T> {
+    /// Creates a new [SumDataPoint] with the given attributes, value, and exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T, exemplars: Vec<Exemplar<T>>) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars,
+        }
+    }
+
     /// Returns an iterator over the attributes in [SumDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -269,6 +328,23 @@ pub struct Sum<T> {
 }
 
 impl<T> Sum<T> {
+    /// Creates a new [Sum] with the given data points, time range, temporality, and monotonicity.
+    pub fn new(
+        data_points: Vec<SumDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+        is_monotonic: bool,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+            is_monotonic,
+        }
+    }
+
     /// Returns an iterator over the [SumDataPoint]s in [Sum].
     pub fn data_points(&self) -> impl Iterator<Item = &SumDataPoint<T>> {
         self.data_points.iter()
@@ -311,6 +387,21 @@ pub struct Histogram<T> {
 }
 
 impl<T> Histogram<T> {
+    /// Creates a new [Histogram] with the given data points, time range, and temporality.
+    pub fn new(
+        data_points: Vec<HistogramDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+
     /// Returns an iterator over the [HistogramDataPoint]s in [Histogram].
     pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
         self.data_points.iter()
@@ -359,6 +450,30 @@ pub struct HistogramDataPoint<T> {
 }
 
 impl<T> HistogramDataPoint<T> {
+    /// Creates a new [HistogramDataPoint] with the given parameters.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        attributes: Vec<KeyValue>,
+        count: u64,
+        bounds: Vec<f64>,
+        bucket_counts: Vec<u64>,
+        min: Option<T>,
+        max: Option<T>,
+        sum: T,
+        exemplars: Vec<Exemplar<T>>,
+    ) -> Self {
+        Self {
+            attributes,
+            count,
+            bounds,
+            bucket_counts,
+            min,
+            max,
+            sum,
+            exemplars,
+        }
+    }
+
     /// Returns an iterator over the attributes in [HistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
