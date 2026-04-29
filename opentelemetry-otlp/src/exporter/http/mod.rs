@@ -1147,22 +1147,36 @@ mod tests {
     #[cfg(feature = "gzip-http")]
     mod compression_tests {
         use super::super::OtlpHttpClient;
+        use super::{HttpExporterBuilder, WithHttpConfig};
+        use crate::exporter::http::HttpConfig;
+        use crate::exporter::ExportConfig;
         use flate2::read::GzDecoder;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::io::Read;
 
         #[test]
         fn test_gzip_compression_and_decompression() {
-            let client = OtlpHttpClient::new(
-                std::sync::Arc::new(MockHttpClient),
-                "http://localhost:4318".parse().unwrap(),
-                std::collections::HashMap::new(),
-                crate::Protocol::HttpBinary,
-                std::time::Duration::from_secs(10),
-                Some(crate::Compression::Gzip),
-                #[cfg(feature = "experimental-http-retry")]
-                None,
-            );
+            let mut config = HttpExporterBuilder {
+                exporter_config: ExportConfig {
+                    endpoint: Some("http://localhost:4318".to_owned()),
+                    protocol: crate::Protocol::HttpBinary,
+                    timeout: None,
+                },
+                http_config: HttpConfig::default(),
+            };
+            config = config
+                .with_http_client(MockHttpClient)
+                .with_compression(crate::Compression::Gzip);
+
+            let client = config
+                .build_client(
+                    crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+                    crate::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                    crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+                )
+                .expect("to build client");
 
             // Test with some sample data
             let test_data = b"Hello, world! This is test data for compression.";
