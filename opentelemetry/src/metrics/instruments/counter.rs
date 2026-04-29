@@ -38,7 +38,7 @@ impl<T> Counter<T> {
     /// Binds this counter to a fixed set of attributes.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     pub fn bind(&self, attributes: &[KeyValue]) -> BoundCounter<T> {
-        BoundCounter(self.0.bind(attributes))
+        BoundCounter(Arc::from(self.0.bind(attributes)))
     }
 }
 
@@ -73,9 +73,14 @@ impl<T> fmt::Debug for ObservableCounter<T> {
 /// Created by calling [`Counter::bind`] with an attribute set. All subsequent
 /// [`add`](BoundCounter::add) calls use the pre-resolved attributes, bypassing
 /// per-call attribute lookup for significantly better performance.
+///
+/// `BoundCounter` can be cloned cheaply to share a single bound state across
+/// threads or modules without re-binding. The underlying tracker is reclaimed
+/// when the last clone is dropped.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
+#[derive(Clone)]
 #[must_use = "dropping a BoundCounter immediately is a no-op; store it to benefit from pre-bound attributes"]
-pub struct BoundCounter<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
+pub struct BoundCounter<T>(Arc<dyn BoundSyncInstrument<T> + Send + Sync>);
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T> fmt::Debug for BoundCounter<T> {

@@ -38,7 +38,7 @@ impl<T> Histogram<T> {
     /// Binds this histogram to a fixed set of attributes.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     pub fn bind(&self, attributes: &[KeyValue]) -> BoundHistogram<T> {
-        BoundHistogram(self.0.bind(attributes))
+        BoundHistogram(Arc::from(self.0.bind(attributes)))
     }
 }
 
@@ -47,9 +47,14 @@ impl<T> Histogram<T> {
 /// Created by calling [`Histogram::bind`] with an attribute set. All subsequent
 /// [`record`](BoundHistogram::record) calls use the pre-resolved attributes, bypassing
 /// per-call attribute lookup for significantly better performance.
+///
+/// `BoundHistogram` can be cloned cheaply to share a single bound state across
+/// threads or modules without re-binding. The underlying tracker is reclaimed
+/// when the last clone is dropped.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
+#[derive(Clone)]
 #[must_use = "dropping a BoundHistogram immediately is a no-op; store it to benefit from pre-bound attributes"]
-pub struct BoundHistogram<T>(Box<dyn BoundSyncInstrument<T> + Send + Sync>);
+pub struct BoundHistogram<T>(Arc<dyn BoundSyncInstrument<T> + Send + Sync>);
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T> fmt::Debug for BoundHistogram<T> {
