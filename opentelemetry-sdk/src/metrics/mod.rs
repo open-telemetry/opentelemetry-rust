@@ -5364,4 +5364,168 @@ mod tests {
         );
         assert_eq!(sum.data_points[0].value, 100);
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let histogram = test_context
+            .meter()
+            .u64_histogram("my_histogram")
+            .with_boundaries(vec![5.0, 10.0, 25.0])
+            .build();
+        let bound = histogram.bind(&[]);
+
+        histogram.record(3, &[]);
+        bound.record(7);
+        histogram.record(20, &[]);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<u64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        let dp = &hist.data_points[0];
+        assert!(dp.attributes.is_empty());
+        assert_eq!(dp.count, 3);
+        assert_eq!(dp.sum, 30);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+
+        // bind with k3 included — view should drop it at bind time
+        let bound = counter.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.add(10);
+        bound.add(20);
+
+        // unbound call with a *different* k3 value: after view filtering both
+        // bound and unbound must collapse into the same data point.
+        counter.add(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        assert_eq!(sum.data_points[0].value, 37);
+        let attrs = &sum.data_points[0].attributes;
+        assert_eq!(attrs.len(), 2);
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_hist" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let histogram = meter
+            .u64_histogram("my_hist")
+            .with_boundaries(vec![5.0, 10.0, 25.0])
+            .build();
+
+        let bound = histogram.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.record(3);
+        bound.record(20);
+        histogram.record(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::U64(MetricData::Histogram(hist)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        let dp = &hist.data_points[0];
+        assert_eq!(dp.count, 3);
+        assert_eq!(dp.sum, 30);
+        assert_eq!(dp.attributes.len(), 2);
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!dp.attributes.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
 }

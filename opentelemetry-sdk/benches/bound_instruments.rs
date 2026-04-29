@@ -1,20 +1,25 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider, Temporality};
+use opentelemetry::{metrics::MeterProvider as _, Key, KeyValue};
+use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider, Stream, Temporality};
 
 // Run this benchmark with:
-// cargo bench --bench bound_instruments --features metrics,experimental_metrics_custom_reader,experimental_metrics_bound_instruments
+// cargo bench --bench bound_instruments --features metrics,experimental_metrics_custom_reader,experimental_metrics_bound_instruments,spec_unstable_metrics_views
 //
 // Apple M4 Max, 16 cores (12 performance + 4 efficiency), macOS 15.4
 //
 // Results (3 attributes: method, status, path):
 // Counter_Unbound_Delta             time:   [53.20 ns]
 // Counter_Bound_Delta               time:   [1.87 ns]    ~28x faster
+// Counter_Bound_With_View_Delta     time:   [~1.9 ns]    view filter applied at bind, not on hot path
 // Histogram_Unbound_Delta           time:   [58.58 ns]
 // Histogram_Bound_Delta             time:   [6.57 ns]    ~8.9x faster
 // Counter_Bound_Multithread/2       time:   [22.19 µs]   (100 adds/thread)
 // Counter_Bound_Multithread/4       time:   [35.32 µs]   (100 adds/thread)
 // Counter_Bound_Multithread/8       time:   [66.49 µs]   (100 adds/thread)
+//
+// Note: criterion does not fail CI on regression by itself. These numbers are
+// reference values for human review; use `cargo criterion --baseline` locally
+// if you need automated comparison against a saved baseline.
 
 fn create_provider(temporality: Temporality) -> SdkMeterProvider {
     let reader = ManualReader::builder()
@@ -49,6 +54,38 @@ fn bench_bound_instruments(c: &mut Criterion) {
         let counter = meter.u64_counter("bound").build();
         let bound = counter.bind(&attrs);
         group.bench_function("Counter_Bound_Delta", |b| {
+            b.iter(|| bound.add(1));
+        });
+    }
+
+    // Counter: Bound with a View filter — confirms the filter is applied at
+    // bind() time and the hot path stays free of attribute processing.
+    {
+        let view = |i: &opentelemetry_sdk::metrics::Instrument| {
+            if i.name() == "bound_with_view" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![
+                        Key::new("method"),
+                        Key::new("status"),
+                        Key::new("path"),
+                    ])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let reader = ManualReader::builder()
+            .with_temporality(Temporality::Delta)
+            .build();
+        let provider = SdkMeterProvider::builder()
+            .with_reader(reader)
+            .with_view(view)
+            .build();
+        let meter = provider.meter("bench");
+        let counter = meter.u64_counter("bound_with_view").build();
+        let bound = counter.bind(&attrs);
+        group.bench_function("Counter_Bound_With_View_Delta", |b| {
             b.iter(|| bound.add(1));
         });
     }
