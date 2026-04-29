@@ -68,13 +68,20 @@ impl<T: Send + Sync + 'static> SyncInstrument<T> for NoopSyncInstrument {
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
-        Box::new(NoopBoundSyncInstrument { _private: () })
+        Box::new(NoopBoundSyncInstrument::new())
     }
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-struct NoopBoundSyncInstrument {
+pub(crate) struct NoopBoundSyncInstrument {
     _private: (),
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl NoopBoundSyncInstrument {
+    pub(crate) fn new() -> Self {
+        NoopBoundSyncInstrument { _private: () }
+    }
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]

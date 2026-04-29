@@ -31,9 +31,17 @@ pub trait SyncInstrument<T>: Send + Sync {
 
     /// Binds this instrument to a fixed set of attributes, returning a handle
     /// that records measurements without per-call attribute lookup.
+    ///
+    /// The default implementation returns a no-op handle so that custom
+    /// `SyncInstrument` impls that have not opted into bound instruments
+    /// degrade gracefully rather than panicking on the user's hot path.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
-        unimplemented!("bound instruments not supported by this implementation")
+        crate::otel_debug!(
+            name: "SyncInstrument.BindNotImplemented",
+            message = "bind() called on a SyncInstrument implementation that does not override the default; measurements through the returned handle will be dropped"
+        );
+        Box::new(crate::metrics::noop::NoopBoundSyncInstrument::new())
     }
 }
 
