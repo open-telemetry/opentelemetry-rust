@@ -212,12 +212,16 @@ where
         }
 
         let sorted_attrs = sort_and_dedup(attributes);
-        self.bind_sorted(sorted_attrs)
+        self.bind_attrs(attributes, sorted_attrs)
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind_sorted(&self, sorted_attrs: Vec<KeyValue>) -> Option<Arc<TrackerEntry<A>>> {
-        // Fast path: read lock lookup
+    fn bind_attrs(
+        &self,
+        original: &[KeyValue],
+        sorted_attrs: Vec<KeyValue>,
+    ) -> Option<Arc<TrackerEntry<A>>> {
+        // Fast path: read lock lookup using the canonical (sorted) key.
         if let Ok(trackers) = self.trackers.read() {
             if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
                 tracker.bound_count.fetch_add(1, Ordering::Relaxed);
@@ -225,13 +229,13 @@ where
             }
         }
 
-        // Slow path: write lock, insert if missing
+        // Slow path: write lock, insert if missing.
         let Ok(mut trackers) = self.trackers.write() else {
             // Lock poisoned — return None so caller falls back to unbound path
             return None;
         };
 
-        // Recheck after acquiring write lock
+        // Recheck after acquiring write lock.
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             return Some(Arc::clone(tracker));
@@ -240,6 +244,12 @@ where
         if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            // Insert with both the original and sorted orderings so subsequent
+            // unbound measure() calls hit the fast path regardless of attr order.
+            // Mirrors `measure()`'s insert pattern.
+            if original != sorted_attrs.as_slice() {
+                trackers.insert(original.to_vec(), new_tracker.clone());
+            }
             trackers.insert(sorted_attrs, new_tracker.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
