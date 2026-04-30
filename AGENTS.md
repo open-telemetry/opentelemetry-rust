@@ -95,3 +95,6 @@ the targeted commands above are sufficient — CI will catch anything missed.
 - [scripts/precommit.sh](scripts/precommit.sh) — full local CI mirror
 - [scripts/lint.sh](scripts/lint.sh) — exact clippy invocations CI runs
 - [scripts/test.sh](scripts/test.sh) — exact test invocations CI runs
+- [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification)
+  — the source of truth for behavior across all OTel SDKs. Verify any
+  spec-driven change against the relevant section.
