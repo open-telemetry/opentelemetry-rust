@@ -26,6 +26,7 @@
 - Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
+- Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277

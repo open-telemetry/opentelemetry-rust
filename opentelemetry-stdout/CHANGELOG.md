@@ -3,6 +3,7 @@
 ## vNext
 
 - ExponentialHistogram supported in stdout
+- Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).
 
 ## 0.31.0
 
