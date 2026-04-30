@@ -72,10 +72,12 @@ Project versioning information and stability guarantees can be found
 
 ## Getting Started
 
-If you are new to OpenTelemetry, start with the [Stdout
-Example](./opentelemetry-stdout/examples/basic.rs). This example demonstrates
-how to use OpenTelemetry for logs, metrics, and traces, and display
-telemetry data on your console.
+If you are new to OpenTelemetry, start with the getting started examples for
+[logs](./examples/logs-basic/README.md),
+[metrics](./examples/metrics-basic/README.md) or
+[traces](./examples/tracing-grpc/README.md). This example demonstrates how to
+use OpenTelemetry for logs, metrics, and traces, and display telemetry data on
+your console.
 
 For those using OTLP, the recommended OpenTelemetry Exporter for production
 scenarios, refer to the [OTLP Example -

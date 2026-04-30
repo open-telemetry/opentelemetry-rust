@@ -69,6 +69,16 @@ name = "context_suppression"
 harness = false
 
 [[bench]]
+name = "trace"
+harness = false
+required-features = ["trace"]
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs"]
+
+[[bench]]
 name = "baggage"
 harness = false
 

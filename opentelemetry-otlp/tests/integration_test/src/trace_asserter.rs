@@ -133,14 +133,8 @@ impl SpanForest {
 
     fn get_root_spans(&self) -> Vec<&SpanTreeNode> {
         self.spans
-            .iter()
-            .filter_map(|(_, span_node)| {
-                if span_node.span.parent_span_id.is_empty() {
-                    Some(span_node)
-                } else {
-                    None
-                }
-            })
+            .values()
+            .filter(|span_node| span_node.span.parent_span_id.is_empty())
             .collect()
     }
 }

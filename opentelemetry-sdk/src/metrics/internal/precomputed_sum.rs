@@ -69,7 +69,7 @@ impl<T: Number> PrecomputedSum<T> {
         let mut new_reported = HashMap::with_capacity(reported.len());
 
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
                 let value = aggr.value.get_value();
                 new_reported.insert(attributes.clone(), value);
                 let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
@@ -116,10 +116,10 @@ impl<T: Number> PrecomputedSum<T> {
         s_data.temporality = Temporality::Cumulative;
         s_data.is_monotonic = self.monotonic;
 
-        // Use collect_and_reset to remove stale attributes (not observed in current callback)
+        // Use drain_and_reset to remove stale attributes (not observed in current callback)
         // For cumulative, report absolute values (no delta calculation needed)
         self.value_map
-            .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
+            .drain_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
                 value: aggr.value.get_value(),
                 exemplars: vec![],
