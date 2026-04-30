@@ -8,9 +8,9 @@
 // cargo 1.93.0 (083ac5135 2025-12-15)
 //
 // Attribute counts are chosen to stay within the SDK's inline-array optimisation
-// threshold (5 attributes). With span-attribute propagation enabled (via
-// `OpenTelemetryTracingBridgeBuilder::enable_span_attributes`), span attributes
-// are copied onto the log record, so total = log attrs + span attrs.
+// threshold (5 attributes). With tracing-span attribute enrichment enabled (via
+// `OpenTelemetryTracingBridgeBuilder::enable_span_attributes`), tracing-span
+// attributes are copied onto the log record, so total = log attrs + span attrs.
 //
 // Log + span benchmarks (showing incremental cost of span attributes on logging):
 // | Test                                      | Total attrs | Average time | Increment vs baseline        |
@@ -271,7 +271,7 @@ fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
 
 /// Emit an error log with 1 attribute while inside a span that carries 2 attributes
 /// (total = 3 attrs on the log record, within the SDK's 5-attr inline threshold).
-/// With span-attribute propagation enabled, the 2 span attributes are propagated onto the
+/// With tracing-span attribute enrichment enabled, the 2 span attributes are copied onto the
 /// log record, so the delta vs `log_1_attr_no_span` shows the pure span-attribute cost.
 fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
     let provider = make_provider();

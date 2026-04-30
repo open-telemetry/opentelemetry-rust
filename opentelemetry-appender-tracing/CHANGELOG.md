@@ -2,13 +2,18 @@
 
 ## vNext
 
-- **Stabilize span attribute propagation.** The `experimental_span_attributes`
-  cargo feature has been removed; the capability is now part of the stable API
-  surface. Propagation is **disabled by default** (no per-span overhead) and
-  must be opted into at runtime via two new builder methods:
+- **Stabilize tracing span attribute enrichment.** The
+  `experimental_span_attributes` cargo feature has been removed; the capability
+  is now part of the stable API surface. "Span" here refers to a
+  [`tracing::span!`][tracing-span] from the [`tracing`] crate (the appender's
+  source), **not** an OpenTelemetry span. When enabled, attributes attached to
+  active `tracing` spans are copied onto each emitted log record.
+
+  Enrichment is **disabled by default** (no per-span overhead) and must be
+  opted into at runtime via two new builder methods:
 
   ```rust
-  // Copy all span attributes onto log records:
+  // Copy all tracing-span attributes onto log records:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
       .enable_span_attributes(true)
       .build();
@@ -21,9 +26,9 @@
   ```
 
   `enable_span_attributes` and `with_span_attribute_allowlist` are independent:
-  - `enable_span_attributes(bool)` toggles propagation on or off.
+  - `enable_span_attributes(bool)` toggles enrichment on or off.
   - `with_span_attribute_allowlist(keys)` configures the filter, but only
-    takes effect when propagation is also enabled. Calling it without also
+    takes effect when enrichment is also enabled. Calling it without also
     calling `enable_span_attributes(true)` is a no-op (a warning is emitted
     via `otel_warn!` from `build()`).
 
@@ -31,6 +36,9 @@
   `experimental_span_attributes` feature from `Cargo.toml`, and add an
   explicit `.enable_span_attributes(true)` call on the builder. Existing
   `with_span_attribute_allowlist(keys)` calls are preserved as-is.
+
+[`tracing`]: https://crates.io/crates/tracing
+[tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry

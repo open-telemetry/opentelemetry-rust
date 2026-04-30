@@ -307,10 +307,11 @@ where
 {
     logger: L,
     _phantom: std::marker::PhantomData<P>, // P is not used.
-    // Span-attribute propagation configuration:
+    // Tracing-span attribute enrichment configuration:
     // - `None` => disabled (default). No per-span work, no scope walk.
-    // - `Some(set)` => enabled. If `set` is empty, all span attributes are
-    //   copied; otherwise only attributes whose keys are in `set`.
+    // - `Some(set)` => enabled. If `set` is empty, all tracing-span attributes
+    //   are copied onto log records; otherwise only attributes whose keys are
+    //   in `set`.
     span_attributes: Option<HashSet<Cow<'static, str>>>,
 }
 
@@ -354,31 +355,41 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    /// Enable (or disable) copying attributes from active tracing spans onto
-    /// each emitted log record.
+    /// Enable (or disable) copying attributes from active [`tracing`] spans
+    /// (i.e. spans created with [`tracing::span!`] or one of its level-specific
+    /// macros — **not** `opentelemetry::trace::Span`) onto each emitted log
+    /// record.
     ///
-    /// By default, span attribute propagation is **disabled** and no per-span
-    /// work is performed.
+    /// By default, enrichment is **disabled** and no per-span work is
+    /// performed.
     ///
-    /// `with_span_attribute_allowlist` only takes effect if propagation is
+    /// `with_span_attribute_allowlist` only takes effect if enrichment is
     /// also explicitly enabled via this method. Calling
     /// `with_span_attribute_allowlist` without also calling
     /// `enable_span_attributes(true)` is a no-op (a warning is emitted via
     /// `otel_warn!` from `build()`).
+    ///
+    /// [`tracing`]: https://crates.io/crates/tracing
+    /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
     pub fn enable_span_attributes(mut self, enable: bool) -> Self {
         self.span_attributes_enabled = enable;
         self
     }
 
-    /// Restrict the set of span attributes that are copied onto log records to
-    /// the given allowlist.
+    /// Restrict the set of [`tracing`]-span attributes that are copied onto
+    /// log records to the given allowlist. ("Span" here means a
+    /// [`tracing::span!`] from the [`tracing`] crate, not an
+    /// `opentelemetry::trace::Span`.)
     ///
-    /// This method only takes effect when propagation is also enabled via
+    /// This method only takes effect when enrichment is also enabled via
     /// [`Self::enable_span_attributes`]`(true)`. Calling this method alone has
     /// no runtime effect — `build()` will emit an `otel_warn!` in that case.
     ///
     /// Calling this method multiple times replaces any prior allowlist — the
     /// last call wins.
+    ///
+    /// [`tracing`]: https://crates.io/crates/tracing
+    /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
     pub fn with_span_attribute_allowlist(
         mut self,
         keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>,
@@ -398,7 +409,7 @@ where
             if self.span_attribute_allowlist.is_some() {
                 otel_warn!(
                     name: "OpenTelemetryTracingBridge.AllowlistWithoutEnable",
-                    message = "with_span_attribute_allowlist was called but enable_span_attributes(true) was not; the allowlist will have no effect. Call enable_span_attributes(true) to opt into span attribute propagation."
+                    message = "with_span_attribute_allowlist was called but enable_span_attributes(true) was not; the allowlist will have no effect. Call enable_span_attributes(true) to opt into tracing-span attribute enrichment."
                 );
             }
             None
@@ -441,7 +452,7 @@ where
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
 
-        // Extract span attributes if span-attribute propagation is enabled.
+        // Extract tracing-span attributes if enrichment is enabled.
         if self.span_attributes.is_some() {
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
@@ -473,8 +484,8 @@ where
         id: &tracing::span::Id,
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        // Skip entirely when span-attribute propagation is disabled to avoid
-        // any per-span overhead.
+        // Skip entirely when tracing-span attribute enrichment is disabled to
+        // avoid any per-span overhead.
         let Some(allowlist) = self.span_attributes.as_ref() else {
             return;
         };
@@ -1122,8 +1133,8 @@ mod tests {
     #[test]
     fn tracing_appender_span_attributes_disabled_by_default() {
         // When neither `enable_span_attributes` nor `with_span_attribute_allowlist`
-        // is called on the builder, span attributes must NOT be propagated onto
-        // log records.
+        // is called on the builder, tracing-span attributes must NOT be copied
+        // onto log records.
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1537,7 +1548,7 @@ mod tests {
     #[test]
     fn tracing_appender_enable_span_attributes_copies_all() {
         // `enable_span_attributes(true)` (without an allowlist) enables
-        // propagation and copies all span attributes (no filtering).
+        // enrichment and copies all tracing-span attributes (no filtering).
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1642,7 +1653,7 @@ mod tests {
         assert_eq!(logs.len(), 1);
         let log = &logs[0];
 
-        // Allowlist alone does not enable propagation — session.id must not appear.
+        // Allowlist alone does not enable enrichment — session.id must not appear.
         assert!(!log
             .record
             .attributes_iter()
