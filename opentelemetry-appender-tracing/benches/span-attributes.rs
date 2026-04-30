@@ -9,7 +9,7 @@
 //
 // Attribute counts are chosen to stay within the SDK's inline-array optimisation
 // threshold (5 attributes). With span-attribute propagation enabled (via
-// `OpenTelemetryTracingBridgeBuilder::with_span_attributes`), span attributes
+// `OpenTelemetryTracingBridgeBuilder::enable_span_attributes`), span attributes
 // are copied onto the log record, so total = log attrs + span attrs.
 //
 // Log + span benchmarks (showing incremental cost of span attributes on logging):
@@ -69,7 +69,7 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
         .build();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(std::iter::empty::<&str>())
+        .enable_span_attributes(true)
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -133,7 +133,7 @@ fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
         .build();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(std::iter::empty::<&str>())
+        .enable_span_attributes(true)
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -252,7 +252,7 @@ fn make_provider() -> SdkLoggerProvider {
 fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(std::iter::empty::<&str>())
+        .enable_span_attributes(true)
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -276,7 +276,7 @@ fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
 fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(std::iter::empty::<&str>())
+        .enable_span_attributes(true)
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -303,7 +303,7 @@ fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
 fn benchmark_log_1_attr_in_nested_spans_2plus2_attr(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(std::iter::empty::<&str>())
+        .enable_span_attributes(true)
         .build();
     let subscriber = Registry::default().with(ot_layer);
 

@@ -352,24 +352,39 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    /// Enable copying attributes from active tracing spans onto each emitted
-    /// log record.
+    /// Enable (or disable) copying attributes from active tracing spans onto
+    /// each emitted log record.
     ///
-    /// - Pass an empty iterator (e.g. `[]` or `std::iter::empty::<&str>()`)
-    ///   to copy **all** span attributes.
-    /// - Pass one or more keys to copy only attributes whose names appear in
-    ///   the given allowlist.
+    /// By default, span attribute propagation is **disabled** and no per-span
+    /// work is performed.
     ///
-    /// If this method is not called, span attribute propagation is disabled
-    /// (the default), and no per-span work is performed.
+    /// - `enable_span_attributes(true)` enables propagation. If no allowlist
+    ///   has been configured (via [`Self::with_span_attribute_allowlist`]),
+    ///   **all** span attributes are copied. If an allowlist has already been
+    ///   configured, it is preserved.
+    /// - `enable_span_attributes(false)` disables propagation entirely and
+    ///   clears any previously configured allowlist.
+    pub fn enable_span_attributes(mut self, enable: bool) -> Self {
+        if !enable {
+            self.span_attributes = None;
+        } else if self.span_attributes.is_none() {
+            self.span_attributes = Some(HashSet::new());
+        }
+        // else: already enabled (with or without allowlist) — preserve.
+        self
+    }
+
+    /// Restrict the set of span attributes that are copied onto log records to
+    /// the given allowlist.
     ///
-    /// Calling this method multiple times replaces any prior configuration —
-    /// the last call wins.
-    pub fn with_span_attributes(
+    /// Calling this method implicitly enables span attribute propagation, even
+    /// if [`Self::enable_span_attributes`] was not called. Calling it multiple
+    /// times replaces any previously configured allowlist — the last call wins.
+    pub fn with_span_attribute_allowlist(
         mut self,
-        allowlist: impl IntoIterator<Item = impl Into<Cow<'static, str>>>,
+        keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>,
     ) -> Self {
-        self.span_attributes = Some(allowlist.into_iter().map(Into::into).collect());
+        self.span_attributes = Some(keys.into_iter().map(Into::into).collect());
         self
     }
 
@@ -1091,8 +1106,9 @@ mod tests {
 
     #[test]
     fn tracing_appender_span_attributes_disabled_by_default() {
-        // When `with_span_attributes` is not called on the builder, span attributes
-        // must NOT be propagated onto log records.
+        // When neither `enable_span_attributes` nor `with_span_attribute_allowlist`
+        // is called on the builder, span attributes must NOT be propagated onto
+        // log records.
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1141,7 +1157,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(std::iter::empty::<&str>())
+            .enable_span_attributes(true)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1192,7 +1208,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(std::iter::empty::<&str>())
+            .enable_span_attributes(true)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1253,7 +1269,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(std::iter::empty::<&str>())
+            .enable_span_attributes(true)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1365,7 +1381,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(std::iter::empty::<&str>())
+            .enable_span_attributes(true)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1429,7 +1445,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(["session.id"])
+            .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1465,7 +1481,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(["session.id"])
+            .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1502,16 +1518,16 @@ mod tests {
     }
 
     #[test]
-    fn tracing_appender_span_attributes_empty_iterator_copies_all() {
-        // An empty iterator passed to `with_span_attributes` enables propagation
-        // and copies all span attributes (no filtering).
+    fn tracing_appender_enable_span_attributes_copies_all() {
+        // `enable_span_attributes(true)` (without an allowlist) enables
+        // propagation and copies all span attributes (no filtering).
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(std::iter::empty::<&str>())
+            .enable_span_attributes(true)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1548,7 +1564,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(["session.id"])
+            .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1579,5 +1595,80 @@ mod tests {
             .record
             .attributes_iter()
             .any(|(k, _)| k == &Key::new("ignored")));
+    }
+
+    #[test]
+    fn tracing_appender_enable_false_clears_allowlist() {
+        // `enable_span_attributes(false)` after an allowlist was set must
+        // disable propagation entirely (and clear the allowlist).
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(["session.id"])
+            .enable_span_attributes(false)
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", session.id = "abc");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // session.id was on the allowlist, but enable_span_attributes(false)
+        // disabled propagation entirely.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("session.id")));
+    }
+
+    #[test]
+    fn tracing_appender_enable_true_preserves_allowlist() {
+        // `enable_span_attributes(true)` after `with_span_attribute_allowlist`
+        // must NOT clobber the allowlist.
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_attribute_allowlist(["session.id"])
+            .enable_span_attributes(true)
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", session.id = "abc", other = "v");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("session.id"),
+            &AnyValue::String("abc".into())
+        ));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("other")));
     }
 }

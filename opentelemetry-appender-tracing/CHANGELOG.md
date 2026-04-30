@@ -5,25 +5,26 @@
 - **Stabilize span attribute propagation.** The `experimental_span_attributes`
   cargo feature has been removed; the capability is now part of the stable API
   surface. Propagation is **disabled by default** (no per-span overhead) and
-  must be opted into at runtime via the new builder method
-  `OpenTelemetryTracingBridgeBuilder::with_span_attributes`:
+  must be opted into at runtime via either of two new builder methods:
 
   ```rust
   // Copy all span attributes onto log records:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(std::iter::empty::<&str>())
+      .enable_span_attributes(true)
       .build();
 
-  // Or restrict to an allowlist:
+  // Or restrict to an allowlist (implicitly enables propagation):
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(["session.id"])
+      .with_span_attribute_allowlist(["session.id"])
       .build();
   ```
 
   Migration from the experimental feature: drop the
-  `experimental_span_attributes` feature from `Cargo.toml`, and replace
-  `with_span_attribute_allowlist(keys)` with `with_span_attributes(keys)`. To
-  preserve the previous "copy everything" default, pass an empty iterator.
+  `experimental_span_attributes` feature from `Cargo.toml`. Existing users of
+  `with_span_attribute_allowlist(keys)` need no code change beyond that. Users
+  who previously enabled the feature without configuring an allowlist (relying
+  on the "copy all" default behavior) must now explicitly call
+  `enable_span_attributes(true)`.
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
