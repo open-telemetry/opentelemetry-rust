@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    otel_warn, Key,
 };
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -332,7 +332,8 @@ where
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
             logger: provider.logger(""),
             _phantom: Default::default(),
-            span_attributes: None,
+            span_attributes_enabled: false,
+            span_attribute_allowlist: None,
         }
     }
 }
@@ -344,7 +345,8 @@ where
 {
     logger: L,
     _phantom: std::marker::PhantomData<P>,
-    span_attributes: Option<HashSet<Cow<'static, str>>>,
+    span_attributes_enabled: bool,
+    span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
 }
 
 impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
@@ -358,41 +360,54 @@ where
     /// By default, span attribute propagation is **disabled** and no per-span
     /// work is performed.
     ///
-    /// - `enable_span_attributes(true)` enables propagation. If no allowlist
-    ///   has been configured (via [`Self::with_span_attribute_allowlist`]),
-    ///   **all** span attributes are copied. If an allowlist has already been
-    ///   configured, it is preserved.
-    /// - `enable_span_attributes(false)` disables propagation entirely and
-    ///   clears any previously configured allowlist.
+    /// `with_span_attribute_allowlist` only takes effect if propagation is
+    /// also explicitly enabled via this method. Calling
+    /// `with_span_attribute_allowlist` without also calling
+    /// `enable_span_attributes(true)` is a no-op (a warning is emitted via
+    /// `otel_warn!` from `build()`).
     pub fn enable_span_attributes(mut self, enable: bool) -> Self {
-        if !enable {
-            self.span_attributes = None;
-        } else if self.span_attributes.is_none() {
-            self.span_attributes = Some(HashSet::new());
-        }
-        // else: already enabled (with or without allowlist) — preserve.
+        self.span_attributes_enabled = enable;
         self
     }
 
     /// Restrict the set of span attributes that are copied onto log records to
     /// the given allowlist.
     ///
-    /// Calling this method implicitly enables span attribute propagation, even
-    /// if [`Self::enable_span_attributes`] was not called. Calling it multiple
-    /// times replaces any previously configured allowlist — the last call wins.
+    /// This method only takes effect when propagation is also enabled via
+    /// [`Self::enable_span_attributes`]`(true)`. Calling this method alone has
+    /// no runtime effect — `build()` will emit an `otel_warn!` in that case.
+    ///
+    /// Calling this method multiple times replaces any prior allowlist — the
+    /// last call wins.
     pub fn with_span_attribute_allowlist(
         mut self,
         keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>,
     ) -> Self {
-        self.span_attributes = Some(keys.into_iter().map(Into::into).collect());
+        self.span_attribute_allowlist = Some(keys.into_iter().map(Into::into).collect());
         self
     }
 
     pub fn build(self) -> OpenTelemetryTracingBridge<P, L> {
+        let span_attributes = if self.span_attributes_enabled {
+            // Enabled. If an allowlist was configured, use it; otherwise an
+            // empty set indicates "copy all" at runtime.
+            Some(self.span_attribute_allowlist.unwrap_or_default())
+        } else {
+            // Disabled. Warn if the user configured an allowlist that won't
+            // take effect.
+            if self.span_attribute_allowlist.is_some() {
+                otel_warn!(
+                    name: "OpenTelemetryTracingBridge.AllowlistWithoutEnable",
+                    message = "with_span_attribute_allowlist was called but enable_span_attributes(true) was not; the allowlist will have no effect. Call enable_span_attributes(true) to opt into span attribute propagation."
+                );
+            }
+            None
+        };
+
         OpenTelemetryTracingBridge {
             logger: self.logger,
             _phantom: self._phantom,
-            span_attributes: self.span_attributes,
+            span_attributes,
         }
     }
 }
@@ -1445,6 +1460,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .enable_span_attributes(true)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1481,6 +1497,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .enable_span_attributes(true)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1564,6 +1581,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .enable_span_attributes(true)
             .with_span_attribute_allowlist(["session.id"])
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1598,9 +1616,9 @@ mod tests {
     }
 
     #[test]
-    fn tracing_appender_enable_false_clears_allowlist() {
-        // `enable_span_attributes(false)` after an allowlist was set must
-        // disable propagation entirely (and clear the allowlist).
+    fn tracing_appender_allowlist_alone_is_no_op() {
+        // `with_span_attribute_allowlist` without `enable_span_attributes(true)`
+        // is a no-op (a warning is emitted via otel_warn! from build()).
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
@@ -1608,7 +1626,6 @@ mod tests {
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
             .with_span_attribute_allowlist(["session.id"])
-            .enable_span_attributes(false)
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1625,8 +1642,7 @@ mod tests {
         assert_eq!(logs.len(), 1);
         let log = &logs[0];
 
-        // session.id was on the allowlist, but enable_span_attributes(false)
-        // disabled propagation entirely.
+        // Allowlist alone does not enable propagation — session.id must not appear.
         assert!(!log
             .record
             .attributes_iter()
@@ -1634,9 +1650,9 @@ mod tests {
     }
 
     #[test]
-    fn tracing_appender_enable_true_preserves_allowlist() {
-        // `enable_span_attributes(true)` after `with_span_attribute_allowlist`
-        // must NOT clobber the allowlist.
+    fn tracing_appender_enable_then_allowlist_order_independent() {
+        // Order of enable_span_attributes(true) and with_span_attribute_allowlist
+        // does not matter — both produce the same enabled-with-filter state.
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
