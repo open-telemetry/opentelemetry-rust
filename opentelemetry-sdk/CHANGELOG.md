@@ -14,10 +14,13 @@
   attribute set always aggregate into the same data point, including the empty
   attribute set. Bound entries are never evicted during delta collection while
   a handle exists — idle cycles produce no export but the tracker persists. If
-  `bind()` is called at the cardinality limit, the handle transparently falls
-  back to the unbound measurement path. Gated behind the
-  `experimental_metrics_bound_instruments` feature flag. Benchmarks show ~28x
-  speedup for counter operations and ~9x for histograms.
+  `bind()` is called at the cardinality limit, the handle binds directly to
+  the overflow tracker — its writes stay on the same direct (no-lookup) hot
+  path and consistently land in the `otel.metric.overflow=true` bucket for
+  the lifetime of the handle. To recover a bound handle after delta collection
+  frees space, drop the existing handle and call `bind()` again. Gated behind
+  the `experimental_metrics_bound_instruments` feature flag. Benchmarks show
+  ~28x speedup for counter operations and ~9x for histograms.
 - Delta metrics collection now uses in-place eviction instead of draining the
   HashMap on every collect cycle. Stale attribute sets that received no measurements
   since the last collection are evicted. Note: recovery from cardinality overflow

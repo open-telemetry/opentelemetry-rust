@@ -4873,7 +4873,7 @@ mod tests {
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn bound_counter_overflow_falls_back_to_unbound() {
+    async fn bound_counter_at_overflow_attributes_to_overflow_bucket() {
         let cardinality_limit = 3;
         let view = move |i: &Instrument| {
             if i.name() == "my_counter" {
@@ -4894,7 +4894,7 @@ mod tests {
             counter.add(1, &[KeyValue::new("A", v.to_string())]);
         }
 
-        // bind() at overflow — should fall back to unbound path
+        // bind() at overflow — handle binds directly to the overflow tracker
         let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
         let bound = counter.bind(&overflow_attrs);
         bound.add(42);
@@ -4986,7 +4986,7 @@ mod tests {
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn bound_counter_overflow_fallback_still_works() {
+    async fn bound_counter_multiple_overflow_handles_share_overflow_bucket() {
         let cardinality_limit = 2;
         let view = move |i: &Instrument| {
             if i.name() == "my_counter" {
@@ -5041,6 +5041,72 @@ mod tests {
         assert_eq!(
             overflow_dp.value, 10,
             "Overflow-bound handles should continue working across delta cycles"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_persists_across_eviction_cycles() {
+        // Once a bind() lands in overflow, the handle's writes must continue
+        // landing in overflow for the lifetime of the handle — even after
+        // delta eviction frees space. This is the predictability guarantee:
+        // a user inspecting their data should see the bound handle's
+        // attribution as a single, stable bucket. The recovery story is
+        // explicit (drop and re-bind), not implicit (silent self-healing).
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Cycle 1: fill cardinality with unbound calls, then bind at overflow.
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+        let stuck_attrs = vec![KeyValue::new("A", "stuck_in_overflow")];
+        let bound = counter.bind(&stuck_attrs);
+        bound.add(10);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 1: bound write at overflow should land in overflow bucket");
+        assert_eq!(overflow_dp.value, 10);
+
+        // Cycle 2: no calls. The 3 unbound entries become stale and are evicted,
+        // freeing all of the cardinality budget.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: the SAME bound handle is used again. Even though space is
+        // available, its writes must still land in overflow — the handle is
+        // permanently bound to overflow, not silently re-resolved.
+        test_context.reset_metrics();
+        bound.add(99);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 3: bound write must still land in overflow even after space frees up");
+        assert_eq!(
+            overflow_dp.value, 99,
+            "Bound-at-overflow handle must keep writing to overflow even after delta eviction"
+        );
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "A", "stuck_in_overflow").is_none(),
+            "Bound-at-overflow handle must not silently self-heal to a dedicated tracker"
         );
     }
 
@@ -5177,7 +5243,7 @@ mod tests {
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn bound_histogram_overflow_falls_back_to_unbound() {
+    async fn bound_histogram_at_overflow_attributes_to_overflow_bucket() {
         let cardinality_limit = 3;
         let view = move |i: &Instrument| {
             if i.name() == "my_histogram" {
@@ -5202,7 +5268,7 @@ mod tests {
             histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
         }
 
-        // bind() at overflow — should fall back to unbound path
+        // bind() at overflow — handle binds directly to the overflow tracker
         let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
         let bound = histogram.bind(&overflow_attrs);
         bound.record(42.0);
@@ -5225,6 +5291,70 @@ mod tests {
         assert_eq!(
             overflow_dp.sum, 42.0,
             "Bound-at-overflow data should go to overflow bucket"
+        );
+        assert_eq!(overflow_dp.count, 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_overflow_persists_across_eviction_cycles() {
+        // Mirror of bound_counter_overflow_persists_across_eviction_cycles for
+        // histograms: a bound-at-overflow handle must keep landing in overflow
+        // even after delta eviction frees space, for the lifetime of the handle.
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_name("my_histogram")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0, 50.0])
+            .build();
+
+        // Cycle 1: fill cardinality with unbound calls, then bind at overflow.
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+        let stuck_attrs = vec![KeyValue::new("A", "stuck_in_overflow")];
+        let bound = histogram.bind(&stuck_attrs);
+        bound.record(15.0);
+
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 1: bound write at overflow should land in overflow bucket");
+        assert_eq!(overflow_dp.sum, 15.0);
+
+        // Cycle 2: no calls. Stale unbound entries get evicted, freeing space.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: same bound handle. Even though space is free, writes must
+        // still land in overflow.
+        test_context.reset_metrics();
+        bound.record(99.0);
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 3: bound write must still land in overflow even after space frees up");
+        assert_eq!(
+            overflow_dp.sum, 99.0,
+            "Bound-at-overflow histogram must keep writing to overflow even after delta eviction"
         );
         assert_eq!(overflow_dp.count, 1);
     }

@@ -10,7 +10,7 @@ use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::{BoundMeasure, TrackerEntry};
+use super::{BoundFallbackHandle, BoundMeasure, TrackerEntry};
 
 struct Increment<T>
 where
@@ -43,48 +43,28 @@ where
     }
 }
 
-#[cfg(feature = "experimental_metrics_bound_instruments")]
-enum BoundSumInner<T: Number> {
-    /// Fast path: dedicated tracker for this attribute set.
-    Direct {
-        tracker: Arc<TrackerEntry<Increment<T>>>,
-    },
-    /// Overflow fallback: delegates to the unbound Measure::call() path.
-    /// This happens when bind() is called at/over the cardinality limit.
-    /// Using the unbound path ensures correct overflow attribution and
-    /// automatic recovery when delta collect opens up space.
-    Fallback {
-        measure: Arc<dyn Measure<T>>,
-        attrs: Vec<KeyValue>,
-    },
-}
-
+/// Pre-bound counter handle: writes go directly to a fixed `TrackerEntry` without
+/// per-call attribute lookup. The `tracker` is either a dedicated entry for the
+/// bound attribute set, or — if bind() hit the cardinality limit — the shared
+/// overflow tracker. Either way, `call()` is a single atomic increment and a
+/// release store; no map lookup, no lock acquisition.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 struct BoundSumHandle<T: Number> {
-    inner: BoundSumInner<T>,
+    tracker: Arc<TrackerEntry<Increment<T>>>,
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
-        match &self.inner {
-            BoundSumInner::Direct { tracker } => {
-                tracker.aggregator.update(measurement);
-                tracker.has_been_updated.store(true, Ordering::Release);
-            }
-            BoundSumInner::Fallback { measure, attrs } => {
-                measure.call(measurement, attrs);
-            }
-        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
     }
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> Drop for BoundSumHandle<T> {
     fn drop(&mut self) {
-        if let BoundSumInner::Direct { tracker } = &self.inner {
-            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
-        }
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -211,14 +191,13 @@ where
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
         });
-        let inner = match self.value_map.bind(&bound_attrs) {
-            Some(tracker) => BoundSumInner::Direct { tracker },
-            None => BoundSumInner::Fallback {
-                measure: fallback,
-                attrs: bound_attrs,
-            },
-        };
-        Box::new(BoundSumHandle { inner })
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundSumHandle { tracker }),
+            // Trackers RwLock is poisoned — extremely rare. Hand back a fallback
+            // handle whose writes will silently drop (mirroring `measure()`'s
+            // own poison handling) rather than panic on the user's hot path.
+            None => Box::new(BoundFallbackHandle::new(fallback, bound_attrs)),
+        }
     }
 }
 

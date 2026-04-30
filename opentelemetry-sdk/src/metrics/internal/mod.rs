@@ -198,10 +198,16 @@ where
     /// The caller can then call `tracker.aggregator.update()` directly, bypassing the
     /// full lookup path on subsequent measurements.
     ///
-    /// Returns `None` if the cardinality limit has been reached. The caller should
-    /// fall back to the unbound `Measure::call()` path, which handles overflow
-    /// correctly and enables automatic recovery when space opens up after delta
-    /// collection evicts stale entries.
+    /// When the cardinality limit has been reached, the returned tracker is the
+    /// overflow tracker (the same one unbound `measure()` calls write to at
+    /// overflow), preserving the bind() perf contract — every subsequent
+    /// `bound.add()` call is a direct write, regardless of cardinality state.
+    /// The handle remains permanently bound to overflow for its lifetime;
+    /// to recover after space frees up, drop and re-bind.
+    ///
+    /// Returns `None` only if the trackers RwLock is poisoned, in which case
+    /// the caller should produce a noop bound handle so measurements are
+    /// silently dropped rather than panicking on the user's hot path.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
         if attributes.is_empty() {
@@ -231,7 +237,7 @@ where
 
         // Slow path: write lock, insert if missing.
         let Ok(mut trackers) = self.trackers.write() else {
-            // Lock poisoned — return None so caller falls back to unbound path
+            // Lock poisoned — caller will produce a noop bound handle.
             return None;
         };
 
@@ -254,25 +260,27 @@ where
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
         } else {
-            // Over cardinality limit — return None so the caller falls back to the
-            // unbound Measure::call() path. This ensures:
-            // 1. Overflow data is attributed correctly (same as unbound at overflow)
-            // 2. Automatic recovery when delta collect evicts stale entries
-            // 3. bound_count is not inflated on the overflow tracker
+            // Over cardinality limit — bind directly to the overflow tracker so
+            // the bound handle keeps its perf contract (no per-call lookup) and
+            // its writes land predictably in the overflow bucket. This matches
+            // the spec SHOULD that the SDK pre-resolve aggregator state at bind
+            // time, and the spec MUST that bound recordings behave identically
+            // to unbound recordings (which themselves route to overflow once
+            // cardinality is exhausted). See open-telemetry/opentelemetry-specification#5050.
             //
-            // TODO: If bind() is called during overflow, the handle remains in fallback
-            // mode permanently even after delta collect frees space. Not an issue in
-            // practice since bind() typically occurs at application startup before
-            // cardinality fills up. Future options to revisit:
-            // - Internally adjust bindings from overflow to normal during delta collect
-            // - Exclude bind() from cardinality capping (users leveraging bind() know
-            //   their bound instruments always report properly and never overflow)
-            // See: https://github.com/open-telemetry/opentelemetry-rust/pull/3392#discussion_r2860376315
+            // The overflow tracker is created lazily here if it doesn't exist
+            // yet — mirrors the lazy creation in `measure()` (line above where
+            // overflow is inserted on first overflowing measurement).
+            let overflow_tracker = trackers
+                .entry(stream_overflow_attributes().clone())
+                .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
+                .clone();
+            overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             otel_debug!(
                 name: "BoundInstrument.CardinalityOverflow",
-                message = "bind() called at cardinality limit, falling back to unbound path"
+                message = "bind() called at cardinality limit, attributing to overflow bucket"
             );
-            None
+            Some(overflow_tracker)
         }
     }
 

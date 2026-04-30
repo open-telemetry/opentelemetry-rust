@@ -14,7 +14,7 @@ use opentelemetry::KeyValue;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::{BoundMeasure, TrackerEntry};
+use super::{BoundFallbackHandle, BoundMeasure, TrackerEntry};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -72,48 +72,30 @@ impl<T: Number> Buckets<T> {
     }
 }
 
-#[cfg(feature = "experimental_metrics_bound_instruments")]
-enum BoundHistogramInner<T: Number> {
-    /// Fast path: dedicated tracker for this attribute set.
-    Direct {
-        tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
-        bounds: Vec<f64>,
-    },
-    /// Overflow fallback: delegates to the unbound Measure::call() path.
-    Fallback {
-        measure: Arc<dyn Measure<T>>,
-        attrs: Vec<KeyValue>,
-    },
-}
-
+/// Pre-bound histogram handle: writes go directly to a fixed `TrackerEntry`
+/// without per-call attribute lookup. The `tracker` is either a dedicated entry
+/// for the bound attribute set, or — if bind() hit the cardinality limit — the
+/// shared overflow tracker.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 struct BoundHistogramHandle<T: Number> {
-    inner: BoundHistogramInner<T>,
+    tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
+    bounds: Vec<f64>,
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
-        match &self.inner {
-            BoundHistogramInner::Direct { tracker, bounds } => {
-                let f = measurement.into_float();
-                let index = bounds.partition_point(|&x| x < f);
-                tracker.aggregator.update((measurement, index));
-                tracker.has_been_updated.store(true, Ordering::Release);
-            }
-            BoundHistogramInner::Fallback { measure, attrs } => {
-                measure.call(measurement, attrs);
-            }
-        }
+        let f = measurement.into_float();
+        let index = self.bounds.partition_point(|&x| x < f);
+        self.tracker.aggregator.update((measurement, index));
+        self.tracker.has_been_updated.store(true, Ordering::Release);
     }
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> Drop for BoundHistogramHandle<T> {
     fn drop(&mut self) {
-        if let BoundHistogramInner::Direct { tracker, .. } = &self.inner {
-            tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
-        }
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -291,17 +273,16 @@ where
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
         });
-        let inner = match self.value_map.bind(&bound_attrs) {
-            Some(tracker) => BoundHistogramInner::Direct {
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundHistogramHandle {
                 tracker,
                 bounds: self.bounds.clone(),
-            },
-            None => BoundHistogramInner::Fallback {
-                measure: fallback,
-                attrs: bound_attrs,
-            },
-        };
-        Box::new(BoundHistogramHandle { inner })
+            }),
+            // Trackers RwLock is poisoned — extremely rare. Hand back a fallback
+            // handle whose writes will silently drop (mirroring `measure()`'s
+            // own poison handling) rather than panic on the user's hot path.
+            None => Box::new(BoundFallbackHandle::new(fallback, bound_attrs)),
+        }
     }
 }
 
