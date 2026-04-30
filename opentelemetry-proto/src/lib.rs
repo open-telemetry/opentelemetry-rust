@@ -17,8 +17,8 @@
 //! - `zpages`: generate types that used in zPages. Currently only tracez related types will be generated. Currently supports `gen-tonic`.
 //!
 //! ## Creates used to generate files
-//! - `gen-tonic-messages`: generate rs files using [tonic](https://github.com/hyperium/tonic) and [prost](https://github.com/tokio-rs/prost).
-//! - `gen-tonic`: adding tonic transport to "`gen-tonic-messages"
+//! - `gen-tonic-messages`: generate OTLP message types using [prost](https://github.com/tokio-rs/prost).
+//! - `gen-tonic`: add tonic gRPC client/server transport support on top of `gen-tonic-messages`.
 //!
 //! ## Misc
 //! - `full`: enabled all features above.

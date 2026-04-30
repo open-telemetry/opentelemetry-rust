@@ -3,6 +3,7 @@ name: PR Conventional Commit Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
+  merge_group:
 
 permissions:
   contents: read
@@ -10,14 +11,15 @@ permissions:
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
       - name: PR Conventional Commit Validation
-        uses:  ytanikin/pr-conventional-commits@fda730cb152c05a849d6d84325e50c6182d9d1e9 # 1.5.1
+        uses:  ytanikin/pr-conventional-commits@639145d78959c53c43112365837e3abd21ed67c1 # 1.5.2
         with:
           task_types: '["build","chore","ci","docs","feat","fix","perf","refactor","revert","test"]'
           add_label: 'false'

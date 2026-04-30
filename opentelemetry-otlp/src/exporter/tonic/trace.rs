@@ -96,8 +96,7 @@ impl SpanExporter for TonicTracesClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
-                                    // Convert interceptor errors to tonic::Status for retry classification
-                                    tonic::Status::internal(format!("interceptor error: {e:?}"))
+                                    super::handle_interceptor_error!("TonicTracesClient", e)
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
@@ -140,9 +139,9 @@ impl SpanExporter for TonicTracesClient {
         .await
         {
             Ok(_) => Ok(()),
-            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
-                "export error: {tonic_status:?}"
-            ))),
+            Err(tonic_status) => {
+                super::handle_tonic_export_error!("TonicTracesClient", tonic_status)
+            }
         }
     }
 

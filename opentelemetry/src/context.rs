@@ -115,6 +115,22 @@ impl Context {
 
     /// Returns an immutable snapshot of the current thread's context.
     ///
+    /// # Behavior During Context Drop
+    ///
+    /// When called from within a [`Drop`] implementation that is triggered by
+    /// a [`ContextGuard`] being dropped (e.g., when a [`Span`] is dropped as part
+    /// of context cleanup), this function returns **whatever context happens to be
+    /// current after the guard is popped**, not the context being dropped.
+    ///
+    /// **Important**: The returned context may be completely unrelated to the
+    /// context being dropped, as contexts can be activated in any order and are
+    /// not necessarily hierarchical. Do not rely on any relationship between them.
+    ///
+    /// This behavior is by design and prevents panics that would otherwise occur
+    /// from attempting to borrow the context while it's being mutably borrowed
+    /// for cleanup. See [issue #2871](https://github.com/open-telemetry/opentelemetry-rust/issues/2871)
+    /// for details.
+    ///
     /// # Examples
     ///
     /// ```
@@ -130,6 +146,8 @@ impl Context {
     /// let _guard = Context::new().with_value(ValueA("a")).attach();
     /// do_work()
     /// ```
+    ///
+    /// [`Span`]: crate::trace::Span
     pub fn current() -> Self {
         Self::map_current(|cx| cx.clone())
     }
@@ -464,7 +482,14 @@ impl Drop for ContextGuard {
     fn drop(&mut self) {
         let id = self.cx_pos;
         if id > ContextStack::BASE_POS && id < ContextStack::MAX_POS {
+            // Extract only the span to drop outside of borrow_mut to avoid panic
+            // when the span's drop implementation calls Context::current()
+            #[cfg(feature = "trace")]
+            let _to_drop =
+                CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
+            #[cfg(not(feature = "trace"))]
             CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
+            // Span (if any) is automatically dropped here, outside of borrow_mut scope
         }
     }
 }
@@ -515,6 +540,12 @@ struct ContextStack {
     _marker: PhantomData<*const ()>,
 }
 
+// Type alias for what pop_id returns - only return the span when trace feature is enabled
+#[cfg(feature = "trace")]
+type PopIdReturn = Option<Arc<SynchronizedSpan>>;
+#[cfg(not(feature = "trace"))]
+type PopIdReturn = ();
+
 impl ContextStack {
     const BASE_POS: u16 = 0;
     const MAX_POS: u16 = u16::MAX;
@@ -543,7 +574,7 @@ impl ContextStack {
     }
 
     #[inline(always)]
-    fn pop_id(&mut self, pos: u16) {
+    fn pop_id(&mut self, pos: u16) -> PopIdReturn {
         if pos == ContextStack::BASE_POS || pos == ContextStack::MAX_POS {
             // The empty context is always at the bottom of the [`ContextStack`]
             // and cannot be popped, and the overflow position is invalid, so do
@@ -557,7 +588,8 @@ impl ContextStack {
                     "Attempted to pop the overflow position which is not allowed"
                 }
             );
-            return;
+            #[cfg(feature = "trace")]
+            return None;
         }
         let len: u16 = self.stack.len() as u16;
         // Are we at the top of the [`ContextStack`]?
@@ -570,8 +602,19 @@ impl ContextStack {
             // empty context is always at the bottom of the stack if the
             // [`ContextStack`] is not empty.
             if let Some(Some(next_cx)) = self.stack.pop() {
-                self.current_cx = next_cx;
+                // Extract and return only the span to avoid cloning the entire Context
+                #[cfg(feature = "trace")]
+                {
+                    let old_cx = std::mem::replace(&mut self.current_cx, next_cx);
+                    return old_cx.span;
+                }
+                #[cfg(not(feature = "trace"))]
+                {
+                    self.current_cx = next_cx;
+                }
             }
+            #[cfg(feature = "trace")]
+            return None;
         } else {
             // This is an out of order pop.
             if pos >= len {
@@ -582,10 +625,16 @@ impl ContextStack {
                     stack_length = len,
                     message = "Attempted to pop beyond the end of the context stack"
                 );
-                return;
+                #[cfg(feature = "trace")]
+                return None;
             }
-            // Clear out the entry at the given id.
-            _ = self.stack[pos as usize].take();
+            // Clear out the entry at the given id and extract its span
+            #[cfg(feature = "trace")]
+            return self.stack[pos as usize].take().and_then(|cx| cx.span);
+            #[cfg(not(feature = "trace"))]
+            {
+                self.stack[pos as usize] = None;
+            }
         }
     }
 

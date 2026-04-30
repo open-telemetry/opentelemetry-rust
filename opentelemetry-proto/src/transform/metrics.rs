@@ -79,6 +79,7 @@ pub mod tonic {
             KeyValue {
                 key: kv.0.to_string(),
                 value: Some(kv.1.clone().into()),
+                key_strindex: 0,
             }
         }
     }
@@ -88,6 +89,7 @@ pub mod tonic {
             KeyValue {
                 key: kv.key.to_string(),
                 value: Some(kv.value.clone().into()),
+                key_strindex: 0,
             }
         }
     }

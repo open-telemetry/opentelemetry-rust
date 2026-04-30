@@ -2,7 +2,9 @@ use super::{
     default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
-use crate::{ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{
+    exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+};
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
@@ -103,7 +105,7 @@ use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
 #[derive(Debug, Default)]
-pub struct HttpConfig {
+pub(crate) struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
 
@@ -154,10 +156,7 @@ pub struct HttpExporterBuilder {
 impl Default for HttpExporterBuilder {
     fn default() -> Self {
         HttpExporterBuilder {
-            exporter_config: ExportConfig {
-                protocol: Protocol::default(),
-                ..ExportConfig::default()
-            },
+            exporter_config: ExportConfig::default(),
             http_config: HttpConfig {
                 headers: Some(default_headers()),
                 ..HttpConfig::default()
@@ -174,7 +173,19 @@ impl HttpExporterBuilder {
         signal_timeout_var: &str,
         signal_http_headers_var: &str,
         signal_compression_var: &str,
+        signal_protocol_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
+        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+
+        // Validate protocol is compatible with HTTP transport
+        #[cfg(feature = "grpc-tonic")]
+        if matches!(protocol, Protocol::Grpc) {
+            return Err(ExporterBuildError::InvalidConfig {
+                name: "protocol".to_string(),
+                reason: "gRPC protocol is not compatible with HTTP transport. Use `.with_tonic()` instead.".to_string(),
+            });
+        }
+
         let endpoint = resolve_http_endpoint(
             signal_endpoint_var,
             signal_endpoint_path,
@@ -282,7 +293,7 @@ impl HttpExporterBuilder {
             http_client,
             endpoint,
             headers,
-            self.exporter_config.protocol,
+            protocol,
             timeout,
             compression,
             #[cfg(feature = "experimental-http-retry")]
@@ -297,12 +308,13 @@ impl HttpExporterBuilder {
         super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
-    /// Create a log exporter with the current configuration
+    /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+            OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+            OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -311,6 +323,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+            OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -321,7 +334,8 @@ impl HttpExporterBuilder {
     pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
-            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+            OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -330,6 +344,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -343,7 +358,8 @@ impl HttpExporterBuilder {
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+            OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
         };
 
         let client = self.build_client(
@@ -352,6 +368,7 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
+            OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))
@@ -488,7 +505,17 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
-            HttpExportError::new(0, format!("Network error: {e:?}")) // Network error
+            // Connection errors (e.g., "Connection refused", DNS failures) typically
+            // indicate user-side misconfigurations and don't contain sensitive data.
+            // We don't log at WARN here because SDK processors (BatchLogProcessor,
+            // BatchSpanProcessor, PeriodicReader) already log the returned error
+            // via otel_error!.
+            otel_debug!(
+                name: "HttpClient.NetworkError",
+                url = request_uri.as_str(),
+                error = format!("{e}")
+            );
+            HttpExportError::new(0, "HTTP export failed: network error".to_string())
         })?;
 
         let status_code = response.status().as_u16();
@@ -499,12 +526,18 @@ impl OtlpHttpClient {
             .map(|s| s.to_string());
 
         if !response.status().is_success() {
-            let message = format!(
-                "HTTP export failed. Url: {}, Status: {}, Response: {:?}",
-                request_uri,
-                status_code,
-                response.body()
+            // We don't log at WARN here because SDK processors (BatchLogProcessor,
+            // BatchSpanProcessor, PeriodicReader) already log the returned error
+            // via otel_error!. Response body may contain sensitive information
+            // (e.g., auth tokens echoed back by the server), so log it at DEBUG
+            // level only.
+            otel_debug!(
+                name: "HttpClient.StatusError",
+                status_code = status_code,
+                url = request_uri.as_str(),
+                response_body = format!("{:?}", response.body())
             );
+            let message = format!("HTTP export failed with status code: {status_code}");
             return Err(match retry_after {
                 Some(retry_after) => {
                     HttpExportError::with_retry_after(status_code, retry_after, message)
@@ -727,7 +760,7 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
 }
 
 /// Expose interface for modifying builder config.
-pub trait HasHttpConfig {
+pub(crate) trait HasHttpConfig {
     /// Return a mutable reference to the config within the exporter builders.
     fn http_client_config(&mut self) -> &mut HttpConfig;
 }
@@ -739,7 +772,7 @@ impl HasHttpConfig for HttpExporterBuilder {
     }
 }
 
-/// This trait will be implemented for every struct that implemented [`HasHttpConfig`] trait.
+/// Expose methods to override HTTP-specific configuration.
 ///
 /// ## Examples
 /// ```
@@ -1042,7 +1075,7 @@ mod tests {
                 #[cfg(feature = "experimental-http-retry")]
                 retry_policy: None,
             },
-            exporter_config: crate::ExportConfig::default(),
+            exporter_config: crate::exporter::ExportConfig::default(),
         };
 
         // Act

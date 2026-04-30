@@ -2,6 +2,11 @@
 
 ## vNext
 
+- New *experimental* feature to enrich log records with attributes from active
+  tracing spans (`experimental_span_attributes`). Use
+  `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`
+  to control which span attributes are copied to log records.
+
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
   context for the current tracing span.
@@ -14,6 +19,7 @@
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
+  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
 
 ## 0.31.1
 

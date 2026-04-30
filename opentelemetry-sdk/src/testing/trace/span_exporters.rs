@@ -36,12 +36,12 @@ pub fn new_test_export_span_data() -> SpanData {
 }
 
 #[derive(Debug)]
-pub struct TokioSpanExporter {
+pub struct TestSpanExporter {
     tx_export: tokio::sync::mpsc::UnboundedSender<SpanData>,
     tx_shutdown: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
-impl SpanExporter for TokioSpanExporter {
+impl SpanExporter for TestSpanExporter {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         batch.into_iter().try_for_each(|span_data| {
             self.tx_export
@@ -57,14 +57,14 @@ impl SpanExporter for TokioSpanExporter {
     }
 }
 
-pub fn new_tokio_test_exporter() -> (
-    TokioSpanExporter,
+pub fn new_test_exporter() -> (
+    TestSpanExporter,
     tokio::sync::mpsc::UnboundedReceiver<SpanData>,
     tokio::sync::mpsc::UnboundedReceiver<()>,
 ) {
     let (tx_export, rx_export) = tokio::sync::mpsc::unbounded_channel();
     let (tx_shutdown, rx_shutdown) = tokio::sync::mpsc::unbounded_channel();
-    let exporter = TokioSpanExporter {
+    let exporter = TestSpanExporter {
         tx_export,
         tx_shutdown,
     };

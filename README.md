@@ -164,8 +164,9 @@ this policy.
 
 See the [contributing file](CONTRIBUTING.md).
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
-Time. The meeting is subject to change depending on contributors' availability.
+The Rust special interest group (SIG) meets on alternating weeks between Tuesday
+at 9:00 AM PT and Wednesday at 8:00 AM PT.
+The meeting is subject to change depending on contributors' availability.
 Check the [OpenTelemetry community
 calendar](https://github.com/open-telemetry/community?tab=readme-ov-file#calendar)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
@@ -204,11 +205,11 @@ For more information about the approver role, see the [community repository](htt
 
 ### Emeritus
 
-* [Dirkjan Ochtman](https://github.com/djc)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
-* [Jan Kühle](https://github.com/frigus02)
-* [Julian Tescher](https://github.com/jtescher)
-* [Mike Goldsmith](https://github.com/MikeGoldsmith)
+* [Dirkjan Ochtman](https://github.com/djc), Maintainer
+* [Isobel Redelmeier](https://github.com/iredelmeier), Maintainer
+* [Jan Kühle](https://github.com/frigus02), Approver
+* [Julian Tescher](https://github.com/jtescher), Maintainer
+* [Mike Goldsmith](https://github.com/MikeGoldsmith), Approver
 
 For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 

@@ -7,12 +7,8 @@ use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::AggregateTimeInitiator;
-use super::aggregate::AttributeSetFilter;
-use super::ComputeAggregation;
-use super::Measure;
-use super::ValueMap;
-use super::{Aggregator, Number};
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -83,22 +79,14 @@ pub(crate) struct Histogram<T: Number> {
 }
 
 impl<T: Number> Histogram<T> {
-    #[allow(unused_mut)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
-        mut bounds: Vec<f64>,
+        bounds: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
     ) -> Self {
-        #[cfg(feature = "spec_unstable_metrics_views")]
-        {
-            // TODO: When views are used, validate this upfront
-            bounds.retain(|v| !v.is_nan());
-            bounds.sort_by(|a, b| a.partial_cmp(b).expect("NaNs filtered out"));
-        }
-
         let buckets_count = if bounds.is_empty() {
             0
         } else {
@@ -141,9 +129,11 @@ impl<T: Number> Histogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let buckets_count = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = aggr.clone_and_reset(&buckets_count);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,

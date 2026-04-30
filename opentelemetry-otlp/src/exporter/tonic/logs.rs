@@ -94,8 +94,7 @@ impl LogExporter for TonicLogsClient {
                                 .interceptor
                                 .call(Request::new(()))
                                 .map_err(|e| {
-                                    // Convert interceptor errors to tonic::Status for retry classification
-                                    tonic::Status::internal(format!("interceptor error: {e:?}"))
+                                    super::handle_interceptor_error!("TonicLogsClient", e)
                                 })?
                                 .into_parts();
                             Ok((inner.client.clone(), m, e))
@@ -137,9 +136,9 @@ impl LogExporter for TonicLogsClient {
         .await
         {
             Ok(_) => Ok(()),
-            Err(tonic_status) => Err(OTelSdkError::InternalFailure(format!(
-                "export error: {tonic_status:?}"
-            ))),
+            Err(tonic_status) => {
+                super::handle_tonic_export_error!("TonicLogsClient", tonic_status)
+            }
         }
     }
 

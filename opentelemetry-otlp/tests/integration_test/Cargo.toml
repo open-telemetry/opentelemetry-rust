@@ -13,7 +13,7 @@ opentelemetry_sdk = { path = "../../../opentelemetry-sdk", features = ["rt-tokio
 opentelemetry-proto = { path = "../../../opentelemetry-proto", features = ["gen-tonic-messages", "trace", "logs", "metrics", "with-serde"] }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
-testcontainers = { version = "0.25.2", features = ["http_wait"] }
+testcontainers = { version = "0.27.2", features = ["http_wait"] }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter","registry", "std", "fmt"] }
 tracing = {workspace = true}

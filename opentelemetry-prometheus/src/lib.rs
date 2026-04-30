@@ -329,12 +329,12 @@ impl prometheus::core::Collector for Collector {
 
                 let mut labels =
                     Vec::with_capacity(1 + scope_metrics.scope().version().is_some() as usize);
-                let mut name = LabelPair::new();
+                let mut name = LabelPair::default();
                 name.set_name(SCOPE_INFO_KEYS[0].into());
                 name.set_value(scope_metrics.scope().name().to_string());
                 labels.push(name);
                 if let Some(version) = &scope_metrics.scope().version() {
-                    let mut l_version = LabelPair::new();
+                    let mut l_version = LabelPair::default();
                     l_version.set_name(SCOPE_INFO_KEYS[1].into());
                     l_version.set_value(version.to_string());
                     labels.push(l_version);
@@ -426,7 +426,7 @@ fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair])
     for (key, mut values) in keys_map.into_iter() {
         values.sort_unstable();
 
-        let mut lp = LabelPair::new();
+        let mut lp = LabelPair::default();
         lp.set_name(key);
         lp.set_value(values.join(";"));
         res.push(lp);
@@ -607,12 +607,12 @@ fn create_scope_info_metric(scope: &InstrumentationScope) -> MetricFamily {
     g.set_value(1.0);
 
     let mut labels = Vec::with_capacity(1 + scope.version().is_some() as usize);
-    let mut name = LabelPair::new();
+    let mut name = LabelPair::default();
     name.set_name(SCOPE_INFO_KEYS[0].into());
     name.set_value(scope.name().to_string());
     labels.push(name);
     if let Some(version) = &scope.version() {
-        let mut v_label = LabelPair::new();
+        let mut v_label = LabelPair::default();
         v_label.set_name(SCOPE_INFO_KEYS[1].into());
         v_label.set_value(version.to_string());
         labels.push(v_label);
