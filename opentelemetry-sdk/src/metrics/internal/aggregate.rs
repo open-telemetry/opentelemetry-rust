@@ -20,7 +20,7 @@ pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>>;
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>>;
 }
 
 /// A pre-bound measurement handle that bypasses attribute lookup.
@@ -29,26 +29,28 @@ pub(crate) trait BoundMeasure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T);
 }
 
-/// Fallback bound handle for aggregator types that don't support direct binding.
-/// Delegates every call to the unbound `Measure::call()` path.
+/// A bound handle that drops every measurement silently. Used when
+/// `ValueMap::bind` returns `None` because the trackers `RwLock` is poisoned —
+/// an extremely rare degenerate state in which the SDK can no longer aggregate
+/// reliably. Returning a noop here mirrors `measure()`'s own poison handling
+/// (silent drop) rather than panicking on the user's hot path.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-pub(crate) struct BoundFallbackHandle<T> {
-    measure: Arc<dyn Measure<T>>,
-    attrs: Vec<KeyValue>,
+pub(crate) struct NoopBoundMeasure<T> {
+    _marker: marker::PhantomData<T>,
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-impl<T: Send + Sync + 'static> BoundMeasure<T> for BoundFallbackHandle<T> {
-    fn call(&self, measurement: T) {
-        self.measure.call(measurement, &self.attrs);
+impl<T> NoopBoundMeasure<T> {
+    pub(crate) fn new() -> Self {
+        Self {
+            _marker: marker::PhantomData,
+        }
     }
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-impl<T> BoundFallbackHandle<T> {
-    pub(crate) fn new(measure: Arc<dyn Measure<T>>, attrs: Vec<KeyValue>) -> Self {
-        Self { measure, attrs }
-    }
+impl<T: Send + Sync + 'static> BoundMeasure<T> for NoopBoundMeasure<T> {
+    fn call(&self, _measurement: T) {}
 }
 
 /// Stores the aggregate of measurements into the aggregation and returns the number

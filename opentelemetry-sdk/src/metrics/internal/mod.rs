@@ -18,7 +18,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-pub(crate) use aggregate::{BoundFallbackHandle, BoundMeasure};
+pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::otel_debug;
@@ -890,6 +890,45 @@ mod tests {
             value_map.count.load(Ordering::SeqCst),
             0,
             "count should reach 0 after eviction"
+        );
+    }
+
+    /// When the trackers `RwLock` is poisoned, `bind()` cannot safely insert or
+    /// look up entries, so it returns `None` and the caller (Sum/Histogram/etc.)
+    /// hands back a `NoopBoundMeasure`. This is a defensive branch that fires
+    /// on degenerate states (a thread panicked while holding the write lock)
+    /// and is unreachable through normal traffic. The test induces poisoning
+    /// explicitly so the branch keeps coverage.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    fn bind_returns_none_when_trackers_lock_is_poisoned() {
+        let value_map = ValueMap::<Assign<i64>>::new((), 100);
+
+        // Poison the trackers RwLock by panicking inside a write guard.
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = value_map.trackers.write().unwrap();
+            panic!("intentional poison");
+        }));
+
+        assert!(
+            value_map.trackers.is_poisoned(),
+            "trackers lock must be poisoned for this test to be meaningful"
+        );
+
+        // Empty attrs use the no_attribute_tracker fast path and never touch
+        // the poisoned lock — they should still succeed.
+        assert!(
+            value_map.bind(&[]).is_some(),
+            "bind(&[]) must succeed even with poisoned lock; uses no_attribute_tracker"
+        );
+
+        // Non-empty attrs go through bind_attrs which needs the trackers lock.
+        // The read-lock try succeeds (only writes poison, but read on poisoned
+        // can also fail) — fall through to write lock which fails poisoned.
+        let result = value_map.bind(&[KeyValue::new("k", 1_i64)]);
+        assert!(
+            result.is_none(),
+            "bind() with non-empty attrs must return None on poisoned lock"
         );
     }
 }

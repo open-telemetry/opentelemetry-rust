@@ -395,11 +395,8 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
-        let bound_measures: Vec<Box<dyn BoundMeasure<T>>> = self
-            .measures
-            .iter()
-            .map(|m| m.bind(attrs, Arc::clone(m)))
-            .collect();
+        let bound_measures: Vec<Box<dyn BoundMeasure<T>>> =
+            self.measures.iter().map(|m| m.bind(attrs)).collect();
         Box::new(ResolvedBoundMeasures {
             measures: bound_measures,
         })

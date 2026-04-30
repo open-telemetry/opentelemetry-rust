@@ -14,7 +14,7 @@ use opentelemetry::KeyValue;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use super::{BoundFallbackHandle, BoundMeasure, TrackerEntry};
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -268,7 +268,7 @@ where
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind(&self, attrs: &[KeyValue], fallback: Arc<dyn Measure<T>>) -> Box<dyn BoundMeasure<T>> {
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
         let mut bound_attrs = Vec::new();
         self.filter.apply(attrs, |filtered| {
             bound_attrs = filtered.to_vec();
@@ -278,10 +278,9 @@ where
                 tracker,
                 bounds: self.bounds.clone(),
             }),
-            // Trackers RwLock is poisoned — extremely rare. Hand back a fallback
-            // handle whose writes will silently drop (mirroring `measure()`'s
-            // own poison handling) rather than panic on the user's hot path.
-            None => Box::new(BoundFallbackHandle::new(fallback, bound_attrs)),
+            // Trackers RwLock is poisoned — return a noop handle so writes
+            // silently drop, mirroring `measure()`'s own poison handling.
+            None => Box::new(NoopBoundMeasure::new()),
         }
     }
 }
