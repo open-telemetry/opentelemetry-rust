@@ -39,5 +39,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     fn temporality(&self) -> Temporality;
 
     /// The default aggregation to use for histogram instruments.
-    fn default_histogram_aggregation(&self) -> HistogramAggregation;
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        HistogramAggregation::default()
+    }
 }
