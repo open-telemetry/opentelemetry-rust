@@ -34,7 +34,12 @@
 //! # }
 //! ```
 //!
-//! See the [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples) directory for different integration patterns.
+//! For a runnable getting-started example, see
+//! [`examples/tracing-grpc`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/tracing-grpc),
+//! which demonstrates creating spans and propagating trace context across a
+//! gRPC client and server. See the
+//! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples)
+//! directory for additional integration patterns.
 //!
 //! See the [`trace`] module docs for more information on creating and managing
 //! spans.
@@ -52,6 +57,10 @@
 //!    (e.g., counters, histograms).
 //! 3. **Record Measurements:** Use the instruments to record measurement values
 //!    along with optional attributes.
+//!
+//! For a runnable getting-started example, see
+//! [`examples/metrics-basic`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/metrics-basic),
+//! which exercises every instrument type.
 //!
 //! ## How Metrics work in OpenTelemetry
 //! In OpenTelemetry, raw measurements recorded using instruments are
@@ -129,11 +138,6 @@
 //! .build();
 //! ```
 //!
-//! See the
-//! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/metrics-basic)
-//! directory that show a runnable example with all type of instruments.
-//!
-//!
 //! See the [`metrics`] module docs for more information on creating and
 //! managing instruments.
 //!
@@ -151,6 +155,10 @@
 //!  and
 //!  [`opentelemetry-appender-tracing`](https://crates.io/crates/opentelemetry-appender-tracing)
 //!  crates.
+//!
+//! For a runnable getting-started example, see
+//! [`examples/logs-basic`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/logs-basic),
+//! which uses the `tracing` appender to bridge logs to OpenTelemetry.
 //!
 //! # Crate Feature Flags
 //!
