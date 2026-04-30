@@ -48,8 +48,10 @@ fn criterion_benchmark(c: &mut Criterion) {
     span_builder(c, &tracer);
 }
 
-fn span_lifecycle(c: &mut Criterion, tracer: &impl Tracer<Span = impl Span + Send + Sync + 'static>) {
-
+fn span_lifecycle(
+    c: &mut Criterion,
+    tracer: &impl Tracer<Span = impl Span + Send + Sync + 'static>,
+) {
     c.bench_function("CreateSpan_NoopTracer", |b| {
         b.iter(|| {
             let mut span = tracer.start("test-span");
@@ -127,7 +129,6 @@ fn span_lifecycle(c: &mut Criterion, tracer: &impl Tracer<Span = impl Span + Sen
 }
 
 fn span_builder(c: &mut Criterion, tracer: &impl Tracer<Span = impl Span + Send + Sync + 'static>) {
-
     c.bench_function("SpanBuilder_Creation", |b| {
         b.iter(|| {
             let span = tracer

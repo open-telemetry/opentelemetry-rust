@@ -13,7 +13,9 @@
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opentelemetry::logs::{AnyValue, LogRecord, Logger, LoggerProvider, NoopLoggerProvider, Severity};
+use opentelemetry::logs::{
+    AnyValue, LogRecord, Logger, LoggerProvider, NoopLoggerProvider, Severity,
+};
 
 // Run this benchmark with:
 // cargo bench --bench logs --features=logs
