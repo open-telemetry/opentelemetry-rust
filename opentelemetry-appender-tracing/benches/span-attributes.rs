@@ -4,8 +4,8 @@
 // The benchmark results:
 // Hardware: Mac M4 Pro
 // Total Number of Cores: 14 (10 performance and 4 efficiency)
-// rustc 1.93.0 (254b59607 2026-01-19)
-// cargo 1.93.0 (083ac5135 2025-12-15)
+// rustc 1.95.0 (59807616e 2026-04-14)
+// cargo 1.95.0 (f2d3ce0bd 2026-03-21)
 //
 // Attribute counts are chosen to stay within the SDK's inline-array optimisation
 // threshold (5 attributes). With tracing-span attribute enrichment enabled (via
@@ -15,18 +15,18 @@
 // Log + span benchmarks (showing incremental cost of span attributes on logging):
 // | Test                                      | Total attrs | Average time | Increment vs baseline        |
 // |-------------------------------------------|-------------|--------------|------------------------------|
-// | log_1_attr_no_span                        | 1           | 81 ns        | -                            |
-// | log_1_attr_in_span_2_attr                 | 3           | 325 ns       | +244 ns                      |
-// | log_1_attr_in_nested_spans_2plus2_attr    | 5           | 570 ns       | +489 ns (+245 ns vs 1 span)  |
+// | log_1_attr_no_span                        | 1           |  85 ns       | -                            |
+// | log_1_attr_in_span_2_attr                 | 3           | 382 ns       | +297 ns                      |
+// | log_1_attr_in_nested_spans_2plus2_attr    | 5           | 590 ns       | +505 ns (+208 ns vs 1 span)  |
 //
 // Span-only benchmarks (no log emission, kept for reference):
 // | Test                  | Average time | Increment |
 // |-----------------------|--------------|-----------|
-// | span_4_attributes     | 175 ns       | -         |
-// | span_8_attributes     | 272 ns       | +97 ns    |
-// | nested_spans_1_levels | 183 ns       | -         |
-// | nested_spans_2_levels | 385 ns       | +202 ns   |
-// | nested_spans_3_levels | 583 ns       | +198 ns   |
+// | span_4_attributes     | 194 ns       | -         |
+// | span_8_attributes     | 314 ns       | +120 ns   |
+// | nested_spans_1_levels | 194 ns       | -         |
+// | nested_spans_2_levels | 413 ns       | +219 ns   |
+// | nested_spans_3_levels | 630 ns       | +217 ns   |
 
 */
 
