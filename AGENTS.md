@@ -1,6 +1,6 @@
 # Agent Instructions
 
-Guidance for AI coding agents (GitHub Copilot, Claude, Cursor, etc.) working in
+Guidance for AI coding agents (GitHub Copilot, Claude, Codex, Cursor, etc.) working in
 this repository. Human contributors should follow [CONTRIBUTING.md](CONTRIBUTING.md);
 this file captures the conventions an automated agent must respect to keep CI
 green and reviews short.
