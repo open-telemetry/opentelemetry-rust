@@ -44,6 +44,36 @@ of telemetry is intentionally left to other tools.
 [`Prometheus`]: https://prometheus.io
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
+### What does this crate contain?
+
+**⚠️ This crate is deprecated and no longer recommended for use.**
+
+This crate previously provided direct Prometheus metrics export functionality, but has been discontinued due to:
+- Dependency on unmaintained `protobuf` crate
+- Unresolved security vulnerabilities
+- Limited maintenance resources
+
+For new projects, use the [OTLP exporter](https://docs.rs/opentelemetry-otlp/) instead, as Prometheus now natively supports OTLP.
+
+## Getting started
+
+**For new projects:** Use the [opentelemetry-otlp](https://docs.rs/opentelemetry-otlp/) crate instead. See the [Prometheus OTLP documentation](https://prometheus.io/docs/guides/opentelemetry/#enable-the-otlp-receiver) for integration details.
+
+**For existing projects:** See the [docs](https://docs.rs/opentelemetry-prometheus) for legacy API reference, but plan migration to OTLP.
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-prometheus/CHANGELOG.md).
+
+## Supported Rust Versions
+
+OpenTelemetry is built against the latest stable release. The minimum supported
+version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+on Rust versions earlier than the minimum supported version.
+
+The current stable Rust compiler and the three most recent minor versions
+before it will always be supported. For example, if the current stable compiler
+version is 1.49, the minimum supported version will not be increased past 1.46,
+three minor versions prior. Increasing the minimum supported compiler version
+is not considered a semver breaking change as long as doing so complies with
+this policy.

@@ -31,6 +31,21 @@ of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+### What does this crate contain?
+
+This crate provides Jaeger-specific context propagation for OpenTelemetry applications. It includes:
+
+- **Jaeger Propagator**: Implementation of Jaeger's text map propagation format for distributed tracing
+- **Context Extraction**: Ability to extract Jaeger trace context from HTTP headers and other carriers
+- **Context Injection**: Functionality to inject OpenTelemetry trace context into Jaeger format for downstream services
+- **Legacy Compatibility**: Support for applications that need to interoperate with existing Jaeger-instrumented services
+
+Note: This crate is specifically for context propagation. To export telemetry data to Jaeger, use the `opentelemetry-otlp` crate.
+
+## Getting started
+
+See the [docs](https://docs.rs/opentelemetry-jaeger-propagator) for detailed examples and API reference.
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-jaeger-propagator/CHANGELOG.md).

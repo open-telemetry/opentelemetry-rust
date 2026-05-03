@@ -1,12 +1,27 @@
+# OpenTelemetry Proto
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-# OpenTelemetry Proto
-This crate contains generated files from [opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
-repository and transformation between types from generated files and types defined in [opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry).
+This crate contains generated Rust code from the
+[opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
+repository and provides transformation functions between the generated protobuf
+types and the types defined in the
+[opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry)
+API crate.
+
+[![Crates.io: opentelemetry-proto](https://img.shields.io/crates/v/opentelemetry-proto.svg)](https://crates.io/crates/opentelemetry-proto)
+[![Documentation](https://docs.rs/opentelemetry-proto/badge.svg)](https://docs.rs/opentelemetry-proto)
+[![LICENSE](https://img.shields.io/crates/l/opentelemetry-proto)](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-proto/LICENSE)
+[![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
+[![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
 *[Supported Rust Versions](#supported-rust-versions)*
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-proto).
 
 ## Release Notes
 

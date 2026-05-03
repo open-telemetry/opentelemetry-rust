@@ -35,6 +35,20 @@ of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+### What does this crate contain?
+
+This crate provides a bridge for integrating the [tracing crate](https://tracing.rs/) with OpenTelemetry's logging pipeline. It includes:
+
+- **Log Appender**: A component that captures log events from tracing and forwards them to OpenTelemetry's logging system
+- **Event Bridge**: Converts tracing events into OpenTelemetry log records while preserving metadata and context
+- **Integration Support**: Seamless integration with existing tracing-based applications to enable OpenTelemetry log collection
+
+This appender is specifically designed for scenarios where you want to collect logs through OpenTelemetry while using the tracing crate for instrumentation.
+
+## Getting started
+
+See the [docs](https://docs.rs/opentelemetry-appender-tracing) for detailed examples and API reference.
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/CHANGELOG.md).
