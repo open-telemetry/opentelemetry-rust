@@ -1131,6 +1131,10 @@ mod tests {
             .with_start_time(time)
             .build();
 
+        assert_eq!(gauge.data_points().count(), 1);
+        assert_eq!(gauge.start_time(), Some(time));
+        assert_eq!(gauge.time(), time);
+
         let data = AggregatedMetrics::F64(MetricData::Gauge(gauge));
 
         let metric = Metric::builder("my_gauge", data)
@@ -1178,9 +1182,12 @@ mod tests {
         assert_eq!(sum.data_points().count(), 1);
         assert!(sum.is_monotonic());
         assert_eq!(sum.temporality(), Temporality::Cumulative);
+        assert_eq!(sum.start_time(), time);
+        assert_eq!(sum.time(), time);
         let dp = sum.data_points().next().unwrap();
         assert_eq!(dp.value(), 100);
         assert_eq!(dp.attributes().count(), 1);
+        assert_eq!(dp.exemplars().count(), 0);
     }
 
     #[test]
@@ -1190,12 +1197,15 @@ mod tests {
             .with_attributes(vec![KeyValue::new("key", "val")])
             .with_min(1.0)
             .with_max(20.0)
+            .with_exemplars(vec![Exemplar::builder(5.0_f64, time).build()])
             .build();
 
         let histogram = Histogram::new(vec![dp], Temporality::Delta, time, time);
 
         assert_eq!(histogram.data_points().count(), 1);
         assert_eq!(histogram.temporality(), Temporality::Delta);
+        assert_eq!(histogram.start_time(), time);
+        assert_eq!(histogram.time(), time);
         let dp = histogram.data_points().next().unwrap();
         assert_eq!(dp.count(), 10);
         assert_eq!(dp.sum(), 42.0);
@@ -1203,6 +1213,8 @@ mod tests {
         assert_eq!(dp.max(), Some(20.0));
         assert_eq!(dp.bounds().collect::<Vec<_>>(), vec![5.0, 10.0]);
         assert_eq!(dp.bucket_counts().collect::<Vec<_>>(), vec![3, 5, 2]);
+        assert_eq!(dp.attributes().count(), 1);
+        assert_eq!(dp.exemplars().count(), 1);
     }
 
     #[test]
@@ -1250,6 +1262,7 @@ mod tests {
         );
 
         assert_eq!(dp.exemplars().count(), 1);
+        assert_eq!(dp.attributes().count(), 1);
     }
 
     #[test]
