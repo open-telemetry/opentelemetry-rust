@@ -1173,10 +1173,154 @@ impl<T> ExemplarBuilder<T> {
 #[cfg(test)]
 mod tests {
 
-    use super::{Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint, SumDataPoint};
+    use super::*;
 
     use opentelemetry::time::now;
     use opentelemetry::KeyValue;
+
+    #[test]
+    fn build_resource_metrics_full_tree() {
+        let time = now();
+        let exemplar = Exemplar::builder(1.0_f64, time)
+            .with_filtered_attributes(vec![KeyValue::new("filtered", "attr")])
+            .with_span_id([1; 8])
+            .with_trace_id([2; 16])
+            .build();
+
+        let gauge_dp = GaugeDataPoint::builder(42.0_f64)
+            .with_attributes(vec![KeyValue::new("host", "localhost")])
+            .with_exemplars(vec![exemplar])
+            .build();
+
+        let gauge = Gauge::builder(vec![gauge_dp], time)
+            .with_start_time(time)
+            .build();
+
+        let metric = Metric::builder("my_gauge", AggregatedMetrics::F64(MetricData::Gauge(gauge)))
+            .with_description("a test gauge")
+            .with_unit("ms")
+            .build();
+
+        let scope_metrics = ScopeMetrics::builder().with_metrics(vec![metric]).build();
+
+        let rm = ResourceMetrics::builder()
+            .with_resource(Resource::builder().build())
+            .with_scope_metrics(vec![scope_metrics])
+            .build();
+
+        assert_eq!(rm.scope_metrics().count(), 1);
+        let sm = rm.scope_metrics().next().unwrap();
+        assert_eq!(sm.metrics().count(), 1);
+        let m = sm.metrics().next().unwrap();
+        assert_eq!(m.name(), "my_gauge");
+        assert_eq!(m.description(), "a test gauge");
+        assert_eq!(m.unit(), "ms");
+    }
+
+    #[test]
+    fn build_sum_with_data_points() {
+        let time = now();
+        let dp = SumDataPoint::builder(100_i64)
+            .with_attributes(vec![KeyValue::new("key", "value")])
+            .build();
+
+        let sum = Sum::builder(vec![dp], Temporality::Cumulative, true, time, time).build();
+
+        assert_eq!(sum.data_points().count(), 1);
+        assert!(sum.is_monotonic());
+        assert_eq!(sum.temporality(), Temporality::Cumulative);
+        let dp = sum.data_points().next().unwrap();
+        assert_eq!(dp.value(), 100);
+        assert_eq!(dp.attributes().count(), 1);
+    }
+
+    #[test]
+    fn build_histogram_with_optional_fields() {
+        let time = now();
+        let dp = HistogramDataPoint::builder(10, 42.0_f64, vec![5.0, 10.0], vec![3, 5, 2])
+            .with_attributes(vec![KeyValue::new("key", "val")])
+            .with_min(1.0)
+            .with_max(20.0)
+            .build();
+
+        let histogram = Histogram::builder(vec![dp], Temporality::Delta, time, time).build();
+
+        assert_eq!(histogram.data_points().count(), 1);
+        assert_eq!(histogram.temporality(), Temporality::Delta);
+        let dp = histogram.data_points().next().unwrap();
+        assert_eq!(dp.count(), 10);
+        assert_eq!(dp.sum(), 42.0);
+        assert_eq!(dp.min(), Some(1.0));
+        assert_eq!(dp.max(), Some(20.0));
+        assert_eq!(dp.bounds().collect::<Vec<_>>(), vec![5.0, 10.0]);
+        assert_eq!(dp.bucket_counts().collect::<Vec<_>>(), vec![3, 5, 2]);
+    }
+
+    #[test]
+    fn build_exponential_histogram() {
+        let time = now();
+        let dp = ExponentialHistogramDataPoint::builder(
+            5,
+            100.0_f64,
+            3,
+            1,
+            ExponentialBucket::new(0, vec![1, 2, 3]),
+            ExponentialBucket::new(0, vec![4, 5]),
+        )
+        .with_attributes(vec![KeyValue::new("key", "val")])
+        .with_min(10.0)
+        .with_max(50.0)
+        .with_zero_threshold(0.001)
+        .build();
+
+        let eh =
+            ExponentialHistogram::builder(vec![dp], Temporality::Cumulative, time, time).build();
+
+        assert_eq!(eh.data_points().count(), 1);
+        let dp = eh.data_points().next().unwrap();
+        assert_eq!(dp.count(), 5);
+        assert_eq!(dp.scale(), 3);
+        assert_eq!(dp.zero_count(), 1);
+        assert_eq!(dp.sum(), 100.0);
+        assert_eq!(dp.min(), Some(10.0));
+        assert_eq!(dp.max(), Some(50.0));
+        assert!((dp.zero_threshold() - 0.001).abs() < f64::EPSILON);
+        assert_eq!(dp.positive_bucket().offset(), 0);
+        assert_eq!(
+            dp.positive_bucket().counts().collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            dp.negative_bucket().counts().collect::<Vec<_>>(),
+            vec![4, 5]
+        );
+    }
+
+    #[test]
+    fn build_exemplar_with_defaults() {
+        let time = now();
+        let exemplar = Exemplar::builder(42.0_f64, time).build();
+
+        assert_eq!(exemplar.value, 42.0);
+        assert_eq!(exemplar.time(), time);
+        assert_eq!(exemplar.span_id(), &[0; 8]);
+        assert_eq!(exemplar.trace_id(), &[0; 16]);
+        assert_eq!(exemplar.filtered_attributes().count(), 0);
+    }
+
+    #[test]
+    fn build_defaults_without_optional_fields() {
+        let rm = ResourceMetrics::builder().build();
+        assert_eq!(rm.scope_metrics().count(), 0);
+
+        let sm = ScopeMetrics::builder().build();
+        assert_eq!(sm.metrics().count(), 0);
+
+        let dp = GaugeDataPoint::builder(0.0_f64).build();
+        assert_eq!(dp.value(), 0.0);
+        assert_eq!(dp.attributes().count(), 0);
+        assert_eq!(dp.exemplars().count(), 0);
+    }
 
     #[test]
     fn validate_cloning_data_points() {
