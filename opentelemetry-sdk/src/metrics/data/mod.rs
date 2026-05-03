@@ -499,15 +499,15 @@ pub struct Sum<T> {
 }
 
 impl<T> Sum<T> {
-    /// Create a new builder to create a [Sum]
-    pub fn builder(
+    /// Create a new [Sum]
+    pub fn new(
         data_points: Vec<SumDataPoint<T>>,
         temporality: Temporality,
         is_monotonic: bool,
         start_time: SystemTime,
         time: SystemTime,
-    ) -> SumBuilder<T> {
-        SumBuilder {
+    ) -> Self {
+        Sum {
             data_points,
             start_time,
             time,
@@ -543,29 +543,6 @@ impl<T> Sum<T> {
     }
 }
 
-/// Configuration option for [Sum]
-#[derive(Debug)]
-pub struct SumBuilder<T> {
-    data_points: Vec<SumDataPoint<T>>,
-    start_time: SystemTime,
-    time: SystemTime,
-    temporality: Temporality,
-    is_monotonic: bool,
-}
-
-impl<T> SumBuilder<T> {
-    /// Create a new [Sum] from this configuration
-    pub fn build(self) -> Sum<T> {
-        Sum {
-            data_points: self.data_points,
-            start_time: self.start_time,
-            time: self.time,
-            temporality: self.temporality,
-            is_monotonic: self.is_monotonic,
-        }
-    }
-}
-
 /// Represents the histogram of all measurements of values from an instrument.
 #[derive(Debug, Clone)]
 pub struct Histogram<T> {
@@ -581,14 +558,14 @@ pub struct Histogram<T> {
 }
 
 impl<T> Histogram<T> {
-    /// Create a new builder to create a [Histogram]
-    pub fn builder(
+    /// Create a new [Histogram]
+    pub fn new(
         data_points: Vec<HistogramDataPoint<T>>,
         temporality: Temporality,
         start_time: SystemTime,
         time: SystemTime,
-    ) -> HistogramBuilder<T> {
-        HistogramBuilder {
+    ) -> Self {
+        Histogram {
             data_points,
             start_time,
             time,
@@ -615,27 +592,6 @@ impl<T> Histogram<T> {
     /// from the last report time, or the cumulative changes since a fixed start time.
     pub fn temporality(&self) -> Temporality {
         self.temporality
-    }
-}
-
-/// Configuration option for [Histogram]
-#[derive(Debug)]
-pub struct HistogramBuilder<T> {
-    data_points: Vec<HistogramDataPoint<T>>,
-    start_time: SystemTime,
-    time: SystemTime,
-    temporality: Temporality,
-}
-
-impl<T> HistogramBuilder<T> {
-    /// Create a new [Histogram] from this configuration
-    pub fn build(self) -> Histogram<T> {
-        Histogram {
-            data_points: self.data_points,
-            start_time: self.start_time,
-            time: self.time,
-            temporality: self.temporality,
-        }
     }
 }
 
@@ -795,14 +751,14 @@ pub struct ExponentialHistogram<T> {
 }
 
 impl<T> ExponentialHistogram<T> {
-    /// Create a new builder to create an [ExponentialHistogram]
-    pub fn builder(
+    /// Create a new [ExponentialHistogram]
+    pub fn new(
         data_points: Vec<ExponentialHistogramDataPoint<T>>,
         temporality: Temporality,
         start_time: SystemTime,
         time: SystemTime,
-    ) -> ExponentialHistogramBuilder<T> {
-        ExponentialHistogramBuilder {
+    ) -> Self {
+        ExponentialHistogram {
             data_points,
             start_time,
             time,
@@ -829,27 +785,6 @@ impl<T> ExponentialHistogram<T> {
     /// from the last report time, or the cumulative changes since a fixed start time.
     pub fn temporality(&self) -> Temporality {
         self.temporality
-    }
-}
-
-/// Configuration option for [ExponentialHistogram]
-#[derive(Debug)]
-pub struct ExponentialHistogramBuilder<T> {
-    data_points: Vec<ExponentialHistogramDataPoint<T>>,
-    start_time: SystemTime,
-    time: SystemTime,
-    temporality: Temporality,
-}
-
-impl<T> ExponentialHistogramBuilder<T> {
-    /// Create a new [ExponentialHistogram] from this configuration
-    pub fn build(self) -> ExponentialHistogram<T> {
-        ExponentialHistogram {
-            data_points: self.data_points,
-            start_time: self.start_time,
-            time: self.time,
-            temporality: self.temporality,
-        }
     }
 }
 
@@ -1196,12 +1131,21 @@ mod tests {
             .with_start_time(time)
             .build();
 
-        let metric = Metric::builder("my_gauge", AggregatedMetrics::F64(MetricData::Gauge(gauge)))
+        let data = AggregatedMetrics::F64(MetricData::Gauge(gauge));
+
+        let metric = Metric::builder("my_gauge", data)
             .with_description("a test gauge")
             .with_unit("ms")
             .build();
 
-        let scope_metrics = ScopeMetrics::builder().with_metrics(vec![metric]).build();
+        let scope = InstrumentationScope::builder("my_lib")
+            .with_version("0.1.0")
+            .build();
+
+        let scope_metrics = ScopeMetrics::builder()
+            .with_metrics(vec![metric])
+            .with_scope(scope.clone())
+            .build();
 
         let rm = ResourceMetrics::builder()
             .with_resource(Resource::builder().build())
@@ -1211,10 +1155,15 @@ mod tests {
         assert_eq!(rm.scope_metrics().count(), 1);
         let sm = rm.scope_metrics().next().unwrap();
         assert_eq!(sm.metrics().count(), 1);
+        assert_eq!(sm.scope(), &scope);
         let m = sm.metrics().next().unwrap();
         assert_eq!(m.name(), "my_gauge");
         assert_eq!(m.description(), "a test gauge");
         assert_eq!(m.unit(), "ms");
+        assert!(matches!(
+            m.data(),
+            AggregatedMetrics::F64(MetricData::Gauge(_))
+        ));
     }
 
     #[test]
@@ -1224,7 +1173,7 @@ mod tests {
             .with_attributes(vec![KeyValue::new("key", "value")])
             .build();
 
-        let sum = Sum::builder(vec![dp], Temporality::Cumulative, true, time, time).build();
+        let sum = Sum::new(vec![dp], Temporality::Cumulative, true, time, time);
 
         assert_eq!(sum.data_points().count(), 1);
         assert!(sum.is_monotonic());
@@ -1243,7 +1192,7 @@ mod tests {
             .with_max(20.0)
             .build();
 
-        let histogram = Histogram::builder(vec![dp], Temporality::Delta, time, time).build();
+        let histogram = Histogram::new(vec![dp], Temporality::Delta, time, time);
 
         assert_eq!(histogram.data_points().count(), 1);
         assert_eq!(histogram.temporality(), Temporality::Delta);
@@ -1259,6 +1208,8 @@ mod tests {
     #[test]
     fn build_exponential_histogram() {
         let time = now();
+        let exemplar = Exemplar::builder(42.0_f64, time).build();
+
         let dp = ExponentialHistogramDataPoint::builder(
             5,
             100.0_f64,
@@ -1271,12 +1222,15 @@ mod tests {
         .with_min(10.0)
         .with_max(50.0)
         .with_zero_threshold(0.001)
+        .with_exemplars(vec![exemplar])
         .build();
 
-        let eh =
-            ExponentialHistogram::builder(vec![dp], Temporality::Cumulative, time, time).build();
+        let eh = ExponentialHistogram::new(vec![dp], Temporality::Cumulative, time, time);
 
         assert_eq!(eh.data_points().count(), 1);
+        assert_eq!(eh.temporality(), Temporality::Cumulative);
+        assert_eq!(eh.start_time(), time);
+        assert_eq!(eh.time(), time);
         let dp = eh.data_points().next().unwrap();
         assert_eq!(dp.count(), 5);
         assert_eq!(dp.scale(), 3);
@@ -1294,6 +1248,8 @@ mod tests {
             dp.negative_bucket().counts().collect::<Vec<_>>(),
             vec![4, 5]
         );
+
+        assert_eq!(dp.exemplars().count(), 1);
     }
 
     #[test]
