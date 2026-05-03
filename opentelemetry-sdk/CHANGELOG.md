@@ -2,6 +2,14 @@
 
 ## vNext
 
+- Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
+  feature flag. The use cases it was designed for (ETW/user_events exporters) are
+  better served by modeling those exporters as processors directly.
+- Delta metrics collection now uses in-place eviction instead of draining the
+  HashMap on every collect cycle. Stale attribute sets that received no measurements
+  since the last collection are evicted. Note: recovery from cardinality overflow
+  now requires 2 collect cycles — the first marks entries as stale, the second
+  evicts them.
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
@@ -26,6 +34,7 @@
 - Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
+- **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
@@ -35,6 +44,7 @@
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 [3407]: https://github.com/open-telemetry/opentelemetry-rust/pull/3407
 [3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
+[3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.

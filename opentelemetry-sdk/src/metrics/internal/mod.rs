@@ -10,8 +10,7 @@ use core::fmt;
 use portable_atomic::{AtomicI64, AtomicU64};
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
-use std::mem::swap;
-use std::ops::{Add, AddAssign, DerefMut, Sub};
+use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
@@ -52,6 +51,28 @@ pub(crate) trait Aggregator {
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
 }
 
+/// Wraps an aggregator with status tracking for delta collection.
+///
+/// `has_been_updated` tracks whether the aggregator received measurements since the last
+/// collection cycle. This enables in-place delta collection: only updated entries are exported,
+/// and stale entries are evicted to prevent unbounded memory growth.
+pub(crate) struct TrackerEntry<A: Aggregator> {
+    pub(crate) aggregator: A,
+    pub(crate) has_been_updated: AtomicBool,
+}
+
+impl<A: Aggregator> TrackerEntry<A> {
+    fn new(config: &A::InitConfig) -> Self {
+        TrackerEntry {
+            aggregator: A::create(config),
+            has_been_updated: AtomicBool::new(false),
+        }
+    }
+}
+
+/// Map from attribute sets to their aggregator tracker entries.
+type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
@@ -61,19 +82,12 @@ where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<HashMap<Vec<KeyValue>, Arc<A>>>,
-
-    /// Used ONLY by Delta collect. The data type must match the one used in
-    /// `trackers` to allow mem::swap. Wrapping the type in `OnceLock` to
-    /// avoid this allocation for Cumulative aggregation.
-    trackers_for_collect: OnceLock<RwLock<HashMap<Vec<KeyValue>, Arc<A>>>>,
+    trackers: RwLock<TrackerMap<A>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
-    /// Indicates whether a value with no attributes has been stored.
-    has_no_attribute_value: AtomicBool,
     /// Tracker for values with no attributes attached.
-    no_attribute_tracker: A,
+    no_attribute_tracker: TrackerEntry<A>,
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
@@ -83,27 +97,20 @@ impl<A> ValueMap<A>
 where
     A: Aggregator,
 {
+    pub(crate) fn config(&self) -> &A::InitConfig {
+        &self.config
+    }
+
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
             trackers: RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
             )),
-            trackers_for_collect: OnceLock::new(),
-            has_no_attribute_value: AtomicBool::new(false),
-            no_attribute_tracker: A::create(&config),
+            no_attribute_tracker: TrackerEntry::new(&config),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
         }
-    }
-
-    #[inline]
-    fn trackers_for_collect(&self) -> &RwLock<HashMap<Vec<KeyValue>, Arc<A>>> {
-        self.trackers_for_collect.get_or_init(|| {
-            RwLock::new(HashMap::with_capacity(
-                1 + min(DEFAULT_CARDINALITY_LIMIT, self.cardinality_limit),
-            ))
-        })
     }
 
     /// Checks whether aggregator has hit cardinality limit for metric streams
@@ -113,8 +120,10 @@ where
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
         if attributes.is_empty() {
-            self.no_attribute_tracker.update(value);
-            self.has_no_attribute_value.store(true, Ordering::Release);
+            self.no_attribute_tracker.aggregator.update(value);
+            self.no_attribute_tracker
+                .has_been_updated
+                .store(true, Ordering::Release);
             return;
         }
 
@@ -124,14 +133,16 @@ where
 
         // Try to retrieve and update the tracker with the attributes in the provided order first
         if let Some(tracker) = trackers.get(attributes) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
             return;
         }
 
         // Try to retrieve and update the tracker with the attributes sorted.
         let sorted_attrs = sort_and_dedup(attributes);
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
             return;
         }
 
@@ -145,12 +156,15 @@ where
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
         if let Some(tracker) = trackers.get(attributes) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
         } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
-            tracker.update(value);
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
         } else if self.is_under_cardinality_limit() {
-            let new_tracker = Arc::new(A::create(&self.config));
-            new_tracker.update(value);
+            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+            new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
 
             // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
@@ -158,10 +172,14 @@ where
 
             self.count.fetch_add(1, Ordering::SeqCst);
         } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
-            overflow_value.update(value);
+            overflow_value.aggregator.update(value);
+            overflow_value
+                .has_been_updated
+                .store(true, Ordering::Release);
         } else {
-            let new_tracker = A::create(&self.config);
-            new_tracker.update(value);
+            let new_tracker = TrackerEntry::<A>::new(&self.config);
+            new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
         }
     }
@@ -174,8 +192,12 @@ where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.load(Ordering::Acquire) {
-            dest.push(map_fn(vec![], &self.no_attribute_tracker));
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .load(Ordering::Acquire)
+        {
+            dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
 
         let Ok(trackers) = self.trackers.read() else {
@@ -185,47 +207,107 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), tracker));
+                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
             }
         }
     }
 
-    /// Iterate through all attribute sets, populate `DataPoints` and reset.
-    /// This is used for:
-    /// - Synchronous instruments in Delta temporality mode
-    /// - Asynchronous instruments (Observable) in both Delta and Cumulative temporality modes
+    /// Iterate through all attribute sets in-place, populate `DataPoints` and reset.
+    /// Only entries updated since the last collection (tracked via `has_been_updated`)
+    /// are exported. Stale entries are evicted to prevent unbounded memory growth.
     ///
-    /// For asynchronous instruments, this removes stale attribute sets that were not observed
-    /// in the current callback, ensuring only currently active attributes are reported.
+    /// Used for synchronous instruments (Counter, Histogram, etc.) in Delta temporality mode.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
+    where
+        MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
+    {
+        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .swap(false, Ordering::AcqRel)
+        {
+            dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
+        }
+
+        let overflow_attrs = stream_overflow_attributes();
+        let mut stale_entries: Vec<Arc<TrackerEntry<A>>> = Vec::new();
+
+        {
+            let Ok(trackers) = self.trackers.read() else {
+                return;
+            };
+
+            let mut seen = HashSet::new();
+            for (attrs, tracker) in trackers.iter() {
+                if seen.insert(Arc::as_ptr(tracker)) {
+                    if tracker.has_been_updated.swap(false, Ordering::Acquire) {
+                        dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+                    } else if attrs.as_slice() != overflow_attrs.as_slice() {
+                        // Stale — candidate for eviction
+                        stale_entries.push(Arc::clone(tracker));
+                    }
+                }
+            }
+            // Read lock released here
+        }
+
+        if !stale_entries.is_empty() {
+            if let Ok(mut trackers) = self.trackers.write() {
+                // Re-check under write lock to avoid TOCTOU race: a measure() call between
+                // dropping the read lock and acquiring the write lock could have updated
+                // an entry we marked as stale.
+                stale_entries.retain(|entry| !entry.has_been_updated.load(Ordering::Acquire));
+
+                if !stale_entries.is_empty() {
+                    let stale_pointers: HashSet<*const TrackerEntry<A>> =
+                        stale_entries.iter().map(Arc::as_ptr).collect();
+                    trackers.retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
+                    self.count.fetch_sub(stale_entries.len(), Ordering::SeqCst);
+                }
+            }
+        }
+    }
+
+    /// Iterate through all attribute sets, populate `DataPoints` and reset by draining the map.
+    /// This is used for asynchronous instruments (Observable/PrecomputedSum) in both Delta and
+    /// Cumulative temporality modes, where map clearing is needed for staleness detection.
+    pub(crate) fn drain_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
-        if self.has_no_attribute_value.swap(false, Ordering::AcqRel) {
+        if self
+            .no_attribute_tracker
+            .has_been_updated
+            .swap(false, Ordering::AcqRel)
+        {
             dest.push(map_fn(
                 vec![],
-                self.no_attribute_tracker.clone_and_reset(&self.config),
+                self.no_attribute_tracker
+                    .aggregator
+                    .clone_and_reset(&self.config),
             ));
         }
 
-        if let Ok(mut trackers_collect) = self.trackers_for_collect().write() {
-            if let Ok(mut trackers_current) = self.trackers.write() {
-                swap(trackers_collect.deref_mut(), trackers_current.deref_mut());
-                self.count.store(0, Ordering::SeqCst);
-            } else {
+        let old_trackers = {
+            let Ok(mut trackers) = self.trackers.write() else {
                 otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
                 return;
-            }
+            };
+            self.count.store(0, Ordering::SeqCst);
+            std::mem::take(&mut *trackers)
+            // Write lock released here
+        };
 
-            let mut seen = HashSet::new();
-            for (attrs, tracker) in trackers_collect.drain() {
-                if seen.insert(Arc::as_ptr(&tracker)) {
-                    dest.push(map_fn(attrs, tracker.clone_and_reset(&self.config)));
-                }
+        let mut seen = HashSet::new();
+        for (attrs, tracker) in old_trackers {
+            if seen.insert(Arc::as_ptr(&tracker)) {
+                dest.push(map_fn(
+                    attrs,
+                    tracker.aggregator.clone_and_reset(&self.config),
+                ));
             }
-        } else {
-            otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers for collect lock poisoned");
         }
     }
 }
@@ -649,8 +731,58 @@ mod tests {
         // This is a regression test for panics that used to occur for large cardinality limits
 
         // Should not panic
-        let value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
-        // Should not panic
-        let _ = value_map.trackers_for_collect();
+        let _value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
+    }
+
+    #[test]
+    fn stale_entry_evicts_both_unsorted_and_sorted_keys() {
+        // ValueMap stores two HashMap keys per attribute set: one for the insertion
+        // order and one for the sorted (canonical) order, both pointing to the same
+        // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
+        // keys so no zombie entries remain in the map.
+        let value_map = ValueMap::<Assign<i64>>::new((), 10);
+
+        // Insert with attributes deliberately in non-sorted order.
+        // measure() inserts two keys:
+        //   - unsorted: [("b", ...), ("a", ...)]
+        //   - sorted:   [("a", ...), ("b", ...)]
+        // both pointing to the same Arc<TrackerEntry>.
+        let attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
+        value_map.measure(1_i64, attrs.as_slice());
+
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                2,
+                "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
+            );
+        }
+        assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
+
+        // First collect: entry was updated, so it is exported and has_been_updated is reset.
+        let mut dest: Vec<Vec<KeyValue>> = Vec::new();
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 1, "first collect should export the entry");
+
+        // Second collect: entry was not updated since last collect, so it is stale.
+        // Both HashMap keys (unsorted + sorted) must be evicted.
+        dest.clear();
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 0, "stale entry should not be exported");
+
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                0,
+                "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
+            );
+        }
+        assert_eq!(
+            value_map.count.load(Ordering::SeqCst),
+            0,
+            "count should reach 0 after eviction"
+        );
     }
 }
