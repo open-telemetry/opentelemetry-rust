@@ -1577,36 +1577,68 @@ mod json_serde {
                     }),
                     scope_metrics: vec![ScopeMetrics {
                         scope: None,
-                        metrics: vec![Metric {
-                            name: String::from("example_metric"),
-                            description: String::from("A sample metric with NaN values"),
-                            unit: String::from("1"),
-                            metadata: vec![],
-                            data: Some(
-                                opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(
-                                    Summary {
-                                        data_points: vec![SummaryDataPoint {
-                                            attributes: vec![],
-                                            start_time_unix_nano: 0,
-                                            time_unix_nano: 0,
-                                            count: 100,
-                                            sum: 500.0,
-                                            quantile_values: vec![
-                                                ValueAtQuantile {
-                                                    quantile: 0.5,
-                                                    value: f64::NAN,
-                                                },
-                                                ValueAtQuantile {
-                                                    quantile: 0.9,
-                                                    value: f64::NAN,
-                                                },
-                                            ],
-                                            flags: 0,
-                                        }],
-                                    },
+                        metrics: vec![
+                            Metric {
+                                name: String::from("example_metric"),
+                                description: String::from("A sample metric with NaN values"),
+                                unit: String::from("1"),
+                                metadata: vec![],
+                                data: Some(
+                                    opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(
+                                        Summary {
+                                            data_points: vec![SummaryDataPoint {
+                                                attributes: vec![],
+                                                start_time_unix_nano: 0,
+                                                time_unix_nano: 0,
+                                                count: 100,
+                                                sum: 500.0,
+                                                quantile_values: vec![
+                                                    ValueAtQuantile {
+                                                        quantile: 0.5,
+                                                        value: f64::NAN,
+                                                    },
+                                                    ValueAtQuantile {
+                                                        quantile: 0.9,
+                                                        value: f64::NAN,
+                                                    },
+                                                ],
+                                                flags: 0,
+                                            }],
+                                        },
+                                    ),
                                 ),
-                            ),
-                        }],
+                            },
+                            Metric {
+                                name: String::from("my.histogram"),
+                                description: String::from("I am an Histogram with NaN values"),
+                                unit: String::from("1"),
+                                metadata: vec![],
+                                data: Some(Data::Histogram(Histogram {
+                                    data_points: vec![HistogramDataPoint {
+                                        attributes: vec![KeyValue {
+                                            key: String::from("my.histogram.attr"),
+                                            value: Some(AnyValue {
+                                                value: Some(Value::StringValue(String::from(
+                                                    "some value",
+                                                ))),
+                                            }),
+                                            key_strindex: 0,
+                                        }],
+                                        start_time_unix_nano: 1544712660300000000,
+                                        time_unix_nano: 1544712660300000000,
+                                        count: 2,
+                                        sum: Some(f64::NAN),
+                                        bucket_counts: vec![1, 1],
+                                        explicit_bounds: vec![1.0],
+                                        exemplars: vec![],
+                                        flags: 0,
+                                        min: Some(f64::NAN),
+                                        max: Some(f64::NAN),
+                                    }],
+                                    aggregation_temporality: 1,
+                                })),
+                            },
+                        ],
                         schema_url: String::new(),
                     }],
                     schema_url: String::new(),
@@ -1659,7 +1691,43 @@ mod json_serde {
                           }
                         ]
                       }
+                    },
+                    {
+                    "name": "my.histogram",
+                    "description": "I am an Histogram with NaN values",
+                    "unit": "1",
+                    "metadata": [],
+                    "histogram": {
+                      "dataPoints": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "my.histogram.attr",
+                              "value": {
+                                "stringValue": "some value"
+                              }
+                            }
+                          ],
+                          "startTimeUnixNano": "1544712660300000000",
+                          "timeUnixNano": "1544712660300000000",
+                          "count": "2",
+                          "sum": "NaN",
+                          "bucketCounts": [
+                            "1",
+                            "1"
+                          ],
+                          "explicitBounds": [
+                            1.0
+                          ],
+                          "exemplars": [],
+                          "flags": 0,
+                          "min": "NaN",
+                          "max": "NaN"
+                        }
+                      ],
+                      "aggregationTemporality": 1
                     }
+                  }
                   ],
                   "schemaUrl": ""
                 }
@@ -1711,7 +1779,7 @@ mod json_serde {
 
             let scope_metric = &resource_metric.scope_metrics[0];
             assert!(scope_metric.scope.is_none());
-            assert_eq!(scope_metric.metrics.len(), 1);
+            assert_eq!(scope_metric.metrics.len(), 2);
 
             let metric = &scope_metric.metrics[0];
             assert_eq!(metric.name, "example_metric");
@@ -1739,6 +1807,26 @@ mod json_serde {
                 assert!(data_point.quantile_values[1].quantile == 0.9);
             } else {
                 panic!("Expected metric data to be of type Summary");
+            }
+            let histogram_metric = &actual.resource_metrics[0].scope_metrics[0].metrics[1];
+            assert_eq!(histogram_metric.name, "my.histogram");
+            assert_eq!(histogram_metric.unit, "1");
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Histogram(hist)) =
+                &histogram_metric.data
+            {
+                assert_eq!(hist.data_points.len(), 1);
+                let data_point = &hist.data_points[0];
+                assert_eq!(data_point.attributes.len(), 1);
+                assert_eq!(data_point.start_time_unix_nano, 1544712660300000000);
+                assert_eq!(data_point.time_unix_nano, 1544712660300000000);
+                assert_eq!(data_point.count, 2);
+
+                // Checking special NaN quantile values
+                assert!(data_point.sum.unwrap().is_nan());
+                assert!(data_point.min.unwrap().is_nan());
+                assert!(data_point.max.unwrap().is_nan());
+            } else {
+                panic!("Expected histogram data");
             }
         }
     }
@@ -1875,6 +1963,122 @@ mod json_serde {
                 assert_eq!(qv.value, 99.0);
             } else {
                 panic!("expected summary data");
+            }
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod metrics_with_infinite {
+        use super::*;
+        use opentelemetry_proto::tonic::metrics::v1::Histogram;
+        use opentelemetry_proto::tonic::metrics::v1::HistogramDataPoint;
+
+        fn value_with_infinite() -> ExportMetricsServiceRequest {
+            ExportMetricsServiceRequest {
+                resource_metrics: vec![ResourceMetrics {
+                    resource: None,
+                    scope_metrics: vec![ScopeMetrics {
+                        scope: None,
+                        metrics: vec![Metric {
+                            name: String::from("infinite_metric"),
+                            description: String::from("Metric with infinity values"),
+                            unit: String::from("1"),
+                            metadata: vec![],
+                            data: Some(
+                                opentelemetry_proto::tonic::metrics::v1::metric::Data::Histogram(
+                                    Histogram {
+                                        data_points: vec![HistogramDataPoint {
+                                            attributes: vec![],
+                                            start_time_unix_nano: 0,
+                                            time_unix_nano: 0,
+                                            count: 1,
+                                            sum: Some(f64::INFINITY),
+                                            bucket_counts: vec![1],
+                                            explicit_bounds: vec![],
+                                            exemplars: vec![],
+                                            flags: 0,
+                                            min: Some(f64::NEG_INFINITY),
+                                            max: Some(f64::INFINITY),
+                                        }],
+                                        aggregation_temporality: 1,
+                                    },
+                                ),
+                            ),
+                        }],
+                        schema_url: String::new(),
+                    }],
+                    schema_url: String::new(),
+                }],
+            }
+        }
+
+        // language=json
+        const CANONICAL_WITH_INFINITE: &str = r#"{
+          "resourceMetrics": [
+            {
+              "resource": null,
+              "scopeMetrics": [
+                {
+                  "scope": null,
+                  "metrics": [
+                    {
+                      "name": "infinite_metric",
+                      "description": "Metric with infinity values",
+                      "unit": "1",
+                      "metadata": [],
+                      "histogram": {
+                        "dataPoints": [
+                          {
+                            "attributes": [],
+                            "startTimeUnixNano": "0",
+                            "timeUnixNano": "0",
+                            "count": "1",
+                            "sum": "Infinity",
+                            "bucketCounts": ["1"],
+                            "explicitBounds": [],
+                            "exemplars": [],
+                            "flags": 0,
+                            "min": "-Infinity",
+                            "max": "Infinity"
+                          }
+                        ],
+                        "aggregationTemporality": 1
+                      }
+                    }
+                  ],
+                  "schemaUrl": ""
+                }
+              ],
+              "schemaUrl": ""
+            }
+          ]
+        }"#;
+
+        #[test]
+        fn serialize_with_infinite_values() {
+            let input = value_with_infinite();
+            let actual = serde_json::to_string_pretty(&input).unwrap();
+            let actual_value: serde_json::Value = serde_json::from_str(&actual).unwrap();
+            let expected_value: serde_json::Value =
+                serde_json::from_str(CANONICAL_WITH_INFINITE).unwrap();
+            assert_eq!(actual_value, expected_value);
+        }
+
+        #[test]
+        fn deserialize_with_infinite_values() {
+            let actual: ExportMetricsServiceRequest = serde_json::from_str(CANONICAL_WITH_INFINITE)
+                .expect("deserialization must succeed");
+
+            let metric = &actual.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Histogram(hist)) =
+                &metric.data
+            {
+                let dp = &hist.data_points[0];
+                assert_eq!(dp.sum, Some(f64::INFINITY));
+                assert_eq!(dp.min, Some(f64::NEG_INFINITY));
+                assert_eq!(dp.max, Some(f64::INFINITY));
+            } else {
+                panic!("Expected Histogram data");
             }
         }
     }

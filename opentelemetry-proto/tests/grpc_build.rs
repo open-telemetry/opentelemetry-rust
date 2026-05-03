@@ -184,6 +184,18 @@ fn build_tonic() {
         );
     }
 
+    //Special serializers and deserializers for Option<f64> floating point fields
+    for path in [
+        "metrics.v1.HistogramDataPoint.sum",
+        "metrics.v1.HistogramDataPoint.min",
+        "metrics.v1.HistogramDataPoint.max",
+        "metrics.v1.ExponentialHistogramDataPoint.sum",
+        "metrics.v1.ExponentialHistogramDataPoint.min",
+        "metrics.v1.ExponentialHistogramDataPoint.max",
+    ] {
+        builder = builder.field_attribute(path, "#[cfg_attr(feature = \"with-serde\",serde(serialize_with = \"crate::proto::serializers::serialize_option_f64_special\", deserialize_with=\"crate::proto::serializers::deserialize_option_f64_special\"))]")
+    }
+
     // special serializer and deserializer for value
     // The Value::value field must be hidden
     builder = builder

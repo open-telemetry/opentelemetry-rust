@@ -466,6 +466,13 @@ pub struct HistogramDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
     /// for each bucket.
@@ -513,9 +520,23 @@ pub struct HistogramDataPoint {
     pub flags: u32,
     /// min is the minimum value over (start_time, end_time\].
     #[prost(double, optional, tag = "11")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub min: ::core::option::Option<f64>,
     /// max is the maximum value over (start_time, end_time\].
     #[prost(double, optional, tag = "12")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub max: ::core::option::Option<f64>,
 }
 /// ExponentialHistogramDataPoint is a single data point in a timeseries that describes the
@@ -582,6 +603,13 @@ pub struct ExponentialHistogramDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
     /// located at powers of the base, where:
@@ -633,9 +661,23 @@ pub struct ExponentialHistogramDataPoint {
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
     /// The minimum value over (start_time, end_time\].
     #[prost(double, optional, tag = "12")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub min: ::core::option::Option<f64>,
     /// The maximum value over (start_time, end_time\].
     #[prost(double, optional, tag = "13")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub max: ::core::option::Option<f64>,
     /// ZeroThreshold may be optionally set to convey the width of the zero
     /// region. Where the zero region is defined as the closed interval
@@ -806,9 +848,7 @@ pub struct Exemplar {
     /// recorded alongside the original measurement. Only key/value pairs that were
     /// filtered out by the aggregator should be included
     #[prost(message, repeated, tag = "7")]
-    pub filtered_attributes: ::prost::alloc::vec::Vec<
-        super::super::common::v1::KeyValue,
-    >,
+    pub filtered_attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// time_unix_nano is the exact time when this exemplar was recorded
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January

@@ -8,6 +8,7 @@ pub(crate) mod serializers {
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::borrow::Cow;
     use std::fmt;
 
     pub fn is_default<T>(value: &T) -> bool
@@ -415,6 +416,86 @@ pub(crate) mod serializers {
         }
 
         deserializer.deserialize_any(F64Visitor)
+    }
+
+    // special serialize for option<f64> types for Nan, Infinity and -Infinity
+
+    pub fn serialize_option_f64_special<S>(
+        value: &Option<f64>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(v) => {
+                if v.is_nan() {
+                    serializer.serialize_str("NaN")
+                } else if v.is_infinite() {
+                    if v.is_sign_positive() {
+                        serializer.serialize_str("Infinity")
+                    } else {
+                        serializer.serialize_str("-Infinity")
+                    }
+                } else {
+                    serializer.serialize_some(v)
+                }
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+    // deserializer method
+    pub fn deserialize_option_f64_special<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct OptionF64Visitor;
+
+        impl<'de> de::Visitor<'de> for OptionF64Visitor {
+            type Value = Option<f64>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Option<f64>, E>
+            where
+                E: de::Error,
+            {
+                Ok(Some((value as f64)))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Option<f64>, E>
+            where
+                E: de::Error,
+            {
+                Ok(Some(value as f64))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Option<f64>, E>
+            where
+                E: de::Error,
+            {
+                Ok(Some(value as f64))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Option<f64>, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "NaN" => Ok(Some(f64::NAN)),
+                    "Infinity" => Ok(Some(f64::INFINITY)),
+                    "-Infinity" => Ok(Some(f64::NEG_INFINITY)),
+                    _ => return Err(E::custom(format!(
+                            "invalid string for f64: expected a number, NaN, Infinity, or -Infinity but got '{}'",
+                           value
+                    )))
+                }
+            }
+        }
+
+        deserializer.deserialize_any(OptionF64Visitor)
     }
 }
 
