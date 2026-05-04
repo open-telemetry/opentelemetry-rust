@@ -15,7 +15,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider},
     propagation::{BaggagePropagator, TraceContextPropagator},
-    trace::{SdkTracerProvider, SpanProcessor},
+    trace::{SdkTracerProvider, SpanData, SpanProcessor},
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
@@ -105,6 +105,44 @@ async fn router(
     response
 }
 
+/// A span processor that sets the span status to Error when the HTTP response
+/// status code indicates a client or server error (>= 400).
+#[derive(Debug)]
+struct HttpErrorStatusProcessor;
+
+impl SpanProcessor for HttpErrorStatusProcessor {
+    fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn on_start(&self, _span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {}
+
+    fn on_ending(&self, span: &mut opentelemetry_sdk::trace::Span) {
+        let is_error = span
+            .exported_data()
+            .and_then(|d| {
+                let status_code = d
+                    .attributes
+                    .iter()
+                    .find(|kv| kv.key.as_str() == trace::HTTP_RESPONSE_STATUS_CODE)?;
+                let opentelemetry::Value::I64(code) = &status_code.value else {
+                    return None;
+                };
+                Some(*code >= 400)
+            })
+            .unwrap_or(false);
+        if is_error {
+            span.set_status(opentelemetry::trace::Status::error("HTTP error response"));
+        }
+    }
+
+    fn on_end(&self, _span: SpanData) {}
+}
+
 /// A custom log processor that enriches LogRecords with baggage attributes.
 /// Baggage information is not added automatically without this processor.
 #[derive(Debug)]
@@ -163,6 +201,7 @@ fn init_tracer() -> SdkTracerProvider {
     // that prints the spans to stdout.
     let provider = SdkTracerProvider::builder()
         .with_span_processor(EnrichWithBaggageSpanProcessor)
+        .with_span_processor(HttpErrorStatusProcessor)
         .with_simple_exporter(SpanExporter::default())
         .build();
 

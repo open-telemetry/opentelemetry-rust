@@ -59,6 +59,7 @@ experimental_metrics_custom_reader = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
+experimental_span_processor_on_ending = ["trace"]
 bench_profiling = []
 
 [[bench]]
