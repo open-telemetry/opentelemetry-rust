@@ -303,7 +303,6 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
 #[cfg(feature = "experimental_span_attributes")]
 #[derive(Debug)]
 struct StoredSpanAttributes {
-    span_name: &'static str,
     attributes: Vec<(Key, AnyValue)>,
 }
 
@@ -438,10 +437,10 @@ where
                 // of all branches/parent spans down to the child.
                 let mut current_span_name: Option<&'static str> = None;
                 for span_ref in scope.from_root() {
+                    current_span_name = Some(span_ref.metadata().name());
                     // Access extensions inline - each span has its own extension lock
                     let extensions = span_ref.extensions();
                     if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
-                        current_span_name = Some(stored.span_name);
                         for (key, value) in stored.attributes.iter() {
                             log_record.add_attribute(key.clone(), value.clone());
                         }
@@ -470,7 +469,6 @@ where
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let span = ctx.span(id).expect("Span not found; this is a bug");
-        let span_name = attrs.metadata().name();
         let mut fields = Vec::with_capacity(attrs.fields().len());
         let mut visitor = SpanFieldVisitor {
             attributes: &mut fields,
@@ -478,13 +476,13 @@ where
         };
         attrs.record(&mut visitor);
 
-        let stored = StoredSpanAttributes {
-            span_name,
-            attributes: fields,
-        };
+        // Only store if we actually found attributes to avoid empty allocations
+        if !fields.is_empty() {
+            let stored = StoredSpanAttributes { attributes: fields };
 
-        let mut extensions = span.extensions_mut();
-        extensions.insert(stored);
+            let mut extensions = span.extensions_mut();
+            extensions.insert(stored);
+        }
     }
 
     #[cfg(feature = "experimental_span_attributes")]
@@ -506,18 +504,16 @@ where
             values.record(&mut visitor);
         } else {
             // No existing attributes, create new storage
-            let span_name = span.metadata().name();
             let mut fields = Vec::with_capacity(values.len());
             let mut visitor = SpanFieldVisitor {
                 attributes: &mut fields,
                 allowlist: self.span_attribute_allowlist.as_ref(),
             };
             values.record(&mut visitor);
-            let stored = StoredSpanAttributes {
-                span_name,
-                attributes: fields,
-            };
-            extensions.insert(stored);
+            if !fields.is_empty() {
+                let stored = StoredSpanAttributes { attributes: fields };
+                extensions.insert(stored);
+            }
         }
     }
 }
