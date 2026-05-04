@@ -316,6 +316,8 @@ where
     _phantom: std::marker::PhantomData<P>, // P is not used.
     #[cfg(feature = "experimental_span_attributes")]
     span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
+    #[cfg(feature = "experimental_span_attributes")]
+    span_name_key: Option<Key>,
 }
 
 impl<P, L> OpenTelemetryTracingBridge<P, L>
@@ -338,6 +340,8 @@ where
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
             span_attribute_allowlist: None,
+            #[cfg(feature = "experimental_span_attributes")]
+            span_name_key: None,
         }
     }
 }
@@ -351,6 +355,8 @@ where
     _phantom: std::marker::PhantomData<P>,
     #[cfg(feature = "experimental_span_attributes")]
     span_attribute_allowlist: Option<HashSet<Cow<'static, str>>>,
+    #[cfg(feature = "experimental_span_attributes")]
+    span_name_key: Option<Key>,
 }
 
 impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
@@ -369,6 +375,15 @@ where
         self
     }
 
+    /// Propagate the current (leaf) span's name to log records using the given
+    /// attribute key. Setting this enables the propagation; leaving it unset
+    /// (the default) disables it.
+    #[cfg(feature = "experimental_span_attributes")]
+    pub fn with_span_name(mut self, key: impl Into<Key>) -> Self {
+        self.span_name_key = Some(key.into());
+        self
+    }
+
     pub fn build(self) -> OpenTelemetryTracingBridge<P, L> {
         OpenTelemetryTracingBridge {
             logger: self.logger,
@@ -376,6 +391,8 @@ where
             #[cfg(feature = "experimental_span_attributes")]
             // Treat empty allowlist as not set - disable the feature flag instead.
             span_attribute_allowlist: self.span_attribute_allowlist.filter(|s| !s.is_empty()),
+            #[cfg(feature = "experimental_span_attributes")]
+            span_name_key: self.span_name_key,
         }
     }
 }
@@ -416,6 +433,9 @@ where
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
                 // Track the current (leaf) span's name to propagate it
+                // TODO: consider alternative (user configurable?) strategies
+                // to only tracking the leaf span. For example, providing a list
+                // of all branches/parent spans down to the child.
                 let mut current_span_name: Option<&'static str> = None;
                 for span_ref in scope.from_root() {
                     // Access extensions inline - each span has its own extension lock
@@ -427,8 +447,8 @@ where
                         }
                     }
                 }
-                if let Some(name) = current_span_name {
-                    log_record.add_attribute(Key::new("span.name"), AnyValue::from(name));
+                if let (Some(key), Some(name)) = (self.span_name_key.as_ref(), current_span_name) {
+                    log_record.add_attribute(key.clone(), AnyValue::from(name));
                 }
             }
         }
@@ -1539,11 +1559,12 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
-            tracing_subscriber::filter::filter_fn(|meta| {
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_name("span.name")
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
-            }),
-        );
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1571,11 +1592,12 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
-            tracing_subscriber::filter::filter_fn(|meta| {
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_name("span.name")
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
-            }),
-        );
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
@@ -1596,5 +1618,75 @@ mod tests {
             &Key::new("span.name"),
             &AnyValue::String("inner_span".into())
         ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_name_uses_configured_key() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_span_name("custom.span_name")
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("my_span_name");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("custom.span_name"),
+            &AnyValue::String("my_span_name".into())
+        ));
+        // The default `span.name` key should not be present.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("span.name")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_does_not_propagate_span_name_by_default() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("my_span_name");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // No span name attribute should be present without explicit opt-in.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("span.name")));
     }
 }
