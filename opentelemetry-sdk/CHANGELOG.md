@@ -2,6 +2,9 @@
 
 ## vNext
 
+- `SimpleSpanProcessor` now suppresses telemetry during export, preventing
+  telemetry-induced-telemetry feedback loops. This aligns with the existing
+  behavior in `BatchSpanProcessor` and `SimpleLogProcessor`.
 - Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
   feature flag. The use cases it was designed for (ETW/user_events exporters) are
   better served by modeling those exporters as processors directly.
