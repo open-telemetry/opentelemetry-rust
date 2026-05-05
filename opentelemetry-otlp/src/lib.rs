@@ -625,7 +625,7 @@
 #![allow(elided_lifetimes_in_paths)]
 #![cfg_attr(
     docsrs,
-    feature(doc_cfg, doc_auto_cfg),
+    feature(doc_cfg),
     deny(rustdoc::broken_intra_doc_links)
 )]
 #![cfg_attr(test, deny(warnings))]
