@@ -2,6 +2,16 @@
 
 ## vNext
 
+- **Added** `BoundCounter<T>` and `BoundHistogram<T>` types that cache resolved
+  aggregator references for a fixed attribute set. Created via `Counter::bind()`
+  and `Histogram::bind()`, bound instruments bypass per-call attribute lookup,
+  providing significant performance improvements for hot paths where the same
+  attributes are used repeatedly. Both types implement `Clone` so a single bound
+  state can be shared across threads or modules without re-binding. Also adds
+  the `SyncInstrument::bind()` trait method and `BoundSyncInstrument<T>` trait
+  for SDK implementors; the trait method has a no-op default so custom
+  `SyncInstrument` impls degrade gracefully without panicking. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`

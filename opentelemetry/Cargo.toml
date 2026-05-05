@@ -39,6 +39,7 @@ metrics = []
 testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
+experimental_metrics_bound_instruments = ["metrics"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
@@ -67,6 +68,16 @@ required-features = ["tracing"]
 [[bench]]
 name = "context_suppression"
 harness = false
+
+[[bench]]
+name = "trace"
+harness = false
+required-features = ["trace"]
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs"]
 
 [[bench]]
 name = "baggage"

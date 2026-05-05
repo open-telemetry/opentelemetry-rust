@@ -367,7 +367,7 @@ fn prometheus_exporter_integration() {
                         KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
                     ]
                     .into_iter()
-                    .chain(tc.custom_resource_attrs.into_iter()),
+                    .chain(tc.custom_resource_attrs),
                 )
                 .build()
         };
@@ -774,7 +774,7 @@ fn duplicate_metrics() {
                     KeyValue::new(TELEMETRY_SDK_VERSION, "latest"),
                 ]
                 .into_iter()
-                .chain(tc.custom_resource_attrs.into_iter()),
+                .chain(tc.custom_resource_attrs),
             )
             .build();
 

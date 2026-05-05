@@ -9,6 +9,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
+[![Benchmarks](https://img.shields.io/badge/benchmarks-dashboard-blue)](https://open-telemetry.github.io/opentelemetry-rust/dev/bench/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-telemetry/opentelemetry-rust/badge)](https://scorecard.dev/viewer/?uri=github.com/open-telemetry/opentelemetry-rust)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10394/badge)](https://www.bestpractices.dev/projects/10394)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
@@ -72,10 +73,12 @@ Project versioning information and stability guarantees can be found
 
 ## Getting Started
 
-If you are new to OpenTelemetry, start with the [Stdout
-Example](./opentelemetry-stdout/examples/basic.rs). This example demonstrates
-how to use OpenTelemetry for logs, metrics, and traces, and display
-telemetry data on your console.
+If you are new to OpenTelemetry, start with the getting started examples for
+[logs](./examples/logs-basic/README.md),
+[metrics](./examples/metrics-basic/README.md) or
+[traces](./examples/tracing-grpc/README.md). This example demonstrates how to
+use OpenTelemetry for logs, metrics, and traces, and display telemetry data on
+your console.
 
 For those using OTLP, the recommended OpenTelemetry Exporter for production
 scenarios, refer to the [OTLP Example -
@@ -194,20 +197,20 @@ For more information about the maintainer role, see the [community repository](h
 
 ### Approvers
 
-* [Anton Grübel](https://github.com/gruebel), Baz
 * [Björn Antonsson](https://github.com/bantonsson), Datadog
 * [Scott Gerring](https://github.com/scottgerring), Datadog
-* [Shaun Cox](https://github.com/shaun-cox), Microsoft
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 
-* [Dirkjan Ochtman](https://github.com/djc)
-* [Isobel Redelmeier](https://github.com/iredelmeier)
-* [Jan Kühle](https://github.com/frigus02)
-* [Julian Tescher](https://github.com/jtescher)
-* [Mike Goldsmith](https://github.com/MikeGoldsmith)
+* [Anton Grübel](https://github.com/gruebel), Approver
+* [Dirkjan Ochtman](https://github.com/djc), Maintainer
+* [Isobel Redelmeier](https://github.com/iredelmeier), Maintainer
+* [Jan Kühle](https://github.com/frigus02), Approver
+* [Julian Tescher](https://github.com/jtescher), Maintainer
+* [Mike Goldsmith](https://github.com/MikeGoldsmith), Approver
+* [Shaun Cox](https://github.com/shaun-cox), Approver
 
 For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 
