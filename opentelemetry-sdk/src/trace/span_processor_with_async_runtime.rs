@@ -1,6 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::runtime::{to_interval_stream, Joinable, JoinError, RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, JoinError, JoinHandle, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
@@ -79,7 +79,7 @@ pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
     /// Handle to the background worker task. Used to join on shutdown.
-    worker_handle: Arc<Mutex<Option<Joinable<OTelSdkResult>>>>,
+    worker_handle: Arc<Mutex<Option<R::SpawnHandle<OTelSdkResult>>>>,
 
     // Track dropped spans
     dropped_spans_count: AtomicUsize,

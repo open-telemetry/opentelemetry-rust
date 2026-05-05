@@ -13,7 +13,7 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::{to_interval_stream, Joinable, JoinError, Runtime};
+use crate::runtime::{to_interval_stream, JoinError, JoinHandle, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
@@ -109,7 +109,7 @@ where
         let (message_sender, message_receiver) = mpsc::channel(256);
         let runtime = self.runtime.clone();
 
-        let worker = move |reader: &PeriodicReader<E, RT>| -> Joinable<OTelSdkResult> {
+        let worker = move |reader: &PeriodicReader<E, RT>| -> RT::SpawnHandle<OTelSdkResult> {
             let runtime = self.runtime.clone();
             let reader = reader.clone();
             self.runtime.spawn(async move {
@@ -223,7 +223,7 @@ struct PeriodicReaderInner<E: PushMetricExporter, R: Runtime> {
     is_shutdown: bool,
     sdk_producer_or_worker: ProducerOrWorker<E, R>,
     /// Handle to the background worker task. Used to join on shutdown.
-    worker_handle: Option<Joinable<OTelSdkResult>>,
+    worker_handle: Option<R::SpawnHandle<OTelSdkResult>>,
 }
 
 #[derive(Debug)]
@@ -237,7 +237,7 @@ enum Message {
 enum ProducerOrWorker<E: PushMetricExporter, R: Runtime> {
     Producer(Weak<dyn SdkProducer>),
     #[allow(clippy::type_complexity)]
-    Worker(Box<dyn FnOnce(&PeriodicReader<E, R>) -> Joinable<OTelSdkResult> + Send + Sync>),
+    Worker(Box<dyn FnOnce(&PeriodicReader<E, R>) -> R::SpawnHandle<OTelSdkResult> + Send + Sync>),
 }
 
 struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
@@ -322,7 +322,10 @@ impl<E: PushMetricExporter, RT: Runtime> PeriodicReaderWorker<E, RT> {
         None
     }
 
-    async fn run(mut self, mut messages: impl FusedStream<Item = Message> + Unpin) -> OTelSdkResult {
+    async fn run(
+        mut self,
+        mut messages: impl FusedStream<Item = Message> + Unpin,
+    ) -> OTelSdkResult {
         while let Some(message) = messages.next().await {
             if let Some(result) = self.process_message(message).await {
                 return result;
@@ -346,10 +349,13 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
                     message = "duplicate registration found, did not register periodic reader.");
                 return;
             }
-            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {
-                // Dummy closure that returns a dummy handle - never actually called
-                panic!("placeholder worker should never be called")
-            })),
+            ProducerOrWorker::Worker(w) => mem::replace(
+                w,
+                Box::new(|_| {
+                    // Dummy closure that returns a dummy handle - never actually called
+                    panic!("placeholder worker should never be called")
+                }),
+            ),
         };
 
         inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);

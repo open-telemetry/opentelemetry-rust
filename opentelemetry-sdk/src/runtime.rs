@@ -11,9 +11,10 @@ use thiserror::Error;
 
 /// A handle to a spawned task that can be joined to retrieve its result.
 ///
-/// This abstracts over different join handle types (OS threads vs async tasks)
-/// to provide a uniform interface for waiting on spawned work.
+/// This is the built-in [`JoinHandle`] implementation used by [`Tokio`] and [`NoAsync`].
+/// External [`Runtime`] implementors may use their own handle type instead.
 #[cfg(feature = "experimental_async_runtime")]
+#[doc(hidden)]
 pub struct Joinable<T>(JoinableInner<T>);
 
 #[cfg(feature = "experimental_async_runtime")]
@@ -61,27 +62,29 @@ pub enum JoinError {
     Cancelled,
 }
 
+/// A handle to a spawned task that can be joined to retrieve its result.
+///
+/// Implement this trait when providing a custom [`Runtime`]. The handle must be
+/// `Send + 'static` so it can be stored and joined from any thread.
 #[cfg(feature = "experimental_async_runtime")]
-impl<T> Joinable<T> {
+pub trait JoinHandle<T>: Send + 'static {
     /// Block the current thread until the spawned task completes, returning its result.
-    ///
-    /// For OS threads, this uses `std::thread::JoinHandle::join()`.
-    /// For tokio tasks, this uses `futures_executor::block_on()` to poll the join handle.
-    /// This works because the task is already running on tokio's thread pool, and the
-    /// JoinHandle is just a future that completes when the task finishes.
-    pub fn join(self) -> Result<T, JoinError> {
+    fn join(self) -> Result<T, JoinError>;
+}
+
+#[cfg(feature = "experimental_async_runtime")]
+impl<T: Send + 'static> JoinHandle<T> for Joinable<T> {
+    fn join(self) -> Result<T, JoinError> {
         match self.0 {
             JoinableInner::Thread(handle) => handle.join().map_err(JoinError::Panic),
             #[cfg(feature = "rt-tokio")]
-            JoinableInner::TokioTask(handle) => {
-                futures_executor::block_on(handle).map_err(|e| {
-                    if e.is_cancelled() {
-                        JoinError::Cancelled
-                    } else {
-                        JoinError::Panic(e.into_panic())
-                    }
-                })
-            }
+            JoinableInner::TokioTask(handle) => futures_executor::block_on(handle).map_err(|e| {
+                if e.is_cancelled() {
+                    JoinError::Cancelled
+                } else {
+                    JoinError::Panic(e.into_panic())
+                }
+            }),
         }
     }
 }
@@ -98,16 +101,23 @@ impl<T> Joinable<T> {
 /// can implement this trait in a way that spawns the tasks on the same thread as the calling code.
 #[cfg(feature = "experimental_async_runtime")]
 pub trait Runtime: Clone + Send + Sync + 'static {
+    /// The join handle type returned by [`spawn`](Self::spawn).
+    ///
+    /// Must implement [`JoinHandle<T>`] so callers can block on task completion.
+    /// Use [`Joinable`] as a convenience when implementing
+    /// a runtime that mixes OS threads and async tasks.
+    type SpawnHandle<T: Send + 'static>: JoinHandle<T> + Send + 'static;
+
     /// Spawn a new task or thread, which executes the given future.
     ///
-    /// Returns a [`Joinable`] handle that can be used to wait for the task to complete
-    /// and retrieve its result.
+    /// Returns a [`Self::SpawnHandle`] that can be joined to wait for the task
+    /// to complete and retrieve its result.
     ///
     /// # Note
     ///
     /// This is mainly used to run batch span processing in the background. The mechanism used
     /// to provide the spawn may be relatively heavyweight.
-    fn spawn<F, T>(&self, future: F) -> Joinable<T>
+    fn spawn<F, T>(&self, future: F) -> Self::SpawnHandle<T>
     where
         F: Future<Output = T> + Send + 'static,
         T: Send + 'static;
@@ -148,6 +158,8 @@ pub struct Tokio;
     doc(cfg(all(feature = "experimental_async_runtime", feature = "rt-tokio")))
 )]
 impl Runtime for Tokio {
+    type SpawnHandle<T: Send + 'static> = Joinable<T>;
+
     fn spawn<F, T>(&self, future: F) -> Joinable<T>
     where
         F: Future<Output = T> + Send + 'static,
@@ -283,6 +295,8 @@ pub struct NoAsync;
 
 #[cfg(feature = "experimental_async_runtime")]
 impl Runtime for NoAsync {
+    type SpawnHandle<T: Send + 'static> = Joinable<T>;
+
     fn spawn<F, T>(&self, future: F) -> Joinable<T>
     where
         F: Future<Output = T> + Send + 'static,
