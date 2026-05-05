@@ -1,3 +1,7 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
@@ -12,9 +16,41 @@ use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
+
+/// Pre-bound exponential-histogram handle: writes go directly to a fixed
+/// `TrackerEntry` without per-call attribute lookup. Unlike `BoundHistogramHandle`,
+/// no bucket precomputation happens at the call site — `update()` does scale
+/// resolution and bin assignment inside the entry's Mutex. The NaN/inf filter
+/// from the unbound `call()` path is preserved here.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundExpoHistogramHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Mutex<ExpoHistogramDataPoint<T>>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundExpoHistogramHandle<T> {
+    fn call(&self, measurement: T) {
+        // Mirror unbound ExpoHistogram::call: ignore NaN and infinity so that
+        // ExpoHistogramDataPoint::record's invariants are preserved.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundExpoHistogramHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
 
 /// A single data point in an exponential histogram.
 #[derive(Debug, PartialEq)]
@@ -525,6 +561,18 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundExpoHistogramHandle { tracker }),
+            None => Box::new(NoopBoundMeasure::new()),
+        }
     }
 }
 

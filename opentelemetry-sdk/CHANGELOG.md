@@ -5,6 +5,22 @@
 - Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
   feature flag. The use cases it was designed for (ETW/user_events exporters) are
   better served by modeling those exporters as processors directly.
+- **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
+  return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
+  Bound instruments resolve the attribute-to-aggregator mapping once at bind time
+  and cache the result, eliminating per-call HashMap lookups. View attribute
+  filtering is applied at bind time so the hot path stays free of per-call
+  attribute processing. Bound and unbound recordings with the same (post-view)
+  attribute set always aggregate into the same data point, including the empty
+  attribute set. Bound entries are never evicted during delta collection while
+  a handle exists — idle cycles produce no export but the tracker persists. If
+  `bind()` is called at the cardinality limit, the handle binds directly to
+  the overflow tracker — its writes stay on the same direct (no-lookup) hot
+  path and consistently land in the `otel.metric.overflow=true` bucket for
+  the lifetime of the handle. To recover a bound handle after delta collection
+  frees space, drop the existing handle and call `bind()` again. Gated behind
+  the `experimental_metrics_bound_instruments` feature flag. Benchmarks show
+  ~28x speedup for counter operations and ~9x for histograms.
 - Delta metrics collection now uses in-place eviction instead of draining the
   HashMap on every collect cycle. Stale attribute sets that received no measurements
   since the last collection are evicted. Note: recovery from cardinality overflow
@@ -13,6 +29,7 @@
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
+- Store `InstrumentationScope` in `Arc` internally in `SdkTracer`, making tracer clones cheaper (Arc refcount increment instead of deep copy).
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
