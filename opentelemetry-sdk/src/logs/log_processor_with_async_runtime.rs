@@ -18,7 +18,7 @@ use std::{
 
 use super::{BatchConfig, LogProcessor};
 #[cfg(feature = "experimental_async_runtime")]
-use crate::runtime::{to_interval_stream, Joinable, JoinError, RuntimeChannel, TrySend};
+use crate::runtime::{to_interval_stream, JoinError, JoinHandle, RuntimeChannel, TrySend};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, Either},
@@ -46,7 +46,7 @@ pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
     /// Handle to the background worker task. Used to join on shutdown.
-    worker_handle: Arc<Mutex<Option<Joinable<OTelSdkResult>>>>,
+    worker_handle: Arc<Mutex<Option<R::SpawnHandle<OTelSdkResult>>>>,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
