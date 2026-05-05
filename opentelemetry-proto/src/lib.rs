@@ -1,9 +1,11 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//! This crate contains generated files from [opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
-//! repository and transformation between types from generated files and types defined in [opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry)
+//! This crate contains generated OTLP protobuf types from the
+//! [opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
+//! repository.
 //!
-//! Based on the build tool needed, users can choose to generate files using [tonic](https://github.com/hyperium/tonic)
-//! or [grpcio](https://github.com/tikv/grpc-rs).
+//! Enable `gen-tonic-messages` to generate message types using
+//! [prost](https://github.com/tokio-rs/prost), or `gen-tonic` to also include
+//! [tonic](https://github.com/hyperium/tonic) gRPC client/server transport support.
 //!
 //!
 //! # Feature flags
