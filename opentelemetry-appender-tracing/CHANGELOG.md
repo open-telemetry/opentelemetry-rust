@@ -18,18 +18,18 @@
 
   // Copy all tracing-span attributes onto log records:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(TracingSpanAttributes::all())
+      .with_tracing_span_attributes(TracingSpanAttributes::all())
       .build();
 
   // Or copy only an allowlist of attributes:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+      .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
       .build();
   ```
 
   Migration from the experimental feature: drop the
   `experimental_span_attributes` feature from `Cargo.toml`, and add
-  `.with_span_attributes(TracingSpanAttributes::all())` to the builder (or use
+  `.with_tracing_span_attributes(TracingSpanAttributes::all())` to the builder (or use
   `TracingSpanAttributes::allowlist(keys)` to restrict which span attributes are
   copied).
 

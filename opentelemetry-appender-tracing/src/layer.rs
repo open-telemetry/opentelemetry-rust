@@ -306,7 +306,7 @@ struct StoredSpanAttributes {
 /// "Span" here refers to a [`tracing::span!`] from the [`tracing`] crate,
 /// **not** an `opentelemetry::trace::Span`.
 ///
-/// Pass this to [`OpenTelemetryTracingBridgeBuilder::with_span_attributes`] to
+/// Pass this to [`OpenTelemetryTracingBridgeBuilder::with_tracing_span_attributes`] to
 /// enable tracing-span attribute enrichment.
 ///
 /// [`tracing`]: https://crates.io/crates/tracing
@@ -413,7 +413,7 @@ where
     ///
     /// [`tracing`]: https://crates.io/crates/tracing
     /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
-    pub fn with_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
+    pub fn with_tracing_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
         self.span_attributes = Some(match span_attributes.0 {
             TracingSpanAttributesInner::All => HashSet::new(),
             TracingSpanAttributesInner::Allowlist(set) => set,
@@ -1140,7 +1140,7 @@ mod tests {
 
     #[test]
     fn tracing_appender_span_attributes_disabled_by_default() {
-        // When `with_span_attributes` is not called on the builder, tracing-span
+        // When `with_tracing_span_attributes` is not called on the builder, tracing-span
         // attributes must NOT be copied onto log records.
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1190,7 +1190,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::all())
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1241,7 +1241,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::all())
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1302,7 +1302,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::all())
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1414,7 +1414,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::all())
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1478,7 +1478,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1514,7 +1514,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1560,7 +1560,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::all())
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1597,7 +1597,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
