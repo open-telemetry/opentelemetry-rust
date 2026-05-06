@@ -11,26 +11,26 @@
 
   Enrichment is **disabled by default** (no per-span overhead) and must be
   opted into at runtime via a single builder method that accepts a
-  [`SpanAttributes`] value:
+  [`TracingSpanAttributes`] value:
 
   ```rust
-  use opentelemetry_appender_tracing::layer::SpanAttributes;
+  use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
 
   // Copy all tracing-span attributes onto log records:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(SpanAttributes::all())
+      .with_span_attributes(TracingSpanAttributes::all())
       .build();
 
   // Or copy only an allowlist of attributes:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .with_span_attributes(SpanAttributes::allowlist(["session.id"]))
+      .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
       .build();
   ```
 
   Migration from the experimental feature: drop the
   `experimental_span_attributes` feature from `Cargo.toml`, and add
-  `.with_span_attributes(SpanAttributes::all())` to the builder (or use
-  `SpanAttributes::allowlist(keys)` to restrict which span attributes are
+  `.with_span_attributes(TracingSpanAttributes::all())` to the builder (or use
+  `TracingSpanAttributes::allowlist(keys)` to restrict which span attributes are
   copied).
 
 [`tracing`]: https://crates.io/crates/tracing

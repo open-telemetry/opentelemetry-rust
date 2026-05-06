@@ -311,34 +311,34 @@ struct StoredSpanAttributes {
 ///
 /// [`tracing`]: https://crates.io/crates/tracing
 /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
-pub struct SpanAttributes(SpanAttributesInner);
+pub struct TracingSpanAttributes(TracingSpanAttributesInner);
 
-enum SpanAttributesInner {
+enum TracingSpanAttributesInner {
     All,
     Allowlist(HashSet<Cow<'static, str>>),
 }
 
-impl SpanAttributes {
+impl TracingSpanAttributes {
     /// Copy **all** tracing-span attributes onto log records.
     pub fn all() -> Self {
-        Self(SpanAttributesInner::All)
+        Self(TracingSpanAttributesInner::All)
     }
 
     /// Copy only the tracing-span attributes whose keys are in the given
     /// allowlist.
     pub fn allowlist(keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>) -> Self {
-        Self(SpanAttributesInner::Allowlist(
+        Self(TracingSpanAttributesInner::Allowlist(
             keys.into_iter().map(Into::into).collect(),
         ))
     }
 }
 
-impl std::fmt::Debug for SpanAttributes {
+impl std::fmt::Debug for TracingSpanAttributes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
-            SpanAttributesInner::All => f.write_str("SpanAttributes::all()"),
-            SpanAttributesInner::Allowlist(set) => {
-                f.debug_tuple("SpanAttributes::allowlist").field(set).finish()
+            TracingSpanAttributesInner::All => f.write_str("TracingSpanAttributes::all()"),
+            TracingSpanAttributesInner::Allowlist(set) => {
+                f.debug_tuple("TracingSpanAttributes::allowlist").field(set).finish()
             }
         }
     }
@@ -404,8 +404,8 @@ where
     /// By default, enrichment is **disabled** and no per-span work is
     /// performed.
     ///
-    /// Use [`SpanAttributes::all()`] to copy every tracing-span attribute, or
-    /// [`SpanAttributes::allowlist(keys)`](SpanAttributes::allowlist) to copy
+    /// Use [`TracingSpanAttributes::all()`] to copy every tracing-span attribute, or
+    /// [`TracingSpanAttributes::allowlist(keys)`](TracingSpanAttributes::allowlist) to copy
     /// only named attributes.
     ///
     /// Calling this method multiple times replaces any prior configuration —
@@ -413,10 +413,10 @@ where
     ///
     /// [`tracing`]: https://crates.io/crates/tracing
     /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
-    pub fn with_span_attributes(mut self, span_attributes: SpanAttributes) -> Self {
+    pub fn with_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
         self.span_attributes = Some(match span_attributes.0 {
-            SpanAttributesInner::All => HashSet::new(),
-            SpanAttributesInner::Allowlist(set) => set,
+            TracingSpanAttributesInner::All => HashSet::new(),
+            TracingSpanAttributesInner::Allowlist(set) => set,
         });
         self
     }
@@ -574,7 +574,7 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
-    use crate::layer::SpanAttributes;
+    use crate::layer::TracingSpanAttributes;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
@@ -1190,7 +1190,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::all())
+            .with_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1241,7 +1241,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::all())
+            .with_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1302,7 +1302,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::all())
+            .with_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1414,7 +1414,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::all())
+            .with_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 // Allow spans at any level (needed for on_new_span to store span attributes),
@@ -1478,7 +1478,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::allowlist(["session.id"]))
+            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1514,7 +1514,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::allowlist(["session.id"]))
+            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1552,7 +1552,7 @@ mod tests {
 
     #[test]
     fn tracing_appender_span_attributes_all_copies_all() {
-        // `SpanAttributes::all()` enables enrichment and copies all
+        // `TracingSpanAttributes::all()` enables enrichment and copies all
         // tracing-span attributes (no filtering).
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1560,7 +1560,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::all())
+            .with_span_attributes(TracingSpanAttributes::all())
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
@@ -1597,7 +1597,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
-            .with_span_attributes(SpanAttributes::allowlist(["session.id"]))
+            .with_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR

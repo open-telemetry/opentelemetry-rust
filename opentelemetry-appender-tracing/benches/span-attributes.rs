@@ -33,7 +33,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::InstrumentationScope;
 use opentelemetry_appender_tracing::layer as tracing_layer;
-use opentelemetry_appender_tracing::layer::SpanAttributes;
+use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
@@ -70,7 +70,7 @@ fn benchmark_span_attributes(c: &mut Criterion, num_attributes: usize) {
         .build();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(SpanAttributes::all())
+        .with_span_attributes(TracingSpanAttributes::all())
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -134,7 +134,7 @@ fn benchmark_nested_spans(c: &mut Criterion, depth: usize) {
         .build();
 
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(SpanAttributes::all())
+        .with_span_attributes(TracingSpanAttributes::all())
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -253,7 +253,7 @@ fn make_provider() -> SdkLoggerProvider {
 fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(SpanAttributes::all())
+        .with_span_attributes(TracingSpanAttributes::all())
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -277,7 +277,7 @@ fn benchmark_log_1_attr_no_span(c: &mut Criterion) {
 fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(SpanAttributes::all())
+        .with_span_attributes(TracingSpanAttributes::all())
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
@@ -304,7 +304,7 @@ fn benchmark_log_1_attr_in_span_2_attr(c: &mut Criterion) {
 fn benchmark_log_1_attr_in_nested_spans_2plus2_attr(c: &mut Criterion) {
     let provider = make_provider();
     let ot_layer = tracing_layer::OpenTelemetryTracingBridge::builder(&provider)
-        .with_span_attributes(SpanAttributes::all())
+        .with_span_attributes(TracingSpanAttributes::all())
         .build();
     let subscriber = Registry::default().with(ot_layer);
 
