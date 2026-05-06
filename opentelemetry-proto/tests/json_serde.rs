@@ -14,8 +14,9 @@ mod json_serde {
     use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
     #[cfg(feature = "metrics")]
     use opentelemetry_proto::tonic::metrics::v1::{
-        metric::Data, number_data_point::Value as MetricValue, Gauge, Histogram,
-        HistogramDataPoint, Metric, NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
+        exemplar::Value as ExemplarValue, metric::Data, number_data_point::Value as MetricValue,
+        ExponentialHistogramDataPoint, Gauge, Histogram, HistogramDataPoint, Metric,
+        NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
     };
     use opentelemetry_proto::tonic::resource::v1::Resource;
     #[cfg(feature = "trace")]
@@ -1559,7 +1560,11 @@ mod json_serde {
     #[cfg(feature = "metrics")]
     mod metrics_with_nan {
         use super::*;
+        use opentelemetry_proto::tonic::common::v1::any_value::Value;
+        use opentelemetry_proto::tonic::metrics::v1::exponential_histogram_data_point::Buckets;
         use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
+        use opentelemetry_proto::tonic::metrics::v1::Exemplar;
+        use opentelemetry_proto::tonic::metrics::v1::ExponentialHistogram;
         use opentelemetry_proto::tonic::metrics::v1::Summary;
         use opentelemetry_proto::tonic::metrics::v1::SummaryDataPoint;
 
@@ -1591,7 +1596,7 @@ mod json_serde {
                                                 start_time_unix_nano: 0,
                                                 time_unix_nano: 0,
                                                 count: 100,
-                                                sum: 500.0,
+                                                sum: f64::NAN,
                                                 quantile_values: vec![
                                                     ValueAtQuantile {
                                                         quantile: 0.5,
@@ -1630,12 +1635,159 @@ mod json_serde {
                                         sum: Some(f64::NAN),
                                         bucket_counts: vec![1, 1],
                                         explicit_bounds: vec![1.0],
-                                        exemplars: vec![],
+                                        exemplars: vec![Exemplar {
+                                            filtered_attributes: vec![KeyValue {
+                                                key: String::from("my.histogram.attr"),
+                                                value: Some(AnyValue {
+                                                    value: Some(Value::StringValue(String::from(
+                                                        "some value",
+                                                    ))),
+                                                }),
+                                                key_strindex: 0,
+                                            }],
+                                            time_unix_nano: 1544712660300000000,
+                                            span_id: vec![],
+                                            trace_id: vec![],
+                                            value: Some(ExemplarValue::AsDouble(f64::NAN)),
+                                        }],
                                         flags: 0,
                                         min: Some(f64::NAN),
                                         max: Some(f64::NAN),
                                     }],
                                     aggregation_temporality: 1,
+                                })),
+                            },
+                            Metric {
+                                name: String::from("my.exponential.histogram"),
+                                description: String::from(
+                                    "I am an exponential Histogram with NaN values",
+                                ),
+                                unit: String::from("1"),
+                                metadata: vec![],
+                                data: Some(Data::ExponentialHistogram(ExponentialHistogram {
+                                    data_points: vec![ExponentialHistogramDataPoint {
+                                        attributes: vec![KeyValue {
+                                            key: String::from("my.exp.histogram.attr"),
+                                            value: Some(AnyValue {
+                                                value: Some(Value::StringValue(String::from(
+                                                    "some value",
+                                                ))),
+                                            }),
+                                            key_strindex: 0,
+                                        }],
+                                        start_time_unix_nano: 1544712660300000000,
+                                        time_unix_nano: 1544712660300000000,
+                                        count: 2,
+                                        sum: Some(f64::NAN),
+                                        scale: 1,
+                                        zero_count: 0,
+                                        exemplars: vec![Exemplar {
+                                            filtered_attributes: vec![KeyValue {
+                                                key: String::from("my.histogram.attr"),
+                                                value: Some(AnyValue {
+                                                    value: Some(Value::StringValue(String::from(
+                                                        "some value",
+                                                    ))),
+                                                }),
+                                                key_strindex: 0,
+                                            }],
+                                            time_unix_nano: 1544712660300000000,
+                                            span_id: vec![],
+                                            trace_id: vec![],
+                                            value: Some(ExemplarValue::AsDouble(f64::NAN)),
+                                        }],
+                                        flags: 0,
+                                        min: Some(f64::NAN),
+                                        max: Some(f64::NAN),
+                                        positive: Some(Buckets {
+                                            offset: 0,
+                                            bucket_counts: vec![],
+                                        }),
+                                        negative: Some(Buckets {
+                                            offset: 0,
+                                            bucket_counts: vec![],
+                                        }),
+                                        zero_threshold: f64::NAN,
+                                    }],
+                                    aggregation_temporality: 1,
+                                })),
+                            },
+                            Metric {
+                                name: String::from("my.counter"),
+                                description: String::from("I am a Counter"),
+                                unit: String::from("1"),
+                                metadata: vec![],
+                                data: Some(Data::Sum(Sum {
+                                    data_points: vec![NumberDataPoint {
+                                        attributes: vec![KeyValue {
+                                            key: String::from("my.counter.attr"),
+                                            value: Some(AnyValue {
+                                                value: Some(Value::StringValue(String::from(
+                                                    "some value",
+                                                ))),
+                                            }),
+                                            key_strindex: 0,
+                                        }],
+                                        start_time_unix_nano: 1544712660300000000,
+                                        time_unix_nano: 1544712660300000000,
+                                        exemplars: vec![Exemplar {
+                                            filtered_attributes: vec![KeyValue {
+                                                key: String::from("my.histogram.attr"),
+                                                value: Some(AnyValue {
+                                                    value: Some(Value::StringValue(String::from(
+                                                        "some value",
+                                                    ))),
+                                                }),
+                                                key_strindex: 0,
+                                            }],
+                                            time_unix_nano: 1544712660300000000,
+                                            span_id: vec![],
+                                            trace_id: vec![],
+                                            value: Some(ExemplarValue::AsDouble(f64::NAN)),
+                                        }],
+                                        flags: 0,
+                                        value: Some(MetricValue::AsDouble(f64::NAN)),
+                                    }],
+                                    aggregation_temporality: 1,
+                                    is_monotonic: true,
+                                })),
+                            },
+                            Metric {
+                                name: String::from("my.gauge"),
+                                description: String::from("I am a Gauge"),
+                                unit: String::from("1"),
+                                metadata: vec![],
+                                data: Some(Data::Gauge(Gauge {
+                                    data_points: vec![NumberDataPoint {
+                                        attributes: vec![KeyValue {
+                                            key: String::from("my.gauge.attr"),
+                                            value: Some(AnyValue {
+                                                value: Some(Value::StringValue(String::from(
+                                                    "some value",
+                                                ))),
+                                            }),
+                                            key_strindex: 0,
+                                        }],
+                                        start_time_unix_nano: 0,
+                                        time_unix_nano: 1544712660300000000,
+                                        exemplars: vec![Exemplar {
+                                            filtered_attributes: vec![KeyValue {
+                                                key: String::from("my.histogram.attr"),
+                                                value: Some(AnyValue {
+                                                    value: Some(Value::StringValue(String::from(
+                                                        "some value",
+                                                    ))),
+                                                }),
+                                                key_strindex: 0,
+                                            }],
+                                            time_unix_nano: 1544712660300000000,
+                                            span_id: vec![],
+                                            trace_id: vec![],
+                                            value: Some(ExemplarValue::AsDouble(f64::NAN)),
+                                        }],
+                                        flags: 0,
+                                        value: Some(MetricValue::AsDouble(f64::NAN)),
+                                    }],
                                 })),
                             },
                         ],
@@ -1676,7 +1828,7 @@ mod json_serde {
                             "startTimeUnixNano": "0",
                             "timeUnixNano": "0",
                             "count": "100",
-                            "sum": 500.0,
+                            "sum": "NaN",
                             "quantileValues": [
                               {
                                 "quantile": 0.5,
@@ -1719,15 +1871,169 @@ mod json_serde {
                           "explicitBounds": [
                             1.0
                           ],
-                          "exemplars": [],
+                          "exemplars": [
+                            {
+                              "filteredAttributes": [
+                                {
+                                  "key": "my.histogram.attr",
+                                  "value": {
+                                    "stringValue": "some value"
+                                  }
+                                }
+                              ],
+                              "timeUnixNano": "1544712660300000000",
+                              "traceId": "",
+                              "spanId": "",
+                              "value": {
+                                "asDouble": "NaN"
+                              }
+                            }
+                          ],
                           "flags": 0,
                           "min": "NaN",
                           "max": "NaN"
                         }
                       ],
-                      "aggregationTemporality": 1
+                        "aggregationTemporality": 1
+                      }
+                    },
+                    {
+                      "name": "my.exponential.histogram",
+                      "description": "I am an exponential Histogram with NaN values",
+                      "unit": "1",
+                      "metadata": [],
+                      "exponentialHistogram": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "my.exp.histogram.attr",
+                                "value": {
+                                  "stringValue": "some value"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1544712660300000000",
+                            "timeUnixNano": "1544712660300000000",
+                            "count": "2",
+                            "sum": "NaN",
+                            "scale": 1,
+                            "zeroCount": "0",
+                            "positive": {"offset":0,"bucketCounts":[]},
+                            "negative": {"offset":0,"bucketCounts":[]},
+                            "flags": 0,
+                            "exemplars": [
+                              {
+                                "filteredAttributes": [
+                                  {
+                                    "key": "my.histogram.attr",
+                                    "value": {
+                                      "stringValue": "some value"
+                                    }
+                                  }
+                                ],
+                                "timeUnixNano": "1544712660300000000",
+                                "traceId": "",
+                                "spanId": "",
+                                "value": {
+                                  "asDouble": "NaN"
+                                }
+                              }
+                            ],
+                            "min": "NaN",
+                            "max": "NaN",
+                            "zeroThreshold": "NaN"
+                          }
+                        ],
+                        "aggregationTemporality": 1
+                      }
+                    },
+                    {
+                      "name": "my.counter",
+                      "description": "I am a Counter",
+                      "unit": "1",
+                      "metadata": [],
+                      "sum": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "my.counter.attr",
+                                "value": {
+                                  "stringValue": "some value"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1544712660300000000",
+                            "timeUnixNano": "1544712660300000000",
+                            "exemplars": [
+                              {
+                                "filteredAttributes": [
+                                  {
+                                    "key": "my.histogram.attr",
+                                    "value": {
+                                      "stringValue": "some value"
+                                    }
+                                  }
+                                ],
+                                "timeUnixNano": "1544712660300000000",
+                                "traceId": "",
+                                "spanId": "",
+                                "value": {
+                                  "asDouble": "NaN"
+                                }
+                              }
+                            ],
+                            "flags": 0,
+                            "asDouble": "NaN"
+                          }
+                        ],
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true
+                      }
+                    },
+                    {
+                      "name": "my.gauge",
+                      "description": "I am a Gauge",
+                      "unit": "1",
+                      "metadata": [],
+                      "gauge": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "my.gauge.attr",
+                                "value": {
+                                  "stringValue": "some value"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "0",
+                            "timeUnixNano": "1544712660300000000",
+                            "exemplars": [
+                              {
+                                "filteredAttributes": [
+                                  {
+                                    "key": "my.histogram.attr",
+                                    "value": {
+                                      "stringValue": "some value"
+                                    }
+                                  }
+                                ],
+                                "timeUnixNano": "1544712660300000000",
+                                "traceId": "",
+                                "spanId": "",
+                                "value": {
+                                  "asDouble": "NaN"
+                                }
+                              }
+                            ],
+                            "flags": 0,
+                            "asDouble": "NaN"
+                          }
+                        ]
+                      }
                     }
-                  }
                   ],
                   "schemaUrl": ""
                 }
@@ -1779,7 +2085,7 @@ mod json_serde {
 
             let scope_metric = &resource_metric.scope_metrics[0];
             assert!(scope_metric.scope.is_none());
-            assert_eq!(scope_metric.metrics.len(), 2);
+            assert_eq!(scope_metric.metrics.len(), 5);
 
             let metric = &scope_metric.metrics[0];
             assert_eq!(metric.name, "example_metric");
@@ -1796,7 +2102,7 @@ mod json_serde {
                 assert_eq!(data_point.start_time_unix_nano, 0);
                 assert_eq!(data_point.time_unix_nano, 0);
                 assert_eq!(data_point.count, 100);
-                assert_eq!(data_point.sum, 500.0);
+                assert!(data_point.sum.is_nan());
 
                 assert_eq!(data_point.quantile_values.len(), 2);
 
@@ -1825,8 +2131,116 @@ mod json_serde {
                 assert!(data_point.sum.unwrap().is_nan());
                 assert!(data_point.min.unwrap().is_nan());
                 assert!(data_point.max.unwrap().is_nan());
+
+                assert_eq!(data_point.exemplars.len(), 1);
+                let exemplar = &data_point.exemplars[0];
+                match exemplar.value {
+                    Some(ExemplarValue::AsDouble(val)) => assert!(val.is_nan()),
+                    _ => panic!("Expected double value in exemplar"),
+                }
             } else {
                 panic!("Expected histogram data");
+            }
+
+            let exp_histogram_data_point_metric =
+                &actual.resource_metrics[0].scope_metrics[0].metrics[2];
+            assert_eq!(
+                exp_histogram_data_point_metric.name,
+                "my.exponential.histogram"
+            );
+            assert_eq!(
+                exp_histogram_data_point_metric.description,
+                "I am an exponential Histogram with NaN values"
+            );
+            assert_eq!(exp_histogram_data_point_metric.unit, "1");
+            assert_eq!(exp_histogram_data_point_metric.metadata.len(), 0);
+
+            if let Some(
+                opentelemetry_proto::tonic::metrics::v1::metric::Data::ExponentialHistogram(
+                    exp_hist,
+                ),
+            ) = &exp_histogram_data_point_metric.data
+            {
+                assert_eq!(exp_hist.data_points.len(), 1);
+                let data_point = &exp_hist.data_points[0];
+                assert_eq!(data_point.attributes.len(), 1);
+                assert_eq!(data_point.start_time_unix_nano, 1544712660300000000);
+                assert_eq!(data_point.time_unix_nano, 1544712660300000000);
+                assert_eq!(data_point.count, 2);
+                assert!(data_point.sum.unwrap().is_nan());
+                assert_eq!(data_point.scale, 1);
+                assert_eq!(data_point.zero_count, 0);
+                assert_eq!(data_point.positive.as_ref().unwrap().offset, 0);
+                assert_eq!(data_point.positive.as_ref().unwrap().bucket_counts.len(), 0);
+                assert_eq!(data_point.negative.as_ref().unwrap().bucket_counts.len(), 0);
+                assert_eq!(data_point.exemplars.len(), 1);
+                let exemplar = &data_point.exemplars[0];
+                match exemplar.value {
+                    Some(ExemplarValue::AsDouble(val)) => assert!(val.is_nan()),
+                    _ => panic!("Expected double value in exemplar"),
+                }
+                assert_eq!(data_point.flags, 0);
+                assert!(data_point.min.unwrap().is_nan());
+                assert!(data_point.max.unwrap().is_nan());
+                assert!(data_point.zero_threshold.is_nan());
+            } else {
+                panic!("Expected ExponentialHistogram data")
+            }
+            let counter_metrics = &actual.resource_metrics[0].scope_metrics[0].metrics[3];
+            assert_eq!(counter_metrics.name, "my.counter");
+            assert_eq!(counter_metrics.description, "I am a Counter");
+            assert_eq!(counter_metrics.unit, "1");
+            assert_eq!(counter_metrics.metadata.len(), 0);
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Sum(
+                summary_data_point,
+            )) = &counter_metrics.data
+            {
+                let data_points = &summary_data_point.data_points[0];
+                assert_eq!(data_points.attributes.len(), 1);
+                assert_eq!(data_points.start_time_unix_nano, 1544712660300000000);
+                assert_eq!(data_points.time_unix_nano, 1544712660300000000);
+                assert_eq!(data_points.exemplars.len(), 1);
+                let exemplar = &data_points.exemplars[0];
+                match exemplar.value {
+                    Some(ExemplarValue::AsDouble(val)) => assert!(val.is_nan()),
+                    _ => panic!("Expected double value in exemplar"),
+                }
+                assert_eq!(data_points.flags, 0);
+                match data_points.value {
+                    Some(MetricValue::AsDouble(val)) => assert!(val.is_nan()),
+                    Some(MetricValue::AsInt(_val)) => (),
+                    None => panic!("Expected double value in counter"),
+                }
+            } else {
+                panic!("Expected Sum data")
+            }
+            let gauge_metrics = &actual.resource_metrics[0].scope_metrics[0].metrics[4];
+            assert_eq!(gauge_metrics.name, "my.gauge");
+            assert_eq!(gauge_metrics.description, "I am a Gauge");
+            assert_eq!(gauge_metrics.unit, "1");
+            assert_eq!(gauge_metrics.metadata.len(), 0);
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Gauge(
+                summary_data_point,
+            )) = &gauge_metrics.data
+            {
+                let data_points = &summary_data_point.data_points[0];
+                assert_eq!(data_points.attributes.len(), 1);
+                assert_eq!(data_points.start_time_unix_nano, 0);
+                assert_eq!(data_points.time_unix_nano, 1544712660300000000);
+                assert_eq!(data_points.exemplars.len(), 1);
+                let exemplar = &data_points.exemplars[0];
+                match exemplar.value {
+                    Some(ExemplarValue::AsDouble(val)) => assert!(val.is_nan()),
+                    _ => panic!("Expected double value in exemplar"),
+                }
+                assert_eq!(data_points.flags, 0);
+                match data_points.value {
+                    Some(MetricValue::AsDouble(val)) => assert!(val.is_nan()),
+                    Some(MetricValue::AsInt(_val)) => (),
+                    None => panic!("Expected double value in counter"),
+                }
+            } else {
+                panic!("Expected gauge data")
             }
         }
     }
