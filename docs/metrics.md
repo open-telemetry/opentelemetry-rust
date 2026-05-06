@@ -30,7 +30,7 @@ Status: **Work-In-Progress**
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
 * [Common Issues Leading to Missing
-  Metrics](#common-issues-that-lead-to-missing-metrics)a
+  Metrics](#common-issues-that-lead-to-missing-metrics)
 
 </details>
 
