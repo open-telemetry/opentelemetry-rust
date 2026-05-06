@@ -1622,4 +1622,49 @@ mod tests {
             .attributes_iter()
             .any(|(k, _)| k == &Key::new("ignored")));
     }
+
+    #[test]
+    fn tracing_appender_empty_allowlist_copies_nothing() {
+        // An empty allowlist means "allow nothing" — enrichment is enabled
+        // but no span attributes match, so none are copied.
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let empty: Vec<&str> = vec![];
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(empty))
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", user_id = 123, session.id = "abc");
+        let _enter = span.enter();
+        tracing::error!(event_attr = "val", "test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // Event attribute is still recorded.
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_attr"),
+            &AnyValue::String("val".into())
+        ));
+        // No span attributes should appear — empty allowlist means nothing passes.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("user_id")));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("session.id")));
+    }
 }
