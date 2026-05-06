@@ -18,6 +18,39 @@ use super::{
 /// Receives measurements to be aggregated.
 pub(crate) trait Measure<T>: Send + Sync + 'static {
     fn call(&self, measurement: T, attrs: &[KeyValue]);
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>>;
+}
+
+/// A pre-bound measurement handle that bypasses attribute lookup.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) trait BoundMeasure<T>: Send + Sync + 'static {
+    fn call(&self, measurement: T);
+}
+
+/// A bound handle that drops every measurement silently. Used when
+/// `ValueMap::bind` returns `None` because the trackers `RwLock` is poisoned —
+/// an extremely rare degenerate state in which the SDK can no longer aggregate
+/// reliably. Returning a noop here mirrors `measure()`'s own poison handling
+/// (silent drop) rather than panicking on the user's hot path.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct NoopBoundMeasure<T> {
+    _marker: marker::PhantomData<T>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> NoopBoundMeasure<T> {
+    pub(crate) fn new() -> Self {
+        Self {
+            _marker: marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Send + Sync + 'static> BoundMeasure<T> for NoopBoundMeasure<T> {
+    fn call(&self, _measurement: T) {}
 }
 
 /// Stores the aggregate of measurements into the aggregation and returns the number

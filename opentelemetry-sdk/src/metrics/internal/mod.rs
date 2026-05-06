@@ -17,7 +17,11 @@ use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::otel_debug;
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
@@ -51,14 +55,19 @@ pub(crate) trait Aggregator {
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
 }
 
-/// Wraps an aggregator with status tracking for delta collection.
+/// Wraps an aggregator with status tracking for delta collection and bound instruments.
 ///
 /// `has_been_updated` tracks whether the aggregator received measurements since the last
 /// collection cycle. This enables in-place delta collection: only updated entries are exported,
-/// and stale entries are evicted to prevent unbounded memory growth.
+/// and stale unbound entries are evicted to prevent unbounded memory growth.
+///
+/// `bound_count` tracks how many bound instrument handles reference this entry. Entries with
+/// bound_count > 0 are never evicted from the map, even if they had no updates in a cycle
+/// (they simply produce no export). This ensures bound handles always point to a live tracker.
 pub(crate) struct TrackerEntry<A: Aggregator> {
     pub(crate) aggregator: A,
     pub(crate) has_been_updated: AtomicBool,
+    pub(crate) bound_count: AtomicUsize,
 }
 
 impl<A: Aggregator> TrackerEntry<A> {
@@ -66,6 +75,7 @@ impl<A: Aggregator> TrackerEntry<A> {
         TrackerEntry {
             aggregator: A::create(config),
             has_been_updated: AtomicBool::new(false),
+            bound_count: AtomicUsize::new(0),
         }
     }
 }
@@ -87,7 +97,7 @@ where
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Tracker for values with no attributes attached.
-    no_attribute_tracker: TrackerEntry<A>,
+    no_attribute_tracker: Arc<TrackerEntry<A>>,
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
@@ -106,7 +116,7 @@ where
             trackers: RwLock::new(HashMap::with_capacity(
                 1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
             )),
-            no_attribute_tracker: TrackerEntry::new(&config),
+            no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
@@ -184,6 +194,96 @@ where
         }
     }
 
+    /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.
+    /// The caller can then call `tracker.aggregator.update()` directly, bypassing the
+    /// full lookup path on subsequent measurements.
+    ///
+    /// When the cardinality limit has been reached, the returned tracker is the
+    /// overflow tracker (the same one unbound `measure()` calls write to at
+    /// overflow), preserving the bind() perf contract — every subsequent
+    /// `bound.add()` call is a direct write, regardless of cardinality state.
+    /// The handle remains permanently bound to overflow for its lifetime;
+    /// to recover after space frees up, drop and re-bind.
+    ///
+    /// Returns `None` only if the trackers RwLock is poisoned, in which case
+    /// the caller should produce a noop bound handle so measurements are
+    /// silently dropped rather than panicking on the user's hot path.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attributes: &[KeyValue]) -> Option<Arc<TrackerEntry<A>>> {
+        if attributes.is_empty() {
+            self.no_attribute_tracker
+                .bound_count
+                .fetch_add(1, Ordering::Relaxed);
+            return Some(Arc::clone(&self.no_attribute_tracker));
+        }
+
+        let sorted_attrs = sort_and_dedup(attributes);
+        self.bind_attrs(attributes, sorted_attrs)
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind_attrs(
+        &self,
+        original: &[KeyValue],
+        sorted_attrs: Vec<KeyValue>,
+    ) -> Option<Arc<TrackerEntry<A>>> {
+        // Fast path: read lock lookup using the canonical (sorted) key.
+        if let Ok(trackers) = self.trackers.read() {
+            if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+                tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+                return Some(Arc::clone(tracker));
+            }
+        }
+
+        // Slow path: write lock, insert if missing.
+        let Ok(mut trackers) = self.trackers.write() else {
+            // Lock poisoned — caller will produce a noop bound handle.
+            return None;
+        };
+
+        // Recheck after acquiring write lock.
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            return Some(Arc::clone(tracker));
+        }
+
+        if self.is_under_cardinality_limit() {
+            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+            new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            // Insert with both the original and sorted orderings so subsequent
+            // unbound measure() calls hit the fast path regardless of attr order.
+            // Mirrors `measure()`'s insert pattern.
+            if original != sorted_attrs.as_slice() {
+                trackers.insert(original.to_vec(), new_tracker.clone());
+            }
+            trackers.insert(sorted_attrs, new_tracker.clone());
+            self.count.fetch_add(1, Ordering::SeqCst);
+            Some(new_tracker)
+        } else {
+            // Over cardinality limit — bind directly to the overflow tracker so
+            // the bound handle keeps its perf contract (no per-call lookup) and
+            // its writes land predictably in the overflow bucket. This matches
+            // the spec SHOULD that the SDK pre-resolve aggregator state at bind
+            // time, and the spec MUST that bound recordings behave identically
+            // to unbound recordings (which themselves route to overflow once
+            // cardinality is exhausted). See open-telemetry/opentelemetry-specification#5050.
+            //
+            // The overflow tracker is created lazily here if it doesn't exist
+            // yet — mirrors the lazy creation in `measure()` (line above where
+            // overflow is inserted on first overflowing measurement).
+            let overflow_tracker = trackers
+                .entry(stream_overflow_attributes().clone())
+                .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
+                .clone();
+            overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
+            otel_debug!(
+                name: "BoundInstrument.CardinalityOverflow",
+                message = "bind() called at cardinality limit, attributing to overflow bucket"
+            );
+            Some(overflow_tracker)
+        }
+    }
+
     /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
     /// This is used for synchronous instruments (Counter, Histogram, etc.) in Cumulative temporality mode,
     /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
@@ -214,7 +314,9 @@ where
 
     /// Iterate through all attribute sets in-place, populate `DataPoints` and reset.
     /// Only entries updated since the last collection (tracked via `has_been_updated`)
-    /// are exported. Stale entries are evicted to prevent unbounded memory growth.
+    /// are exported. Stale unbound entries are evicted to prevent unbounded memory growth.
+    /// Bound entries (bound_count > 0) are never evicted — they persist until explicitly
+    /// unbound, but produce no export when they have no updates.
     ///
     /// Used for synchronous instruments (Counter, Histogram, etc.) in Delta temporality mode.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
@@ -243,8 +345,10 @@ where
                 if seen.insert(Arc::as_ptr(tracker)) {
                     if tracker.has_been_updated.swap(false, Ordering::Acquire) {
                         dest.push(map_fn(attrs.clone(), &tracker.aggregator));
-                    } else if attrs.as_slice() != overflow_attrs.as_slice() {
-                        // Stale — candidate for eviction
+                    } else if attrs.as_slice() != overflow_attrs.as_slice()
+                        && tracker.bound_count.load(Ordering::Relaxed) == 0
+                    {
+                        // Stale and not bound — candidate for eviction
                         stale_entries.push(Arc::clone(tracker));
                     }
                 }
@@ -254,10 +358,13 @@ where
 
         if !stale_entries.is_empty() {
             if let Ok(mut trackers) = self.trackers.write() {
-                // Re-check under write lock to avoid TOCTOU race: a measure() call between
-                // dropping the read lock and acquiring the write lock could have updated
-                // an entry we marked as stale.
-                stale_entries.retain(|entry| !entry.has_been_updated.load(Ordering::Acquire));
+                // Re-check under write lock to avoid TOCTOU race: a measure() or bind() call
+                // between dropping the read lock and acquiring the write lock could have
+                // updated an entry or bound a handle to one we marked as stale.
+                stale_entries.retain(|entry| {
+                    !entry.has_been_updated.load(Ordering::Acquire)
+                        && entry.bound_count.load(Ordering::Acquire) == 0
+                });
 
                 if !stale_entries.is_empty() {
                     let stale_pointers: HashSet<*const TrackerEntry<A>> =
@@ -783,6 +890,45 @@ mod tests {
             value_map.count.load(Ordering::SeqCst),
             0,
             "count should reach 0 after eviction"
+        );
+    }
+
+    /// When the trackers `RwLock` is poisoned, `bind()` cannot safely insert or
+    /// look up entries, so it returns `None` and the caller (Sum/Histogram/etc.)
+    /// hands back a `NoopBoundMeasure`. This is a defensive branch that fires
+    /// on degenerate states (a thread panicked while holding the write lock)
+    /// and is unreachable through normal traffic. The test induces poisoning
+    /// explicitly so the branch keeps coverage.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    fn bind_returns_none_when_trackers_lock_is_poisoned() {
+        let value_map = ValueMap::<Assign<i64>>::new((), 100);
+
+        // Poison the trackers RwLock by panicking inside a write guard.
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = value_map.trackers.write().unwrap();
+            panic!("intentional poison");
+        }));
+
+        assert!(
+            value_map.trackers.is_poisoned(),
+            "trackers lock must be poisoned for this test to be meaningful"
+        );
+
+        // Empty attrs use the no_attribute_tracker fast path and never touch
+        // the poisoned lock — they should still succeed.
+        assert!(
+            value_map.bind(&[]).is_some(),
+            "bind(&[]) must succeed even with poisoned lock; uses no_attribute_tracker"
+        );
+
+        // Non-empty attrs go through bind_attrs which needs the trackers lock.
+        // The read-lock try succeeds (only writes poison, but read on poisoned
+        // can also fail) — fall through to write lock which fails poisoned.
+        let result = value_map.bind(&[KeyValue::new("k", 1_i64)]);
+        assert!(
+            result.is_none(),
+            "bind() with non-empty attrs must return None on poisoned lock"
         );
     }
 }
