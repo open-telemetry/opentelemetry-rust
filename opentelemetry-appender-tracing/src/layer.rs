@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key,
 };
 #[cfg(feature = "experimental_span_attributes")]
 use std::borrow::Cow;
@@ -322,10 +322,16 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
+    /// Creates a bridge using the default OpenTelemetry logger scope.
+    ///
+    /// The default scope uses an empty scope name for the appender logger.
+    /// Use [`Self::builder_with_scope`] to provide a
+    /// custom [`InstrumentationScope`].
     pub fn new(provider: &P) -> Self {
         Self::builder(provider).build()
     }
 
+    /// Creates a builder using the default OpenTelemetry logger scope.
     pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
         OpenTelemetryTracingBridgeBuilder {
             // Using empty scope name.
@@ -334,6 +340,20 @@ where
             // defined for the same.
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
             logger: provider.logger(""),
+            _phantom: Default::default(),
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attribute_allowlist: None,
+        }
+    }
+
+    /// Creates a builder that uses a custom OpenTelemetry [`InstrumentationScope`]
+    /// for the appender logger.
+    pub fn builder_with_scope(
+        provider: &P,
+        scope: InstrumentationScope,
+    ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        OpenTelemetryTracingBridgeBuilder {
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
             span_attribute_allowlist: None,
@@ -509,7 +529,7 @@ mod tests {
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::InstrumentationScope;
-    use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
@@ -829,6 +849,49 @@ mod tests {
             assert!(attributes_key.contains(&Key::new("code.lineno")));
             assert!(!attributes_key.contains(&Key::new("log.target")));
         }
+    }
+
+    #[test]
+    fn tracing_appender_with_custom_scope() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let scope = InstrumentationScope::builder("test.scope")
+            .with_version("1.2.3")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
+            .with_attributes([KeyValue::new("scope-key", "scope-value")])
+            .build();
+        let subscriber = tracing_subscriber::registry().with(
+            layer::OpenTelemetryTracingBridge::builder_with_scope(&logger_provider, scope.clone())
+                .build(),
+        );
+
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        error!(name: "scoped-event", target: "my-system", event_id = 20);
+        assert!(logger_provider.force_flush().is_ok());
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("At least one log is expected to be present.");
+
+        let instrumentation_scope = &log.instrumentation;
+        assert_eq!(instrumentation_scope.name(), "test.scope");
+        assert_eq!(instrumentation_scope.version(), Some("1.2.3"));
+        assert_eq!(
+            instrumentation_scope.schema_url(),
+            Some("https://opentelemetry.io/schemas/1.0.0")
+        );
+        assert!(instrumentation_scope
+            .attributes()
+            .eq([KeyValue::new("scope-key", "scope-value")].iter()));
+        exporter.reset();
     }
 
     #[test]
