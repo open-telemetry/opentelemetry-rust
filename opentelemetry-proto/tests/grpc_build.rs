@@ -177,6 +177,10 @@ fn build_tonic() {
         // metrics
         "metrics.v1.SummaryDataPoint.ValueAtQuantile.value",
         "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
+        "metrics.v1.ExponentialHistogramDataPoint.zeroThreshold",
+        "metrics.v1.SummaryDataPoint.sum",
+        "metrics.v1.NumberDataPoint.value",
+        "metrics.v1.Exemplar.value",
     ] {
         builder = builder.field_attribute(
             path,
