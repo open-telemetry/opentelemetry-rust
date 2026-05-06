@@ -353,10 +353,9 @@ where
     _phantom: std::marker::PhantomData<P>, // P is not used.
     // Tracing-span attribute enrichment configuration:
     // - `None` => disabled (default). No per-span work, no scope walk.
-    // - `Some(set)` => enabled. If `set` is empty, all tracing-span attributes
-    //   are copied onto log records; otherwise only attributes whose keys are
-    //   in `set`.
-    span_attributes: Option<HashSet<Cow<'static, str>>>,
+    // - `Some(All)` => copy all tracing-span attributes onto log records.
+    // - `Some(Allowlist(set))` => copy only attributes whose keys are in `set`.
+    span_attributes: Option<TracingSpanAttributesInner>,
 }
 
 impl<P, L> OpenTelemetryTracingBridge<P, L>
@@ -389,7 +388,7 @@ where
 {
     logger: L,
     _phantom: std::marker::PhantomData<P>,
-    span_attributes: Option<HashSet<Cow<'static, str>>>,
+    span_attributes: Option<TracingSpanAttributesInner>,
 }
 
 impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
@@ -414,10 +413,7 @@ where
     /// [`tracing`]: https://crates.io/crates/tracing
     /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
     pub fn with_tracing_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
-        self.span_attributes = Some(match span_attributes.0 {
-            TracingSpanAttributesInner::All => HashSet::new(),
-            TracingSpanAttributesInner::Allowlist(set) => set,
-        });
+        self.span_attributes = Some(span_attributes.0);
         self
     }
 
@@ -493,14 +489,12 @@ where
     ) {
         // Skip entirely when tracing-span attribute enrichment is disabled to
         // avoid any per-span overhead.
-        let Some(allowlist) = self.span_attributes.as_ref() else {
+        let Some(config) = self.span_attributes.as_ref() else {
             return;
         };
-        // Empty allowlist = "copy all" (no filter).
-        let allowlist = if allowlist.is_empty() {
-            None
-        } else {
-            Some(allowlist)
+        let allowlist = match config {
+            TracingSpanAttributesInner::All => None,
+            TracingSpanAttributesInner::Allowlist(set) => Some(set),
         };
 
         let span = ctx.span(id).expect("Span not found; this is a bug");
@@ -526,13 +520,12 @@ where
         values: &tracing::span::Record<'_>,
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        let Some(allowlist) = self.span_attributes.as_ref() else {
+        let Some(config) = self.span_attributes.as_ref() else {
             return;
         };
-        let allowlist = if allowlist.is_empty() {
-            None
-        } else {
-            Some(allowlist)
+        let allowlist = match config {
+            TracingSpanAttributesInner::All => None,
+            TracingSpanAttributesInner::Allowlist(set) => Some(set),
         };
 
         let span = ctx.span(id).expect("Span not found; this is a bug");
