@@ -390,6 +390,13 @@ pub mod number_data_point {
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "4")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
         AsInt(i64),
@@ -686,6 +693,13 @@ pub struct ExponentialHistogramDataPoint {
     /// expressed using the standard exponential formula as well as values that
     /// have been rounded to zero.
     #[prost(double, tag = "14")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+        )
+    )]
     pub zero_threshold: f64,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
@@ -784,6 +798,13 @@ pub struct SummaryDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+        )
+    )]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
@@ -903,6 +924,13 @@ pub mod exemplar {
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "3")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
         AsInt(i64),
