@@ -1,5 +1,9 @@
 # OpenTelemetry Jaeger Propagator
 
+## ⚠️ Deprecation Notice
+
+**This crate is deprecated.** The Jaeger propagation format is deprecated per the [OpenTelemetry specification](https://github.com/open-telemetry/opentelemetry-specification/pull/4827). Use W3C TraceContext propagation instead. See the [Jaeger SDK migration guide](https://www.jaegertracing.io/sdk-migration/#propagation-format) for details. This crate will be removed in a future release.
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png

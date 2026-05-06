@@ -51,6 +51,7 @@
 - Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
+- Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
 
 ## 0.31.0
 

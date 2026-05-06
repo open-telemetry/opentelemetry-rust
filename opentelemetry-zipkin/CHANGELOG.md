@@ -2,6 +2,7 @@
 
 ## vNext
 
+- **Deprecated**: The `opentelemetry-zipkin` crate is now deprecated. Use the OTLP exporter (`opentelemetry-otlp`) instead. Zipkin supports native OTLP ingestion. This crate will be removed in a future release.
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0

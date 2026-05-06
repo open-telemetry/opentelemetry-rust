@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Deprecated**: The `opentelemetry-jaeger-propagator` crate is now deprecated. The Jaeger propagation format is deprecated per the OpenTelemetry specification. Use W3C TraceContext propagation instead. This crate will be removed in a future release.
+
 ## 0.31.0
 
 Released 2025-Sep-25

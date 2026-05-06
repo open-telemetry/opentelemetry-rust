@@ -1,3 +1,9 @@
+//! **⚠️ This crate is deprecated.** The Jaeger propagation format is deprecated
+//! per the [OpenTelemetry specification](https://github.com/open-telemetry/opentelemetry-specification/pull/4827).
+//! Use W3C TraceContext propagation instead. See the
+//! [Jaeger SDK migration guide](https://www.jaegertracing.io/sdk-migration/#propagation-format)
+//! for details. This crate will be removed in a future release.
+//!
 //! *[Supported Rust Versions](#supported-rust-versions)*
 //!
 //! [Jaeger Docs]: https://www.jaegertracing.io/docs/
@@ -19,6 +25,11 @@
 //! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
+#![deprecated(
+    since = "0.32.0",
+    note = "Jaeger propagation format is deprecated. Use W3C TraceContext propagation instead. See https://www.jaegertracing.io/sdk-migration/#propagation-format"
+)]
+#![allow(deprecated)]
 #![warn(
     future_incompatible,
     missing_debug_implementations,
