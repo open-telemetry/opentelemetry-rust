@@ -2,12 +2,10 @@
 
 ## vNext
 
-- **Stabilize tracing span attribute enrichment.** The
-  `experimental_span_attributes` cargo feature has been removed; the capability
-  is now part of the stable API surface. "Span" here refers to a
-  [`tracing::span!`][tracing-span] from the [`tracing`] crate (the appender's
-  source), **not** an OpenTelemetry span. When enabled, attributes attached to
-  active `tracing` spans are copied onto each emitted log record.
+- **Add tracing span attribute enrichment.** When enabled, attributes attached
+  to active [`tracing`] spans are copied onto each emitted log record. "Span"
+  here refers to a [`tracing::span!`][tracing-span] from the [`tracing`] crate
+  (the appender's source), **not** an OpenTelemetry span.
 
   Enrichment is **disabled by default** (no per-span overhead) and must be
   opted into at runtime via a single builder method that accepts a
@@ -26,12 +24,6 @@
       .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
       .build();
   ```
-
-  Migration from the experimental feature: drop the
-  `experimental_span_attributes` feature from `Cargo.toml`, and add
-  `.with_tracing_span_attributes(TracingSpanAttributes::all())` to the builder (or use
-  `TracingSpanAttributes::allowlist(keys)` to restrict which span attributes are
-  copied).
 
 [`tracing`]: https://crates.io/crates/tracing
 [tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
