@@ -10,32 +10,28 @@
   active `tracing` spans are copied onto each emitted log record.
 
   Enrichment is **disabled by default** (no per-span overhead) and must be
-  opted into at runtime via two new builder methods:
+  opted into at runtime via a single builder method that accepts a
+  [`SpanAttributes`] value:
 
   ```rust
+  use opentelemetry_appender_tracing::layer::SpanAttributes;
+
   // Copy all tracing-span attributes onto log records:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .enable_span_attributes(true)
+      .with_span_attributes(SpanAttributes::all())
       .build();
 
-  // Or restrict to an allowlist (must also call enable_span_attributes(true)):
+  // Or copy only an allowlist of attributes:
   let layer = OpenTelemetryTracingBridge::builder(&provider)
-      .enable_span_attributes(true)
-      .with_span_attribute_allowlist(["session.id"])
+      .with_span_attributes(SpanAttributes::allowlist(["session.id"]))
       .build();
   ```
 
-  `enable_span_attributes` and `with_span_attribute_allowlist` are independent:
-  - `enable_span_attributes(bool)` toggles enrichment on or off.
-  - `with_span_attribute_allowlist(keys)` configures the filter, but only
-    takes effect when enrichment is also enabled. Calling it without also
-    calling `enable_span_attributes(true)` is a no-op (a warning is emitted
-    via `otel_warn!` from `build()`).
-
   Migration from the experimental feature: drop the
-  `experimental_span_attributes` feature from `Cargo.toml`, and add an
-  explicit `.enable_span_attributes(true)` call on the builder. Existing
-  `with_span_attribute_allowlist(keys)` calls are preserved as-is.
+  `experimental_span_attributes` feature from `Cargo.toml`, and add
+  `.with_span_attributes(SpanAttributes::all())` to the builder (or use
+  `SpanAttributes::allowlist(keys)` to restrict which span attributes are
+  copied).
 
 [`tracing`]: https://crates.io/crates/tracing
 [tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
