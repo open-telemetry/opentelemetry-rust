@@ -32,7 +32,7 @@ use crate::retry_classification::http::classify_http_error;
 
 ///  This represents the maximum bytes read from an OLTP Http response body.
 /// It guards against memory exhaustion from a malicious endpoint.
-const MAX_RESPONSE_BODY_BYTES: usize = 10 * 1024 * 1024; 
+const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024; 
 
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
@@ -539,7 +539,6 @@ impl OtlpHttpClient {
                 name: "HttpClient.StatusError",
                 status_code = status_code,
                 url = request_uri.as_str(),
-                //response_body = format!("{:?}", response.body())
             );
             let message = format!("HTTP export failed with status code: {status_code}");
             return Err(match retry_after {
