@@ -30,6 +30,10 @@ use crate::retry::{RetryErrorType, RetryPolicy};
 #[cfg(feature = "experimental-http-retry")]
 use crate::retry_classification::http::classify_http_error;
 
+///  This represents the maximum bytes read from an oltp hhtp response body.
+/// It guards against memory exhaustion from a malicious endpoint.
+const MAX_RESPONSE_BODY_BYTES: usize = 10 * 1024 * 1024; 
+
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
 #[derive(Debug)]
@@ -535,7 +539,7 @@ impl OtlpHttpClient {
                 name: "HttpClient.StatusError",
                 status_code = status_code,
                 url = request_uri.as_str(),
-                response_body = format!("{:?}", response.body())
+                //response_body = format!("{:?}", response.body())
             );
             let message = format!("HTTP export failed with status code: {status_code}");
             return Err(match retry_after {
@@ -549,7 +553,17 @@ impl OtlpHttpClient {
         otel_debug!(name: "HttpClient.ExportSucceeded");
 
         // Return the response, consuming the body to save a copy
-        Ok(response.into_body())
+        let body = response.into_body();
+        if body.len() > MAX_RESPONSE_BODY_BYTES {
+            opentelemetry::otel_warn!(
+                name: "HttpClient.ResponseBodyTooLarge",
+                message = "Response body exceeded limit which means partial_success will not be parsed.",
+                body_size = body.len(),
+                max_size = MAX_RESPONSE_BODY_BYTES
+            );
+            return Ok(Bytes::new());
+        }
+        Ok(body)
     }
 
     /// Compress data using gzip or zstd if the user has requested it and the relevant feature
@@ -1614,5 +1628,49 @@ mod tests {
             assert_eq!(client.retry_policy.max_delay_ms, 5000);
             assert_eq!(client.retry_policy.jitter_ms, 200);
         }
+
+        #[tokio::test]
+        async fn test_response_body_limit() {
+            use opentelemetry_http::{Bytes, HttpClient};
+            use crate::exporter::http::{HttpRetryData, MAX_RESPONSE_BODY_BYTES};
+
+            #[derive(Debug)]
+            struct HugeBodyClient;
+
+            #[async_trait::async_trait]
+            impl HttpClient for HugeBodyClient {
+                async fn send_bytes(&self, _request: http::Request<Bytes>) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                    let hb = Bytes::from(vec![b'a'; MAX_RESPONSE_BODY_BYTES + 1]); 
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .body(hb)
+                        .unwrap())
+                }
+            }
+
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(HugeBodyClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None,
+                #[cfg(feature = "experimental-http-retry")]
+                None,
+            );
+
+            let retry = HttpRetryData {
+                body: vec![],
+                headers: client.headers.clone(),
+                endpoint: client.collector_endpoint.to_string(),
+            };
+
+            let result = client
+                .export_http_once(&retry, "application/x-protobuf", None, "test")
+                .await
+                .unwrap();
+
+            assert_eq!(result.len(), 0);
+         } 
     }
 }
