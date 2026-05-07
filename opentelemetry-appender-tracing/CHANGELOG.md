@@ -7,10 +7,31 @@
   `with_span_name(<key>)` to enable propagation and choose the attribute key
   (e.g., `"span.name"`); when not set, the span name is not propagated.
 
-- New *experimental* feature to enrich log records with attributes from active
-  tracing spans (`experimental_span_attributes`). Use
-  `OpenTelemetryTracingBridge::builder()` with `with_span_attribute_allowlist`
-  to control which span attributes are copied to log records.
+- **Add tracing span attribute enrichment.** When enabled, attributes attached
+  to active [`tracing`] spans are copied onto each emitted log record. "Span"
+  here refers to a [`tracing::span!`][tracing-span] from the [`tracing`] crate
+  (the appender's source), **not** an OpenTelemetry span.
+
+  Enrichment is **disabled by default** (no per-span overhead) and must be
+  opted into at runtime via a single builder method that accepts a
+  [`TracingSpanAttributes`] value:
+
+  ```rust
+  use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
+
+  // Copy all tracing-span attributes onto log records:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::all())
+      .build();
+
+  // Or copy only an allowlist of attributes:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+      .build();
+  ```
+
+[`tracing`]: https://crates.io/crates/tracing
+[tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry

@@ -20,6 +20,28 @@
   processors contain only the gRPC status code or HTTP status code. Full
   details are logged at DEBUG level only.
   [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
+- Surface pre-flight transport error details at ERROR level when `grpc-tonic`
+  OTLP export fails due to a local misconfiguration. When the returned
+  `tonic::Status` wraps a local transport error (invalid URL, connect failure,
+  DNS), its source chain (e.g., `"transport error: invalid URI"`) is appended
+  to the returned error so SDK processors surface it at ERROR without
+  requiring DEBUG logging. Server-returned gRPC status messages remain
+  DEBUG-only to preserve the auth-token leak safeguards from
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021).
+  [#3331](https://github.com/open-telemetry/opentelemetry-rust/issues/3331)
+- Add support for per-signal protocol environment variables:
+  `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`,
+  `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL`. These allow configuring different transport protocols
+  per signal type. Signal-specific vars take precedence over generic `OTEL_EXPORTER_OTLP_PROTOCOL`.
+  The auto-select `build()` method on each exporter builder now respects the full priority chain:
+  signal-specific env var > generic env var > feature-based default.
+- Transport/protocol mismatch validation: HTTP transport returns `InvalidConfig` when gRPC protocol
+  is requested; gRPC transport returns `InvalidConfig` when an HTTP protocol is requested.
+- **Breaking**: `Protocol::default()` no longer consults the `OTEL_EXPORTER_OTLP_PROTOCOL`
+  environment variable. It now returns only the feature-based default (http-json > http-proto >
+  grpc-tonic). Protocol resolution from environment variables is handled internally by the
+  exporter builders. Users who relied on `Protocol::default()` to read env vars should use
+  `Protocol::from_env()` instead.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
@@ -29,6 +51,7 @@
 - Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
+- Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
 
 ## 0.31.0
 
