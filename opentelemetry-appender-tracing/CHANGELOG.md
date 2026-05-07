@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Propagate tracing span names to log records under a user-configured
+  attribute key. Use `OpenTelemetryTracingBridge::builder()` with
+  `with_span_name(<key>)` to enable propagation and choose the attribute key
+  (e.g., `"span.name"`); when not set, the span name is not propagated.
+
 - **Add tracing span attribute enrichment.** When enabled, attributes attached
   to active [`tracing`] spans are copied onto each emitted log record. "Span"
   here refers to a [`tracing::span!`][tracing-span] from the [`tracing`] crate
