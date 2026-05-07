@@ -378,8 +378,8 @@ where
     /// attribute key. Setting this enables the propagation; leaving it unset
     /// (the default) disables it.
     #[cfg(feature = "experimental_span_attributes")]
-    pub fn with_span_name(mut self, key: impl Into<Key>) -> Self {
-        self.span_name_key = Some(key.into());
+    pub fn with_span_name(mut self, name: &'static str) -> Self {
+        self.span_name_key = Some(Key::from_static_str(name));
         self
     }
 
