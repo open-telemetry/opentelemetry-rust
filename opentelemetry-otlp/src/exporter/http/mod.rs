@@ -30,7 +30,7 @@ use crate::retry::{RetryErrorType, RetryPolicy};
 #[cfg(feature = "experimental-http-retry")]
 use crate::retry_classification::http::classify_http_error;
 
-///  This represents the maximum bytes read from an oltp hhtp response body.
+///  This represents the maximum bytes read from an OLTP Http response body.
 /// It guards against memory exhaustion from a malicious endpoint.
 const MAX_RESPONSE_BODY_BYTES: usize = 10 * 1024 * 1024; 
 
