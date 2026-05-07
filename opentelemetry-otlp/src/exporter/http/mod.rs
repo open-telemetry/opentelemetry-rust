@@ -1671,6 +1671,50 @@ mod tests {
                 .unwrap();
 
             assert_eq!(result.len(), 0);
-         } 
+        }
+
+        #[tokio::test]
+        async fn test_response_within_limit() {
+            use crate::exporter::http::{HttpRetryData, MAX_RESPONSE_BODY_BYTES};
+            use opentelemetry_http::{Bytes, HttpClient};
+
+            #[derive(Debug)]
+            struct SmallBodyClient;
+
+            #[async_trait::async_trait]
+            impl HttpClient for SmallBodyClient {
+                async fn send_bytes(&self, _request: http::Request<Bytes>) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                    let sb = Bytes::from(vec![b'a'; MAX_RESPONSE_BODY_BYTES - 1]); 
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .body(sb)
+                        .unwrap())
+                }
+            }
+
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(SmallBodyClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                None,
+                #[cfg(feature = "experimental-http-retry")]
+                None,
+            );
+
+            let retry = HttpRetryData {
+                body: vec![],
+                headers: client.headers.clone(),
+                endpoint: client.collector_endpoint.to_string(),
+            };
+
+            let result = client
+                .export_http_once(&retry, "application/x-protobuf", None, "test")
+                .await
+                .unwrap();
+
+            assert_eq!(result.len(), MAX_RESPONSE_BODY_BYTES - 1)
+        }
     }
 }
