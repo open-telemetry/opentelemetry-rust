@@ -424,6 +424,8 @@ where
     /// Propagate the current (leaf) span's name to log records using the given
     /// attribute key. Setting this enables the propagation; leaving it unset
     /// (the default) disables it.
+    ///
+    /// This does nothing if `Self::with_tracing_span_attributes` is not set.
     pub fn with_span_name(mut self, name: &'static str) -> Self {
         self.span_name = Some(Key::from_static_str(name));
         self
@@ -1653,6 +1655,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .with_span_name("span.name")
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1685,6 +1688,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .with_span_name("span.name")
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1704,6 +1708,8 @@ mod tests {
         assert_eq!(logs.len(), 1);
         let log = &logs[0];
 
+        println!("{:?}", log.record);
+
         // The span.name should be the current (leaf/innermost) span
         assert!(attributes_contains(
             &log.record,
@@ -1720,6 +1726,7 @@ mod tests {
             .build();
 
         let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
             .with_span_name("custom.span_name")
             .build()
             .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
@@ -1756,11 +1763,12 @@ mod tests {
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
-            tracing_subscriber::filter::filter_fn(|meta| {
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
                 meta.is_span() || *meta.level() <= tracing::Level::ERROR
-            }),
-        );
+            }));
         let subscriber = tracing_subscriber::registry().with(layer);
         let _guard = tracing::subscriber::set_default(subscriber);
 
