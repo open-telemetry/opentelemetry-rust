@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Un-deprecate `opentelemetry-prometheus` and remove stale discontinuation notices. [#3288](https://github.com/open-telemetry/opentelemetry-rust/issues/3288)
+- Set MSRV to 1.81.0 to match the `prometheus` dependency requirement.
+
 ## v0.31.1
 
 - Remove `protobuf` dependency from `prometheus`

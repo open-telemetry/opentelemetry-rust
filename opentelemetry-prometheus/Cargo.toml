@@ -1,7 +1,7 @@
 [package]
 name = "opentelemetry-prometheus"
 version = "0.31.1"
-description = "Prometheus exporter for OpenTelemetry (This crate is discontinued and is no longer maintained)"
+description = "Prometheus exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-prometheus"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-prometheus"
 readme = "README.md"
@@ -13,25 +13,25 @@ categories = [
 keywords = ["opentelemetry", "prometheus", "metrics", "async"]
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.81.0"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-once_cell = { version = "1.13" }
-opentelemetry = { version = "0.31", default-features = false, features = ["metrics", "internal-logs"] }
-opentelemetry_sdk = { version = "0.31", default-features = false, features = ["metrics", "experimental_metrics_custom_reader"] }
+once_cell = { workspace = true }
+opentelemetry = { workspace = true, features = ["metrics", "internal-logs"] }
+opentelemetry_sdk = { workspace = true, features = ["metrics", "experimental_metrics_custom_reader"] }
 prometheus = { version = "0.14", default-features = false }
-tracing = { version = ">=0.1.40", default-features = false, optional = true } # optional for opentelemetry internal logging
+tracing = { workspace = true, optional = true } # optional for opentelemetry internal logging
 
 [dev-dependencies]
-opentelemetry-semantic-conventions = { version = "0.31" }
-http-body-util = { version = "0.1" }
-hyper = { version = "1.3", features = ["full"] }
-hyper-util = { version = "0.1", features = ["full"] }
-tokio = { version = "1", features = ["full"] }
+opentelemetry-semantic-conventions = { workspace = true }
+http-body-util = { workspace = true }
+hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["internal-logs"]
