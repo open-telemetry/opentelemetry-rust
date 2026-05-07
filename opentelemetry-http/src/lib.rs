@@ -51,7 +51,7 @@ impl Extractor for HeaderExtractor<'_> {
 
     /// Get all the values for a key from the HeaderMap
     fn get_all(&self, key: &str) -> Option<Vec<&str>> {
-        let all_iter = self.0.get_all(key).iter(); 
+        let all_iter = self.0.get_all(key).iter();
         if let (0, Some(0)) = all_iter.size_hint() {
             return None;
         }
