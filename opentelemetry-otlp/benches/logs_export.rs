@@ -37,14 +37,14 @@
     Hardware: Apple M4 Pro
     | Test                            | Time      | Per Log |
     |---------------------------------|-----------|---------|
-    | batch_512_with_4_attrs          | ~406 µs   | ~793 ns |
-    | batch_512_with_10_attrs         | ~719 µs   | ~1.4 µs |
-    | batch_512_with_4_attrs_gzip     | ~674 µs   | ~1.3 µs |
-    | batch_512_with_10_attrs_gzip    | ~1,094 µs | ~2.1 µs |
-    | batch_512_with_4_attrs_zstd     | ~389 µs   | ~760 ns |
-    | batch_512_with_10_attrs_zstd    | ~745 µs   | ~1.5 µs |
-    | raw_http_88kb_payload           | ~98 µs    | -       |
-    | raw_http_4kb_payload            | ~57 µs    | -       |
+    | batch_512_with_4_attrs          | ~495 µs   | ~967 ns |
+    | batch_512_with_10_attrs         | ~851 µs   | ~1.7 µs |
+    | batch_512_with_4_attrs_gzip     | ~670 µs   | ~1.3 µs |
+    | batch_512_with_10_attrs_gzip    | ~1,156 µs | ~2.3 µs |
+    | batch_512_with_4_attrs_zstd     | ~435 µs   | ~849 ns |
+    | batch_512_with_10_attrs_zstd    | ~735 µs   | ~1.4 µs |
+    | raw_http_88kb_payload           | ~122 µs   | -       |
+    | raw_http_4kb_payload            | ~75 µs    | -       |
 
     End-to-End with BatchLogProcessor (emit → batch → export → HTTP):
     Note: This approximates a real e2e scenario but differs from production:
@@ -54,8 +54,8 @@
 
     | Test                              | Time      | Per Log |
     |-----------------------------------|-----------|---------|
-    | e2e_batch_511_with_4_attrs        | ~796 µs   | ~1.6 µs |
-    | e2e_batch_511_with_4_attrs_zstd   | ~792 µs   | ~1.5 µs |
+    | e2e_batch_511_with_4_attrs        | ~865 µs   | ~1.7 µs |
+    | e2e_batch_511_with_4_attrs_zstd   | ~811 µs   | ~1.6 µs |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
@@ -78,59 +78,66 @@ use opentelemetry_sdk::Resource;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
-// Fake HTTP server that returns 200 OK immediately
-async fn start_fake_otlp_server(port: u16) -> tokio::task::JoinHandle<()> {
-    use hyper::service::{make_service_fn, service_fn};
-    use hyper::{Body, Request, Response, Server, StatusCode};
-    use std::convert::Infallible;
+// Fake HTTP server that returns 200 OK immediately.
+// Binds to port 0 (OS-assigned) and returns the actual bound port.
+async fn start_fake_otlp_server() -> (tokio::task::JoinHandle<()>, u16) {
+    use http_body_util::BodyExt;
+    use hyper::body::Incoming;
+    use hyper::service::service_fn;
+    use hyper::{Request, Response, StatusCode};
+    use hyper_util::rt::TokioIo;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use tokio::net::TcpListener;
 
     let request_count = Arc::new(AtomicUsize::new(0));
 
-    async fn handle_request(
-        req: Request<Body>,
-        counter: Arc<AtomicUsize>,
-    ) -> Result<Response<Body>, Infallible> {
-        let body_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
-        counter.fetch_add(1, Ordering::Relaxed);
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
 
-        // Log body size for first few requests to verify data is being sent
-        let count = counter.load(Ordering::Relaxed);
-        if count <= 5 {
-            println!(
-                "Server received request #{}: {} bytes",
-                count,
-                body_bytes.len()
-            );
+    println!("Fake OTLP server listening on http://127.0.0.1:{}", port);
+
+    let handle = tokio::spawn(async move {
+        loop {
+            let (stream, _) = match listener.accept().await {
+                Ok(conn) => conn,
+                Err(_) => continue,
+            };
+            let counter = request_count.clone();
+            tokio::spawn(async move {
+                let service = service_fn(move |req: Request<Incoming>| {
+                    let counter = counter.clone();
+                    async move {
+                        let body_bytes = req.into_body().collect().await.unwrap().to_bytes();
+                        let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                        if count <= 5 {
+                            println!(
+                                "Server received request #{}: {} bytes",
+                                count,
+                                body_bytes.len()
+                            );
+                        }
+                        Ok::<_, hyper::Error>(
+                            Response::builder()
+                                .status(StatusCode::OK)
+                                .body(http_body_util::Empty::<hyper::body::Bytes>::new())
+                                .unwrap(),
+                        )
+                    }
+                });
+                if let Err(e) = hyper_util::server::conn::auto::Builder::new(
+                    hyper_util::rt::TokioExecutor::new(),
+                )
+                .serve_connection(TokioIo::new(stream), service)
+                .await
+                {
+                    eprintln!("Connection error: {}", e);
+                }
+            });
         }
-
-        // Return 200 OK
-        Ok(Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap())
-    }
-
-    let make_svc = make_service_fn(move |_conn| {
-        let counter = request_count.clone();
-        async move { Ok::<_, Infallible>(service_fn(move |req| handle_request(req, counter.clone()))) }
     });
 
-    let addr = ([127, 0, 0, 1], port).into();
-    let server = Server::bind(&addr).serve(make_svc);
-
-    println!(
-        "Fake OTLP server listening on http://{}:{}",
-        addr.ip(),
-        addr.port()
-    );
-
-    tokio::spawn(async move {
-        if let Err(e) = server.await {
-            eprintln!("Fake OTLP server error: {}", e);
-        }
-    })
+    (handle, port)
 }
 
 fn create_log_exporter(endpoint: String) -> OtlpLogExporter {
@@ -228,8 +235,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     // Start fake OTLP server
-    let port = 14318; // Standard OTLP HTTP port
-    let _server_handle = rt.block_on(start_fake_otlp_server(port));
+    let (_server_handle, port) = rt.block_on(start_fake_otlp_server());
 
     // Give server time to start
     std::thread::sleep(Duration::from_millis(100));
@@ -420,9 +426,8 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
     // Create runtime for async operations
     let rt = Runtime::new().unwrap();
 
-    // Start fake OTLP server on a different port to avoid conflicts
-    let port = 14319;
-    let _server_handle = rt.block_on(start_fake_otlp_server(port));
+    // Start fake OTLP server on an OS-assigned port to avoid conflicts
+    let (_server_handle, port) = rt.block_on(start_fake_otlp_server());
     std::thread::sleep(Duration::from_millis(100));
 
     let endpoint = format!("http://localhost:{}", port);

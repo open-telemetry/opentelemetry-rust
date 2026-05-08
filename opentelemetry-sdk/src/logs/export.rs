@@ -44,8 +44,6 @@ impl<'a> LogBatch<'a> {
     ///
     /// A `LogBatch` instance containing the provided log records and instrumentation scopes.
     ///
-    /// Note - this is not a public function, and should not be used directly. This would be
-    /// made private in the future.
     pub fn new(data: &'a [(&'a SdkLogRecord, &'a InstrumentationScope)]) -> LogBatch<'a> {
         LogBatch {
             data: LogBatchData::SliceOfBorrowedData(data),
