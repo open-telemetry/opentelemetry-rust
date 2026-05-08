@@ -34,6 +34,7 @@ pprof = { workspace = true }
 [features]
 default = []
 experimental_metadata_attributes = ["dep:tracing-log"]
+experimental_span_attributes = []
 bench_profiling = []
 
 [[bench]]
@@ -47,6 +48,7 @@ harness = false
 [[bench]]
 name = "span-attributes"
 harness = false
+required-features = ["experimental_span_attributes"]
 
 [lib]
 bench = false

@@ -130,14 +130,12 @@
 //! scopes can be copied onto each emitted log record. **"Span" here refers to a `tracing` span,
 //! not an `opentelemetry::trace::Span`.**
 //!
+//! Gated behind the `experimental_span_attributes` cargo feature.
+//!
 //! Enrichment is **disabled by default** (zero per-span overhead) and must be opted into
 //! via the builder:
 //!
-//! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
-//! # let exporter = LogExporter::default();
-//! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
+//! ```ignore
 //! use opentelemetry_appender_tracing::layer::{OpenTelemetryTracingBridge, TracingSpanAttributes};
 //!
 //! // Copy ALL tracing-span attributes onto log records:
@@ -161,9 +159,10 @@
 //!
 //! ## Feature Flags
 //!
+//! - `experimental_span_attributes`: Enables tracing-span attribute enrichment
+//!   (`TracingSpanAttributes`, `with_tracing_span_attributes`).
 //! - `experimental_metadata_attributes`: Adds source code metadata (`code.filepath`,
 //!   `code.filename`, `code.namespace`, `code.lineno`) as log record attributes.
-//!   This is experimental and may change in future releases.
 //!
 //!
 //! ## Limitations

@@ -2,10 +2,15 @@
 
 ## vNext
 
-- **Add tracing span attribute enrichment.** When enabled, attributes attached
-  to active [`tracing`] spans are copied onto each emitted log record. "Span"
-  here refers to a [`tracing::span!`][tracing-span] from the [`tracing`] crate
-  (the appender's source), **not** an OpenTelemetry span.
+- **Add tracing span attribute enrichment (experimental).** When enabled,
+  attributes attached to active [`tracing`] spans are copied onto each emitted
+  log record. "Span" here refers to a [`tracing::span!`][tracing-span] from the
+  [`tracing`] crate (the appender's source), **not** an OpenTelemetry span.
+
+  Gated behind the new **`experimental_span_attributes`** cargo feature. As
+  with all `experimental_*` features in this repo, the API may change without
+  a major version bump until it is stabilized; once stable, the feature flag
+  will be removed.
 
   Enrichment is **disabled by default** (no per-span overhead) and must be
   opted into at runtime via a single builder method that accepts a
