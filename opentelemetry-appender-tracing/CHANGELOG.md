@@ -2,10 +2,15 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - **Add tracing span attribute enrichment (experimental).** When enabled,
   attributes attached to active [`tracing`] spans are copied onto each emitted
   log record. "Span" here refers to a [`tracing::span!`][tracing-span] from the
   [`tracing`] crate (the appender's source), **not** an OpenTelemetry span.
+  [#3482][3482], [#3505][3505]
 
   Gated behind the new **`experimental_span_attributes`** cargo feature. As
   with all `experimental_*` features in this repo, the API may change without
@@ -32,6 +37,8 @@
 
 [`tracing`]: https://crates.io/crates/tracing
 [tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
+[3482]: https://github.com/open-telemetry/opentelemetry-rust/pull/3482
+[3505]: https://github.com/open-telemetry/opentelemetry-rust/pull/3505
 
 - Remove the `experimental_use_tracing_span_context` since
   `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry

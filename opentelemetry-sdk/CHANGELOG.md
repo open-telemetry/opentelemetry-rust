@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - `SimpleSpanProcessor` now suppresses telemetry during export, preventing
   telemetry-induced-telemetry feedback loops. This aligns with the existing
   behavior in `BatchSpanProcessor` and `SimpleLogProcessor`.
@@ -48,7 +52,7 @@
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
 - `StreamBuilder::build()` now rejects `usize::MAX` as a cardinality limit
-  with a validation error.
+  with a validation error. [#3506][3506]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
@@ -65,6 +69,7 @@
 [3407]: https://github.com/open-telemetry/opentelemetry-rust/pull/3407
 [3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
 [3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
+[3506]: https://github.com/open-telemetry/opentelemetry-rust/pull/3506
 
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.

@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - Un-deprecate `opentelemetry-prometheus` and remove stale discontinuation notices. [#3288](https://github.com/open-telemetry/opentelemetry-rust/issues/3288)
 - Set MSRV to 1.81.0 to match the `prometheus` dependency requirement.
 
