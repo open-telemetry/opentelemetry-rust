@@ -60,9 +60,12 @@ Released 2026-May-08
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
 - **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
@@ -70,10 +73,6 @@ Released 2026-May-08
 [3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
 [3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
 [3506]: https://github.com/open-telemetry/opentelemetry-rust/pull/3506
-
-- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
-  backing specification) is now stable and is enabled by default.
-  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
 
 ## 0.31.0
 
