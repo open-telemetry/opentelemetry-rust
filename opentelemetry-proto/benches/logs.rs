@@ -18,12 +18,12 @@
 
     | Test                              | Conversion | Serialization | Gzip Compress | Zstd Compress |
     |-----------------------------------|------------|---------------|---------------|---------------|
-    | batch_512_with_4_attrs            | ~170 µs    | ~66 µs        | ~249 µs       | ~30 µs        |
-    | batch_512_with_10_attrs           | ~365 µs    | ~133 µs       | ~396 µs       | ~38 µs        |
+    | batch_512_with_4_attrs            | ~189 µs    | ~78 µs        | ~1,295 µs     | ~180 µs       |
+    | batch_512_with_10_attrs           | ~402 µs    | ~152 µs       | ~2,911 µs     | ~486 µs       |
 
     === Compression Ratios (512 logs) ===
-    4 attrs:  87945 bytes -> gzip: 3817 bytes (4.3%), zstd: 2512 bytes (2.9%)
-    10 attrs: 152457 bytes -> gzip: 5055 bytes (3.3%), zstd: 2528 bytes (1.7%)
+    4 attrs:  129274 bytes -> gzip: 43084 bytes (33.3%), zstd: 46229 bytes (35.8%)
+    10 attrs: 226830 bytes -> gzip: 67925 bytes (29.9%), zstd: 77336 bytes (34.1%)
 */
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -31,6 +31,7 @@ use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Seve
 use opentelemetry::time::now;
 use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
+use rand::Rng;
 
 #[cfg(feature = "gen-tonic-messages")]
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -68,6 +69,31 @@ fn create_log_batch(
     let temp_provider = SdkLoggerProvider::builder().build();
     let logger = temp_provider.logger("benchmark");
 
+    // Seeded RNG for reproducible but varied data
+    let mut rng = rand::rng();
+
+    // Realistic log message templates
+    let messages = [
+        "HTTP request completed",
+        "Database query executed",
+        "Cache miss for key lookup",
+        "User authentication successful",
+        "Payment processing started",
+        "File upload completed",
+        "Background job scheduled",
+        "Rate limit threshold reached",
+        "Connection pool exhausted",
+        "Configuration reload triggered",
+    ];
+
+    let severities = [
+        (Severity::Trace, "TRACE"),
+        (Severity::Debug, "DEBUG"),
+        (Severity::Info, "INFO"),
+        (Severity::Warn, "WARN"),
+        (Severity::Error, "ERROR"),
+    ];
+
     let mut log_data = Vec::with_capacity(batch_size);
 
     for i in 0..batch_size {
@@ -75,23 +101,33 @@ fn create_log_batch(
 
         record.set_observed_timestamp(now());
         record.set_timestamp(now());
-        record.set_severity_number(Severity::Info);
-        record.set_severity_text("INFO");
-        record.set_body(AnyValue::String("Benchmark log message".into()));
+
+        // Vary severity (mostly Info, some Debug/Warn/Error)
+        let (severity, severity_text) = severities[i % severities.len()];
+        record.set_severity_number(severity);
+        record.set_severity_text(severity_text);
+
+        // Varied log bodies with unique request IDs
+        let msg = messages[i % messages.len()];
+        record.set_body(AnyValue::String(
+            format!("{} request_id={}", msg, rng.random::<u64>()).into(),
+        ));
 
         // Set target (10 different targets, ~51 logs per target)
         record.set_target(targets[i % targets.len()].to_string());
 
-        // Add trace context
-        let trace_id =
-            opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
-        let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
+        // Unique trace context per log (realistic: each log from a different span)
+        let trace_id = opentelemetry::trace::TraceId::from(rng.random::<u128>());
+        let span_id = opentelemetry::trace::SpanId::from(rng.random::<u64>());
         let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
         record.set_trace_context(trace_id, span_id, Some(trace_flags));
 
-        // Add attributes
+        // Varied attribute values (keys stay the same, values differ per log)
         for j in 0..attribute_count {
-            record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+            record.add_attribute(
+                format!("attr_{}", j),
+                format!("value_{}_{}", j, rng.random::<u32>()),
+            );
         }
 
         log_data.push(Box::new((record, scope.clone())));

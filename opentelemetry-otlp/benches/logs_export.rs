@@ -37,14 +37,14 @@
     Hardware: Apple M4 Pro
     | Test                            | Time      | Per Log |
     |---------------------------------|-----------|---------|
-    | batch_512_with_4_attrs          | ~495 µs   | ~967 ns |
-    | batch_512_with_10_attrs         | ~851 µs   | ~1.7 µs |
-    | batch_512_with_4_attrs_gzip     | ~670 µs   | ~1.3 µs |
-    | batch_512_with_10_attrs_gzip    | ~1,156 µs | ~2.3 µs |
-    | batch_512_with_4_attrs_zstd     | ~435 µs   | ~849 ns |
-    | batch_512_with_10_attrs_zstd    | ~735 µs   | ~1.4 µs |
-    | raw_http_88kb_payload           | ~122 µs   | -       |
-    | raw_http_4kb_payload            | ~75 µs    | -       |
+    | batch_512_with_4_attrs          | ~543 µs   | ~1.1 µs |
+    | batch_512_with_10_attrs         | ~950 µs   | ~1.9 µs |
+    | batch_512_with_4_attrs_gzip     | ~2,021 µs | ~3.9 µs |
+    | batch_512_with_10_attrs_gzip    | ~3,937 µs | ~7.7 µs |
+    | batch_512_with_4_attrs_zstd     | ~662 µs   | ~1.3 µs |
+    | batch_512_with_10_attrs_zstd    | ~1,431 µs | ~2.8 µs |
+    | raw_http_88kb_payload           | ~125 µs   | -       |
+    | raw_http_4kb_payload            | ~74 µs    | -       |
 
     End-to-End with BatchLogProcessor (emit → batch → export → HTTP):
     Note: This approximates a real e2e scenario but differs from production:
@@ -54,8 +54,8 @@
 
     | Test                              | Time      | Per Log |
     |-----------------------------------|-----------|---------|
-    | e2e_batch_511_with_4_attrs        | ~865 µs   | ~1.7 µs |
-    | e2e_batch_511_with_4_attrs_zstd   | ~811 µs   | ~1.6 µs |
+    | e2e_batch_511_with_4_attrs        | ~1,074 µs | ~2.1 µs |
+    | e2e_batch_511_with_4_attrs_zstd   | ~1,212 µs | ~2.4 µs |
 
     Notes:
     - Export time = Conversion + Serialization + Compression (optional) + HTTP stack overhead
@@ -75,6 +75,7 @@ use opentelemetry_sdk::logs::{
     BatchConfigBuilder, BatchLogProcessor, LogBatch, LogExporter, SdkLogRecord, SdkLoggerProvider,
 };
 use opentelemetry_sdk::Resource;
+use rand::Rng;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
@@ -195,6 +196,30 @@ fn create_log_batch(
     let temp_provider = SdkLoggerProvider::builder().build();
     let logger = temp_provider.logger("benchmark");
 
+    // Seeded RNG for reproducible but varied data
+    let mut rng = rand::rng();
+
+    let messages = [
+        "HTTP request completed",
+        "Database query executed",
+        "Cache miss for key lookup",
+        "User authentication successful",
+        "Payment processing started",
+        "File upload completed",
+        "Background job scheduled",
+        "Rate limit threshold reached",
+        "Connection pool exhausted",
+        "Configuration reload triggered",
+    ];
+
+    let severities = [
+        (Severity::Trace, "TRACE"),
+        (Severity::Debug, "DEBUG"),
+        (Severity::Info, "INFO"),
+        (Severity::Warn, "WARN"),
+        (Severity::Error, "ERROR"),
+    ];
+
     let mut log_data = Vec::with_capacity(batch_size);
 
     for i in 0..batch_size {
@@ -202,26 +227,31 @@ fn create_log_batch(
 
         record.set_observed_timestamp(now());
         record.set_timestamp(now());
-        record.set_severity_number(Severity::Info);
-        record.set_severity_text("INFO");
-        record.set_body(AnyValue::String("Benchmark log message".into()));
+
+        let (severity, severity_text) = severities[i % severities.len()];
+        record.set_severity_number(severity);
+        record.set_severity_text(severity_text);
+
+        let msg = messages[i % messages.len()];
+        record.set_body(AnyValue::String(
+            format!("{} request_id={}", msg, rng.random::<u64>()).into(),
+        ));
 
         // Set target (10 different targets, ~51 logs per target)
         record.set_target(targets[i % targets.len()].to_string());
 
-        // Add trace context
-        let trace_id =
-            opentelemetry::trace::TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
-        let span_id = opentelemetry::trace::SpanId::from_hex("00f067aa0ba902b7").unwrap();
+        // Unique trace context per log
+        let trace_id = opentelemetry::trace::TraceId::from(rng.random::<u128>());
+        let span_id = opentelemetry::trace::SpanId::from(rng.random::<u64>());
         let trace_flags = opentelemetry::trace::TraceFlags::SAMPLED;
         record.set_trace_context(trace_id, span_id, Some(trace_flags));
 
-        // Add attributes
-        // TODO: Use realistic attribute names following OpenTelemetry semantic conventions
-        // (e.g., http.request.method, http.response.status_code, url.path, etc.)
-        // to better match real-world log data patterns and compression characteristics
+        // Varied attribute values
         for j in 0..attribute_count {
-            record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+            record.add_attribute(
+                format!("attr_{}", j),
+                format!("value_{}_{}", j, rng.random::<u32>()),
+            );
         }
 
         log_data.push(Box::new((record, scope.clone())));
@@ -479,6 +509,7 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
     // Benchmark: emit 511 logs + force_flush (complete round-trip)
     // 511 is below max_export_batch_size (512), so force_flush is the only trigger
     group.bench_function("e2e_batch_511_with_4_attrs", |b| {
+        let mut rng = rand::rng();
         b.iter(|| {
             // Emit 511 logs across 10 targets (below batch threshold)
             for i in 0..511 {
@@ -489,11 +520,16 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
                 record.set_observed_timestamp(now());
                 record.set_severity_number(Severity::Info);
                 record.set_severity_text("INFO");
-                record.set_body(AnyValue::String("Benchmark log message".into()));
+                record.set_body(AnyValue::String(
+                    format!("Request processed id={}", rng.random::<u64>()).into(),
+                ));
 
-                // Add 4 attributes
+                // Add 4 attributes with varied values
                 for j in 0..4 {
-                    record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+                    record.add_attribute(
+                        format!("attr_{}", j),
+                        format!("value_{}_{}", j, rng.random::<u32>()),
+                    );
                 }
 
                 logger.emit(black_box(record));
@@ -535,6 +571,7 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
         let mut group = c.benchmark_group("e2e_batch_processor_zstd");
 
         group.bench_function("e2e_batch_511_with_4_attrs_zstd", |b| {
+            let mut rng = rand::rng();
             b.iter(|| {
                 for i in 0..511 {
                     let target = TARGETS[i % TARGETS.len()];
@@ -544,10 +581,15 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
                     record.set_observed_timestamp(now());
                     record.set_severity_number(Severity::Info);
                     record.set_severity_text("INFO");
-                    record.set_body(AnyValue::String("Benchmark log message".into()));
+                    record.set_body(AnyValue::String(
+                        format!("Request processed id={}", rng.random::<u64>()).into(),
+                    ));
 
                     for j in 0..4 {
-                        record.add_attribute(format!("attr_{}", j), format!("value_{}", j));
+                        record.add_attribute(
+                            format!("attr_{}", j),
+                            format!("value_{}_{}", j, rng.random::<u32>()),
+                        );
                     }
 
                     logger.emit(black_box(record));
