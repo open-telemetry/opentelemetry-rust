@@ -62,7 +62,9 @@ temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
 async-trait = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
-hyper = { version = "0.14", features = ["server", "http1", "tcp"] }
+hyper = { workspace = true, features = ["server", "http1"] }
+hyper-util = { workspace = true, features = ["tokio", "http1"] }
+http-body-util = "0.1"
 
 [features]
 # telemetry pillars and functions
