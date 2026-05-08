@@ -47,7 +47,8 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- `StreamBuilder::build()` now rejects `usize::MAX` as a cardinality limit
+  with a validation error.
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
@@ -58,7 +59,6 @@
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-[3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262

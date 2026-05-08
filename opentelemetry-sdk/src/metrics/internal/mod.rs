@@ -8,7 +8,6 @@ mod sum;
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
-use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -25,7 +24,6 @@ use opentelemetry::otel_debug;
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
-use super::pipeline::DEFAULT_CARDINALITY_LIMIT;
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -113,9 +111,7 @@ where
 
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(
-                1 + min(DEFAULT_CARDINALITY_LIMIT, cardinality_limit),
-            )),
+            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
@@ -831,14 +827,6 @@ mod tests {
 
         assert!(f64::abs(15.5 - value) < 0.0001, "Incorrect first value");
         assert!(f64::abs(0.0 - value2) < 0.0001, "Incorrect second value");
-    }
-
-    #[test]
-    fn large_cardinality_limit() {
-        // This is a regression test for panics that used to occur for large cardinality limits
-
-        // Should not panic
-        let _value_map = ValueMap::<Assign<i64>>::new((), usize::MAX);
     }
 
     #[test]

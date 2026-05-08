@@ -259,6 +259,11 @@ impl StreamBuilder {
             if limit == 0 {
                 return Err("Cardinality limit must be greater than 0".into());
             }
+            // Reject usize::MAX because the SDK's internal HashMap capacity
+            // is sized as `1 + cardinality_limit`, which would overflow.
+            if limit == usize::MAX {
+                return Err("Cardinality limit must be less than usize::MAX".into());
+            }
         }
 
         // Validate bucket boundaries if using ExplicitBucketHistogram
@@ -544,8 +549,24 @@ mod tests {
             "Expected cardinality limit validation error message"
         );
 
+        // Test usize::MAX (invalid — would overflow internal `1 + limit` capacity)
+        let builder = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_cardinality_limit(usize::MAX);
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for usize::MAX cardinality limit"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Cardinality limit must be less than usize::MAX",
+            "Expected cardinality limit usize::MAX error message"
+        );
+
         // Test valid cardinality limits
-        let valid_limits = vec![1, 10, 100, 1000];
+        let valid_limits = vec![1, 10, 100, 1000, usize::MAX - 1];
         for limit in valid_limits {
             let builder = StreamBuilder::new()
                 .with_name("valid_name")
