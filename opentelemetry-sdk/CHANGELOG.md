@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Reverted the `SimpleSpanProcessor` telemetry suppression added in 0.32.0
+  (see #3494), which caused a `RefCell already borrowed` panic when a span
+  was started and dropped inside a `get_active_span` (or `Context::map_current`)
+  closure. Tracked in #3510. A proper fix for the underlying
+  `Context::map_current` re-entrancy will be investigated separately, after
+  which the suppression can be safely re-applied.
+
 ## 0.32.0
 
 Released 2026-May-08
