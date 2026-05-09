@@ -286,20 +286,28 @@ impl LogProcessor for BatchLogProcessor {
                         }
                         OTelSdkResult::Ok(())
                     })
-                    .map_err(|err| match err {
-                        RecvTimeoutError::Timeout => {
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Timeout",
-                                message = "BatchLogProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
+                    .map_err(|err| {
+                        // The worker thread is unreachable from here: Timeout
+                        // means it is hung in `block_on(export_future)` and
+                        // joining would deadlock; Disconnected means it has
+                        // already exited. Take the handle out so subsequent
+                        // shutdown attempts do not see a stale `Some(_)`.
+                        drop(self.handle.lock().unwrap().take());
+                        match err {
+                            RecvTimeoutError::Timeout => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Timeout",
+                                    message = "BatchLogProcessor shutdown timing out."
+                                );
+                                OTelSdkError::Timeout(timeout)
+                            }
+                            _ => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Error",
+                                    error = format!("{}", err)
+                                );
+                                OTelSdkError::InternalFailure(format!("{err}"))
+                            }
                         }
                     })?
             }
