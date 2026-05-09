@@ -1747,8 +1747,7 @@ mod tests {
         assert_eq!(exported_spans.len(), 4);
     }
 
-    // Edge case: shutdown on a processor with no pending data — the drain path
-    // must complete cleanly without invoking the exporter or hanging.
+    // Drain path must not hang when the buffer is empty.
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty() {
         let exporter = TokioSpawnSpanExporter::new();

@@ -405,7 +405,7 @@ impl BatchLogProcessor {
                         total_exported_logs += count_of_logs;
 
                         result =
-                            export_batch_sync(exporter, logs, last_export_time, blocking_strategy); // This method clears the logs vec after exporting
+                            export_batch_sync(exporter, logs, last_export_time, blocking_strategy);
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
@@ -1157,8 +1157,7 @@ mod tests {
         assert_eq!(exported_count.load(Ordering::Relaxed), 1);
     }
 
-    // Edge case: shutdown on a processor with no pending data — the drain path
-    // must complete cleanly without invoking the exporter or hanging.
+    // Drain path must not hang when the buffer is empty.
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty(
     ) {

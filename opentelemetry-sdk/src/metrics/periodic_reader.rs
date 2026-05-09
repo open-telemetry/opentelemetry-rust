@@ -758,10 +758,10 @@ mod tests {
         assert!(is_shutdown.load(Ordering::Relaxed));
     }
 
-    // Edge case: shutdown on a reader with no recorded measurements — the drain
-    // path must complete cleanly without hanging. Whether the exporter is invoked
-    // depends on whether `collect()` produces an empty `ResourceMetrics`; we only
-    // require the shutdown propagates and is_shutdown is set.
+    // Drain path must not hang on a reader with no recorded measurements.
+    // Whether the exporter is invoked depends on whether `collect()` produces
+    // an empty `ResourceMetrics`, so we only assert that shutdown propagates
+    // and `is_shutdown` is set.
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_periodic_reader_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty() {
         let exporter = TokioSpawnMetricExporter::default();
