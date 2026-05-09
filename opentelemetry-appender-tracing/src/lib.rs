@@ -40,27 +40,27 @@
 //! Before integrating with `tracing`, create an OpenTelemetry [`SdkLoggerProvider`](https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/struct.SdkLoggerProvider.html):
 //!
 //! ```rust
-//! use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! use opentelemetry_stdout::LogExporter;
+//! use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
 //!
-//! let exporter = LogExporter::default();
+//! let exporter = InMemoryLogExporter::default();
 //! let provider = SdkLoggerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //! ```
 //!
-//! In this example, `SdkLoggerProvider` is configured to use the `opentelemetry_stdout` crate to export logs to stdout. You can replace it with any other OpenTelemetry-compatible exporter.
+//! In this example, `SdkLoggerProvider` is configured to use an in-memory exporter. Replace it with any OpenTelemetry-compatible exporter, such as `opentelemetry_stdout::LogExporter` or the OTLP exporter.
 //! Any additional OpenTelemetry configuration (e.g., setting up a resource, additional processors etc.) can be done at this stage.
+//!
+//! For a complete runnable example, see [examples/logs-basic](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/logs-basic).
 //!
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
 //! Create `OpenTelemetryTracingBridge` layer using the `SdkLoggerProvider` created in the previous step.
 //!
 //! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
+//! # use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-//! # let exporter = LogExporter::default();
+//! # let exporter = InMemoryLogExporter::default();
 //! # let provider = SdkLoggerProvider::builder()
 //! #    .with_simple_exporter(exporter)
 //! #    .build();
@@ -72,9 +72,8 @@
 //! Since this crate provides a `Layer` for `tracing`, you can register it with the `tracing` subscriber as shown below.
 //!
 //! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
-//! # let exporter = LogExporter::default();
+//! # use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
+//! # let exporter = InMemoryLogExporter::default();
 //! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 //! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);

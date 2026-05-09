@@ -3,18 +3,18 @@
 packages=(
     "opentelemetry"
     "opentelemetry-http"
-    "opentelemetry-semantic-conventions"
     "opentelemetry-jaeger-propagator"
-    "opentelemetry-sdk"    
+    "opentelemetry-sdk"
+    "opentelemetry-semantic-conventions"
     "opentelemetry-proto"
     "opentelemetry-otlp"
-    "opentelemetry-stdout"
     "opentelemetry-zipkin"
-    "opentelemetry-prometheus"
-    "opentelemetry-appender-log"
     "opentelemetry-appender-tracing"
+    "opentelemetry-stdout"
+    "opentelemetry-appender-log"
+    "opentelemetry-prometheus"
 
-    # Add more packages as needed, in the right order. A package should only be published after all it's dependencies have been published
+    # Add more packages as needed, in the right order. A package should only be published after all its dependencies (including dev-dependencies) have been published.
 )
 
 # Set the current directory to one level above the scripts directory
