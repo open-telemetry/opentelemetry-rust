@@ -154,6 +154,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
                 blocking_strategy: BlockingStrategy::new(),
+                handle: Mutex::new(None),
             }),
         };
         let cloned_reader = reader.clone();
@@ -327,13 +328,17 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
             });
 
         // TODO: Should we fail-fast here and bubble up the error to user?
-        #[allow(unused_variables)]
-        if let Err(e) = result_thread_creation {
-            otel_error!(
-                name: "PeriodReaderThreadStartError",
-                message = "Failed to start PeriodicReader thread. Metrics will not be exported.",
-                error = format!("{:?}", e)
-            );
+        match result_thread_creation {
+            Ok(handle) => {
+                *reader.inner.handle.lock().unwrap() = Some(handle);
+            }
+            Err(e) => {
+                otel_error!(
+                    name: "PeriodReaderThreadStartError",
+                    message = "Failed to start PeriodicReader thread. Metrics will not be exported.",
+                    error = format!("{:?}", e)
+                );
+            }
         }
         reader
     }
@@ -354,6 +359,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
     blocking_strategy: BlockingStrategy,
+    handle: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
@@ -452,19 +458,26 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             .send(Message::Shutdown(response_tx))
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        match response_rx.recv_timeout(timeout) {
-            Ok(response) => {
-                if response {
-                    Ok(())
-                } else {
-                    Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
-                }
-            }
+        let result = match response_rx.recv_timeout(timeout) {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(OTelSdkError::InternalFailure("Failed to shutdown".into())),
             Err(mpsc::RecvTimeoutError::Timeout) => Err(OTelSdkError::Timeout(timeout)),
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 Err(OTelSdkError::InternalFailure("Failed to shutdown".into()))
             }
+        };
+
+        // On success the worker has acknowledged shutdown and exited its loop,
+        // so joining is near-instant. On timeout the worker is hung in
+        // `block_on` of an export future; we leave the handle in place so a
+        // subsequent shutdown attempt or `Drop` can retry rather than risk
+        // deadlocking the caller here.
+        if result.is_ok() {
+            if let Some(handle) = self.handle.lock().unwrap().take() {
+                let _ = handle.join();
+            }
         }
+        result
     }
 }
 
