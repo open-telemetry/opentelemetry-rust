@@ -317,27 +317,28 @@ impl LogProcessor for BatchLogProcessor {
                         }
                         OTelSdkResult::Ok(())
                     })
-                    .map_err(|err| match err {
-                        RecvTimeoutError::Timeout => {
-                            // TODO: When shutdown times out, log records still
-                            // in the queue or mid-export are silently lost. The
-                            // background thread is not joined and may continue
-                            // running. Consider: (1) recording the lost count
-                            // in the self-diagnostics counter, (2) joining the
-                            // thread with a best-effort wait, or (3) signalling
-                            // the thread to abort the current export.
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Timeout",
-                                message = "BatchLogProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
+                    .map_err(|err| {
+                        // The worker thread is unreachable from here: Timeout
+                        // means it is hung in `block_on(export_future)` and
+                        // joining would deadlock; Disconnected means it has
+                        // already exited. Take the handle out so subsequent
+                        // shutdown attempts do not see a stale `Some(_)`.
+                        drop(self.handle.lock().unwrap().take());
+                        match err {
+                            RecvTimeoutError::Timeout => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Timeout",
+                                    message = "BatchLogProcessor shutdown timing out."
+                                );
+                                OTelSdkError::Timeout(timeout)
+                            }
+                            _ => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Error",
+                                    error = format!("{}", err)
+                                );
+                                OTelSdkError::InternalFailure(format!("{err}"))
+                            }
                         }
                     })?
             }
