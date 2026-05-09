@@ -109,7 +109,7 @@ mod reqwest {
             while let Some(chunk) = response.chunk().await? {
                 body_bytes.extend_from_slice(&chunk);
                 if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                   return Err("response body too large".into());
+                    return Err("response body too large".into());
                 }
             }
             let mut http_response = Response::builder()
@@ -133,7 +133,9 @@ mod reqwest {
             let status = response.status();
             let headers = std::mem::take(response.headers_mut());
             let mut body_bytes = Vec::new();
-            response.take(MAX_RESPONSE_BODY_BYTES as u64 + 1).read_to_end(&mut body_bytes)?;
+            response
+                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                .read_to_end(&mut body_bytes)?;
             if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
                 return Err("response body too large".into());
             }
