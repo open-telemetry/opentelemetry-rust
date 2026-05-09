@@ -37,7 +37,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 criterion = { workspace = true, features = ["html_reports"] }
 rstest = { workspace = true }
 temp-env = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "time"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }

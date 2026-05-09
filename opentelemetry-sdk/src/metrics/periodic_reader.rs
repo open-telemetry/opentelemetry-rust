@@ -606,6 +606,10 @@ mod tests {
         }
     }
 
+    // Long enough that the periodic interval timer never fires during these
+    // tests; flush/shutdown is what drives export.
+    const LONG_INTERVAL: Duration = Duration::from_secs(120);
+
     // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
     // exporters where the export future depends on tokio tasks. Without
     // BlockingStrategy, this deadlocks on constrained runtimes because
@@ -618,8 +622,14 @@ mod tests {
 
     impl PushMetricExporter for TokioSpawnMetricExporter {
         async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
-            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
-            let result = tokio::spawn(async { 42 }).await.unwrap();
+            // Simulate tonic/gRPC: the export future needs tokio::spawn plus
+            // live timer and IO drivers on the worker thread.
+            let result = tokio::spawn(async {
+                crate::util::exercise_tokio_drivers().await;
+                42
+            })
+            .await
+            .unwrap();
             assert_eq!(result, 42);
             self.exported_count.fetch_add(1, Ordering::Relaxed);
             Ok(())
@@ -662,7 +672,7 @@ mod tests {
         let exported_count = exporter.exported_count.clone();
 
         let reader = PeriodicReader::builder(exporter)
-            .with_interval(Duration::from_secs(120))
+            .with_interval(LONG_INTERVAL)
             .build();
 
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
@@ -673,6 +683,139 @@ mod tests {
         meter_provider.force_flush().unwrap();
 
         assert!(exported_count.load(Ordering::Relaxed) >= 1);
+    }
+
+    // Exercises the reader's shutdown drain, which performs one final
+    // collect+export before stopping.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_periodic_reader_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let exported_count = exporter.exported_count.clone();
+        let is_shutdown = exporter.is_shutdown.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+        assert!(is_shutdown.load(Ordering::Relaxed));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_periodic_reader_multi_thread_default_with_tokio_spawn_exporter_force_flush() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let exported_count = exporter.exported_count.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.force_flush().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_periodic_reader_multi_thread_default_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let exported_count = exporter.exported_count.clone();
+        let is_shutdown = exporter.is_shutdown.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+        assert!(is_shutdown.load(Ordering::Relaxed));
+    }
+
+    // Edge case: shutdown on a reader with no recorded measurements — the drain
+    // path must complete cleanly without hanging. Whether the exporter is invoked
+    // depends on whether `collect()` produces an empty `ResourceMetrics`; we only
+    // require the shutdown propagates and is_shutdown is set.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_periodic_reader_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let is_shutdown = exporter.is_shutdown.clone();
+
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        meter_provider.shutdown().unwrap();
+
+        assert!(is_shutdown.load(Ordering::Relaxed));
+    }
+
+    // Verifies the BlockingStrategy::FuturesExecutor branch — used when the
+    // reader is constructed outside any tokio runtime context. A regular
+    // `#[test]` (not `#[tokio::test]`) means `Handle::try_current()` returns
+    // Err and the strategy falls back to plain `futures_executor::block_on`.
+    #[test]
+    fn test_periodic_reader_blocking_strategy_futures_executor_branch() {
+        let exporter = InMemoryMetricExporter::default();
+        let exporter_shared = exporter.clone();
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        meter_provider.force_flush().unwrap();
+        meter_provider.shutdown().unwrap();
+
+        let exported = exporter_shared.get_finished_metrics().unwrap();
+        assert!(!exported.is_empty());
+    }
+
+    // Pins the documented current_thread limitation: with a tokio-spawn-dependent
+    // exporter, the runtime's only thread is blocked in shutdown's recv_timeout,
+    // so the spawned task never makes progress and the timeout fires.
+    //
+    // Two oddities affect the assertion shape and runtime here:
+    //   - `PeriodicReader::shutdown_with_timeout` currently ignores its timeout
+    //     argument and uses a hardcoded 5s wait — see `// TODO: Make this timeout
+    //     configurable.` in `PeriodicReaderInner::shutdown`. As a result this
+    //     test takes ~5s.
+    //   - `Pipelines::shutdown` aggregates per-reader errors into a single
+    //     `OTelSdkError::InternalFailure` with the underlying `Timeout` formatted
+    //     as a debug string. So we assert the call errored, not its exact variant.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_periodic_reader_current_thread_with_tokio_spawn_exporter_shutdown_times_out() {
+        let exporter = TokioSpawnMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter)
+            .with_interval(LONG_INTERVAL)
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test.counter").build();
+        counter.add(1, &[]);
+
+        let result = meter_provider.shutdown_with_timeout(Duration::from_millis(100));
+        assert!(matches!(result, Err(OTelSdkError::InternalFailure(_))));
     }
 
     #[test]

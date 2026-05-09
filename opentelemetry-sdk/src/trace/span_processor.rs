@@ -988,7 +988,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -1569,10 +1569,15 @@ mod tests {
 
     impl SpanExporter for TokioSpawnSpanExporter {
         async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
-            // Without tokio runtime context, this panics or deadlocks.
+            // Simulate tonic/gRPC: the export future needs tokio::spawn plus
+            // live timer and IO drivers on the worker thread.
             let count = batch.len();
-            let result = tokio::spawn(async move { count }).await.unwrap();
+            let result = tokio::spawn(async move {
+                crate::util::exercise_tokio_drivers().await;
+                count
+            })
+            .await
+            .unwrap();
             assert_eq!(result, batch.len());
             self.exported_spans.lock().unwrap().extend(batch);
             Ok(())
@@ -1663,6 +1668,125 @@ mod tests {
 
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Exercises BatchMessage::Shutdown's drain path, which has a 5s timeout
+    // wrapper instead of force_flush's infinite recv().
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_processor_multi_thread_default_with_tokio_spawn_exporter_force_flush() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.force_flush().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_processor_multi_thread_default_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Edge case: shutdown on a processor with no pending data — the drain path
+    // must complete cleanly without invoking the exporter or hanging.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 0);
+    }
+
+    // Verifies the BlockingStrategy::FuturesExecutor branch — used when
+    // processors are constructed outside any tokio runtime context. A regular
+    // `#[test]` (not `#[tokio::test]`) means `Handle::try_current()` returns
+    // Err and the strategy falls back to plain `futures_executor::block_on`.
+    #[test]
+    fn test_batch_processor_blocking_strategy_futures_executor_branch() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Pins the documented current_thread limitation: with a tokio-spawn-dependent
+    // exporter, the runtime's only thread is blocked in shutdown_with_timeout's
+    // recv_timeout, so the spawned task never makes progress and the timeout fires.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_processor_current_thread_with_tokio_spawn_exporter_shutdown_times_out() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        processor.on_end(new_test_export_span_data());
+
+        let result = processor.shutdown_with_timeout(Duration::from_millis(100));
+        assert!(matches!(result, Err(OTelSdkError::Timeout(_))));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
