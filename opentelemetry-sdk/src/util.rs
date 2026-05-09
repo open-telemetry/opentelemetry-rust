@@ -49,15 +49,14 @@ impl BlockingStrategy {
     }
 }
 
-/// Test-only: exercise the tokio timer and IO drivers from a spawned task.
-/// Used by mock exporters to verify processors keep the runtime drivers alive
-/// on their dedicated worker threads. Without this, the deadlock fix could
-/// silently regress for exporters that depend on either driver (e.g. tonic).
+/// Exercise the tokio timer and IO drivers from a spawned task. Mock
+/// exporters call this so a processor that stops keeping the runtime
+/// drivers alive on its worker thread shows up as a test failure rather
+/// than silently regressing the deadlock fix.
 #[cfg(test)]
 pub(crate) async fn exercise_tokio_drivers() {
-    // Timer driver.
     tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-    // IO driver — bind registers an FD with the reactor; immediate drop is fine.
+    // bind registers an FD with the reactor; immediate drop is fine.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let _ = listener.local_addr().unwrap();
 }
