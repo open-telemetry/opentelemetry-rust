@@ -846,7 +846,7 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
@@ -1142,8 +1142,14 @@ mod tests {
     impl LogExporter for TokioSpawnLogExporter {
         async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
             let count = batch.len();
-            // Simulate tonic/gRPC: the export future depends on a tokio::spawn-ed task.
-            let result = tokio::spawn(async move { count }).await.unwrap();
+            // Simulate tonic/gRPC: the export future needs tokio::spawn plus
+            // live timer and IO drivers on the worker thread.
+            let result = tokio::spawn(async move {
+                crate::util::exercise_tokio_drivers().await;
+                count
+            })
+            .await
+            .unwrap();
             assert_eq!(result, count);
             self.exported_count.fetch_add(count, Ordering::Relaxed);
             Ok(())
@@ -1180,6 +1186,108 @@ mod tests {
         processor.force_flush().unwrap();
 
         assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    // Exercises BatchMessage::Shutdown's drain path, which has a 5s timeout
+    // wrapper instead of force_flush's infinite recv().
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_log_processor_multi_thread_default_with_tokio_spawn_exporter_force_flush() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_log_processor_multi_thread_default_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    // Edge case: shutdown on a processor with no pending data — the drain path
+    // must complete cleanly without invoking the exporter or hanging.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty(
+    ) {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 0);
+    }
+
+    // Verifies the BlockingStrategy::FuturesExecutor branch — used when
+    // processors are constructed outside any tokio runtime context. A regular
+    // `#[test]` (not `#[tokio::test]`) means `Handle::try_current()` returns
+    // Err and the strategy falls back to plain `futures_executor::block_on`.
+    #[test]
+    fn test_batch_log_processor_blocking_strategy_futures_executor_branch() {
+        // `keep_records_on_shutdown` is required because InMemoryLogExporter
+        // clears its buffer in shutdown by default.
+        let exporter = InMemoryLogExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        let exported = exporter.get_emitted_logs().unwrap();
+        assert_eq!(exported.len(), 1);
+    }
+
+    // Pins the documented current_thread limitation: with a tokio-spawn-dependent
+    // exporter, the runtime's only thread is blocked in shutdown_with_timeout's
+    // recv_timeout, so the spawned task never makes progress and the timeout fires.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_log_processor_current_thread_with_tokio_spawn_exporter_shutdown_times_out()
+    {
+        let exporter = TokioSpawnLogExporter::new();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        let result = processor.shutdown_with_timeout(Duration::from_millis(100));
+        assert!(matches!(result, Err(OTelSdkError::Timeout(_))));
     }
 
     #[tokio::test(flavor = "multi_thread")]
