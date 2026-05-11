@@ -56,6 +56,7 @@ Released 2026-May-08
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
 - Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
 
 ## 0.31.0
 

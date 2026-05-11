@@ -8,6 +8,7 @@ Released 2026-May-08
 
 - **Deprecated**: The `opentelemetry-zipkin` crate is now deprecated. Use the OTLP exporter (`opentelemetry-otlp`) instead. Zipkin supports native OTLP ingestion. This crate will be removed in a future release.
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
 
 ## 0.31.0
 
@@ -51,7 +52,7 @@ Released 2025-Feb-10
 - Bump msrv to 1.75.0.
 - **Breaking** The `opentelemetry_zipkin::new_pipeline()` interface is now replaced with `opentelemetry_zipkin::ZipkinExporter::builder()`.
   Additionally, the service name needs to be set on the tracer provider.
-  
+
   Previous Signature:
 
   ```rust
@@ -59,9 +60,9 @@ Released 2025-Feb-10
       .with_service_name("trace-demo")
       .install_simple()?;
   ```
-  
+
   Updated Signature:
-  
+
   ```rust
   let exporter = ZipkinExporter::builder()
       .build()?;
