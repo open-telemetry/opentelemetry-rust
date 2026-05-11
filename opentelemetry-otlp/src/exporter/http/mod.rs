@@ -787,19 +787,9 @@ impl HasHttpConfig for HttpExporterBuilder {
 pub trait WithHttpConfig {
     /// Assign client implementation
     ///
-    /// Internally client is stored behind shared pointer, which can be passed directly by user in
-    /// order to avoid creating multiple of these shared pointers
-    ///
-    /// ```rust
-    /// # use opentelemetry_http::HttpClient;
-    /// # use opentelemetry_otlp::WithHttpConfig;
-    /// fn init_client<C: WithHttpConfig, T1: HttpClient + 'static, T2: HttpClient + 'static>(http_config: C, client1: T1, client2: T2) -> C  {
-    ///     // Pass raw HTTP client
-    ///     http_config.with_http_client(client1)
-    ///     // or wrap it into Arc shared across multiple recorders
-    ///                .with_http_client::<T2>(std::sync::Arc::new(client2))
-    /// }
-    /// ```
+    /// The client may be provided either as a concrete client value or as an
+    /// `Arc<T>`, allowing the same client instance to be shared across multiple
+    /// exporters.
     fn with_http_client<T: HttpClient + 'static>(
         self,
         client: impl Into<std::sync::Arc<T>>,
@@ -1155,28 +1145,29 @@ mod tests {
         use std::io::Read;
 
         #[test]
-        fn test_gzip_compression_and_decompression() {
-            let mut config = HttpExporterBuilder {
-                exporter_config: ExportConfig {
-                    endpoint: Some("http://localhost:4318".to_owned()),
-                    protocol: crate::Protocol::HttpBinary,
-                    timeout: None,
-                },
-                http_config: HttpConfig::default(),
-            };
-            config = config
-                .with_http_client(MockHttpClient)
-                .with_compression(crate::Compression::Gzip);
+        fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
+            use super::export_body_tests::MockHttpClient;
 
-            let client = config
-                .build_client(
-                    crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-                    "/v1/traces",
-                    crate::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
-                    crate::OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-                    crate::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
-                )
-                .expect("to build client");
+            let _ = HttpExporterBuilder {
+                exporter_config: ExportConfig::default(),
+                http_config: HttpConfig::default(),
+            }
+            .with_http_client(MockHttpClient)
+            .with_http_client::<MockHttpClient>(std::sync::Arc::new(MockHttpClient));
+        }
+
+        #[test]
+        fn test_gzip_compression_and_decompression() {
+            let client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+                #[cfg(feature = "experimental-http-retry")]
+                None,
+            );
 
             // Test with some sample data
             let test_data = b"Hello, world! This is test data for compression.";
@@ -1322,7 +1313,7 @@ mod tests {
         use std::collections::HashMap;
 
         #[derive(Debug)]
-        struct MockHttpClient;
+        pub(crate) struct MockHttpClient;
 
         #[async_trait::async_trait]
         impl HttpClient for MockHttpClient {
