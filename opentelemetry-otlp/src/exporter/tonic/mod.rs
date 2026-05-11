@@ -232,6 +232,7 @@ impl TonicExporterBuilder {
         let compression = self.resolve_compression(signal_compression_var)?;
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
+
         let metadata = merge_metadata_with_headers_from_env(
             self.tonic_config.metadata.unwrap_or_default(),
             headers_from_env,
@@ -586,7 +587,7 @@ fn merge_metadata_with_headers_from_env(
     }
 }
 
-fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<(String, String)>) {
+fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<String>) {
     let mut headers = Vec::new();
 
     (
@@ -595,7 +596,7 @@ fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<(String, 
             .map(|input| {
                 parse_header_string(&input)
                     .filter_map(|(key, value)| {
-                        headers.push((key.to_owned(), value.clone()));
+                        headers.push(key.to_owned());
                         Some((
                             HeaderName::from_str(key).ok()?,
                             HeaderValue::from_str(&value).ok()?,

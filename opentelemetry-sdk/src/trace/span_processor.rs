@@ -172,6 +172,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             return;
         }
 
+        let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         let result = self
             .exporter
             .lock()

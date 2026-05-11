@@ -3,9 +3,32 @@
 ## vNext
 
 - Added public constructors for metric data types, to allow users to use public `PushMetricExporter` [#3489][3489]
+## 0.32.0
+
+Released 2026-May-08
+
+- `SimpleSpanProcessor` now suppresses telemetry during export, preventing
+  telemetry-induced-telemetry feedback loops. This aligns with the existing
+  behavior in `BatchSpanProcessor` and `SimpleLogProcessor`.
 - Removed `SimpleConcurrentLogProcessor` and the `experimental_logs_concurrent_log_processor`
   feature flag. The use cases it was designed for (ETW/user_events exporters) are
   better served by modeling those exporters as processors directly.
+- **Added** `Counter::bind()` and `Histogram::bind()` SDK implementations that
+  return pre-bound measurement handles (`BoundCounter<T>`, `BoundHistogram<T>`).
+  Bound instruments resolve the attribute-to-aggregator mapping once at bind time
+  and cache the result, eliminating per-call HashMap lookups. View attribute
+  filtering is applied at bind time so the hot path stays free of per-call
+  attribute processing. Bound and unbound recordings with the same (post-view)
+  attribute set always aggregate into the same data point, including the empty
+  attribute set. Bound entries are never evicted during delta collection while
+  a handle exists — idle cycles produce no export but the tracker persists. If
+  `bind()` is called at the cardinality limit, the handle binds directly to
+  the overflow tracker — its writes stay on the same direct (no-lookup) hot
+  path and consistently land in the `otel.metric.overflow=true` bucket for
+  the lifetime of the handle. To recover a bound handle after delta collection
+  frees space, drop the existing handle and call `bind()` again. Gated behind
+  the `experimental_metrics_bound_instruments` feature flag. Benchmarks show
+  ~28x speedup for counter operations and ~9x for histograms.
 - Delta metrics collection now uses in-place eviction instead of draining the
   HashMap on every collect cycle. Stale attribute sets that received no measurements
   since the last collection are evicted. Note: recovery from cardinality overflow
@@ -14,6 +37,7 @@
 - **Breaking** The SDK `testing` feature is now runtime agnostic. [#3407][3407]
   - `TokioSpanExporter` and `new_tokio_test_exporter` have been renamed to `TestSpanExporter` and `new_test_exporter`.
   - The following transitive dependencies and features have been removed: `tokio/rt`, `tokio/time`, `tokio/macros`, `tokio/rt-multi-thread`, `tokio-stream`, `experimental_async_runtime`
+- Store `InstrumentationScope` in `Arc` internally in `SdkTracer`, making tracer clones cheaper (Arc refcount increment instead of deep copy).
 - Add 32-bit platform support by using `portable-atomic` for `AtomicI64` and `AtomicU64` in the metrics module. This enables compilation on 32-bit ARM targets (e.g., `armv5te-unknown-linux-gnueabi`, `armv7-unknown-linux-gnueabihf`).
 - `Aggregation` enum and `StreamBuilder::with_aggregation()` are now stable and no longer require the `spec_unstable_metrics_views` feature flag.
 - Fix `service.name` Resource attribute fallback to follow OpenTelemetry
@@ -28,7 +52,8 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- `StreamBuilder::build()` now rejects `usize::MAX` as a cardinality limit
+  with a validation error. [#3506][3506]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
@@ -36,20 +61,19 @@
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
 - **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-[3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 [3407]: https://github.com/open-telemetry/opentelemetry-rust/pull/3407
 [3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
 [3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
-
-- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
-  backing specification) is now stable and is enabled by default.
-  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+[3506]: https://github.com/open-telemetry/opentelemetry-rust/pull/3506
 
 ## 0.31.0
 

@@ -122,6 +122,8 @@ impl FromStr for Temporality {
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    use self::data::ExponentialHistogramDataPoint;
     use self::data::{HistogramDataPoint, MetricData, ScopeMetrics, SumDataPoint};
     use super::internal::Number;
     use super::*;
@@ -4467,6 +4469,28 @@ mod tests {
             .find(|&datapoint| datapoint.attributes.is_empty())
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn find_overflow_histogram_datapoint<T>(
+        data_points: &[HistogramDataPoint<T>],
+    ) -> Option<&HistogramDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint.attributes.iter().any(|kv| {
+                kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
+            })
+        })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn find_overflow_exponential_histogram_datapoint<T>(
+        data_points: &[ExponentialHistogramDataPoint<T>],
+    ) -> Option<&ExponentialHistogramDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint.attributes.iter().any(|kv| {
+                kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
+            })
+        })
+    }
+
     fn find_scope_metric<'a>(
         metrics: &'a [ScopeMetrics],
         name: &'a str,
@@ -4691,5 +4715,1351 @@ mod tests {
         assert!("unknown".parse::<Temporality>().is_err());
         assert!("".parse::<Temporality>().is_err());
         assert!("cumulativ".parse::<Temporality>().is_err());
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        bound.add(10);
+        bound.add(20);
+        bound.add(30);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(sum.data_points.len(), 1, "Expected one data point");
+        assert!(sum.is_monotonic);
+        assert_eq!(sum.temporality, Temporality::Cumulative);
+
+        let data_point = &sum.data_points[0];
+        assert_eq!(data_point.value, 60);
+        assert_eq!(
+            data_point.attributes,
+            vec![KeyValue::new("key1", "bound_value")]
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_delta() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        bound.add(50);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.temporality, Temporality::Delta);
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 50);
+
+        // After delta collect, add more and collect again
+        test_context.reset_metrics();
+        bound.add(25);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 25,
+            "Delta should reset between collections"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![5.0, 10.0, 25.0, 50.0])
+            .build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = histogram.bind(&attrs);
+
+        bound.record(1.0);
+        bound.record(7.5);
+        bound.record(15.0);
+        bound.record(30.0);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(histogram_data) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(histogram_data.data_points.len(), 1);
+        assert_eq!(histogram_data.temporality, Temporality::Cumulative);
+
+        let dp = &histogram_data.data_points[0];
+        assert_eq!(dp.count, 4);
+        assert_eq!(dp.sum, 53.5);
+        assert_eq!(dp.min.unwrap(), 1.0);
+        assert_eq!(dp.max.unwrap(), 30.0);
+        assert_eq!(dp.attributes, vec![KeyValue::new("key1", "bound_value")]);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_matches_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "shared")];
+        let bound = counter.bind(&attrs);
+
+        // Mix bound and unbound additions to the same attribute set
+        counter.add(10, &attrs);
+        bound.add(20);
+        counter.add(30, &attrs);
+        bound.add(40);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound should share the same data point"
+        );
+        assert_eq!(sum.data_points[0].value, 100);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_delta_no_update_no_export() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        // Cycle 1: add and collect
+        bound.add(10);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 10);
+
+        // Cycle 2: no add, collect — should export nothing
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let resource_metrics = test_context
+            .exporter
+            .get_finished_metrics()
+            .expect("metrics export should succeed");
+        assert!(
+            resource_metrics.is_empty(),
+            "Bound handle with no updates should not export"
+        );
+
+        // Cycle 3: add again — handle is still alive, produces fresh delta
+        test_context.reset_metrics();
+        bound.add(5);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 5,
+            "Bound handle should produce fresh delta after quiet cycle"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_at_overflow_attributes_to_overflow_bucket() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to cardinality limit with unbound calls
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow — handle binds directly to the overflow tracker
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = counter.bind(&overflow_attrs);
+        bound.add(42);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // Expect: cardinality_limit unique + 1 overflow = cardinality_limit + 1
+        assert_eq!(
+            sum.data_points.len(),
+            cardinality_limit + 1,
+            "Expected {} unique + 1 overflow data points",
+            cardinality_limit
+        );
+
+        // The bound handle's value should appear in the overflow bucket
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 42,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_recovery_after_delta_eviction() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to cardinality limit with unbound calls (these are one-shot, not bound)
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // Collect cycle 1: exports the 3 unique entries, then evicts them (no new updates)
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), cardinality_limit);
+
+        // Cycle 2: no unbound adds, so the stale entries get evicted.
+        // Space is now open. A new bind() should get a dedicated tracker.
+        test_context.reset_metrics();
+        test_context.flush_metrics(); // triggers eviction of stale entries
+
+        let new_attrs = vec![KeyValue::new("A", "recovered")];
+        let bound = counter.bind(&new_attrs);
+        bound.add(99);
+
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // The bound handle should have a dedicated tracker, NOT overflow
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Only the bound entry should be exported"
+        );
+        let dp = find_sum_datapoint_with_key_value(&sum.data_points, "A", "recovered")
+            .expect("should find dedicated data point for recovered attrs");
+        assert_eq!(
+            dp.value, 99,
+            "Bound handle after recovery should have dedicated tracker"
+        );
+        assert!(
+            find_overflow_sum_datapoint(&sum.data_points).is_none(),
+            "Should not have overflow — bind() after eviction should get a dedicated tracker"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_multiple_overflow_handles_share_overflow_bucket() {
+        let cardinality_limit = 2;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Fill to limit
+        counter.add(1, &[KeyValue::new("A", "0")]);
+        counter.add(1, &[KeyValue::new("A", "1")]);
+
+        // Bind two distinct attribute sets at overflow
+        let bound_a = counter.bind(&[KeyValue::new("A", "overflow_a")]);
+        let bound_b = counter.bind(&[KeyValue::new("A", "overflow_b")]);
+
+        bound_a.add(10);
+        bound_b.add(20);
+        bound_a.add(5);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 35,
+            "All overflow-bound measurements should accumulate in overflow bucket"
+        );
+
+        // Cycle 2: bound handles still work after delta collect
+        test_context.reset_metrics();
+        bound_a.add(7);
+        bound_b.add(3);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 10,
+            "Overflow-bound handles should continue working across delta cycles"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_overflow_persists_across_eviction_cycles() {
+        // Once a bind() lands in overflow, the handle's writes must continue
+        // landing in overflow for the lifetime of the handle — even after
+        // delta eviction frees space. This is the predictability guarantee:
+        // a user inspecting their data should see the bound handle's
+        // attribution as a single, stable bucket. The recovery story is
+        // explicit (drop and re-bind), not implicit (silent self-healing).
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Cycle 1: fill cardinality with unbound calls, then bind at overflow.
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+        let stuck_attrs = vec![KeyValue::new("A", "stuck_in_overflow")];
+        let bound = counter.bind(&stuck_attrs);
+        bound.add(10);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 1: bound write at overflow should land in overflow bucket");
+        assert_eq!(overflow_dp.value, 10);
+
+        // Cycle 2: no calls. The 3 unbound entries become stale and are evicted,
+        // freeing all of the cardinality budget.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: the SAME bound handle is used again. Even though space is
+        // available, its writes must still land in overflow — the handle is
+        // permanently bound to overflow, not silently re-resolved.
+        test_context.reset_metrics();
+        bound.add(99);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 3: bound write must still land in overflow even after space frees up");
+        assert_eq!(
+            overflow_dp.value, 99,
+            "Bound-at-overflow handle must keep writing to overflow even after delta eviction"
+        );
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "A", "stuck_in_overflow").is_none(),
+            "Bound-at-overflow handle must not silently self-heal to a dedicated tracker"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_delta() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![5.0, 10.0, 25.0, 50.0])
+            .build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = histogram.bind(&attrs);
+
+        // Cycle 1: record and collect
+        bound.record(3.0);
+        bound.record(12.0);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(hist.temporality, Temporality::Delta);
+        assert_eq!(hist.data_points.len(), 1);
+        assert_eq!(hist.data_points[0].count, 2);
+        assert_eq!(hist.data_points[0].sum, 15.0);
+
+        // Cycle 2: delta resets, new values
+        test_context.reset_metrics();
+        bound.record(40.0);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(hist.data_points.len(), 1);
+        assert_eq!(
+            hist.data_points[0].count, 1,
+            "Delta should reset count between collections"
+        );
+        assert_eq!(
+            hist.data_points[0].sum, 40.0,
+            "Delta should reset sum between collections"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_matches_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0, 50.0])
+            .build();
+        let attrs = vec![KeyValue::new("key1", "shared")];
+        let bound = histogram.bind(&attrs);
+
+        // Mix bound and unbound recordings to the same attribute set
+        histogram.record(5.0, &attrs);
+        bound.record(15.0);
+        histogram.record(25.0, &attrs);
+        bound.record(35.0);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "Bound and unbound should share the same data point"
+        );
+        assert_eq!(hist.data_points[0].count, 4);
+        assert_eq!(hist.data_points[0].sum, 80.0);
+        assert_eq!(hist.data_points[0].min.unwrap(), 5.0);
+        assert_eq!(hist.data_points[0].max.unwrap(), 35.0);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_delta_no_update_no_export() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0])
+            .build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = histogram.bind(&attrs);
+
+        // Cycle 1: record and collect
+        bound.record(5.0);
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(hist.data_points.len(), 1);
+        assert_eq!(hist.data_points[0].count, 1);
+
+        // Cycle 2: no recordings — should export nothing
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let resource_metrics = test_context
+            .exporter
+            .get_finished_metrics()
+            .expect("metrics export should succeed");
+        assert!(
+            resource_metrics.is_empty(),
+            "Bound histogram with no updates should not export"
+        );
+
+        // Cycle 3: record again — handle still alive
+        test_context.reset_metrics();
+        bound.record(20.0);
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(hist.data_points.len(), 1);
+        assert_eq!(
+            hist.data_points[0].count, 1,
+            "Fresh delta after quiet cycle"
+        );
+        assert_eq!(hist.data_points[0].sum, 20.0);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_at_overflow_attributes_to_overflow_bucket() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_name("my_histogram")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0, 50.0])
+            .build();
+
+        // Fill to cardinality limit with unbound calls
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow — handle binds directly to the overflow tracker
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = histogram.bind(&overflow_attrs);
+        bound.record(42.0);
+
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            cardinality_limit + 1,
+            "Expected {} unique + 1 overflow data points",
+            cardinality_limit
+        );
+
+        let overflow_dp =
+            find_overflow_histogram_datapoint(&hist.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.sum, 42.0,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+        assert_eq!(overflow_dp.count, 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_overflow_persists_across_eviction_cycles() {
+        // Mirror of bound_counter_overflow_persists_across_eviction_cycles for
+        // histograms: a bound-at-overflow handle must keep landing in overflow
+        // even after delta eviction frees space, for the lifetime of the handle.
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_name("my_histogram")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0, 50.0])
+            .build();
+
+        // Cycle 1: fill cardinality with unbound calls, then bind at overflow.
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+        let stuck_attrs = vec![KeyValue::new("A", "stuck_in_overflow")];
+        let bound = histogram.bind(&stuck_attrs);
+        bound.record(15.0);
+
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 1: bound write at overflow should land in overflow bucket");
+        assert_eq!(overflow_dp.sum, 15.0);
+
+        // Cycle 2: no calls. Stale unbound entries get evicted, freeing space.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: same bound handle. Even though space is free, writes must
+        // still land in overflow.
+        test_context.reset_metrics();
+        bound.record(99.0);
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 3: bound write must still land in overflow even after space frees up");
+        assert_eq!(
+            overflow_dp.sum, 99.0,
+            "Bound-at-overflow histogram must keep writing to overflow even after delta eviction"
+        );
+        assert_eq!(overflow_dp.count, 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_exponential_histogram_delta() {
+        // Histogram configured with Base2ExponentialHistogram aggregation goes
+        // through ExpoHistogram internally. Verify bind() returns a handle
+        // whose direct writes accumulate correctly.
+        let view = |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context.meter().f64_histogram("my_histogram").build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = histogram.bind(&attrs);
+
+        bound.record(2.0);
+        bound.record(4.0);
+        bound.record(8.0);
+        // NaN/inf must be filtered just like the unbound path.
+        bound.record(f64::NAN);
+        bound.record(f64::INFINITY);
+
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        assert_eq!(hist.data_points.len(), 1);
+        let dp = &hist.data_points[0];
+        assert_eq!(dp.count, 3, "NaN and infinity should be dropped");
+        assert_eq!(dp.sum, 14.0);
+        assert_eq!(dp.min, Some(2.0));
+        assert_eq!(dp.max, Some(8.0));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_exponential_histogram_at_overflow_attributes_to_overflow_bucket() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context.meter().f64_histogram("my_histogram").build();
+
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow — handle binds directly to the overflow tracker
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = histogram.bind(&overflow_attrs);
+        bound.record(42.0);
+
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        let overflow_dp = find_overflow_exponential_histogram_datapoint(&hist.data_points)
+            .expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.sum, 42.0,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+        assert_eq!(overflow_dp.count, 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_exponential_histogram_overflow_persists_across_eviction_cycles() {
+        // Same predictability invariant the counter/histogram tests assert,
+        // verified for the exponential histogram aggregator path.
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let histogram = test_context.meter().f64_histogram("my_histogram").build();
+
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+        let stuck_attrs = vec![KeyValue::new("A", "stuck_in_overflow")];
+        let bound = histogram.bind(&stuck_attrs);
+        bound.record(15.0);
+
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        let overflow_dp = find_overflow_exponential_histogram_datapoint(&hist.data_points)
+            .expect("cycle 1: bound write at overflow should land in overflow bucket");
+        assert_eq!(overflow_dp.sum, 15.0);
+
+        // Cycle 2: evict stale entries, freeing space.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: bound handle keeps writing to overflow.
+        test_context.reset_metrics();
+        bound.record(99.0);
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        let overflow_dp = find_overflow_exponential_histogram_datapoint(&hist.data_points)
+            .expect("cycle 3: bound write must still land in overflow even after space frees up");
+        assert_eq!(
+            overflow_dp.sum, 99.0,
+            "Bound-at-overflow ExpoHistogram must keep writing to overflow even after delta eviction"
+        );
+        assert_eq!(overflow_dp.count, 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_drop_enables_eviction() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "ephemeral")];
+
+        {
+            let bound = counter.bind(&attrs);
+            bound.add(100);
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(sum.data_points.len(), 1);
+            assert_eq!(sum.data_points[0].value, 100);
+            // bound drops here
+        }
+
+        // Cycle 2: no updates, bound handle dropped — entry becomes stale and evictable
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: the stale entry should have been evicted, so a new unbound add
+        // should be the only data point
+        test_context.reset_metrics();
+        counter.add(1, &[KeyValue::new("key1", "new_entry")]);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        // Only the new entry should be present — the old "ephemeral" entry was evicted
+        assert_eq!(sum.data_points.len(), 1);
+        let dp = find_sum_datapoint_with_key_value(&sum.data_points, "key1", "new_entry")
+            .expect("new_entry should be present");
+        assert_eq!(dp.value, 1);
+        assert!(
+            find_sum_datapoint_with_key_value(&sum.data_points, "key1", "ephemeral").is_none(),
+            "Dropped bound entry should have been evicted"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_multiple_handles_same_attrs() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let attrs = vec![KeyValue::new("key1", "shared")];
+
+        let bound1 = counter.bind(&attrs);
+        let bound2 = counter.bind(&attrs);
+
+        bound1.add(10);
+        bound2.add(20);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Multiple handles to same attrs should share data point"
+        );
+        assert_eq!(sum.data_points[0].value, 30);
+
+        // Drop one handle — entry should NOT be evicted
+        drop(bound1);
+        test_context.reset_metrics();
+        test_context.flush_metrics(); // idle cycle, but bound2 still holds it
+
+        // bound2 still works
+        test_context.reset_metrics();
+        bound2.add(5);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 5,
+            "Entry should persist while any handle is alive"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_empty_attributes() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let bound = counter.bind(&[]);
+
+        bound.add(10);
+        bound.add(30);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 40);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+        let bound = counter.bind(&[]);
+
+        // Mix bound and unbound calls with empty attributes — they must share
+        // the same data point (both route to no_attribute_tracker).
+        counter.add(10, &[]);
+        bound.add(20);
+        counter.add(30, &[]);
+        bound.add(40);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        assert_eq!(sum.data_points[0].value, 100);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let histogram = test_context
+            .meter()
+            .u64_histogram("my_histogram")
+            .with_boundaries(vec![5.0, 10.0, 25.0])
+            .build();
+        let bound = histogram.bind(&[]);
+
+        histogram.record(3, &[]);
+        bound.record(7);
+        histogram.record(20, &[]);
+        test_context.flush_metrics();
+
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<u64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        let dp = &hist.data_points[0];
+        assert!(dp.attributes.is_empty());
+        assert_eq!(dp.count, 3);
+        assert_eq!(dp.sum, 30);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("my_counter").build();
+
+        // bind with k3 included — view should drop it at bind time
+        let bound = counter.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.add(10);
+        bound.add(20);
+
+        // unbound call with a *different* k3 value: after view filtering both
+        // bound and unbound must collapse into the same data point.
+        counter.add(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        assert_eq!(sum.data_points[0].value, 37);
+        let attrs = &sum.data_points[0].attributes;
+        assert_eq!(attrs.len(), 2);
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_hist" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let histogram = meter
+            .u64_histogram("my_hist")
+            .with_boundaries(vec![5.0, 10.0, 25.0])
+            .build();
+
+        let bound = histogram.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.record(3);
+        bound.record(20);
+        histogram.record(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::U64(MetricData::Histogram(hist)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        let dp = &hist.data_points[0];
+        assert_eq!(dp.count, 3);
+        assert_eq!(dp.sum, 30);
+        assert_eq!(dp.attributes.len(), 2);
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!dp.attributes.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_counter_at_overflow_attributes_to_overflow_bucket_cumulative() {
+        // Cumulative: cardinality only grows, never evicts. A bind() at the
+        // limit lands in overflow and accumulates there forever. Verifies the
+        // bound handle's cumulative writes converge in the overflow bucket
+        // across multiple collection cycles.
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_counter" {
+                Stream::builder()
+                    .with_name("my_counter")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Cumulative, view);
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+        let bound = counter.bind(&[KeyValue::new("A", "overflow_bind")]);
+        bound.add(10);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 1: overflow point expected");
+        assert_eq!(overflow_dp.value, 10);
+
+        // Cycle 2: cumulative state accumulates internally; reset the exporter
+        // so the assertion sees a single export rather than two appended ones.
+        test_context.reset_metrics();
+        bound.add(7);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_sum_datapoint(&sum.data_points)
+            .expect("cycle 2: overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 17,
+            "cumulative overflow-bound writes must accumulate"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_histogram_at_overflow_attributes_to_overflow_bucket_cumulative() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_name("my_histogram")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Cumulative, view);
+        let histogram = test_context
+            .meter()
+            .f64_histogram("my_histogram")
+            .with_boundaries(vec![10.0, 50.0])
+            .build();
+
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+        let bound = histogram.bind(&[KeyValue::new("A", "overflow_bind")]);
+        bound.record(20.0);
+
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 1: overflow point expected");
+        assert_eq!(overflow_dp.sum, 20.0);
+        assert_eq!(overflow_dp.count, 1);
+
+        // Cycle 2: cumulative accumulates internally; reset exporter to see a
+        // single fresh export rather than two appended ones.
+        test_context.reset_metrics();
+        bound.record(30.0);
+        test_context.flush_metrics();
+        let MetricData::Histogram(hist) = test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            unreachable!()
+        };
+        let overflow_dp = find_overflow_histogram_datapoint(&hist.data_points)
+            .expect("cycle 2: overflow point expected");
+        assert_eq!(
+            overflow_dp.sum, 50.0,
+            "cumulative overflow-bound writes must accumulate"
+        );
+        assert_eq!(overflow_dp.count, 2);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_exponential_histogram_at_overflow_attributes_to_overflow_bucket_cumulative() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_histogram" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Cumulative, view);
+        let histogram = test_context.meter().f64_histogram("my_histogram").build();
+
+        for v in 0..cardinality_limit {
+            histogram.record(1.0, &[KeyValue::new("A", v.to_string())]);
+        }
+        let bound = histogram.bind(&[KeyValue::new("A", "overflow_bind")]);
+        bound.record(20.0);
+
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        let overflow_dp = find_overflow_exponential_histogram_datapoint(&hist.data_points)
+            .expect("cycle 1: overflow point expected");
+        assert_eq!(overflow_dp.sum, 20.0);
+        assert_eq!(overflow_dp.count, 1);
+
+        // Cycle 2: cumulative accumulates internally; reset exporter to see a
+        // single fresh export rather than two appended ones.
+        test_context.reset_metrics();
+        bound.record(30.0);
+        test_context.flush_metrics();
+        let MetricData::ExponentialHistogram(hist) =
+            test_context.get_aggregation::<f64>("my_histogram", None)
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+        let overflow_dp = find_overflow_exponential_histogram_datapoint(&hist.data_points)
+            .expect("cycle 2: overflow point expected");
+        assert_eq!(
+            overflow_dp.sum, 50.0,
+            "cumulative overflow-bound writes must accumulate"
+        );
+        assert_eq!(overflow_dp.count, 2);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_exponential_histogram_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_hist" {
+                Stream::builder()
+                    .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                        max_size: 160,
+                        max_scale: 20,
+                        record_min_max: true,
+                    })
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let histogram = meter.f64_histogram("my_hist").build();
+
+        let bound = histogram.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.record(3.0);
+        bound.record(20.0);
+        // Unbound call with a different k3: after view filtering, bound and unbound
+        // must collapse into the same exponential histogram data point.
+        histogram.record(
+            7.0,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::F64(MetricData::ExponentialHistogram(hist)) = &metric.data
+        else {
+            panic!("expected ExponentialHistogram aggregation");
+        };
+
+        assert_eq!(
+            hist.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        let dp = &hist.data_points[0];
+        assert_eq!(dp.count, 3);
+        assert_eq!(dp.sum, 30.0);
+        assert_eq!(dp.attributes.len(), 2);
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!dp.attributes.iter().any(|kv| kv.key.as_str() == "k3"));
     }
 }

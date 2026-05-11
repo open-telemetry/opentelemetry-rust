@@ -16,6 +16,7 @@ Status: **Work-In-Progress**
     instruments](#reporting-measurements-via-synchronous-instruments)
   * [Reporting measurements via asynchronous
     instruments](#reporting-measurements-via-asynchronous-instruments)
+  * [Bound Instruments (Experimental)](#bound-instruments-experimental)
 * [MeterProvider Management](#meterprovider-management)
 * [Memory Management](#memory-management)
   * [Example](#example)
@@ -240,6 +241,97 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 
 > [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
 > during each export cycle.
+
+### Bound Instruments (Experimental)
+
+> [!IMPORTANT] Bound instruments are experimental. Enable
+> `experimental_metrics_bound_instruments` on **both** `opentelemetry` and
+> `opentelemetry_sdk` — if only the API crate has it enabled, `bind()` calls
+> compile but measurements are silently dropped. Enabling it on
+> `opentelemetry_sdk` transitively enables it on `opentelemetry`, so for typical
+> apps using the SDK, enabling it once on `opentelemetry_sdk` is sufficient.
+> The API may change in future releases.
+
+When reporting measurements, the SDK must resolve the provided attributes to
+the internal aggregation state (the "tracker") for that attribute combination
+on every call. For hot paths that repeatedly emit measurements with the *same*
+attribute set, this per-call lookup can be avoided by pre-binding the
+attributes once and reusing the resulting bound handle.
+
+Bound instruments are currently supported on `Counter` and `Histogram` via the
+`bind` method, which returns a `BoundCounter<T>` or `BoundHistogram<T>`
+respectively. Subsequent `add` / `record` calls on the bound handle skip
+attribute resolution and write directly to the pre-resolved tracker.
+
+:heavy_check_mark: Use bound instruments on hot paths where the same attribute
+set is used repeatedly, and store the bound handle for reuse.
+
+```rust
+// Requires the `experimental_metrics_bound_instruments` feature on the
+// `opentelemetry_sdk` crate (which transitively enables it on `opentelemetry`).
+use opentelemetry::KeyValue;
+use opentelemetry::global;
+
+let meter = global::meter("my_company.my_product.my_library");
+let packets = meter.u64_counter("packets_processed").build();
+
+// Bind once at initialization, for each well-known protocol.
+let tcp_packets = packets.bind(&[KeyValue::new("protocol", "tcp")]);
+let udp_packets = packets.bind(&[KeyValue::new("protocol", "udp")]);
+
+// On the hot path, the call site already knows which handle to use —
+// no attribute lookup is performed.
+tcp_packets.add(1);
+udp_packets.add(1);
+```
+
+`BoundCounter` and `BoundHistogram` are cheap to clone, so a single bound
+handle can be shared across threads or modules without re-binding. Dropping
+the last clone makes the underlying tracker eligible for cleanup.
+
+For reference, the SDK's `bound_instruments` benchmark on an Apple M4 Max with
+3 attributes (`method`, `status`, `path`) reports:
+
+| Operation              | Unbound   | Bound     | Speedup |
+| ---------------------- | --------- | --------- | ------- |
+| `Counter::add`         | ~50 ns    | ~1.8 ns   | ~28x    |
+| `Histogram::record`    | ~58 ns    | ~6.5 ns   | ~9x     |
+
+The exact win depends on attribute count, contention, and the cost of the
+lookup being skipped (more attributes make the unbound path more expensive,
+while a bound `add` / `record` cost stays roughly constant since no attribute
+processing happens on the hot path). See
+[`opentelemetry-sdk/benches/bound_instruments.rs`](../opentelemetry-sdk/benches/bound_instruments.rs)
+to reproduce.
+
+:stop_sign: Do NOT call `bind` on the hot path. A single `bind` + `add` is
+*more* expensive than a plain `add` — it does the same attribute lookup, plus
+extra allocations for the bound handle. The performance win comes only from
+binding once and reusing the returned handle for many measurements.
+
+:stop_sign: Do NOT use bound instruments when the attribute set varies per
+measurement. Each unique attribute set requires its own bound handle, and
+holding many rarely-used handles wastes memory without any throughput benefit.
+
+:stop_sign: Do NOT bind everything by default. Bound instruments are intended
+for a small number of well-known, high-frequency attribute combinations on hot
+paths. Binding broadly — especially storing handles in a user-managed map
+keyed by attributes — recreates the SDK's per-call lookup in your own code and
+just shifts the problem from the SDK to the application, often with worse
+results. Stick to the unbound `add` / `record` API unless you have a clear
+hot-path case backed by measurements.
+
+> [!NOTE] Many common web-app metrics (RED/SLO style: request count, latency,
+> errors broken down by route, method, customer, etc.) involve highly variable
+> attribute values and are **not** a good fit for bound instruments. Bound
+> instruments shine when each call site already knows its full attribute set
+> at compile time / startup, so handles can be stored directly alongside the
+> code that uses them — no per-call map lookup needed.
+
+> [!NOTE] Bound instruments do not change the SDK's [cardinality
+> limits](#cardinality-limits) or pre-aggregation behavior. They are purely a
+> performance optimization that caches the resolved tracker for a fixed
+> attribute set.
 
 ## MeterProvider Management
 

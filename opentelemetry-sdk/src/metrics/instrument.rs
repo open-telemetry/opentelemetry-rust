@@ -1,10 +1,14 @@
 use std::{borrow::Cow, collections::HashSet, error::Error, sync::Arc};
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
     metrics::{AsyncInstrument, SyncInstrument},
     InstrumentationScope, Key, KeyValue,
 };
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use crate::metrics::internal::BoundMeasure;
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
 use super::meter::{
@@ -255,6 +259,11 @@ impl StreamBuilder {
             if limit == 0 {
                 return Err("Cardinality limit must be greater than 0".into());
             }
+            // Reject usize::MAX because the SDK's internal HashMap capacity
+            // is sized as `1 + cardinality_limit`, which would overflow.
+            if limit == usize::MAX {
+                return Err("Cardinality limit must be less than usize::MAX".into());
+            }
         }
 
         // Validate bucket boundaries if using ExplicitBucketHistogram
@@ -388,6 +397,29 @@ impl<T: Copy + 'static> SyncInstrument<T> for ResolvedMeasures<T> {
             measure.call(val, attrs)
         }
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
+        let bound_measures: Vec<Box<dyn BoundMeasure<T>>> =
+            self.measures.iter().map(|m| m.bind(attrs)).collect();
+        Box::new(ResolvedBoundMeasures {
+            measures: bound_measures,
+        })
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct ResolvedBoundMeasures<T> {
+    measures: Vec<Box<dyn BoundMeasure<T>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Copy + 'static> BoundSyncInstrument<T> for ResolvedBoundMeasures<T> {
+    fn measure(&self, val: T) {
+        for measure in &self.measures {
+            measure.call(val);
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -517,8 +549,24 @@ mod tests {
             "Expected cardinality limit validation error message"
         );
 
+        // Test usize::MAX (invalid — would overflow internal `1 + limit` capacity)
+        let builder = StreamBuilder::new()
+            .with_name("valid_name")
+            .with_cardinality_limit(usize::MAX);
+
+        let result = builder.build();
+        assert!(
+            result.is_err(),
+            "Expected error for usize::MAX cardinality limit"
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "Cardinality limit must be less than usize::MAX",
+            "Expected cardinality limit usize::MAX error message"
+        );
+
         // Test valid cardinality limits
-        let valid_limits = vec![1, 10, 100, 1000];
+        let valid_limits = vec![1, 10, 100, 1000, usize::MAX - 1];
         for limit in valid_limits {
             let builder = StreamBuilder::new()
                 .with_name("valid_name")

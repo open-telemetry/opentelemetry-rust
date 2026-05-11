@@ -1,0 +1,26 @@
+name: "Close stale pull requests"
+on:
+  schedule:
+    - cron: "12 3 * * *" # arbitrary time not to DDOS GitHub
+
+permissions: read-all
+
+jobs:
+  stale:
+    permissions:
+      issues: write # for actions/stale to comment on and label PRs
+      pull-requests: write # for actions/stale to close stale PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-pr-message: |
+            Thank you for your contribution! This PR has been automatically marked as stale because it has not had activity in the last 14 days. This may be due to a delay in review on our side or awaiting a response from you; either is fine, and we appreciate your patience.
+
+            It will be closed in 14 days if no further activity occurs. Pushing a new commit or leaving a comment will remove the stale label and keep the PR open.
+          close-pr-message: "Closed as inactive. Thank you again for the contribution; please feel free to reopen this PR (or open a new one) if you'd like to continue the work."
+          days-before-pr-stale: 14
+          days-before-issue-stale: -1
+          days-before-pr-close: 14
+          days-before-issue-close: -1
