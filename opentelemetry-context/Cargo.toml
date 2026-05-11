@@ -1,0 +1,39 @@
+[package]
+name = "opentelemetry-context"
+version = "0.32.0"
+description = "OpenTelemetry context sharing mechanisms."
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+    "asynchronous",
+]
+keywords = ["opentelemetry", "context", "profiling", "process"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.75.0"
+autotests = false
+autobenches = false
+
+[lib]
+doctest = false
+bench = false
+
+[dependencies]
+opentelemetry = { workspace = true, default-features = false }
+opentelemetry_sdk = { workspace = true, default-features = false }
+opentelemetry-proto = { workspace = true, default-features = false, features = ["gen-tonic-messages"] }
+prost = { workspace = true }
+rustix = { workspace = true, features = ["mm", "fs", "process", "time"] }
+
+[dev-dependencies]
+serial_test = { workspace = true }
+
+[features]
+default = ["internal-logs"]
+internal-logs = ["opentelemetry/internal-logs"]
+
+[lints]
+workspace = true
