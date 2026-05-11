@@ -287,7 +287,8 @@
 //! * `gzip-http`: Use gzip compression for HTTP transport.
 //! * `zstd-http`: Use zstd compression for HTTP transport.
 //! * `reqwest-blocking-client`: Use reqwest blocking http client. This feature is enabled by default.
-//! * `reqwest-client`: Use reqwest http client.
+//! * `reqwest-client`: Use reqwest async http client.
+//! * `hyper-client`: Use hyper async http client.
 //! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
 //! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
 //!
@@ -509,6 +510,18 @@
 //! By default the exporter uses a `reqwest` blocking client (`reqwest-blocking-client` feature,
 //! enabled by default). Supply your own client to control TLS, proxies, connection pooling, etc.
 //! The client must implement the [`opentelemetry_http::HttpClient`] trait.
+//!
+//! HTTP client selection is based on enabled crate features and is not aware of the
+//! SDK processor or metric reader that will drive the exporter. This matters because
+//! async HTTP clients need a Tokio runtime while the default batch processors and
+//! periodic metric reader run exports on SDK-owned background threads.
+//!
+//! - Use `reqwest-blocking-client` with the default `BatchSpanProcessor`,
+//!   `BatchLogProcessor`, and `PeriodicReader`.
+//! - Use `reqwest-client` or `hyper-client` only when the export is driven from a
+//!   Tokio runtime, for example by the experimental async-runtime batch processors
+//!   and periodic reader in `opentelemetry-sdk`, or by custom code that polls the
+//!   exporter future on Tokio.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "trace", feature = "http-proto", feature = "reqwest-client"))]

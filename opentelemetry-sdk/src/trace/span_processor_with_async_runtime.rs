@@ -31,6 +31,11 @@ use tokio::sync::RwLock;
 /// Note: Configuring an opentelemetry `Runtime` that's not compatible with the
 /// underlying runtime can cause deadlocks (see tokio section).
 ///
+/// When used with the OTLP HTTP exporter, this runtime-backed processor is the
+/// appropriate batch processor for async HTTP clients such as `reqwest-client`
+/// and `hyper-client`. The default [`crate::trace::BatchSpanProcessor`] runs on
+/// an SDK-owned thread and only supports blocking HTTP clients.
+///
 /// ### Use with Tokio
 ///
 /// Tokio currently offers two different schedulers. One is

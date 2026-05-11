@@ -162,7 +162,11 @@ where
 /// The [runtime] can be selected based on feature flags set for this crate.
 ///
 /// The exporter can be any exporter that implements [PushMetricExporter] such
-/// as [opentelemetry-otlp].
+/// as [opentelemetry-otlp]. When used with the OTLP HTTP exporter, this
+/// runtime-backed reader is the appropriate periodic reader for async HTTP
+/// clients such as `reqwest-client` and `hyper-client`. The default
+/// [`crate::metrics::PeriodicReader`] runs on an SDK-owned thread and only
+/// supports blocking HTTP clients.
 ///
 /// [collect]: MetricReader::collect
 /// [runtime]: crate::runtime

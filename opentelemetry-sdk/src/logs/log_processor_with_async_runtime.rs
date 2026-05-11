@@ -40,6 +40,12 @@ enum BatchMessage {
 
 /// A [`LogProcessor`] that asynchronously buffers log records and reports
 /// them at a pre-configured interval.
+///
+/// When used with the OTLP HTTP exporter, this runtime-backed processor is the
+/// appropriate batch log processor for async HTTP clients such as
+/// `reqwest-client` and `hyper-client`. The default
+/// [`crate::logs::BatchLogProcessor`] runs on an SDK-owned thread and only
+/// supports blocking HTTP clients.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
 
