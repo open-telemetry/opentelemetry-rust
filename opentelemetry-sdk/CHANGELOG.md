@@ -57,6 +57,9 @@ Released 2026-May-23
   is no longer validated against the instrument name syntax, per
   [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
   `unit` and other stream parameters continue to be validated.
+- `LogBatch::new_with_owned_data` is now public. It was already used by exporters
+  through other paths; making it public allows custom log processors and
+  exporters to construct a `LogBatch` from owned data directly.
 
 ## 0.32.0
 
