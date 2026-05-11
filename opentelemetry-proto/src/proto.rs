@@ -509,7 +509,6 @@ pub mod tonic {
     }
 
     /// Generated types for process context sharing.
-    #[cfg(feature = "process-context")]
     #[path = ""]
     pub mod processcontext {
         #[path = "opentelemetry.proto.processcontext.v1development.rs"]

@@ -18,9 +18,9 @@ use opentelemetry_sdk::Resource;
 
 /// Convert an SDK [`Resource`] into a serialized proto `ProcessContext` payload.
 fn encode_process_context(resource: &Resource) -> Vec<u8> {
-    use crate::tonic::processcontext::v1development::ProcessContext;
-    use crate::tonic::resource::v1::Resource as ProtoResource;
-    use crate::transform::common::tonic::Attributes;
+    use opentelemetry_proto::tonic::processcontext::v1development::ProcessContext;
+    use opentelemetry_proto::tonic::resource::v1::Resource as ProtoResource;
+    use opentelemetry_proto::transform::common::tonic::Attributes;
     use prost::Message;
 
     let attributes: Attributes = resource
@@ -58,7 +58,7 @@ fn encode_process_context(resource: &Resource) -> Vec<u8> {
 ///     .with_service_name("my-service")
 ///     .build();
 ///
-/// opentelemetry_proto::process_context::publish(&resource);
+/// opentelemetry_context::process_context::publish(&resource);
 /// ```
 pub fn publish(resource: &Resource) {
     let payload = encode_process_context(resource);
@@ -112,7 +112,7 @@ mod tests {
         assert!(!payload.is_empty());
 
         // Verify the payload can be decoded back to a ProcessContext
-        use crate::tonic::processcontext::v1development::ProcessContext;
+        use opentelemetry_proto::tonic::processcontext::v1development::ProcessContext;
         use prost::Message;
         let ctx = ProcessContext::decode(payload.as_slice()).expect("failed to decode payload");
         let proto_resource = ctx.resource.expect("resource should be present");
