@@ -15,7 +15,7 @@ fn main() {
     // Publish resource attributes via a memory-mapped region so external readers
     // (e.g. the OpenTelemetry eBPF Profiler) can discover this process.
     // This is a no-op on non-Linux platforms.
-    opentelemetry_proto::process_context::publish(&resource);
+    opentelemetry_context::process_context::publish(&resource);
 
     let exporter = opentelemetry_stdout::LogExporter::default();
     let enriching_processor = EnrichmentLogProcessor::new(SimpleLogProcessor::new(exporter));
@@ -61,7 +61,7 @@ fn main() {
     error!(name: "my-event-name", target: "my-system", event_id = 50, user_name = "otel", user_email = "otel@opentelemetry.io", message = "This is an example message");
     let _ = provider.shutdown();
 
-    opentelemetry_proto::process_context::unpublish();
+    opentelemetry_context::process_context::unpublish();
 }
 
 /// A log processor that enriches log records with additional attributes before
