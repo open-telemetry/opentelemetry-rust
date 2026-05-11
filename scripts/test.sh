@@ -30,6 +30,9 @@ cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::ru
 cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::runtime_tests::test_set_provider_single_thread_tokio -- --ignored --exact
 cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::runtime_tests::test_set_provider_single_thread_tokio_shutdown -- --ignored --exact
 
+echo "Running ignored tests for opentelemetry-sdk package (self-diagnostics, requires global MeterProvider)"
+cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::batch_log_processor::tests::self_diagnostics_counter_records_success -- --ignored --exact
+
 echo "Running ignored tests for opentelemetry-appender-tracing package (global logger tests)"
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_inside_tracing_context_with_tracing_log -- --ignored --exact
