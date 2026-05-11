@@ -107,10 +107,10 @@ mod reqwest {
             let headers = std::mem::take(response.headers_mut());
             let mut body_bytes = bytes::BytesMut::new();
             while let Some(chunk) = response.chunk().await? {
-                body_bytes.extend_from_slice(&chunk);
-                if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
                     return Err("response body too large".into());
                 }
+                body_bytes.extend_from_slice(&chunk);
             }
             let mut http_response = Response::builder()
                 .status(status)
@@ -224,13 +224,12 @@ pub mod hyper {
             let mut body_bytes = bytes::BytesMut::new();
             let mut body = response.into_body();
             while let Some(frame) = body.frame().await {
-                if let Ok(frame) = frame {
-                    if let Ok(chunk) = frame.into_data() {
-                        body_bytes.extend_from_slice(&chunk);
-                        if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                            return Err("response body too large".into());
-                        }
+                let frame = frame?;
+                if let Ok(chunk) = frame.into_data() {
+                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                        return Err("response body too large".into());
                     }
+                    body_bytes.extend_from_slice(&chunk);
                 }
             }
             let mut http_response = Response::builder()
