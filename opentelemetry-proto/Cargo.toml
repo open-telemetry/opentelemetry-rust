@@ -44,7 +44,6 @@ metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs"]
 zpages = ["trace"]
 profiles = []
-process-context = []
 testing = ["opentelemetry/testing"]
 
 # add ons
