@@ -18,8 +18,15 @@
 
     | Test                              | Conversion | Serialization | Gzip Compress | Zstd Compress |
     |-----------------------------------|------------|---------------|---------------|---------------|
-    | batch_512_with_4_attrs            | ~189 µs    | ~78 µs        | ~1,295 µs     | ~180 µs       |
-    | batch_512_with_10_attrs           | ~402 µs    | ~152 µs       | ~2,911 µs     | ~486 µs       |
+    | batch_512_with_4_attrs            | ~187 µs    | ~78 µs        | ~1,295 µs     | ~180 µs       |
+    | batch_512_with_10_attrs           | ~397 µs    | ~152 µs       | ~2,911 µs     | ~486 µs       |
+    | batch_512_with_4_attrs_no_group   | ~171 µs    | -             | -             | -             |
+    | batch_512_with_10_attrs_no_group  | ~381 µs    | -             | -             | -             |
+
+    The `_no_group` variants skip `group_logs_by_resource_and_scope`'s HashMap
+    grouping step (placing all records in a single ScopeLogs) to isolate the
+    cost of grouping by `target`. Delta is ~16 µs/batch (~31 ns/record) and
+    largely independent of attribute count.
 
     === Compression Ratios (512 logs) ===
     4 attrs:  129274 bytes -> gzip: 43084 bytes (33.3%), zstd: 46229 bytes (35.8%)
@@ -146,6 +153,47 @@ fn create_batch_request(
     ExportLogsServiceRequest { resource_logs }
 }
 
+// LOCAL ISOLATION BENCH: same per-record proto conversion as the OTLP path,
+// but bypasses the HashMap-keyed grouping by `target`. All records are placed
+// into a single ScopeLogs with one shared scope. Used only to measure the
+// cost of `group_logs_by_resource_and_scope`'s grouping step.
+#[cfg(feature = "gen-tonic-messages")]
+fn create_batch_request_no_grouping(
+    log_batch: &LogBatch<'_>,
+    resource: &ResourceAttributesWithSchema,
+) -> ExportLogsServiceRequest {
+    use opentelemetry_proto::tonic::common::v1::InstrumentationScope as ProtoScope;
+    use opentelemetry_proto::tonic::logs::v1::{ResourceLogs, ScopeLogs};
+    use opentelemetry_proto::tonic::resource::v1::Resource as ProtoResource;
+
+    // Pick scope from first record (matches the bench setup: 1 scope for all).
+    let mut iter = log_batch.iter();
+    let first_scope: Option<ProtoScope> = iter.next().map(|(_, scope)| ProtoScope {
+        name: scope.name().to_string(),
+        version: scope.version().map(ToString::to_string).unwrap_or_default(),
+        attributes: vec![],
+        dropped_attributes_count: 0,
+    });
+
+    let log_records = log_batch.iter().map(|(rec, _)| rec.into()).collect();
+
+    ExportLogsServiceRequest {
+        resource_logs: vec![ResourceLogs {
+            resource: Some(ProtoResource {
+                attributes: resource.attributes.0.clone(),
+                dropped_attributes_count: 0,
+                entity_refs: vec![],
+            }),
+            schema_url: resource.schema_url.clone().unwrap_or_default(),
+            scope_logs: vec![ScopeLogs {
+                schema_url: String::new(),
+                scope: first_scope,
+                log_records,
+            }],
+        }],
+    }
+}
+
 #[cfg(feature = "gen-tonic-messages")]
 fn bench_log_conversion(c: &mut Criterion) {
     const BATCH_SIZE: usize = 512;
@@ -186,6 +234,23 @@ fn bench_log_conversion(c: &mut Criterion) {
     group.bench_function("batch_512_with_10_attributes", |b| {
         b.iter(|| {
             let request = create_batch_request(black_box(&log_batch_10_attrs), &resource);
+            black_box(request);
+        });
+    });
+
+    // Isolation: same per-record proto conversion, no HashMap grouping.
+    group.bench_function("batch_512_with_4_attributes_no_grouping", |b| {
+        b.iter(|| {
+            let request =
+                create_batch_request_no_grouping(black_box(&log_batch_4_attrs), &resource);
+            black_box(request);
+        });
+    });
+
+    group.bench_function("batch_512_with_10_attributes_no_grouping", |b| {
+        b.iter(|| {
+            let request =
+                create_batch_request_no_grouping(black_box(&log_batch_10_attrs), &resource);
             black_box(request);
         });
     });
