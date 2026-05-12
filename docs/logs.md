@@ -7,10 +7,10 @@ Status: **Stable**
 This document provides guidance on leveraging OpenTelemetry logs in Rust
 applications.
 
-In short: use [`tracing`] for logs and events; OpenTelemetry plugs in via the
-[`opentelemetry-appender-tracing`] appender. Existing `tracing` (or `log`)
-instrumentation continues to work as-is — adopting OpenTelemetry for logs is
-a setup change, not a code rewrite. For span guidance, see
+In short: for application logging, use [`tracing`] with the
+[`opentelemetry-appender-tracing`] appender. Existing `tracing` or `log`
+instrumentation can continue to work as-is; adopting OpenTelemetry for logs
+is primarily a setup change, not a code rewrite. For span guidance, see
 [traces.md](traces.md).
 
 [`tracing`]: https://crates.io/crates/tracing
@@ -80,9 +80,13 @@ above and explicitly set the `name` field on every `tracing` log, each log maps 
 an OpenTelemetry Event. (Without an explicit `name`, the synthesized source-location
 string is technically present but is not a meaningful EventName.)
 
-**Note**: These are **not** mapped to Span Events. OpenTelemetry is deprecating
-Span Events in favor of Events (Logs with an EventName), so use Events as
-described above rather than Span Events.
+**Note**: These are **not** mapped to Span Events. If you specifically need
+Span Events today, record them with the OpenTelemetry tracing API
+(`Span::add_event` / `add_event_with_timestamp`). Otherwise, prefer Events
+(Logs with an EventName) as described above. The OpenTelemetry specification
+is deprecating the *Span Events API* (see [OTEP-4430]) in favor of Events.
+
+[OTEP-4430]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/4430-span-event-api-deprecation-plan.md
 
 ## See Also
 

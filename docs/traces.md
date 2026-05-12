@@ -7,30 +7,44 @@ Status: **Work-In-Progress**
 This document provides guidance on leveraging OpenTelemetry traces in Rust
 applications.
 
-In short: use the OpenTelemetry Tracing API to create spans; [`tracing`] is
-for logs and events, not spans. See [logs.md](logs.md) for log guidance.
+In short: prefer instrumentation libraries that use the OpenTelemetry Tracing
+API for framework-level spans, and use the OpenTelemetry Tracing API
+directly to create your own custom spans. [`tracing`] is for logs and events,
+not spans. See [logs.md](logs.md) for log guidance.
 
 ## Instrumentation Guidance
 
-1. **Use the OpenTelemetry Tracing API to create spans.** The
+1. **Prefer instrumentation libraries.** For framework-level spans (HTTP
+   servers/clients, database drivers, messaging), prefer instrumentation
+   libraries that use the OpenTelemetry Tracing API directly. Most
+   applications start by plugging these in to capture the
+   request/response/downstream shape, then add custom spans for in-process
+   work as needed. No stable instrumentation libraries exist yet in the
+   OpenTelemetry Rust ecosystem, but in-progress ones for Tower and
+   Actix-Web exist in the [opentelemetry-rust-contrib] repository:
+   [`opentelemetry-instrumentation-tower`] and
+   [`opentelemetry-instrumentation-actix-web`].
+
+2. **Use the OpenTelemetry Tracing API to create custom spans.** The
    `opentelemetry::trace` API is designed around the OpenTelemetry
    specification, with first-class support for span kind
    (server/client/producer/consumer/internal), links, remote parents, and
    context propagation across process boundaries.
 
-2. **[`tracing`] is not a complete substitute for the OpenTelemetry Tracing API.**
-   The `tracing` crate does not have a first-class notion of an OpenTelemetry
-   Span. It cannot, on its own, set span kind, attach links, or set a remote
-   parent — concepts central to the OpenTelemetry specification, particularly
-   for *edge* spans (see #3 below for nuance). Use it primarily for
-   logs/events (see [logs.md](logs.md)).
+3. **[`tracing`] is designed to collect structured, event-based diagnostic
+   information, and is not a complete substitute for the OpenTelemetry
+   Tracing API, which focuses on distributed tracing.** The `tracing` crate
+   does not have a first-class notion of an OpenTelemetry Span. It cannot,
+   on its own, set span kind, attach links, or set a remote parent —
+   concepts central to the OpenTelemetry specification, particularly for
+   *edge* spans (see #4 below for nuance). Use it primarily for logs and
+   events (see [logs.md](logs.md)).
 
-3. **Bridging from `tracing::span!` to OpenTelemetry spans.** If you are
+4. **Bridging from `tracing::span!` to OpenTelemetry spans.** If you are
    already using `tracing::span!` and want those spans surfaced as
    OpenTelemetry spans, the third-party [`tracing-opentelemetry`] crate
-   provides a bridge. It is maintained outside the OpenTelemetry project and
-   is not part of this repo; we point to it so users are aware of the option
-   in the broader ecosystem.
+   provides a bridge. It is maintained outside the OpenTelemetry project
+   and is not part of this repo; we mention it here for completeness.
 
    For *internal* spans (spans that represent in-process work and never cross
    a process boundary), `tracing::span!` through this bridge produces a
@@ -40,15 +54,6 @@ for logs and events, not spans. See [logs.md](logs.md) for log guidance.
    incoming/outgoing HTTP, messaging), where span kind, links, and remote
    parents are central to the OpenTelemetry data model. The bridge offers
    extension APIs to express these concepts.
-
-4. **Prefer instrumentation libraries.** For framework-level spans (HTTP
-   servers/clients, database drivers, messaging), prefer instrumentation
-   libraries that use the OpenTelemetry Tracing API directly. No stable
-   instrumentation libraries exist yet in the OpenTelemetry Rust ecosystem,
-   but in-progress ones for Tower and Actix-Web exist in the
-   [opentelemetry-rust-contrib] repository:
-   [`opentelemetry-instrumentation-tower`] and
-   [`opentelemetry-instrumentation-actix-web`].
 
 ## See Also
 
