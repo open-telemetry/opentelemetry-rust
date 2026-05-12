@@ -4,60 +4,62 @@ Status: **Work-In-Progress**
 
 ## Introduction
 
-This document provides comprehensive guidance on leveraging OpenTelemetry traces
-in Rust applications.
+This document provides guidance on leveraging OpenTelemetry traces in Rust
+applications.
+
+In short: use the OpenTelemetry Tracing API to create spans; [`tracing`] is
+for logs and events, not spans. See [logs.md](logs.md) for log guidance.
 
 ## Instrumentation Guidance
 
-1. **Use OTel API for distributed traces**
+1. **Use the OpenTelemetry Tracing API to create spans.** The
+   `opentelemetry::trace` API is designed around the OpenTelemetry
+   specification, with first-class support for span kind
+   (server/client/producer/consumer/internal), links, remote parents, and
+   context propagation across process boundaries.
 
-   Use the `opentelemetry::trace` API to create spans. This supports context
-   propagation, span kinds (server/client), links, and remote parents.
+2. **[`tracing`] is not a complete substitute for the OpenTelemetry Tracing API.**
+   The `tracing` crate does not have a first-class notion of an OpenTelemetry
+   Span. It cannot, on its own, set span kind, attach links, or set a remote
+   parent — concepts central to the OpenTelemetry specification, particularly
+   for *edge* spans (see #3 below for nuance). Use it primarily for
+   logs/events (see [logs.md](logs.md)).
 
-2. **Use tracing for logs/events**
+3. **Bridging from `tracing::span!` to OpenTelemetry spans.** If you are
+   already using `tracing::span!` and want those spans surfaced as
+   OpenTelemetry spans, the third-party [`tracing-opentelemetry`] crate
+   provides a bridge. It is maintained outside the OpenTelemetry project and
+   is not part of this repo; we point to it so users are aware of the option
+   in the broader ecosystem.
 
-   Use `tracing::info!`, `tracing::event!`, etc. for structured logging. This
-   will be converted to OTel LogRecords via opentelemetry-appender-tracing and
-   will be automatically correlated with the current active OTel trace context
-   as well.
+   For *internal* spans (spans that represent in-process work and never cross
+   a process boundary), `tracing::span!` through this bridge produces a
+   result nearly identical to using the OpenTelemetry Tracing API directly —
+   span kind, links, and remote parent are not relevant for internal spans.
+   The `tracing` limitations matter primarily for *edge* spans (e.g.,
+   incoming/outgoing HTTP, messaging), where span kind, links, and remote
+   parents are central to the OpenTelemetry data model. The bridge offers
+   extension APIs to express these concepts.
 
-3. **In-proc contextual enrichment for logs/events**
+4. **Prefer instrumentation libraries.** For framework-level spans (HTTP
+   servers/clients, database drivers, messaging), prefer instrumentation
+   libraries that use the OpenTelemetry Tracing API directly. No stable
+   instrumentation libraries exist yet in the OpenTelemetry Rust ecosystem,
+   but in-progress ones for Tower and Actix-Web exist in the
+   [opentelemetry-rust-contrib] repository:
+   [`opentelemetry-instrumentation-tower`] and
+   [`opentelemetry-instrumentation-actix-web`].
 
-   Use `tracing::span!` macros to add contextual metadata (e.g., filename) that
-   applies to a group of logs. The `otel-appender-tracing` crate will be
-   enhanced to extract span attributes and attach them to logs automatically.
+## See Also
 
-   OpenTelemetry does not have a spec-ed out solution for in-process contextual
-   enrichment. This is very specific to the logging library (tracing) and its
-   bridge.
+- [OpenTelemetry Traces Specification](https://opentelemetry.io/docs/specs/otel/trace/)
+- [Main README](../README.md)
+- [logs.md](logs.md) — guidance for logs/events
+- [examples/tracing-http-propagator](../examples/tracing-http-propagator/) — end-to-end span creation and W3C context propagation
+- [examples/tracing-grpc](../examples/tracing-grpc/) — span creation and propagation over gRPC
 
-4. **If using tracing::span! to create spans**
-
-   This is not directly supported by OpenTelemetry. Use the
-   `tracing-opentelemetry` bridge to convert tracing spans into OTel spans.
-
-   There are some limitations with this approach arising due to `tracing`s lack of support for
-   creating Spans following OpenTelemetry specification. For example,
-   `tracing` is unable to:
-   - Set remote parent
-   - Specify span kind (e.g., server/client/producer/consumer).
-   - Add span links
-
-   The bridge offers extension APIs to support some of these, but they are not
-   standard and are maintained outside the OpenTelemetry and Tracing project and
-   within the bridge itself.
-
-   TODO: Should we make a recommendation about
-   avoiding this extension APIs for instrumentation?
-
-   If you are creating spans to track in-proc work (what OTel calls "internal" spans),
-   `tracing:span` API is sufficient with `tracing-opentelemetry` bridge converting the
-   `tracing` Span to OTel Span, and properly activating/de-activating OTel's context,
-   to ensure correlation.
-
-5. **Use instrumentation libraries when possible**
-
-   If you're manually creating `tracing::span!` and converting to OTel span for
-   "edge" spans, consider using official instrumentation libraries where
-   available. These handle proper span creation and context propagation using
-   the OpenTelemetry API directly.
+[`tracing`]: https://crates.io/crates/tracing
+[`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
+[opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
+[`opentelemetry-instrumentation-tower`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-tower
+[`opentelemetry-instrumentation-actix-web`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-actix-web
