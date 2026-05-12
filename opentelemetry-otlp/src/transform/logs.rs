@@ -125,21 +125,26 @@ pub(crate) mod tonic {
         logs: &'a LogBatch<'a>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
-        // Group logs by target or instrumentation name
+        // Group by the exported scope: target overrides only the name.
         let scope_map = logs.iter().fold(
             HashMap::new(),
             |mut scope_map: HashMap<
-                Cow<'static, str>,
+                opentelemetry::InstrumentationScope,
                 Vec<(
                     &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 )>,
             >,
              (log_record, instrumentation)| {
-                let key = log_record
+                let name = log_record
                     .target()
                     .cloned()
                     .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
+                let key = opentelemetry::InstrumentationScope::builder(name)
+                    .with_version(instrumentation.version().unwrap_or_default().to_owned())
+                    .with_schema_url(instrumentation.schema_url().unwrap_or_default().to_owned())
+                    .with_attributes(instrumentation.attributes().cloned())
+                    .build();
                 scope_map
                     .entry(key)
                     .or_default()
@@ -151,11 +156,8 @@ pub(crate) mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(instrumentation_scope_ref_to_proto(
-                    log_data.first().unwrap().1,
-                    Some(key.into_owned().into()),
-                )),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
+                scope: Some(instrumentation_scope_ref_to_proto(&key, None)),
+                schema_url: key.schema_url().unwrap_or_default().to_owned(),
                 log_records: log_data
                     .into_iter()
                     .map(|(log_record, _)| log_record_to_proto(log_record))
@@ -308,5 +310,49 @@ mod tests {
         assert_eq!(scope.version, "1.0.0");
         assert_eq!(scope.attributes.len(), 1);
         assert_eq!(scope.attributes[0].key, "feature");
+    }
+
+    #[test]
+    fn scope_grouping_same_target_preserves_distinct_versions() {
+        // Logs sharing a target but emitted under different scope versions must
+        // not be merged. Target still supplies the exported scope name; the
+        // version distinguishes the groups.
+        let resource = Resource::builder().build();
+        let resource: ResourceAttributesWithSchema = (&resource).into();
+        let (mut first, _) = create_test_log_data("bridge", "first");
+        let (mut second, _) = create_test_log_data("bridge", "second");
+        first.set_target(Cow::Borrowed("my_app::handlers"));
+        second.set_target(Cow::Borrowed("my_app::handlers"));
+        let first_scope = InstrumentationScope::builder("bridge")
+            .with_version("1.0")
+            .build();
+        let second_scope = InstrumentationScope::builder("bridge")
+            .with_version("2.0")
+            .build();
+        let logs = [(&first, &first_scope), (&second, &second_scope)];
+        let batch = LogBatch::new(&logs);
+        let grouped =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+
+        let mut actual: Vec<_> = grouped[0]
+            .scope_logs
+            .iter()
+            .map(|group| {
+                let scope = group.scope.as_ref().unwrap();
+                (
+                    scope.name.clone(),
+                    scope.version.clone(),
+                    group.log_records.len(),
+                )
+            })
+            .collect();
+        actual.sort_unstable();
+        assert_eq!(
+            actual,
+            vec![
+                ("my_app::handlers".to_owned(), "1.0".to_owned(), 1),
+                ("my_app::handlers".to_owned(), "2.0".to_owned(), 1),
+            ]
+        );
     }
 }
