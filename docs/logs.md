@@ -63,9 +63,11 @@ available.
 ```rust
 use tracing::error;
 error!(
-    name: "database_connection_failed",
-    target: "database",
-    error_code = "CONNECTION_TIMEOUT",
+    name: "db.client.connection.failed",
+    target: "myapp.db",
+    db.system.name = "postgresql",
+    db.namespace = "orders",
+    error.type = "connection_timeout",
     retry_count = 3,
     message = "Failed to connect to database after retries"
 );
