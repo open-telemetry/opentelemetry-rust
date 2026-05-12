@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Added public constructors for metric data types, to allow users to use public `PushMetricExporter` [#3489][3489]
 ## 0.32.0
 
 Released 2026-May-08

@@ -27,6 +27,14 @@ impl Default for ResourceMetrics {
 }
 
 impl ResourceMetrics {
+    /// Create a new builder to create an [ResourceMetrics]
+    pub fn builder() -> ResourceMetricsBuilder {
+        ResourceMetricsBuilder {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        }
+    }
+
     /// Returns a reference to the [Resource] in [ResourceMetrics].
     pub fn resource(&self) -> &Resource {
         &self.resource
@@ -35,6 +43,34 @@ impl ResourceMetrics {
     /// Returns an iterator over the [ScopeMetrics] in [ResourceMetrics].
     pub fn scope_metrics(&self) -> impl Iterator<Item = &ScopeMetrics> {
         self.scope_metrics.iter()
+    }
+}
+
+/// Configuration option for [ResourceMetrics]
+#[derive(Debug)]
+pub struct ResourceMetricsBuilder {
+    pub(crate) resource: Resource,
+    pub(crate) scope_metrics: Vec<ScopeMetrics>,
+}
+
+impl ResourceMetricsBuilder {
+    /// Sets the [Resource] for this [ResourceMetrics]
+    pub fn with_resource(mut self, resource: Resource) -> Self {
+        self.resource = resource;
+        self
+    }
+
+    /// Sets a [Vec] of [ScopeMetrics] for this [ResourceMetrics]
+    pub fn with_scope_metrics(mut self, scope_metrics: Vec<ScopeMetrics>) -> Self {
+        self.scope_metrics = scope_metrics;
+        self
+    }
+    /// Create a new [ResourceMetrics] from this configuration
+    pub fn build(self) -> ResourceMetrics {
+        ResourceMetrics {
+            resource: self.resource,
+            scope_metrics: self.scope_metrics,
+        }
     }
 }
 
@@ -48,6 +84,14 @@ pub struct ScopeMetrics {
 }
 
 impl ScopeMetrics {
+    /// Create a new builder to create a [ScopeMetrics]
+    pub fn builder() -> ScopeMetricsBuilder {
+        ScopeMetricsBuilder {
+            scope: InstrumentationScope::default(),
+            metrics: Vec::new(),
+        }
+    }
+
     /// Returns a reference to the [InstrumentationScope] in [ScopeMetrics].
     pub fn scope(&self) -> &InstrumentationScope {
         &self.scope
@@ -56,6 +100,35 @@ impl ScopeMetrics {
     /// Returns an iterator over the [Metric]s in [ScopeMetrics].
     pub fn metrics(&self) -> impl Iterator<Item = &Metric> {
         self.metrics.iter()
+    }
+}
+
+/// Configuration option for [ScopeMetrics]
+#[derive(Debug)]
+pub struct ScopeMetricsBuilder {
+    scope: InstrumentationScope,
+    metrics: Vec<Metric>,
+}
+
+impl ScopeMetricsBuilder {
+    /// Sets the [InstrumentationScope] for this [ScopeMetrics]
+    pub fn with_scope(mut self, scope: InstrumentationScope) -> Self {
+        self.scope = scope;
+        self
+    }
+
+    /// Sets a [Vec] of [Metric] for this [ScopeMetrics]
+    pub fn with_metrics(mut self, metrics: Vec<Metric>) -> Self {
+        self.metrics = metrics;
+        self
+    }
+
+    /// Create a new [ScopeMetrics] from this configuration
+    pub fn build(self) -> ScopeMetrics {
+        ScopeMetrics {
+            scope: self.scope,
+            metrics: self.metrics,
+        }
     }
 }
 
@@ -75,6 +148,16 @@ pub struct Metric {
 }
 
 impl Metric {
+    /// Create a new builder to create a [Metric]
+    pub fn builder(name: impl Into<Cow<'static, str>>, data: AggregatedMetrics) -> MetricBuilder {
+        MetricBuilder {
+            name: name.into(),
+            description: Cow::Borrowed(""),
+            unit: Cow::Borrowed(""),
+            data,
+        }
+    }
+
     /// Returns the name of the instrument that created this data.
     pub fn name(&self) -> &str {
         &self.name
@@ -93,6 +176,39 @@ impl Metric {
     /// Returns the aggregated data from the instrument.
     pub fn data(&self) -> &AggregatedMetrics {
         &self.data
+    }
+}
+
+/// Configuration option for [Metric]
+#[derive(Debug)]
+pub struct MetricBuilder {
+    name: Cow<'static, str>,
+    description: Cow<'static, str>,
+    unit: Cow<'static, str>,
+    data: AggregatedMetrics,
+}
+
+impl MetricBuilder {
+    /// Sets the description for this [Metric]
+    pub fn with_description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
+        self.description = description.into();
+        self
+    }
+
+    /// Sets the unit for this [Metric]
+    pub fn with_unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
+        self.unit = unit.into();
+        self
+    }
+
+    /// Create a new [Metric] from this configuration
+    pub fn build(self) -> Metric {
+        Metric {
+            name: self.name,
+            description: self.description,
+            unit: self.unit,
+            data: self.data,
+        }
     }
 }
 
@@ -175,6 +291,15 @@ pub struct GaugeDataPoint<T> {
 }
 
 impl<T> GaugeDataPoint<T> {
+    /// Create a new builder to create a [GaugeDataPoint]
+    pub fn builder(value: T) -> GaugeDataPointBuilder<T> {
+        GaugeDataPointBuilder {
+            attributes: Vec::new(),
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [GaugeDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -183,6 +308,37 @@ impl<T> GaugeDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+/// Configuration option for [GaugeDataPoint]
+#[derive(Debug)]
+pub struct GaugeDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    value: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> GaugeDataPointBuilder<T> {
+    /// Sets the attributes for this [GaugeDataPoint]
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the exemplars for this [GaugeDataPoint]
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Create a new [GaugeDataPoint] from this configuration
+    pub fn build(self) -> GaugeDataPoint<T> {
+        GaugeDataPoint {
+            attributes: self.attributes,
+            value: self.value,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -205,6 +361,15 @@ pub struct Gauge<T> {
 }
 
 impl<T> Gauge<T> {
+    /// Create a new builder to create a [Gauge]
+    pub fn builder(data_points: Vec<GaugeDataPoint<T>>, time: SystemTime) -> GaugeBuilder<T> {
+        GaugeBuilder {
+            data_points,
+            start_time: None,
+            time,
+        }
+    }
+
     /// Returns an iterator over the [GaugeDataPoint]s in [Gauge].
     pub fn data_points(&self) -> impl Iterator<Item = &GaugeDataPoint<T>> {
         self.data_points.iter()
@@ -221,6 +386,31 @@ impl<T> Gauge<T> {
     }
 }
 
+/// Configuration option for [Gauge]
+#[derive(Debug)]
+pub struct GaugeBuilder<T> {
+    data_points: Vec<GaugeDataPoint<T>>,
+    start_time: Option<SystemTime>,
+    time: SystemTime,
+}
+
+impl<T> GaugeBuilder<T> {
+    /// Sets the start time for this [Gauge]
+    pub fn with_start_time(mut self, start_time: SystemTime) -> Self {
+        self.start_time = Some(start_time);
+        self
+    }
+
+    /// Create a new [Gauge] from this configuration
+    pub fn build(self) -> Gauge<T> {
+        Gauge {
+            data_points: self.data_points,
+            start_time: self.start_time,
+            time: self.time,
+        }
+    }
+}
+
 /// DataPoint is a single data point in a time series.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SumDataPoint<T> {
@@ -234,6 +424,15 @@ pub struct SumDataPoint<T> {
 }
 
 impl<T> SumDataPoint<T> {
+    /// Create a new builder to create a [SumDataPoint]
+    pub fn builder(value: T) -> SumDataPointBuilder<T> {
+        SumDataPointBuilder {
+            attributes: Vec::new(),
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [SumDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -242,6 +441,37 @@ impl<T> SumDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+/// Configuration option for [SumDataPoint]
+#[derive(Debug)]
+pub struct SumDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    value: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> SumDataPointBuilder<T> {
+    /// Sets the attributes for this [SumDataPoint]
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the exemplars for this [SumDataPoint]
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Create a new [SumDataPoint] from this configuration
+    pub fn build(self) -> SumDataPoint<T> {
+        SumDataPoint {
+            attributes: self.attributes,
+            value: self.value,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -269,6 +499,23 @@ pub struct Sum<T> {
 }
 
 impl<T> Sum<T> {
+    /// Create a new [Sum]
+    pub fn new(
+        data_points: Vec<SumDataPoint<T>>,
+        temporality: Temporality,
+        is_monotonic: bool,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        Sum {
+            data_points,
+            start_time,
+            time,
+            temporality,
+            is_monotonic,
+        }
+    }
+
     /// Returns an iterator over the [SumDataPoint]s in [Sum].
     pub fn data_points(&self) -> impl Iterator<Item = &SumDataPoint<T>> {
         self.data_points.iter()
@@ -311,6 +558,21 @@ pub struct Histogram<T> {
 }
 
 impl<T> Histogram<T> {
+    /// Create a new [Histogram]
+    pub fn new(
+        data_points: Vec<HistogramDataPoint<T>>,
+        temporality: Temporality,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        Histogram {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+
     /// Returns an iterator over the [HistogramDataPoint]s in [Histogram].
     pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
         self.data_points.iter()
@@ -359,6 +621,25 @@ pub struct HistogramDataPoint<T> {
 }
 
 impl<T> HistogramDataPoint<T> {
+    /// Create a new builder to create a [HistogramDataPoint]
+    pub fn builder(
+        count: u64,
+        sum: T,
+        bounds: Vec<f64>,
+        bucket_counts: Vec<u64>,
+    ) -> HistogramDataPointBuilder<T> {
+        HistogramDataPointBuilder {
+            attributes: Vec::new(),
+            count,
+            bounds,
+            bucket_counts,
+            min: None,
+            max: None,
+            sum,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [HistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -382,6 +663,59 @@ impl<T> HistogramDataPoint<T> {
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> u64 {
         self.count
+    }
+}
+
+/// Configuration option for [HistogramDataPoint]
+#[derive(Debug)]
+pub struct HistogramDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    count: u64,
+    bounds: Vec<f64>,
+    bucket_counts: Vec<u64>,
+    min: Option<T>,
+    max: Option<T>,
+    sum: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> HistogramDataPointBuilder<T> {
+    /// Sets the attributes for this [HistogramDataPoint]
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the minimum value for this [HistogramDataPoint]
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value for this [HistogramDataPoint]
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars for this [HistogramDataPoint]
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Create a new [HistogramDataPoint] from this configuration
+    pub fn build(self) -> HistogramDataPoint<T> {
+        HistogramDataPoint {
+            attributes: self.attributes,
+            count: self.count,
+            bounds: self.bounds,
+            bucket_counts: self.bucket_counts,
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -417,6 +751,21 @@ pub struct ExponentialHistogram<T> {
 }
 
 impl<T> ExponentialHistogram<T> {
+    /// Create a new [ExponentialHistogram]
+    pub fn new(
+        data_points: Vec<ExponentialHistogramDataPoint<T>>,
+        temporality: Temporality,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        ExponentialHistogram {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+
     /// Returns an iterator over the [ExponentialHistogramDataPoint]s in [ExponentialHistogram].
     pub fn data_points(&self) -> impl Iterator<Item = &ExponentialHistogramDataPoint<T>> {
         self.data_points.iter()
@@ -485,6 +834,30 @@ pub struct ExponentialHistogramDataPoint<T> {
 }
 
 impl<T> ExponentialHistogramDataPoint<T> {
+    /// Create a new builder to create an [ExponentialHistogramDataPoint]
+    pub fn builder(
+        count: usize,
+        sum: T,
+        scale: i8,
+        zero_count: u64,
+        positive_bucket: ExponentialBucket,
+        negative_bucket: ExponentialBucket,
+    ) -> ExponentialHistogramDataPointBuilder<T> {
+        ExponentialHistogramDataPointBuilder {
+            attributes: Vec::new(),
+            count,
+            min: None,
+            max: None,
+            sum,
+            scale,
+            zero_count,
+            positive_bucket,
+            negative_bucket,
+            zero_threshold: 0.0,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [ExponentialHistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -526,6 +899,71 @@ impl<T> ExponentialHistogramDataPoint<T> {
     }
 }
 
+/// Configuration option for [ExponentialHistogramDataPoint]
+#[derive(Debug)]
+pub struct ExponentialHistogramDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    count: usize,
+    min: Option<T>,
+    max: Option<T>,
+    sum: T,
+    scale: i8,
+    zero_count: u64,
+    positive_bucket: ExponentialBucket,
+    negative_bucket: ExponentialBucket,
+    zero_threshold: f64,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> ExponentialHistogramDataPointBuilder<T> {
+    /// Sets the attributes for this [ExponentialHistogramDataPoint]
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the minimum value for this [ExponentialHistogramDataPoint]
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value for this [ExponentialHistogramDataPoint]
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the zero threshold for this [ExponentialHistogramDataPoint]
+    pub fn with_zero_threshold(mut self, zero_threshold: f64) -> Self {
+        self.zero_threshold = zero_threshold;
+        self
+    }
+
+    /// Sets the exemplars for this [ExponentialHistogramDataPoint]
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Create a new [ExponentialHistogramDataPoint] from this configuration
+    pub fn build(self) -> ExponentialHistogramDataPoint<T> {
+        ExponentialHistogramDataPoint {
+            attributes: self.attributes,
+            count: self.count,
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            scale: self.scale,
+            zero_count: self.zero_count,
+            positive_bucket: self.positive_bucket,
+            negative_bucket: self.negative_bucket,
+            zero_threshold: self.zero_threshold,
+            exemplars: self.exemplars,
+        }
+    }
+}
+
 impl<T: Copy> ExponentialHistogramDataPoint<T> {
     /// Returns the minimum value recorded.
     pub fn min(&self) -> Option<T> {
@@ -557,6 +995,11 @@ pub struct ExponentialBucket {
 }
 
 impl ExponentialBucket {
+    /// Create a new [ExponentialBucket]
+    pub fn new(offset: i32, counts: Vec<u64>) -> Self {
+        Self { offset, counts }
+    }
+
     /// Returns the bucket index of the first entry in the counts vec.
     pub fn offset(&self) -> i32 {
         self.offset
@@ -589,6 +1032,17 @@ pub struct Exemplar<T> {
 }
 
 impl<T> Exemplar<T> {
+    /// Create a new builder to create an [Exemplar]
+    pub fn builder(value: T, time: SystemTime) -> ExemplarBuilder<T> {
+        ExemplarBuilder {
+            filtered_attributes: Vec::new(),
+            time,
+            value,
+            span_id: [0; 8],
+            trace_id: [0; 16],
+        }
+    }
+
     /// Returns an iterator over the filtered attributes in [Exemplar].
     pub fn filtered_attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.filtered_attributes.iter()
@@ -610,13 +1064,232 @@ impl<T> Exemplar<T> {
     }
 }
 
+/// Configuration option for [Exemplar]
+#[derive(Debug)]
+pub struct ExemplarBuilder<T> {
+    filtered_attributes: Vec<KeyValue>,
+    time: SystemTime,
+    value: T,
+    span_id: [u8; 8],
+    trace_id: [u8; 16],
+}
+
+impl<T> ExemplarBuilder<T> {
+    /// Sets the filtered attributes for this [Exemplar]
+    pub fn with_filtered_attributes(mut self, filtered_attributes: Vec<KeyValue>) -> Self {
+        self.filtered_attributes = filtered_attributes;
+        self
+    }
+
+    /// Sets the span ID for this [Exemplar]
+    pub fn with_span_id(mut self, span_id: [u8; 8]) -> Self {
+        self.span_id = span_id;
+        self
+    }
+
+    /// Sets the trace ID for this [Exemplar]
+    pub fn with_trace_id(mut self, trace_id: [u8; 16]) -> Self {
+        self.trace_id = trace_id;
+        self
+    }
+
+    /// Create a new [Exemplar] from this configuration
+    pub fn build(self) -> Exemplar<T> {
+        Exemplar {
+            filtered_attributes: self.filtered_attributes,
+            time: self.time,
+            value: self.value,
+            span_id: self.span_id,
+            trace_id: self.trace_id,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::{Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint, SumDataPoint};
+    use super::*;
 
     use opentelemetry::time::now;
     use opentelemetry::KeyValue;
+
+    #[test]
+    fn build_resource_metrics_full_tree() {
+        let time = now();
+        let exemplar = Exemplar::builder(1.0_f64, time)
+            .with_filtered_attributes(vec![KeyValue::new("filtered", "attr")])
+            .with_span_id([1; 8])
+            .with_trace_id([2; 16])
+            .build();
+
+        let gauge_dp = GaugeDataPoint::builder(42.0_f64)
+            .with_attributes(vec![KeyValue::new("host", "localhost")])
+            .with_exemplars(vec![exemplar])
+            .build();
+
+        let gauge = Gauge::builder(vec![gauge_dp], time)
+            .with_start_time(time)
+            .build();
+
+        assert_eq!(gauge.data_points().count(), 1);
+        assert_eq!(gauge.start_time(), Some(time));
+        assert_eq!(gauge.time(), time);
+
+        let data = AggregatedMetrics::F64(MetricData::Gauge(gauge));
+
+        let metric = Metric::builder("my_gauge", data)
+            .with_description("a test gauge")
+            .with_unit("ms")
+            .build();
+
+        let scope = InstrumentationScope::builder("my_lib")
+            .with_version("0.1.0")
+            .build();
+
+        let scope_metrics = ScopeMetrics::builder()
+            .with_metrics(vec![metric])
+            .with_scope(scope.clone())
+            .build();
+
+        let rm = ResourceMetrics::builder()
+            .with_resource(Resource::builder().build())
+            .with_scope_metrics(vec![scope_metrics])
+            .build();
+
+        assert_eq!(rm.scope_metrics().count(), 1);
+        let sm = rm.scope_metrics().next().unwrap();
+        assert_eq!(sm.metrics().count(), 1);
+        assert_eq!(sm.scope(), &scope);
+        let m = sm.metrics().next().unwrap();
+        assert_eq!(m.name(), "my_gauge");
+        assert_eq!(m.description(), "a test gauge");
+        assert_eq!(m.unit(), "ms");
+        assert!(matches!(
+            m.data(),
+            AggregatedMetrics::F64(MetricData::Gauge(_))
+        ));
+    }
+
+    #[test]
+    fn build_sum_with_data_points() {
+        let time = now();
+        let dp = SumDataPoint::builder(100_i64)
+            .with_attributes(vec![KeyValue::new("key", "value")])
+            .build();
+
+        let sum = Sum::new(vec![dp], Temporality::Cumulative, true, time, time);
+
+        assert_eq!(sum.data_points().count(), 1);
+        assert!(sum.is_monotonic());
+        assert_eq!(sum.temporality(), Temporality::Cumulative);
+        assert_eq!(sum.start_time(), time);
+        assert_eq!(sum.time(), time);
+        let dp = sum.data_points().next().unwrap();
+        assert_eq!(dp.value(), 100);
+        assert_eq!(dp.attributes().count(), 1);
+        assert_eq!(dp.exemplars().count(), 0);
+    }
+
+    #[test]
+    fn build_histogram_with_optional_fields() {
+        let time = now();
+        let dp = HistogramDataPoint::builder(10, 42.0_f64, vec![5.0, 10.0], vec![3, 5, 2])
+            .with_attributes(vec![KeyValue::new("key", "val")])
+            .with_min(1.0)
+            .with_max(20.0)
+            .with_exemplars(vec![Exemplar::builder(5.0_f64, time).build()])
+            .build();
+
+        let histogram = Histogram::new(vec![dp], Temporality::Delta, time, time);
+
+        assert_eq!(histogram.data_points().count(), 1);
+        assert_eq!(histogram.temporality(), Temporality::Delta);
+        assert_eq!(histogram.start_time(), time);
+        assert_eq!(histogram.time(), time);
+        let dp = histogram.data_points().next().unwrap();
+        assert_eq!(dp.count(), 10);
+        assert_eq!(dp.sum(), 42.0);
+        assert_eq!(dp.min(), Some(1.0));
+        assert_eq!(dp.max(), Some(20.0));
+        assert_eq!(dp.bounds().collect::<Vec<_>>(), vec![5.0, 10.0]);
+        assert_eq!(dp.bucket_counts().collect::<Vec<_>>(), vec![3, 5, 2]);
+        assert_eq!(dp.attributes().count(), 1);
+        assert_eq!(dp.exemplars().count(), 1);
+    }
+
+    #[test]
+    fn build_exponential_histogram() {
+        let time = now();
+        let exemplar = Exemplar::builder(42.0_f64, time).build();
+
+        let dp = ExponentialHistogramDataPoint::builder(
+            5,
+            100.0_f64,
+            3,
+            1,
+            ExponentialBucket::new(0, vec![1, 2, 3]),
+            ExponentialBucket::new(0, vec![4, 5]),
+        )
+        .with_attributes(vec![KeyValue::new("key", "val")])
+        .with_min(10.0)
+        .with_max(50.0)
+        .with_zero_threshold(0.001)
+        .with_exemplars(vec![exemplar])
+        .build();
+
+        let eh = ExponentialHistogram::new(vec![dp], Temporality::Cumulative, time, time);
+
+        assert_eq!(eh.data_points().count(), 1);
+        assert_eq!(eh.temporality(), Temporality::Cumulative);
+        assert_eq!(eh.start_time(), time);
+        assert_eq!(eh.time(), time);
+        let dp = eh.data_points().next().unwrap();
+        assert_eq!(dp.count(), 5);
+        assert_eq!(dp.scale(), 3);
+        assert_eq!(dp.zero_count(), 1);
+        assert_eq!(dp.sum(), 100.0);
+        assert_eq!(dp.min(), Some(10.0));
+        assert_eq!(dp.max(), Some(50.0));
+        assert!((dp.zero_threshold() - 0.001).abs() < f64::EPSILON);
+        assert_eq!(dp.positive_bucket().offset(), 0);
+        assert_eq!(
+            dp.positive_bucket().counts().collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(
+            dp.negative_bucket().counts().collect::<Vec<_>>(),
+            vec![4, 5]
+        );
+
+        assert_eq!(dp.exemplars().count(), 1);
+        assert_eq!(dp.attributes().count(), 1);
+    }
+
+    #[test]
+    fn build_exemplar_with_defaults() {
+        let time = now();
+        let exemplar = Exemplar::builder(42.0_f64, time).build();
+
+        assert_eq!(exemplar.value, 42.0);
+        assert_eq!(exemplar.time(), time);
+        assert_eq!(exemplar.span_id(), &[0; 8]);
+        assert_eq!(exemplar.trace_id(), &[0; 16]);
+        assert_eq!(exemplar.filtered_attributes().count(), 0);
+    }
+
+    #[test]
+    fn build_defaults_without_optional_fields() {
+        let rm = ResourceMetrics::builder().build();
+        assert_eq!(rm.scope_metrics().count(), 0);
+
+        let sm = ScopeMetrics::builder().build();
+        assert_eq!(sm.metrics().count(), 0);
+
+        let dp = GaugeDataPoint::builder(0.0_f64).build();
+        assert_eq!(dp.value(), 0.0);
+        assert_eq!(dp.attributes().count(), 0);
+        assert_eq!(dp.exemplars().count(), 0);
+    }
 
     #[test]
     fn validate_cloning_data_points() {
