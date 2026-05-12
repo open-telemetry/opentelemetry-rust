@@ -159,7 +159,9 @@ pub(crate) mod tonic {
                 }
             };
 
-            scope_spans[scope_index].spans.push(span_data_to_proto(span));
+            scope_spans[scope_index]
+                .spans
+                .push(span_data_to_proto(span));
         }
 
         // Wrap ScopeSpans into a single ResourceSpans
