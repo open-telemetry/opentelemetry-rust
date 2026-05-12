@@ -37,10 +37,9 @@ available.
    `tracing` already offers. The appender is a standard `tracing-subscriber`
    `Layer`, so it composes with `fmt::Layer`, `EnvFilter`, and any other
    existing layer — for example, sending logs to stdout via `tracing`'s
-   `fmt::Layer` while also exporting via OpenTelemetry, or filtering what
-   reaches the OpenTelemetry pipeline. Use `tracing`'s ecosystem directly;
-   OpenTelemetry just plugs into it. (OpenTelemetry Rust does not currently
-   offer a production-ready stdout log exporter.)
+   `fmt::Layer` while exporting the same logs to an OTLP endpoint via
+   OpenTelemetry, or filtering what reaches the OpenTelemetry pipeline. Use
+   `tracing`'s ecosystem directly; OpenTelemetry just plugs into it.
 
 3. **Explicitly provide `name` and `target` fields**: These map to OpenTelemetry's
    EventName and Instrumentation Scope respectively. Without them, `tracing`
