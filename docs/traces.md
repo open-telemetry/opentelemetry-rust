@@ -58,6 +58,20 @@ for logs and events, not spans. See [logs.md](logs.md) for log guidance.
 - [examples/tracing-http-propagator](../examples/tracing-http-propagator/) — end-to-end span creation and W3C context propagation
 - [examples/tracing-grpc](../examples/tracing-grpc/) — span creation and propagation over gRPC
 
+## TODO
+
+This document is intentionally high-level. Areas to expand over time, similar
+to the depth in [metrics.md](metrics.md):
+
+- Best practices, with links to runnable examples
+- `TracerProvider` lifecycle and shutdown
+- Sampling strategies and configuration
+- Context propagation: W3C Trace Context, Baggage, custom propagators
+- Span attribute modelling and semantic conventions
+- Performance considerations (allocation, attribute cost, span overhead)
+- Common pitfalls (broken context, missed parents, mis-set span kind)
+- Batching, exporter configuration, and back-pressure
+
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib

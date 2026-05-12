@@ -92,3 +92,15 @@ described above rather than Span Events.
 - [`tracing` Documentation](https://docs.rs/tracing/)
 - [`opentelemetry-appender-tracing`
   Documentation](https://docs.rs/opentelemetry-appender-tracing/)
+
+## TODO
+
+This document is intentionally high-level. Areas to expand over time, similar
+to the depth in [metrics.md](metrics.md):
+
+- Best practices, with links to runnable examples
+- `LoggerProvider` lifecycle and shutdown
+- Performance considerations (allocation, attribute cost)
+- Attribute modelling and semantic conventions
+- Common pitfalls (lost logs, missing correlation, mis-set `target`)
+- Batching, exporter configuration, and back-pressure
