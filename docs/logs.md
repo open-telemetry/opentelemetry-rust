@@ -8,7 +8,9 @@ This document provides guidance on leveraging OpenTelemetry logs in Rust
 applications.
 
 In short: use [`tracing`] for logs and events; OpenTelemetry plugs in via the
-[`opentelemetry-appender-tracing`] appender. For span guidance, see
+[`opentelemetry-appender-tracing`] appender. Existing `tracing` (or `log`)
+instrumentation continues to work as-is — adopting OpenTelemetry for logs is
+a setup change, not a code rewrite. For span guidance, see
 [traces.md](traces.md).
 
 [`tracing`]: https://crates.io/crates/tracing
