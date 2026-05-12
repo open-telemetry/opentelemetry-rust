@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key, KeyValue,
 };
 #[cfg(feature = "experimental_span_attributes")]
 use std::borrow::Cow;
@@ -380,13 +380,23 @@ where
     }
 
     pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        // Empty Instrumentation Scope name. The actual producer of each log
+        // record (the `tracing` target) is stored on the `LogRecord` itself
+        // and surfaced as the Instrumentation Scope name by the OTLP
+        // exporter at export time.
+        //
+        // The bridge identifies itself via Instrumentation Scope attributes
+        // `log_bridge.name` / `log_bridge.version`, per the (in-progress)
+        // semantic convention discussed in
+        // https://github.com/open-telemetry/semantic-conventions/issues/1550
+        let scope = InstrumentationScope::builder("")
+            .with_attributes([
+                KeyValue::new("log_bridge.name", env!("CARGO_PKG_NAME")),
+                KeyValue::new("log_bridge.version", env!("CARGO_PKG_VERSION")),
+            ])
+            .build();
         OpenTelemetryTracingBridgeBuilder {
-            // Using empty scope name.
-            // The name/version of this library itself can be added
-            // as a Scope attribute, once a semantic convention is
-            // defined for the same.
-            // See https://github.com/open-telemetry/semantic-conventions/issues/1550
-            logger: provider.logger(""),
+            logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
             span_attributes: None,
