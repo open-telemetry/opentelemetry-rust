@@ -15,7 +15,21 @@
         {
           "scope": {
             "name": "my-target",
-            "version": ""
+            "version": "",
+            "attributes": [
+              {
+                "key": "log_bridge.name",
+                "value": {
+                  "stringValue": "opentelemetry-appender-tracing"
+                }
+              },
+              {
+                "key": "log_bridge.version",
+                "value": {
+                  "stringValue": "0.32.0"
+                }
+              }
+            ]
           },
           "logRecords": [
             {
