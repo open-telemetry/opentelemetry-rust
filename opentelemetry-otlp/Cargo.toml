@@ -97,11 +97,25 @@ http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-mess
 experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio", "httpdate"]
 
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
+
+#
+# HTTP clients
+#
+# Most users should use the default reqwest-blocking-client. It is compatible
+# with the SDK's default BatchSpanProcessor, BatchLogProcessor, and
+# PeriodicReader, including applications that run on Tokio.
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
+
+# Async HTTP clients. Do not enable these for the default SDK
+# processors/readers; they require an export path that is driven by a Tokio
+# runtime, such as the experimental async-runtime processors/readers.
 reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
+hyper-client = ["opentelemetry-http/hyper"]
+
+# TLS options for reqwest-based HTTP clients, both blocking and async. Combine
+# these with either reqwest-blocking-client or reqwest-client.
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
 reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]
-hyper-client = ["opentelemetry-http/hyper"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]
