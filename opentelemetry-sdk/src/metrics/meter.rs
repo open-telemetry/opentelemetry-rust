@@ -24,16 +24,16 @@ use super::noop::NoopSyncInstrument;
 pub(crate) const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
 pub(crate) const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
-// Characters allowed in instrument name
-pub(crate) const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
+// Non-alphanumeric characters allowed in instrument name (in addition to ASCII
+// alphanumeric). Space is also allowed but is treated separately because it is
+// only permitted in non-leading, non-trailing positions.
+pub(crate) const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 11] =
+    ['_', '.', '-', '/', ':', '\\', '(', ')', '%', '*', '#'];
 
 // name validation error strings
 pub(crate) const INSTRUMENT_NAME_EMPTY: &str = "name must be non-empty";
 pub(crate) const INSTRUMENT_NAME_LENGTH: &str = "name must be less than 256 characters";
-pub(crate) const INSTRUMENT_NAME_INVALID_CHAR: &str =
-    "characters in name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
-pub(crate) const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
-    "name must start with an alphabetic character";
+pub(crate) const INSTRUMENT_NAME_INVALID_CHAR: &str = "characters in name must be ASCII alphanumeric or one of '_', '.', '-', '/', ':', '\\', '(', ')', '%', '*', '#', or space; first and last characters must not be a space";
 
 // unit validation error strings
 pub(crate) const INSTRUMENT_UNIT_LENGTH: &str = "unit must be less than 64 characters";
@@ -574,13 +574,6 @@ fn validate_bucket_boundaries(boundaries: &[f64]) -> MetricResult<()> {
     Ok(())
 }
 
-#[cfg(feature = "experimental_metrics_disable_name_validation")]
-fn validate_instrument_name(_name: &str) -> MetricResult<()> {
-    // No name restrictions when name validation is disabled
-    Ok(())
-}
-
-#[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
 fn validate_instrument_name(name: &str) -> MetricResult<()> {
     if name.is_empty() {
         return Err(MetricError::InvalidInstrumentConfiguration(
@@ -593,13 +586,27 @@ fn validate_instrument_name(name: &str) -> MetricResult<()> {
         ));
     }
 
-    if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
+    // First character must not be a space.
+    if name.starts_with(' ') {
         return Err(MetricError::InvalidInstrumentConfiguration(
-            INSTRUMENT_NAME_FIRST_ALPHABETIC,
+            INSTRUMENT_NAME_INVALID_CHAR,
         ));
     }
+
+    // Last character must not be a space.
+    if name.ends_with(' ') {
+        return Err(MetricError::InvalidInstrumentConfiguration(
+            INSTRUMENT_NAME_INVALID_CHAR,
+        ));
+    }
+
+    // Every character must be ASCII alphanumeric, one of the allowed
+    // non-alphanumeric characters, or a space (space allowed in middle only;
+    // leading/trailing already rejected above).
     if name.contains(|c: char| {
-        !c.is_ascii_alphanumeric() && !INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
+        c != ' '
+            && !c.is_ascii_alphanumeric()
+            && !INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
     }) {
         return Err(MetricError::InvalidInstrumentConfiguration(
             INSTRUMENT_NAME_INVALID_CHAR,
@@ -688,80 +695,82 @@ mod tests {
 
     use super::{
         validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,
-        INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
-        INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+        INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR,
+        INSTRUMENT_UNIT_LENGTH,
     };
 
     #[test]
-    #[cfg(not(feature = "experimental_metrics_disable_name_validation"))]
     fn instrument_name_validation() {
         // (name, expected error)
         let instrument_name_test_cases = vec![
+            // Standard names
             ("validateName", ""),
-            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
             ("a".repeat(255).leak(), ""),
-            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
-            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
             ("allow/slash", ""),
             ("allow_under_score", ""),
             ("allow.dots.ok", ""),
+            // Empty / length / non-ASCII
             ("", INSTRUMENT_NAME_EMPTY),
-            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
-            (
-                "\\test\\UsagePercent(Total) > 80%",
-                INSTRUMENT_NAME_FIRST_ALPHABETIC,
-            ),
-            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-        ];
-        for (name, expected_error) in instrument_name_test_cases {
-            let assert = |result: Result<_, MetricError>| {
-                if expected_error.is_empty() {
-                    assert!(result.is_ok());
-                } else {
-                    assert!(matches!(
-                        result.unwrap_err(),
-                        MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
-                    ));
-                }
-            };
-
-            assert(validate_instrument_name(name).map(|_| ()));
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "experimental_metrics_disable_name_validation")]
-    fn instrument_name_validation_disabled() {
-        // (name, expected error)
-        let instrument_name_test_cases = vec![
-            ("validateName", ""),
-            ("_startWithNoneAlphabet", ""),
-            ("utf8char锈", ""),
-            ("a".repeat(255).leak(), ""),
-            ("a".repeat(256).leak(), ""),
+            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
+            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
+            // Newly valid: leading non-alphabetic characters
+            ("_startWithUnderscore", ""),
+            ("-startWithDash", ""),
+            (".startWithDot", ""),
+            ("1startWithDigit", ""),
+            (":startWithColon", ""),
+            ("\\startWithBackslash", ""),
+            ("(startWithParen", ""),
+            ("%startWithPercent", ""),
+            ("*startWithAsterisk", ""),
+            ("#startWithHash", ""),
+            // Newly valid: ':', '\', '(', ')', '%', '*', '#'
+            ("with:colon", ""),
+            ("with\\backslash", ""),
+            ("with(parens)", ""),
+            ("with%percent", ""),
+            ("with*asterisk", ""),
+            ("with#hash", ""),
+            // Newly valid: space in middle
             ("invalid name", ""),
-            ("allow/slash", ""),
-            ("allow_under_score", ""),
-            ("allow.dots.ok", ""),
-            ("", ""),
+            ("name with multiple words", ""),
+            ("name with  consecutive  spaces", ""),
+            // Newly valid: real-world Windows performance counter shapes
+            ("\\Processor(_Total)\\% Processor Time", ""),
+            ("\\Memory\\Available Bytes", ""),
+            ("\\.NET CLR Memory(*)\\# Bytes in all Heaps", ""),
+            ("\\.NET CLR Memory(_Global_)\\# Gen 0 Collections", ""),
+            ("\\test\\UsagePercent(Total) 80%", ""),
             ("\\allow\\slash /sec", ""),
-            ("\\allow\\$$slash /sec", ""),
-            ("Total $ Count", ""),
-            ("\\test\\UsagePercent(Total) > 80%", ""),
-            ("/not / allowed", ""),
+            ("/not / allowed but now is", ""),
+            // Still invalid: leading / trailing space
+            (" leadingSpace", INSTRUMENT_NAME_INVALID_CHAR),
+            ("trailingSpace ", INSTRUMENT_NAME_INVALID_CHAR),
+            (" ", INSTRUMENT_NAME_INVALID_CHAR),
+            ("   ", INSTRUMENT_NAME_INVALID_CHAR),
+            // Still invalid: characters outside the allowlist
+            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_INVALID_CHAR),
+            ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
+            ("\\test\\UsagePercent(Total) > 80%", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name\twith\ttab", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name\nwith\nnewline", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name+with+plus", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name[with[bracket", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name;with;semicolon", INSTRUMENT_NAME_INVALID_CHAR),
+            ("name=with=equals", INSTRUMENT_NAME_INVALID_CHAR),
         ];
         for (name, expected_error) in instrument_name_test_cases {
             let assert = |result: Result<_, MetricError>| {
                 if expected_error.is_empty() {
-                    assert!(result.is_ok());
+                    assert!(
+                        result.is_ok(),
+                        "expected {name:?} to be valid, but got error: {result:?}"
+                    );
                 } else {
                     assert!(matches!(
                         result.unwrap_err(),
                         MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
-                    ));
+                    ), "expected {name:?} to fail with {expected_error:?}");
                 }
             };
 

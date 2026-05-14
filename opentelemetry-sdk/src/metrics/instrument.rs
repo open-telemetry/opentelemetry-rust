@@ -12,8 +12,8 @@ use crate::metrics::internal::BoundMeasure;
 use crate::metrics::{aggregation::Aggregation, internal::Measure};
 
 use super::meter::{
-    INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-    INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+    INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
+    INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
 };
 
 use super::Temporality;
@@ -231,12 +231,14 @@ impl StreamBuilder {
                 return Err(INSTRUMENT_NAME_LENGTH.into());
             }
 
-            if name.starts_with(|c: char| !c.is_ascii_alphabetic()) {
-                return Err(INSTRUMENT_NAME_FIRST_ALPHABETIC.into());
+            // First and last character must not be a space.
+            if name.starts_with(' ') || name.ends_with(' ') {
+                return Err(INSTRUMENT_NAME_INVALID_CHAR.into());
             }
 
             if name.contains(|c: char| {
-                !c.is_ascii_alphanumeric()
+                c != ' '
+                    && !c.is_ascii_alphanumeric()
                     && !super::meter::INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS.contains(&c)
             }) {
                 return Err(INSTRUMENT_NAME_INVALID_CHAR.into());
@@ -445,32 +447,49 @@ impl<T: Copy + Send + Sync + 'static> AsyncInstrument<T> for Observable<T> {
 mod tests {
     use super::StreamBuilder;
     use crate::metrics::meter::{
-        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
-        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
+        INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
     };
 
     #[test]
     fn stream_name_validation() {
         // (name, expected error)
         let stream_name_test_cases = vec![
+            // Standard names
             ("validateName", ""),
-            ("_startWithNoneAlphabet", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
             ("a".repeat(255).leak(), ""),
-            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
-            ("invalid name", INSTRUMENT_NAME_INVALID_CHAR),
             ("allow/slash", ""),
             ("allow_under_score", ""),
             ("allow.dots.ok", ""),
+            // Empty / length / non-ASCII
             ("", INSTRUMENT_NAME_EMPTY),
-            ("\\allow\\slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
-            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("a".repeat(256).leak(), INSTRUMENT_NAME_LENGTH),
+            ("utf8char锈", INSTRUMENT_NAME_INVALID_CHAR),
+            // Newly valid: leading non-alphabetic characters and new chars
+            ("_startWithUnderscore", ""),
+            ("-startWithDash", ""),
+            ("1startWithDigit", ""),
+            (":startWithColon", ""),
+            ("\\startWithBackslash", ""),
+            ("with:colon", ""),
+            ("with\\backslash", ""),
+            ("with(parens)", ""),
+            ("with%percent", ""),
+            ("with*asterisk", ""),
+            ("with#hash", ""),
+            // Newly valid: space in middle and Windows perf counter shapes
+            ("invalid name", ""),
+            ("\\Processor(_Total)\\% Processor Time", ""),
+            ("\\.NET CLR Memory(*)\\# Bytes in all Heaps", ""),
+            ("\\allow\\slash /sec", ""),
+            ("/not / allowed but now is", ""),
+            // Still invalid: leading / trailing space
+            (" leadingSpace", INSTRUMENT_NAME_INVALID_CHAR),
+            ("trailingSpace ", INSTRUMENT_NAME_INVALID_CHAR),
+            // Still invalid: characters outside the allowlist
+            ("\\allow\\$$slash /sec", INSTRUMENT_NAME_INVALID_CHAR),
             ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
-            (
-                "\\test\\UsagePercent(Total) > 80%",
-                INSTRUMENT_NAME_FIRST_ALPHABETIC,
-            ),
-            ("/not / allowed", INSTRUMENT_NAME_FIRST_ALPHABETIC),
+            ("\\test\\UsagePercent(Total) > 80%", INSTRUMENT_NAME_INVALID_CHAR),
         ];
 
         for (name, expected_error) in stream_name_test_cases {

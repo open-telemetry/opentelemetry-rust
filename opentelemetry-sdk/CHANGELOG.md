@@ -2,6 +2,22 @@
 
 ## vNext
 
+- **Relaxed instrument name validation** to accept the expanded character set
+  defined by the OpenTelemetry specification. The allowed character set now
+  includes `:`, `\`, `(`, `)`, `%`, `*`, `#`, and space (with space restricted
+  to non-leading, non-trailing positions), and the first character is no
+  longer required to be alphabetic. This enables names shaped like Windows
+  performance counters (`\Processor(_Total)\% Processor Time`,
+  `\.NET CLR Memory(*)\# Bytes in all Heaps`) to be used directly without
+  workarounds. ASCII, case-insensitivity, and the 255-character maximum are
+  unchanged. See
+  [opentelemetry-specification#5092](https://github.com/open-telemetry/opentelemetry-specification/pull/5092).
+- **Removed** the `experimental_metrics_disable_name_validation` Cargo feature.
+  With the relaxed validation rules above, the use cases this feature was
+  introduced for (notably Windows performance counter names) are now supported
+  by the default validation. Consumers that previously enabled this feature
+  should drop it from their Cargo.toml.
+
 ## 0.32.0
 
 Released 2026-May-08
