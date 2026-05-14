@@ -2,7 +2,7 @@
 
 ## vNext
 
-- The bridge now sets `log_bridge.name` and `log_bridge.version` as
+- The bridge now sets `log.bridge.name` and `log.bridge.version` as
   Instrumentation Scope attributes on its `Logger`, identifying itself as
   per the (in-progress) semantic convention discussed in
   [open-telemetry/semantic-conventions#1550][semconv-1550] and proposed in

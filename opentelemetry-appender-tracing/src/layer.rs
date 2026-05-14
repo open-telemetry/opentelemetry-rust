@@ -386,13 +386,13 @@ where
         // exporter at export time.
         //
         // The bridge identifies itself via Instrumentation Scope attributes
-        // `log_bridge.name` / `log_bridge.version`, per the (in-progress)
+        // `log.bridge.name` / `log.bridge.version`, per the (in-progress)
         // semantic convention discussed in
         // https://github.com/open-telemetry/semantic-conventions/issues/1550
         let scope = InstrumentationScope::builder("")
             .with_attributes([
-                KeyValue::new("log_bridge.name", env!("CARGO_PKG_NAME")),
-                KeyValue::new("log_bridge.version", env!("CARGO_PKG_VERSION")),
+                KeyValue::new("log.bridge.name", env!("CARGO_PKG_NAME")),
+                KeyValue::new("log.bridge.version", env!("CARGO_PKG_VERSION")),
             ])
             .build();
         OpenTelemetryTracingBridgeBuilder {

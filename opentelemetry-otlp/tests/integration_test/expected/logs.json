@@ -18,13 +18,13 @@
             "version": "",
             "attributes": [
               {
-                "key": "log_bridge.name",
+                "key": "log.bridge.name",
                 "value": {
                   "stringValue": "opentelemetry-appender-tracing"
                 }
               },
               {
-                "key": "log_bridge.version",
+                "key": "log.bridge.version",
                 "value": {
                   "stringValue": "0.32.0"
                 }
