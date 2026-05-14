@@ -489,7 +489,10 @@ mod tests {
             // Still invalid: characters outside the allowlist
             ("\\allow\\$$slash /sec", INSTRUMENT_NAME_INVALID_CHAR),
             ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
-            ("\\test\\UsagePercent(Total) > 80%", INSTRUMENT_NAME_INVALID_CHAR),
+            (
+                "\\test\\UsagePercent(Total) > 80%",
+                INSTRUMENT_NAME_INVALID_CHAR,
+            ),
         ];
 
         for (name, expected_error) in stream_name_test_cases {

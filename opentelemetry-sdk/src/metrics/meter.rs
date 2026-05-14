@@ -751,7 +751,10 @@ mod tests {
             // Still invalid: characters outside the allowlist
             ("\\allow\\$$slash /sec", INSTRUMENT_NAME_INVALID_CHAR),
             ("Total $ Count", INSTRUMENT_NAME_INVALID_CHAR),
-            ("\\test\\UsagePercent(Total) > 80%", INSTRUMENT_NAME_INVALID_CHAR),
+            (
+                "\\test\\UsagePercent(Total) > 80%",
+                INSTRUMENT_NAME_INVALID_CHAR,
+            ),
             ("name\twith\ttab", INSTRUMENT_NAME_INVALID_CHAR),
             ("name\nwith\nnewline", INSTRUMENT_NAME_INVALID_CHAR),
             ("name+with+plus", INSTRUMENT_NAME_INVALID_CHAR),
@@ -767,10 +770,13 @@ mod tests {
                         "expected {name:?} to be valid, but got error: {result:?}"
                     );
                 } else {
-                    assert!(matches!(
-                        result.unwrap_err(),
-                        MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
-                    ), "expected {name:?} to fail with {expected_error:?}");
+                    assert!(
+                        matches!(
+                            result.unwrap_err(),
+                            MetricError::InvalidInstrumentConfiguration(msg) if msg == expected_error
+                        ),
+                        "expected {name:?} to fail with {expected_error:?}"
+                    );
                 }
             };
 
