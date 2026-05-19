@@ -1,7 +1,6 @@
 use core::fmt;
-use once_cell::sync::OnceCell;
 use opentelemetry_sdk::metrics::ManualReaderBuilder;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::{Collector, PrometheusExporter, ResourceSelector};
 
@@ -124,11 +123,11 @@ impl ExporterBuilder {
             without_units: self.without_units,
             without_counter_suffixes: self.without_counter_suffixes,
             disable_scope_info: self.disable_scope_info,
-            create_target_info_once: OnceCell::new(),
+            create_target_info_once: OnceLock::new(),
             namespace: self.namespace,
             inner: Mutex::new(Default::default()),
             resource_selector: self.resource_selector,
-            resource_labels_once: OnceCell::new(),
+            resource_labels_once: OnceLock::new(),
         };
 
         let registry = self.registry.unwrap_or_default();

@@ -13,7 +13,6 @@
     RAM: 24.0 GB
     ~5.2 M /sec
 */
-use lazy_static::lazy_static;
 use opentelemetry::{
     trace::{Span, SpanBuilder, Tracer, TracerProvider},
     Context, KeyValue,
@@ -22,17 +21,18 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     trace::{self as sdktrace, SpanData, SpanProcessor},
 };
+use std::sync::LazyLock;
 use std::time::Duration;
 
 mod throughput;
 
-lazy_static! {
-    static ref PROVIDER: sdktrace::SdkTracerProvider = sdktrace::SdkTracerProvider::builder()
+static PROVIDER: LazyLock<sdktrace::SdkTracerProvider> = LazyLock::new(|| {
+    sdktrace::SdkTracerProvider::builder()
         .with_sampler(sdktrace::Sampler::AlwaysOn)
         .with_span_processor(NoOpSpanProcessor {})
-        .build();
-    static ref TRACER: sdktrace::SdkTracer = PROVIDER.tracer("stress");
-}
+        .build()
+});
+static TRACER: LazyLock<sdktrace::SdkTracer> = LazyLock::new(|| PROVIDER.tracer("stress"));
 
 #[derive(Debug)]
 pub struct NoOpSpanProcessor;
