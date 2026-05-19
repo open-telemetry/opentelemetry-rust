@@ -2,6 +2,10 @@
 
 ## vNext
 
+- `LogBatch::new_with_owned_data` is now public. It was already used by exporters
+  through other paths; making it public allows custom log processors and
+  exporters to construct a `LogBatch` from owned data directly.
+
 ## 0.32.0
 
 Released 2026-May-08
