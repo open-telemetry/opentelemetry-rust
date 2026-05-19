@@ -5,7 +5,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
-    trace::{self as sdktrace, SpanData, SpanExporter},
+    trace::{self as sdktrace, SpanBatch, SpanExporter},
 };
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -59,7 +59,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 struct VoidExporter;
 
 impl SpanExporter for VoidExporter {
-    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _spans: SpanBatch<'_>) -> OTelSdkResult {
         Ok(())
     }
 }

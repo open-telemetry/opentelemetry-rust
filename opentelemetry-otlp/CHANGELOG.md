@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Updated trace exporters to use borrowed `SpanBatch` interface, eliminating unnecessary `SpanData` deep clones in tonic and HTTP trace exporters.
+
 ## 0.32.0
 
 Released 2026-May-08
