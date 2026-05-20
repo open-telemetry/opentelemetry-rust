@@ -1634,7 +1634,7 @@ mod json_serde {
                                         count: 2,
                                         sum: Some(f64::NAN),
                                         bucket_counts: vec![1, 1],
-                                        explicit_bounds: vec![1.0],
+                                        explicit_bounds: vec![f64::NAN],
                                         exemplars: vec![Exemplar {
                                             filtered_attributes: vec![KeyValue {
                                                 key: String::from("my.histogram.attr"),
@@ -1869,7 +1869,7 @@ mod json_serde {
                             "1"
                           ],
                           "explicitBounds": [
-                            1.0
+                            "NaN"
                           ],
                           "exemplars": [
                             {
@@ -2408,7 +2408,7 @@ mod json_serde {
                                             count: 1,
                                             sum: Some(f64::INFINITY),
                                             bucket_counts: vec![1],
-                                            explicit_bounds: vec![],
+                                            explicit_bounds: vec![f64::NEG_INFINITY, f64::INFINITY],
                                             exemplars: vec![],
                                             flags: 0,
                                             min: Some(f64::NEG_INFINITY),
@@ -2449,7 +2449,7 @@ mod json_serde {
                             "count": "1",
                             "sum": "Infinity",
                             "bucketCounts": ["1"],
-                            "explicitBounds": [],
+                            "explicitBounds": ["-Infinity","Infinity"],
                             "exemplars": [],
                             "flags": 0,
                             "min": "-Infinity",

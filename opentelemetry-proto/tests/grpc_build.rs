@@ -200,6 +200,11 @@ fn build_tonic() {
         builder = builder.field_attribute(path, "#[cfg_attr(feature = \"with-serde\",serde(serialize_with = \"crate::proto::serializers::serialize_option_f64_special\", deserialize_with=\"crate::proto::serializers::deserialize_option_f64_special\"))]")
     }
 
+    //Special serializers and deserializers for Vec<f64> floating point fields
+    for path in ["metric.v1.HistogramDataPoint.explicit_bounds"] {
+        builder = builder.field_attribute(path, "#[cfg_attr(feature = \"with-serde\",serde(serialize_with = \"crate::proto::serializers::serialize_vector_f64_special\", deserialize_with=\"crate::proto::serializers::deserialize_vector_f64_special\"))])")
+    }
+
     // special serializer and deserializer for value
     // The Value::value field must be hidden
     builder = builder
