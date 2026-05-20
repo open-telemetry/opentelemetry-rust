@@ -3,14 +3,9 @@
 ## vNext
 
 - View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
-  is no longer validated against the
-  [instrument name syntax](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#instrument-name-syntax).
-  This aligns with the OpenTelemetry specification clarification in
-  [#5094](https://github.com/open-telemetry/opentelemetry-specification/pull/5094)
-  and lets users employ Views to fix instrumentation mistakes (e.g. rename an
-  instrument whose original name does not satisfy the syntax) and to support
-  export targets that have different naming requirements. `unit` and other
-  stream parameters continue to be validated.
+  is no longer validated against the instrument name syntax, per
+  [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
+  `unit` and other stream parameters continue to be validated.
 
 ## 0.32.0
 

@@ -218,7 +218,7 @@ impl StreamBuilder {
         // used to fix instrumentation mistakes (e.g. renaming an instrument
         // whose original name does not satisfy the syntax) and to support
         // export targets that have different naming requirements.
-        // See: https://github.com/open-telemetry/opentelemetry-specification/pull/5094
+        // See: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk.md#view
 
         // Validate unit if provided
         if let Some(unit) = &self.unit {
