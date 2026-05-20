@@ -516,6 +516,13 @@ pub struct HistogramDataPoint {
     /// If bucket_counts length is 0 then explicit_bounds length must also be 0,
     /// otherwise the data point is invalid.
     #[prost(double, repeated, tag = "7")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_vector_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_vector_f64_special"
+        )
+    )]
     pub explicit_bounds: ::prost::alloc::vec::Vec<f64>,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
