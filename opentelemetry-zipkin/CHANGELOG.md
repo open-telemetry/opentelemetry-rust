@@ -2,13 +2,14 @@
 
 ## vNext
 
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
+
 ## 0.32.0
 
 Released 2026-May-08
 
 - **Deprecated**: The `opentelemetry-zipkin` crate is now deprecated. Use the OTLP exporter (`opentelemetry-otlp`) instead. Zipkin supports native OTLP ingestion. This crate will be removed in a future release.
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
-- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
 
 ## 0.31.0
 

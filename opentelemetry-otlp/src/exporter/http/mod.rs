@@ -1134,27 +1134,32 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "gzip-http")]
-    mod compression_tests {
-        use super::super::OtlpHttpClient;
+    #[test]
+    fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
         use super::{HttpExporterBuilder, WithHttpConfig};
         use crate::exporter::http::HttpConfig;
         use crate::exporter::ExportConfig;
+        use export_body_tests::MockHttpClient;
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client(MockHttpClient);
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client::<MockHttpClient>(std::sync::Arc::new(MockHttpClient));
+    }
+
+    #[cfg(feature = "gzip-http")]
+    mod compression_tests {
+        use super::super::OtlpHttpClient;
         use flate2::read::GzDecoder;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::io::Read;
-
-        #[test]
-        fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
-            use super::export_body_tests::MockHttpClient;
-
-            let _ = HttpExporterBuilder {
-                exporter_config: ExportConfig::default(),
-                http_config: HttpConfig::default(),
-            }
-            .with_http_client(MockHttpClient)
-            .with_http_client::<MockHttpClient>(std::sync::Arc::new(MockHttpClient));
-        }
 
         #[test]
         fn test_gzip_compression_and_decompression() {
