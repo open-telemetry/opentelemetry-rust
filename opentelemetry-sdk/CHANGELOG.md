@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Reverted the `SimpleSpanProcessor` telemetry suppression added in 0.32.0
+  (see #3494), which caused a `RefCell already borrowed` panic when a span
+  was started and dropped inside a `get_active_span` (or `Context::map_current`)
+  closure. Tracked in #3510. A proper fix for the underlying
+  `Context::map_current` re-entrancy will be investigated separately, after
+  which the suppression can be safely re-applied.
 - View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
   is no longer validated against the instrument name syntax, per
   [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
