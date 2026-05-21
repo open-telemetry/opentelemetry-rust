@@ -23,7 +23,7 @@ use std::collections::HashMap;
 /// let mut carrier = EnvVarsCarrier::new();
 ///
 /// // Looks for the normalized "FOO" value in the carrier mapping
-/// let val = carrier.get("foo")
+/// let val = carrier.get("foo");
 ///
 /// // Sets the value for normalized "FOO" to "bar", does NOT set env vars
 /// carrier.set("foo", String::from("bar"));
