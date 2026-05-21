@@ -1,9 +1,10 @@
 /*
     Stress test results:
-    Hardware: Apple M4 Pro
-    Total Number of Cores:	14 (10 performance and 4 efficiency)
-    ~27 M/sec
-    ~1.4 B/sec (when disabled)
+    OS: macOS 26.4.1
+    Hardware: Apple M4 Pro, 14 cores (10 performance + 4 efficiency)
+    RAM: 24.0 GB
+    ~27 M /sec
+    ~1.4 B /sec (when disabled)
 */
 use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;

@@ -8,6 +8,10 @@
   closure. Tracked in #3510. A proper fix for the underlying
   `Context::map_current` re-entrancy will be investigated separately, after
   which the suppression can be safely re-applied.
+- View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
+  is no longer validated against the instrument name syntax, per
+  [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
+  `unit` and other stream parameters continue to be validated.
 
 ## 0.32.0
 

@@ -148,6 +148,11 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 ///   spans must be emitted from a non-tokio runtime thread.
 /// - `reqwest-client`: TracerProvider may be created anywhere, but spans must be
 ///   emitted from a tokio runtime thread.
+///
+/// The OTLP HTTP exporter chooses its default HTTP client from enabled crate
+/// features. That choice is not processor-aware. If you enable async HTTP
+/// clients such as `reqwest-client` or `hyper-client`, ensure this processor is
+/// only used from a thread where those clients can run.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor<T: SpanExporter> {
     exporter: Mutex<T>,
@@ -221,8 +226,14 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 ///   runtime.
 /// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
-/// In other words, other clients like `reqwest` and `hyper` are not supported.
-/// /// # Example
+/// In other words, async HTTP clients like `reqwest-client` and `hyper-client`
+/// are not supported by this default processor. The OTLP HTTP exporter chooses
+/// its default HTTP client from enabled crate features and cannot tell which
+/// processor will drive it. If your dependency graph enables async HTTP client
+/// features, either pass an explicit blocking client for this processor or use
+/// the experimental async-runtime batch span processor.
+///
+/// # Example
 ///
 /// This example demonstrates how to configure and use the `BatchSpanProcessor`
 /// with a custom configuration. Note that a dedicated thread is used internally
@@ -300,7 +311,12 @@ enum BatchMessage {
 /// - `grpc-tonic`: Requires `TracerProvider` to be created within a tokio runtime.
 /// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
-/// In other words, other clients like `reqwest` and `hyper` are not supported.
+/// In other words, async HTTP clients like `reqwest-client` and `hyper-client`
+/// are not supported by this default processor. The OTLP HTTP exporter chooses
+/// its default HTTP client from enabled crate features and cannot tell which
+/// processor will drive it. If your dependency graph enables async HTTP client
+/// features, either pass an explicit blocking client for this processor or use
+/// the experimental async-runtime batch span processor.
 ///
 /// `BatchSpanProcessor` buffers spans in memory and exports them in batches. An
 /// export is triggered when `max_export_batch_size` is reached or every
