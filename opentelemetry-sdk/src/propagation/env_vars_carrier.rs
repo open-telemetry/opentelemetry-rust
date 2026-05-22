@@ -132,4 +132,18 @@ mod tests {
 
         assert_eq!(Extractor::get(&carrier, "foo.bar"), Some("value"));
     }
+
+    #[test]
+    fn test_env_vars_carrier_new() {
+        let carrier = EnvVarsCarrier::new();
+        let entry = carrier.get("ENV_VAR_CARRIER_TEST_VAR").unwrap();
+        assert_eq!(entry, "test");
+    }
+
+    #[test]
+    fn test_env_vars_carrier_default() {
+        let carrier: EnvVarsCarrier = Default::default();
+        let entry = carrier.get("ENV_VAR_CARRIER_TEST_VAR").unwrap();
+        assert_eq!(entry, "test");
+    }
 }
