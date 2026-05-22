@@ -11,6 +11,11 @@ use std::sync::OnceLock;
 static BAGGAGE_HEADER: &str = "baggage";
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b';').add(b',').add(b'=');
 
+// W3C Baggage specification limits.
+// See https://www.w3.org/TR/baggage/#limits
+const MAX_BAGGAGE_LENGTH: usize = 8192;
+const MAX_BAGGAGE_ITEMS: usize = 64;
+
 // TODO Replace this with LazyLock once it is stable.
 static BAGGAGE_FIELDS: OnceLock<[String; 1]> = OnceLock::new();
 #[inline]
@@ -101,56 +106,74 @@ impl TextMapPropagator for BaggagePropagator {
     /// Extracts a `Context` with baggage values from a `Extractor`.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         if let Some(header_value) = extractor.get(BAGGAGE_HEADER) {
-            let baggage = header_value.split(',').filter_map(|context_value| {
-                if let Some((name_and_value, props)) = context_value
-                    .split(';')
-                    .collect::<Vec<&str>>()
-                    .split_first()
-                {
-                    let mut iter = name_and_value.split('=');
-                    if let (Some(name), Some(value)) = (iter.next(), iter.next()) {
-                        let decode_name = percent_decode_str(name).decode_utf8();
-                        let decode_value = percent_decode_str(value).decode_utf8();
+            // Enforce the W3C Baggage maximum header length up-front so a
+            // single oversize header cannot drive per-entry allocation work
+            // before the entries are dropped on insert. See
+            // https://www.w3.org/TR/baggage/#limits.
+            if header_value.len() > MAX_BAGGAGE_LENGTH {
+                otel_warn!(
+                    name: "BaggagePropagator.Extract.HeaderTooLarge",
+                    message = "Baggage header exceeds W3C maximum length and was dropped",
+                    header_bytes = header_value.len() as i64,
+                    limit_bytes = MAX_BAGGAGE_LENGTH as i64,
+                );
+                return cx.clone();
+            }
 
-                        if let (Ok(name), Ok(value)) = (decode_name, decode_value) {
-                            // Here we don't store the first ; into baggage since it should be treated
-                            // as separator rather part of metadata
-                            let decoded_props = props
-                                .iter()
-                                .flat_map(|prop| percent_decode_str(prop).decode_utf8())
-                                .map(|prop| prop.trim().to_string())
-                                .collect::<Vec<String>>()
-                                .join(";"); // join with ; because we deleted all ; when calling split above
+            let baggage =
+                header_value
+                    .split(',')
+                    .take(MAX_BAGGAGE_ITEMS)
+                    .filter_map(|context_value| {
+                        if let Some((name_and_value, props)) = context_value
+                            .split(';')
+                            .collect::<Vec<&str>>()
+                            .split_first()
+                        {
+                            let mut iter = name_and_value.split('=');
+                            if let (Some(name), Some(value)) = (iter.next(), iter.next()) {
+                                let decode_name = percent_decode_str(name).decode_utf8();
+                                let decode_value = percent_decode_str(value).decode_utf8();
 
-                            Some(KeyValueMetadata::new(
-                                name.trim().to_owned(),
-                                value.trim().to_string(),
-                                decoded_props.as_str(),
-                            ))
+                                if let (Ok(name), Ok(value)) = (decode_name, decode_value) {
+                                    // Here we don't store the first ; into baggage since it should be treated
+                                    // as separator rather part of metadata
+                                    let decoded_props = props
+                                        .iter()
+                                        .flat_map(|prop| percent_decode_str(prop).decode_utf8())
+                                        .map(|prop| prop.trim().to_string())
+                                        .collect::<Vec<String>>()
+                                        .join(";"); // join with ; because we deleted all ; when calling split above
+
+                                    Some(KeyValueMetadata::new(
+                                        name.trim().to_owned(),
+                                        value.trim().to_string(),
+                                        decoded_props.as_str(),
+                                    ))
+                                } else {
+                                    otel_warn!(
+                                        name: "BaggagePropagator.Extract.InvalidUTF8",
+                                        message = "Invalid UTF8 string in key values",
+                                        baggage_header = header_value,
+                                    );
+                                    None
+                                }
+                            } else {
+                                otel_warn!(
+                                    name: "BaggagePropagator.Extract.InvalidKeyValueFormat",
+                                    message = "Invalid baggage key-value format",
+                                    baggage_header = header_value,
+                                );
+                                None
+                            }
                         } else {
                             otel_warn!(
-                                name: "BaggagePropagator.Extract.InvalidUTF8",
-                                message = "Invalid UTF8 string in key values",
-                                baggage_header = header_value,
-                            );
-                            None
-                        }
-                    } else {
-                        otel_warn!(
-                            name: "BaggagePropagator.Extract.InvalidKeyValueFormat",
-                            message = "Invalid baggage key-value format",
-                            baggage_header = header_value,
-                        );
-                        None
-                    }
-                } else {
-                    otel_warn!(
                         name: "BaggagePropagator.Extract.InvalidFormat",
                         message = "Invalid baggage format",
                         baggage_header = header_value);
-                    None
-                }
-            });
+                            None
+                        }
+                    });
             cx.with_baggage(baggage)
         } else {
             cx.clone()
@@ -319,5 +342,55 @@ mod tests {
                 assert!(header_value.contains(header_part),)
             }
         }
+    }
+
+    #[test]
+    fn extract_drops_header_exceeding_max_length() {
+        let propagator = BaggagePropagator::new();
+
+        // Build a syntactically valid header longer than the W3C 8192-byte
+        // limit. The header must be rejected outright; no entries are added.
+        let mut header = String::with_capacity(MAX_BAGGAGE_LENGTH + 1024);
+        let mut i = 0u32;
+        while header.len() < MAX_BAGGAGE_LENGTH + 256 {
+            if !header.is_empty() {
+                header.push(',');
+            }
+            header.push_str(&format!("k{i}=v{i}"));
+            i += 1;
+        }
+        assert!(header.len() > MAX_BAGGAGE_LENGTH);
+
+        let mut extractor: HashMap<String, String> = HashMap::new();
+        extractor.insert(BAGGAGE_HEADER.to_string(), header);
+
+        let context = propagator.extract(&extractor);
+        assert_eq!(context.baggage().len(), 0);
+    }
+
+    #[test]
+    fn extract_caps_entry_count_at_max_baggage_items() {
+        let propagator = BaggagePropagator::new();
+
+        // Build a header whose total size stays under MAX_BAGGAGE_LENGTH but
+        // contains more than MAX_BAGGAGE_ITEMS entries.
+        let mut header = String::new();
+        let entries = MAX_BAGGAGE_ITEMS + 32;
+        for i in 0..entries {
+            if i > 0 {
+                header.push(',');
+            }
+            header.push_str(&format!("k{i:03}=v"));
+        }
+        assert!(header.len() <= MAX_BAGGAGE_LENGTH);
+
+        let mut extractor: HashMap<String, String> = HashMap::new();
+        extractor.insert(BAGGAGE_HEADER.to_string(), header);
+
+        let context = propagator.extract(&extractor);
+        // The storage type also caps at MAX_KEY_VALUE_PAIRS=64; the propagator
+        // additionally stops parsing at MAX_BAGGAGE_ITEMS so allocator work
+        // does not grow with attacker-supplied entry counts.
+        assert_eq!(context.baggage().len(), MAX_BAGGAGE_ITEMS);
     }
 }
