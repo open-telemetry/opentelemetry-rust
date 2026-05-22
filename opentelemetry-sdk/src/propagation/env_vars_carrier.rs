@@ -121,6 +121,8 @@ mod tests {
 
         let entry = carrier.map.get("_1FOO_BAR_BAZ").unwrap();
         assert_eq!(entry, "bar");
+
+        assert_eq!(carrier.keys(), vec!["_1FOO_BAR_BAZ"]);
     }
 
     #[test]
