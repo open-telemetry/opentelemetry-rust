@@ -2145,7 +2145,9 @@ mod json_serde {
                     _ => panic!("Expected double value NaN in filtered_attributes"),
                 }
                 match exemplar.value {
-                    Some(opentelemetry_proto::tonic::metrics::v1::exemplar::Value::AsDouble(val)) => assert!(val.is_nan()),
+                    Some(opentelemetry_proto::tonic::metrics::v1::exemplar::Value::AsDouble(
+                        val,
+                    )) => assert!(val.is_nan()),
                     _ => panic!("Expected double value in exemplar"),
                 }
             } else {
