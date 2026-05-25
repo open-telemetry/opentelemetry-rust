@@ -69,6 +69,22 @@ pub(crate) mod serializers {
                 map.serialize_entry("bytesValue", &base64::encode(b));
                 map.end()
             }
+            Some(Value::DoubleValue(v)) => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                if v.is_nan() {
+                    map.serialize_entry("doubleValue", "NaN")?;
+                } else if v.is_infinite() {
+                    if v.is_sign_positive() {
+                        map.serialize_entry("doubleValue", "Infinity")?;
+                    } else if v.is_sign_negative() {
+                        map.serialize_entry("doubleValue", "-Infinity")?;
+                    }
+                } else {
+                    map.serialize_entry("doubleValue", &v)?;
+                }
+
+                map.end()
+            }
             Some(value) => value.serialize(serializer),
             None => serializer.serialize_none(),
         }
@@ -95,6 +111,30 @@ pub(crate) mod serializers {
                 match self {
                     Self::Int(val) => Ok(*val),
                     Self::String(val) => Ok(val.parse::<i64>().map_err(de::Error::custom)?),
+                }
+            }
+        }
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrFloat {
+            Float(f64),
+            String(String),
+        }
+
+        impl StringOrFloat {
+            fn get_f64<'de, V>(&self) -> Result<f64, V::Error>
+            where
+                V: de::MapAccess<'de>,
+            {
+                match self {
+                    Self::Float(val) => Ok(*val),
+                    Self::String(val) => match val.as_str() {
+                        "NaN" => Ok(f64::NAN),
+                        "Infinity" => Ok(f64::INFINITY),
+                        "-Infinity" => Ok(f64::NEG_INFINITY),
+                        _ => val.parse::<f64>().map_err(de::Error::custom),
+                    },
                 }
             }
         }
@@ -128,8 +168,8 @@ pub(crate) mod serializers {
                             value = Some(any_value::Value::IntValue(int_value));
                         }
                         "doubleValue" => {
-                            let d = map.next_value()?;
-                            value = Some(any_value::Value::DoubleValue(d));
+                            let double_value = map.next_value::<StringOrFloat>()?.get_f64::<V>()?;
+                            value = Some(any_value::Value::DoubleValue(double_value));
                         }
                         "arrayValue" => {
                             let a = map.next_value()?;

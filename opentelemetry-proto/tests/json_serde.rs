@@ -1639,9 +1639,7 @@ mod json_serde {
                                             filtered_attributes: vec![KeyValue {
                                                 key: String::from("my.histogram.attr"),
                                                 value: Some(AnyValue {
-                                                    value: Some(Value::StringValue(String::from(
-                                                        "some value",
-                                                    ))),
+                                                    value: Some(Value::DoubleValue(f64::NAN)),
                                                 }),
                                                 key_strindex: 0,
                                             }],
@@ -1877,7 +1875,7 @@ mod json_serde {
                                 {
                                   "key": "my.histogram.attr",
                                   "value": {
-                                    "stringValue": "some value"
+                                    "doubleValue": "NaN"
                                   }
                                 }
                               ],
@@ -2134,8 +2132,20 @@ mod json_serde {
 
                 assert_eq!(data_point.exemplars.len(), 1);
                 let exemplar = &data_point.exemplars[0];
+                assert_eq!(exemplar.filtered_attributes.len(), 1);
+                let attr = &exemplar.filtered_attributes[0];
+                assert_eq!(attr.key, "my.histogram.attr");
+                match &attr.value {
+                    Some(opentelemetry_proto::tonic::common::v1::AnyValue {
+                        value:
+                            Some(opentelemetry_proto::tonic::common::v1::any_value::Value::DoubleValue(
+                                val,
+                            )),
+                    }) => assert!(val.is_nan()),
+                    _ => panic!("Expected double value NaN in filtered_attributes"),
+                }
                 match exemplar.value {
-                    Some(ExemplarValue::AsDouble(val)) => assert!(val.is_nan()),
+                    Some(opentelemetry_proto::tonic::metrics::v1::exemplar::Value::AsDouble(val)) => assert!(val.is_nan()),
                     _ => panic!("Expected double value in exemplar"),
                 }
             } else {
