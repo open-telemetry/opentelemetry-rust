@@ -38,6 +38,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::Span;
 use crate::trace::{SpanData, SpanExporter};
+use crate::util::BlockingStrategy;
 use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::cmp::min;
@@ -361,6 +362,7 @@ impl BatchSpanProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let blocking_strategy = BlockingStrategy::new();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
@@ -375,6 +377,7 @@ impl BatchSpanProcessor {
                 let mut spans = Vec::with_capacity(config.max_export_batch_size);
                 let mut last_export_time = Instant::now();
                 let current_batch_size = current_batch_size_for_thread;
+                let blocking_strategy = blocking_strategy;
                 loop {
                     let remaining_time_option = config
                         .scheduled_delay
@@ -398,6 +401,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                             }
                             BatchMessage::ForceFlush(sender) => {
@@ -409,6 +413,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = sender.send(result);
                             }
@@ -421,6 +426,7 @@ impl BatchSpanProcessor {
                                     &mut last_export_time,
                                     &current_batch_size,
                                     &config,
+                                    &blocking_strategy,
                                 );
                                 let _ = exporter.shutdown();
                                 let _ = sender.send(result);
@@ -450,6 +456,7 @@ impl BatchSpanProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 &config,
+                                &blocking_strategy,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -504,6 +511,7 @@ impl BatchSpanProcessor {
         last_export_time: &mut Instant,
         current_batch_size: &AtomicUsize,
         config: &BatchConfig,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + Send + Sync + 'static,
@@ -531,7 +539,7 @@ impl BatchSpanProcessor {
             }
             total_exported_spans += count_of_spans;
 
-            result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
+            result = Self::export_batch_sync(exporter, spans, last_export_time, blocking_strategy); // This method clears the spans vec after exporting
 
             current_batch_size.fetch_sub(count_of_spans, Ordering::AcqRel);
         }
@@ -543,6 +551,7 @@ impl BatchSpanProcessor {
         exporter: &E,
         batch: &mut Vec<SpanData>,
         last_export_time: &mut Instant,
+        blocking_strategy: &BlockingStrategy,
     ) -> OTelSdkResult
     where
         E: SpanExporter + ?Sized,
@@ -560,7 +569,7 @@ impl BatchSpanProcessor {
         // every export. See if this can be optimized by
         // *not* requiring ownership in the exporter.
         let export = exporter.export(batch.split_off(0));
-        let export_result = futures_executor::block_on(export);
+        let export_result = blocking_strategy.block_on(export);
 
         match export_result {
             Ok(_) => OTelSdkResult::Ok(()),
@@ -711,20 +720,28 @@ impl SpanProcessor for BatchSpanProcessor {
                         }
                         OTelSdkResult::Ok(())
                     })
-                    .map_err(|err| match err {
-                        std::sync::mpsc::RecvTimeoutError::Timeout => {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Shutdown.Timeout",
-                                message = "BatchSpanProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
+                    .map_err(|err| {
+                        // The worker thread is unreachable from here: Timeout
+                        // means it is hung in `block_on(export_future)` and
+                        // joining would deadlock; Disconnected means it has
+                        // already exited. Take the handle out so subsequent
+                        // shutdown attempts do not see a stale `Some(_)`.
+                        drop(self.handle.lock().unwrap().take());
+                        match err {
+                            std::sync::mpsc::RecvTimeoutError::Timeout => {
+                                otel_error!(
+                                    name: "BatchSpanProcessor.Shutdown.Timeout",
+                                    message = "BatchSpanProcessor shutdown timing out."
+                                );
+                                OTelSdkError::Timeout(timeout)
+                            }
+                            _ => {
+                                otel_error!(
+                                    name: "BatchSpanProcessor.Shutdown.Error",
+                                    error = format!("{}", err)
+                                );
+                                OTelSdkError::InternalFailure(format!("{err}"))
+                            }
                         }
                     })?
             }
@@ -994,7 +1011,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -1003,6 +1020,7 @@ mod tests {
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use crate::trace::{SpanData, SpanExporter};
+    use crate::util::BlockingStrategy;
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::time::Duration;
@@ -1309,6 +1327,7 @@ mod tests {
         sender.send(create_test_span("counted")).unwrap();
         sender.send(create_test_span("unaccounted")).unwrap();
 
+        let blocking_strategy = BlockingStrategy::new();
         let result = BatchSpanProcessor::get_spans_and_export(
             &receiver,
             &exporter,
@@ -1316,6 +1335,7 @@ mod tests {
             &mut last_export_time,
             &current_batch_size,
             &config,
+            &blocking_strategy,
         );
 
         assert!(result.is_ok(), "export should succeed");
@@ -1553,6 +1573,44 @@ mod tests {
         );
     }
 
+    // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
+    // exporters where the export future depends on tokio tasks. Without
+    // BlockingStrategy, this deadlocks on constrained runtimes because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks.
+    #[derive(Debug, Clone)]
+    struct TokioSpawnSpanExporter {
+        exported_spans: Arc<Mutex<Vec<SpanData>>>,
+    }
+
+    impl TokioSpawnSpanExporter {
+        fn new() -> Self {
+            Self {
+                exported_spans: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+    }
+
+    impl SpanExporter for TokioSpawnSpanExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            // Simulate tonic/gRPC: the export future needs tokio::spawn plus
+            // live timer and IO drivers on the worker thread.
+            let count = batch.len();
+            let result = tokio::spawn(async move {
+                crate::util::exercise_tokio_drivers().await;
+                count
+            })
+            .await
+            .unwrap();
+            assert_eq!(result, batch.len());
+            self.exported_spans.lock().unwrap().extend(batch);
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_processor_current_thread_runtime() {
         let exporter = MockSpanExporter::new();
@@ -1597,6 +1655,160 @@ mod tests {
 
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Regression test for deadlock on constrained tokio runtimes (#2802, #3356).
+    // Uses TokioSpawnSpanExporter which internally calls tokio::spawn(),
+    // simulating tonic/gRPC exporters where the export future depends on
+    // tokio-spawned tasks. Without BlockingStrategy, this deadlocks because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks
+    // without the runtime context.
+    //
+    // Note: current_thread runtime is not tested here because it has a
+    // fundamental limitation — the single runtime thread is blocked by
+    // force_flush()'s recv(), so no thread is available to drive spawned
+    // tasks. The multi_thread(1) scenario (1-vCPU k8s pods) is the primary
+    // target of this fix.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        processor.force_flush().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Exercises BatchMessage::Shutdown's drain path, which has a 5s timeout
+    // wrapper instead of force_flush's infinite recv().
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            let span = new_test_export_span_data();
+            processor.on_end(span);
+        }
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_processor_multi_thread_default_with_tokio_spawn_exporter_force_flush() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.force_flush().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_processor_multi_thread_default_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(5)
+            .with_max_export_batch_size(3)
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Drain path must not hang when the buffer is empty.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 0);
+    }
+
+    // Verifies the BlockingStrategy::FuturesExecutor branch — used when
+    // processors are constructed outside any tokio runtime context. A regular
+    // `#[test]` (not `#[tokio::test]`) means `Handle::try_current()` returns
+    // Err and the strategy falls back to plain `futures_executor::block_on`.
+    #[test]
+    fn test_batch_processor_blocking_strategy_futures_executor_branch() {
+        let exporter = MockSpanExporter::new();
+        let exporter_shared = exporter.exported_spans.clone();
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        for _ in 0..4 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        let exported_spans = exporter_shared.lock().unwrap();
+        assert_eq!(exported_spans.len(), 4);
+    }
+
+    // Pins the documented current_thread limitation: with a tokio-spawn-dependent
+    // exporter, the runtime's only thread is blocked in shutdown_with_timeout's
+    // recv_timeout, so the spawned task never makes progress and the timeout fires.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_processor_current_thread_with_tokio_spawn_exporter_shutdown_times_out() {
+        let exporter = TokioSpawnSpanExporter::new();
+        let processor = BatchSpanProcessor::new(exporter, BatchConfigBuilder::default().build());
+
+        processor.on_end(new_test_export_span_data());
+
+        let result = processor.shutdown_with_timeout(Duration::from_millis(100));
+        assert!(matches!(result, Err(OTelSdkError::Timeout(_))));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
