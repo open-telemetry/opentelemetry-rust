@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0

@@ -163,7 +163,8 @@ where
 /// The [runtime] can be selected based on feature flags set for this crate.
 ///
 /// The exporter can be any exporter that implements [PushMetricExporter] such
-/// as [opentelemetry-otlp].
+/// as [opentelemetry-otlp]. Exporters that require a runtime should be used
+/// with a compatible [runtime].
 ///
 /// [collect]: MetricReader::collect
 /// [runtime]: crate::runtime

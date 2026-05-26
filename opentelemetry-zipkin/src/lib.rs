@@ -1,5 +1,9 @@
 //! # OpenTelemetry Zipkin
 //!
+//! **⚠️ This crate is deprecated.** Use the [OTLP exporter](https://crates.io/crates/opentelemetry-otlp)
+//! instead. Zipkin supports [native OTLP ingestion](https://zipkin.io/pages/architecture.html).
+//! This crate will be removed in a future release.
+//!
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
@@ -232,6 +236,11 @@
 //! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
+#![deprecated(
+    since = "0.32.0",
+    note = "Zipkin exporter is deprecated. Use the OTLP exporter instead. Refer to https://zipkin.io/pages/architecture.html for Zipkin's native OTLP support."
+)]
+#![allow(deprecated)]
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -241,11 +250,7 @@
     unreachable_pub,
     unused
 )]
-#![cfg_attr(
-    docsrs,
-    feature(doc_cfg, doc_auto_cfg),
-    deny(rustdoc::broken_intra_doc_links)
-)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
