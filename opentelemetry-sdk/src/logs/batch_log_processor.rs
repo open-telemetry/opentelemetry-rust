@@ -25,6 +25,9 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
 use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::KeyValue;
+
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -147,6 +150,17 @@ pub struct BatchLogProcessor {
 
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
+
+    // Self-diagnostics: otel.sdk.processor.log.processed counter.
+    // Gated behind experimental_metrics_bound_instruments so the hot-path
+    // `add` is a single atomic increment (~1.8 ns) with no per-call
+    // attribute resolution.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_success: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_queue_full: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_after_shutdown: opentelemetry::metrics::BoundCounter<u64>,
 }
 
 impl Debug for BatchLogProcessor {
@@ -166,6 +180,10 @@ impl LogProcessor for BatchLogProcessor {
         // match for result and handle each separately
         match result {
             Ok(_) => {
+                // Record successful processing in self-diagnostics
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_success.add(1);
+
                 // Successfully sent the log record to the data channel.
                 // Increment the current batch size and check if it has reached
                 // the max export batch size.
@@ -207,6 +225,10 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Full(_)) => {
+                // Record queue-full drop in self-diagnostics
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_queue_full.add(1);
+
                 // Increment dropped logs count. The first time we have to drop
                 // a log, emit a warning.
                 if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
@@ -215,6 +237,10 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
+                // Record after-shutdown drop in self-diagnostics
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_after_shutdown.add(1);
+
                 // The following `otel_warn!` may cause an infinite feedback loop of
                 // 'telemetry-induced-telemetry', potentially causing a stack overflow
                 let _guard = Context::enter_telemetry_suppressed_scope();
@@ -292,6 +318,13 @@ impl LogProcessor for BatchLogProcessor {
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
+                            // TODO: When shutdown times out, log records still
+                            // in the queue or mid-export are silently lost. The
+                            // background thread is not joined and may continue
+                            // running. Consider: (1) recording the lost count
+                            // in the self-diagnostics counter, (2) joining the
+                            // thread with a best-effort wait, or (3) signalling
+                            // the thread to abort the current export.
                             otel_error!(
                                 name: "BatchLogProcessor.Shutdown.Timeout",
                                 message = "BatchLogProcessor shutdown timing out."
@@ -497,6 +530,48 @@ impl BatchLogProcessor {
             })
             .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 
+        // Self-diagnostics: create the otel.sdk.processor.log.processed counter
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let (processed_success, processed_queue_full, processed_after_shutdown) = {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let component_name = format!("batching_log_processor/{instance_id}");
+
+            let meter = opentelemetry::global::meter("otel.sdk");
+            let counter = meter
+                .u64_counter("otel.sdk.processor.log.processed")
+                .with_description(
+                    "The number of log records for which the processing has finished, \
+                     either successful or failed.",
+                )
+                .with_unit("{log_record}")
+                .build();
+
+            // Attribute values follow the OTel semantic conventions for SDK metrics:
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorlogprocessed
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
+            let success_attrs = [
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let queue_full_attrs = [
+                KeyValue::new("error.type", "queue_full"),
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let after_shutdown_attrs = [
+                KeyValue::new("error.type", "already_shutdown"),
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name),
+            ];
+
+            (
+                counter.bind(&success_attrs),
+                counter.bind(&queue_full_attrs),
+                counter.bind(&after_shutdown_attrs),
+            )
+        };
+
         // Return batch processor with link to worker
         BatchLogProcessor {
             logs_sender,
@@ -508,6 +583,12 @@ impl BatchLogProcessor {
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_success,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_queue_full,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_after_shutdown,
         }
     }
 
@@ -1121,5 +1202,75 @@ mod tests {
             "Expected some logs to be dropped under stress, but none were. \
              Consider reducing queue size or increasing thread count/log volume."
         );
+    }
+
+    /// Verifies that `otel.sdk.processor.log.processed` counter records
+    /// successful log processing when `experimental_metrics_bound_instruments`
+    /// is enabled and a real MeterProvider is set as global before creating
+    /// the processor.
+    ///
+    /// This test is `#[ignore]`d because it calls
+    /// `global::set_meter_provider()` which mutates process-wide state.
+    /// CI runs it in isolation via `test.sh`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn self_diagnostics_counter_records_success() {
+        use crate::metrics::data::{AggregatedMetrics, MetricData};
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        // Setup a real MeterProvider and set it as global BEFORE creating the
+        // BatchLogProcessor, so the processor picks up a real meter.
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let log_exporter = InMemoryLogExporter::default();
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(256)
+            .with_max_export_batch_size(64)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(log_exporter, config);
+
+        // Emit 10 logs
+        let instrumentation = InstrumentationScope::default();
+        for _ in 0..10 {
+            let mut record = SdkLogRecord::new();
+            processor.emit(&mut record, &instrumentation);
+        }
+
+        // Force a metrics collection
+        meter_provider.force_flush().unwrap();
+
+        // Find the otel.sdk.processor.log.processed metric and sum all data points
+        let metrics = metric_exporter.get_finished_metrics().unwrap();
+        let mut found = false;
+        let mut total_value: u64 = 0;
+        for rm in &metrics {
+            for sm in &rm.scope_metrics {
+                for metric in &sm.metrics {
+                    if metric.name == "otel.sdk.processor.log.processed" {
+                        found = true;
+                        if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                            for dp in sum.data_points() {
+                                total_value += dp.value();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(found, "otel.sdk.processor.log.processed metric not found");
+        assert_eq!(
+            total_value, 10,
+            "Expected 10 processed logs, got {total_value}"
+        );
+
+        processor.shutdown().unwrap();
+        meter_provider.shutdown().unwrap();
     }
 }
