@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.1
+
+Released 2026-May-23
+
 - `BaggagePropagator` now enforces the W3C Baggage maximum header length
   (8192 bytes) and maximum list-member count (64) when extracting an inbound
   `baggage` header. Headers exceeding 8192 bytes are dropped at the
