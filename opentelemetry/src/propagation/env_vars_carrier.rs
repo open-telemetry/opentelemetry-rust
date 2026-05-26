@@ -1,5 +1,7 @@
-use opentelemetry::propagation::{Extractor, Injector};
 use std::collections::HashMap;
+
+use crate::propagation::{Extractor, Injector};
+
 /// Propagates name-value pairs via environment variables.
 ///
 /// This propagator provides a mechanism for propagating context information
@@ -20,7 +22,7 @@ use std::collections::HashMap;
 /// use opentelemetry_sdk::propagation::EnvVarsCarrier;
 ///
 /// // Builds the carrier, fetching the environment into the carrier mapping.
-/// let mut carrier = EnvVarsCarrier::new();
+/// let mut carrier = EnvVarsCarrier::from_env();
 ///
 /// // Looks for the normalized "FOO" value in the carrier mapping
 /// let val = carrier.get("foo");
@@ -36,15 +38,16 @@ pub struct EnvVarsCarrier {
 }
 
 impl Default for EnvVarsCarrier {
+    /// Create a new empty `EnvVarsCarrier` object.
     fn default() -> Self {
-        Self::new()
+        Self::empty()
     }
 }
 
 impl EnvVarsCarrier {
     /// Create a new `EnvVarsCarrier` object, built from environment variables.
     /// Environment variables are fetched and normalized at construction time.
-    pub fn new() -> Self {
+    pub fn from_env() -> Self {
         let map = std::env::vars().map(|(k, v)| (normalize(&k), v)).collect();
 
         Self { map }
@@ -53,7 +56,7 @@ impl EnvVarsCarrier {
     /// Create a new `EnvVarsCarrier` object, internally empty. Useful for
     /// testing and for setting up environment mapping for subprocesses from
     /// scratch.
-    pub fn new_empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             map: HashMap::new(),
         }
@@ -90,13 +93,13 @@ fn normalize_char(c: char) -> char {
 }
 
 fn normalize(name: &str) -> String {
-    let mut bytes = name.chars().peekable();
-    let needs_prefix = bytes.peek().is_some_and(|b| b.is_ascii_digit());
+    let mut chars = name.chars().peekable();
+    let needs_prefix = chars.peek().is_some_and(|b| b.is_ascii_digit());
 
     needs_prefix
         .then_some('_')
         .into_iter()
-        .chain(bytes.map(normalize_char))
+        .chain(chars.map(normalize_char))
         .collect()
 }
 
@@ -116,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_env_vars_carrier_injector() {
-        let mut carrier = EnvVarsCarrier::new_empty();
+        let mut carrier = EnvVarsCarrier::empty();
         carrier.set("1foo.barᎁbaz", "bar".to_string());
 
         let entry = carrier.map.get("_1FOO_BAR_BAZ").unwrap();
@@ -127,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_env_vars_carrier_extractor() {
-        let mut carrier = EnvVarsCarrier::new_empty();
+        let mut carrier = EnvVarsCarrier::empty();
         carrier
             .map
             .insert("FOO_BAR".to_string(), "value".to_string());
@@ -136,8 +139,8 @@ mod tests {
     }
 
     #[test]
-    fn test_env_vars_carrier_new() {
-        let carrier = EnvVarsCarrier::new();
+    fn test_env_vars_carrier_from_env() {
+        let carrier = EnvVarsCarrier::from_env();
         let entry = carrier.get("ENV_VAR_CARRIER_TEST_VAR").unwrap();
         assert_eq!(entry, "test");
     }
@@ -145,7 +148,6 @@ mod tests {
     #[test]
     fn test_env_vars_carrier_default() {
         let carrier: EnvVarsCarrier = Default::default();
-        let entry = carrier.get("ENV_VAR_CARRIER_TEST_VAR").unwrap();
-        assert_eq!(entry, "test");
+        assert!(carrier.keys().is_empty());
     }
 }
