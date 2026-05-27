@@ -18,8 +18,7 @@ use crate::propagation::{Extractor, Injector};
 ///
 /// # Examples
 /// ```
-/// use opentelemetry::propagation::{Extractor, Injector};
-/// use opentelemetry_sdk::propagation::EnvVarsCarrier;
+/// use opentelemetry::propagation::{Extractor, Injector, EnvVarsCarrier};
 ///
 /// // Builds the carrier, fetching the environment into the carrier mapping.
 /// let mut carrier = EnvVarsCarrier::from_env();
