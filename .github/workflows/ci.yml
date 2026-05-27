@@ -51,6 +51,24 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: true
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+      with:
+        toolchain: nightly
+        components: miri
+    - name: Miri smoke test
+      run: cargo +nightly miri test --manifest-path=opentelemetry-sdk/Cargo.toml --no-default-features --features metrics --test miri_smoke
+
   lint:
     runs-on: ubuntu-latest
     steps:
