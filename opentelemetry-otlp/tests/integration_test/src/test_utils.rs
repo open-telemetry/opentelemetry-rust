@@ -22,13 +22,10 @@ use anyhow::Result;
 use opentelemetry::{otel_debug, otel_info};
 use std::fs::{self, File, OpenOptions};
 use std::os::unix::fs::PermissionsExt;
-use std::sync::{Arc, Mutex, Once, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use testcontainers::core::wait::HttpWaitStrategy;
 use testcontainers::core::{ContainerPort, Mount};
 use testcontainers::{core::WaitFor, runners::AsyncRunner, ContainerAsync, GenericImage, ImageExt};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, Layer};
 
 // Static references for container management
 static COLLECTOR_ARC: OnceLock<Mutex<Option<Arc<ContainerAsync<GenericImage>>>>> = OnceLock::new();
@@ -37,28 +34,8 @@ pub static METRICS_FILE: &str = "./actual/metrics.json";
 pub static LOGS_FILE: &str = "./actual/logs.json";
 pub static TRACES_FILE: &str = "./actual/traces.json";
 
-static INIT_TRACING: Once = Once::new();
-
-fn init_tracing() {
-    INIT_TRACING.call_once(|| {
-        // Info and above for all, debug for opentelemetry
-        let filter_fmt =
-            EnvFilter::new("info").add_directive("opentelemetry=debug".parse().unwrap());
-        let fmt_layer = tracing_subscriber::fmt::layer()
-            .with_thread_names(true)
-            .with_filter(filter_fmt);
-
-        // Initialize the tracing subscriber with the OpenTelemetry layer and the
-        // Fmt layer.
-        tracing_subscriber::registry().with(fmt_layer).init();
-        otel_info!(name: "tracing::fmt initializing completed! SDK internal logs will be printed to stdout.");
-    });
-}
-
 #[allow(clippy::await_holding_lock)]
 pub async fn start_collector_container() -> Result<()> {
-    init_tracing();
-
     let mut arc_guard = COLLECTOR_ARC
         .get_or_init(|| Mutex::new(None))
         .lock()
