@@ -67,6 +67,16 @@ Released 2026-May-08
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
 - Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0, making this feature broken for anyone resolving `reqwest >= 0.13.0`.
+  **Migration**: Use `reqwest-rustls` instead (now correctly uses `reqwest/rustls` with platform native
+  trust roots). If you specifically need Mozilla's embedded CA bundle, construct a custom client:
+  ```rust
+  let client = reqwest::Client::builder()
+      .tls_certs_only(webpki_roots::TLS_SERVER_ROOTS)
+      .build()?;
+  exporter_builder.with_http_client(client)
+  ```
 
 ## 0.31.0
 
