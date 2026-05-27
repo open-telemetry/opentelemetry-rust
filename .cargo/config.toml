@@ -1,3 +1,6 @@
 [resolver]
 # https://doc.rust-lang.org/cargo/reference/config.html#resolverincompatible-rust-versions
 incompatible-rust-versions = "fallback"
+
+[env]
+ENV_VAR_CARRIER_TEST_VAR = "test"
