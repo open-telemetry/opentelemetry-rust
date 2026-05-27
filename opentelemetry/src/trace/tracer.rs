@@ -1,5 +1,5 @@
 use crate::{
-    trace::{Event, Link, Span, SpanKind, TraceContextExt, TraceState},
+    trace::{Event, Link, Span, SpanKind, TraceContextExt},
     Context, KeyValue,
 };
 use std::borrow::Cow;
@@ -207,8 +207,123 @@ pub trait Tracer {
         N: Into<Cow<'static, str>>,
         Self::Span: Send + Sync + 'static,
     {
-        let span = self.start(name);
+        self.in_span_with_builder(self.span_builder(name), f)
+    }
+
+    /// Start a new span with a given parent context and execute the given closure with
+    /// reference to the context in which the span is active.
+    ///
+    /// This method starts a new span as a child of the provided parent context and sets
+    /// it as the active span for the given function. It then executes the body. It ends
+    /// the span before returning the execution result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, trace::{Span, Tracer, TraceContextExt}, Context, KeyValue};
+    ///
+    /// fn my_function() {
+    ///     let tracer = global::tracer("my-component");
+    ///
+    ///     // Create a parent context
+    ///     let parent = tracer.start("parent-span");
+    ///     let parent_cx = Context::current_with_span(parent);
+    ///
+    ///     // start an active span with explicit parent context
+    ///     tracer.in_span_with_context("child-span", &parent_cx, |_cx| {
+    ///         // child span is active here
+    ///     })
+    /// }
+    /// ```
+    fn in_span_with_context<T, F, N>(&self, name: N, parent_cx: &Context, f: F) -> T
+    where
+        F: FnOnce(Context) -> T,
+        N: Into<Cow<'static, str>>,
+        Self::Span: Send + Sync + 'static,
+    {
+        self.in_span_with_builder_and_context(self.span_builder(name), parent_cx, f)
+    }
+
+    /// Start a new span from a [`SpanBuilder`] and execute the given closure with
+    /// reference to the context in which the span is active.
+    ///
+    /// This method builds and starts a new span from a [`SpanBuilder`] using the current
+    /// context and sets it as the active span for the given function. It then executes
+    /// the body. It ends the span before returning the execution result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, trace::{Span, SpanKind, Tracer}, KeyValue};
+    ///
+    /// fn my_function() {
+    ///     let tracer = global::tracer("my-component");
+    ///
+    ///     // start an active span with span configuration
+    ///     tracer.in_span_with_builder(
+    ///         tracer.span_builder("span-name")
+    ///             .with_kind(SpanKind::Client)
+    ///             .with_attributes(vec![KeyValue::new("key", "value")]),
+    ///         |_cx| {
+    ///             // span is active here with configured attributes
+    ///         }
+    ///     )
+    /// }
+    /// ```
+    fn in_span_with_builder<T, F>(&self, builder: SpanBuilder, f: F) -> T
+    where
+        F: FnOnce(Context) -> T,
+        Self::Span: Send + Sync + 'static,
+    {
+        let span = self.build(builder);
         let cx = Context::current_with_span(span);
+        let _guard = cx.clone().attach();
+        f(cx)
+    }
+
+    /// Start a new span from a [`SpanBuilder`] with a given parent context and execute the
+    /// given closure with reference to the context in which the span is active.
+    ///
+    /// This method builds and starts a new span from a [`SpanBuilder`] as a child of the
+    /// provided parent context and sets it as the active span for the given function. It
+    /// then executes the body. It ends the span before returning the execution result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use opentelemetry::{global, trace::{Span, SpanKind, Tracer, TraceContextExt}, Context, KeyValue};
+    ///
+    /// fn my_function() {
+    ///     let tracer = global::tracer("my-component");
+    ///
+    ///     // Create a parent context
+    ///     let parent = tracer.start("parent-span");
+    ///     let parent_cx = Context::current_with_span(parent);
+    ///
+    ///     // start an active span with explicit parent context and span configuration
+    ///     tracer.in_span_with_builder_and_context(
+    ///         tracer.span_builder("child-span")
+    ///             .with_kind(SpanKind::Client)
+    ///             .with_attributes(vec![KeyValue::new("key", "value")]),
+    ///         &parent_cx,
+    ///         |_cx| {
+    ///             // child span is active here with configured attributes
+    ///         }
+    ///     )
+    /// }
+    /// ```
+    fn in_span_with_builder_and_context<T, F>(
+        &self,
+        builder: SpanBuilder,
+        parent_cx: &Context,
+        f: F,
+    ) -> T
+    where
+        F: FnOnce(Context) -> T,
+        Self::Span: Send + Sync + 'static,
+    {
+        let span = self.build_with_context(builder, parent_cx);
+        let cx = parent_cx.with_span(span);
         let _guard = cx.clone().attach();
         f(cx)
     }
@@ -327,30 +442,4 @@ impl SpanBuilder {
     pub fn start_with_context<T: Tracer>(self, tracer: &T, parent_cx: &Context) -> T::Span {
         tracer.build_with_context(self, parent_cx)
     }
-}
-
-/// The result of sampling logic for a given span.
-#[derive(Clone, Debug, PartialEq)]
-pub struct SamplingResult {
-    /// The decision about whether or not to sample.
-    pub decision: SamplingDecision,
-
-    /// Extra attributes to be added to the span by the sampler
-    pub attributes: Vec<KeyValue>,
-
-    /// Trace state from parent context, may be modified by samplers.
-    pub trace_state: TraceState,
-}
-
-/// Decision about whether or not to sample
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SamplingDecision {
-    /// Span will not be recorded and all events and attributes will be dropped.
-    Drop,
-
-    /// Span data wil be recorded, but not exported.
-    RecordOnly,
-
-    /// Span data will be recorded and exported.
-    RecordAndSample,
 }

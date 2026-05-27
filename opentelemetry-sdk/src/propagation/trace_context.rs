@@ -90,16 +90,17 @@ impl TraceContextPropagator {
         // Parse span id section
         let span_id = SpanId::from_hex(parts[2]).map_err(|_| ())?;
 
-        // Parse trace flags section
-        let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
-
-        // Ensure opts are valid for version 0
-        if version == 0 && opts > 2 {
+        // Ensure trace flags are lowercase
+        if parts[3].chars().any(|c| c.is_ascii_uppercase()) {
             return Err(());
         }
 
+        // Parse trace flags section
+        let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
+
         // Build trace flags clearing all flags other than the trace-context
-        // supported sampling bit.
+        // supported sampling bit. Unknown flags are accepted but zeroed out,
+        // as required by https://www.w3.org/TR/trace-context/#other-flags
         let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
 
         let trace_state = match extractor.get(TRACESTATE_HEADER) {
@@ -166,6 +167,8 @@ mod tests {
         vec![
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
@@ -191,7 +194,6 @@ mod tests {
             ("00-ab000000000000000000000000000000-CD00000000000000-01",   "upper case span ID"),
             ("00-ab000000000000000000000000000000-cd00000000000000-A1",   "upper case trace flag"),
             ("00-00000000000000000000000000000000-0000000000000000-01",   "zero trace ID and span ID"),
-            ("00-ab000000000000000000000000000000-cd00000000000000-09",   "trace-flag unused bits set"),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",      "missing options"),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-",     "empty options"),
         ]

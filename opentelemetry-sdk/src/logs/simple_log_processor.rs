@@ -48,6 +48,8 @@ use std::time::Duration;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
+/// # #[cfg(feature = "testing")]
+/// # {
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
@@ -56,7 +58,7 @@ use std::time::Duration;
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
-///
+/// # }
 /// ```
 ///
 #[derive(Debug)]
@@ -135,7 +137,6 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[inline]
     fn event_enabled(
         &self,

@@ -2,13 +2,37 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
+- **Added** `BoundCounter<T>` and `BoundHistogram<T>` types that cache resolved
+  aggregator references for a fixed attribute set. Created via `Counter::bind()`
+  and `Histogram::bind()`, bound instruments bypass per-call attribute lookup,
+  providing significant performance improvements for hot paths where the same
+  attributes are used repeatedly. Both types implement `Clone` so a single bound
+  state can be shared across threads or modules without re-binding. Also adds
+  the `SyncInstrument::bind()` trait method and `BoundSyncInstrument<T>` trait
+  for SDK implementors; the trait method has a no-op default so custom
+  `SyncInstrument` impls degrade gracefully without panicking. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`
   - `with_trace_id`, `with_span_id`, `with_end_time`, `with_status`, `with_sampling_result`
 - **Added** `#[must_use]` attribute to `opentelemetry::metrics::AsyncInstrumentBuilder` to add compile time warning when `.build()` is not called on observable instrument builders, preventing silent failures where callbacks are never registered and metrics are never reported.
-
+- **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
+  - `SamplingDecision`, `SamplingResult`
+  - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+- Remove the empty "message" field from `tracing` events emitted via the `internal-logs` feature
+- Fix panic when calling `Context::current()` from `Drop` implementations triggered by `ContextGuard` cleanup ([#3262][3262]).
+  
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
+[3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
+[3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
 
 ## v0.31.0
 
@@ -260,7 +284,7 @@ Before:
 let logger = provider.versioned_logger(
     "my-logger-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -271,7 +295,7 @@ After:
 let logger = provider
     .logger_builder("my-logger-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```
@@ -284,7 +308,7 @@ Before:
 let tracer = provider.versioned_tracer(
     "my-tracer-name",
     Some(env!("CARGO_PKG_VERSION")),
-    Some("https://opentelemetry.io/schema/1.0.0"),
+    Some("https://opentelemetry.io/schemas/1.0.0"),
     Some(vec![KeyValue::new("key", "value")]),
 );
 ```
@@ -295,7 +319,7 @@ After:
 let tracer = provider
     .tracer_builder("my-tracer-name")
     .with_version(env!("CARGO_PKG_VERSION"))
-    .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+    .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
     .with_attributes(vec![KeyValue::new("key", "value")])
     .build();
 ```

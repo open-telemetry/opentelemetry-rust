@@ -90,6 +90,13 @@ where
 /// - **`grpc-tonic`**: Requires [`MeterProvider`] to be initialized within a `tokio` runtime.
 /// - **`reqwest-blocking-client`**: Works with both a standard (`main`) function and `tokio::main`.
 ///
+/// Async HTTP clients such as `reqwest-client` and `hyper-client` are not
+/// supported by this default reader. The OTLP HTTP exporter chooses its default
+/// HTTP client from enabled crate features and cannot tell which reader will
+/// drive it. If your dependency graph enables async HTTP client features, either
+/// pass an explicit blocking client for this reader or use the experimental
+/// async-runtime periodic reader.
+///
 /// [`PeriodicReader`] does **not** enforce a timeout for exports either. Instead,
 /// the configured exporter is responsible for enforcing timeouts. If an export operation
 /// never returns, [`PeriodicReader`] will **stop exporting new metrics**, stalling

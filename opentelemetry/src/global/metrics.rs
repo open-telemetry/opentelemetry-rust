@@ -71,7 +71,7 @@ pub fn meter(name: &'static str) -> Meter {
 ///
 /// let scope = InstrumentationScope::builder("io.opentelemetry")
 ///     .with_version("0.17")
-///     .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+///     .with_schema_url("https://opentelemetry.io/schemas/1.2.0")
 ///     .with_attributes(vec![(KeyValue::new("key", "value"))])
 ///     .build();
 ///

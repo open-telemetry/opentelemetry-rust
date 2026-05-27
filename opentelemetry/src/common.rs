@@ -6,9 +6,9 @@ use std::hash::{Hash, Hasher};
 
 /// The key part of attribute [KeyValue] pairs.
 ///
-/// See the [attribute naming] spec for guidelines.
+/// See the [naming] spec for guidelines.
 ///
-/// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
+/// [naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/naming.md
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);

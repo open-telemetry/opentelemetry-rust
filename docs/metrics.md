@@ -16,6 +16,7 @@ Status: **Work-In-Progress**
     instruments](#reporting-measurements-via-synchronous-instruments)
   * [Reporting measurements via asynchronous
     instruments](#reporting-measurements-via-asynchronous-instruments)
+  * [Bound Instruments (Experimental)](#bound-instruments-experimental)
 * [MeterProvider Management](#meterprovider-management)
 * [Memory Management](#memory-management)
   * [Example](#example)
@@ -24,6 +25,7 @@ Status: **Work-In-Progress**
   * [Cardinality Limits](#cardinality-limits)
     * [Cardinality Limits - Implications](#cardinality-limits---implications)
     * [Cardinality Limits - Example](#cardinality-limits---example)
+    * [Cardinality Limits - How to Choose the Right Limit](#cardinality-limits---how-to-choose-the-right-limit)
   * [Memory Preallocation](#memory-preallocation)
 * [Metrics Correlation](#metrics-correlation)
 * [Modelling Metric Attributes](#modelling-metric-attributes)
@@ -76,7 +78,7 @@ use opentelemetry::KeyValue;
 
 let scope = InstrumentationScope::builder("my_company.my_product.my_library")
         .with_version("0.17")
-        .with_schema_url("https://opentelemetry.io/schema/1.2.0")
+        .with_schema_url("https://opentelemetry.io/schemas/1.2.0")
         .with_attributes([KeyValue::new("key", "value")])
         .build();
 
@@ -239,6 +241,97 @@ fn setup_metrics(meter: &opentelemetry::metrics::Meter) {
 
 > [!NOTE] The callbacks in the Observable instruments are invoked by the SDK
 > during each export cycle.
+
+### Bound Instruments (Experimental)
+
+> [!IMPORTANT] Bound instruments are experimental. Enable
+> `experimental_metrics_bound_instruments` on **both** `opentelemetry` and
+> `opentelemetry_sdk` — if only the API crate has it enabled, `bind()` calls
+> compile but measurements are silently dropped. Enabling it on
+> `opentelemetry_sdk` transitively enables it on `opentelemetry`, so for typical
+> apps using the SDK, enabling it once on `opentelemetry_sdk` is sufficient.
+> The API may change in future releases.
+
+When reporting measurements, the SDK must resolve the provided attributes to
+the internal aggregation state (the "tracker") for that attribute combination
+on every call. For hot paths that repeatedly emit measurements with the *same*
+attribute set, this per-call lookup can be avoided by pre-binding the
+attributes once and reusing the resulting bound handle.
+
+Bound instruments are currently supported on `Counter` and `Histogram` via the
+`bind` method, which returns a `BoundCounter<T>` or `BoundHistogram<T>`
+respectively. Subsequent `add` / `record` calls on the bound handle skip
+attribute resolution and write directly to the pre-resolved tracker.
+
+:heavy_check_mark: Use bound instruments on hot paths where the same attribute
+set is used repeatedly, and store the bound handle for reuse.
+
+```rust
+// Requires the `experimental_metrics_bound_instruments` feature on the
+// `opentelemetry_sdk` crate (which transitively enables it on `opentelemetry`).
+use opentelemetry::KeyValue;
+use opentelemetry::global;
+
+let meter = global::meter("my_company.my_product.my_library");
+let packets = meter.u64_counter("packets_processed").build();
+
+// Bind once at initialization, for each well-known protocol.
+let tcp_packets = packets.bind(&[KeyValue::new("protocol", "tcp")]);
+let udp_packets = packets.bind(&[KeyValue::new("protocol", "udp")]);
+
+// On the hot path, the call site already knows which handle to use —
+// no attribute lookup is performed.
+tcp_packets.add(1);
+udp_packets.add(1);
+```
+
+`BoundCounter` and `BoundHistogram` are cheap to clone, so a single bound
+handle can be shared across threads or modules without re-binding. Dropping
+the last clone makes the underlying tracker eligible for cleanup.
+
+For reference, the SDK's `bound_instruments` benchmark on an Apple M4 Max with
+3 attributes (`method`, `status`, `path`) reports:
+
+| Operation              | Unbound   | Bound     | Speedup |
+| ---------------------- | --------- | --------- | ------- |
+| `Counter::add`         | ~50 ns    | ~1.8 ns   | ~28x    |
+| `Histogram::record`    | ~58 ns    | ~6.5 ns   | ~9x     |
+
+The exact win depends on attribute count, contention, and the cost of the
+lookup being skipped (more attributes make the unbound path more expensive,
+while a bound `add` / `record` cost stays roughly constant since no attribute
+processing happens on the hot path). See
+[`opentelemetry-sdk/benches/bound_instruments.rs`](../opentelemetry-sdk/benches/bound_instruments.rs)
+to reproduce.
+
+:stop_sign: Do NOT call `bind` on the hot path. A single `bind` + `add` is
+*more* expensive than a plain `add` — it does the same attribute lookup, plus
+extra allocations for the bound handle. The performance win comes only from
+binding once and reusing the returned handle for many measurements.
+
+:stop_sign: Do NOT use bound instruments when the attribute set varies per
+measurement. Each unique attribute set requires its own bound handle, and
+holding many rarely-used handles wastes memory without any throughput benefit.
+
+:stop_sign: Do NOT bind everything by default. Bound instruments are intended
+for a small number of well-known, high-frequency attribute combinations on hot
+paths. Binding broadly — especially storing handles in a user-managed map
+keyed by attributes — recreates the SDK's per-call lookup in your own code and
+just shifts the problem from the SDK to the application, often with worse
+results. Stick to the unbound `add` / `record` API unless you have a clear
+hot-path case backed by measurements.
+
+> [!NOTE] Many common web-app metrics (RED/SLO style: request count, latency,
+> errors broken down by route, method, customer, etc.) involve highly variable
+> attribute values and are **not** a good fit for bound instruments. Bound
+> instruments shine when each call site already knows its full attribute set
+> at compile time / startup, so handles can be stored directly alongside the
+> code that uses them — no per-call map lookup needed.
+
+> [!NOTE] Bound instruments do not change the SDK's [cardinality
+> limits](#cardinality-limits) or pre-aggregation behavior. They are purely a
+> performance optimization that caches the resolved tracker for a fixed
+> attribute set.
 
 ## MeterProvider Management
 
@@ -408,6 +501,11 @@ combinations). No matter how many fruits we sell, we can always use the
 following table to summarize the total number of fruits based on the name and
 color.
 
+> [!IMPORTANT]
+> Cardinality is the number of **unique attribute combinations**, not the number
+> of measurements. Even if you record millions of measurements per interval,
+> they are aggregated into a finite set of data points - one for each unique attribute combination.
+
 | Color  | Name  | Count |
 | ------ | ----- | ----- |
 | red    | apple | 6     |
@@ -527,11 +625,12 @@ of 3 and we're tracking sales with attributes for `name`, `color`, and
 
 During a busy sales period at time (T3, T4], we record:
   
-1. 10 red apples sold at Downtown store
-2. 5 yellow lemons sold at Uptown store
-3. 8 green apples sold at Downtown store
-4. 3 red apples sold at Midtown store (at this point, the cardinality limit is
-    hit, and attributes are replaced with overflow attribute.)
+1. 10 red apples sold at Downtown store → 1st unique combination tracked
+2. 5 yellow lemons sold at Uptown store → 2nd unique combination tracked
+3. 8 green apples sold at Downtown store → 3rd unique combination tracked
+   (limit reached)
+4. 3 red apples sold at Midtown store → limit exceeded, folded into overflow
+   bucket
 
 The exported metrics would be:
   
@@ -632,6 +731,15 @@ But if only 10,000 users are typically active during a 60 sec export interval:
 **You can set the limit to 20,000, dramatically reducing memory usage during
 normal operation.**
 
+**Using request rate as an upper bound**: If you cannot estimate active users
+but know the maximum requests per second your application can handle (X), and
+each request produces one metric measurement, then `X × interval_seconds`
+provides a guaranteed upper bound. For example, at 500 req/sec max with a 60 sec
+interval: 500 × 60 = 30,000. This ensures no overflow but may overestimate if
+many requests come from the same users. Use this approach when you want to avoid
+overflow at the cost of memory efficiency, or as a starting point before
+refining based on observed patterns.
+
 ###### Export Interval Tuning
 
 Shorter export intervals further reduce the required cardinality:
@@ -714,10 +822,12 @@ Follow these guidelines when deciding where to attach metric attributes:
 
     ```rust
     // Example: Setting resource-level attributes
-    let resource = Resource::new(vec![
-        KeyValue::new("service.name", "payment-processor"),
-        KeyValue::new("deployment.environment", "production"),
-    ]);
+    // Use Resource::builder() to preserve SDK-provided defaults
+    // (telemetry.sdk.*, service.name).
+    let resource = Resource::builder()
+        .with_service_name("payment-processor")
+        .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+        .build();
     ```
 
   * **Meter-level attributes**: If the dimension applies only to a subset of

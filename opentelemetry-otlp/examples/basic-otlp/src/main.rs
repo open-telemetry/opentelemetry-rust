@@ -26,7 +26,6 @@ fn get_resource() -> Resource {
 
 fn init_traces() -> SdkTracerProvider {
     let exporter = SpanExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create span exporter");
     SdkTracerProvider::builder()
@@ -37,7 +36,6 @@ fn init_traces() -> SdkTracerProvider {
 
 fn init_metrics() -> SdkMeterProvider {
     let exporter = MetricExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create metric exporter");
 
@@ -49,7 +47,6 @@ fn init_metrics() -> SdkMeterProvider {
 
 fn init_logs() -> SdkLoggerProvider {
     let exporter = LogExporter::builder()
-        .with_tonic()
         .build()
         .expect("Failed to create log exporter");
 
@@ -61,6 +58,27 @@ fn init_logs() -> SdkLoggerProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    // Setup MeterProvider first so that SDK components (e.g., BatchLogProcessor)
+    // that obtain a Meter from the global MeterProvider during their
+    // initialization will get a functional meter for self-diagnostics.
+    // A temporary thread-local fmt subscriber is used to capture any logs
+    // emitted during MeterProvider initialization to stdout.
+    //
+    // Set the global meter provider using a clone of the meter_provider.
+    // Setting global meter provider is required if other parts of the application
+    // uses global::meter() or global::meter_with_version() to get a meter.
+    // Cloning simply creates a new reference to the same meter provider. It is
+    // important to hold on to the meter_provider here, so as to invoke
+    // shutdown on it when application ends.
+    let meter_provider = {
+        let _guard = tracing::subscriber::set_default(
+            tracing_subscriber::fmt().with_env_filter("info").finish(),
+        );
+        let meter_provider = init_metrics();
+        global::set_meter_provider(meter_provider.clone());
+        meter_provider
+    };
+
     let logger_provider = init_logs();
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
@@ -113,15 +131,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // shutdown on it when application ends.
     global::set_tracer_provider(tracer_provider.clone());
 
-    let meter_provider = init_metrics();
-    // Set the global meter provider using a clone of the meter_provider.
-    // Setting global meter provider is required if other parts of the application
-    // uses global::meter() or global::meter_with_version() to get a meter.
-    // Cloning simply creates a new reference to the same meter provider. It is
-    // important to hold on to the meter_provider here, so as to invoke
-    // shutdown on it when application ends.
-    global::set_meter_provider(meter_provider.clone());
-
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
     let scope = InstrumentationScope::builder("basic")
         .with_version("1.0")
@@ -159,18 +168,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     info!(name: "my-event", target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    // Collect all shutdown errors
+    // Collect all shutdown errors.
+    // Shutdown order: tracer first, then logger, then meter.
+    // MeterProvider is shut down last because the LoggerProvider's
+    // BatchLogProcessor may emit self-diagnostic metrics during its shutdown.
     let mut shutdown_errors = Vec::new();
     if let Err(e) = tracer_provider.shutdown() {
         shutdown_errors.push(format!("tracer provider: {e}"));
     }
 
-    if let Err(e) = meter_provider.shutdown() {
-        shutdown_errors.push(format!("meter provider: {e}"));
-    }
-
     if let Err(e) = logger_provider.shutdown() {
         shutdown_errors.push(format!("logger provider: {e}"));
+    }
+
+    if let Err(e) = meter_provider.shutdown() {
+        shutdown_errors.push(format!("meter provider: {e}"));
     }
 
     // Return an error if any shutdown failed

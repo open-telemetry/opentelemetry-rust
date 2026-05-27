@@ -41,5 +41,12 @@ pub enum OTelSdkError {
     InternalFailure(String),
 }
 
+#[cfg(any(feature = "testing", test))]
+impl<T> From<std::sync::PoisonError<T>> for OTelSdkError {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
+        OTelSdkError::InternalFailure(format!("Mutex poison error: {err}"))
+    }
+}
+
 /// A specialized `Result` type for Shutdown operations.
 pub type OTelSdkResult = Result<(), OTelSdkError>;

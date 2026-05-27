@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.31.0"
+version = "0.32.0"
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
@@ -16,6 +16,9 @@ edition = "2021"
 rust-version = "1.75.0"
 autobenches = false
 
+[badges]
+maintenance = { status = "deprecated" }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -23,8 +26,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["reqwest-blocking-client", "reqwest/native-tls"]
 reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
-reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-client = ["dep:reqwest", "opentelemetry-http/reqwest"]
+reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 
 [dependencies]
 once_cell = { workspace = true }

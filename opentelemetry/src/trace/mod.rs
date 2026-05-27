@@ -181,7 +181,7 @@ pub use self::{
     },
     span::{Span, SpanKind, Status},
     span_context::{SpanContext, TraceState},
-    tracer::{SamplingDecision, SamplingResult, SpanBuilder, Tracer},
+    tracer::{SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
 use crate::KeyValue;

@@ -2,14 +2,53 @@
 
 ## vNext
 
-- Remove the `experimental_use_tracing_span_context` since
-  `tracing-opentelemetry` now supports [activating][31901]  the OpenTelemetry
-  context for the current tracing span.
-  
-  This fixes [3190][3190] the circular dependency introduced by depending on
-  `tracing-opentelemetry` that depends on `opentelemetry`.
+## 0.32.0
 
+Released 2026-May-08
+
+- **Add tracing span attribute enrichment (experimental).** When enabled,
+  attributes attached to active [`tracing`] spans are copied onto each emitted
+  log record. "Span" here refers to a [`tracing::span!`][tracing-span] from the
+  [`tracing`] crate (the appender's source), **not** an OpenTelemetry span.
+  [#3482][3482], [#3505][3505]
+
+  Gated behind the new **`experimental_span_attributes`** cargo feature. As
+  with all `experimental_*` features in this repo, the API may change without
+  a major version bump until it is stabilized; once stable, the feature flag
+  will be removed.
+
+  Enrichment is **disabled by default** (no per-span overhead) and must be
+  opted into at runtime via a single builder method that accepts a
+  [`TracingSpanAttributes`] value:
+
+  ```rust
+  use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
+
+  // Copy all tracing-span attributes onto log records:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::all())
+      .build();
+
+  // Or copy only an allowlist of attributes:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+      .build();
+  ```
+
+- Remove the `experimental_use_tracing_span_context` since
+  `tracing-opentelemetry` now supports [activating][31901] the OpenTelemetry
+  context for the current tracing span. This fixes [#3190][3190] — the
+  circular dependency introduced by depending on `tracing-opentelemetry`
+  that depends on `opentelemetry`.
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
+
+[`tracing`]: https://crates.io/crates/tracing
+[tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
 [3190]: https://github.com/open-telemetry/opentelemetry-rust/issues/3190
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
+[3482]: https://github.com/open-telemetry/opentelemetry-rust/pull/3482
+[3505]: https://github.com/open-telemetry/opentelemetry-rust/pull/3505
 [31901]: https://github.com/tokio-rs/tracing-opentelemetry/blob/884b00cf438557733bd9cef9456281bea8c4bea1/src/layer.rs#L842
 
 ## 0.31.1

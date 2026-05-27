@@ -40,27 +40,27 @@
 //! Before integrating with `tracing`, create an OpenTelemetry [`SdkLoggerProvider`](https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/struct.SdkLoggerProvider.html):
 //!
 //! ```rust
-//! use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! use opentelemetry_stdout::LogExporter;
+//! use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
 //!
-//! let exporter = LogExporter::default();
+//! let exporter = InMemoryLogExporter::default();
 //! let provider = SdkLoggerProvider::builder()
 //!     .with_simple_exporter(exporter)
 //!     .build();
 //! ```
 //!
-//! In this example, `SdkLoggerProvider` is configured to use the `opentelemetry_stdout` crate to export logs to stdout. You can replace it with any other OpenTelemetry-compatible exporter.
+//! In this example, `SdkLoggerProvider` is configured to use an in-memory exporter. Replace it with any OpenTelemetry-compatible exporter, such as `opentelemetry_stdout::LogExporter` or the OTLP exporter.
 //! Any additional OpenTelemetry configuration (e.g., setting up a resource, additional processors etc.) can be done at this stage.
+//!
+//! For a complete runnable example, see [examples/logs-basic](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/logs-basic).
 //!
 //! ### 3. Create the OpenTelemetry-Tracing Bridge
 //!
 //! Create `OpenTelemetryTracingBridge` layer using the `SdkLoggerProvider` created in the previous step.
 //!
 //! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
+//! # use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
-//! # let exporter = LogExporter::default();
+//! # let exporter = InMemoryLogExporter::default();
 //! # let provider = SdkLoggerProvider::builder()
 //! #    .with_simple_exporter(exporter)
 //! #    .build();
@@ -72,9 +72,8 @@
 //! Since this crate provides a `Layer` for `tracing`, you can register it with the `tracing` subscriber as shown below.
 //!
 //! ```rust
-//! # use opentelemetry_sdk::logs::SdkLoggerProvider;
-//! # use opentelemetry_stdout::LogExporter;
-//! # let exporter = LogExporter::default();
+//! # use opentelemetry_sdk::logs::{SdkLoggerProvider, InMemoryLogExporter};
+//! # let exporter = InMemoryLogExporter::default();
 //! # let provider = SdkLoggerProvider::builder().with_simple_exporter(exporter).build();
 //! # use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 //! # let otel_layer = OpenTelemetryTracingBridge::new(&provider);
@@ -123,23 +122,47 @@
 //!
 //! In future, additional types may be supported.
 //!
-//! > **Note:** This crate does not support `tracing` Spans. One may use [`tracing-opentelemetry`](https://docs.rs/tracing-opentelemetry/latest/tracing_opentelemetry/) to
-//! > convert `tracing` spans into OpenTelemetry spans. This is a third-party crate
-//! > that is not maintained by the OpenTelemetry project.
-//! > `tracing-opentelemetry`:
-//! > - Converts `tracing` spans into OpenTelemetry spans  
-//! > - Converts `tracing` events into OpenTelemetry `SpanEvents` rather than logs
-//! >   Depending on the outcome of the
-//! >   [discussion](https://github.com/open-telemetry/opentelemetry-rust/issues/1571),
-//! >   the OpenTelemetry project may provide direct support to map `tracing`
-//! >   spans to OpenTelemetry in the future.
+//! ## Tracing Span Attribute Enrichment
+//!
+//! By default, only the fields on the `tracing` event itself are captured. Optionally,
+//! attributes from active [`tracing::span!`](https://docs.rs/tracing/latest/tracing/macro.span.html)
+//! scopes can be copied onto each emitted log record. **"Span" here refers to a `tracing` span,
+//! not an `opentelemetry::trace::Span`.**
+//!
+//! Gated behind the `experimental_span_attributes` cargo feature.
+//!
+//! Enrichment is **disabled by default** (zero per-span overhead) and must be opted into
+//! via the builder:
+//!
+//! ```ignore
+//! use opentelemetry_appender_tracing::layer::{OpenTelemetryTracingBridge, TracingSpanAttributes};
+//!
+//! // Copy ALL tracing-span attributes onto log records:
+//! let layer = OpenTelemetryTracingBridge::builder(&provider)
+//!     .with_tracing_span_attributes(TracingSpanAttributes::all())
+//!     .build();
+//!
+//! // Or copy only specific attributes:
+//! let layer = OpenTelemetryTracingBridge::builder(&provider)
+//!     .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+//!     .build();
+//! ```
+//!
+//! When enrichment is enabled, attributes from all ancestor spans (root to leaf)
+//! are collected and added to the log record before the event's own fields.
+//!
+//! > **Note:** This crate does not convert `tracing` spans into OpenTelemetry spans.
+//! > Use [`tracing-opentelemetry`](https://docs.rs/tracing-opentelemetry/latest/tracing_opentelemetry/)
+//! > for that. The span enrichment feature here only *reads* tracing-span fields to
+//! > copy them onto log records — it does not create or manage OpenTelemetry spans.
 //!
 //! ## Feature Flags
-//! `spec_unstable_logs_enabled`: TODO
 //!
-//! `experimental_metadata_attributes`: TODO
+//! - `experimental_span_attributes`: Enables tracing-span attribute enrichment
+//!   (`TracingSpanAttributes`, `with_tracing_span_attributes`).
+//! - `experimental_metadata_attributes`: Adds source code metadata (`code.filepath`,
+//!   `code.filename`, `code.namespace`, `code.lineno`) as log record attributes.
 //!
-//! `experimental_use_tracing_span_context`: TODO
 //!
 //! ## Limitations
 //! 1. There is no support for `Valuable` crate. [2819](https://github.com/open-telemetry/opentelemetry-rust/issues/2819)

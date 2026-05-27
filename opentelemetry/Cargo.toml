@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.31.0"
+version = "0.32.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
@@ -38,11 +38,11 @@ trace = ["futures", "thiserror"]
 metrics = []
 testing = ["trace"]
 logs = []
-spec_unstable_logs_enabled = ["logs"]
 internal-logs = ["tracing"]
+experimental_metrics_bound_instruments = ["metrics"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 tokio = { version = "1.0", features = ["full"] }
@@ -68,6 +68,16 @@ required-features = ["tracing"]
 [[bench]]
 name = "context_suppression"
 harness = false
+
+[[bench]]
+name = "trace"
+harness = false
+required-features = ["trace"]
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs"]
 
 [[bench]]
 name = "baggage"
