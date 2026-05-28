@@ -37,6 +37,9 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
 /// Protocol to use for trace exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
+/// Whether to enable client transport security for gRPC trace exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_TRACES_INSECURE: &str = "OTEL_EXPORTER_OTLP_TRACES_INSECURE";
 
 /// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]
