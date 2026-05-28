@@ -92,6 +92,7 @@ pub trait HttpClient: Debug + Send + Sync {
 
 #[cfg(feature = "reqwest")]
 mod reqwest {
+    const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
     use opentelemetry::otel_debug;
 
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
@@ -102,10 +103,18 @@ mod reqwest {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
+            let mut body_bytes = bytes::BytesMut::new();
+            while let Some(chunk) = response.chunk().await? {
+                if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                    return Err("response body too large".into());
+                }
+                body_bytes.extend_from_slice(&chunk);
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes().await?)?;
+                .status(status)
+                .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -117,13 +126,22 @@ mod reqwest {
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
+            use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
+            let mut body_bytes = Vec::new();
+            response
+                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                .read_to_end(&mut body_bytes)?;
+            if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                return Err("response body too large".into());
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes()?)?;
+                .status(status)
+                .body(Bytes::from(body_bytes))?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -133,6 +151,7 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
+    const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
     use crate::ResponseExt;
     use http::HeaderValue;
@@ -200,11 +219,22 @@ pub mod hyper {
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
             let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
-
+            let mut body_bytes = bytes::BytesMut::new();
+            let mut body = response.into_body();
+            while let Some(frame) = body.frame().await {
+                let frame = frame?;
+                if let Ok(chunk) = frame.into_data() {
+                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                        return Err("response body too large".into());
+                    }
+                    body_bytes.extend_from_slice(&chunk);
+                }
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.into_body().collect().await?.to_bytes())?;
+                .status(status)
+                .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response.error_for_status()?)
