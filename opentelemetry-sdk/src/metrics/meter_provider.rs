@@ -1,4 +1,9 @@
 use core::fmt;
+use opentelemetry::{
+    metrics::{Meter, MeterProvider},
+    otel_debug, otel_error, otel_info, InstrumentationScope,
+};
+use std::time::Duration;
 use std::{
     collections::HashMap,
     sync::{
@@ -7,24 +12,20 @@ use std::{
     },
 };
 
-use opentelemetry::{
-    metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, otel_info, InstrumentationScope,
-};
-
 use crate::error::OTelSdkResult;
 use crate::Resource;
 
 use super::{
-    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter, pipeline::Pipelines,
-    reader::MetricReader, view::View, PeriodicReader,
+    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
+    periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
+    Instrument, Stream,
 };
 
 /// Handles the creation and coordination of [Meter]s.
 ///
 /// All `Meter`s created by a `MeterProvider` will be associated with the same
-/// [Resource], have the same [View]s applied to them, and have their produced
-/// metric telemetry passed to the configured [MetricReader]s. This is a
+/// [Resource], have the same views applied to them, and have their produced
+/// metric telemetry passed to the configured `MetricReader`s. This is a
 /// clonable handle to the MeterProvider implementation itself, and cloning it
 /// will create a new reference, not a new instance of a MeterProvider. Dropping
 /// the last reference to it will trigger shutdown of the provider. Shutdown can
@@ -109,12 +110,17 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown(&self) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
         self.inner.shutdown()
+    }
+
+    /// shutdown with default timeout
+    pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -130,7 +136,7 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
@@ -140,6 +146,10 @@ impl SdkMeterProviderInner {
         } else {
             self.pipes.shutdown()
         }
+    }
+
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -233,10 +243,32 @@ impl MeterProviderBuilder {
     ///
     /// By default, if this option is not used, the default [Resource] will be used.
     ///
+    /// When constructing a [Resource], use [`Resource::builder()`] to preserve
+    /// SDK-provided defaults such as `telemetry.sdk.*` and `service.name`.
+    /// Using [`Resource::builder_empty()`] will **not** include these attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::{Resource, metrics::SdkMeterProvider};
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    ///     .with_resource(
+    ///         Resource::builder()
+    ///             .with_service_name("my-service")
+    ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    ///
     /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
     ///
     /// [Meter]: opentelemetry::metrics::Meter
+    /// [`Resource::builder()`]: Resource::builder
+    /// [`Resource::builder_empty()`]: Resource::builder_empty
     pub fn with_resource(mut self, resource: Resource) -> Self {
         self.resource = match self.resource {
             Some(existing) => Some(existing.merge(&resource)),
@@ -246,11 +278,11 @@ impl MeterProviderBuilder {
         self
     }
 
-    /// Associates a [MetricReader] with a [MeterProvider].
-    /// [`MeterProviderBuilder::with_periodic_exporter()] can be used to add a PeriodicReader which is
+    /// Associates a `MetricReader` with a [MeterProvider].
+    /// [`MeterProviderBuilder::with_periodic_exporter()`] can be used to add a PeriodicReader which is
     /// the most common use case.
     ///
-    /// A [MeterProvider] will export no metrics without [MetricReader]
+    /// A [MeterProvider] will export no metrics without a `MetricReader`
     /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
         self.readers.push(Box::new(reader));
@@ -278,15 +310,86 @@ impl MeterProviderBuilder {
         self
     }
 
-    #[cfg(feature = "spec_unstable_metrics_views")]
-    /// Associates a [View] with a [MeterProvider].
+    /// Adds a view to the [MeterProvider].
     ///
-    /// [View]s are appended to existing ones in a [MeterProvider] if this option is
-    /// used multiple times.
+    /// Views allow you to customize how metrics are aggregated, renamed, or
+    /// otherwise transformed before export, without modifying instrument
+    /// definitions in your application or library code.
     ///
-    /// By default, if this option is not used, the [MeterProvider] will use the
-    /// default view.
-    pub fn with_view<T: View>(mut self, view: T) -> Self {
+    /// You can pass any function or closure matching the signature
+    /// `Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static`. The
+    /// function receives a reference to the [`Instrument`] and can return an
+    /// [`Option`] of [`Stream`] to specify how matching instruments should be
+    /// exported. Returning `None` means the view does not apply to the given
+    /// instrument, and the default behavior will be used.
+    ///
+    ///
+    /// # Examples
+    ///
+    /// Renaming a metric:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let view_rename = |i: &Instrument| {
+    ///     if i.name() == "my_counter" {
+    ///         Some(Stream::builder().with_name("my_counter_renamed").build().expect("Stream should be valid"))
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(view_rename);
+    /// ```
+    ///
+    /// Setting a cardinality limit to control resource usage:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let view_change_cardinality = |i: &Instrument| {
+    ///     if i.name() == "my_counter" {
+    ///         Some(
+    ///             Stream::builder()
+    ///                 .with_cardinality_limit(100).build().expect("Stream should be valid"),
+    ///         )
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(view_change_cardinality);
+    /// ```
+    ///
+    /// Silently ignoring Stream build errors:
+    ///
+    /// ```
+    /// # use opentelemetry_sdk::metrics::{Stream, Instrument};
+    /// let my_view_change_cardinality = |i: &Instrument| {
+    ///     if i.name() == "my_second_histogram" {
+    ///         // Note: If Stream is invalid, build() will return `Error` variant.
+    ///         // By calling `.ok()`, any such error is ignored and treated as if the view does not match
+    ///         // the instrument.
+    ///         // If this is not the desired behavior, consider handling the error explicitly.
+    ///         Stream::builder().with_cardinality_limit(0).build().ok()
+    ///     } else {
+    ///         None
+    ///     }
+    /// };
+    /// # let builder = opentelemetry_sdk::metrics::SdkMeterProvider::builder();
+    /// # let _builder =
+    /// builder.with_view(my_view_change_cardinality);
+    /// ```
+    ///
+    /// If no views are added, the [MeterProvider] uses the default view.
+    ///
+    /// [`Instrument`]: crate::metrics::Instrument
+    /// [`Stream`]: crate::metrics::Stream
+    /// [`Option`]: core::option::Option
+    pub fn with_view<T>(mut self, view: T) -> Self
+    where
+        T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
+    {
         self.views.push(Arc::new(view));
         self
     }
@@ -380,10 +483,15 @@ mod tests {
             let default_meter_provider = super::SdkMeterProvider::builder()
                 .with_reader(reader)
                 .build();
-            assert_resource(
-                &default_meter_provider,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = default_meter_provider.inner.pipes.0[0]
+                .resource
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&default_meter_provider);
         });
@@ -410,10 +518,15 @@ mod tests {
                 let env_resource_provider = super::SdkMeterProvider::builder()
                     .with_reader(reader3)
                     .build();
-                assert_resource(
-                    &env_resource_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = env_resource_provider.inner.pipes.0[0]
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(&env_resource_provider, "key1", Some("value1"));
                 assert_resource(&env_resource_provider, "k3", Some("value2"));
@@ -439,10 +552,15 @@ mod tests {
                             .build(),
                     )
                     .build();
-                assert_resource(
-                    &user_provided_resource_config_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = user_provided_resource_config_provider.inner.pipes.0[0]
+                    .resource
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &user_provided_resource_config_provider,
@@ -623,14 +741,26 @@ mod tests {
     #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkMeterProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
-            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key1", "value1")])
+                    .build(),
+            )
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key2", "value2")])
+                    .build(),
+            )
             .with_resource(
                 Resource::builder_empty()
                     .with_schema_url(vec![], "http://example.com")
                     .build(),
             )
-            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key3", "value3")])
+                    .build(),
+            );
 
         let resource = builder.resource.unwrap();
 

@@ -8,7 +8,7 @@ use opentelemetry_sdk::{
     trace as sdktrace,
     trace::{SpanData, SpanExporter},
 };
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -80,16 +80,21 @@ const MAP_KEYS: [&str; 64] = [
     "key.56", "key.57", "key.58", "key.59", "key.60", "key.61", "key.62", "key.63", "key.64",
 ];
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2))
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 criterion_main!(benches);

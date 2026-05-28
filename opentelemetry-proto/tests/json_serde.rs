@@ -42,8 +42,10 @@ mod json_serde {
                                 value: Some(AnyValue {
                                     value: Some(Value::StringValue(String::from("my.service"))),
                                 }),
+                                key_strindex: 0,
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_spans: vec![ScopeSpans {
                             scope: Some(InstrumentationScope {
@@ -56,14 +58,16 @@ mod json_serde {
                                             "some scope attribute",
                                         ))),
                                     }),
+                                    key_strindex: 0,
                                 }],
                                 dropped_attributes_count: 0,
                             }),
                             spans: vec![Span {
-                                trace_id: hex::decode("5b8efff798038103d269b633813fc60c").unwrap(),
-                                span_id: hex::decode("eee19b7ec3c1b174").unwrap(),
+                                trace_id: const_hex::decode("5b8efff798038103d269b633813fc60c")
+                                    .unwrap(),
+                                span_id: const_hex::decode("eee19b7ec3c1b174").unwrap(),
                                 trace_state: String::new(),
-                                parent_span_id: hex::decode("eee19b7ec3c1b173").unwrap(),
+                                parent_span_id: const_hex::decode("eee19b7ec3c1b173").unwrap(),
                                 flags: 0,
                                 name: String::from("I'm a server span"),
                                 kind: 2,
@@ -74,6 +78,7 @@ mod json_serde {
                                     value: Some(AnyValue {
                                         value: Some(Value::StringValue(String::from("some value"))),
                                     }),
+                                    key_strindex: 0,
                                 }],
                                 dropped_attributes_count: 0,
                                 events: vec![],
@@ -102,7 +107,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeSpans": [
         {
@@ -247,8 +253,10 @@ mod json_serde {
                                 value: Some(AnyValue {
                                     value: Some(Value::StringValue(String::from("my.service"))),
                                 }),
+                                key_strindex: 0,
                             }],
                             dropped_attributes_count: 1,
+                            entity_refs: vec![],
                         }),
                         scope_spans: vec![ScopeSpans {
                             scope: Some(InstrumentationScope {
@@ -261,14 +269,16 @@ mod json_serde {
                                             "some scope attribute",
                                         ))),
                                     }),
+                                    key_strindex: 0,
                                 }],
                                 dropped_attributes_count: 1,
                             }),
                             spans: vec![Span {
-                                trace_id: hex::decode("5b8efff798038103d269b633813fc60c").unwrap(),
-                                span_id: hex::decode("eee19b7ec3c1b174").unwrap(),
+                                trace_id: const_hex::decode("5b8efff798038103d269b633813fc60c")
+                                    .unwrap(),
+                                span_id: const_hex::decode("eee19b7ec3c1b174").unwrap(),
                                 trace_state: String::from("browser=firefox,os=linux"),
-                                parent_span_id: hex::decode("eee19b7ec3c1b173").unwrap(),
+                                parent_span_id: const_hex::decode("eee19b7ec3c1b173").unwrap(),
                                 flags: 1,
                                 name: String::from("I'm a server span"),
                                 kind: 2,
@@ -282,12 +292,14 @@ mod json_serde {
                                                 "some value",
                                             ))),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("my.span.bytes.attr"),
                                         value: Some(AnyValue {
                                             value: Some(Value::BytesValue(vec![0x80, 0x80, 0x80])),
                                         }),
+                                        key_strindex: 0,
                                     },
                                 ],
                                 dropped_attributes_count: 1,
@@ -301,20 +313,22 @@ mod json_serde {
                                                 "snowman",
                                             ))),
                                         }),
+                                        key_strindex: 0,
                                     }],
                                     dropped_attributes_count: 1,
                                 }],
                                 dropped_events_count: 1,
                                 links: vec![Link {
-                                    trace_id: hex::decode("5b8efff798038103d269b633813fc60b")
+                                    trace_id: const_hex::decode("5b8efff798038103d269b633813fc60b")
                                         .unwrap(),
-                                    span_id: hex::decode("eee19b7ec3c1b172").unwrap(),
+                                    span_id: const_hex::decode("eee19b7ec3c1b172").unwrap(),
                                     trace_state: String::from("food=pizza,color=red"),
                                     attributes: vec![KeyValue {
                                         key: String::from("my.link.attr"),
                                         value: Some(AnyValue {
                                             value: Some(Value::StringValue(String::from("rust"))),
                                         }),
+                                        key_strindex: 0,
                                     }],
                                     dropped_attributes_count: 1,
                                     flags: 0x0200,
@@ -345,7 +359,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 1
+        "droppedAttributesCount": 1,
+        "entityRefs": []
       },
       "scopeSpans": [
         {
@@ -595,6 +610,7 @@ mod json_serde {
                     value: Some(AnyValue {
                         value: Some(Value::StringValue(String::from("some value"))),
                     }),
+                    key_strindex: 0,
                 }],
             });
             // language=json
@@ -633,6 +649,7 @@ mod json_serde {
                     value: Some(AnyValue {
                         value: Some(Value::StringValue(String::from("my.service"))),
                     }),
+                    key_strindex: 0,
                 }
             }
 
@@ -670,6 +687,7 @@ mod json_serde {
                     value: Some(AnyValue {
                         value: Some(Value::IntValue(33)),
                     }),
+                    key_strindex: 0,
                 }
             }
 
@@ -790,8 +808,10 @@ mod json_serde {
                                 value: Some(AnyValue {
                                     value: Some(Value::StringValue(String::from("my.service"))),
                                 }),
+                                key_strindex: 0,
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_metrics: vec![ScopeMetrics {
                             scope: Some(InstrumentationScope {
@@ -804,6 +824,7 @@ mod json_serde {
                                             "some scope attribute",
                                         ))),
                                     }),
+                                    key_strindex: 0,
                                 }],
                                 dropped_attributes_count: 0,
                             }),
@@ -822,6 +843,7 @@ mod json_serde {
                                                         "some value",
                                                     ))),
                                                 }),
+                                                key_strindex: 0,
                                             }],
                                             start_time_unix_nano: 1544712660300000000,
                                             time_unix_nano: 1544712660300000000,
@@ -847,6 +869,7 @@ mod json_serde {
                                                         "some value",
                                                     ))),
                                                 }),
+                                                key_strindex: 0,
                                             }],
                                             start_time_unix_nano: 0,
                                             time_unix_nano: 1544712660300000000,
@@ -870,6 +893,7 @@ mod json_serde {
                                                         "some value",
                                                     ))),
                                                 }),
+                                                key_strindex: 0,
                                             }],
                                             start_time_unix_nano: 1544712660300000000,
                                             time_unix_nano: 1544712660300000000,
@@ -906,7 +930,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeMetrics": [
         {
@@ -994,11 +1019,11 @@ mod json_serde {
                     ],
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2.0,
                     "bucketCounts": [
-                      1,
-                      1
+                      "1",
+                      "1"
                     ],
                     "explicitBounds": [
                       1.0
@@ -1106,9 +1131,9 @@ mod json_serde {
                   {
                     "startTimeUnixNano": "1544712660300000000",
                     "timeUnixNano": "1544712660300000000",
-                    "count": 2,
+                    "count": "2",
                     "sum": 2,
-                    "bucketCounts": [1,1],
+                    "bucketCounts": ["1","1"],
                     "explicitBounds": [1],
                     "min": 0,
                     "max": 2,
@@ -1176,8 +1201,10 @@ mod json_serde {
                                 value: Some(AnyValue {
                                     value: Some(Value::StringValue(String::from("my.service"))),
                                 }),
+                                key_strindex: 0,
                             }],
                             dropped_attributes_count: 0,
+                            entity_refs: vec![],
                         }),
                         scope_logs: vec![ScopeLogs {
                             scope: Some(InstrumentationScope {
@@ -1190,6 +1217,7 @@ mod json_serde {
                                             "some scope attribute",
                                         ))),
                                     }),
+                                    key_strindex: 0,
                                 }],
                                 dropped_attributes_count: 0,
                             }),
@@ -1212,24 +1240,28 @@ mod json_serde {
                                                 "some string",
                                             ))),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("boolean.attribute"),
                                         value: Some(AnyValue {
                                             value: Some(Value::BoolValue(true)),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("int.attribute"),
                                         value: Some(AnyValue {
                                             value: Some(Value::IntValue(10)),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("double.attribute"),
                                         value: Some(AnyValue {
                                             value: Some(Value::DoubleValue(637.704)),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("array.attribute"),
@@ -1249,6 +1281,7 @@ mod json_serde {
                                                 ],
                                             })),
                                         }),
+                                        key_strindex: 0,
                                     },
                                     KeyValue {
                                         key: String::from("map.attribute"),
@@ -1261,15 +1294,18 @@ mod json_serde {
                                                             String::from("some value"),
                                                         )),
                                                     }),
+                                                    key_strindex: 0,
                                                 }],
                                             })),
                                         }),
+                                        key_strindex: 0,
                                     },
                                 ],
                                 dropped_attributes_count: 0,
                                 flags: 0,
-                                trace_id: hex::decode("5b8efff798038103d269b633813fc60c").unwrap(),
-                                span_id: hex::decode("eee19b7ec3c1b174").unwrap(),
+                                trace_id: const_hex::decode("5b8efff798038103d269b633813fc60c")
+                                    .unwrap(),
+                                span_id: const_hex::decode("eee19b7ec3c1b174").unwrap(),
                             }],
                             schema_url: String::new(),
                         }],
@@ -1291,7 +1327,8 @@ mod json_serde {
             }
           }
         ],
-        "droppedAttributesCount": 0
+        "droppedAttributesCount": 0,
+        "entityRefs": []
       },
       "scopeLogs": [
         {
@@ -1516,6 +1553,328 @@ mod json_serde {
                     serde_json::from_str(ALTERNATIVE).expect("deserialization must succeed");
                 let expected: ExportLogsServiceRequest = value();
                 assert_eq!(actual, expected);
+            }
+        }
+    }
+    #[cfg(feature = "metrics")]
+    mod metrics_with_nan {
+        use super::*;
+        use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
+        use opentelemetry_proto::tonic::metrics::v1::Summary;
+        use opentelemetry_proto::tonic::metrics::v1::SummaryDataPoint;
+
+        fn value_with_nan() -> ExportMetricsServiceRequest {
+            ExportMetricsServiceRequest {
+                resource_metrics: vec![ResourceMetrics {
+                    resource: Some(Resource {
+                        attributes: vec![KeyValue {
+                            key: String::from("service.name"),
+                            value: None,
+                            key_strindex: 0,
+                        }],
+                        dropped_attributes_count: 0,
+                        entity_refs: vec![],
+                    }),
+                    scope_metrics: vec![ScopeMetrics {
+                        scope: None,
+                        metrics: vec![Metric {
+                            name: String::from("example_metric"),
+                            description: String::from("A sample metric with NaN values"),
+                            unit: String::from("1"),
+                            metadata: vec![],
+                            data: Some(
+                                opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(
+                                    Summary {
+                                        data_points: vec![SummaryDataPoint {
+                                            attributes: vec![],
+                                            start_time_unix_nano: 0,
+                                            time_unix_nano: 0,
+                                            count: 100,
+                                            sum: 500.0,
+                                            quantile_values: vec![
+                                                ValueAtQuantile {
+                                                    quantile: 0.5,
+                                                    value: f64::NAN,
+                                                },
+                                                ValueAtQuantile {
+                                                    quantile: 0.9,
+                                                    value: f64::NAN,
+                                                },
+                                            ],
+                                            flags: 0,
+                                        }],
+                                    },
+                                ),
+                            ),
+                        }],
+                        schema_url: String::new(),
+                    }],
+                    schema_url: String::new(),
+                }],
+            }
+        }
+
+        // language=json
+        const CANONICAL_WITH_NAN: &str = r#"{
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": null
+                  }
+                ],
+                "droppedAttributesCount": 0,
+                "entityRefs": []
+              },
+              "scopeMetrics": [
+                {
+                  "scope": null,
+                  "metrics": [
+                    {
+                      "name": "example_metric",
+                      "description": "A sample metric with NaN values",
+                      "unit": "1",
+                      "metadata": [],
+                      "summary": {
+                        "dataPoints": [
+                          {
+                            "attributes": [],
+                            "startTimeUnixNano": "0",
+                            "timeUnixNano": "0",
+                            "count": "100",
+                            "sum": 500.0,
+                            "quantileValues": [
+                              {
+                                "quantile": 0.5,
+                                "value": "NaN"
+                              },
+                              {
+                                "quantile": 0.9,
+                                "value": "NaN"
+                              }
+                            ],
+                            "flags": 0
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "schemaUrl": ""
+                }
+              ],
+              "schemaUrl": ""
+            }
+          ]
+        }"#;
+
+        #[test]
+        fn serialize_with_nan() {
+            let input: ExportMetricsServiceRequest = value_with_nan();
+
+            // Serialize the structure to JSON
+            let actual = serde_json::to_string_pretty(&input).expect("serialization must succeed");
+
+            // Normalize both the actual and expected JSON for comparison
+            let actual_value: serde_json::Value =
+                serde_json::from_str(&actual).expect("valid JSON");
+            let expected_value: serde_json::Value =
+                serde_json::from_str(CANONICAL_WITH_NAN).expect("valid JSON");
+
+            // Compare the normalized JSON values
+            assert_eq!(actual_value, expected_value);
+        }
+
+        #[test]
+        fn deserialize_with_nan() {
+            let actual: ExportMetricsServiceRequest =
+                serde_json::from_str(CANONICAL_WITH_NAN).expect("deserialization must succeed");
+
+            // Ensure the deserialized structure matches the expected values
+            assert_eq!(actual.resource_metrics.len(), 1);
+
+            let resource_metric = &actual.resource_metrics[0];
+            assert_eq!(
+                resource_metric.resource.as_ref().unwrap().attributes.len(),
+                1
+            );
+            assert_eq!(
+                resource_metric.resource.as_ref().unwrap().attributes[0].key,
+                "service.name"
+            );
+            assert!(resource_metric.resource.as_ref().unwrap().attributes[0]
+                .value
+                .is_none());
+
+            assert_eq!(resource_metric.scope_metrics.len(), 1);
+
+            let scope_metric = &resource_metric.scope_metrics[0];
+            assert!(scope_metric.scope.is_none());
+            assert_eq!(scope_metric.metrics.len(), 1);
+
+            let metric = &scope_metric.metrics[0];
+            assert_eq!(metric.name, "example_metric");
+            assert_eq!(metric.description, "A sample metric with NaN values");
+            assert_eq!(metric.unit, "1");
+
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
+                &metric.data
+            {
+                assert_eq!(summary.data_points.len(), 1);
+
+                let data_point = &summary.data_points[0];
+                assert_eq!(data_point.attributes.len(), 0);
+                assert_eq!(data_point.start_time_unix_nano, 0);
+                assert_eq!(data_point.time_unix_nano, 0);
+                assert_eq!(data_point.count, 100);
+                assert_eq!(data_point.sum, 500.0);
+
+                assert_eq!(data_point.quantile_values.len(), 2);
+
+                // Verify that quantile values are NaN
+                assert!(data_point.quantile_values[0].value.is_nan());
+                assert!(data_point.quantile_values[0].quantile == 0.5);
+                assert!(data_point.quantile_values[1].value.is_nan());
+                assert!(data_point.quantile_values[1].quantile == 0.9);
+            } else {
+                panic!("Expected metric data to be of type Summary");
+            }
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod bare_number_deserialization {
+        use super::*;
+
+        #[test]
+        fn u64_bare_number() {
+            // parsers must accept both bare and quoted numbers
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": 1544712660000000000,
+                    "timeUnixNano": "1544712661000000000",
+                    "asInt": "42"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("bare u64 numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(Data::Gauge(gauge)) = &dp.data {
+                assert_eq!(
+                    gauge.data_points[0].start_time_unix_nano,
+                    1544712660000000000
+                );
+                assert_eq!(gauge.data_points[0].time_unix_nano, 1544712661000000000);
+            } else {
+                panic!("expected gauge data");
+            }
+        }
+
+        #[test]
+        fn vec_u64_bare_numbers() {
+            // bucket_counts should accept both quoted and bare numbers in arrays
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test_histogram",
+              "histogram": {
+                "dataPoints": [
+                  {
+                    "startTimeUnixNano": "0",
+                    "timeUnixNano": "0",
+                    "count": 10,
+                    "sum": 100.0,
+                    "bucketCounts": [1, "2", 3],
+                    "explicitBounds": [10.0, 20.0]
+                  }
+                ],
+                "aggregationTemporality": 2
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("bare u64 vec numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(Data::Histogram(hist)) = &dp.data {
+                assert_eq!(hist.data_points[0].bucket_counts, vec![1, 2, 3]);
+                assert_eq!(hist.data_points[0].count, 10);
+            } else {
+                panic!("expected histogram data");
+            }
+        }
+
+        #[test]
+        fn f64_bare_number_in_summary_quantile() {
+            // deserialize_f64_special should accept both quoted and bare numeric strings
+            let json = r#"{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "test_summary",
+              "summary": {
+                "dataPoints": [
+                  {
+                    "count": "1",
+                    "sum": 100.0,
+                    "quantileValues": [
+                      {
+                        "quantile": "0.5",
+                        "value": 99.0
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"#;
+            let result: ExportMetricsServiceRequest =
+                serde_json::from_str(json).expect("quoted f64 numbers must deserialize");
+            let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
+            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
+                &dp.data
+            {
+                let qv = &summary.data_points[0].quantile_values[0];
+                // assert!((qv.quantile - 0.5).abs() < f64::EPSILON);
+                // assert!((qv.value - 99.0).abs() < f64::EPSILON);
+                assert_eq!(qv.quantile, 0.5);
+                assert_eq!(qv.value, 99.0);
+            } else {
+                panic!("expected summary data");
             }
         }
     }

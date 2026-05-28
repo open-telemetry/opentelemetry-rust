@@ -6,9 +6,9 @@ use std::hash::{Hash, Hasher};
 
 /// The key part of attribute [KeyValue] pairs.
 ///
-/// See the [attribute naming] spec for guidelines.
+/// See the [naming] spec for guidelines.
 ///
-/// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
+/// [naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/naming.md
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
@@ -81,8 +81,8 @@ impl fmt::Debug for Key {
 impl From<Key> for String {
     fn from(key: Key) -> Self {
         match key.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }
@@ -177,7 +177,7 @@ impl fmt::Display for Array {
                     if i > 0 {
                         write!(fmt, ",")?;
                     }
-                    write!(fmt, "\"{}\"", t)?;
+                    write!(fmt, "\"{t}\"")?;
                 }
                 write!(fmt, "]")
             }
@@ -191,7 +191,7 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
         if i > 0 {
             write!(fmt, ",")?;
         }
-        write!(fmt, "{}", t)?;
+        write!(fmt, "{t}")?;
     }
     write!(fmt, "]")
 }
@@ -268,8 +268,8 @@ impl StringValue {
 impl From<StringValue> for String {
     fn from(s: StringValue) -> Self {
         match s.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }
@@ -305,11 +305,11 @@ impl From<Cow<'static, str>> for StringValue {
 impl From<Value> for StringValue {
     fn from(s: Value) -> Self {
         match s {
-            Value::Bool(v) => format!("{}", v).into(),
-            Value::I64(v) => format!("{}", v).into(),
-            Value::F64(v) => format!("{}", v).into(),
+            Value::Bool(v) => format!("{v}").into(),
+            Value::I64(v) => format!("{v}").into(),
+            Value::F64(v) => format!("{v}").into(),
             Value::String(v) => v,
-            Value::Array(v) => format!("{}", v).into(),
+            Value::Array(v) => format!("{v}").into(),
         }
     }
 }
@@ -320,11 +320,11 @@ impl Value {
     /// This will allocate if the underlying value is not a `String`.
     pub fn as_str(&self) -> Cow<'_, str> {
         match self {
-            Value::Bool(v) => format!("{}", v).into(),
-            Value::I64(v) => format!("{}", v).into(),
-            Value::F64(v) => format!("{}", v).into(),
+            Value::Bool(v) => format!("{v}").into(),
+            Value::I64(v) => format!("{v}").into(),
+            Value::F64(v) => format!("{v}").into(),
             Value::String(v) => Cow::Borrowed(v.as_str()),
-            Value::Array(v) => format!("{}", v).into(),
+            Value::Array(v) => format!("{v}").into(),
         }
     }
 }
@@ -482,9 +482,10 @@ impl PartialEq for InstrumentationScope {
         self.name == other.name
             && self.version == other.version
             && self.schema_url == other.schema_url
+            && self.attributes.len() == other.attributes.len()
             && {
-                let mut self_attrs = self.attributes.clone();
-                let mut other_attrs = other.attributes.clone();
+                let mut self_attrs = Vec::from_iter(&self.attributes);
+                let mut other_attrs = Vec::from_iter(&other.attributes);
                 self_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
                 other_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
                 self_attrs == other_attrs
@@ -499,7 +500,7 @@ impl hash::Hash for InstrumentationScope {
         self.name.hash(state);
         self.version.hash(state);
         self.schema_url.hash(state);
-        let mut sorted_attrs = self.attributes.clone();
+        let mut sorted_attrs = Vec::from_iter(&self.attributes);
         sorted_attrs.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         for attribute in sorted_attrs {
             attribute.hash(state);

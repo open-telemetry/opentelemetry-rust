@@ -29,11 +29,11 @@
 use crate::error::OTelSdkResult;
 use crate::{logs::SdkLogRecord, Resource};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
-use opentelemetry::InstrumentationScope;
+use opentelemetry::{otel_warn, InstrumentationScope};
 
 use std::fmt::Debug;
+use std::time::Duration;
 
 /// The interface for plugging into a [`SdkLogger`].
 ///
@@ -56,8 +56,29 @@ pub trait LogProcessor: Send + Sync + Debug {
     /// Shuts down the processor.
     /// After shutdown returns the log processor should stop processing any logs.
     /// It's up to the implementation on when to drop the LogProcessor.
-    fn shutdown(&self) -> OTelSdkResult;
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+    ///
+    /// Implementors that manage resources (background threads, network connections,
+    /// file handles, etc.) should override this method to properly clean up.
+    /// Processors that wrap other processors should forward the shutdown call to
+    /// the wrapped processor(s).
+    /// Simple processors that only transform log data can use the default implementation.
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        // It would have been better to make this method required, but that ship
+        // sailed when the logs API was declared stable.
+        otel_warn!(
+            name: "LogProcessor.DefaultShutdownWithTimeout",
+            message = "LogProcessor is using default shutdown implementation. If this processor manages background threads, network connections, file handles, or other resources that need cleanup, implement `shutdown_with_timeout()` to properly release them. Simple processors that only transform log data can safely use this default."
+        );
+        Ok(())
+    }
+    /// Shuts down the processor with default timeout.
+    ///
+    /// Implementors typically do not need to change this method, and can just
+    /// implement `shutdown_with_timeout`.
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
+
     /// Check if logging is enabled
     fn event_enabled(&self, _level: Severity, _target: &str, _name: Option<&str>) -> bool {
         // By default, all logs are enabled
@@ -65,7 +86,7 @@ pub trait LogProcessor: Send + Sync + Debug {
     }
 
     /// Set the resource for the log processor.
-    fn set_resource(&self, _resource: &Resource) {}
+    fn set_resource(&mut self, _resource: &Resource) {}
 }
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
@@ -89,10 +110,6 @@ pub(crate) mod tests {
 
     impl LogExporter for MockLogExporter {
         async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-            Ok(())
-        }
-
-        fn shutdown(&mut self) -> OTelSdkResult {
             Ok(())
         }
 
@@ -138,7 +155,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -168,7 +185,7 @@ pub(crate) mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

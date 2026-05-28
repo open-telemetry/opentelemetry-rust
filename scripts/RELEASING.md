@@ -29,7 +29,6 @@ A draft PR can be created, but before releasing consider the following:
   * Bump appropriate version
   * Update change logs to reflect release version.
   * Update API/SDK version as necessary
-  * Attach `integration test` label to the PR to run integration tests
 * If there's a large enough set of changes, consider writing a migration guide.
 
 2. Merge the PR

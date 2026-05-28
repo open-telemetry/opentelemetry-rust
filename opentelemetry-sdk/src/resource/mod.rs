@@ -228,6 +228,11 @@ impl Resource {
     pub fn get(&self, key: &Key) -> Option<Value> {
         self.inner.attrs.get(key).cloned()
     }
+
+    /// Returns a reference to the value for the resource associated with the given key without cloning.
+    pub fn get_ref(&self, key: &Key) -> Option<&Value> {
+        self.inner.attrs.get(key)
+    }
 }
 
 /// An iterator over the entries of a `Resource`.
@@ -411,10 +416,7 @@ mod tests {
         assert_eq!(
             result_schema_url.map(|s| s as &str),
             expected_schema_url,
-            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-            schema_url_a,
-            schema_url_b,
-            expected_schema_url
+            "Merging schema_url_a {schema_url_a:?} with schema_url_b {schema_url_b:?} did not yield expected result {expected_schema_url:?}"
         );
     }
 
@@ -510,10 +512,7 @@ mod tests {
         assert_eq!(
             resource.schema_url().map(|s| s as &str),
             expected_schema_url,
-            "Merging schema_url_a {:?} with schema_url_b {:?} did not yield expected result {:?}",
-            schema_url_a,
-            schema_url_b,
-            expected_schema_url
+            "Merging schema_url_a {schema_url_a:?} with schema_url_b {schema_url_b:?} did not yield expected result {expected_schema_url:?}"
         );
     }
 

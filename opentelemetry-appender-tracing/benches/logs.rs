@@ -10,17 +10,18 @@
     | noop_layer_disabled         | 12 ns       |
     | noop_layer_enabled          | 25 ns       |
     | ot_layer_disabled           | 19 ns       |
-    | ot_layer_enabled            | 167 ns      |
+    | ot_layer_enabled            | 155 ns      |
 
     Hardware: Apple M4 Pro
     Total Number of Cores:	14 (10 performance and 4 efficiency)
+    rustc 1.95.0 (59807616e 2026-04-14)
     | Test                        | Average time|
     |-----------------------------|-------------|
-    | log_no_subscriber           | 285 ps      |
-    | noop_layer_disabled         | 8 ns       |
-    | noop_layer_enabled          | 14 ns       |
-    | ot_layer_disabled           | 12 ns       |
-    | ot_layer_enabled            | 186 ns      |
+    | log_no_subscriber           | 262 ps      |
+    | noop_layer_disabled         |   4 ns      |
+    | noop_layer_enabled          |  12 ns      |
+    | ot_layer_disabled           |   7 ns      |
+    | ot_layer_enabled            | 122 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -29,7 +30,7 @@ use opentelemetry_appender_tracing::layer as tracing_layer;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider};
 use opentelemetry_sdk::Resource;
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use tracing::error;
 use tracing_subscriber::prelude::*;
@@ -54,10 +55,6 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
     fn event_enabled(
         &self,
         _level: opentelemetry::logs::Severity,
@@ -65,6 +62,10 @@ impl LogProcessor for NoopProcessor {
         _name: Option<&str>,
     ) -> bool {
         self.enabled
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+        Ok(())
     }
 }
 
@@ -165,16 +166,22 @@ fn criterion_benchmark(c: &mut Criterion) {
     benchmark_with_noop_layer(c, false, "noop_layer_disabled");
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2))
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 criterion_main!(benches);

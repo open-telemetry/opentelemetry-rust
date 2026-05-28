@@ -3,16 +3,23 @@ name = "basic-otlp-http"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+rust-version = "1.75.0"
 publish = false
+autobenches = false
+
+[[bin]]
+name = "basic-otlp-http"
+path = "src/main.rs"
+bench = false
 
 [features]
 default = ["reqwest-blocking"]
 reqwest-blocking = ["opentelemetry-otlp/reqwest-blocking-client"]
 
 [dependencies]
-opentelemetry = { path = "../../../opentelemetry" }
-opentelemetry_sdk = { path = "../../../opentelemetry-sdk" }
-opentelemetry-otlp = { workspace = true }
+opentelemetry = { workspace = true, features = ["trace", "metrics", "logs"] }
+opentelemetry_sdk = { workspace = true, features = ["trace", "metrics", "logs"] }
+opentelemetry-otlp = { workspace = true, features = ["reqwest-blocking-client", "http-proto", "trace", "metrics", "logs", "internal-logs"] }
 opentelemetry-appender-tracing = { workspace = true }
 
 tokio = { workspace = true, features = ["full"] }

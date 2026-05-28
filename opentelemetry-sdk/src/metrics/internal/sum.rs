@@ -1,10 +1,16 @@
-use crate::metrics::data::{self, Aggregation, SumDataPoint};
+use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 
 struct Increment<T>
 where
@@ -37,6 +43,31 @@ where
     }
 }
 
+/// Pre-bound counter handle: writes go directly to a fixed `TrackerEntry` without
+/// per-call attribute lookup. The `tracker` is either a dedicated entry for the
+/// bound attribute set, or — if bind() hit the cardinality limit — the shared
+/// overflow tracker. Either way, `call()` is a single atomic increment and a
+/// release store; no map lookup, no lock acquisition.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundSumHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Increment<T>>>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
+    fn call(&self, measurement: T) {
+        self.tracker.aggregator.update(measurement);
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundSumHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 /// Summarizes a set of measurements made as their arithmetic sum.
 pub(crate) struct Sum<T: Number> {
     value_map: ValueMap<Increment<T>>,
@@ -56,9 +87,10 @@ impl<T: Number> Sum<T> {
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
+        cardinality_limit: usize,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new(()),
+            value_map: ValueMap::new((), cardinality_limit),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -66,12 +98,15 @@ impl<T: Number> Sum<T> {
         }
     }
 
-    pub(crate) fn delta(
-        &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+    pub(crate) fn delta(&self, dest: Option<&mut MetricData<T>>) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.delta();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| {
+            if let MetricData::Sum(sum) = d {
+                Some(sum)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
@@ -92,22 +127,25 @@ impl<T: Number> Sum<T> {
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| SumDataPoint {
                 attributes,
-                value: aggr.value.get_value(),
+                value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), new_agg.map(Into::into))
     }
 
     pub(crate) fn cumulative(
         &self,
-        dest: Option<&mut dyn Aggregation>,
-    ) -> (usize, Option<Box<dyn Aggregation>>) {
+        dest: Option<&mut MetricData<T>>,
+    ) -> (usize, Option<MetricData<T>>) {
         let time = self.init_time.cumulative();
-        let s_data = dest.and_then(|d| d.as_mut().downcast_mut::<data::Sum<T>>());
+        let s_data = dest.and_then(|d| {
+            if let MetricData::Sum(sum) = d {
+                Some(sum)
+            } else {
+                None
+            }
+        });
         let mut new_agg = if s_data.is_none() {
             Some(data::Sum {
                 data_points: vec![],
@@ -133,10 +171,7 @@ impl<T: Number> Sum<T> {
                 exemplars: vec![],
             });
 
-        (
-            s_data.data_points.len(),
-            new_agg.map(|a| Box::new(a) as Box<_>),
-        )
+        (s_data.data_points.len(), new_agg.map(Into::into))
     }
 }
 
@@ -149,16 +184,32 @@ where
             self.value_map.measure(measurement, filtered);
         })
     }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundSumHandle { tracker }),
+            // Trackers RwLock is poisoned — return a noop handle so writes
+            // silently drop, mirroring `measure()`'s own poison handling.
+            None => Box::new(NoopBoundMeasure::new()),
+        }
+    }
 }
 
 impl<T> ComputeAggregation for Sum<T>
 where
     T: Number,
 {
-    fn call(&self, dest: Option<&mut dyn Aggregation>) -> (usize, Option<Box<dyn Aggregation>>) {
-        match self.temporality {
-            Temporality::Delta => self.delta(dest),
-            _ => self.cumulative(dest),
-        }
+    fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
+        let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
+        let (len, new) = match self.temporality {
+            Temporality::Delta => self.delta(data),
+            _ => self.cumulative(data),
+        };
+        (len, new.map(T::make_aggregated_metrics))
     }
 }

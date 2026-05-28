@@ -9,17 +9,19 @@ use crate::{
 };
 use std::sync::Arc;
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::instruments::BoundSyncInstrument;
 use super::instruments::SyncInstrument;
 
 /// A no-op instance of a `MetricProvider`
 #[derive(Debug, Default)]
-pub(crate) struct NoopMeterProvider {
+pub struct NoopMeterProvider {
     _private: (),
 }
 
 impl NoopMeterProvider {
     /// Create a new no-op meter provider.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         NoopMeterProvider { _private: () }
     }
 }
@@ -59,8 +61,32 @@ impl NoopSyncInstrument {
     }
 }
 
-impl<T> SyncInstrument<T> for NoopSyncInstrument {
+impl<T: Send + Sync + 'static> SyncInstrument<T> for NoopSyncInstrument {
     fn measure(&self, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
+        Box::new(NoopBoundSyncInstrument::new())
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub(crate) struct NoopBoundSyncInstrument {
+    _private: (),
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl NoopBoundSyncInstrument {
+    pub(crate) fn new() -> Self {
+        NoopBoundSyncInstrument { _private: () }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> BoundSyncInstrument<T> for NoopBoundSyncInstrument {
+    fn measure(&self, _measurement: T) {
         // Ignored
     }
 }

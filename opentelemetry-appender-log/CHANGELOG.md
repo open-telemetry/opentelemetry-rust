@@ -2,6 +2,38 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default.
+  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.31.0.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Updated `opentelemetry` and `opentelemetry-semantic-conventions` dependencies to version 0.30.0.
+
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Similar to the `opentelemetry-appender-tracing` fix [2658](https://github.com/open-telemetry/opentelemetry-rust/issues/2658)
+  InstrumentationScope(Logger) used by the appender now uses an empty ("") named Logger.
+  Previously, a Logger with name and version of the crate was used.
+  Receivers (processors, exporters) are expected to use `LogRecord.target()` as scope name.
+  This is already done in OTLP Exporters, so this change should be transparent to most users.
+- Update `opentelemetry` dependency version to 0.29.
+- Update `opentelemetry-semantic-conventions` dependency version to 0.29.
+
 ## 0.28.0
 
 Released 2025-Feb-10

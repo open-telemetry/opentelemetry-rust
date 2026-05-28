@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.28.0"
+version = "0.32.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
@@ -15,6 +15,7 @@ keywords = ["opentelemetry", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
 
 [package.metadata.docs.rs]
 all-features = true
@@ -31,18 +32,20 @@ tracing = {workspace = true, optional = true} # optional for opentelemetry inter
 js-sys = "0.3.63"
 
 [features]
-default = ["trace", "metrics", "logs", "internal-logs"]
-trace = ["pin-project-lite", "futures-sink", "futures-core", "thiserror"]
+default = ["trace", "metrics", "logs", "internal-logs", "futures"]
+futures = ["futures-core", "futures-sink", "pin-project-lite"]
+trace = ["futures", "thiserror"]
 metrics = []
 testing = ["trace"]
 logs = []
-spec_unstable_logs_enabled = ["logs"]
 internal-logs = ["tracing"]
+experimental_metrics_bound_instruments = ["metrics"]
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk", features = ["spec_unstable_logs_enabled"]} # for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
+tokio = { version = "1.0", features = ["full"] }
 
 [[bench]]
 name = "metrics"
@@ -61,6 +64,20 @@ harness = false
 name = "context_attach"
 harness = false
 required-features = ["tracing"]
+
+[[bench]]
+name = "context_suppression"
+harness = false
+
+[[bench]]
+name = "trace"
+harness = false
+required-features = ["trace"]
+
+[[bench]]
+name = "logs"
+harness = false
+required-features = ["logs"]
 
 [[bench]]
 name = "baggage"

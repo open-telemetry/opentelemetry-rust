@@ -37,7 +37,7 @@ where
         let arg = arg_str.parse::<usize>();
 
         if arg.is_err() {
-            eprintln!("Invalid command line argument '{}' as number of threads. Make sure the value is a positive integer.", arg_str);
+            eprintln!("Invalid command line argument '{arg_str}' as number of threads. Make sure the value is a positive integer.");
             std::process::exit(1);
         }
 
@@ -46,18 +46,17 @@ where
         if arg_num > 0 {
             if arg_num > num_cpus::get() {
                 println!(
-                    "Specified {} threads which is larger than the number of logical cores ({})!",
-                    arg_num, num_threads
+                    "Specified {arg_num} threads which is larger than the number of logical cores ({num_threads})!"
                 );
             }
             num_threads = arg_num;
         } else {
-            eprintln!("Invalid command line argument {} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({}).", arg_num, num_threads);
+            eprintln!("Invalid command line argument {arg_num} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({num_threads}).");
             std::process::exit(1);
         }
     }
 
-    println!("Number of threads: {}\n", num_threads);
+    println!("Number of threads: {num_threads}\n");
     let func_arc = Arc::new(func);
     let mut worker_stats_vec: Vec<WorkerStats> = Vec::new();
 

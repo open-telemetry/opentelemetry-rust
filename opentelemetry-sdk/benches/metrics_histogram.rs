@@ -18,7 +18,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     rngs::{self},
@@ -51,7 +51,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     histogram_record(c);
 
     let attribute_values: [String; 10] = (1..=10)
-        .map(|i| format!("value{}", i))
+        .map(|i| format!("value{i}"))
         .collect::<Vec<String>>()
         .try_into()
         .expect("Expected a Vec of length 10");
@@ -143,16 +143,21 @@ fn histogram_record_with_non_static_values(c: &mut Criterion, attribute_values: 
     });
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2))
+        .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 criterion_main!(benches);

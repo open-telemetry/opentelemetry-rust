@@ -6,9 +6,16 @@ pub(crate) mod serializers {
     use crate::tonic::common::v1::any_value::{self, Value};
     use crate::tonic::common::v1::AnyValue;
     use serde::de::{self, MapAccess, Visitor};
-    use serde::ser::{SerializeMap, SerializeStruct};
+    use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
+
+    pub fn is_default<T>(value: &T) -> bool
+    where
+        T: Default + PartialEq,
+    {
+        value == &T::default()
+    }
 
     // hex string <-> bytes conversion
 
@@ -16,7 +23,7 @@ pub(crate) mod serializers {
     where
         S: Serializer,
     {
-        let hex_string = hex::encode(bytes);
+        let hex_string = const_hex::encode(bytes);
         serializer.serialize_str(&hex_string)
     }
 
@@ -37,7 +44,7 @@ pub(crate) mod serializers {
             where
                 E: de::Error,
             {
-                hex::decode(value).map_err(E::custom)
+                const_hex::decode(value).map_err(E::custom)
             }
         }
 
@@ -170,8 +177,124 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<u64>().map_err(de::Error::custom)
+        struct U64Visitor;
+
+        impl<'de> de::Visitor<'de> for U64Visitor {
+            type Value = u64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a u64 integer or a string containing a u64 integer")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                u64::try_from(value)
+                    .map_err(|_| E::custom(format!("i64 value {} is out of range for u64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<u64>().map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_any(U64Visitor)
+    }
+
+    pub fn serialize_vec_u64_to_string<S>(value: &[u64], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = value.iter().map(|v| v.to_string()).collect::<Vec<_>>();
+        let mut sq = serializer.serialize_seq(Some(s.len()))?;
+        for v in value {
+            sq.serialize_element(&v.to_string())?;
+        }
+        sq.end()
+    }
+
+    pub fn deserialize_vec_string_to_vec_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct U64ElemVisitor;
+
+        impl<'de> de::Visitor<'de> for U64ElemVisitor {
+            type Value = u64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a u64 integer or a string containing a u64 integer")
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                u64::try_from(value)
+                    .map_err(|_| E::custom(format!("i64 value {} is out of range for u64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<u64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<u64>().map_err(de::Error::custom)
+            }
+        }
+
+        struct VecU64Visitor;
+
+        impl<'de> de::Visitor<'de> for VecU64Visitor {
+            type Value = Vec<u64>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a sequence of u64 integers or strings containing u64 integers")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Vec<u64>, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(value) = seq.next_element_seed(U64ElemSeed)? {
+                    values.push(value);
+                }
+                Ok(values)
+            }
+        }
+
+        struct U64ElemSeed;
+
+        impl<'de> de::DeserializeSeed<'de> for U64ElemSeed {
+            type Value = u64;
+
+            fn deserialize<D2>(self, deserializer: D2) -> Result<u64, D2::Error>
+            where
+                D2: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(U64ElemVisitor)
+            }
+        }
+
+        deserializer.deserialize_seq(VecU64Visitor)
     }
 
     pub fn serialize_i64_to_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
@@ -186,8 +309,112 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        s.parse::<i64>().map_err(de::Error::custom)
+        struct I64Visitor;
+
+        impl<'de> de::Visitor<'de> for I64Visitor {
+            type Value = i64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an i64 integer or a string containing an i64 integer")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                i64::try_from(value)
+                    .map_err(|_| E::custom(format!("u64 value {} is out of range for i64", value)))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<i64, E>
+            where
+                E: de::Error,
+            {
+                value.parse::<i64>().map_err(de::Error::custom)
+            }
+        }
+
+        deserializer.deserialize_any(I64Visitor)
+    }
+
+    // Special serializer and deserializer for NaN, Infinity, and -Infinity
+    pub fn serialize_f64_special<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if value.is_nan() {
+            serializer.serialize_str("NaN")
+        } else if value.is_infinite() {
+            if value.is_sign_positive() {
+                serializer.serialize_str("Infinity")
+            } else {
+                serializer.serialize_str("-Infinity")
+            }
+        } else {
+            serializer.serialize_f64(*value)
+        }
+    }
+
+    pub fn deserialize_f64_special<'de, D>(deserializer: D) -> Result<f64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct F64Visitor;
+
+        impl<'de> de::Visitor<'de> for F64Visitor {
+            type Value = f64;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value)
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value as f64)
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                Ok(value as f64)
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<f64, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "NaN" => Ok(f64::NAN),
+                    "Infinity" => Ok(f64::INFINITY),
+                    "-Infinity" => Ok(f64::NEG_INFINITY),
+                    _ => value.parse::<f64>().map_err(|_| {
+                        E::custom(format!(
+                            "invalid string for f64: expected a number, NaN, Infinity, or -Infinity but got '{}'",
+                            value
+                        ))
+                    }),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(F64Visitor)
     }
 }
 
@@ -217,6 +444,13 @@ pub mod tonic {
         pub mod trace {
             #[path = "opentelemetry.proto.collector.trace.v1.rs"]
             pub mod v1;
+        }
+
+        #[cfg(feature = "profiles")]
+        #[path = ""]
+        pub mod profiles {
+            #[path = "opentelemetry.proto.collector.profiles.v1development.rs"]
+            pub mod v1development;
         }
     }
 
@@ -264,6 +498,14 @@ pub mod tonic {
     pub mod tracez {
         #[path = "opentelemetry.proto.tracez.v1.rs"]
         pub mod v1;
+    }
+
+    /// Generated types used in zpages.
+    #[cfg(feature = "profiles")]
+    #[path = ""]
+    pub mod profiles {
+        #[path = "opentelemetry.proto.profiles.v1development.rs"]
+        pub mod v1development;
     }
 
     pub use crate::transform::common::tonic::Attributes;

@@ -1,5 +1,4 @@
 use opentelemetry::global;
-use opentelemetry::Key;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
 use opentelemetry_sdk::Resource;
@@ -8,11 +7,13 @@ use std::error::Error;
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     // for example 1
     let my_view_rename_and_unit = |i: &Instrument| {
-        if i.name == "my_histogram" {
+        if i.name() == "my_histogram" {
             Some(
-                Stream::new()
-                    .name("my_histogram_renamed")
-                    .unit("milliseconds"),
+                Stream::builder()
+                    .with_name("my_histogram_renamed")
+                    .with_unit("milliseconds")
+                    .build()
+                    .unwrap(),
             )
         } else {
             None
@@ -20,23 +21,43 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
     };
 
     // for example 2
-    let my_view_drop_attributes = |i: &Instrument| {
-        if i.name == "my_counter" {
-            Some(Stream::new().allowed_attribute_keys(vec![Key::from("mykey1")]))
+    let my_view_change_cardinality = |i: &Instrument| {
+        if i.name() == "my_second_histogram" {
+            // Note: If Stream is invalid, build() will return an error. By
+            // calling `.ok()`, any such error is ignored and treated as if the
+            // view does not match the instrument. If this is not the desired
+            // behavior, consider handling the error explicitly.
+            Stream::builder().with_cardinality_limit(2).build().ok()
         } else {
             None
         }
     };
 
     // for example 3
+    // Unlike a regular OpenTelemetry histogram with fixed buckets, which can be
+    // specified explicitly, an exponential histogram calculates bucket widths
+    // automatically, growing them exponentially. The configuration is
+    // controlled by two parameters: max_size defines the maximum number of
+    // buckets, while max_scale adjusts the resolution, with higher values
+    // providing greater precision.
+    // If the minimum and maximum values are known in advance, a regular
+    // histogram is often the better choice. However, if the range of values is
+    // unpredictable e.g. may include extreme outliers, an exponential histogram
+    // is more suitable. A example is measuring packet round-trip time in a
+    // WLAN: while most packets return in milliseconds, some may occasionally
+    // take hundreds of milliseconds or even seconds.
+    // Details are in:
+    // https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram
     let my_view_change_aggregation = |i: &Instrument| {
-        if i.name == "my_second_histogram" {
-            Some(
-                Stream::new().aggregation(Aggregation::ExplicitBucketHistogram {
-                    boundaries: vec![0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
-                    record_min_max: false,
-                }),
-            )
+        if i.name() == "my_third_histogram" {
+            Stream::builder()
+                .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                    max_size: 10,
+                    max_scale: 5,
+                    record_min_max: true,
+                })
+                .build()
+                .ok()
         } else {
             None
         }
@@ -55,7 +76,7 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_periodic_exporter(exporter)
         .with_resource(resource)
         .with_view(my_view_rename_and_unit)
-        .with_view(my_view_drop_attributes)
+        .with_view(my_view_change_cardinality)
         .with_view(my_view_change_aggregation)
         .build();
     global::set_meter_provider(provider.clone());
@@ -88,69 +109,60 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         ],
     );
 
-    // Example 2 - Drop unwanted attributes using view.
-    let counter = meter.u64_counter("my_counter").build();
-
-    // Record measurements using the Counter instrument.
-    // Though we are passing 4 attributes here, only 1 will be used
-    // for aggregation as view is configured to use only "mykey1"
-    // attribute.
-    counter.add(
-        10,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
-        ],
-    );
-
-    // Example 3 - Change Aggregation configuration using View.
-    // Histograms are by default aggregated using ExplicitBucketHistogram
-    // with default buckets. The configured view will change the aggregation to
-    // use a custom set of boundaries, and min/max values will not be recorded.
+    // Example 2 - Change cardinality using View.
     let histogram2 = meter
         .f64_histogram("my_second_histogram")
         .with_unit("ms")
         .with_description("My histogram example description")
         .build();
 
-    // Record measurements using the histogram instrument.
-    // The values recorded are in the range of 1.2 to 1.5, warranting
-    // the change of boundaries.
-    histogram2.record(
-        1.5,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
-        ],
-    );
+    // Record measurements using the histogram instrument. This metric will have
+    // a cardinality limit of 2, as set in the view. Because of this, only the
+    // first two distinct attribute combinations will be recorded, and the rest
+    // will be folded into the overflow attribute. Any number of measurements
+    // can be recorded as long as they use the same or already-seen attribute
+    // combinations.
+    histogram2.record(1.5, &[KeyValue::new("mykey1", "v1")]);
+    histogram2.record(1.2, &[KeyValue::new("mykey1", "v2")]);
 
-    histogram2.record(
-        1.2,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
-        ],
-    );
+    // Repeatedly emitting measurements for "v1" and "v2" will not
+    // trigger overflow, as they are already seen attribute combinations.
+    histogram2.record(1.7, &[KeyValue::new("mykey1", "v1")]);
+    histogram2.record(1.8, &[KeyValue::new("mykey1", "v2")]);
 
-    histogram2.record(
-        1.23,
-        &[
-            KeyValue::new("mykey1", "myvalue1"),
-            KeyValue::new("mykey2", "myvalue2"),
-            KeyValue::new("mykey3", "myvalue3"),
-            KeyValue::new("mykey4", "myvalue4"),
-        ],
-    );
+    // Emitting measurements for new attribute combinations will trigger
+    // overflow, as the cardinality limit of 2 has been reached.
+    // All the below measurements will be folded into the overflow attribute.
+    histogram2.record(1.23, &[KeyValue::new("mykey1", "v3")]);
 
-    // Metrics are exported by default every 30 seconds when using stdout exporter,
+    histogram2.record(1.4, &[KeyValue::new("mykey1", "v4")]);
+
+    histogram2.record(1.6, &[KeyValue::new("mykey1", "v5")]);
+
+    histogram2.record(1.7, &[KeyValue::new("mykey1", "v6")]);
+
+    histogram2.record(1.8, &[KeyValue::new("mykey1", "v7")]);
+
+    // Example 3 - Use exponential histogram.
+    let histogram3 = meter
+        .f64_histogram("my_third_histogram")
+        .with_description("My histogram example description")
+        .build();
+    histogram3.record(-1.3, &[KeyValue::new("mykey1", "v1")]);
+    histogram3.record(-5.5, &[KeyValue::new("mykey1", "v1")]);
+    // is intentionally at the boundary of bucket
+    histogram3.record(-4.0, &[KeyValue::new("mykey1", "v1")]);
+    histogram3.record(16.0, &[KeyValue::new("mykey1", "v1")]);
+    // Internally the exponential histogram puts values either into a list of
+    // negative buckets or a list of positive buckets. Based on the values which
+    // are added the buckets are adjusted automatically. E.g. depending if the
+    // next record is commented/uncommented, then exponential histogram will
+    // have a different scale.
+    histogram3.record(0.4, &[KeyValue::new("mykey1", "v1")]);
+
+    // Metrics are exported by default every 60 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes
-    // the metrics, instead of waiting for the 30 sec interval.
+    // the metrics, instead of waiting for the 60 sec interval.
     meter_provider.shutdown()?;
     Ok(())
 }

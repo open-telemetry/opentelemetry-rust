@@ -12,6 +12,8 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/profiles/v1development/profiles.proto",
+    "src/proto/opentelemetry-proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
@@ -23,7 +25,7 @@ fn build_tonic() {
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
     // build the generated files into OUT_DIR for now so we don't have to touch the src unless we have to
-    let mut builder = tonic_build::configure()
+    let mut builder = tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
@@ -66,6 +68,8 @@ fn build_tonic() {
         "metrics.v1.Summary",
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
+        "metrics.v1.SummaryDataPoint",
+        "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
             path,
@@ -87,28 +91,97 @@ fn build_tonic() {
         "logs.v1.LogRecord.trace_id",
         "metrics.v1.Exemplar.span_id",
         "metrics.v1.Exemplar.trace_id",
+        "profiles.v1development.Profile.profile_id",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
     }
 
+    // key_strindex is a profiling-only reference field added to common.v1.KeyValue.
+    // For non-profiles signals we keep the existing JSON shape by defaulting it on input
+    // and omitting it from output when it is zero.
+    builder = builder.field_attribute(
+        "common.v1.KeyValue.key_strindex",
+        "#[cfg_attr(feature = \"with-serde\", serde(default, skip_serializing_if = \"crate::proto::serializers::is_default\"))]",
+    );
+
     // special serializer and deserializer for timestamp
-    // OTLP/JSON format may uses string for timestamp
+    // OTLP/JSON format may use string for timestamp
     // the proto file uses u64 for timestamp
     // Thus, special serializer and deserializer are needed
     for path in [
+        //trace
         "trace.v1.Span.start_time_unix_nano",
         "trace.v1.Span.end_time_unix_nano",
         "trace.v1.Span.Event.time_unix_nano",
+        //logs
         "logs.v1.LogRecord.time_unix_nano",
         "logs.v1.LogRecord.observed_time_unix_nano",
+        //metrics
         "metrics.v1.HistogramDataPoint.start_time_unix_nano",
         "metrics.v1.HistogramDataPoint.time_unix_nano",
         "metrics.v1.NumberDataPoint.start_time_unix_nano",
         "metrics.v1.NumberDataPoint.time_unix_nano",
+        "metrics.v1.ExponentialHistogramDataPoint.start_time_unix_nano",
+        "metrics.v1.ExponentialHistogramDataPoint.time_unix_nano",
+        "metrics.v1.SummaryDataPoint.start_time_unix_nano",
+        "metrics.v1.SummaryDataPoint.time_unix_nano",
+        "metrics.v1.Exemplar.time_unix_nano",
     ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
+    }
+    for path in ["profiles.v1development.Profile.time_nanos"] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
+    }
+    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
+        builder = builder
+            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
+    }
+
+    // special serializer and deserializer for metrics count
+    // OTLP/JSON format may use string for count
+    // the proto file uses u64 for count
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        // metrics count and bucket fields
+        "metrics.v1.HistogramDataPoint.count",
+        "metrics.v1.ExponentialHistogramDataPoint.count",
+        "metrics.v1.ExponentialHistogramDataPoint.zero_count",
+        "metrics.v1.SummaryDataPoint.count",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]",
+        );
+    }
+
+    // special serializer and deserializer for metrics bucket counts
+    // OTLP/JSON format may use string for bucket counts
+    // the proto file uses u64 for bucket counts
+    // Thus, special serializer and deserializer are needed
+    for path in [
+        "metrics.v1.HistogramDataPoint.bucket_counts",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
+        );
+    }
+
+    // Special handling for floating-point fields that might contain NaN, Infinity, or -Infinity
+    // TODO: More needs to be added here as we find more fields that need this special handling
+    for path in [
+        // metrics
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.value",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
+    ] {
+        builder = builder.field_attribute(
+            path,
+            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
+        );
     }
 
     // special serializer and deserializer for value

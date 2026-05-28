@@ -9,15 +9,19 @@ cargo_feature() {
     -Dwarnings
 }
 
-if rustup component add clippy; then
+if rustup component add clippy && \
+  ((cargo --list | grep -q hack) || cargo install cargo-hack); then
   # Exit with a nonzero code if there are clippy warnings
   cargo clippy --workspace --all-targets --all-features -- -Dwarnings
+
+  # Run through all the features one by one and exit if there are clippy warnings
+  cargo hack --each-feature --no-dev-deps clippy -- -Dwarnings
 
   # `opentelemetry-prometheus` doesn't belong to the workspace
   cargo clippy --manifest-path=opentelemetry-prometheus/Cargo.toml --all-targets --all-features -- \
     -Dwarnings
 
-  cargo_feature opentelemetry "trace,metrics,logs,spec_unstable_logs_enabled,testing"
+  cargo_feature opentelemetry "trace,metrics,logs,testing"
 
   cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"

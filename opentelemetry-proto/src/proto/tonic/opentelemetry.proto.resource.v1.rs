@@ -9,10 +9,18 @@ pub struct Resource {
     /// Set of attributes that describe the resource.
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
+    /// The behavior of software that receives duplicated keys can be unpredictable.
     #[prost(message, repeated, tag = "1")]
     pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
-    /// dropped_attributes_count is the number of dropped attributes. If the value is 0, then
+    /// The number of dropped attributes. If the value is 0, then
     /// no attributes were dropped.
     #[prost(uint32, tag = "2")]
     pub dropped_attributes_count: u32,
+    /// Set of entities that participate in this Resource.
+    ///
+    /// Note: keys in the references MUST exist in attributes of this message.
+    ///
+    /// Status: \[Development\]
+    #[prost(message, repeated, tag = "3")]
+    pub entity_refs: ::prost::alloc::vec::Vec<super::super::common::v1::EntityRef>,
 }

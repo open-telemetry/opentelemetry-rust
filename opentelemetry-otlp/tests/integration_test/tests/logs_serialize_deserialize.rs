@@ -37,7 +37,7 @@ pub async fn test_logs() -> Result<()> {
         info!(target: "my-target", "hello from {}. My price is {}.", "banana", 2.99);
     }
 
-    let _ = logger_provider.shutdown();
+    logger_provider.shutdown().unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     assert_logs_results(test_utils::LOGS_FILE, "expected/logs.json")?;
     Ok(())

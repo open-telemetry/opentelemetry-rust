@@ -1,12 +1,13 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
     global::{self, BoxedTracer},
     InstrumentationScope, KeyValue,
 };
 use opentelemetry_sdk::trace as sdktrace;
+use std::hint::black_box;
 use std::sync::OnceLock;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 
 /*
@@ -83,17 +84,20 @@ fn criterion_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+                               .warm_up_time(std::time::Duration::from_secs(1))
+                               .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default().warm_up_time(std::time::Duration::from_secs(1))
+                               .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
 

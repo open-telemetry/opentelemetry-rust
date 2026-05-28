@@ -1,0 +1,3 @@
+[resolver]
+# https://doc.rust-lang.org/cargo/reference/config.html#resolverincompatible-rust-versions
+incompatible-rust-versions = "fallback"

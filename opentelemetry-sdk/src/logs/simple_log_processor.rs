@@ -23,11 +23,12 @@ use crate::{
     Resource,
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::time::Duration;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -47,6 +48,8 @@ use std::sync::Mutex;
 /// ### Using a SimpleLogProcessor
 ///
 /// ```rust
+/// # #[cfg(feature = "testing")]
+/// # {
 /// use opentelemetry_sdk::logs::{SimpleLogProcessor, SdkLoggerProvider, LogExporter};
 /// use opentelemetry::global;
 /// use opentelemetry_sdk::logs::InMemoryLogExporter;
@@ -55,7 +58,7 @@ use std::sync::Mutex;
 /// let provider = SdkLoggerProvider::builder()
 ///     .with_simple_exporter(exporter)
 ///     .build();
-///
+/// # }
 /// ```
 ///
 #[derive(Debug)]
@@ -65,7 +68,8 @@ pub struct SimpleLogProcessor<T: LogExporter> {
 }
 
 impl<T: LogExporter> SimpleLogProcessor<T> {
-    pub(crate) fn new(exporter: T) -> Self {
+    /// Creates a new instance of `SimpleLogProcessor`.
+    pub fn new(exporter: T) -> Self {
         SimpleLogProcessor {
             exporter: Mutex::new(exporter),
             is_shutdown: AtomicBool::new(false),
@@ -75,6 +79,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         // noop after shutdown
         if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
             // this is a warning, as the user is trying to log after the processor has been shutdown
@@ -114,11 +119,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut exporter) = self.exporter.lock() {
-            exporter.shutdown()
+        if let Ok(exporter) = self.exporter.lock() {
+            exporter.shutdown_with_timeout(timeout)
         } else {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
@@ -126,9 +131,23 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         }
     }
 
-    fn set_resource(&self, resource: &Resource) {
+    fn set_resource(&mut self, resource: &Resource) {
         if let Ok(mut exporter) = self.exporter.lock() {
             exporter.set_resource(resource);
+        }
+    }
+
+    #[inline]
+    fn event_enabled(
+        &self,
+        level: opentelemetry::logs::Severity,
+        target: &str,
+        name: Option<&str>,
+    ) -> bool {
+        if let Ok(exporter) = self.exporter.lock() {
+            exporter.event_enabled(level, target, name)
+        } else {
+            true
         }
     }
 }
@@ -136,16 +155,18 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use crate::logs::log_processor::tests::MockLogExporter;
-    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLogger};
     use crate::{
         error::OTelSdkResult,
         logs::{InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor},
         Resource,
     };
+    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
+    use std::time;
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -175,6 +196,9 @@ mod tests {
             for _ in batch.iter() {
                 self.export_count.fetch_add(1, Ordering::Acquire);
             }
+            Ok(())
+        }
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -318,8 +342,7 @@ mod tests {
         assert!(
             panic_message.contains("no reactor running")
                 || panic_message.contains("must be called from the context of a Tokio 1.x runtime"),
-            "Expected panic message about missing Tokio runtime, but got: {}",
-            panic_message
+            "Expected panic message about missing Tokio runtime, but got: {panic_message}"
         );
     }
 
@@ -421,5 +444,53 @@ mod tests {
         processor.emit(&mut record, &instrumentation);
 
         assert_eq!(exporter.len(), 1);
+    }
+
+    #[derive(Debug, Clone)]
+    struct ReentrantLogExporter {
+        logger: Arc<Mutex<Option<SdkLogger>>>,
+    }
+
+    impl ReentrantLogExporter {
+        fn new() -> Self {
+            Self {
+                logger: Arc::new(Mutex::new(None)),
+            }
+        }
+
+        fn set_logger(&self, logger: SdkLogger) {
+            let mut guard = self.logger.lock().unwrap();
+            *guard = Some(logger);
+        }
+    }
+
+    impl LogExporter for ReentrantLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            let logger = self.logger.lock().unwrap();
+            if let Some(logger) = logger.as_ref() {
+                let mut log_record = logger.create_log_record();
+                log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+                logger.emit(log_record);
+            }
+
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn exporter_internal_log_does_not_deadlock_with_simple_processor() {
+        // This tests that even when exporter produces logs while
+        // exporting, it does not deadlock, as SimpleLogProcessor
+        // activates SuppressGuard before calling the exporter.
+        let exporter: ReentrantLogExporter = ReentrantLogExporter::new();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        exporter.set_logger(logger_provider.logger("processor-logger"));
+
+        let logger = logger_provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.set_severity_number(opentelemetry::logs::Severity::Error);
+        logger.emit(log_record);
     }
 }

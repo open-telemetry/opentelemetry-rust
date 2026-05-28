@@ -20,7 +20,7 @@ fn get_resource() -> Resource {
     RESOURCE
         .get_or_init(|| {
             Resource::builder()
-                .with_service_name("basic-otlp-example-grpc")
+                .with_service_name("basic-otlp-example-http")
                 .build()
         })
         .clone()
@@ -67,24 +67,47 @@ fn init_metrics() -> SdkMeterProvider {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    // Setup MeterProvider first so that SDK components (e.g., BatchLogProcessor)
+    // that obtain a Meter from the global MeterProvider during their
+    // initialization will get a functional meter for self-diagnostics.
+    // A temporary thread-local fmt subscriber is used to capture any logs
+    // emitted during MeterProvider initialization to stdout.
+    //
+    // Set the global meter provider using a clone of the meter_provider.
+    // Setting global meter provider is required if other parts of the application
+    // uses global::meter() or global::meter_with_version() to get a meter.
+    // Cloning simply creates a new reference to the same meter provider. It is
+    // important to hold on to the meter_provider here, so as to invoke
+    // shutdown on it when application ends.
+    let meter_provider = {
+        let _guard = tracing::subscriber::set_default(
+            tracing_subscriber::fmt().with_env_filter("info").finish(),
+        );
+        let meter_provider = init_metrics();
+        global::set_meter_provider(meter_provider.clone());
+        meter_provider
+    };
+
     let logger_provider = init_logs();
 
     // Create a new OpenTelemetryTracingBridge using the above LoggerProvider.
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
-    // For the OpenTelemetry layer, add a tracing filter to filter events from
-    // OpenTelemetry and its dependent crates (opentelemetry-otlp uses crates
-    // like reqwest/tonic etc.) from being sent back to OTel itself, thus
-    // preventing infinite telemetry generation. The filter levels are set as
-    // follows:
+    // To prevent a telemetry-induced-telemetry loop, OpenTelemetry's own internal
+    // logging is properly suppressed. However, logs emitted by external components
+    // (such as reqwest, tonic, etc.) are not suppressed as they do not propagate
+    // OpenTelemetry context. Until this issue is addressed
+    // (https://github.com/open-telemetry/opentelemetry-rust/issues/2877),
+    // filtering like this is the best way to suppress such logs.
+    //
+    // The filter levels are set as follows:
     // - Allow `info` level and above by default.
-    // - Restrict `opentelemetry`, `hyper`, `tonic`, and `reqwest` completely.
-    // Note: This will also drop events from crates like `tonic` etc. even when
-    // they are used outside the OTLP Exporter. For more details, see:
-    // https://github.com/open-telemetry/opentelemetry-rust/issues/761
+    // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
+    //
+    // Note: This filtering will also drop logs from these components even when
+    // they are used outside of the OTLP Exporter.
     let filter_otel = EnvFilter::new("info")
         .add_directive("hyper=off".parse().unwrap())
-        .add_directive("opentelemetry=off".parse().unwrap())
         .add_directive("tonic=off".parse().unwrap())
         .add_directive("h2=off".parse().unwrap())
         .add_directive("reqwest=off".parse().unwrap());
@@ -116,15 +139,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // important to hold on to the tracer_provider here, so as to invoke
     // shutdown on it when application ends.
     global::set_tracer_provider(tracer_provider.clone());
-
-    let meter_provider = init_metrics();
-    // Set the global meter provider using a clone of the meter_provider.
-    // Setting global meter provider is required if other parts of the application
-    // uses global::meter() or global::meter_with_version() to get a meter.
-    // Cloning simply creates a new reference to the same meter provider. It is
-    // important to hold on to the meter_provider here, so as to invoke
-    // shutdown on it when application ends.
-    global::set_meter_provider(meter_provider.clone());
 
     let common_scope_attributes = vec![KeyValue::new("scope-key", "scope-value")];
     let scope = InstrumentationScope::builder("basic")
@@ -164,9 +178,30 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
     info!(target: "my-target", "hello from {}. My price is {}", "apple", 1.99);
 
-    tracer_provider.shutdown()?;
-    meter_provider.shutdown()?;
-    logger_provider.shutdown()?;
+    // Collect all shutdown errors.
+    // Shutdown order: tracer first, then logger, then meter.
+    // MeterProvider is shut down last because the LoggerProvider's
+    // BatchLogProcessor may emit self-diagnostic metrics during its shutdown.
+    let mut shutdown_errors = Vec::new();
+    if let Err(e) = tracer_provider.shutdown() {
+        shutdown_errors.push(format!("tracer provider: {e}"));
+    }
 
+    if let Err(e) = logger_provider.shutdown() {
+        shutdown_errors.push(format!("logger provider: {e}"));
+    }
+
+    if let Err(e) = meter_provider.shutdown() {
+        shutdown_errors.push(format!("meter provider: {e}"));
+    }
+
+    // Return an error if any shutdown failed
+    if !shutdown_errors.is_empty() {
+        return Err(format!(
+            "Failed to shutdown providers:{}",
+            shutdown_errors.join("\n")
+        )
+        .into());
+    }
     Ok(())
 }

@@ -26,10 +26,10 @@ pub(crate) fn get_unit_suffixes(unit: &str) -> Option<Cow<'static, str>> {
             get_prom_per_unit(second),
         ) {
             (true, _, Some(second_part)) | (false, None, Some(second_part)) => {
-                Some(Cow::Owned(format!("per_{}", second_part)))
+                Some(Cow::Owned(format!("per_{second_part}")))
             }
             (false, Some(first_part), Some(second_part)) => {
-                Some(Cow::Owned(format!("{}_per_{}", first_part, second_part)))
+                Some(Cow::Owned(format!("{first_part}_per_{second_part}")))
             }
             _ => None,
         };

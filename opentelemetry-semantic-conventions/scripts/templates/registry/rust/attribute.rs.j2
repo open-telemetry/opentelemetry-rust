@@ -18,7 +18,7 @@
 #[cfg(feature = "semconv_experimental")]
         {% endif %}
         {% if attr is deprecated %}
-#[deprecated(note="{{ attr.deprecated.strip(" \n\"") }}")]
+#[deprecated(note="{{ attr.deprecated | replace('\n', ' ') | replace('"', '') | trim }}")]
         {% endif %}
 pub const {{ attr.name | screaming_snake_case }}: &str = "{{ attr.name }}";
 

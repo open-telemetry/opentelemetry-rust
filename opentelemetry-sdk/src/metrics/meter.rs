@@ -12,32 +12,32 @@ use opentelemetry::{
 };
 
 use crate::metrics::{
+    error::{MetricError, MetricResult},
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
     pipeline::{Pipelines, Resolver},
-    MetricError, MetricResult,
 };
 
 use super::noop::NoopSyncInstrument;
 
 // maximum length of instrument name
-const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
+pub(crate) const INSTRUMENT_NAME_MAX_LENGTH: usize = 255;
 // maximum length of instrument unit name
-const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
+pub(crate) const INSTRUMENT_UNIT_NAME_MAX_LENGTH: usize = 63;
 // Characters allowed in instrument name
-const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
+pub(crate) const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_', '.', '-', '/'];
 
-// instrument name validation error strings
-const INSTRUMENT_NAME_EMPTY: &str = "instrument name must be non-empty";
-const INSTRUMENT_NAME_LENGTH: &str = "instrument name must be less than 256 characters";
-const INSTRUMENT_NAME_INVALID_CHAR: &str =
-    "characters in instrument name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
-const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
-    "instrument name must start with an alphabetic character";
+// name validation error strings
+pub(crate) const INSTRUMENT_NAME_EMPTY: &str = "name must be non-empty";
+pub(crate) const INSTRUMENT_NAME_LENGTH: &str = "name must be less than 256 characters";
+pub(crate) const INSTRUMENT_NAME_INVALID_CHAR: &str =
+    "characters in name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
+pub(crate) const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
+    "name must start with an alphabetic character";
 
-// instrument unit validation error strings
-const INSTRUMENT_UNIT_LENGTH: &str = "instrument unit must be less than 64 characters";
-const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in instrument unit must be ASCII";
+// unit validation error strings
+pub(crate) const INSTRUMENT_UNIT_LENGTH: &str = "unit must be less than 64 characters";
+pub(crate) const INSTRUMENT_UNIT_INVALID_CHAR: &str = "characters in unit must be ASCII";
 
 /// Handles the creation and coordination of all metric instruments.
 ///
@@ -402,8 +402,6 @@ impl SdkMeter {
             let validation_result = validate_bucket_boundaries(boundaries);
             if let Err(err) = validation_result {
                 // TODO: Include the buckets too in the error message.
-                // TODO: This validation is not done when Views are used to
-                // provide boundaries, and that should be fixed.
                 otel_error!(
                     name: "InstrumentCreationFailed",
                     meter_name = self.scope.name(),
@@ -673,7 +671,7 @@ where
             name,
             description: description.unwrap_or_default(),
             unit: unit.unwrap_or_default(),
-            kind: Some(kind),
+            kind,
             scope: self.meter.scope.clone(),
         };
 
@@ -686,7 +684,7 @@ where
 mod tests {
     use std::borrow::Cow;
 
-    use crate::metrics::MetricError;
+    use crate::metrics::error::MetricError;
 
     use super::{
         validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,

@@ -1,5 +1,9 @@
 //! # OpenTelemetry Zipkin
 //!
+//! **⚠️ This crate is deprecated.** Use the [OTLP exporter](https://crates.io/crates/opentelemetry-otlp)
+//! instead. Zipkin supports [native OTLP ingestion](https://zipkin.io/pages/architecture.html).
+//! This crate will be removed in a future release.
+//!
 //! Collects OpenTelemetry spans and reports them to a given Zipkin collector
 //! endpoint. See the [Zipkin Docs] for details and deployment information.
 //!
@@ -23,10 +27,10 @@
 //! ```no_run
 //! use opentelemetry::global;
 //! use opentelemetry::trace::Tracer;
-//! use opentelemetry_sdk::{trace::{SdkTracerProvider, TraceError}, Resource};
-//! use opentelemetry_zipkin::ZipkinExporter;
+//! use opentelemetry_sdk::{trace::SdkTracerProvider, Resource};
+//! use opentelemetry_zipkin::{ExporterBuildError,ZipkinExporter};
 //!
-//! fn main() -> Result<(), TraceError> {
+//! fn main() -> Result<(), ExporterBuildError> {
 //!     global::set_text_map_propagator(opentelemetry_zipkin::Propagator::new());
 //!
 //!     let exporter = ZipkinExporter::builder()
@@ -68,9 +72,9 @@
 //!     },
 //!     Resource,
 //! };
-//! use opentelemetry_zipkin::ZipkinExporter;
+//! use opentelemetry_zipkin::{ExporterBuildError,ZipkinExporter};
 //!
-//! fn main() -> Result<(), opentelemetry_sdk::trace::TraceError> {
+//! fn main() -> Result<(), ExporterBuildError> {
 //!     let exporter = ZipkinExporter::builder()
 //!         .build()?;
 //!
@@ -114,9 +118,9 @@
 //!
 //! ```no_run
 //! use opentelemetry::{global, InstrumentationScope, KeyValue, trace::Tracer};
-//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler, TraceError}, Resource};
+//! use opentelemetry_sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
 //! use opentelemetry_http::{HttpClient, HttpError};
-//! use opentelemetry_zipkin::{Error as ZipkinError, ZipkinExporter};
+//! use opentelemetry_zipkin::{ExporterBuildError, ZipkinExporter};
 //! use async_trait::async_trait;
 //! use bytes::Bytes;
 //! use futures_util::io::AsyncReadExt as _;
@@ -157,7 +161,7 @@
 //!     }
 //! }
 //!
-//! fn init_traces() -> Result<trace::SdkTracerProvider, TraceError> {
+//! fn init_traces() -> Result<trace::SdkTracerProvider, ExporterBuildError> {
 //!     let exporter = ZipkinExporter::builder()
 //!         .with_http_client(
 //!             HyperClient(
@@ -168,7 +172,7 @@
 //!         .with_service_address(
 //!             "127.0.0.1:8080"
 //!                 .parse()
-//!                 .map_err::<ZipkinError, _>(Into::into)?
+//!                 .map_err::<ExporterBuildError, _>(Into::into)?
 //!         )
 //!         .with_collector_endpoint("http://localhost:9411/api/v2/spans")
 //!         .build()?;
@@ -232,6 +236,11 @@
 //! increased past 1.46, three minor versions prior. Increasing the minimum
 //! supported compiler version is not considered a semver breaking change as
 //! long as doing so complies with this policy.
+#![deprecated(
+    since = "0.32.0",
+    note = "Zipkin exporter is deprecated. Use the OTLP exporter instead. Refer to https://zipkin.io/pages/architecture.html for Zipkin's native OTLP support."
+)]
+#![allow(deprecated)]
 #![warn(
     future_incompatible,
     missing_debug_implementations,
@@ -241,11 +250,7 @@
     unreachable_pub,
     unused
 )]
-#![cfg_attr(
-    docsrs,
-    feature(doc_cfg, doc_auto_cfg),
-    deny(rustdoc::broken_intra_doc_links)
-)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
@@ -257,5 +262,5 @@ extern crate typed_builder;
 mod exporter;
 mod propagator;
 
-pub use exporter::{Error, ZipkinExporter, ZipkinExporterBuilder};
+pub use exporter::{ExporterBuildError, ZipkinExporter, ZipkinExporterBuilder};
 pub use propagator::{B3Encoding, Propagator};

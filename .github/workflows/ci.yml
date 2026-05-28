@@ -1,8 +1,11 @@
 name: CI
 env:
   CI: true
+permissions:
+  contents: read
 on:
   pull_request:
+  merge_group:
   push:
     branches:
     - main
@@ -25,27 +28,25 @@ jobs:
           - rust: stable
             os: macos-latest
           - rust: stable
-            os: ubuntu-22.04-arm
+            os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.rust == 'beta' }}
     steps:
-    - name: Free disk space
-      if: ${{ matrix.os == 'ubuntu-latest'}}
-      run: |
-        df -h
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /usr/share/dotnet
-        df -h
-    - uses: actions/checkout@v4
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: true
-    - uses: dtolnay/rust-toolchain@master
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
       with:
         toolchain: ${{ matrix.rust }}
         components: rustfmt
     - name: "Set rustup profile"
       run: rustup set profile minimal
-    - uses: arduino/setup-protoc@v3
+    - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
@@ -53,73 +54,124 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: true
-    - uses: dtolnay/rust-toolchain@stable
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
       with:
-        components: rustfmt
-    - uses: arduino/setup-protoc@v3
+        toolchain: stable
+        components: rustfmt, clippy
+    - uses: taiki-e/install-action@51cd0b8c0499559d9a4d75c0f5c67bec3a894ec8 # v2.75.28
+      with:
+          tool: cargo-hack
+    - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --all -- --check
+    - name: Format
+      run: cargo fmt --all -- --check
     - name: Lint
       run: bash ./scripts/lint.sh
   external-types:
     strategy:
       matrix:
-        example: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
+        member: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
     runs-on: ubuntu-latest # TODO: Check if this could be covered for Windows. The step used currently fails on Windows.
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
-          toolchain: nightly-2024-06-30
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          # Rust version should be kept in sync with the one the release was tested with
+          # https://github.com/awslabs/cargo-check-external-types/releases
+          toolchain: nightly-2025-05-04
           components: rustfmt
+      - uses: taiki-e/install-action@51cd0b8c0499559d9a4d75c0f5c67bec3a894ec8 # v2.75.28
+        with:
+          tool: cargo-check-external-types@0.2.0
       - name: external-type-check
-        run: |
-          cargo install cargo-check-external-types@0.1.13
-          cd ${{ matrix.example }}
-          cargo check-external-types --config allowed-external-types.toml
+        working-directory: ${{ matrix.member }}
+        run: cargo check-external-types --all-features --config allowed-external-types.toml
   msrv:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
-        rust: [1.75.0]
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: true
-      - name: Set up Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
-          toolchain: ${{ matrix.rust }}
-      - name: Patch dependencies versions
-        run: bash ./scripts/patch_dependencies.sh
+          toolchain: stable
+      - uses: taiki-e/install-action@51cd0b8c0499559d9a4d75c0f5c67bec3a894ec8 # v2.75.28
+        with:
+          tool: cargo-msrv
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check MSRV for all crates
-        run: bash ./scripts/msrv.sh ${{ matrix.rust }}
+        run: bash ./scripts/msrv.sh
   cargo-deny:
     runs-on: ubuntu-latest # This uses the step `EmbarkStudios/cargo-deny-action@v1` which is only supported on Linux
     continue-on-error: true # Prevent sudden announcement of a new advisory from failing ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check advisories
+        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2.0.15
         with:
           command: check advisories
+
+      - name: Check licenses
+        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2.0.15
+        with:
+          command: check licenses
+
+      - name: Check bans
+        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2.0.15
+        with:
+          command: check bans
+
+      - name: Check sources
+        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2.0.15
+        with:
+          command: check sources
+
   docs:
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: stable
           components: rustfmt
-      - uses: arduino/setup-protoc@v3
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
             repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: doc
@@ -132,26 +184,75 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ ! contains(github.event.pull_request.labels.*.name, 'dependencies') }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: stable
           components: rustfmt,llvm-tools-preview
-      - uses: arduino/setup-protoc@v3
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@51cd0b8c0499559d9a4d75c0f5c67bec3a894ec8 # v2.75.28
+        with:
+          tool: cargo-llvm-cov
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --workspace --lcov --lib --output-path lcov.info
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           fail_ci_if_error: true
+  build-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build examples
+        run: |
+          for example in examples/*; do
+            if [ -d "$example" ]; then
+              echo "Building $example"
+              cargo build
+            fi
+          done
+  cargo-shear:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: nightly
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: taiki-e/install-action@51cd0b8c0499559d9a4d75c0f5c67bec3a894ec8 # v2.75.28
+        with:
+          tool: cargo-shear
+      - name: cargo shear
+        run: cargo shear --expand

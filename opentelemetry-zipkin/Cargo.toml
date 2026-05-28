@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-zipkin"
-version = "0.28.0"
+version = "0.32.0"
 description = "Zipkin exporter for OpenTelemetry"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-zipkin"
@@ -14,6 +14,10 @@ keywords = ["opentelemetry", "zipkin", "tracing", "async"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
+autobenches = false
+
+[badges]
+maintenance = { status = "deprecated" }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -21,22 +25,21 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["reqwest-blocking-client", "reqwest/native-tls"]
-reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest"]
-reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-reqwest-rustls = ["reqwest", "reqwest/rustls-tls-native-roots"]
+reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-blocking"]
+reqwest-client = ["dep:reqwest", "opentelemetry-http/reqwest"]
+reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 
 [dependencies]
 once_cell = { workspace = true }
-opentelemetry = { version = "0.28", path = "../opentelemetry" }
-opentelemetry_sdk = { version = "0.28", path = "../opentelemetry-sdk", features = ["trace"] }
-opentelemetry-http = { version = "0.28", path = "../opentelemetry-http" }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true, features = ["trace"] }
+opentelemetry-http = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 typed-builder = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true, optional = true }
 thiserror = { workspace = true }
-futures-core = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
@@ -44,8 +47,11 @@ bytes = { workspace = true }
 futures-util = { workspace = true, features = ["io"] }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "tokio"] }
-opentelemetry_sdk = { default-features = false, features = ["trace", "testing"], path = "../opentelemetry-sdk" }
+opentelemetry_sdk = { workspace = true, features = ["trace", "testing"] }
 temp-env = { workspace = true }
 
 [lints]
 workspace = true
+
+[lib]
+bench = false

@@ -1,11 +1,14 @@
-use super::{SdkLogRecord, SdkLoggerProvider, TraceContext};
-use opentelemetry::{trace::TraceContextExt, Context, InstrumentationScope};
+#[cfg(feature = "trace")]
+use super::TraceContext;
+use super::{SdkLogRecord, SdkLoggerProvider};
+#[cfg(feature = "trace")]
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry::{Context, InstrumentationScope};
 
-#[cfg(feature = "spec_unstable_logs_enabled")]
 use opentelemetry::logs::Severity;
 use opentelemetry::time::now;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// The object for emitting [`LogRecord`]s.
 ///
 /// [`LogRecord`]: opentelemetry::logs::LogRecord
@@ -29,19 +32,20 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     /// Emit a `LogRecord`.
     fn emit(&self, mut record: Self::LogRecord) {
+        if Context::is_current_telemetry_suppressed() {
+            return;
+        }
         let provider = &self.provider;
         let processors = provider.log_processors();
 
         //let mut log_record = record;
         if record.trace_context.is_none() {
-            let trace_context = Context::map_current(|cx| {
-                cx.has_active_span()
-                    .then(|| TraceContext::from(cx.span().span_context()))
+            #[cfg(feature = "trace")]
+            Context::map_current(|cx| {
+                cx.has_active_span().then(|| {
+                    record.trace_context = Some(TraceContext::from(cx.span().span_context()))
+                })
             });
-
-            if let Some(ref trace_context) = trace_context {
-                record.trace_context = Some(trace_context.clone());
-            }
         }
         if record.observed_timestamp.is_none() {
             record.observed_timestamp = Some(now());
@@ -52,8 +56,13 @@ impl opentelemetry::logs::Logger for SdkLogger {
         }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
+    #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+        if Context::is_current_telemetry_suppressed() {
+            return false;
+        }
+        // Returns false if there are no log processors.
+        // Returns true if at least one processor returns true.
         self.provider
             .log_processors()
             .iter()

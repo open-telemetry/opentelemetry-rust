@@ -255,6 +255,7 @@ mod logtests {
     // current thread
     #[test]
     #[cfg(feature = "reqwest-blocking-client")]
+    #[cfg(not(feature = "tonic-client"))]
     pub fn logs_batch_non_tokio_main_with_init_logs_outside_rt() -> Result<()> {
         logs_non_tokio_helper(false, false)
     }
@@ -295,7 +296,8 @@ mod logtests {
     // Client - Reqwest-blocking
     #[test]
     #[cfg(feature = "reqwest-blocking-client")]
-    pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt_blocking() -> Result<()> {
+    #[cfg(not(feature = "tonic-client"))]
+    pub fn logs_simple_non_tokio_main_with_init_logs_outside_rt_blocking() -> Result<()> {
         logs_non_tokio_helper(true, false)
     }
 
@@ -309,7 +311,7 @@ mod logtests {
         feature = "tonic-client",
         feature = "reqwest-client"
     ))]
-    pub fn logs_simple_non_tokio_main_with_init_logs_outsie_rt() -> Result<()> {
+    pub fn logs_simple_non_tokio_main_with_init_logs_outside_rt() -> Result<()> {
         logs_non_tokio_helper(true, false)
     }
 

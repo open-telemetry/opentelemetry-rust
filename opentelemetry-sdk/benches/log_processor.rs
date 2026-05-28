@@ -54,7 +54,7 @@ impl LogProcessor for NoopProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -71,7 +71,7 @@ impl LogProcessor for CloningProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -117,7 +117,7 @@ impl LogProcessor for SendToChannelProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
@@ -169,6 +169,12 @@ fn log_cloning_and_send_to_channel_processor(c: &mut Criterion) {
         });
     });
 }
-criterion_group!(benches, criterion_benchmark);
 
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .warm_up_time(std::time::Duration::from_secs(1))
+        .measurement_time(std::time::Duration::from_secs(2));
+    targets = criterion_benchmark
+}
 criterion_main!(benches);

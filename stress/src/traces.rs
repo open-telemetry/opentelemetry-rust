@@ -7,8 +7,12 @@
 
     Hardware: AMD EPYC 7763 64-Core Processor - 2.44 GHz, 16vCPUs,
     ~10.6 M /sec
-*/
 
+    OS: macOS 26.4.1
+    Hardware: Apple M4 Pro, 14 cores (10 performance + 4 efficiency)
+    RAM: 24.0 GB
+    ~5.2 M /sec
+*/
 use lazy_static::lazy_static;
 use opentelemetry::{
     trace::{Span, SpanBuilder, Tracer, TracerProvider},
@@ -18,6 +22,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     trace::{self as sdktrace, SpanData, SpanProcessor},
 };
+use std::time::Duration;
 
 mod throughput;
 
@@ -45,7 +50,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         Ok(())
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
 }

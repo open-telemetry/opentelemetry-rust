@@ -2,6 +2,36 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
+- Un-deprecate `opentelemetry-prometheus` and remove stale discontinuation notices. [#3288](https://github.com/open-telemetry/opentelemetry-rust/issues/3288)
+- Set MSRV to 1.81.0 to match the `prometheus` dependency requirement.
+
+## v0.31.1
+
+- Remove `protobuf` dependency from `prometheus`
+
+## v0.31.0
+
+- Update `opentelemetry` dependency version to 0.31.0
+- Update `opentelemetry_sdk` dependency version to 0.31.0
+- Update `opentelemetry-semantic-conventions` dependency version to 0.31.0
+
+## 0.29.1
+
+Released 2025-April-11
+
+- Update `prometheus` dependency version to 0.14
+- Remove `protobuf` dependency
+
+## v0.29.0
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+- Update `opentelemetry-semantic-conventions` dependency version to 0.29
+
 ## v0.28.0
 
 - Update `opentelemetry` dependency version to 0.28

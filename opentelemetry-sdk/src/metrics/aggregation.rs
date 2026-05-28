@@ -1,7 +1,7 @@
 use std::fmt;
 
+use crate::metrics::error::{MetricError, MetricResult};
 use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
-use crate::metrics::{MetricError, MetricResult};
 
 /// The way recorded measurements are summarized.
 #[derive(Clone, Debug, PartialEq)]
@@ -109,7 +109,8 @@ impl fmt::Display for Aggregation {
 
 impl Aggregation {
     /// Validate that this aggregation has correct configuration
-    pub fn validate(&self) -> MetricResult<()> {
+    #[allow(unused)]
+    pub(crate) fn validate(&self) -> MetricResult<()> {
         match self {
             Aggregation::Drop => Ok(()),
             Aggregation::Default => Ok(()),
@@ -119,8 +120,7 @@ impl Aggregation {
                 for x in boundaries.windows(2) {
                     if x[0] >= x[1] {
                         return Err(MetricError::Config(format!(
-                            "aggregation: explicit bucket histogram: non-monotonic boundaries: {:?}",
-                            boundaries,
+                            "aggregation: explicit bucket histogram: non-monotonic boundaries: {boundaries:?}",
                         )));
                     }
                 }
@@ -130,14 +130,12 @@ impl Aggregation {
             Aggregation::Base2ExponentialHistogram { max_scale, .. } => {
                 if *max_scale > EXPO_MAX_SCALE {
                     return Err(MetricError::Config(format!(
-                        "aggregation: exponential histogram: max scale ({}) is greater than 20",
-                        max_scale,
+                        "aggregation: exponential histogram: max scale ({max_scale}) is greater than {}", EXPO_MAX_SCALE
                     )));
                 }
                 if *max_scale < EXPO_MIN_SCALE {
                     return Err(MetricError::Config(format!(
-                        "aggregation: exponential histogram: max scale ({}) is less than -10",
-                        max_scale,
+                        "aggregation: exponential histogram: max scale ({max_scale}) is less than {}", EXPO_MIN_SCALE
                     )));
                 }
 
@@ -149,11 +147,9 @@ impl Aggregation {
 
 #[cfg(test)]
 mod tests {
-    use crate::metrics::{
-        internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE},
-        Aggregation,
-    };
-    use crate::metrics::{MetricError, MetricResult};
+    use super::Aggregation;
+    use crate::metrics::error::{MetricError, MetricResult};
+    use crate::metrics::internal::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 
     #[test]
     fn validate_aggregation() {

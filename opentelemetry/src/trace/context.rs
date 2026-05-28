@@ -4,16 +4,10 @@ use crate::{
     trace::{Span, SpanContext, Status},
     Context, ContextGuard, KeyValue,
 };
-use futures_core::stream::Stream;
-use futures_sink::Sink;
-use pin_project_lite::pin_project;
-use std::{
-    borrow::Cow,
-    error::Error,
-    pin::Pin,
-    sync::Mutex,
-    task::{Context as TaskContext, Poll},
-};
+use std::{borrow::Cow, error::Error, sync::Mutex};
+
+// Re-export for compatability. This used to be contained here.
+pub use crate::context::{FutureExt, WithContext};
 
 const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,
@@ -189,6 +183,30 @@ impl SpanRef<'_> {
         T: Into<Cow<'static, str>>,
     {
         self.with_inner_mut(move |inner| inner.update_name(new_name))
+    }
+
+    /// Adds a [`Link`] to another [`SpanContext`].
+    ///
+    /// This method allows linking the current span to another span, identified by
+    /// its `SpanContext`. Links can be used to connect spans from different traces
+    /// or within the same trace. Attributes can be attached to the link to provide
+    /// additional context or metadata.
+    ///
+    /// # Arguments
+    ///
+    /// * `span_context` - The `SpanContext` of the span to link to. This represents
+    ///   the target span's unique identifiers and trace information.
+    /// * `attributes` - A vector of `KeyValue` pairs that describe additional
+    ///   attributes of the link. These attributes can include any contextual
+    ///   information relevant to the link between the spans.
+    ///
+    /// Note - Any [`Link`] added via this mechanism is not accessible to a `Sampler`.
+    /// It is recommended to add Links at [`Span`] creation time, rather than adding
+    /// them afterwards.
+    ///
+    /// [`Link`]: crate::trace::Link
+    pub fn add_link(&self, span_context: SpanContext, attributes: Vec<KeyValue>) {
+        self.with_inner_mut(move |inner| inner.add_link(span_context, attributes));
     }
 
     /// Signals that the operation described by this span has now ended.
@@ -370,106 +388,4 @@ where
     F: FnOnce(SpanRef<'_>) -> T,
 {
     Context::map_current(|cx| f(cx.span()))
-}
-
-pin_project! {
-    /// A future, stream, or sink that has an associated context.
-    #[derive(Clone, Debug)]
-    pub struct WithContext<T> {
-        #[pin]
-        inner: T,
-        otel_cx: Context,
-    }
-}
-
-impl<T: Sized> FutureExt for T {}
-
-impl<T: std::future::Future> std::future::Future for WithContext<T> {
-    type Output = T::Output;
-
-    fn poll(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Self::Output> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-
-        this.inner.poll(task_cx)
-    }
-}
-
-impl<T: Stream> Stream for WithContext<T> {
-    type Item = T::Item;
-
-    fn poll_next(self: Pin<&mut Self>, task_cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_next(this.inner, task_cx)
-    }
-}
-
-impl<I, T: Sink<I>> Sink<I> for WithContext<T>
-where
-    T: Sink<I>,
-{
-    type Error = T::Error;
-
-    fn poll_ready(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_ready(this.inner, task_cx)
-    }
-
-    fn start_send(self: Pin<&mut Self>, item: I) -> Result<(), Self::Error> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::start_send(this.inner, item)
-    }
-
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _guard = this.otel_cx.clone().attach();
-        T::poll_flush(this.inner, task_cx)
-    }
-
-    fn poll_close(
-        self: Pin<&mut Self>,
-        task_cx: &mut TaskContext<'_>,
-    ) -> Poll<Result<(), Self::Error>> {
-        let this = self.project();
-        let _enter = this.otel_cx.clone().attach();
-        T::poll_close(this.inner, task_cx)
-    }
-}
-
-/// Extension trait allowing futures, streams, and sinks to be traced with a span.
-pub trait FutureExt: Sized {
-    /// Attaches the provided [`Context`] to this type, returning a `WithContext`
-    /// wrapper.
-    ///
-    /// When the wrapped type is a future, stream, or sink, the attached context
-    /// will be set as current while it is being polled.
-    ///
-    /// [`Context`]: crate::Context
-    fn with_context(self, otel_cx: Context) -> WithContext<Self> {
-        WithContext {
-            inner: self,
-            otel_cx,
-        }
-    }
-
-    /// Attaches the current [`Context`] to this type, returning a `WithContext`
-    /// wrapper.
-    ///
-    /// When the wrapped type is a future, stream, or sink, the attached context
-    /// will be set as the default while it is being polled.
-    ///
-    /// [`Context`]: crate::Context
-    fn with_current_context(self) -> WithContext<Self> {
-        let otel_cx = Context::current();
-        self.with_context(otel_cx)
-    }
 }

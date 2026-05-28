@@ -2,9 +2,119 @@
 
 ## vNext
 
-- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to miliseconds.
-- Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
 - Implement `FromStr` and `Display` for `opentelemetry_otlp::Protocol`. [#2758](https://github.com/open-telemetry/opentelemetry-rust/pull/2758)
+
+## 0.32.0
+
+Released 2026-May-08
+
+- Add `tls-provider-agnostic` feature flag for environments that require a custom crypto backend (e.g., OpenSSL for FIPS compliance). Enables TLS code paths without bundling `ring` or `aws-lc-rs`.
+- Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
+  (before selecting a transport), which auto-selects the transport based on the
+  `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable or enabled features.
+  [#3394](https://github.com/open-telemetry/opentelemetry-rust/pull/3394)
+- **Breaking** Removed `ExportConfig`, `HasExportConfig`, `with_export_config()`, `HasTonicConfig`, `HasHttpConfig`, `TonicConfig`, and `HttpConfig` from public API.
+  Use the public `WithExportConfig`, `WithTonicConfig`, and `WithHttpConfig` trait methods instead, which remain unchanged.
+- The gRPC/tonic OTLP exporter's build method now returns an error for all signals (traces, metrics, logs) when
+  an `https://` endpoint is configured but no TLS feature (`tls-ring` or `tls-aws-lc`) is enabled, instead of
+  silently sending unencrypted traffic. When a TLS feature is enabled and an `https://` endpoint is used without
+  an explicit `.with_tls_config()`, a default `ClientTlsConfig` is automatically applied.
+  [#3182](https://github.com/open-telemetry/opentelemetry-rust/issues/3182)
+- Prevent auth tokens from leaking in export error messages. gRPC and HTTP
+  exporter errors no longer include potentially sensitive server responses
+  (e.g., authentication tokens echoed back). Error messages returned to SDK
+  processors contain only the gRPC status code or HTTP status code. Full
+  details are logged at DEBUG level only.
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
+- Surface pre-flight transport error details at ERROR level when `grpc-tonic`
+  OTLP export fails due to a local misconfiguration. When the returned
+  `tonic::Status` wraps a local transport error (invalid URL, connect failure,
+  DNS), its source chain (e.g., `"transport error: invalid URI"`) is appended
+  to the returned error so SDK processors surface it at ERROR without
+  requiring DEBUG logging. Server-returned gRPC status messages remain
+  DEBUG-only to preserve the auth-token leak safeguards from
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021).
+  [#3331](https://github.com/open-telemetry/opentelemetry-rust/issues/3331)
+- Add support for per-signal protocol environment variables:
+  `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`,
+  `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL`. These allow configuring different transport protocols
+  per signal type. Signal-specific vars take precedence over generic `OTEL_EXPORTER_OTLP_PROTOCOL`.
+  The auto-select `build()` method on each exporter builder now respects the full priority chain:
+  signal-specific env var > generic env var > feature-based default.
+- Transport/protocol mismatch validation: HTTP transport returns `InvalidConfig` when gRPC protocol
+  is requested; gRPC transport returns `InvalidConfig` when an HTTP protocol is requested.
+- **Breaking**: `Protocol::default()` no longer consults the `OTEL_EXPORTER_OTLP_PROTOCOL`
+  environment variable. It now returns only the feature-based default (http-json > http-proto >
+  grpc-tonic). Protocol resolution from environment variables is handled internally by the
+  exporter builders. Users who relied on `Protocol::default()` to read env vars should use
+  `Protocol::from_env()` instead.
+- Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
+  to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
+  `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
+- Fix `NoHttpClient` error when multiple HTTP client features are enabled by using priority-based selection (`reqwest-client` > `hyper-client` > `reqwest-blocking-client`). [#2994](https://github.com/open-telemetry/opentelemetry-rust/issues/2994)
+- Add partial success response handling for OTLP exporters (traces, metrics, logs) per OTLP spec. Exporters now log warnings when the server returns partial success responses with rejected items and error messages. [#865](https://github.com/open-telemetry/opentelemetry-rust/issues/865)
+- Refactor `internal-logs` feature in `opentelemetry-otlp` to reduce unnecessary dependencies[3191](https://github.com/open-telemetry/opentelemetry-rust/pull/3192)
+- Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
+- Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
+  **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
+- Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Update `opentelemetry-proto` and `opentelemetry-http` dependency version to 0.31.0
+- Add HTTP compression support with `gzip-http` and `zstd-http` feature flags
+- Add retry with exponential backoff and throttling support for HTTP and gRPC exporters
+  This behaviour is opt in via the `experimental-grpc-retry` and `experimental-http-retry` flags on this crate. You can customize the retry policy using the `with_retry_policy` on the exporter builders.
+
+## 0.30.0
+
+Released 2025-May-23
+
+- Update `opentelemetry` dependency version to 0.30
+- Update `opentelemetry_sdk` dependency version to 0.30
+- Update `opentelemetry-http` dependency version to 0.30
+- Update `opentelemetry-proto` dependency version to 0.30
+- Update `tonic` dependency version to 0.13
+- Re-export `tonic` types under `tonic_types`
+  [2898](https://github.com/open-telemetry/opentelemetry-rust/pull/2898)
+- Publicly re-exported `MetricExporterBuilder`, `SpanExporterBuilder`, and
+  `LogExporterBuilder` types, enabling users to directly reference and use these
+  builder types for metrics, traces, and logs exporters.
+  [2966](https://github.com/open-telemetry/opentelemetry-rust/pull/2966)
+
+## 0.29.0
+
+Released 2025-Mar-21
+
+- Update `opentelemetry` dependency version to 0.29
+- Update `opentelemetry_sdk` dependency version to 0.29
+- Update `opentelemetry-http` dependency version to 0.29
+- Update `opentelemetry-proto` dependency version to 0.29
+
+- The `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT`, `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` and `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` are changed from seconds to milliseconds.
+- Fixed `.with_headers()` in `HttpExporterBuilder` to correctly support multiple key/value pairs. [#2699](https://github.com/open-telemetry/opentelemetry-rust/pull/2699)
+- Fixed
+  [#2770](https://github.com/open-telemetry/opentelemetry-rust/issues/2770)
+  partially to properly handle `shutdown()` when using `http`. (`tonic` still
+  does not do proper shutdown)
+- *Breaking*
+ ExporterBuilder's build() method now Result with `ExporterBuildError` being the
+ Error variant. Previously it returned signal specific errors like `LogError`
+ from the `opentelemetry_sdk`, which are no longer part of the sdk. No changes
+ required if you were using unwrap/expect. If you were matching on the returning
+ Error enum, replace with the enum `ExporterBuildError`. Unlike the previous
+ `Error` which contained many variants unrelated to building an exporter, the
+ new one returns specific variants applicable to building an exporter. Some
+ variants might be applicable only on select features.
+ Also, now unused `Error` enum is removed.
+- **Breaking** `ExportConfig`'s `timeout` field is now optional(`Option<Duration>`)
+- **Breaking** Export configuration done via code is final. ENV variables cannot be used to override the code config.
+  Do not use code based config, if there is desire to control the settings via ENV variables.
+  List of ENV variables and corresponding setting being affected by this change.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` -> `ExportConfig.endpoint`
+  - `OTEL_EXPORTER_OTLP_TIMEOUT` -> `ExportConfig.timeout`
 
 ## 0.28.0
 
@@ -155,7 +265,7 @@ now use `.with_resource(RESOURCE::default())` to configure Resource when using
 ### Added
 
 - Added `DeltaTemporalitySelector` ([#1568])
-- Add `webkpi-roots` features to `reqwest` and `tonic` backends
+- Add `webpki-roots` features to `reqwest` and `tonic` backends
 
 [#1568]: https://github.com/open-telemetry/opentelemetry-rust/pull/1568
 

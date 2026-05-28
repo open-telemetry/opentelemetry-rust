@@ -7,7 +7,6 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
-mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -22,8 +21,7 @@ mod span_processor;
 pub mod span_processor_with_async_runtime;
 mod tracer;
 
-pub use config::{config, Config};
-pub use error::{TraceError, TraceResult};
+pub use config::Config;
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 
@@ -38,7 +36,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, ShouldSample};
+pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
@@ -58,14 +56,16 @@ mod runtime_tests;
 
 #[cfg(all(test, feature = "testing"))]
 mod tests {
-
     use super::*;
+    use crate::error::OTelSdkResult;
+    use crate::trace::{SamplingDecision, SamplingResult};
     use crate::{
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
-    use opentelemetry::trace::{
-        SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState,
+    use opentelemetry::{
+        baggage::BaggageExt,
+        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -75,6 +75,21 @@ mod tests {
         },
         Context, KeyValue,
     };
+    use std::time::Duration;
+
+    // Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/3510
+    #[test]
+    fn nested_span_in_get_active_span_with_simple_processor() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        get_active_span(|_span| {
+            let _nested = tracer.span_builder("nested").start(&tracer);
+        });
+    }
 
     #[test]
     fn span_modification_via_context() {
@@ -123,6 +138,112 @@ mod tests {
         assert_eq!(span.attributes.len(), 2);
     }
 
+    #[derive(Debug)]
+    struct BaggageInspectingSpanProcessor;
+    impl SpanProcessor for BaggageInspectingSpanProcessor {
+        fn on_start(&self, span: &mut crate::trace::Span, cx: &Context) {
+            let baggage = cx.baggage();
+            if let Some(baggage_value) = baggage.get("bag-key") {
+                span.set_attribute(KeyValue::new("bag-key", baggage_value.to_string()));
+            } else {
+                unreachable!("Baggage should be present in the context");
+            }
+        }
+
+        fn on_end(&self, span: SpanData) {
+            // Fixed: Context::current() no longer panics from Drop
+            // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
+            Context::current();
+
+            // IMPORTANT NOTE: The context returned here is whatever context happens
+            // to be current at this moment, which may be unrelated to the span being ended.
+            // The span's baggage was extracted in on_start and stored as attributes.
+
+            // Verify: on_start stored the baggage as an attribute
+            assert!(
+                span.attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "bag-key"),
+                "Baggage should have been stored as span attribute in on_start"
+            );
+        }
+
+        fn force_flush(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn span_and_baggage() {
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(BaggageInspectingSpanProcessor)
+            .build();
+
+        let cx_with_baggage =
+            Context::current_with_baggage(vec![KeyValue::new("bag-key", "bag-value")]);
+
+        // assert baggage is in the context
+        assert_eq!(
+            cx_with_baggage
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        // Attach context to current
+        let _cx_guard1 = cx_with_baggage.attach();
+        // now Current should have the baggage
+        assert_eq!(
+            Context::current()
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        let tracer = provider.tracer("test_tracer");
+        let mut span = tracer
+            .span_builder("span-name")
+            .start_with_context(&tracer, &Context::current());
+        span.set_attribute(KeyValue::new("attribute1", "value1"));
+
+        // We have not added span to the context yet
+        // so the current context should not have any span.
+        let cx = Context::current();
+        assert!(!cx.has_active_span());
+
+        // Now add span to context which already has baggage.
+        let cx_with_baggage_and_span = cx.with_span(span);
+        assert!(cx_with_baggage_and_span.has_active_span());
+        assert_eq!(
+            cx_with_baggage_and_span
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+
+        let _cx_guard2 = cx_with_baggage_and_span.attach();
+        // Now current context should have both baggage and span.
+        assert!(Context::current().has_active_span());
+        assert_eq!(
+            Context::current()
+                .baggage()
+                .get("bag-key")
+                .unwrap()
+                .to_string(),
+            "bag-value"
+        );
+    }
+
     #[test]
     fn tracer_in_span() {
         // Arrange
@@ -139,6 +260,16 @@ mod tests {
             span.update_name("span_name_updated");
             span.set_attribute(KeyValue::new("attribute1", "value1"));
             span.add_event("test-event".to_string(), vec![]);
+            span.add_link(
+                SpanContext::new(
+                    TraceId::from(47),
+                    SpanId::from(11),
+                    TraceFlags::default(),
+                    false,
+                    Default::default(),
+                ),
+                vec![],
+            );
         });
 
         // Assert
@@ -152,6 +283,9 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
+        assert_eq!(span.links.len(), 1);
+        assert_eq!(span.links[0].span_context.trace_id(), TraceId::from(47));
+        assert_eq!(span.links[0].span_context.span_id(), SpanId::from(11));
         assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Unset);
@@ -243,8 +377,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -313,8 +447,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),
@@ -366,8 +500,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),
@@ -441,5 +575,31 @@ mod tests {
         let tracer_scope = InstrumentationScope::builder("").build();
         let tracer2 = tracer_provider.tracer_with_scope(tracer_scope);
         tracer_name_retained_helper(tracer2, tracer_provider, exporter).await;
+    }
+
+    #[test]
+    fn trace_suppression() {
+        // Arrange
+        let exporter = InMemorySpanExporter::default();
+        let span_processor = SimpleSpanProcessor::new(exporter.clone());
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_span_processor(span_processor)
+            .build();
+
+        // Act
+        let tracer = tracer_provider.tracer("test");
+        {
+            let _suppressed_context = Context::enter_telemetry_suppressed_scope();
+            // This span should not be emitted as it is created in a suppressed context
+            let _span = tracer.span_builder("span_name").start(&tracer);
+        }
+
+        // Assert
+        let finished_spans = exporter.get_finished_spans().expect("this should not fail");
+        assert_eq!(
+            finished_spans.len(),
+            0,
+            "There should be a no spans as span emission is done inside a suppressed context"
+        );
     }
 }

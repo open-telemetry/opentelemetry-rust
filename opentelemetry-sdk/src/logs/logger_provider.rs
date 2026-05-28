@@ -3,6 +3,7 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
 use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
+use std::time::Duration;
 use std::{
     borrow::Cow,
     sync::{
@@ -20,7 +21,6 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
     NOOP_LOGGER_PROVIDER.get_or_init(|| SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
-            resource: Resource::empty(),
             is_shutdown: AtomicBool::new(true),
         }),
     })
@@ -82,10 +82,6 @@ impl SdkLoggerProvider {
         &self.inner.processors
     }
 
-    pub(crate) fn resource(&self) -> &Resource {
-        &self.inner.resource
-    }
-
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> OTelSdkResult {
         let result: Vec<_> = self
@@ -96,12 +92,12 @@ impl SdkLoggerProvider {
         if result.iter().all(|r| r.is_ok()) {
             Ok(())
         } else {
-            Err(OTelSdkError::InternalFailure(format!("errs: {:?}", result)))
+            Err(OTelSdkError::InternalFailure(format!("errs: {result:?}")))
         }
     }
 
     /// Shuts down this `LoggerProvider`
-    pub fn shutdown(&self) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "LoggerProvider.ShutdownInvokedByUser",
         );
@@ -112,7 +108,7 @@ impl SdkLoggerProvider {
             .is_ok()
         {
             // propagate the shutdown signal to processors
-            let result = self.inner.shutdown();
+            let result = self.inner.shutdown_with_timeout(timeout);
             if result.iter().all(|res| res.is_ok()) {
                 Ok(())
             } else {
@@ -128,21 +124,25 @@ impl SdkLoggerProvider {
             Err(OTelSdkError::AlreadyShutdown)
         }
     }
+
+    /// Shuts down this `LoggerProvider` with default timeout
+    pub fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
+    }
 }
 
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
-    resource: Resource,
     is_shutdown: AtomicBool,
 }
 
 impl LoggerProviderInner {
     /// Shuts down the `LoggerProviderInner` and returns any errors.
-    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+    pub(crate) fn shutdown_with_timeout(&self, timeout: Duration) -> Vec<OTelSdkResult> {
         let mut results = vec![];
         for processor in &self.processors {
-            let result = processor.shutdown();
+            let result = processor.shutdown_with_timeout(timeout);
             if let Err(err) = &result {
                 // Log at debug level because:
                 //  - The error is also returned to the user for handling (if applicable)
@@ -154,6 +154,11 @@ impl LoggerProviderInner {
             results.push(result);
         }
         results
+    }
+
+    /// Shuts down the `LoggerProviderInner` with default timeout and returns any errors.
+    pub(crate) fn shutdown(&self) -> Vec<OTelSdkResult> {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 }
 
@@ -200,15 +205,22 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { processors, ..self }
     }
 
-    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline.
+    /// Adds a [BatchLogProcessor] with the configured exporter to the pipeline,
+    /// using the default [super::BatchConfig].
+    ///
+    /// The following environment variables can be used to configure the batching configuration:
+    ///
+    /// * `OTEL_BLRP_SCHEDULE_DELAY` - Corresponds to `with_scheduled_delay`.
+    /// * `OTEL_BLRP_MAX_QUEUE_SIZE` - Corresponds to `with_max_queue_size`.
+    /// * `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` - Corresponds to `with_max_export_batch_size`.
     ///
     /// # Arguments
     ///
-    /// * `exporter` - The exporter to be used by the BatchLogProcessor.
+    /// * `exporter` - The exporter to be used by the `BatchLogProcessor`.
     ///
     /// # Returns
     ///
-    /// A new `Builder` instance with the BatchLogProcessor added to the pipeline.
+    /// A new `LoggerProviderBuilder` instance with the `BatchLogProcessor` added to the pipeline.
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: LogExporter + 'static>(self, exporter: T) -> Self {
@@ -234,10 +246,38 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { processors, ..self }
     }
 
-    /// The `Resource` to be associated with this Provider.
+    /// Associates a [Resource] with a [SdkLoggerProvider].
+    ///
+    /// This [Resource] represents the entity producing telemetry and is associated
+    /// with all `Logger`s the [SdkLoggerProvider] will create.
+    ///
+    /// By default, if this option is not used, the default [Resource] will be used.
+    ///
+    /// When constructing a [Resource], use [`Resource::builder()`] to preserve
+    /// SDK-provided defaults such as `telemetry.sdk.*` and `service.name`.
+    /// Using [`Resource::builder_empty()`] will **not** include these attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::{Resource, logs::SdkLoggerProvider};
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let provider = SdkLoggerProvider::builder()
+    ///     .with_resource(
+    ///         Resource::builder()
+    ///             .with_service_name("my-service")
+    ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     ///
     /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
+    ///
+    /// [`Resource::builder()`]: Resource::builder
+    /// [`Resource::builder_empty()`]: Resource::builder_empty
     pub fn with_resource(self, resource: Resource) -> Self {
         let resource = match self.resource {
             Some(existing) => Some(existing.merge(&resource)),
@@ -250,19 +290,17 @@ impl LoggerProviderBuilder {
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkLoggerProvider {
         let resource = self.resource.unwrap_or(Resource::builder().build());
+        let mut processors = self.processors;
+        for processor in &mut processors {
+            processor.set_resource(&resource);
+        }
 
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
-                processors: self.processors,
-                resource,
+                processors,
                 is_shutdown: AtomicBool::new(false),
             }),
         };
-
-        // invoke set_resource on all the processors
-        for processor in logger_provider.log_processors() {
-            processor.set_resource(logger_provider.resource());
-        }
 
         otel_debug!(
             name: "LoggerProvider.Built",
@@ -273,26 +311,29 @@ impl LoggerProviderBuilder {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "trace")]
+    use crate::logs::TraceContext;
+    #[cfg(feature = "trace")]
+    use crate::trace::SdkTracerProvider;
     use crate::{
-        logs::{InMemoryLogExporter, SdkLogRecord, TraceContext},
+        logs::{InMemoryLogExporter, LogBatch, SdkLogRecord},
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        trace::SdkTracerProvider,
         Resource,
     };
 
     use super::*;
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
+    #[cfg(feature = "trace")]
+    use opentelemetry::trace::TraceContextExt;
+    #[cfg(feature = "trace")]
     use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
-    use opentelemetry::{
-        logs::{AnyValue, LogRecord as _, Logger, LoggerProvider},
-        trace::TraceContextExt,
-    };
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
     use std::sync::Mutex;
-    use std::thread;
+    use std::{thread, time};
 
     struct ShutdownTestLogProcessor {
         is_shutdown: Arc<Mutex<bool>>,
@@ -331,7 +372,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             self.is_shutdown
                 .lock()
                 .map(|mut is_shutdown| *is_shutdown = true)
@@ -339,71 +380,198 @@ mod tests {
             Ok(())
         }
     }
+
+    #[derive(Debug, Clone)]
+    struct TestExporterForResource {
+        resource: Arc<Mutex<Resource>>,
+    }
+    impl TestExporterForResource {
+        fn new() -> Self {
+            TestExporterForResource {
+                resource: Arc::new(Mutex::new(Resource::empty())),
+            }
+        }
+
+        fn resource(&self) -> Resource {
+            self.resource.lock().unwrap().clone()
+        }
+    }
+    impl LogExporter for TestExporterForResource {
+        async fn export(&self, _: LogBatch<'_>) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let mut res = self.resource.lock().unwrap();
+            *res = resource.clone();
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct TestProcessorForResource {
+        resource: Arc<Mutex<Resource>>,
+        exporter: TestExporterForResource,
+    }
+    impl LogProcessor for TestProcessorForResource {
+        fn emit(&self, _data: &mut SdkLogRecord, _scope: &InstrumentationScope) {
+            // nothing to do.
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn set_resource(&mut self, resource: &Resource) {
+            let mut res = self.resource.lock().unwrap();
+            *res = resource.clone();
+            self.exporter.set_resource(resource);
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+    impl TestProcessorForResource {
+        fn new(exporter: TestExporterForResource) -> Self {
+            TestProcessorForResource {
+                resource: Arc::new(Mutex::new(Resource::empty())),
+                exporter,
+            }
+        }
+        fn resource(&self) -> Resource {
+            self.resource.lock().unwrap().clone()
+        }
+    }
+
     #[test]
-    fn test_logger_provider_default_resource() {
-        let assert_resource = |provider: &super::SdkLoggerProvider,
+    fn test_resource_handling_provider_processor_exporter() {
+        let assert_resource = |processor: &TestProcessorForResource,
+                               exporter: &TestExporterForResource,
                                resource_key: &'static str,
                                expect: Option<&'static str>| {
             assert_eq!(
-                provider
+                processor
+                    .resource()
+                    .get(&Key::from_static_str(resource_key))
+                    .map(|v| v.to_string()),
+                expect.map(|s| s.to_string())
+            );
+
+            assert_eq!(
+                exporter
                     .resource()
                     .get(&Key::from_static_str(resource_key))
                     .map(|v| v.to_string()),
                 expect.map(|s| s.to_string())
             );
         };
-        let assert_telemetry_resource = |provider: &super::SdkLoggerProvider| {
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
-                Some(Value::from("rust"))
-            );
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_NAME.into()),
-                Some(Value::from("opentelemetry"))
-            );
-            assert_eq!(
-                provider.resource().get(&TELEMETRY_SDK_VERSION.into()),
-                Some(Value::from(env!("CARGO_PKG_VERSION")))
-            );
-        };
+        let assert_telemetry_resource =
+            |processor: &TestProcessorForResource, exporter: &TestExporterForResource| {
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
+                );
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
+                );
+                assert_eq!(
+                    processor.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_LANGUAGE.into()),
+                    Some(Value::from("rust"))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_NAME.into()),
+                    Some(Value::from("opentelemetry"))
+                );
+                assert_eq!(
+                    exporter.resource().get(&TELEMETRY_SDK_VERSION.into()),
+                    Some(Value::from(env!("CARGO_PKG_VERSION")))
+                );
+            };
 
         // If users didn't provide a resource and there isn't a env var set. Use default one.
         temp_env::with_var_unset("OTEL_RESOURCE_ATTRIBUTES", || {
-            let default_config_provider = super::SdkLoggerProvider::builder().build();
-            assert_resource(
-                &default_config_provider,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let exporter_with_resource = TestExporterForResource::new();
+            let processor_with_resource =
+                TestProcessorForResource::new(exporter_with_resource.clone());
+            let _ = super::SdkLoggerProvider::builder()
+                .with_log_processor(processor_with_resource.clone())
+                .build();
+            let service_name = processor_with_resource
+                .resource()
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
-            assert_telemetry_resource(&default_config_provider);
+            assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
         });
 
         // If user provided a resource, use that.
-        let custom_config_provider = super::SdkLoggerProvider::builder()
+        let exporter_with_resource = TestExporterForResource::new();
+        let processor_with_resource = TestProcessorForResource::new(exporter_with_resource.clone());
+        let _ = super::SdkLoggerProvider::builder()
             .with_resource(
                 Resource::builder_empty()
                     .with_service_name("test_service")
                     .build(),
             )
+            .with_log_processor(processor_with_resource.clone())
             .build();
-        assert_resource(&custom_config_provider, SERVICE_NAME, Some("test_service"));
-        assert_eq!(custom_config_provider.resource().len(), 1);
+        assert_resource(
+            &processor_with_resource,
+            &exporter_with_resource,
+            SERVICE_NAME,
+            Some("test_service"),
+        );
+        assert_eq!(processor_with_resource.resource().len(), 1);
 
         // If `OTEL_RESOURCE_ATTRIBUTES` is set, read them automatically
         temp_env::with_var(
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("key1=value1, k2, k3=value2"),
             || {
-                let env_resource_provider = super::SdkLoggerProvider::builder().build();
-                assert_resource(
-                    &env_resource_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let exporter_with_resource = TestExporterForResource::new();
+                let processor_with_resource =
+                    TestProcessorForResource::new(exporter_with_resource.clone());
+                let _ = super::SdkLoggerProvider::builder()
+                    .with_log_processor(processor_with_resource.clone())
+                    .build();
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
-                assert_resource(&env_resource_provider, "key1", Some("value1"));
-                assert_resource(&env_resource_provider, "k3", Some("value2"));
-                assert_telemetry_resource(&env_resource_provider);
-                assert_eq!(env_resource_provider.resource().len(), 6);
+                assert_resource(
+                    &processor_with_resource,
+                    &exporter_with_resource,
+                    "key1",
+                    Some("value1"),
+                );
+                assert_resource(
+                    &processor_with_resource,
+                    &exporter_with_resource,
+                    "k3",
+                    Some("value2"),
+                );
+                assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
+                assert_eq!(processor_with_resource.resource().len(), 6);
             },
         );
 
@@ -412,7 +580,10 @@ mod tests {
             "OTEL_RESOURCE_ATTRIBUTES",
             Some("my-custom-key=env-val,k2=value2"),
             || {
-                let user_provided_resource_config_provider = super::SdkLoggerProvider::builder()
+                let exporter_with_resource = TestExporterForResource::new();
+                let processor_with_resource =
+                    TestProcessorForResource::new(exporter_with_resource.clone());
+                let _ = super::SdkLoggerProvider::builder()
                     .with_resource(
                         Resource::builder()
                             .with_attributes([
@@ -421,40 +592,53 @@ mod tests {
                             ])
                             .build(),
                     )
+                    .with_log_processor(processor_with_resource.clone())
                     .build();
-                assert_resource(
-                    &user_provided_resource_config_provider,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "my-custom-key",
                     Some("my-custom-value"),
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "my-custom-key2",
                     Some("my-custom-value2"),
                 );
                 assert_resource(
-                    &user_provided_resource_config_provider,
+                    &processor_with_resource,
+                    &exporter_with_resource,
                     "k2",
                     Some("value2"),
                 );
-                assert_telemetry_resource(&user_provided_resource_config_provider);
-                assert_eq!(user_provided_resource_config_provider.resource().len(), 7);
+                assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
+                assert_eq!(processor_with_resource.resource().len(), 7);
             },
         );
 
         // If user provided a resource, it takes priority during collision.
-        let no_service_name = super::SdkLoggerProvider::builder()
+        let exporter_with_resource = TestExporterForResource::new();
+        let processor_with_resource = TestProcessorForResource::new(exporter_with_resource);
+        let _ = super::SdkLoggerProvider::builder()
             .with_resource(Resource::empty())
+            .with_log_processor(processor_with_resource.clone())
             .build();
-        assert_eq!(no_service_name.resource().len(), 0);
+        assert_eq!(processor_with_resource.resource().len(), 0);
     }
 
     #[test]
+    #[cfg(feature = "trace")]
     fn trace_context_test() {
         let exporter = InMemoryLogExporter::default();
 
@@ -471,8 +655,8 @@ mod tests {
         tracer.in_span("test-span", |cx| {
             let ambient_ctxt = cx.span().span_context().clone();
             let explicit_ctxt = TraceContext {
-                trace_id: TraceId::from_u128(13),
-                span_id: SpanId::from_u64(14),
+                trace_id: TraceId::from(13),
+                span_id: SpanId::from(14),
                 trace_flags: None,
             };
 
@@ -608,7 +792,6 @@ mod tests {
                     shutdown_called.clone(),
                     flush_called.clone(),
                 ))],
-                resource: Resource::empty(),
                 is_shutdown: AtomicBool::new(false),
             });
 
@@ -649,7 +832,6 @@ mod tests {
                 shutdown_called.clone(),
                 flush_called.clone(),
             ))],
-            resource: Resource::empty(),
             is_shutdown: AtomicBool::new(false),
         });
 
@@ -664,7 +846,7 @@ mod tests {
 
             // Explicitly shut down the logger provider
             let shutdown_result = logger_provider1.shutdown();
-            println!("---->Result: {:?}", shutdown_result);
+            println!("---->Result: {shutdown_result:?}");
             assert!(shutdown_result.is_ok());
 
             // Verify that shutdown was called exactly once
@@ -722,14 +904,26 @@ mod tests {
     #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkLoggerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
-            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key1", "value1")])
+                    .build(),
+            )
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key2", "value2")])
+                    .build(),
+            )
             .with_resource(
                 Resource::builder_empty()
                     .with_schema_url(vec![], "http://example.com")
                     .build(),
             )
-            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key3", "value3")])
+                    .build(),
+            );
 
         let resource = builder.resource.unwrap();
 
@@ -776,7 +970,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             *self.shutdown_called.lock().unwrap() = true;
             Ok(())
         }
@@ -807,7 +1001,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
             let mut count = self.shutdown_count.lock().unwrap();
             *count += 1;
             Ok(())
