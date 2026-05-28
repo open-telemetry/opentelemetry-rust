@@ -648,7 +648,9 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 use std::fmt::Display;
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 use std::str::FromStr;
 
 #[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
@@ -749,6 +751,7 @@ pub enum Protocol {
     HttpJson,
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl Display for Protocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -762,6 +765,7 @@ impl Display for Protocol {
     }
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 impl FromStr for Protocol {
     type Err = crate::exporter::ExporterBuildError;
 
