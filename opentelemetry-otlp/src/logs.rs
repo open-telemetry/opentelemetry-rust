@@ -32,6 +32,13 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
 /// Protocol to use for log exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL";
+/// Path to the TLS certificate for verifying the server's TLS credentials for log exports.
+pub const OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE";
+/// Path to the TLS client key for mTLS authentication for log exports.
+pub const OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY";
+/// Path to the TLS client certificate for mTLS authentication for log exports.
+pub const OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE: &str =
+    "OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE";
 
 /// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]

@@ -46,6 +46,13 @@ Released 2026-May-08
   grpc-tonic). Protocol resolution from environment variables is handled internally by the
   exporter builders. Users who relied on `Protocol::default()` to read env vars should use
   `Protocol::from_env()` instead.
+- Add support for TLS certificate environment variables per the OTLP exporter spec:
+  `OTEL_EXPORTER_OTLP_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY`,
+  `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` (generic), plus per-signal variants for traces,
+  metrics, and logs. These env vars point to PEM-encoded files for server TLS verification and
+  mTLS client authentication. Programmatic `.with_tls_config()` takes precedence over env vars.
+  [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
+  [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
