@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Implement `FromStr` and `Display` for `opentelemetry_otlp::Protocol`. [#2758](https://github.com/open-telemetry/opentelemetry-rust/pull/2758)
+
 ## 0.32.0
 
 Released 2026-May-08

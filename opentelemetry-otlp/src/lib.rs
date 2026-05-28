@@ -648,6 +648,11 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+use std::fmt::Display;
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+use std::str::FromStr;
+
 #[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
 pub mod retry_classification;
 
@@ -744,6 +749,44 @@ pub enum Protocol {
     /// HTTP protocol with JSON payload
     #[cfg(feature = "http-json")]
     HttpJson,
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "grpc-tonic")]
+            Protocol::Grpc => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC),
+            #[cfg(feature = "http-proto")]
+            Protocol::HttpBinary => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF),
+            #[cfg(feature = "http-json")]
+            Protocol::HttpJson => write!(f, "{}", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON),
+        }
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+impl FromStr for Protocol {
+    type Err = crate::exporter::ExporterBuildError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use crate::exporter::{
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
+        };
+        match s {
+            #[cfg(feature = "grpc-tonic")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => Ok(Protocol::Grpc),
+            #[cfg(feature = "http-proto")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => Ok(Protocol::HttpBinary),
+            #[cfg(feature = "http-json")]
+            OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => Ok(Protocol::HttpJson),
+            _ => Err(crate::exporter::ExporterBuildError::InvalidConfig {
+                name: "protocol".to_string(),
+                reason: format!("unsupported protocol '{s}'"),
+            }),
+        }
+    }
 }
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
@@ -845,6 +888,31 @@ impl Protocol {
 #[doc(hidden)]
 /// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
 pub struct NoExporterConfig(());
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    fn test_parse_protocol() {
+        assert_eq!("grpc".parse::<Protocol>().unwrap(), Protocol::Grpc);
+        assert_eq!(
+            "http/protobuf".parse::<Protocol>().unwrap(),
+            Protocol::HttpBinary
+        );
+        assert_eq!("http/json".parse::<Protocol>().unwrap(), Protocol::HttpJson);
+        assert!("invalid".parse::<Protocol>().is_err());
+    }
+
+    #[test]
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    fn test_display_protocol() {
+        assert_eq!(Protocol::Grpc.to_string(), "grpc");
+        assert_eq!(Protocol::HttpBinary.to_string(), "http/protobuf");
+        assert_eq!(Protocol::HttpJson.to_string(), "http/json");
+    }
+}
 
 /// Re-exported types from the `tonic` crate.
 #[cfg(feature = "grpc-tonic")]
