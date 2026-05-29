@@ -263,6 +263,25 @@ impl StringValue {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
+
+    /// Truncates this `StringValue` to at most `max_chars` Unicode scalar values.
+    ///
+    /// If the string is already within the limit, this is a no-op and no
+    /// allocation occurs. Truncation respects UTF-8 character boundaries.
+    pub fn truncate(&mut self, max_chars: usize) {
+        let s = self.0.as_str();
+        // Fast path: if byte length is within limit, char length is too.
+        if s.len() <= max_chars {
+            return;
+        }
+        // Find the byte offset after the max_chars-th character.
+        if let Some((byte_idx, _)) = s.char_indices().nth(max_chars) {
+            let truncated = &s[..byte_idx];
+            self.0 = OtelString::Owned(truncated.to_owned().into_boxed_str());
+        }
+        // If char_indices().nth(max_chars) is None the string has <= max_chars
+        // characters despite having more bytes -- nothing to truncate.
+    }
 }
 
 impl From<StringValue> for String {
@@ -325,6 +344,26 @@ impl Value {
             Value::F64(v) => format!("{v}").into(),
             Value::String(v) => Cow::Borrowed(v.as_str()),
             Value::Array(v) => format!("{v}").into(),
+        }
+    }
+
+    /// Truncates string values to at most `max_chars` Unicode scalar values.
+    ///
+    /// Only [`Value::String`] and [`Value::Array`]`(`[`Array::String`]`)` are
+    /// affected; all other variants are left unchanged. For string arrays,
+    /// each element is truncated independently.
+    ///
+    /// If a string is already within the limit no allocation occurs.
+    /// Truncation respects UTF-8 character boundaries.
+    pub fn truncate(&mut self, max_chars: usize) {
+        match self {
+            Value::String(s) => s.truncate(max_chars),
+            Value::Array(Array::String(vals)) => {
+                for s in vals.iter_mut() {
+                    s.truncate(max_chars);
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -758,5 +797,131 @@ mod tests {
         let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
         scope2.hash(&mut hasher2);
         assert_ne!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn string_value_truncate_ascii() {
+        use crate::StringValue;
+
+        let mut sv = StringValue::from("Hello, World!");
+        sv.truncate(5);
+        assert_eq!(sv.as_str(), "Hello");
+    }
+
+    #[test]
+    fn string_value_truncate_noop_when_within_limit() {
+        use crate::StringValue;
+
+        let mut sv = StringValue::from("abc");
+        sv.truncate(10);
+        assert_eq!(sv.as_str(), "abc");
+    }
+
+    #[test]
+    fn string_value_truncate_empty_string() {
+        use crate::StringValue;
+
+        let mut sv = StringValue::from("");
+        sv.truncate(5);
+        assert_eq!(sv.as_str(), "");
+    }
+
+    #[test]
+    fn string_value_truncate_to_zero() {
+        use crate::StringValue;
+
+        let mut sv = StringValue::from("hello");
+        sv.truncate(0);
+        assert_eq!(sv.as_str(), "");
+    }
+
+    #[test]
+    fn string_value_truncate_multibyte_utf8() {
+        use crate::StringValue;
+
+        // Euro sign is U+20AC = 3 bytes in UTF-8
+        let mut sv = StringValue::from(String::from("hello\u{20AC}world"));
+        // 6 chars = "hello" + euro sign
+        sv.truncate(6);
+        assert_eq!(sv.as_str(), "hello\u{20AC}");
+
+        // Two-byte char: e-acute U+00E9
+        let mut sv = StringValue::from(String::from("caf\u{00E9}s"));
+        sv.truncate(4);
+        assert_eq!(sv.as_str(), "caf\u{00E9}");
+
+        // CJK character U+4E16 = 3 bytes in UTF-8
+        let mut sv = StringValue::from(String::from("\u{4E16}\u{754C}hello"));
+        sv.truncate(2);
+        assert_eq!(sv.as_str(), "\u{4E16}\u{754C}");
+
+        // Pound sign U+00A3 is 2 bytes in UTF-8
+        let mut sv = StringValue::from(String::from("\u{00A3}\u{00A3}\u{00A3}\u{00A3}"));
+        sv.truncate(2);
+        assert_eq!(sv.as_str(), "\u{00A3}\u{00A3}");
+    }
+
+    #[test]
+    fn value_truncate_only_affects_strings() {
+        use crate::{Array, Value};
+
+        // Bool is not affected
+        let mut v = Value::from(true);
+        v.truncate(0);
+        assert_eq!(v, Value::from(true));
+
+        // I64 is not affected
+        let mut v = Value::from(42i64);
+        v.truncate(0);
+        assert_eq!(v, Value::from(42i64));
+
+        // F64 is not affected
+        let mut v = Value::from(2.72f64);
+        v.truncate(0);
+        assert_eq!(v, Value::from(2.72f64));
+
+        // Bool array is not affected
+        let mut v = Value::Array(Array::Bool(vec![true, false]));
+        v.truncate(0);
+        assert_eq!(v, Value::Array(Array::Bool(vec![true, false])));
+
+        // I64 array is not affected
+        let mut v = Value::Array(Array::I64(vec![1, 2, 3]));
+        v.truncate(0);
+        assert_eq!(v, Value::Array(Array::I64(vec![1, 2, 3])));
+
+        // F64 array is not affected
+        let mut v = Value::Array(Array::F64(vec![1.0, 2.0]));
+        v.truncate(0);
+        assert_eq!(v, Value::Array(Array::F64(vec![1.0, 2.0])));
+    }
+
+    #[test]
+    fn value_truncate_string() {
+        use crate::Value;
+
+        let mut v = Value::from("hello world");
+        v.truncate(5);
+        assert_eq!(v, Value::String("hello".to_string().into()));
+    }
+
+    #[test]
+    fn value_truncate_string_array() {
+        use crate::{Array, StringValue, Value};
+
+        let mut v = Value::Array(Array::String(vec![
+            StringValue::from("short"),
+            StringValue::from(String::from("a longer string")),
+            StringValue::from("ok"),
+        ]));
+        v.truncate(5);
+        assert_eq!(
+            v,
+            Value::Array(Array::String(vec![
+                StringValue::from("short"),
+                StringValue::from(String::from("a lon")),
+                StringValue::from("ok"),
+            ]))
+        );
     }
 }

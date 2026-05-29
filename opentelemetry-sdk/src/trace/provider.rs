@@ -395,6 +395,27 @@ impl TracerProviderBuilder {
         self
     }
 
+    /// Specify the maximum allowed length of string attribute values.
+    ///
+    /// This limit applies to [`Value::String`](opentelemetry::Value::String) and
+    /// [`Array::String`](opentelemetry::Array::String) attributes only. When a
+    /// string attribute value exceeds this limit it is truncated to the given
+    /// number of Unicode characters (not bytes). Truncation is silent -- no
+    /// ellipsis or other indicator is appended, and there is no way for a
+    /// downstream consumer to tell that the value was shortened.
+    ///
+    /// Non-string attribute types (bool, i64, f64, and their array variants) are
+    /// never affected.
+    ///
+    /// This can also be configured via the
+    /// `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` environment variable.
+    /// A value set through this builder method takes precedence over the
+    /// environment variable.
+    pub fn with_max_attribute_value_length(mut self, max_attribute_value_length: u32) -> Self {
+        self.config.span_limits.max_attribute_value_length = Some(max_attribute_value_length);
+        self
+    }
+
     /// Specify the number of events to be recorded per span.
     pub fn with_max_links_per_span(mut self, max_links: u32) -> Self {
         self.config.span_limits.max_links_per_span = max_links;
