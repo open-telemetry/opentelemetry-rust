@@ -2,6 +2,29 @@
 
 ## vNext
 
+## 0.32.1
+
+Released 2026-May-23
+
+- `BaggagePropagator` now enforces the W3C Baggage maximum header length
+  (8192 bytes) and maximum list-member count (64) when extracting an inbound
+  `baggage` header. Headers exceeding 8192 bytes are dropped at the
+  propagator boundary; headers with more than 64 list members are
+  truncated to the first 64 entries. The change keeps the propagator from
+  parsing attacker-controlled input beyond the W3C limits instead of doing
+  per-entry parse, decode, and allocation work only to discard the excess
+  on `Baggage` insert. See https://www.w3.org/TR/baggage/#limits.
+- Reverted the `SimpleSpanProcessor` telemetry suppression added in 0.32.0
+  (see #3494), which caused a `RefCell already borrowed` panic when a span
+  was started and dropped inside a `get_active_span` (or `Context::map_current`)
+  closure. Tracked in #3510. A proper fix for the underlying
+  `Context::map_current` re-entrancy will be investigated separately, after
+  which the suppression can be safely re-applied.
+- View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
+  is no longer validated against the instrument name syntax, per
+  [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
+  `unit` and other stream parameters continue to be validated.
+
 ## 0.32.0
 
 Released 2026-May-08

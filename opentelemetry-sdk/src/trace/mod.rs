@@ -65,7 +65,7 @@ mod tests {
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SpanKind, Status, TraceContextExt, TraceState},
+        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -76,6 +76,20 @@ mod tests {
         Context, KeyValue,
     };
     use std::time::Duration;
+
+    // Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/3510
+    #[test]
+    fn nested_span_in_get_active_span_with_simple_processor() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        get_active_span(|_span| {
+            let _nested = tracer.span_builder("nested").start(&tracer);
+        });
+    }
 
     #[test]
     fn span_modification_via_context() {
