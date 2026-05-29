@@ -508,5 +508,4 @@ pub mod tonic {
         pub mod v1development;
     }
 
-    pub use crate::transform::common::tonic::Attributes;
 }

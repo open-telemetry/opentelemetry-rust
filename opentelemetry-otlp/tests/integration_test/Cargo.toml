@@ -26,7 +26,7 @@ ctor = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false}
+opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-tracing", default-features = false }
 
 [features]
 hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]

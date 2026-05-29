@@ -2,9 +2,7 @@ use core::fmt;
 use std::sync::Mutex;
 
 use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry_proto::tonic::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
-};
+use opentelemetry_proto::tonic::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
@@ -101,7 +99,9 @@ impl MetricsClient for TonicMetricsClient {
                     .export(Request::from_parts(
                         metadata,
                         extensions,
-                        ExportMetricsServiceRequest::from(metrics),
+                        crate::transform::metrics::tonic::resource_metrics_to_export_request(
+                            metrics,
+                        ),
                     ))
                     .await
                     .map(|response| {
