@@ -97,8 +97,8 @@ impl ZipkinExporterBuilder {
     /// When using this method, the export timeout will depend on the provided
     /// client implementation and may not respect the timeout set via the
     /// environment variable `OTEL_EXPORTER_ZIPKIN_TIMEOUT`.
-    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.client = Some(Arc::new(client));
+    pub fn with_http_client<T: HttpClient + 'static>(mut self, client: impl Into<Arc<T>>) -> Self {
+        self.client = Some(client.into());
         self
     }
 
