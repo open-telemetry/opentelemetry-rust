@@ -13,8 +13,6 @@ use super::BoxInterceptor;
 use crate::metric::MetricsClient;
 
 use crate::retry::RetryPolicy;
-#[cfg(feature = "experimental-grpc-retry")]
-use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicMetricsClient {
     inner: Mutex<Option<ClientInner>>,
@@ -66,10 +64,6 @@ impl TonicMetricsClient {
 impl MetricsClient for TonicMetricsClient {
     async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
         match super::tonic_retry_with_backoff(
-            #[cfg(feature = "experimental-grpc-retry")]
-            Tokio,
-            #[cfg(not(feature = "experimental-grpc-retry"))]
-            (),
             self.retry_policy.clone(),
             crate::retry_classification::grpc::classify_tonic_status,
             "TonicMetricsClient.Export",
