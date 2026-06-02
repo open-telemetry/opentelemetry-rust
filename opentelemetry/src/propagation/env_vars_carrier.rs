@@ -28,6 +28,9 @@ use crate::propagation::{Extractor, Injector};
 ///
 /// // Sets the value for normalized "FOO" to "bar", does NOT set env vars
 /// carrier.set("foo", String::from("bar"));
+///
+/// // Fetches the list of (normalized) keys
+/// let keys = carrier.keys();  // vec!["FOO"]
 /// ```
 ///
 /// [POSIX.1-2024]: https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap08.html
@@ -64,7 +67,7 @@ impl EnvVarsCarrier {
 
 impl Injector for EnvVarsCarrier {
     /// Set the value for the normalized key in the carrier mapping.
-    /// Does NOT set environment variables, but may
+    /// Does NOT set environment variables
     fn set(&mut self, key: &str, value: String) {
         self.map.insert(normalize(key), value);
     }
@@ -135,6 +138,14 @@ mod tests {
             .insert("FOO_BAR".to_string(), "value".to_string());
 
         assert_eq!(Extractor::get(&carrier, "foo.bar"), Some("value"));
+    }
+
+    #[test]
+    fn test_env_vars_carrier_inject_and_extract() {
+        let mut carrier = EnvVarsCarrier::empty();
+        Injector::set(&mut carrier, "foo.bar", "value".to_string());
+        assert_eq!(Extractor::get(&carrier, "foo.bar"), Some("value"));
+        assert_eq!(carrier.keys(), vec!["FOO_BAR"]);
     }
 
     #[test]
