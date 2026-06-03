@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Added self-observability metrics `otel.sdk.log.created` and
+  `otel.sdk.processor.log.processed`. Gated behind the
+  `experimental_metrics_bound_instruments` Cargo feature.
+
 ## 0.32.1
 
 Released 2026-May-23
