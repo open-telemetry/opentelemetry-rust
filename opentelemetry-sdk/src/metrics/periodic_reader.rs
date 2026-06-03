@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
-    Temporality,
+    HistogramAggregation, Temporality,
 };
 
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
@@ -370,6 +370,10 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
         self.exporter.temporality()
     }
 
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        self.exporter.default_histogram_aggregation()
+    }
+
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         let producer = self.producer.lock().expect("lock poisoned");
         if let Some(p) = producer.as_ref() {
@@ -513,6 +517,10 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         kind.temporality_preference(self.inner.temporality(kind))
     }
+
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        self.inner.default_histogram_aggregation()
+    }
 }
 
 #[cfg(all(test, feature = "testing"))]
@@ -522,7 +530,7 @@ mod tests {
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
             data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
-            InMemoryMetricExporter, SdkMeterProvider, Temporality,
+            HistogramAggregation, InMemoryMetricExporter, SdkMeterProvider, Temporality,
         },
         Resource,
     };
@@ -581,6 +589,10 @@ mod tests {
         fn temporality(&self) -> Temporality {
             Temporality::Cumulative
         }
+
+        fn default_histogram_aggregation(&self) -> HistogramAggregation {
+            HistogramAggregation::ExplicitBucketHistogram
+        }
     }
 
     #[derive(Debug, Clone, Default)]
@@ -608,6 +620,10 @@ mod tests {
 
         fn temporality(&self) -> Temporality {
             Temporality::Cumulative
+        }
+
+        fn default_histogram_aggregation(&self) -> HistogramAggregation {
+            HistogramAggregation::ExplicitBucketHistogram
         }
     }
 

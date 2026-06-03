@@ -85,6 +85,7 @@ Released 2026-May-08
 - **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default. [#3278][3278]
+- Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).  
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
