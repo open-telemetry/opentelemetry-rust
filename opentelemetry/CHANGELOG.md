@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - **Added** `BoundCounter<T>` and `BoundHistogram<T>` types that cache resolved
   aggregator references for a fixed attribute set. Created via `Counter::bind()`
   and `Histogram::bind()`, bound instruments bypass per-call attribute lookup,

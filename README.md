@@ -33,21 +33,22 @@ The table below summarizes the overall status of each component. Some components
 include unstable features, which are documented in their respective crate
 documentation.
 
-| Signal/Component      | Overall Status     |
-| --------------------  | ------------------ |
-| Context               | Beta               |
-| Baggage               | RC                 |
-| Propagators           | Beta               |
-| Logs-API              | Stable*            |
-| Logs-SDK              | Stable             |
-| Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | Stable             |
-| Metrics-API           | Stable             |
-| Metrics-SDK           | Stable             |
-| Metrics-OTLP Exporter | RC                 |
-| Traces-API            | Beta               |
-| Traces-SDK            | Beta               |
-| Traces-OTLP Exporter  | Beta               |
+| Signal/Component            | Overall Status     |
+| --------------------------- | ------------------ |
+| Context                     | Beta               |
+| Baggage                     | RC                 |
+| Propagators                 | Beta               |
+| Logs-API*                   | Stable             |
+| Logs-SDK                    | Stable             |
+| Logs-OTLP Exporter          | RC                 |
+| Logs-Appender-Tracing       | Stable             |
+| Metrics-API                 | Stable             |
+| Metrics-SDK                 | Stable             |
+| Metrics-OTLP Exporter       | RC                 |
+| Metrics-Prometheus Exporter | Beta               |
+| Traces-API                  | Beta               |
+| Traces-SDK                  | Beta               |
+| Traces-OTLP Exporter        | Beta               |
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
@@ -117,15 +118,10 @@ The following crates are maintained in this repo:
 * [`opentelemetry-appender-tracing`] This crate provides logging appender to
   route logs emitted using the [tracing](https://crates.io/crates/tracing) crate
   to opentelemetry.  
-* [`opentelemetry-jaeger-propagator`] provides context propagation using [jaeger
-  propagation
-  format](https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format).
 * [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
   metrics to [`Prometheus`].
 * [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
-* [`opentelemetry-zipkin`] provides a pipeline and exporter for sending traces
-  to [`Zipkin`].
 
 In addition, there are several other useful crates in the [OTel Rust Contrib
 repo](https://github.com/open-telemetry/opentelemetry-rust-contrib). A lot of
@@ -140,11 +136,8 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
 [`opentelemetry-stdout`]: https://crates.io/crates/opentelemetry-stdout
-[`opentelemetry-jaeger-propagator`]: https://crates.io/crates/opentelemetry-jaeger-propagator
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 [`Prometheus`]: https://prometheus.io
-[`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
-[`Zipkin`]: https://zipkin.io
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 [`http`]: https://crates.io/crates/http
 

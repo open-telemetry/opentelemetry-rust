@@ -2,7 +2,9 @@ use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
     Key,
 };
+#[cfg(feature = "experimental_span_attributes")]
 use std::borrow::Cow;
+#[cfg(feature = "experimental_span_attributes")]
 use std::collections::HashSet;
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
@@ -183,11 +185,13 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
 /// Visitor to extract fields from a tracing span.
 /// Takes a mutable reference to a Vec to append fields to, and an optional
 /// allowlist to include only named attributes.
+#[cfg(feature = "experimental_span_attributes")]
 struct SpanFieldVisitor<'a> {
     attributes: &'a mut Vec<(Key, AnyValue)>,
     allowlist: Option<&'a HashSet<Cow<'static, str>>>,
 }
 
+#[cfg(feature = "experimental_span_attributes")]
 impl SpanFieldVisitor<'_> {
     #[inline]
     fn allowed(&self, field: &tracing::field::Field) -> bool {
@@ -196,6 +200,7 @@ impl SpanFieldVisitor<'_> {
     }
 }
 
+#[cfg(feature = "experimental_span_attributes")]
 impl tracing::field::Visit for SpanFieldVisitor<'_> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         if self.allowed(field) {
@@ -295,6 +300,7 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
 /// Similar to how `tracing_subscriber::fmt::FormattedFields` stores formatted
 /// field data directly in span extensions - the Registry's internal locking
 /// provides the necessary synchronization.
+#[cfg(feature = "experimental_span_attributes")]
 #[derive(Debug)]
 struct StoredSpanAttributes {
     attributes: Vec<(Key, AnyValue)>,
@@ -311,13 +317,16 @@ struct StoredSpanAttributes {
 ///
 /// [`tracing`]: https://crates.io/crates/tracing
 /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
+#[cfg(feature = "experimental_span_attributes")]
 pub struct TracingSpanAttributes(TracingSpanAttributesInner);
 
+#[cfg(feature = "experimental_span_attributes")]
 enum TracingSpanAttributesInner {
     All,
     Allowlist(HashSet<Cow<'static, str>>),
 }
 
+#[cfg(feature = "experimental_span_attributes")]
 impl TracingSpanAttributes {
     /// Copy **all** tracing-span attributes onto log records.
     pub fn all() -> Self {
@@ -333,6 +342,7 @@ impl TracingSpanAttributes {
     }
 }
 
+#[cfg(feature = "experimental_span_attributes")]
 impl std::fmt::Debug for TracingSpanAttributes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
@@ -356,6 +366,7 @@ where
     // - `None` => disabled (default). No per-span work, no scope walk.
     // - `Some(All)` => copy all tracing-span attributes onto log records.
     // - `Some(Allowlist(set))` => copy only attributes whose keys are in `set`.
+    #[cfg(feature = "experimental_span_attributes")]
     span_attributes: Option<TracingSpanAttributesInner>,
 }
 
@@ -377,6 +388,7 @@ where
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
             logger: provider.logger(""),
             _phantom: Default::default(),
+            #[cfg(feature = "experimental_span_attributes")]
             span_attributes: None,
         }
     }
@@ -389,6 +401,7 @@ where
 {
     logger: L,
     _phantom: std::marker::PhantomData<P>,
+    #[cfg(feature = "experimental_span_attributes")]
     span_attributes: Option<TracingSpanAttributesInner>,
 }
 
@@ -413,6 +426,7 @@ where
     ///
     /// [`tracing`]: https://crates.io/crates/tracing
     /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
+    #[cfg(feature = "experimental_span_attributes")]
     pub fn with_tracing_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
         self.span_attributes = Some(span_attributes.0);
         self
@@ -422,6 +436,7 @@ where
         OpenTelemetryTracingBridge {
             logger: self.logger,
             _phantom: self._phantom,
+            #[cfg(feature = "experimental_span_attributes")]
             span_attributes: self.span_attributes,
         }
     }
@@ -433,7 +448,12 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync + 'static,
     L: Logger + Send + Sync + 'static,
 {
-    fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        #[cfg_attr(not(feature = "experimental_span_attributes"), allow(unused_variables))]
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
         let metadata = event.metadata();
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
@@ -457,6 +477,7 @@ where
         log_record.set_severity_text(metadata.level().as_str());
 
         // Extract tracing-span attributes if enrichment is enabled.
+        #[cfg(feature = "experimental_span_attributes")]
         if self.span_attributes.is_some() {
             // Collect attributes from all parent spans (root to leaf), including current span
             if let Some(scope) = ctx.event_scope(event) {
@@ -482,6 +503,7 @@ where
         self.logger.emit(log_record);
     }
 
+    #[cfg(feature = "experimental_span_attributes")]
     fn on_new_span(
         &self,
         attrs: &tracing::span::Attributes<'_>,
@@ -515,6 +537,7 @@ where
         }
     }
 
+    #[cfg(feature = "experimental_span_attributes")]
     fn on_record(
         &self,
         id: &tracing::span::Id,
@@ -568,6 +591,7 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
+    #[cfg(feature = "experimental_span_attributes")]
     use crate::layer::TracingSpanAttributes;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
@@ -1176,6 +1200,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_context_enrichment_enabled() {
         // Arrange
         let exporter = InMemoryLogExporter::default();
@@ -1227,6 +1252,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_nested_spans_collect_all_parent_attributes() {
         // Arrange
         let exporter = InMemoryLogExporter::default();
@@ -1288,6 +1314,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_context_with_various_types() {
         // Arrange
         let exporter = InMemoryLogExporter::default();
@@ -1397,6 +1424,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_record_after_creation() {
         // This test verifies that span fields recorded AFTER span creation
         // are captured via the on_record implementation.
@@ -1465,6 +1493,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_attribute_allowlist_includes_only_named() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1501,6 +1530,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_attribute_allowlist_nested_spans() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1545,6 +1575,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_attributes_all_copies_all() {
         // `TracingSpanAttributes::all()` enables enrichment and copies all
         // tracing-span attributes (no filtering).
@@ -1584,6 +1615,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_span_attribute_allowlist_with_on_record() {
         let exporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
@@ -1625,6 +1657,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental_span_attributes")]
     fn tracing_appender_empty_allowlist_copies_nothing() {
         // An empty allowlist means "allow nothing" — enrichment is enabled
         // but no span attributes match, so none are copied.

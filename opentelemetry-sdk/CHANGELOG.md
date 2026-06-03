@@ -2,6 +2,33 @@
 
 ## vNext
 
+## 0.32.1
+
+Released 2026-May-23
+
+- `BaggagePropagator` now enforces the W3C Baggage maximum header length
+  (8192 bytes) and maximum list-member count (64) when extracting an inbound
+  `baggage` header. Headers exceeding 8192 bytes are dropped at the
+  propagator boundary; headers with more than 64 list members are
+  truncated to the first 64 entries. The change keeps the propagator from
+  parsing attacker-controlled input beyond the W3C limits instead of doing
+  per-entry parse, decode, and allocation work only to discard the excess
+  on `Baggage` insert. See https://www.w3.org/TR/baggage/#limits.
+- Reverted the `SimpleSpanProcessor` telemetry suppression added in 0.32.0
+  (see #3494), which caused a `RefCell already borrowed` panic when a span
+  was started and dropped inside a `get_active_span` (or `Context::map_current`)
+  closure. Tracked in #3510. A proper fix for the underlying
+  `Context::map_current` re-entrancy will be investigated separately, after
+  which the suppression can be safely re-applied.
+- View-provided metric stream `name` (set via `Stream::builder().with_name(...)`)
+  is no longer validated against the instrument name syntax, per
+  [spec clarification](https://github.com/open-telemetry/opentelemetry-specification/pull/5094).
+  `unit` and other stream parameters continue to be validated.
+
+## 0.32.0
+
+Released 2026-May-08
+
 - `SimpleSpanProcessor` now suppresses telemetry during export, preventing
   telemetry-induced-telemetry feedback loops. This aligns with the existing
   behavior in `BatchSpanProcessor` and `SimpleLogProcessor`.
@@ -47,7 +74,8 @@
 - **Breaking** Moved the following SDK sampling types from `opentelemetry::trace` to `opentelemetry_sdk::trace` [#3277][3277]:
   - `SamplingDecision`, `SamplingResult`
   - These types are SDK implementation details and should be imported from `opentelemetry_sdk::trace` instead.
-- Fix panics and exploding memory usage from large cardinality limit [#3290][3290]
+- `StreamBuilder::build()` now rejects `usize::MAX` as a cardinality limit
+  with a validation error. [#3506][3506]
 - Fix Histogram boundaries being ignored in the presence of views [#3312][3312]
 - `TracerProviderBuilder::with_sampler` allows to pass boxed instance of `ShouldSample` [#3313][3313]
 - Fix ObservableCounter and ObservableUpDownCounter now correctly report only data points from the current measurement cycle, removing stale attribute combinations that are no longer observed. [#3248][3248]
@@ -55,20 +83,19 @@
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
 - **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
 
 [3227]: https://github.com/open-telemetry/opentelemetry-rust/pull/3227
 [3277]: https://github.com/open-telemetry/opentelemetry-rust/pull/3277
-[3290]: https://github.com/open-telemetry/opentelemetry-rust/pull/3290
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
 [3312]: https://github.com/open-telemetry/opentelemetry-rust/pull/3312
 [3248]: https://github.com/open-telemetry/opentelemetry-rust/pull/3248
 [3262]: https://github.com/open-telemetry/opentelemetry-rust/pull/3262
 [3407]: https://github.com/open-telemetry/opentelemetry-rust/pull/3407
 [3435]: https://github.com/open-telemetry/opentelemetry-rust/issues/3435
 [3458]: https://github.com/open-telemetry/opentelemetry-rust/pull/3458
-
-- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
-  backing specification) is now stable and is enabled by default.
-  [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)
+[3506]: https://github.com/open-telemetry/opentelemetry-rust/pull/3506
 
 ## 0.31.0
 

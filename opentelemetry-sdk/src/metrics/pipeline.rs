@@ -50,7 +50,7 @@ impl fmt::Debug for Pipeline {
 /// Single or multi-instrument callbacks
 type GenericCallback = Arc<dyn Fn() + Send + Sync>;
 
-pub(crate) const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
+const DEFAULT_CARDINALITY_LIMIT: usize = 2000;
 
 #[derive(Default)]
 struct PipelineInner {
