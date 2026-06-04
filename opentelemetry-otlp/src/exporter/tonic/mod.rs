@@ -32,7 +32,7 @@ use crate::retry::RetryPolicy;
     feature = "experimental-grpc-retry",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
-use opentelemetry_sdk::runtime::Runtime;
+use opentelemetry_sdk::runtime::{NoAsync, Tokio};
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -449,19 +449,23 @@ impl TonicExporterBuilder {
     feature = "experimental-grpc-retry",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
-async fn tonic_retry_with_backoff<R, F, Fut, T>(
-    runtime: R,
+async fn tonic_retry_with_backoff<F, Fut, T>(
     policy: RetryPolicy,
     classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
     operation_name: &'static str,
     operation: F,
 ) -> Result<T, tonic::Status>
 where
-    R: Runtime,
     F: Fn() -> Fut,
     Fut: Future<Output = Result<T, tonic::Status>>,
 {
-    retry_with_backoff(runtime, policy, classify_fn, operation_name, operation).await
+    if tokio::runtime::Handle::try_current().is_ok() {
+        retry_with_backoff(Tokio, policy, classify_fn, operation_name, operation).await
+    } else {
+        // The thread-based BatchSpanProcessor drives exports from a plain thread without
+        // an active Tokio runtime. In that case, use a sync-compatible delay strategy.
+        retry_with_backoff(NoAsync, policy, classify_fn, operation_name, operation).await
+    }
 }
 
 /// Provides a unified call path when experimental-grpc-retry is not enabled - just executes the operation once.
@@ -471,7 +475,6 @@ where
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 async fn tonic_retry_with_backoff<F, Fut, T>(
-    _runtime: (),
     _policy: RetryPolicy,
     _classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
     _operation_name: &'static str,
@@ -1066,6 +1069,136 @@ mod tests {
         // a channel in a unit test. The default behavior is tested implicitly in integration tests.
         let builder = TonicExporterBuilder::default();
         assert!(builder.tonic_config.retry_policy.is_none());
+    }
+
+    #[cfg(feature = "experimental-grpc-retry")]
+    #[test]
+    fn test_retry_wrapper_falls_back_without_tokio_runtime() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::task::{Context, Poll};
+
+        // Run a future to completion without installing any async runtime.
+        // This is important because the code path under test should detect the
+        // absence of Tokio and fall back to NoAsync.
+        fn block_on_without_runtime<F: std::future::Future>(future: F) -> F::Output {
+            let waker = futures_util::task::noop_waker_ref();
+            let mut context = Context::from_waker(waker);
+            let mut future = std::pin::pin!(future);
+
+            loop {
+                match future.as_mut().poll(&mut context) {
+                    Poll::Ready(value) => return value,
+                    Poll::Pending => std::thread::yield_now(),
+                }
+            }
+        }
+
+        let attempts = AtomicUsize::new(0);
+        let policy = crate::retry::RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        };
+
+        let result = block_on_without_runtime(super::tonic_retry_with_backoff(
+            policy,
+            crate::retry_classification::grpc::classify_tonic_status,
+            "test.retry.no_runtime",
+            || async {
+                // Force at least one Pending poll so the local no-runtime poll loop
+                // exercises both branches.
+                let mut first_poll = true;
+                futures_util::future::poll_fn(move |cx| {
+                    if first_poll {
+                        first_poll = false;
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    } else {
+                        Poll::Ready(())
+                    }
+                })
+                .await;
+
+                let current = attempts.fetch_add(1, Ordering::SeqCst);
+                if current == 0 {
+                    Err(tonic::Status::unavailable("transient"))
+                } else {
+                    Ok(())
+                }
+            },
+        ));
+
+        assert!(result.is_ok());
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(feature = "experimental-grpc-retry")]
+    #[tokio::test]
+    async fn test_retry_wrapper_uses_tokio_runtime_when_available() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let attempts = AtomicUsize::new(0);
+        let policy = crate::retry::RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        };
+
+        let result = super::tonic_retry_with_backoff(
+            policy,
+            crate::retry_classification::grpc::classify_tonic_status,
+            "test.retry.with_tokio_runtime",
+            || async {
+                let current = attempts.fetch_add(1, Ordering::SeqCst);
+                if current == 0 {
+                    Err(tonic::Status::unavailable("transient"))
+                } else {
+                    Ok(())
+                }
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(all(
+        feature = "grpc-tonic",
+        not(feature = "experimental-grpc-retry"),
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    ))]
+    #[tokio::test]
+    async fn test_retry_wrapper_executes_operation_once_without_retry_feature() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let attempts = AtomicUsize::new(0);
+        let policy = crate::retry::RetryPolicy {
+            max_retries: 5,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        };
+
+        let result = super::tonic_retry_with_backoff(
+            policy,
+            crate::retry_classification::grpc::classify_tonic_status,
+            "test.retry.no_feature",
+            || async {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Ok::<(), tonic::Status>(())
+            },
+        )
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(
+            attempts.load(Ordering::SeqCst),
+            1,
+            "operation should run exactly once when retry feature is disabled"
+        );
     }
 
     #[test]
