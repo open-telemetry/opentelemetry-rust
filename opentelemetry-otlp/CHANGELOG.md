@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
+
 ## 0.32.0
 
 Released 2026-May-08
