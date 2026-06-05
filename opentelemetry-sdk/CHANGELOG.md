@@ -2,11 +2,22 @@
 
 ## vNext
 
-- `SdkLogRecord::add_attribute` now deduplicates attribute keys (last-write-wins)
-  so exported log records conform to the OpenTelemetry requirement that
-  attributes form a map of unique keys. Deduplication is enabled by default and
-  can be disabled via
-  `LoggerProviderBuilder::with_log_record_attribute_deduplication(false)`.
+- **Breaking behavioral change:** `SdkLogRecord::add_attribute` now deduplicates
+  attribute keys by default (last-write-wins), so exported log records conform to
+  the OpenTelemetry specification requirement that attributes form a map of unique
+  keys. This changes observable output for any code that previously called
+  `add_attribute` with the same key more than once.
+
+  **Migration:** If you relied on the previous push-only behavior (e.g. for
+  performance reasons or because downstream consumers tolerated duplicate keys),
+  opt out via the provider builder:
+
+  ```rust
+  let provider = SdkLoggerProvider::builder()
+      .with_log_record_attribute_deduplication(false)
+      .build();
+  ```
+
   Fixes [#3497].
 
 ## 0.32.1
