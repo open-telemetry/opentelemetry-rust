@@ -27,7 +27,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
     type LogRecord = SdkLogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        SdkLogRecord::new()
+        SdkLogRecord::with_deduplicate_attributes(self.provider.deduplicate_log_record_attributes())
     }
 
     /// Emit a `LogRecord`.

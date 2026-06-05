@@ -116,6 +116,29 @@ mod tests {
     }
 
     #[test]
+    fn log_record_attribute_deduplication_disabled_via_builder() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
+            .with_log_record_attribute_deduplication(false)
+            .build();
+
+        let logger = provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("key", "second");
+        logger.emit(log_record);
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        assert_eq!(log.record.attributes_len(), 2);
+    }
+
+    #[test]
     fn logger_attributes() {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()

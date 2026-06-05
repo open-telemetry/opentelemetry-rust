@@ -195,6 +195,17 @@ mod tests {
     type KeyValuePair = Option<(Key, AnyValue)>;
 
     #[test]
+    fn test_get_mut() {
+        let mut collection = GrowableArray::<i32>::new();
+        collection.push(1);
+        collection.push(2);
+        *collection.get_mut(0).expect("index 0") = 10;
+        *collection.get_mut(1).expect("index 1") = 20;
+        assert_eq!(collection.get(0), Some(&10));
+        assert_eq!(collection.get(1), Some(&20));
+    }
+
+    #[test]
     fn test_push_and_get() {
         let mut collection = GrowableArray::<i32>::new();
         for i in 0..15 {

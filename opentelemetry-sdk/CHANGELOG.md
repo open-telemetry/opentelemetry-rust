@@ -4,7 +4,10 @@
 
 - `SdkLogRecord::add_attribute` now deduplicates attribute keys (last-write-wins)
   so exported log records conform to the OpenTelemetry requirement that
-  attributes form a map of unique keys. Fixes [#3497].
+  attributes form a map of unique keys. Deduplication is enabled by default and
+  can be disabled via
+  `LoggerProviderBuilder::with_log_record_attribute_deduplication(false)`.
+  Fixes [#3497].
 
 ## 0.32.1
 

@@ -22,6 +22,7 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
             is_shutdown: AtomicBool::new(true),
+            deduplicate_log_record_attributes: true,
         }),
     })
 }
@@ -82,6 +83,10 @@ impl SdkLoggerProvider {
         &self.inner.processors
     }
 
+    pub(crate) fn deduplicate_log_record_attributes(&self) -> bool {
+        self.inner.deduplicate_log_record_attributes
+    }
+
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> OTelSdkResult {
         let result: Vec<_> = self
@@ -135,6 +140,7 @@ impl SdkLoggerProvider {
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     is_shutdown: AtomicBool,
+    deduplicate_log_record_attributes: bool,
 }
 
 impl LoggerProviderInner {
@@ -179,11 +185,22 @@ impl Drop for LoggerProviderInner {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 /// Builder for provider attributes.
 pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
+    deduplicate_log_record_attributes: bool,
+}
+
+impl Default for LoggerProviderBuilder {
+    fn default() -> Self {
+        Self {
+            processors: Vec::new(),
+            resource: None,
+            deduplicate_log_record_attributes: true,
+        }
+    }
 }
 
 impl LoggerProviderBuilder {
@@ -287,6 +304,16 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { resource, ..self }
     }
 
+    /// Controls whether log record attribute keys are deduplicated (last-write-wins).
+    ///
+    /// Enabled by default per the OpenTelemetry specification. Set to `false` to
+    /// retain the previous push-only behavior and avoid the lookup cost on
+    /// `add_attribute`.
+    pub fn with_log_record_attribute_deduplication(mut self, enabled: bool) -> Self {
+        self.deduplicate_log_record_attributes = enabled;
+        self
+    }
+
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkLoggerProvider {
         let resource = self.resource.unwrap_or(Resource::builder().build());
@@ -299,6 +326,7 @@ impl LoggerProviderBuilder {
             inner: Arc::new(LoggerProviderInner {
                 processors,
                 is_shutdown: AtomicBool::new(false),
+                deduplicate_log_record_attributes: self.deduplicate_log_record_attributes,
             }),
         };
 
@@ -793,6 +821,7 @@ mod tests {
                     flush_called.clone(),
                 ))],
                 is_shutdown: AtomicBool::new(false),
+                deduplicate_log_record_attributes: true,
             });
 
             {
@@ -833,6 +862,7 @@ mod tests {
                 flush_called.clone(),
             ))],
             is_shutdown: AtomicBool::new(false),
+            deduplicate_log_record_attributes: true,
         });
 
         // Create a scope to test behavior when providers are dropped
