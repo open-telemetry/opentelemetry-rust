@@ -209,8 +209,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 mod tests {
     use crate::LogExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         let result = LogExporter::builder().build();
         assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }

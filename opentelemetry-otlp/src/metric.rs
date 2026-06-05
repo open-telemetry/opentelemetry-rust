@@ -286,8 +286,10 @@ impl MetricExporter {
 mod build_tests {
     use crate::MetricExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         // Verify that `MetricExporter::builder().build()` succeeds
         // when at least one transport feature is enabled.
         let result = MetricExporter::builder().build();

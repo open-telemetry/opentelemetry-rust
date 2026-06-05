@@ -203,8 +203,10 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
 mod tests {
     use crate::SpanExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         let result = SpanExporter::builder().build();
         assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }

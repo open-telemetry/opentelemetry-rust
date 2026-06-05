@@ -491,7 +491,7 @@ mod tests {
             not(any(feature = "http-proto", feature = "http-json"))
         ))]
         {
-            assert_eq!(crate::exporter::default_protocol(), crate::Protocol::Grpc);
+            assert_eq!(crate::Protocol::default(), crate::Protocol::Grpc);
         }
     }
 
