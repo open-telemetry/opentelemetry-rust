@@ -39,10 +39,12 @@ pub const OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON: &str = "http/json";
 /// Max waiting time for the backend to process each signal batch, defaults to 10 seconds.
 pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_TIMEOUT";
 
-/// Whether to enable client transport security for the exporter's gRPC connection.
-/// Per the spec, this only applies to gRPC. For HTTP, security is determined by the URL scheme.
-/// There is intentionally no programmatic builder method — this is env-var-only per the
-/// [OTLP exporter spec](https://opentelemetry.io/docs/specs/otel/protocol/exporter/).
+/// Whether to disable TLS for the exporter's gRPC connection.
+/// Per the [OTLP exporter spec](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options),
+/// this only applies to gRPC endpoints that have no explicit scheme; an endpoint
+/// with an explicit scheme is used as-is. HTTP security is determined by the
+/// endpoint URL scheme.
+/// There is intentionally no programmatic builder method — this is env-var-only.
 /// Default: `false` (TLS is used).
 pub const OTEL_EXPORTER_OTLP_INSECURE: &str = "OTEL_EXPORTER_OTLP_INSECURE";
 /// Default max waiting time for the backend to process each signal batch.
@@ -705,7 +707,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "trace"))]
     #[test]
     fn test_resolve_insecure_signal_overrides_generic() {
         run_env_test(
@@ -740,7 +742,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "trace"))]
     #[test]
     fn test_resolve_insecure_default_is_false() {
         temp_env::with_vars_unset(
@@ -776,7 +778,7 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "trace"))]
     #[test]
     fn test_resolve_insecure_case_insensitive() {
         run_env_test(
@@ -795,7 +797,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "trace"))]
     #[test]
     fn test_resolve_insecure_falls_back_to_generic() {
         temp_env::with_var_unset(crate::OTEL_EXPORTER_OTLP_TRACES_INSECURE, || {
@@ -806,7 +808,7 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "trace"))]
     #[test]
     fn test_resolve_insecure_non_true_is_false() {
         run_env_test(

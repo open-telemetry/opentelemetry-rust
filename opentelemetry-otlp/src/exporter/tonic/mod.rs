@@ -280,24 +280,10 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        let mut endpoint_str = Self::resolve_endpoint(signal_endpoint_var, config.endpoint);
-        let insecure = super::resolve_insecure(signal_insecure_var);
-
-        // Per OTLP spec, INSECURE only applies to schemeless endpoints.
-        // Endpoints with explicit http:// or https:// are used as-is (case-insensitive).
-        let has_scheme = endpoint_str
-            .get(..8)
-            .is_some_and(|p| p.eq_ignore_ascii_case("https://"))
-            || endpoint_str
-                .get(..7)
-                .is_some_and(|p| p.eq_ignore_ascii_case("http://"));
-        if !has_scheme {
-            if insecure {
-                endpoint_str = format!("http://{endpoint_str}");
-            } else {
-                endpoint_str = format!("https://{endpoint_str}");
-            }
-        }
+        let endpoint_str = apply_insecure_scheme(
+            Self::resolve_endpoint(signal_endpoint_var, config.endpoint),
+            super::resolve_insecure(signal_insecure_var),
+        );
 
         // Used for logging the endpoint
         let endpoint_clone = endpoint_str.clone();
@@ -594,6 +580,26 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
     out
 }
 
+/// Apply the OTLP `INSECURE` rule to a (possibly schemeless) gRPC endpoint.
+///
+/// Per the [OTLP exporter spec], `INSECURE` only governs endpoints that have no
+/// explicit scheme. An endpoint that already carries a scheme — `http://`,
+/// `https://`, `unix://`, etc. — is returned unchanged so its transport security
+/// is decided by that scheme. A schemeless endpoint (e.g.
+/// `collector.example.com:4317`) is prefixed with `http://` when `insecure` is
+/// `true` and `https://` otherwise.
+///
+/// [OTLP exporter spec]: https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
+fn apply_insecure_scheme(endpoint: String, insecure: bool) -> String {
+    if endpoint.contains("://") {
+        endpoint
+    } else if insecure {
+        format!("http://{endpoint}")
+    } else {
+        format!("https://{endpoint}")
+    }
+}
+
 fn merge_metadata_with_headers_from_env(
     metadata: MetadataMap,
     headers_from_env: HeaderMap,
@@ -836,6 +842,47 @@ mod tests {
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
+
+    // Scheme-resolution unit tests. These are intentionally free of env vars, a
+    // tokio runtime, and TLS features so they run under every feature
+    // combination (including CI's `--all-features`), unlike the TLS-gated
+    // integration tests below which compile out when a TLS feature is enabled.
+    #[test]
+    fn apply_insecure_scheme_defaults_to_https() {
+        assert_eq!(
+            super::apply_insecure_scheme("collector.example.com:4317".to_string(), false),
+            "https://collector.example.com:4317"
+        );
+    }
+
+    #[test]
+    fn apply_insecure_scheme_uses_http_when_insecure() {
+        assert_eq!(
+            super::apply_insecure_scheme("collector.example.com:4317".to_string(), true),
+            "http://collector.example.com:4317"
+        );
+    }
+
+    #[test]
+    fn apply_insecure_scheme_preserves_explicit_scheme() {
+        // An explicit scheme always wins over INSECURE, regardless of its value.
+        // The `unix://` case is the regression guard for an endpoint with a
+        // non-http(s) scheme being rewritten to `https://unix://...`.
+        for endpoint in [
+            "http://collector.example.com:4317",
+            "https://collector.example.com:4317",
+            "unix:///tmp/test",
+        ] {
+            assert_eq!(
+                super::apply_insecure_scheme(endpoint.to_string(), true),
+                endpoint
+            );
+            assert_eq!(
+                super::apply_insecure_scheme(endpoint.to_string(), false),
+                endpoint
+            );
+        }
+    }
 
     #[test]
     fn test_with_metadata() {
@@ -1089,14 +1136,17 @@ mod tests {
         assert!(builder.tonic_config.retry_policy.is_none());
     }
 
-    #[test]
-    #[cfg(not(any(
-        feature = "tls",
-        feature = "tls-ring",
-        feature = "tls-aws-lc",
-        feature = "tls-provider-agnostic"
-    )))]
-    fn test_schemeless_endpoint_insecure_false_errors_without_tls() {
+    #[tokio::test]
+    #[cfg(all(
+        feature = "trace",
+        not(any(
+            feature = "tls",
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))
+    ))]
+    async fn test_schemeless_endpoint_insecure_false_errors_without_tls() {
         use crate::exporter::tests::run_env_test;
         use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
@@ -1121,14 +1171,17 @@ mod tests {
         });
     }
 
-    #[test]
-    #[cfg(not(any(
-        feature = "tls",
-        feature = "tls-ring",
-        feature = "tls-aws-lc",
-        feature = "tls-provider-agnostic"
-    )))]
-    fn test_schemeless_endpoint_insecure_true_succeeds_without_tls() {
+    #[tokio::test]
+    #[cfg(all(
+        feature = "trace",
+        not(any(
+            feature = "tls",
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))
+    ))]
+    async fn test_schemeless_endpoint_insecure_true_succeeds_without_tls() {
         use crate::exporter::tests::run_env_test;
         use crate::SpanExporter;
         use crate::WithExportConfig;
@@ -1151,14 +1204,17 @@ mod tests {
         });
     }
 
-    #[test]
-    #[cfg(not(any(
-        feature = "tls",
-        feature = "tls-ring",
-        feature = "tls-aws-lc",
-        feature = "tls-provider-agnostic"
-    )))]
-    fn test_schemeless_endpoint_defaults_to_https() {
+    #[tokio::test]
+    #[cfg(all(
+        feature = "trace",
+        not(any(
+            feature = "tls",
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))
+    ))]
+    async fn test_schemeless_endpoint_defaults_to_https() {
         use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithExportConfig;
@@ -1187,6 +1243,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "trace")]
     async fn test_explicit_http_scheme_ignores_insecure_env() {
         use crate::exporter::tests::run_env_test;
         use crate::SpanExporter;

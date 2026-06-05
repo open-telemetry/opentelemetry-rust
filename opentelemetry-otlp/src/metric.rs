@@ -44,7 +44,7 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 /// Protocol to use for metrics exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
-/// Whether to enable client transport security for gRPC metrics exports.
+/// Whether to disable TLS for gRPC metrics exports.
 /// Only applies to gRPC; HTTP security is determined by URL scheme.
 pub const OTEL_EXPORTER_OTLP_METRICS_INSECURE: &str = "OTEL_EXPORTER_OTLP_METRICS_INSECURE";
 /// Temporality preference for metrics, defaults to cumulative.
