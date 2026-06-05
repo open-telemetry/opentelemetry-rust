@@ -6,6 +6,7 @@ use opentelemetry::{
 use std::time::Duration;
 use std::{
     collections::HashMap,
+    hash::BuildHasher,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -17,8 +18,8 @@ use crate::Resource;
 
 use super::{
     exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
-    periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
-    Instrument, Stream,
+    periodic_reader::PeriodicReader, pipeline::AggregateFnsBuilders, pipeline::Pipelines,
+    reader::MetricReader, view::View, Instrument, Stream,
 };
 
 /// Handles the creation and coordination of [Meter]s.
@@ -41,6 +42,9 @@ struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
     meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
     shutdown_invoked: AtomicBool,
+    /// The per-numeric-type aggregate-function builders, with the chosen hasher
+    /// already erased in. Threaded into every meter this provider creates.
+    builders: AggregateFnsBuilders,
 }
 
 impl Default for SdkMeterProvider {
@@ -209,7 +213,11 @@ impl MeterProvider for SdkMeterProvider {
                 );
                 Meter::new(existing_meter.clone())
             } else {
-                let new_meter = Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
+                let new_meter = Arc::new(SdkMeter::new(
+                    scope.clone(),
+                    self.inner.pipes.clone(),
+                    self.inner.builders.clone(),
+                ));
                 meters.insert(scope.clone(), new_meter.clone());
                 otel_debug!(
                     name: "MeterProvider.NewMeterCreated",
@@ -233,6 +241,9 @@ pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    /// The per-numeric-type aggregate-function builders, carrying the chosen
+    /// hasher (default: SipHash) type-erased.
+    builders: AggregateFnsBuilders,
 }
 
 impl MeterProviderBuilder {
@@ -394,6 +405,69 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Sets a custom [`BuildHasher`] for the internal metric trackers maps.
+    ///
+    /// By default the SDK uses the standard library's
+    /// [`RandomState`](std::collections::hash_map::RandomState)
+    /// (SipHash-1-3), which is resistant to hash-flooding (HashDoS) attacks.
+    /// This is the safe choice when metric attribute values may originate from
+    /// untrusted input.
+    ///
+    /// Supplying a faster non-cryptographic hasher (for example `foldhash` or
+    /// `ahash`) can measurably improve throughput on high-cardinality metric
+    /// workloads, but **trades away HashDoS resistance**: an attacker able to
+    /// control metric attribute values could induce hash collisions that
+    /// degrade performance. Only opt in when attribute values come from trusted
+    /// sources, or when the default cardinality limit is an acceptable bound on
+    /// the impact.
+    ///
+    /// # Example
+    ///
+    /// Using the [`foldhash`](https://crates.io/crates/foldhash) crate:
+    ///
+    /// ```
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    ///     .with_hasher(foldhash::fast::RandomState::default())
+    ///     // .with_reader(reader)
+    ///     .build();
+    /// ```
+    ///
+    /// Any type implementing [`BuildHasher`] works, so you can also supply your
+    /// own:
+    ///
+    /// ```
+    /// use std::collections::hash_map::DefaultHasher;
+    /// use std::hash::BuildHasher;
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// #[derive(Clone, Default)]
+    /// struct MyHasher;
+    ///
+    /// // Illustrative only: a real hasher would typically seed itself (e.g.
+    /// // per-process) rather than return a fixed-seed hasher each time.
+    /// impl BuildHasher for MyHasher {
+    ///     type Hasher = DefaultHasher;
+    ///     fn build_hasher(&self) -> Self::Hasher {
+    ///         DefaultHasher::new()
+    ///     }
+    /// }
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    ///     .with_hasher(MyHasher)
+    ///     .build();
+    /// ```
+    pub fn with_hasher<S>(mut self, hash_builder: S) -> Self
+    where
+        S: BuildHasher + Clone + Send + Sync + 'static,
+    {
+        // Clone the supplied hasher into each instrument so its configuration
+        // (e.g. a fixed seed) is preserved across instruments.
+        self.builders = AggregateFnsBuilders::new(move || hash_builder.clone());
+        self
+    }
+
     /// Construct a new [MeterProvider] with this configuration.
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
@@ -410,6 +484,7 @@ impl MeterProviderBuilder {
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
+                builders: self.builders,
             }),
         };
 
@@ -426,7 +501,7 @@ impl fmt::Debug for MeterProviderBuilder {
             .field("resource", &self.resource)
             .field("readers", &self.readers)
             .field("views", &self.views.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 #[cfg(all(test, feature = "testing"))]

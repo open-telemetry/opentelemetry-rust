@@ -8,14 +8,16 @@ mod sum;
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
+use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
+use std::hash::BuildHasher;
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
+pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Filter, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
@@ -79,18 +81,23 @@ impl<A: Aggregator> TrackerEntry<A> {
 }
 
 /// Map from attribute sets to their aggregator tracker entries.
-type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+type TrackerMap<A, S> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>, S>;
 
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
-pub(crate) struct ValueMap<A>
+///
+/// The `S` type parameter selects the [`BuildHasher`] used for the internal
+/// trackers map. It defaults to the standard library's [`RandomState`]
+/// (SipHash-1-3), which is DoS-resistant. Users can opt into a faster
+/// non-cryptographic hasher via the meter provider builder.
+pub(crate) struct ValueMap<A, S = RandomState>
 where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<TrackerMap<A>>,
+    trackers: RwLock<TrackerMap<A, S>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
@@ -101,17 +108,24 @@ where
     cardinality_limit: usize,
 }
 
-impl<A> ValueMap<A>
+impl<A, S> ValueMap<A, S>
 where
     A: Aggregator,
+    S: BuildHasher + Clone,
 {
     pub(crate) fn config(&self) -> &A::InitConfig {
         &self.config
     }
 
-    fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
+    fn new(config: A::InitConfig, cardinality_limit: usize, hash_builder: S) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
+            // Move the hash builder into the map; it can be recovered later via
+            // `HashMap::hasher` (used in `drain_and_reset`), so there's no need
+            // to retain a separate copy.
+            trackers: RwLock::new(HashMap::with_capacity_and_hasher(
+                1 + cardinality_limit,
+                hash_builder,
+            )),
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
@@ -399,7 +413,16 @@ where
                 return;
             };
             self.count.store(0, Ordering::SeqCst);
-            std::mem::take(&mut *trackers)
+            // Replace with a fresh map that reuses the same hash builder (cloned
+            // from the current map) and pre-allocates the same capacity as
+            // `ValueMap::new`, so the next collection cycle doesn't reallocate
+            // as it refills. Using `mem::replace` (rather than `mem::take`)
+            // avoids requiring `S: Default` and preserves the configured hasher.
+            let new_trackers = HashMap::with_capacity_and_hasher(
+                1 + self.cardinality_limit,
+                trackers.hasher().clone(),
+            );
+            std::mem::replace(&mut *trackers, new_trackers)
             // Write lock released here
         };
 
@@ -835,7 +858,7 @@ mod tests {
         // order and one for the sorted (canonical) order, both pointing to the same
         // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
         // keys so no zombie entries remain in the map.
-        let value_map = ValueMap::<Assign<i64>>::new((), 10);
+        let value_map = ValueMap::<Assign<i64>>::new((), 10, RandomState::default());
 
         // Insert with attributes deliberately in non-sorted order.
         // measure() inserts two keys:
@@ -881,6 +904,31 @@ mod tests {
         );
     }
 
+    #[test]
+    fn drain_and_reset_preallocates_tracker_capacity() {
+        // `drain_and_reset` replaces the trackers map wholesale. The replacement
+        // must keep the same pre-allocated capacity as `ValueMap::new`, so the
+        // next collection cycle refills without reallocating. (Before the fix it
+        // used `HashMap::with_hasher`, which starts at capacity 0.)
+        let cardinality_limit = 10;
+        let value_map = ValueMap::<Assign<u64>>::new((), cardinality_limit, RandomState::default());
+
+        value_map.measure(1, &[KeyValue::new("k", "a")]);
+        value_map.measure(2, &[KeyValue::new("k", "b")]);
+
+        let mut dest: Vec<Vec<KeyValue>> = Vec::new();
+        value_map.drain_and_reset(&mut dest, |attrs, _agg| attrs);
+        assert_eq!(dest.len(), 2, "drain should export both entries");
+
+        let capacity = value_map.trackers.read().unwrap().capacity();
+        assert!(
+            capacity > cardinality_limit,
+            "trackers capacity after reset should be >= {} (the pre-allocated size), got {}",
+            1 + cardinality_limit,
+            capacity
+        );
+    }
+
     /// When the trackers `RwLock` is poisoned, `bind()` cannot safely insert or
     /// look up entries, so it returns `None` and the caller (Sum/Histogram/etc.)
     /// hands back a `NoopBoundMeasure`. This is a defensive branch that fires
@@ -890,7 +938,7 @@ mod tests {
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     fn bind_returns_none_when_trackers_lock_is_poisoned() {
-        let value_map = ValueMap::<Assign<i64>>::new((), 100);
+        let value_map = ValueMap::<Assign<i64>>::new((), 100, RandomState::default());
 
         // Poison the trackers RwLock by panicking inside a write guard.
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

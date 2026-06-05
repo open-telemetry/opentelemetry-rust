@@ -15,7 +15,7 @@ use crate::metrics::{
     error::{MetricError, MetricResult},
     instrument::{Instrument, InstrumentKind, Observable, ResolvedMeasures},
     internal::{self, Number},
-    pipeline::{Pipelines, Resolver},
+    pipeline::{AggregateFnsBuilders, Pipelines, Resolver},
 };
 
 use super::noop::NoopSyncInstrument;
@@ -57,15 +57,27 @@ pub(crate) struct SdkMeter {
 }
 
 impl SdkMeter {
-    pub(crate) fn new(scope: InstrumentationScope, pipes: Arc<Pipelines>) -> Self {
+    pub(crate) fn new(
+        scope: InstrumentationScope,
+        pipes: Arc<Pipelines>,
+        builders: AggregateFnsBuilders,
+    ) -> Self {
         let view_cache = Default::default();
 
         SdkMeter {
             scope,
             pipes: Arc::clone(&pipes),
-            u64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
-            i64_resolver: Resolver::new(Arc::clone(&pipes), Arc::clone(&view_cache)),
-            f64_resolver: Resolver::new(pipes, view_cache),
+            u64_resolver: Resolver::new(
+                Arc::clone(&pipes),
+                Arc::clone(&view_cache),
+                builders.u64.clone(),
+            ),
+            i64_resolver: Resolver::new(
+                Arc::clone(&pipes),
+                Arc::clone(&view_cache),
+                builders.i64.clone(),
+            ),
+            f64_resolver: Resolver::new(pipes, view_cache, builders.f64),
         }
     }
 

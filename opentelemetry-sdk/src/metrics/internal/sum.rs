@@ -1,6 +1,8 @@
 use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -69,15 +71,15 @@ impl<T: Number> Drop for BoundSumHandle<T> {
 }
 
 /// Summarizes a set of measurements made as their arithmetic sum.
-pub(crate) struct Sum<T: Number> {
-    value_map: ValueMap<Increment<T>>,
+pub(crate) struct Sum<T: Number, S = RandomState> {
+    value_map: ValueMap<Increment<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
 }
 
-impl<T: Number> Sum<T> {
+impl<T: Number, S: BuildHasher + Clone> Sum<T, S> {
     /// Returns an aggregator that summarizes a set of measurements as their
     /// arithmetic sum.
     ///
@@ -88,9 +90,10 @@ impl<T: Number> Sum<T> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, hash_builder),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -175,9 +178,10 @@ impl<T: Number> Sum<T> {
     }
 }
 
-impl<T> Measure<T> for Sum<T>
+impl<T, S> Measure<T> for Sum<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         self.filter.apply(attrs, |filtered| {
@@ -200,9 +204,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Sum<T>
+impl<T, S> ComputeAggregation for Sum<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));

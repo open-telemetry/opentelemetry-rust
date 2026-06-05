@@ -3,6 +3,8 @@ use crate::metrics::{
     Temporality,
 };
 use opentelemetry::KeyValue;
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -72,21 +74,22 @@ where
 }
 
 /// Summarizes a set of measurements as the last one made.
-pub(crate) struct LastValue<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct LastValue<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
 }
 
-impl<T: Number> LastValue<T> {
+impl<T: Number, S: BuildHasher + Clone> LastValue<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         LastValue {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, hash_builder),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -163,9 +166,10 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> Measure<T> for LastValue<T>
+impl<T, S> Measure<T> for LastValue<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         self.filter.apply(attrs, |filtered| {
@@ -186,9 +190,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for LastValue<T>
+impl<T, S> ComputeAggregation for LastValue<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -219,8 +224,12 @@ mod tests {
     /// the `Measure` / `BoundMeasure` traits to keep the impl honest.
     #[test]
     fn bind_writes_through_bound_handle() {
-        let last_value =
-            LastValue::<u64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 100);
+        let last_value = LastValue::<u64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            100,
+            RandomState::default(),
+        );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&last_value, &attrs);
 
@@ -237,8 +246,12 @@ mod tests {
 
     #[test]
     fn bound_handle_drop_decrements_bound_count() {
-        let last_value =
-            LastValue::<u64>::new(Temporality::Delta, AttributeSetFilter::new(None), 100);
+        let last_value = LastValue::<u64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            100,
+            RandomState::default(),
+        );
         let attrs = [KeyValue::new("k", "v")];
 
         let bound = Measure::bind(&last_value, &attrs);
