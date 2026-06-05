@@ -3,19 +3,19 @@
 //! Run with:
 //! `cargo bench --bench log_record_attribute_dedup --features logs`
 //!
-//! Apple M4 Max, macOS 25.3.0 (2026-06-05)
+//! Apple M4 Max, macOS 25.3.0 (2026-06-05) — median of 3 independent runs
 //!
 //! Results (unique keys — typical case, no duplicates in the batch):
-//! | Scenario                | Dedup ON | Dedup OFF (before) | Overhead |
-//! |-------------------------|----------|--------------------|----------|
-//! | add_1_unique_attribute  | 25.6 ns  | 25.9 ns            |  ~1.0x   |
-//! | add_5_unique_attributes | 129.3 ns | 127.5 ns           |  ~1.0x   |
-//! | add_9_unique_attributes | 292.0 ns | 223.6 ns           |  ~1.3x   |
+//! | Scenario                | Dedup ON  | Dedup OFF (before) | Overhead |
+//! |-------------------------|-----------|--------------------|----------|
+//! | add_1_unique_attribute  |  25.3 ns  |  25.5 ns           |  ~1.0x   |
+//! | add_5_unique_attributes | 130.7 ns  | 122.9 ns           |  ~1.06x  |
+//! | add_9_unique_attributes | 296.9 ns  | 220.3 ns           |  ~1.35x  |
 //!
 //! Results (repeated key — duplicate writes to the same key):
 //! | Scenario       | Dedup ON | Dedup OFF (before) |
 //! |----------------|----------|--------------------|
-//! | add_5_same_key | 32.1 ns  | 38.5 ns            |
+//! | add_5_same_key | 32.0 ns  | 32.1 ns            |
 //!
 //! Note: criterion does not fail CI on regression by itself. These numbers are
 //! reference values for human review in PR #3537 / issue #3497.
