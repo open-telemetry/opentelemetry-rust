@@ -2,6 +2,10 @@
 
 ## vNext
 
+- `SdkLogRecord::add_attribute` now deduplicates attribute keys (last-write-wins)
+  so exported log records conform to the OpenTelemetry requirement that
+  attributes form a map of unique keys. Fixes [#3497].
+
 ## 0.32.1
 
 Released 2026-May-23

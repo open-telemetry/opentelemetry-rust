@@ -80,6 +80,21 @@ impl<
         }
     }
 
+    /// Gets a mutable reference to the value at the specified index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index < self.count {
+            Some(&mut self.inline[index])
+        } else if let Some(ref mut overflow) = self.overflow {
+            overflow.get_mut(index - MAX_INLINE_CAPACITY)
+        } else {
+            None
+        }
+    }
+
     /// Returns the number of elements in the `GrowableArray`.
     #[allow(dead_code)]
     #[inline]

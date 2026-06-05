@@ -101,7 +101,19 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        self.attributes.push(Some((key.into(), value.into())));
+        let key = key.into();
+        let value = value.into();
+        for i in 0..self.attributes.len() {
+            if let Some((existing_key, existing_value)) =
+                self.attributes.get_mut(i).and_then(|opt| opt.as_mut())
+            {
+                if *existing_key == key {
+                    *existing_value = value;
+                    return;
+                }
+            }
+        }
+        self.attributes.push(Some((key, value)));
     }
 
     fn set_trace_context(
@@ -305,6 +317,42 @@ mod tests {
         let key = Key::new("key");
         let value = AnyValue::String("value".into());
         assert!(log_record.attributes_contains(&key, &value));
+    }
+
+    #[test]
+    fn test_add_attribute_deduplicates_last_write_wins() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("key", "second");
+        assert_eq!(log_record.attributes_len(), 1);
+        assert!(
+            log_record.attributes_contains(&Key::new("key"), &AnyValue::String("second".into()))
+        );
+    }
+
+    #[test]
+    fn test_add_attributes_deduplicates_within_batch() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attributes([("key", "first"), ("key", "second")]);
+        log_record.add_attribute(Key::new("other"), AnyValue::Int(1));
+        assert_eq!(log_record.attributes_len(), 2);
+        assert!(
+            log_record.attributes_contains(&Key::new("key"), &AnyValue::String("second".into()))
+        );
+        assert!(log_record.attributes_contains(&Key::new("other"), &AnyValue::Int(1)));
+    }
+
+    #[test]
+    fn test_add_attribute_deduplicates_beyond_inline_capacity() {
+        let mut log_record = SdkLogRecord::new();
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY {
+            log_record.add_attribute(format!("key{i}"), i as i64);
+        }
+        log_record.add_attribute("key0", "updated");
+        assert_eq!(log_record.attributes_len(), PREALLOCATED_ATTRIBUTE_CAPACITY);
+        assert!(
+            log_record.attributes_contains(&Key::new("key0"), &AnyValue::String("updated".into()))
+        );
     }
 
     #[test]
