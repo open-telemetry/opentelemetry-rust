@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Updated trace exporter to use borrowed `SpanBatch` interface.
+
 ## 0.32.0
 
 Released 2026-May-08
