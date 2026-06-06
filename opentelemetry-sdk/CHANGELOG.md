@@ -2,6 +2,12 @@
 
 ## vNext
 
+- `BatchSpanProcessor` and `BatchLogProcessor` `shutdown()` no longer panic on
+  background worker thread failures (see #3375). It now returns an
+  `OTelSdkError` instead of triggering a *second* panic when the worker thread
+  panicked while being joined (the original panic message is preserved in the
+  error), and recovers a poisoned handle mutex instead of unwrapping it.
+
 ## 0.32.1
 
 Released 2026-May-23
