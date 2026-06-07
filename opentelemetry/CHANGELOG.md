@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Added** `StringValue::from_static_str` to initialize a constant `StringValue`.
+
 ## 0.32.0
 
 Released 2026-May-08
