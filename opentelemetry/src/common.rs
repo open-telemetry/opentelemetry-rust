@@ -266,7 +266,7 @@ impl StringValue {
     /// # use opentelemetry::{StringValue, KeyValue, Key, Value};
     /// let labels = &[KeyValue::new(
     ///     Key::from_static_str("key"),
-    ///     Value::String(StringValue::from_static_str("value")),
+    ///     StringValue::from_static_str("value"),
     /// )];
     /// ```
     pub const fn from_static_str(value: &'static str) -> Self {
