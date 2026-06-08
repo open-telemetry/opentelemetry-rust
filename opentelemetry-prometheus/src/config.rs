@@ -89,14 +89,6 @@ impl ExporterBuilder {
         self
     }
 
-    /// Configures the exporter to not export instrumentation scope labels on metric points.
-    ///
-    /// Deprecated: use [`scope_info_enabled(false)`](Self::scope_info_enabled) instead.
-    pub fn without_scope_info(mut self) -> Self {
-        self.scope_info_enabled = false;
-        self
-    }
-
     /// Configures the exporter to prefix metrics with the given namespace.
     ///
     /// Metrics such as `target_info` are not prefixed since these have special

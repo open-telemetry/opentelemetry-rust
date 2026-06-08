@@ -432,8 +432,7 @@ fn get_scope_labels(scope: &InstrumentationScope) -> Vec<LabelPair> {
             .or_insert_with(|| vec![kv.value.to_string()]);
     }
 
-    for (label_name, mut values) in attr_labels {
-        values.sort_unstable();
+    for (label_name, values) in attr_labels {
         labels.push(label_pair(label_name, values.join(";")));
     }
 

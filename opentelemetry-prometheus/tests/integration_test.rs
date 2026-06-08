@@ -33,7 +33,8 @@ fn scope_info_labels_are_added_to_metric_points() {
         .with_version("v1.2.3")
         .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
         .with_attributes([
-            KeyValue::new("custom.scope.attr", "scope-value"),
+            KeyValue::new("custom.scope.attr", "first"),
+            KeyValue::new("custom/scope/attr", "second"),
             KeyValue::new("version", "reserved-version"),
             KeyValue::new("schema_url", "reserved-schema-url"),
         ])
@@ -46,7 +47,7 @@ fn scope_info_labels_are_added_to_metric_points() {
     let output = gather_and_encode(registry);
 
     assert!(output.contains(
-        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test",otel_scope_version="v1.2.3",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0",otel_scope_custom_scope_attr="scope-value"} 1"#
+        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test",otel_scope_version="v1.2.3",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0",otel_scope_custom_scope_attr="first;second"} 1"#
     ));
     assert!(!output.contains("otel_scope_info"));
     assert!(!output.contains("reserved-version"));
@@ -321,7 +322,7 @@ fn prometheus_exporter_integration() {
         },
         TestCase {
             name: "without scope_info",
-            builder: ExporterBuilder::default().without_scope_info(),
+            builder: ExporterBuilder::default().scope_info_enabled(false),
             expected_file: "without_scope_info.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
@@ -338,7 +339,7 @@ fn prometheus_exporter_integration() {
         TestCase {
             name: "without scope_info and target_info",
             builder: ExporterBuilder::default()
-                .without_scope_info()
+                .scope_info_enabled(false)
                 .without_target_info(),
             expected_file: "without_scope_and_target_info.txt",
             record_metrics: Box::new(|meter| {
