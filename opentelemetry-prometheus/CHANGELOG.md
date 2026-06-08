@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Add `scope_info_enabled` to configure Prometheus instrumentation scope labels and stop exporting `otel_scope_info`. [#3503](https://github.com/open-telemetry/opentelemetry-rust/pull/3503)
+
 ## 0.32.0
 
 Released 2026-May-08
