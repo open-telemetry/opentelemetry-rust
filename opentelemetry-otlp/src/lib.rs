@@ -228,6 +228,21 @@
 //! | `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Path to PEM-encoded TLS client key for mTLS. | (none) |
 //! | `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` | Path to PEM-encoded TLS client certificate for mTLS. | (none) |
 //!
+//! ### TLS certificate caveats
+//!
+//! The TLS certificate environment variables above are honored only when the exporter
+//! creates the transport client itself:
+//!
+//! - **gRPC (tonic):** applied when a `tls*` feature is enabled.
+//! - **HTTP:** applied only to auto-created `reqwest` clients (the `reqwest-client` or
+//!   `reqwest-blocking-client` features together with a `reqwest-rustls*` feature). They are
+//!   **not** applied to the `hyper-client`, nor to a custom client supplied via
+//!   `.with_http_client(...)` — those must configure TLS themselves. When env vars are set but
+//!   the active HTTP client cannot apply them, the exporter logs a warning at build time.
+//!
+//! Note that when multiple HTTP client features are enabled, `hyper-client` is selected ahead of
+//! the default blocking `reqwest` client, in which case these env vars are not applied.
+//!
 //! ## Traces
 //!
 //! | Variable | Description |

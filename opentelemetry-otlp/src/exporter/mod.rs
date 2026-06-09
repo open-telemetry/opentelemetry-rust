@@ -225,7 +225,12 @@ pub(crate) struct SignalTlsEnvVars {
 #[cfg(any(
     all(
         feature = "grpc-tonic",
-        any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+        any(
+            feature = "tls",
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        )
     ),
     all(
         any(feature = "http-proto", feature = "http-json"),
@@ -237,11 +242,14 @@ pub(crate) fn resolve_tls_env_and_read(
     signal_var: &str,
     generic_var: &str,
 ) -> Result<Option<Vec<u8>>, ExporterBuildError> {
+    // An empty signal-specific var must not suppress fallback to a set generic var,
+    // so filter out empty values before applying precedence.
     let path = std::env::var(signal_var)
         .ok()
-        .or_else(|| std::env::var(generic_var).ok());
+        .filter(|v| !v.is_empty())
+        .or_else(|| std::env::var(generic_var).ok().filter(|v| !v.is_empty()));
     match path {
-        Some(path) if !path.is_empty() => {
+        Some(path) => {
             let data = std::fs::read(&path).map_err(|e| {
                 ExporterBuildError::InternalFailure(format!(
                     "Failed to read TLS file '{}': {}",
@@ -250,7 +258,33 @@ pub(crate) fn resolve_tls_env_and_read(
             })?;
             Ok(Some(data))
         }
-        _ => Ok(None),
+        None => Ok(None),
+    }
+}
+
+/// Warn when TLS certificate env vars are set but the selected HTTP client cannot
+/// honor them. Only auto-created reqwest clients apply these env vars; hyper and
+/// user-supplied clients must configure TLS themselves. This is a cheap presence
+/// check (no file IO) so it never fails the build.
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+pub(crate) fn warn_if_tls_env_ignored(tls_vars: &SignalTlsEnvVars, client: &'static str) {
+    let is_set = |signal_var: &str, generic_var: &str| {
+        std::env::var(signal_var).is_ok_and(|v| !v.is_empty())
+            || std::env::var(generic_var).is_ok_and(|v| !v.is_empty())
+    };
+
+    if is_set(tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)
+        || is_set(tls_vars.client_key_var, OTEL_EXPORTER_OTLP_CLIENT_KEY)
+        || is_set(
+            tls_vars.client_cert_var,
+            OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+        )
+    {
+        opentelemetry::otel_warn!(
+            name: "TlsConfig.EnvVarsIgnored",
+            message = "TLS certificate environment variables are set but the active HTTP client cannot apply them; only auto-created reqwest clients honor these env vars. Configure TLS on the client directly.",
+            client = client
+        );
     }
 }
 
@@ -779,7 +813,12 @@ mod tests {
     #[cfg(any(
         all(
             feature = "grpc-tonic",
-            any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc")
+            any(
+                feature = "tls",
+                feature = "tls-ring",
+                feature = "tls-aws-lc",
+                feature = "tls-provider-agnostic"
+            )
         ),
         all(
             any(feature = "http-proto", feature = "http-json"),
@@ -879,6 +918,32 @@ mod tests {
             temp_env::with_vars(
                 [
                     (SIGNAL_CERT_VAR, None),
+                    (
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                        Some(generic_str.as_str()),
+                    ),
+                ],
+                || {
+                    let result = super::super::resolve_tls_env_and_read(
+                        SIGNAL_CERT_VAR,
+                        super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
+                    );
+                    assert_eq!(result.unwrap().unwrap(), b"generic-cert-data");
+                },
+            );
+        }
+
+        #[test]
+        fn resolve_tls_env_empty_signal_falls_back_to_generic() {
+            use std::io::Write;
+            let mut generic_file = tempfile::NamedTempFile::new().unwrap();
+            generic_file.write_all(b"generic-cert-data").unwrap();
+
+            let generic_str = generic_file.path().to_str().unwrap().to_string();
+            // An empty signal-specific var must not suppress fallback to a set generic var.
+            temp_env::with_vars(
+                [
+                    (SIGNAL_CERT_VAR, Some("")),
                     (
                         super::super::OTEL_EXPORTER_OTLP_CERTIFICATE,
                         Some(generic_str.as_str()),

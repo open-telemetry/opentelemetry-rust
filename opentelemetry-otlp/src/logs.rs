@@ -103,7 +103,7 @@ impl LogExporterBuilder<TonicExporterBuilderSet> {
     /// Build the [LogExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
         let result = self.client.0.build_log_exporter();
-        otel_debug!(name: "LogExporterBuilt", result = format!("{:?}", &result));
+        otel_debug!(name: "LogExporterBuilt");
         result
     }
 }

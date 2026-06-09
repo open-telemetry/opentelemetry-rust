@@ -349,9 +349,23 @@ impl TonicExporterBuilder {
                 // Try to build TLS config from environment variables
                 let tls_config_from_env = Self::build_tls_config_from_env(&signal_tls_vars)?;
                 match tls_config_from_env {
-                    Some(tls_config) => endpoint
+                    // Env TLS config is only applied to HTTPS endpoints, mirroring the
+                    // default-config arm below and the HTTP/reqwest transport (which keys
+                    // TLS off the URL scheme). Forcing TLS onto a plaintext `http://`
+                    // endpoint would break the connection.
+                    Some(tls_config) if is_https => endpoint
                         .tls_config(tls_config)
                         .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                    // Env TLS config set but the endpoint is plaintext: ignore it (don't
+                    // force TLS) and warn, since this is almost certainly a misconfiguration.
+                    Some(_) => {
+                        opentelemetry::otel_warn!(
+                            name: "TlsConfig.IgnoredForPlaintextEndpoint",
+                            message = "TLS certificate environment variables are set but the endpoint is not HTTPS; TLS will not be applied",
+                            endpoint = endpoint_clone.clone()
+                        );
+                        endpoint
+                    }
                     // No env vars set, but HTTPS endpoint: apply default TLS config
                     None if is_https => endpoint
                         .tls_config(ClientTlsConfig::new())
@@ -385,7 +399,12 @@ impl TonicExporterBuilder {
 
     /// Build a `ClientTlsConfig` from TLS-related environment variables.
     /// Returns `None` if no TLS env vars are set.
-    #[cfg(any(feature = "tls", feature = "tls-ring", feature = "tls-aws-lc"))]
+    #[cfg(any(
+        feature = "tls",
+        feature = "tls-ring",
+        feature = "tls-aws-lc",
+        feature = "tls-provider-agnostic"
+    ))]
     fn build_tls_config_from_env(
         tls_vars: &super::SignalTlsEnvVars,
     ) -> Result<Option<ClientTlsConfig>, ExporterBuildError> {
@@ -406,10 +425,21 @@ impl TonicExporterBuilder {
         // Warn and skip if only one of key/cert is set (incomplete mTLS)
         let has_identity = match (&client_key, &client_cert) {
             (Some(_), Some(_)) => true,
-            (Some(_), None) | (None, Some(_)) => {
+            (Some(_), None) => {
                 opentelemetry::otel_warn!(
                     name: "TlsConfig.PartialMtls",
-                    message = "mTLS requires both CLIENT_KEY and CLIENT_CERTIFICATE to be set; only one was provided, skipping mTLS configuration"
+                    message = "mTLS requires both a client key and a client certificate; only the client key was provided, skipping mTLS configuration",
+                    client_key_var = tls_vars.client_key_var,
+                    client_cert_var = tls_vars.client_cert_var
+                );
+                false
+            }
+            (None, Some(_)) => {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.PartialMtls",
+                    message = "mTLS requires both a client key and a client certificate; only the client certificate was provided, skipping mTLS configuration",
+                    client_key_var = tls_vars.client_key_var,
+                    client_cert_var = tls_vars.client_cert_var
                 );
                 false
             }
