@@ -159,13 +159,14 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
 
         match handle {
             Some(h) => h.join().map_err(|e| match e {
-                JoinError::Panic(_) => {
-                    OTelSdkError::InternalFailure("Worker task panicked".to_string())
-                }
+                JoinError::Panic(payload) => OTelSdkError::InternalFailure(format!(
+                    "batch span processor worker panicked during shutdown: {}",
+                    crate::util::panic_message(&*payload)
+                )),
                 #[cfg(feature = "rt-tokio")]
-                JoinError::Cancelled => {
-                    OTelSdkError::InternalFailure("Worker task was cancelled".to_string())
-                }
+                JoinError::Cancelled => OTelSdkError::InternalFailure(
+                    "batch span processor worker was cancelled during shutdown".to_string(),
+                ),
             })?,
             None => Ok(()), // Already shut down
         }
@@ -474,7 +475,7 @@ where
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{BatchSpanProcessor, SpanProcessor};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::runtime;
     use crate::testing::trace::{new_test_export_span_data, new_test_exporter};
     use crate::trace::span_processor::{
@@ -729,6 +730,58 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn shutdown_returns_final_export_error() {
+        // If the worker's final export on shutdown fails, shutdown() must
+        // propagate that error rather than swallowing it.
+        #[derive(Debug)]
+        struct FailingExporter;
+        impl SpanExporter for FailingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Err(OTelSdkError::InternalFailure("export failed".into()))
+            }
+        }
+
+        let processor =
+            BatchSpanProcessor::new(FailingExporter, BatchConfig::default(), runtime::Tokio);
+        processor.on_end(new_test_export_span_data());
+
+        match processor.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("export failed"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn shutdown_surfaces_worker_panic() {
+        // If the worker panics during the final export on shutdown, shutdown()
+        // must surface the original panic message rather than a generic error.
+        #[derive(Debug)]
+        struct PanickingExporter;
+        impl SpanExporter for PanickingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                panic!("export blew up");
+            }
+        }
+
+        let processor =
+            BatchSpanProcessor::new(PanickingExporter, BatchConfig::default(), runtime::Tokio);
+        processor.on_end(new_test_export_span_data());
+
+        match processor.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(
+                    msg.contains("panicked during shutdown"),
+                    "unexpected message: {msg}"
+                );
+                assert!(msg.contains("export blew up"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure with panic message, got {other:?}"),
+        }
     }
 
     /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
