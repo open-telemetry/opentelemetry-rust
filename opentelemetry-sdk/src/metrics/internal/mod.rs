@@ -133,11 +133,11 @@ where
             return;
         }
 
-        let sorted_attrs = sort_and_dedup(attributes);
-
         let Ok(trackers) = self.trackers.read() else {
             return;
         };
+
+        let sorted_attrs = sort_and_dedup(attributes);
 
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
