@@ -2,12 +2,14 @@
 
 ## vNext
 
-- `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 - Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
+
 
 ## 0.32.0
 
 Released 2026-May-08
+
+- `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0
 
