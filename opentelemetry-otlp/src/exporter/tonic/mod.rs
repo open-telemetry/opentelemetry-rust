@@ -589,9 +589,17 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
 /// `collector.example.com:4317`) is prefixed with `http://` when `insecure` is
 /// `true` and `https://` otherwise.
 ///
+/// An endpoint carries an explicit scheme only when `://` precedes any
+/// path/query/fragment delimiter, so `unix:///tmp/x` is treated as schemed
+/// while `collector:4317/p://q` is not.
+///
 /// [OTLP exporter spec]: https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
 fn apply_insecure_scheme(endpoint: String, insecure: bool) -> String {
-    if endpoint.contains("://") {
+    let has_scheme = endpoint
+        .split_once("://")
+        .is_some_and(|(scheme, _)| !scheme.contains(['/', '?', '#']));
+
+    if has_scheme {
         endpoint
     } else if insecure {
         format!("http://{endpoint}")
@@ -882,6 +890,21 @@ mod tests {
                 endpoint
             );
         }
+    }
+
+    #[test]
+    fn apply_insecure_scheme_ignores_delimited_scheme_separator() {
+        // A `://` that appears after a path/query/fragment delimiter is not a
+        // scheme, so the (schemeless) endpoint must still be prefixed rather than
+        // passed through and left to fail URI parsing.
+        assert_eq!(
+            super::apply_insecure_scheme("collector:4317/path://foo".to_string(), false),
+            "https://collector:4317/path://foo"
+        );
+        assert_eq!(
+            super::apply_insecure_scheme("collector:4317/path://foo".to_string(), true),
+            "http://collector:4317/path://foo"
+        );
     }
 
     #[test]
