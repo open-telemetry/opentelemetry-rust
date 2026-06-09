@@ -490,6 +490,12 @@ impl HttpExporterBuilder {
             (None, None) => None,
         };
 
+        // A partial mTLS pair (only key or only cert) is discarded above, so re-check:
+        // if nothing usable survived, return None rather than a Some wrapping two Nones.
+        if ca_cert.is_none() && identity.is_none() {
+            return Ok(None);
+        }
+
         Ok(Some(ReqwestTlsCerts { ca_cert, identity }))
     }
 
