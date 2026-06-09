@@ -90,12 +90,13 @@ pub trait HttpClient: Debug + Send + Sync {
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
+const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
+
 #[cfg(feature = "reqwest")]
 mod reqwest {
-    const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
     use opentelemetry::otel_debug;
 
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES};
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
@@ -151,8 +152,7 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES};
     use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
