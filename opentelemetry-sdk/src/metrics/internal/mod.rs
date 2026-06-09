@@ -133,19 +133,12 @@ where
             return;
         }
 
+        let sorted_attrs = sort_and_dedup(attributes);
+
         let Ok(trackers) = self.trackers.read() else {
             return;
         };
 
-        // Try to retrieve and update the tracker with the attributes in the provided order first
-        if let Some(tracker) = trackers.get(attributes) {
-            tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Release);
-            return;
-        }
-
-        // Try to retrieve and update the tracker with the attributes sorted.
-        let sorted_attrs = sort_and_dedup(attributes);
         if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
@@ -159,12 +152,9 @@ where
             return;
         };
 
-        // Recheck both the provided and sorted orders after acquiring the write lock
-        // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
-            tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Release);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+        // Recheck after acquiring the write lock in case another thread has
+        // pushed an update in the meantime.
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
         } else if self.is_under_cardinality_limit() {
@@ -172,8 +162,6 @@ where
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
 
-            // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
@@ -214,15 +202,11 @@ where
         }
 
         let sorted_attrs = sort_and_dedup(attributes);
-        self.bind_attrs(attributes, sorted_attrs)
+        self.bind_attrs(sorted_attrs)
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind_attrs(
-        &self,
-        original: &[KeyValue],
-        sorted_attrs: Vec<KeyValue>,
-    ) -> Option<Arc<TrackerEntry<A>>> {
+    fn bind_attrs(&self, sorted_attrs: Vec<KeyValue>) -> Option<Arc<TrackerEntry<A>>> {
         // Fast path: read lock lookup using the canonical (sorted) key.
         if let Ok(trackers) = self.trackers.read() {
             if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
@@ -246,12 +230,6 @@ where
         if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-            // Insert with both the original and sorted orderings so subsequent
-            // unbound measure() calls hit the fast path regardless of attr order.
-            // Mirrors `measure()`'s insert pattern.
-            if original != sorted_attrs.as_slice() {
-                trackers.insert(original.to_vec(), new_tracker.clone());
-            }
             trackers.insert(sorted_attrs, new_tracker.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
@@ -830,28 +808,31 @@ mod tests {
     }
 
     #[test]
-    fn stale_entry_evicts_both_unsorted_and_sorted_keys() {
-        // ValueMap stores two HashMap keys per attribute set: one for the insertion
-        // order and one for the sorted (canonical) order, both pointing to the same
-        // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
-        // keys so no zombie entries remain in the map.
+    fn measure_stores_only_sorted_deduplicated_attribute_key() {
         let value_map = ValueMap::<Assign<i64>>::new((), 10);
 
-        // Insert with attributes deliberately in non-sorted order.
-        // measure() inserts two keys:
-        //   - unsorted: [("b", ...), ("a", ...)]
-        //   - sorted:   [("a", ...), ("b", ...)]
-        // both pointing to the same Arc<TrackerEntry>.
-        let attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
+        // Insert with attributes deliberately in non-sorted order and with a
+        // duplicate key. measure() should normalize the key before tracking.
+        let attrs = vec![
+            KeyValue::new("b", 1_i64),
+            KeyValue::new("a", 2_i64),
+            KeyValue::new("b", 3_i64),
+        ];
         value_map.measure(1_i64, attrs.as_slice());
 
         {
             let trackers = value_map.trackers.read().unwrap();
             assert_eq!(
                 trackers.len(),
-                2,
-                "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
+                1,
+                "should store only the sorted and deduplicated key"
             );
+            let stored_attrs = trackers.keys().next().unwrap();
+            let stored_keys = stored_attrs
+                .iter()
+                .map(|kv| kv.key.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(stored_keys, vec!["a", "b"]);
         }
         assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
 
@@ -861,7 +842,6 @@ mod tests {
         assert_eq!(dest.len(), 1, "first collect should export the entry");
 
         // Second collect: entry was not updated since last collect, so it is stale.
-        // Both HashMap keys (unsorted + sorted) must be evicted.
         dest.clear();
         value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
         assert_eq!(dest.len(), 0, "stale entry should not be exported");
@@ -871,7 +851,7 @@ mod tests {
             assert_eq!(
                 trackers.len(),
                 0,
-                "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
+                "the stale normalized key must be evicted"
             );
         }
         assert_eq!(

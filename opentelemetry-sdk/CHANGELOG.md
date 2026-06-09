@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix delta aggregation for `ObservableCounter` measurements with attributes
+  that are not already sorted and deduplicated.
+
 ## 0.32.1
 
 Released 2026-May-23
