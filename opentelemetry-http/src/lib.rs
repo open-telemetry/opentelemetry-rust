@@ -96,7 +96,9 @@ const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 mod reqwest {
     use opentelemetry::otel_debug;
 
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES};
+    use super::{
+        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+    };
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
@@ -152,7 +154,9 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES};
+    use super::{
+        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+    };
     use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
