@@ -37,6 +37,13 @@ pub const OTEL_EXPORTER_OTLP_TRACES_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_TRAC
 pub const OTEL_EXPORTER_OTLP_TRACES_HEADERS: &str = "OTEL_EXPORTER_OTLP_TRACES_HEADERS";
 /// Protocol to use for trace exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL";
+/// Path to the TLS certificate for verifying the server's TLS credentials for trace exports.
+pub const OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE: &str = "OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE";
+/// Path to the TLS client key for mTLS authentication for trace exports.
+pub const OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY: &str = "OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY";
+/// Path to the TLS client certificate for mTLS authentication for trace exports.
+pub const OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE: &str =
+    "OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE";
 
 /// OTLP span exporter builder
 #[derive(Debug, Default, Clone)]

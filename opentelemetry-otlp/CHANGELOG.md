@@ -2,6 +2,16 @@
 
 ## vNext
 
+- Add support for TLS certificate environment variables per the OTLP exporter spec:
+  `OTEL_EXPORTER_OTLP_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_KEY`,
+  `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` (generic), plus per-signal variants for traces,
+  metrics, and logs. These env vars point to PEM-encoded files for server TLS verification and
+  mTLS client authentication. Programmatic `.with_tls_config()` takes precedence over env vars.
+  For HTTP, the env vars are only applied to auto-created `reqwest` clients; hyper and
+  user-supplied clients (via `.with_http_client()`) must configure TLS themselves.
+  [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
+  [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
+
 ## 0.32.0
 
 Released 2026-May-08

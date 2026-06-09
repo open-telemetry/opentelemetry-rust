@@ -224,6 +224,24 @@
 //! | `OTEL_EXPORTER_OTLP_TIMEOUT` | Maximum wait time (in milliseconds) for the backend to process each batch. | `10000` |
 //! | `OTEL_EXPORTER_OTLP_HEADERS` | Key-value pairs for request headers. Format: `key1=value1,key2=value2`. Values are URL-decoded. | (none) |
 //! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`. | (none) |
+//! | `OTEL_EXPORTER_OTLP_CERTIFICATE` | Path to PEM-encoded TLS certificate for server verification. | (none) |
+//! | `OTEL_EXPORTER_OTLP_CLIENT_KEY` | Path to PEM-encoded TLS client key for mTLS. | (none) |
+//! | `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` | Path to PEM-encoded TLS client certificate for mTLS. | (none) |
+//!
+//! ### TLS certificate caveats
+//!
+//! The TLS certificate environment variables above are honored only when the exporter
+//! creates the transport client itself:
+//!
+//! - **gRPC (tonic):** applied when a `tls*` feature is enabled.
+//! - **HTTP:** applied only to auto-created `reqwest` clients (the `reqwest-client` or
+//!   `reqwest-blocking-client` features together with a `reqwest-rustls*` feature). They are
+//!   **not** applied to the `hyper-client`, nor to a custom client supplied via
+//!   `.with_http_client(...)` — those must configure TLS themselves. When env vars are set but
+//!   the active HTTP client cannot apply them, the exporter logs a warning at build time.
+//!
+//! Note that when multiple HTTP client features are enabled, `hyper-client` is selected ahead of
+//! the default blocking `reqwest` client, in which case these env vars are not applied.
 //!
 //! ## Traces
 //!
@@ -234,6 +252,9 @@
 //! | `OTEL_EXPORTER_OTLP_TRACES_TIMEOUT` | Signal-specific timeout (in milliseconds) for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_HEADERS` | Signal-specific headers for trace exports. |
 //! | `OTEL_EXPORTER_OTLP_TRACES_COMPRESSION` | Signal-specific compression for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE` | Signal-specific TLS certificate for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY` | Signal-specific TLS client key for trace exports. |
+//! | `OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE` | Signal-specific TLS client certificate for trace exports. |
 //!
 //! ## Metrics
 //!
@@ -245,6 +266,9 @@
 //! | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | Signal-specific headers for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | Signal-specific compression for metrics exports. |
 //! | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` | Temporality preference for metrics. Valid values: `cumulative`, `delta`, `lowmemory` (case-insensitive). | `cumulative` |
+//! | `OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE` | Signal-specific TLS certificate for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY` | Signal-specific TLS client key for metrics exports. |
+//! | `OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE` | Signal-specific TLS client certificate for metrics exports. |
 //!
 //! ## Logs
 //!
@@ -255,6 +279,9 @@
 //! | `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` | Signal-specific timeout (in milliseconds) for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | Signal-specific headers for log exports. |
 //! | `OTEL_EXPORTER_OTLP_LOGS_COMPRESSION` | Signal-specific compression for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE` | Signal-specific TLS certificate for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY` | Signal-specific TLS client key for log exports. |
+//! | `OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE` | Signal-specific TLS client certificate for log exports. |
 //!
 //! # Feature Flags
 //! The following feature flags can enable exporters for different telemetry signals:
@@ -660,26 +687,31 @@ pub use crate::exporter::ExporterBuildError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{
-    SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
-    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_HEADERS,
-    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
+    SpanExporter, SpanExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+    OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+    OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+    OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
 };
 
 #[cfg(feature = "metrics")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::metric::{
-    MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
-    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, OTEL_EXPORTER_OTLP_METRICS_HEADERS,
-    OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
-    OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
+    MetricExporter, MetricExporterBuilder, OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY,
+    OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+    OTEL_EXPORTER_OTLP_METRICS_HEADERS, OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+    OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
 };
 
 #[cfg(feature = "logs")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::logs::{
-    LogExporter, LogExporterBuilder, OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
-    OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, OTEL_EXPORTER_OTLP_LOGS_HEADERS,
-    OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
+    LogExporter, LogExporterBuilder, OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY,
+    OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
+    OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+    OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -689,7 +721,8 @@ pub use crate::exporter::http::WithHttpConfig;
 pub use crate::exporter::tonic::WithTonicConfig;
 
 pub use crate::exporter::{
-    WithExportConfig, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
+    WithExportConfig, OTEL_EXPORTER_OTLP_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_COMPRESSION, OTEL_EXPORTER_OTLP_ENDPOINT,
     OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT, OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_PROTOCOL,
     OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
     OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF, OTEL_EXPORTER_OTLP_TIMEOUT,

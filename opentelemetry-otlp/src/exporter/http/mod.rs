@@ -96,11 +96,9 @@ pub(crate) mod logs;
 #[cfg(feature = "trace")]
 mod trace;
 
-#[cfg(all(
-    not(feature = "reqwest-client"),
-    not(feature = "reqwest-blocking-client"),
-    feature = "hyper-client"
-))]
+// Must match the cfg on the HyperClient use-site below: the hyper branch is selected
+// whenever hyper-client is on and reqwest-client is off, regardless of reqwest-blocking-client.
+#[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
 use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
@@ -165,7 +163,54 @@ impl Default for HttpExporterBuilder {
     }
 }
 
+/// Pre-parsed TLS certificates for reqwest client configuration.
+/// Parsing is done eagerly at build time so that invalid PEM files produce
+/// immediate errors rather than being silently ignored.
+#[cfg(all(
+    any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+    any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+))]
+#[derive(Clone)]
+struct ReqwestTlsCerts {
+    ca_cert: Option<reqwest::Certificate>,
+    identity: Option<reqwest::Identity>,
+}
+
+#[cfg(all(
+    any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+    any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+))]
+impl ReqwestTlsCerts {
+    /// Apply TLS certs to an async reqwest client builder.
+    #[cfg(feature = "reqwest-client")]
+    fn apply(&self, mut builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+        if let Some(ref cert) = self.ca_cert {
+            builder = builder.add_root_certificate(cert.clone());
+        }
+        if let Some(ref identity) = self.identity {
+            builder = builder.identity(identity.clone());
+        }
+        builder
+    }
+
+    /// Apply TLS certs to a blocking reqwest client builder.
+    #[cfg(all(not(feature = "reqwest-client"), feature = "reqwest-blocking-client"))]
+    fn apply_blocking(
+        &self,
+        mut builder: reqwest::blocking::ClientBuilder,
+    ) -> reqwest::blocking::ClientBuilder {
+        if let Some(ref cert) = self.ca_cert {
+            builder = builder.add_root_certificate(cert.clone());
+        }
+        if let Some(ref identity) = self.identity {
+            builder = builder.identity(identity.clone());
+        }
+        builder
+    }
+}
+
 impl HttpExporterBuilder {
+    #[allow(clippy::too_many_arguments)]
     fn build_client(
         &mut self,
         signal_endpoint_var: &str,
@@ -174,7 +219,9 @@ impl HttpExporterBuilder {
         signal_http_headers_var: &str,
         signal_compression_var: &str,
         signal_protocol_var: &str,
+        signal_tls_vars: super::SignalTlsEnvVars,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
+        let _ = &signal_tls_vars; // used only when TLS features are enabled
         let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
 
         // Validate protocol is compatible with HTTP transport
@@ -229,18 +276,44 @@ impl HttpExporterBuilder {
         // 1. reqwest-client (async)
         // 2. hyper-client
         // 3. reqwest-blocking-client (default)
+        //
+        // TLS certificates from env vars are only resolved and applied to auto-created
+        // reqwest clients. For hyper or user-supplied clients (via .with_http_client())
+        // the env vars cannot be honored, so we warn instead of silently ignoring them.
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                #[allow(unused_mut)] // mut needed when TLS features are enabled
+                let mut builder = reqwest::Client::builder().timeout(timeout);
+
+                // Resolve TLS certs only here, where they are actually applied, so an
+                // invalid env var cannot fail a build that would not use these certs.
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                if let Some(certs) = Self::resolve_reqwest_tls_certs(&signal_tls_vars)? {
+                    builder = certs.apply(builder);
+                }
+
+                // Without a reqwest-rustls feature the env certs cannot be applied to the
+                // auto-created reqwest client, so warn rather than silently dropping them.
+                #[cfg(not(any(
+                    feature = "reqwest-rustls",
+                    feature = "reqwest-rustls-webpki-roots"
+                )))]
+                super::warn_if_tls_env_ignored(
+                    &signal_tls_vars,
+                    "reqwest-client (built without a reqwest-rustls feature)",
+                );
+
+                let client = builder.build().map_err(|e| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to build reqwest client: {e}"
+                    ))
+                })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
+                super::warn_if_tls_env_ignored(&signal_tls_vars, "hyper-client");
                 // TODO - support configuring custom connector and executor
                 http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
                     as Arc<dyn HttpClient>);
@@ -252,17 +325,49 @@ impl HttpExporterBuilder {
             ))]
             {
                 let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
-                        reqwest::blocking::Client::builder()
-                            .timeout(timeout_clone)
-                            .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
-                    })
-                    .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+
+                // Resolve TLS certs only here, where they are actually applied, so an
+                // invalid env var cannot fail a build that would not use these certs.
+                #[cfg(any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"))]
+                let tls_certs = Self::resolve_reqwest_tls_certs(&signal_tls_vars)?;
+
+                // Without a reqwest-rustls feature the env certs cannot be applied to the
+                // auto-created reqwest client, so warn rather than silently dropping them.
+                #[cfg(not(any(
+                    feature = "reqwest-rustls",
+                    feature = "reqwest-rustls-webpki-roots"
+                )))]
+                super::warn_if_tls_env_ignored(
+                    &signal_tls_vars,
+                    "reqwest-blocking-client (built without a reqwest-rustls feature)",
+                );
+
+                let client = std::thread::spawn(move || {
+                    #[allow(unused_mut)] // mut needed when TLS features are enabled
+                    let mut builder = reqwest::blocking::Client::builder().timeout(timeout_clone);
+
+                    #[cfg(any(
+                        feature = "reqwest-rustls",
+                        feature = "reqwest-rustls-webpki-roots"
+                    ))]
+                    if let Some(ref certs) = tls_certs {
+                        builder = certs.apply_blocking(builder);
+                    }
+
+                    builder.build()
+                })
+                .join()
+                .unwrap() // TODO: Return ExporterBuildError::ThreadSpawnFailed
+                .map_err(|e| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to build reqwest blocking client: {e}"
+                    ))
+                })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
+        } else {
+            // A custom client was supplied; TLS env vars cannot be applied to it.
+            super::warn_if_tls_env_ignored(&signal_tls_vars, "custom HttpClient");
         }
 
         let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
@@ -308,6 +413,90 @@ impl HttpExporterBuilder {
         super::resolve_compression_from_env(self.http_config.compression, env_override)
     }
 
+    /// Resolve and pre-parse TLS certificates from environment variables for reqwest clients.
+    /// PEM parsing errors are caught here at build time, not deferred to the client.
+    #[cfg(all(
+        any(feature = "reqwest-rustls", feature = "reqwest-rustls-webpki-roots"),
+        any(feature = "reqwest-client", feature = "reqwest-blocking-client"),
+    ))]
+    fn resolve_reqwest_tls_certs(
+        tls_vars: &super::SignalTlsEnvVars,
+    ) -> Result<Option<ReqwestTlsCerts>, ExporterBuildError> {
+        use super::{
+            resolve_tls_env_and_read, OTEL_EXPORTER_OTLP_CERTIFICATE,
+            OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE, OTEL_EXPORTER_OTLP_CLIENT_KEY,
+        };
+
+        let ca_pem = resolve_tls_env_and_read(tls_vars.cert_var, OTEL_EXPORTER_OTLP_CERTIFICATE)?;
+        let client_key_pem =
+            resolve_tls_env_and_read(tls_vars.client_key_var, OTEL_EXPORTER_OTLP_CLIENT_KEY)?;
+        let client_cert_pem = resolve_tls_env_and_read(
+            tls_vars.client_cert_var,
+            OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE,
+        )?;
+
+        if ca_pem.is_none() && client_key_pem.is_none() && client_cert_pem.is_none() {
+            return Ok(None);
+        }
+
+        // Parse CA certificate eagerly so invalid PEM fails at build time
+        let ca_cert = ca_pem
+            .map(|pem| {
+                reqwest::Certificate::from_pem(&pem).map_err(|e| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to parse CA certificate: {e}"
+                    ))
+                })
+            })
+            .transpose()?;
+
+        // Parse mTLS identity eagerly; warn and skip if only one of key/cert is set
+        let identity = match (client_key_pem, client_cert_pem) {
+            (Some(key), Some(cert)) => {
+                let mut identity_pem = cert;
+                // reqwest expects the cert and key PEM blocks concatenated. Ensure a
+                // newline boundary so a cert file without a trailing newline does not
+                // fuse the `-----END...-----`/`-----BEGIN...-----` markers onto one line.
+                if !identity_pem.ends_with(b"\n") {
+                    identity_pem.push(b'\n');
+                }
+                identity_pem.extend_from_slice(&key);
+                Some(reqwest::Identity::from_pem(&identity_pem).map_err(|e| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to parse client identity: {e}"
+                    ))
+                })?)
+            }
+            (Some(_), None) => {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.PartialMtls",
+                    message = "mTLS requires both a client key and a client certificate; only the client key was provided, skipping mTLS configuration",
+                    client_key_var = tls_vars.client_key_var,
+                    client_cert_var = tls_vars.client_cert_var
+                );
+                None
+            }
+            (None, Some(_)) => {
+                opentelemetry::otel_warn!(
+                    name: "TlsConfig.PartialMtls",
+                    message = "mTLS requires both a client key and a client certificate; only the client certificate was provided, skipping mTLS configuration",
+                    client_key_var = tls_vars.client_key_var,
+                    client_cert_var = tls_vars.client_cert_var
+                );
+                None
+            }
+            (None, None) => None,
+        };
+
+        // A partial mTLS pair (only key or only cert) is discarded above, so re-check:
+        // if nothing usable survived, return None rather than a Some wrapping two Nones.
+        if ca_cert.is_none() && identity.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(ReqwestTlsCerts { ca_cert, identity }))
+    }
+
     /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
     pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
@@ -324,6 +513,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_TRACES_HEADERS,
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
             OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::SpanExporter::from_http(client))
@@ -345,6 +539,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_LOGS_HEADERS,
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
             OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_LOGS_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_LOGS_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_LOGS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::LogExporter::from_http(client))
@@ -369,6 +568,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_HEADERS,
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
             OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
+            super::SignalTlsEnvVars {
+                cert_var: crate::OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE,
+                client_key_var: crate::OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY,
+                client_cert_var: crate::OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE,
+            },
         )?;
 
         Ok(crate::MetricExporter::from_http(client, temporality))
