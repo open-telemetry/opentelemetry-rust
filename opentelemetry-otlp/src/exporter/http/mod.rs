@@ -96,11 +96,9 @@ pub(crate) mod logs;
 #[cfg(feature = "trace")]
 mod trace;
 
-#[cfg(all(
-    not(feature = "reqwest-client"),
-    not(feature = "reqwest-blocking-client"),
-    feature = "hyper-client"
-))]
+// Must match the cfg on the HyperClient use-site below: the hyper branch is selected
+// whenever hyper-client is on and reqwest-client is off, regardless of reqwest-blocking-client.
+#[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
 use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
