@@ -2,6 +2,21 @@
 
 ## vNext
 
+- `BatchSpanProcessor` and `BatchLogProcessor` `shutdown()` no longer panic on
+  background worker thread failures and now report shutdown errors more
+  accurately (see #3375):
+  - When the worker thread panicked, `shutdown()` returns an `OTelSdkError`
+    (with the original panic message preserved) instead of triggering a
+    masking *second* panic, and recovers a poisoned handle mutex instead of
+    unwrapping it. This now also covers the case where the worker panics
+    *before* sending its shutdown response (e.g. during the final export or
+    the exporter's own shutdown): the worker is still joined so the real panic
+    message is surfaced, rather than returning an opaque "disconnected channel"
+    error.
+  - When the final export performed during shutdown fails, `shutdown()` now
+    returns that export error instead of silently discarding it and returning
+    `Ok(())`.
+
 ## 0.32.1
 
 Released 2026-May-23

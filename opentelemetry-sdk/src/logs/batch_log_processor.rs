@@ -171,6 +171,26 @@ impl Debug for BatchLogProcessor {
     }
 }
 
+/// Joins the batch log processor's background worker thread during shutdown,
+/// converting a panic in that thread into an [`OTelSdkError`] instead of
+/// propagating it as a second panic that would mask the original failure.
+///
+/// Returns `Ok(())` when there is no worker to join — for example when the
+/// thread could not be spawned at construction time (see
+/// [`BatchLogProcessor::new`]).
+fn join_worker_thread(handle: Option<thread::JoinHandle<()>>) -> OTelSdkResult {
+    let Some(handle) = handle else {
+        return Ok(());
+    };
+    handle.join().map_err(|payload| {
+        // Surface the original panic message rather than losing it.
+        OTelSdkError::InternalFailure(format!(
+            "the batch log processor worker thread panicked during shutdown: {}",
+            crate::util::panic_message(&*payload)
+        ))
+    })
+}
+
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let result = self
@@ -305,41 +325,51 @@ impl LogProcessor for BatchLogProcessor {
 
         let (sender, receiver) = mpsc::sync_channel(1);
         match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
-            Ok(_) => {
-                receiver
-                    .recv_timeout(timeout)
-                    .map(|_| {
-                        // join the background thread after receiving back the
-                        // shutdown signal
-                        if let Some(handle) = self.handle.lock().unwrap().take() {
-                            handle.join().unwrap();
-                        }
-                        OTelSdkResult::Ok(())
-                    })
-                    .map_err(|err| match err {
-                        RecvTimeoutError::Timeout => {
-                            // TODO: When shutdown times out, log records still
-                            // in the queue or mid-export are silently lost. The
-                            // background thread is not joined and may continue
-                            // running. Consider: (1) recording the lost count
-                            // in the self-diagnostics counter, (2) joining the
-                            // thread with a best-effort wait, or (3) signalling
-                            // the thread to abort the current export.
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Timeout",
-                                message = "BatchLogProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
-                        }
-                    })?
-            }
+            Ok(_) => match receiver.recv_timeout(timeout) {
+                // The worker exported the final batch and replied before
+                // exiting. Join it (the handle is taken out so the lock is
+                // released before the blocking join), then propagate the
+                // worker's own export result so a failed final export is
+                // reported rather than swallowed.
+                Ok(worker_result) => {
+                    join_worker_thread(self.take_worker_handle())?;
+                    worker_result
+                }
+                // The worker dropped the response sender without replying,
+                // which means it panicked mid-shutdown (during the final
+                // export or the exporter's own shutdown). Join it to surface
+                // the original panic message instead of a generic
+                // "disconnected channel" error or a masking second panic.
+                Err(RecvTimeoutError::Disconnected) => {
+                    join_worker_thread(self.take_worker_handle())?;
+                    // The worker disconnected but joined cleanly (no panic
+                    // payload); still report a failure since shutdown never
+                    // received a result.
+                    otel_error!(
+                        name: "BatchLogProcessor.Shutdown.Error",
+                        error = "worker thread disconnected during shutdown without responding"
+                    );
+                    Err(OTelSdkError::InternalFailure(
+                        "worker thread disconnected during shutdown without responding".into(),
+                    ))
+                }
+                // The worker is still running, so we must not join (that could
+                // block well past the timeout).
+                //
+                // TODO: When shutdown times out, log records still in the queue
+                // or mid-export are silently lost. The background thread is not
+                // joined and may continue running. Consider: (1) recording the
+                // lost count in the self-diagnostics counter, (2) joining the
+                // thread with a best-effort wait, or (3) signalling the thread
+                // to abort the current export.
+                Err(RecvTimeoutError::Timeout) => {
+                    otel_error!(
+                        name: "BatchLogProcessor.Shutdown.Timeout",
+                        message = "BatchLogProcessor shutdown timing out."
+                    );
+                    Err(OTelSdkError::Timeout(timeout))
+                }
+            },
             Err(mpsc::TrySendError::Full(_)) => {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
@@ -370,6 +400,18 @@ impl LogProcessor for BatchLogProcessor {
 }
 
 impl BatchLogProcessor {
+    /// Takes the worker thread handle out for joining, recovering the guard if
+    /// the lock is poisoned. The lock is only ever held across an infallible
+    /// `take()`, so poisoning is practically unreachable; recover defensively
+    /// anyway, since a poisoned lock still guards a valid handle and shutdown
+    /// should not fail over it.
+    fn take_worker_handle(&self) -> Option<thread::JoinHandle<()>> {
+        self.handle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+    }
+
     pub(crate) fn new<E>(mut exporter: E, config: BatchConfig) -> Self
     where
         E: LogExporter + Send + Sync + 'static,
@@ -381,6 +423,16 @@ impl BatchLogProcessor {
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
 
+        // Spawn the background worker thread. A spawn failure (e.g. the OS
+        // refusing to create the thread under resource exhaustion) is an
+        // unrecoverable setup-time error: without the worker this processor can
+        // never export anything. Fail fast — the spec permits failing on
+        // initialization — and surface the underlying OS error so the cause is
+        // diagnosable instead of a bare "Thread spawn failed.".
+        //
+        // TODO(#3375): return `Result<Self, OTelSdkError>` from this
+        // constructor at the next breaking change so callers can react to a
+        // spawn failure (see also #2690 / #3462).
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
@@ -528,7 +580,9 @@ impl BatchLogProcessor {
                     name: "BatchLogProcessor.ThreadStopped"
                 );
             })
-            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
+            .unwrap_or_else(|err| {
+                panic!("OpenTelemetry batch log processor failed to spawn its worker thread: {err}")
+            });
 
         // Self-diagnostics: create the otel.sdk.processor.log.processed counter
         #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -850,6 +904,83 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
+
+    #[test]
+    fn join_worker_thread_none_is_ok() {
+        assert!(super::join_worker_thread(None).is_ok());
+    }
+
+    #[test]
+    fn join_worker_thread_joins_clean_thread() {
+        let handle = std::thread::spawn(|| {});
+        assert!(super::join_worker_thread(Some(handle)).is_ok());
+    }
+
+    #[test]
+    fn join_worker_thread_converts_panic_to_error() {
+        // A panicked worker must become an error during shutdown, never a
+        // second panic, and the original panic message must be preserved.
+        let handle = std::thread::spawn(|| panic!("boom in worker"));
+        match super::join_worker_thread(Some(handle)) {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("panicked during shutdown"), "got: {msg}");
+                assert!(msg.contains("boom in worker"), "got: {msg}");
+            }
+            other => panic!("expected InternalFailure, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shutdown_returns_final_export_error() {
+        // If the worker's final shutdown export fails, shutdown() must report
+        // that error rather than swallowing it and returning Ok(()).
+        #[derive(Debug)]
+        struct FailingExporter;
+        impl LogExporter for FailingExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Err(crate::error::OTelSdkError::InternalFailure(
+                    "export failed".into(),
+                ))
+            }
+        }
+
+        let processor = BatchLogProcessor::new(FailingExporter, BatchConfig::default());
+        let scope = opentelemetry::InstrumentationScope::builder("test").build();
+        processor.emit(&mut SdkLogRecord::new(), &scope);
+
+        match processor.shutdown() {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("export failed"), "got: {msg}");
+            }
+            other => panic!("expected the final export error to propagate, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shutdown_surfaces_worker_panic_during_export() {
+        // If the worker panics during the final shutdown export, shutdown() must
+        // join the worker and surface the original panic message as an error,
+        // not a generic "disconnected channel" error and not a second panic.
+        #[derive(Debug)]
+        struct PanickingExporter;
+        impl LogExporter for PanickingExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                panic!("export blew up");
+            }
+        }
+
+        let processor = BatchLogProcessor::new(PanickingExporter, BatchConfig::default());
+        let scope = opentelemetry::InstrumentationScope::builder("test").build();
+        processor.emit(&mut SdkLogRecord::new(), &scope);
+
+        match processor.shutdown() {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("panicked during shutdown"), "got: {msg}");
+                assert!(msg.contains("export blew up"), "got: {msg}");
+            }
+            other => panic!("expected worker panic surfaced as InternalFailure, got {other:?}"),
+        }
+    }
 
     #[test]
     fn test_default_const_values() {

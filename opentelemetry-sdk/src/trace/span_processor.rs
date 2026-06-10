@@ -344,6 +344,18 @@ pub struct BatchSpanProcessor {
 }
 
 impl BatchSpanProcessor {
+    /// Takes the worker thread handle out for joining, recovering the guard if
+    /// the lock is poisoned. The lock is only ever held across an infallible
+    /// `take()`, so poisoning is practically unreachable; recover defensively
+    /// anyway, since a poisoned lock still guards a valid handle and shutdown
+    /// should not fail over it.
+    fn take_worker_handle(&self) -> Option<thread::JoinHandle<()>> {
+        self.handle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take()
+    }
+
     /// Creates a new instance of `BatchSpanProcessor`.
     pub fn new<E>(
         mut exporter: E,
@@ -362,6 +374,16 @@ impl BatchSpanProcessor {
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
 
+        // Spawn the background worker thread. A spawn failure (e.g. the OS
+        // refusing to create the thread under resource exhaustion) is an
+        // unrecoverable setup-time error: without the worker this processor can
+        // never export anything. Fail fast — the spec permits failing on
+        // initialization — and surface the underlying OS error so the cause is
+        // diagnosable instead of a bare "Failed to spawn thread.".
+        //
+        // TODO(#3375): return `Result<Self, OTelSdkError>` from this
+        // constructor at the next breaking change so callers can react to a
+        // spawn failure (see also #2690 / #3462).
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Traces.BatchProcessor".to_string())
             .spawn(move || {
@@ -467,7 +489,11 @@ impl BatchSpanProcessor {
                     name: "BatchSpanProcessor.ThreadStopped"
                 );
             })
-            .expect("Failed to spawn thread"); //TODO: Handle thread spawn failure
+            .unwrap_or_else(|err| {
+                panic!(
+                    "OpenTelemetry batch span processor failed to spawn its worker thread: {err}"
+                )
+            });
 
         Self {
             span_sender,
@@ -573,6 +599,26 @@ impl BatchSpanProcessor {
             }
         }
     }
+}
+
+/// Joins the batch span processor's background worker thread during shutdown,
+/// converting a panic in that thread into an [`OTelSdkError`] instead of
+/// propagating it as a second panic that would mask the original failure.
+///
+/// Returns `Ok(())` when there is no worker to join — for example when the
+/// thread could not be spawned at construction time (see
+/// [`BatchSpanProcessor::new`]).
+fn join_worker_thread(handle: Option<thread::JoinHandle<()>>) -> OTelSdkResult {
+    let Some(handle) = handle else {
+        return Ok(());
+    };
+    handle.join().map_err(|payload| {
+        // Surface the original panic message rather than losing it.
+        OTelSdkError::InternalFailure(format!(
+            "the batch span processor worker thread panicked during shutdown: {}",
+            crate::util::panic_message(&*payload)
+        ))
+    })
 }
 
 impl SpanProcessor for BatchSpanProcessor {
@@ -700,34 +746,44 @@ impl SpanProcessor for BatchSpanProcessor {
 
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
-            Ok(_) => {
-                receiver
-                    .recv_timeout(timeout)
-                    .map(|_| {
-                        // join the background thread after receiving back the
-                        // shutdown signal
-                        if let Some(handle) = self.handle.lock().unwrap().take() {
-                            handle.join().unwrap();
-                        }
-                        OTelSdkResult::Ok(())
-                    })
-                    .map_err(|err| match err {
-                        std::sync::mpsc::RecvTimeoutError::Timeout => {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Shutdown.Timeout",
-                                message = "BatchSpanProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchSpanProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
-                        }
-                    })?
-            }
+            Ok(_) => match receiver.recv_timeout(timeout) {
+                // The worker exported the final batch and replied before
+                // exiting. Join it (the handle is taken out so the lock is
+                // released before the blocking join), then propagate the
+                // worker's own export result so a failed final export is
+                // reported rather than swallowed.
+                Ok(worker_result) => {
+                    join_worker_thread(self.take_worker_handle())?;
+                    worker_result
+                }
+                // The worker dropped the response sender without replying,
+                // which means it panicked mid-shutdown (during the final
+                // export or the exporter's own shutdown). Join it to surface
+                // the original panic message instead of a generic
+                // "disconnected channel" error or a masking second panic.
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    join_worker_thread(self.take_worker_handle())?;
+                    // The worker disconnected but joined cleanly (no panic
+                    // payload); still report a failure since shutdown never
+                    // received a result.
+                    otel_error!(
+                        name: "BatchSpanProcessor.Shutdown.Error",
+                        error = "worker thread disconnected during shutdown without responding"
+                    );
+                    Err(OTelSdkError::InternalFailure(
+                        "worker thread disconnected during shutdown without responding".into(),
+                    ))
+                }
+                // The worker is still running, so we must not join (that could
+                // block well past the timeout).
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    otel_error!(
+                        name: "BatchSpanProcessor.Shutdown.Timeout",
+                        message = "BatchSpanProcessor shutdown timing out."
+                    );
+                    Err(OTelSdkError::Timeout(timeout))
+                }
+            },
             Err(std::sync::mpsc::TrySendError::Full(_)) => {
                 // If the control message could not be sent, emit a warning.
                 otel_debug!(
@@ -1006,6 +1062,81 @@ mod tests {
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::time::Duration;
+
+    #[test]
+    fn join_worker_thread_none_is_ok() {
+        assert!(super::join_worker_thread(None).is_ok());
+    }
+
+    #[test]
+    fn join_worker_thread_joins_clean_thread() {
+        let handle = std::thread::spawn(|| {});
+        assert!(super::join_worker_thread(Some(handle)).is_ok());
+    }
+
+    #[test]
+    fn join_worker_thread_converts_panic_to_error() {
+        // A panicked worker must become an error during shutdown, never a
+        // second panic, and the original panic message must be preserved.
+        let handle = std::thread::spawn(|| panic!("boom in worker"));
+        match super::join_worker_thread(Some(handle)) {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("panicked during shutdown"), "got: {msg}");
+                assert!(msg.contains("boom in worker"), "got: {msg}");
+            }
+            other => panic!("expected InternalFailure, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shutdown_returns_final_export_error() {
+        // If the worker's final shutdown export fails, shutdown() must report
+        // that error rather than swallowing it and returning Ok(()).
+        #[derive(Debug)]
+        struct FailingExporter;
+        impl SpanExporter for FailingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Err(crate::error::OTelSdkError::InternalFailure(
+                    "export failed".into(),
+                ))
+            }
+        }
+
+        let processor = BatchSpanProcessor::new(FailingExporter, BatchConfig::default());
+        processor.on_end(new_test_export_span_data());
+
+        match processor.shutdown() {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("export failed"), "got: {msg}");
+            }
+            other => panic!("expected the final export error to propagate, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shutdown_surfaces_worker_panic_during_export() {
+        // If the worker panics during the final shutdown export, shutdown() must
+        // join the worker and surface the original panic message as an error,
+        // not a generic "disconnected channel" error and not a second panic.
+        #[derive(Debug)]
+        struct PanickingExporter;
+        impl SpanExporter for PanickingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                panic!("export blew up");
+            }
+        }
+
+        let processor = BatchSpanProcessor::new(PanickingExporter, BatchConfig::default());
+        processor.on_end(new_test_export_span_data());
+
+        match processor.shutdown() {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("panicked during shutdown"), "got: {msg}");
+                assert!(msg.contains("export blew up"), "got: {msg}");
+            }
+            other => panic!("expected worker panic surfaced as InternalFailure, got {other:?}"),
+        }
+    }
 
     #[test]
     fn simple_span_processor_on_end_calls_export() {
