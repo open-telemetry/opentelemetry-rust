@@ -422,6 +422,10 @@ fn get_scope_labels(scope: &InstrumentationScope) -> Vec<LabelPair> {
 
     let mut attr_labels = BTreeMap::<String, Vec<String>>::new();
     for kv in scope.attributes() {
+        if matches!(kv.key.as_str(), "name" | "version" | "schema_url") {
+            continue;
+        }
+
         let label_name = utils::sanitize_prom_kv(&format!("{SCOPE_ATTRIBUTE_PREFIX}{}", kv.key));
         if RESERVED_SCOPE_LABELS.contains(&label_name.as_str()) {
             continue;
