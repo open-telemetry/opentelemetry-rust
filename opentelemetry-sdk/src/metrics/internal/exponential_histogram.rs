@@ -5,6 +5,8 @@ use std::sync::Arc;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
 use opentelemetry::{otel_debug, KeyValue};
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 use std::sync::OnceLock;
 
 use crate::metrics::{
@@ -387,8 +389,8 @@ struct BucketConfig {
 ///
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
-pub(crate) struct ExpoHistogram<T: Number> {
-    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
+pub(crate) struct ExpoHistogram<T: Number, S = RandomState> {
+    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -396,8 +398,12 @@ pub(crate) struct ExpoHistogram<T: Number> {
     record_min_max: bool,
 }
 
-impl<T: Number> ExpoHistogram<T> {
+impl<T: Number, S: BuildHasher + Clone> ExpoHistogram<T, S> {
     /// Create a new exponential histogram.
+    // The added `hash_builder` parameter pushes this constructor to 8 args, one
+    // over clippy's default threshold. The arguments are all distinct
+    // aggregation config and bundling them would only obscure the call site.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
@@ -406,6 +412,7 @@ impl<T: Number> ExpoHistogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         ExpoHistogram {
             value_map: ValueMap::new(
@@ -414,6 +421,7 @@ impl<T: Number> ExpoHistogram<T> {
                     max_scale,
                 },
                 cardinality_limit,
+                hash_builder,
             ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
@@ -546,9 +554,10 @@ impl<T: Number> ExpoHistogram<T> {
     }
 }
 
-impl<T> Measure<T> for ExpoHistogram<T>
+impl<T, S> Measure<T> for ExpoHistogram<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         let f_value = measurement.into_float();
@@ -576,9 +585,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for ExpoHistogram<T>
+impl<T, S> ComputeAggregation for ExpoHistogram<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -767,6 +777,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -824,6 +835,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -1336,13 +1348,18 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    AggregateBuilder::new(Temporality::Delta, None, CARDINALITY_LIMIT_DEFAULT)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    AggregateBuilder::new(
+                        Temporality::Delta,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                        RandomState::default(),
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1381,6 +1398,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        RandomState::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1426,6 +1444,7 @@ mod tests {
                         Temporality::Delta,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        RandomState::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1474,6 +1493,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        RandomState::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,

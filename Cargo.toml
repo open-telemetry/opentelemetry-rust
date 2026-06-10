@@ -19,6 +19,7 @@ debug = "line-tables-only"
 async-trait = "0.1"
 bytes = "1"
 criterion = "0.5"
+foldhash = "0.2"
 futures-core = "0.3"
 futures-executor = "0.3"
 futures-util = { version = "0.3", default-features = false }

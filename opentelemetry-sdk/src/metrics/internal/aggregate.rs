@@ -1,4 +1,6 @@
 use std::{
+    collections::hash_map::RandomState,
+    hash::BuildHasher,
     marker,
     mem::replace,
     ops::DerefMut,
@@ -122,7 +124,7 @@ impl Default for AggregateTimeInitiator {
     }
 }
 
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+pub(crate) type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 /// Applies filter on provided attribute set
 /// No-op, if filter is not set
@@ -147,8 +149,12 @@ impl AttributeSetFilter {
     }
 }
 
-/// Builds aggregate functions
-pub(crate) struct AggregateBuilder<T> {
+/// Builds aggregate functions.
+///
+/// `S` is the [`BuildHasher`] for each aggregation's trackers map. Defaults to
+/// [`RandomState`] (SipHash-1-3), which is HashDoS-resistant; install a faster
+/// hasher via [`MeterProviderBuilder::with_hasher`](crate::metrics::MeterProviderBuilder::with_hasher).
+pub(crate) struct AggregateBuilder<T, S = RandomState> {
     /// The temporality used for the returned aggregate functions.
     temporality: Temporality,
 
@@ -159,76 +165,89 @@ pub(crate) struct AggregateBuilder<T> {
     /// Cardinality limit for the metric stream
     cardinality_limit: usize,
 
+    /// The hash builder threaded into each aggregation's trackers map.
+    hash_builder: S,
+
     _marker: marker::PhantomData<T>,
 }
 
-impl<T: Number> AggregateBuilder<T> {
+impl<T: Number, S: BuildHasher + Clone + Send + Sync + 'static> AggregateBuilder<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: Option<Filter>,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
+            hash_builder,
             _marker: marker::PhantomData,
         }
     }
 
     /// Builds a last-value aggregate function input and output.
-    pub(crate) fn last_value(&self, overwrite_temporality: Option<Temporality>) -> AggregateFns<T> {
+    ///
+    /// Each builder produces exactly one aggregate function, so these methods
+    /// consume `self` and move the hash builder (and filter) into the
+    /// aggregation rather than cloning them.
+    pub(crate) fn last_value(self, overwrite_temporality: Option<Temporality>) -> AggregateFns<T> {
         LastValue::new(
             overwrite_temporality.unwrap_or(self.temporality),
-            self.filter.clone(),
+            self.filter,
             self.cardinality_limit,
+            self.hash_builder,
         )
         .into()
     }
 
     /// Builds a precomputed sum aggregate function input and output.
-    pub(crate) fn precomputed_sum(&self, monotonic: bool) -> AggregateFns<T> {
+    pub(crate) fn precomputed_sum(self, monotonic: bool) -> AggregateFns<T> {
         PrecomputedSum::new(
             self.temporality,
-            self.filter.clone(),
+            self.filter,
             monotonic,
             self.cardinality_limit,
+            self.hash_builder,
         )
         .into()
     }
 
     /// Builds a sum aggregate function input and output.
-    pub(crate) fn sum(&self, monotonic: bool) -> AggregateFns<T> {
+    pub(crate) fn sum(self, monotonic: bool) -> AggregateFns<T> {
         Sum::new(
             self.temporality,
-            self.filter.clone(),
+            self.filter,
             monotonic,
             self.cardinality_limit,
+            self.hash_builder,
         )
         .into()
     }
 
     /// Builds a histogram aggregate function input and output.
     pub(crate) fn explicit_bucket_histogram(
-        &self,
+        self,
         boundaries: Vec<f64>,
         record_min_max: bool,
         record_sum: bool,
     ) -> AggregateFns<T> {
         Histogram::new(
             self.temporality,
-            self.filter.clone(),
+            self.filter,
             boundaries,
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.hash_builder,
         )
         .into()
     }
 
     /// Builds an exponential histogram aggregate function input and output.
     pub(crate) fn exponential_bucket_histogram(
-        &self,
+        self,
         max_size: u32,
         max_scale: i8,
         record_min_max: bool,
@@ -236,12 +255,13 @@ impl<T: Number> AggregateBuilder<T> {
     ) -> AggregateFns<T> {
         ExpoHistogram::new(
             self.temporality,
-            self.filter.clone(),
+            self.filter,
             max_size,
             max_scale,
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.hash_builder,
         )
         .into()
     }
@@ -261,9 +281,13 @@ mod tests {
 
     #[test]
     fn last_value_aggregation() {
-        let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None, CARDINALITY_LIMIT_DEFAULT)
-                .last_value(None);
+        let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+            Temporality::Cumulative,
+            None,
+            CARDINALITY_LIMIT_DEFAULT,
+            RandomState::default(),
+        )
+        .last_value(None);
         let mut a = MetricData::Gauge(Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
@@ -292,9 +316,13 @@ mod tests {
     #[test]
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .precomputed_sum(true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
+            )
+            .precomputed_sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -339,9 +367,13 @@ mod tests {
     #[test]
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .sum(true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
+            )
+            .sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -386,9 +418,13 @@ mod tests {
     #[test]
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .explicit_bucket_histogram(vec![1.0], true, true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
+            )
+            .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = MetricData::Histogram(Histogram {
                 data_points: vec![HistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
@@ -434,9 +470,13 @@ mod tests {
     #[test]
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .exponential_bucket_histogram(4, 20, true, true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                RandomState::default(),
+            )
+            .exponential_bucket_histogram(4, 20, true, true);
             let mut a = MetricData::ExponentialHistogram(ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],

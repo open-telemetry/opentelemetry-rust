@@ -6,6 +6,17 @@
 //! Configuration for [Resource]s, views, and `ManualReader` or
 //! [PeriodicReader] instances can be specified.
 //!
+//! ### Performance: custom hasher
+//!
+//! On the measurement hot path the SDK looks up an aggregation bucket for each
+//! attribute set in an internal hash map. By default this uses the standard
+//! library's `RandomState` (SipHash-1-3), which is resistant to hash-flooding
+//! (HashDoS) attacks. For high-cardinality workloads with trusted attribute
+//! values, you can opt into a faster non-cryptographic hasher (e.g.
+//! [`foldhash`](https://crates.io/crates/foldhash) or `ahash`) via
+//! [`MeterProviderBuilder::with_hasher`], trading HashDoS resistance for
+//! throughput. See that method's docs for the tradeoff and examples.
+//!
 //! ### Example
 //!
 //! ```
@@ -798,6 +809,63 @@ mod tests {
 
         let datapoint = &sum.data_points[0];
         assert_eq!(datapoint.value, 15);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn counter_with_custom_hasher_aggregates_correctly() {
+        // A user-supplied `BuildHasher` with a FIXED seed (non-DoS-resistant) —
+        // exactly the kind of hasher a user would bring for throughput. It is
+        // deliberately not `RandomState`, and is not `Default`-seeded per call.
+        #[derive(Clone)]
+        struct FixedSeedHasher;
+        impl std::hash::BuildHasher for FixedSeedHasher {
+            type Hasher = std::collections::hash_map::DefaultHasher;
+            fn build_hasher(&self) -> Self::Hasher {
+                std::collections::hash_map::DefaultHasher::new()
+            }
+        }
+
+        // Arrange: provider built with the custom hasher via the public API.
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_hasher(FixedSeedHasher)
+            .with_periodic_exporter(exporter.clone())
+            .build();
+
+        // Act: two distinct time series, with a repeated add to the first to
+        // exercise the insert path and the subsequent lookup-hit path through
+        // the custom hasher.
+        let counter = meter_provider
+            .meter("test")
+            .u64_counter("my_counter")
+            .build();
+        counter.add(10, &[KeyValue::new("route", "/a")]);
+        counter.add(7, &[KeyValue::new("route", "/a")]);
+        counter.add(3, &[KeyValue::new("route", "/b")]);
+
+        meter_provider.force_flush().unwrap();
+
+        // Assert: aggregation is correct regardless of the hasher.
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        assert_eq!(metric.name, "my_counter");
+        let MetricData::Sum(sum) = u64::extract_metrics_data_ref(&metric.data)
+            .expect("Sum aggregation expected for Counter instruments by default")
+        else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 2, "expected two time series");
+
+        let mut values: Vec<u64> = sum.data_points.iter().map(|dp| dp.value).collect();
+        values.sort_unstable();
+        assert_eq!(values, vec![3, 17]);
+
+        // The provider must remain usable through the type-erased trait-object
+        // path that `opentelemetry::global` relies on.
+        let _boxed: Box<dyn opentelemetry::metrics::MeterProvider> =
+            Box::new(meter_provider.clone());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

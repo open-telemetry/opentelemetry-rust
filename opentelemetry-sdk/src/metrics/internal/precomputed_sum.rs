@@ -14,6 +14,8 @@ use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
+use std::collections::hash_map::RandomState;
+use std::hash::BuildHasher;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Pre-bound precomputed-sum handle. Writes go directly to a fixed
@@ -43,29 +45,31 @@ impl<T: Number> Drop for BoundPrecomputedSumHandle<T> {
 }
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
-pub(crate) struct PrecomputedSum<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct PrecomputedSum<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
-    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
+    reported: Mutex<HashMap<Vec<KeyValue>, T, S>>,
 }
 
-impl<T: Number> PrecomputedSum<T> {
+impl<T: Number, S: BuildHasher + Clone> PrecomputedSum<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, hash_builder.clone()),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
             monotonic,
-            reported: Mutex::new(Default::default()),
+            // The delta-bookkeeping map uses the same hasher as the trackers map.
+            reported: Mutex::new(HashMap::with_hasher(hash_builder)),
         }
     }
 
@@ -100,7 +104,8 @@ impl<T: Number> PrecomputedSum<T> {
             Ok(r) => r,
             Err(_) => return (0, None),
         };
-        let mut new_reported = HashMap::with_capacity(reported.len());
+        let mut new_reported =
+            HashMap::with_capacity_and_hasher(reported.len(), reported.hasher().clone());
 
         self.value_map
             .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
@@ -163,9 +168,10 @@ impl<T: Number> PrecomputedSum<T> {
     }
 }
 
-impl<T> Measure<T> for PrecomputedSum<T>
+impl<T, S> Measure<T> for PrecomputedSum<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         self.filter.apply(attrs, |filtered| {
@@ -186,9 +192,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for PrecomputedSum<T>
+impl<T, S> ComputeAggregation for PrecomputedSum<T, S>
 where
     T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -225,6 +232,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
+            RandomState::default(),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
@@ -246,6 +254,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
+            RandomState::default(),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);

@@ -72,7 +72,19 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_service_name("metrics-advanced-example")
         .build();
 
+    // Example 4 - Use a custom hasher for the internal metric trackers maps.
+    //
+    // Every measurement hashes its attribute set to look up an aggregation
+    // bucket in an internal hash map, so the hasher's cost is paid on each
+    // recording regardless of cardinality. By default this uses the standard
+    // library's SipHash, which is resistant to hash-flooding (HashDoS) attacks.
+    // When attribute values come from trusted sources, a faster
+    // non-cryptographic hasher (here `foldhash`) can measurably improve
+    // recording throughput, at the cost of HashDoS resistance.
+    //
+    // The default (no `with_hasher` call) remains the safe SipHash choice.
     let provider = SdkMeterProvider::builder()
+        .with_hasher(foldhash::fast::RandomState::default())
         .with_periodic_exporter(exporter)
         .with_resource(resource)
         .with_view(my_view_rename_and_unit)

@@ -35,6 +35,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
+# Used only by the `metrics_hasher` benchmark to exercise a custom `BuildHasher`
+# via `MeterProviderBuilder::with_hasher`. Not a runtime dependency of the SDK.
+foldhash = { workspace = true }
 rstest = { workspace = true }
 temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
@@ -118,6 +121,11 @@ required-features = ["testing"]
 name = "metric"
 harness = false
 required-features = ["metrics", "spec_unstable_metrics_views", "experimental_metrics_custom_reader"]
+
+[[bench]]
+name = "metrics_hasher"
+harness = false
+required-features = ["metrics", "experimental_metrics_custom_reader"]
 
 [[bench]]
 name = "log"

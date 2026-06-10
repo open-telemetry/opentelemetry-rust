@@ -1,7 +1,8 @@
 use core::fmt;
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{hash_map::RandomState, HashMap, HashSet},
+    hash::BuildHasher,
     sync::{Arc, Mutex},
 };
 
@@ -14,7 +15,7 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal::{self, AggregateBuilder, Number},
+        internal::{self, AggregateBuilder, Filter, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
     },
@@ -193,6 +194,106 @@ impl fmt::Debug for InstrumentSync {
 
 type Cache<T> = Mutex<HashMap<InstrumentId, MetricResult<Option<Arc<dyn internal::Measure<T>>>>>>;
 
+/// Builds the type-erased measure/collect functions for one instrument.
+///
+/// This trait object is the boundary at which the concrete [`BuildHasher`]
+/// chosen via `MeterProviderBuilder::with_hasher` is erased. A
+/// [`HasherAggregateFnsBuilder<S>`] captures the user's hasher and produces
+/// `AggregateFns<T>` (whose `ValueMap` is monomorphized over `S`), while
+/// everything above it — `Inserter`, `Resolver`, `SdkMeter`,
+/// `SdkMeterProvider` — stays free of the hasher type parameter.
+pub(crate) trait AggregateFnsBuilder<T>: Send + Sync {
+    fn build(
+        &self,
+        temporality: Temporality,
+        filter: Option<Filter>,
+        cardinality_limit: usize,
+        agg: &Aggregation,
+        kind: InstrumentKind,
+    ) -> MetricResult<Option<AggregateFns<T>>>;
+
+    /// Test-only probe: builds a hasher from the configured factory and returns
+    /// the hash of `input`. Lets tests observe whether successive instruments
+    /// are seeded freshly (the default) or with an identical cloned seed (a
+    /// user-supplied hasher), without exposing the hasher itself.
+    #[cfg(test)]
+    fn sample_hash(&self, input: &str) -> u64;
+}
+
+/// Concrete builder that produces aggregations hashed with `S`.
+struct HasherAggregateFnsBuilder<S> {
+    /// Produces the hasher for each instrument's trackers map. The default
+    /// returns a freshly-seeded `RandomState` per instrument (matching the
+    /// std `HashMap` default); a user-supplied hasher is cloned so its
+    /// configuration is preserved across instruments.
+    new_hasher: Arc<dyn Fn() -> S + Send + Sync>,
+}
+
+impl<T, S> AggregateFnsBuilder<T> for HasherAggregateFnsBuilder<S>
+where
+    T: Number,
+    S: BuildHasher + Clone + Send + Sync + 'static,
+{
+    fn build(
+        &self,
+        temporality: Temporality,
+        filter: Option<Filter>,
+        cardinality_limit: usize,
+        agg: &Aggregation,
+        kind: InstrumentKind,
+    ) -> MetricResult<Option<AggregateFns<T>>> {
+        let b = AggregateBuilder::new(temporality, filter, cardinality_limit, (self.new_hasher)());
+        aggregate_fn(b, agg, kind)
+    }
+
+    #[cfg(test)]
+    fn sample_hash(&self, input: &str) -> u64 {
+        (self.new_hasher)().hash_one(input)
+    }
+}
+
+/// The per-numeric-type aggregate-function builders for a meter provider, with
+/// the chosen hasher already erased behind trait objects. Cloning only bumps
+/// the three `Arc` refcounts.
+#[derive(Clone)]
+pub(crate) struct AggregateFnsBuilders {
+    pub(crate) u64: Arc<dyn AggregateFnsBuilder<u64>>,
+    pub(crate) i64: Arc<dyn AggregateFnsBuilder<i64>>,
+    pub(crate) f64: Arc<dyn AggregateFnsBuilder<f64>>,
+}
+
+impl AggregateFnsBuilders {
+    pub(crate) fn new<S, F>(new_hasher: F) -> Self
+    where
+        S: BuildHasher + Clone + Send + Sync + 'static,
+        F: Fn() -> S + Send + Sync + 'static,
+    {
+        // A single builder implements `AggregateFnsBuilder` for every numeric
+        // type, so one allocation is shared three ways.
+        let new_hasher: Arc<dyn Fn() -> S + Send + Sync> = Arc::new(new_hasher);
+        let shared = Arc::new(HasherAggregateFnsBuilder { new_hasher });
+        AggregateFnsBuilders {
+            u64: shared.clone(),
+            i64: shared.clone(),
+            f64: shared,
+        }
+    }
+}
+
+impl Default for AggregateFnsBuilders {
+    fn default() -> Self {
+        // Each instrument gets a freshly-seeded `RandomState` (SipHash-1-3),
+        // matching the std `HashMap` default.
+        AggregateFnsBuilders::new(RandomState::new)
+    }
+}
+
+impl fmt::Debug for AggregateFnsBuilders {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AggregateFnsBuilders")
+    }
+}
+
 /// Facilitates inserting of new instruments from a single scope into a pipeline.
 struct Inserter<T> {
     /// A cache that holds aggregate function inputs whose
@@ -213,17 +314,26 @@ struct Inserter<T> {
     views: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
 
     pipeline: Arc<Pipeline>,
+
+    /// Builds aggregate functions with the provider's chosen hasher already
+    /// erased in. Shared across all inserters of the same numeric type.
+    agg_builder: Arc<dyn AggregateFnsBuilder<T>>,
 }
 
 impl<T> Inserter<T>
 where
     T: Number,
 {
-    fn new(p: Arc<Pipeline>, vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>) -> Self {
+    fn new(
+        p: Arc<Pipeline>,
+        vc: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
+        agg_builder: Arc<dyn AggregateFnsBuilder<T>>,
+    ) -> Self {
         Inserter {
             aggregators: Default::default(),
             views: vc,
             pipeline: Arc::clone(&p),
+            agg_builder,
         }
     }
 
@@ -416,12 +526,13 @@ where
             let cardinality_limit = stream
                 .cardinality_limit
                 .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
-            let b = AggregateBuilder::new(
+            let AggregateFns { measure, collect } = match self.agg_builder.build(
                 self.pipeline.reader.temporality(kind),
                 filter,
                 cardinality_limit,
-            );
-            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
+                &agg,
+                kind,
+            ) {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
@@ -521,8 +632,8 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
-fn aggregate_fn<T: Number>(
-    b: AggregateBuilder<T>,
+fn aggregate_fn<T: Number, S: BuildHasher + Clone + Send + Sync + 'static>(
+    b: AggregateBuilder<T, S>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> MetricResult<Option<AggregateFns<T>>> {
@@ -736,11 +847,18 @@ where
     pub(crate) fn new(
         pipelines: Arc<Pipelines>,
         view_cache: Arc<Mutex<HashMap<Cow<'static, str>, InstrumentId>>>,
+        agg_builder: Arc<dyn AggregateFnsBuilder<T>>,
     ) -> Self {
         let inserters = pipelines
             .0
             .iter()
-            .map(|pipe| Inserter::new(Arc::clone(pipe), Arc::clone(&view_cache)))
+            .map(|pipe| {
+                Inserter::new(
+                    Arc::clone(pipe),
+                    Arc::clone(&view_cache),
+                    agg_builder.clone(),
+                )
+            })
             .collect();
 
         Resolver { inserters }
@@ -770,5 +888,54 @@ where
         } else {
             Err(MetricError::Other(format!("{errs:?}")))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::hash_map::RandomState;
+
+    // `AggregateFnsBuilders::default()` is what every meter provider uses when
+    // the user does not call `with_hasher`. Each instrument must receive a
+    // freshly seeded `RandomState`, matching std's per-`HashMap` seeding, so two
+    // instruments hash the same attribute key differently.
+    #[test]
+    fn default_hasher_is_reseeded_per_instrument() {
+        let builders = AggregateFnsBuilders::default();
+        let first = builders.u64.sample_hash("route=/a");
+        let second = builders.u64.sample_hash("route=/a");
+        assert_ne!(
+            first, second,
+            "default hasher must be reseeded for each instrument"
+        );
+    }
+
+    // `with_hasher(h)` clones the user's hasher into each instrument — exactly
+    // the construction `MeterProviderBuilder::with_hasher` performs — so its
+    // seed/config is preserved identically across instruments.
+    #[test]
+    fn custom_hasher_seed_is_preserved_across_instruments() {
+        let user = RandomState::new();
+        let builders = AggregateFnsBuilders::new(move || user.clone());
+        let first = builders.u64.sample_hash("route=/a");
+        let second = builders.u64.sample_hash("route=/a");
+        assert_eq!(
+            first, second,
+            "a user-supplied hasher must be cloned (seed preserved) per instrument"
+        );
+    }
+
+    // The u64/i64/f64 builders share a single allocation, so all three must
+    // produce the same hasher for a given configuration.
+    #[test]
+    fn all_numeric_builders_use_the_same_factory() {
+        let user = RandomState::new();
+        let builders = AggregateFnsBuilders::new(move || user.clone());
+        let u = builders.u64.sample_hash("k");
+        let i = builders.i64.sample_hash("k");
+        let f = builders.f64.sample_hash("k");
+        assert_eq!(u, i);
+        assert_eq!(i, f);
     }
 }

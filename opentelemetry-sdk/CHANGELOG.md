@@ -2,6 +2,18 @@
 
 ## vNext
 
+- **Added** `MeterProviderBuilder::with_hasher`, allowing a custom
+  [`BuildHasher`](https://doc.rust-lang.org/std/hash/trait.BuildHasher.html) to
+  be used for the internal metric trackers maps on the measurement hot path.
+  The default remains the standard library's `RandomState` (SipHash-1-3), which
+  is resistant to hash-flooding (HashDoS) attacks, so existing behavior is
+  unchanged. Users with high-cardinality metric workloads and trusted attribute
+  values can opt into a faster non-cryptographic hasher (e.g. `foldhash`,
+  `ahash`) for higher throughput, at the cost of HashDoS resistance — no new SDK
+  feature flags or dependencies are required. The hasher is type-erased
+  internally, so `SdkMeterProvider` and `MeterProviderBuilder` remain
+  non-generic and existing code is unaffected.
+
 ## 0.32.1
 
 Released 2026-May-23
