@@ -61,8 +61,14 @@ Released 2026-May-08
   **Migration**: Use `reqwest-rustls` instead (now correctly uses `reqwest/rustls` with platform native
   trust roots). If you specifically need Mozilla's embedded CA bundle, construct a custom client:
   ```rust
+  let root_store = rustls::RootCertStore::from_iter(
+      webpki_roots::TLS_SERVER_ROOTS.iter().cloned(),
+  );
+  let tls_config = rustls::ClientConfig::builder()
+      .with_root_certificates(root_store)
+      .with_no_client_auth();
   let client = reqwest::Client::builder()
-      .tls_certs_only(webpki_roots::TLS_SERVER_ROOTS)
+      .tls_backend_preconfigured(tls_config)
       .build()?;
   exporter_builder.with_http_client(client)
   ```
