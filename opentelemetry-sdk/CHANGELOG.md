@@ -2,6 +2,14 @@
 
 ## vNext
 
+- `runtime::Tokio` now runs the background worker on a dedicated OS thread
+  when the ambient tokio runtime is a `multi_thread` runtime with a single
+  worker thread, in addition to the existing `current_thread` handling.
+  Tokio defaults to one worker per CPU core, so on single-CPU hosts (e.g.
+  containers limited to 1 vCPU) calling `shutdown()` from a spawned task
+  could previously block the runtime's only worker thread and deadlock
+  ([#2802](https://github.com/open-telemetry/opentelemetry-rust/issues/2802)).
+
 ## 0.32.1
 
 Released 2026-May-23
