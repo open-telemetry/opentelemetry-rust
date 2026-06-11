@@ -50,6 +50,10 @@ pub struct SdkLogRecord {
 
     /// Additional attributes associated with this record
     pub(crate) attributes: LogRecordAttributes,
+
+    /// When true, `add_attribute` replaces an existing key (last-write-wins).
+    /// When false, attributes are appended without deduplication.
+    pub(crate) deduplicate_attributes: bool,
 }
 
 impl opentelemetry::logs::LogRecord for SdkLogRecord {
@@ -101,7 +105,21 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        self.attributes.push(Some((key.into(), value.into())));
+        let key = key.into();
+        let value = value.into();
+        if self.deduplicate_attributes {
+            for i in 0..self.attributes.len() {
+                if let Some((existing_key, existing_value)) =
+                    self.attributes.get_mut(i).and_then(|opt| opt.as_mut())
+                {
+                    if *existing_key == key {
+                        *existing_value = value;
+                        return;
+                    }
+                }
+            }
+        }
+        self.attributes.push(Some((key, value)));
     }
 
     fn set_trace_context(
@@ -119,8 +137,15 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
 }
 
 impl SdkLogRecord {
-    /// Crate only default constructor
+    /// Crate-only default constructor with attribute deduplication enabled.
+    ///
+    /// Used from `#[cfg(test)]` modules; `clippy --lib` cannot see those call sites.
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
+        Self::with_deduplicate_attributes(true)
+    }
+
+    pub(crate) fn with_deduplicate_attributes(deduplicate_attributes: bool) -> Self {
         SdkLogRecord {
             event_name: None,
             target: None,
@@ -131,6 +156,7 @@ impl SdkLogRecord {
             severity_number: None,
             body: None,
             attributes: LogRecordAttributes::default(),
+            deduplicate_attributes,
         }
     }
 
@@ -308,6 +334,54 @@ mod tests {
     }
 
     #[test]
+    fn test_add_attribute_deduplicates_last_write_wins() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("key", "second");
+        assert_eq!(log_record.attributes_len(), 1);
+        assert!(
+            log_record.attributes_contains(&Key::new("key"), &AnyValue::String("second".into()))
+        );
+    }
+
+    #[test]
+    fn test_add_attributes_deduplicates_within_batch() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attributes([("key", "first"), ("key", "second")]);
+        log_record.add_attribute(Key::new("other"), AnyValue::Int(1));
+        assert_eq!(log_record.attributes_len(), 2);
+        assert!(
+            log_record.attributes_contains(&Key::new("key"), &AnyValue::String("second".into()))
+        );
+        assert!(log_record.attributes_contains(&Key::new("other"), &AnyValue::Int(1)));
+    }
+
+    #[test]
+    fn test_add_attribute_skips_deduplication_when_disabled() {
+        let mut log_record = SdkLogRecord::with_deduplicate_attributes(false);
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("key", "second");
+        assert_eq!(log_record.attributes_len(), 2);
+        assert!(log_record.attributes_contains(&Key::new("key"), &AnyValue::String("first".into())));
+        assert!(
+            log_record.attributes_contains(&Key::new("key"), &AnyValue::String("second".into()))
+        );
+    }
+
+    #[test]
+    fn test_add_attribute_deduplicates_beyond_inline_capacity() {
+        let mut log_record = SdkLogRecord::new();
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY {
+            log_record.add_attribute(format!("key{i}"), i as i64);
+        }
+        log_record.add_attribute("key0", "updated");
+        assert_eq!(log_record.attributes_len(), PREALLOCATED_ATTRIBUTE_CAPACITY);
+        assert!(
+            log_record.attributes_contains(&Key::new("key0"), &AnyValue::String("updated".into()))
+        );
+    }
+
+    #[test]
     fn compare_trace_context() {
         let trace_context = TraceContext {
             trace_id: TraceId::from(1),
@@ -339,6 +413,7 @@ mod tests {
             severity_number: Some(Severity::Error),
             body: Some(AnyValue::String("Test body".into())),
             attributes: LogRecordAttributes::new(),
+            deduplicate_attributes: true,
             trace_context: Some(TraceContext {
                 trace_id: TraceId::from(1),
                 span_id: SpanId::from(1),
