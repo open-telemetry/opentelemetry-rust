@@ -186,11 +186,6 @@ impl TonicLogsClient {
     // opentelemetry::_private (tracing) directly instead of the
     // otel_info!/otel_warn! macros.
     fn emit_shutdown_event(&self, result_str: &'static str, duration_secs: f64) {
-        // Exporter has no internal queue; shutdown.dropped is always 0.
-        let shutdown_dropped: u64 = 0;
-        // No lifetime drop counter on this exporter (no queue).
-        let lifetime_dropped: u64 = 0;
-
         if result_str == "success" {
             #[cfg(feature = "internal-logs")]
             opentelemetry::_private::info!(
@@ -200,8 +195,6 @@ impl TonicLogsClient {
                 "otel.component.type" = "otlp_grpc_log_exporter",
                 "otel.component.name" = self.component_name.as_str(),
                 "otel.component.shutdown.result" = result_str,
-                "otel.component.dropped" = lifetime_dropped,
-                "otel.component.shutdown.dropped" = shutdown_dropped,
                 "otel.component.shutdown.duration" = duration_secs,
             );
         } else {
@@ -213,20 +206,13 @@ impl TonicLogsClient {
                 "otel.component.type" = "otlp_grpc_log_exporter",
                 "otel.component.name" = self.component_name.as_str(),
                 "otel.component.shutdown.result" = result_str,
-                "otel.component.dropped" = lifetime_dropped,
-                "otel.component.shutdown.dropped" = shutdown_dropped,
                 "otel.component.shutdown.duration" = duration_secs,
             );
         }
 
         #[cfg(not(feature = "internal-logs"))]
         {
-            let _ = (
-                result_str,
-                duration_secs,
-                shutdown_dropped,
-                lifetime_dropped,
-            );
+            let _ = (result_str, duration_secs);
         }
     }
 }

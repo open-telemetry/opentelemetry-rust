@@ -312,7 +312,7 @@ impl LogProcessor for BatchLogProcessor {
         let shutdown_start = Instant::now();
         let result = self.shutdown_inner(timeout);
         let duration_secs = shutdown_start.elapsed().as_secs_f64();
-        self.emit_shutdown_event(&result, dropped_logs, duration_secs);
+        self.emit_shutdown_event(&result, duration_secs);
         result
     }
 
@@ -391,12 +391,7 @@ impl BatchLogProcessor {
     // plain identifiers; the spec requires dotted attribute names like
     // `otel.component.type`, which tracing's own macros accept via quoted-key
     // syntax. Behaviour is otherwise identical to otel_info!/otel_warn!.
-    fn emit_shutdown_event(
-        &self,
-        result: &OTelSdkResult,
-        lifetime_dropped: usize,
-        duration_secs: f64,
-    ) {
+    fn emit_shutdown_event(&self, result: &OTelSdkResult, duration_secs: f64) {
         let result_str = match result {
             Ok(()) => "success",
             Err(OTelSdkError::Timeout(_)) => "timed_out",
@@ -409,12 +404,6 @@ impl BatchLogProcessor {
         };
         let is_success = result_str == "success";
 
-        // shutdown.dropped: items lost during shutdown itself. On success the
-        // spec mandates 0. On timeout/failure we cannot enumerate the queue
-        // residual from outside the worker thread, so we report 0 as a known
-        // under-count. SPEC GAP: should the attribute be omitted when unknown?
-        let shutdown_dropped: u64 = 0;
-
         if is_success {
             #[cfg(feature = "internal-logs")]
             opentelemetry::_private::info!(
@@ -424,8 +413,6 @@ impl BatchLogProcessor {
                 "otel.component.type" = "batching_log_processor",
                 "otel.component.name" = self.component_name.as_str(),
                 "otel.component.shutdown.result" = result_str,
-                "otel.component.dropped" = lifetime_dropped as u64,
-                "otel.component.shutdown.dropped" = shutdown_dropped,
                 "otel.component.shutdown.duration" = duration_secs,
             );
         } else {
@@ -437,20 +424,13 @@ impl BatchLogProcessor {
                 "otel.component.type" = "batching_log_processor",
                 "otel.component.name" = self.component_name.as_str(),
                 "otel.component.shutdown.result" = result_str,
-                "otel.component.dropped" = lifetime_dropped as u64,
-                "otel.component.shutdown.dropped" = shutdown_dropped,
                 "otel.component.shutdown.duration" = duration_secs,
             );
         }
 
         #[cfg(not(feature = "internal-logs"))]
         {
-            let _ = (
-                result_str,
-                lifetime_dropped,
-                shutdown_dropped,
-                duration_secs,
-            );
+            let _ = (result_str, duration_secs);
         }
     }
 }
