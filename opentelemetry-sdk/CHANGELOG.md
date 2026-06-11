@@ -26,6 +26,46 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- **Breaking** Removed the `rt-tokio-current-thread` feature. `runtime::Tokio`
+  now detects at spawn time whether the ambient tokio runtime is
+  starvation-prone (either the `current_thread` flavor, or a `multi_thread`
+  runtime with a single worker) and automatically runs the background worker
+  on a dedicated OS thread in that case, so a separate feature/type is no
+  longer needed to select that behavior. Before:
+  ```toml
+  opentelemetry_sdk = { version = "...", features = ["rt-tokio-current-thread"] }
+  ```
+  ```rust
+  let runtime = opentelemetry_sdk::runtime::TokioCurrentThread;
+  ```
+  After:
+  ```toml
+  opentelemetry_sdk = { version = "...", features = ["rt-tokio"] }
+  ```
+  ```rust
+  let runtime = opentelemetry_sdk::runtime::Tokio;
+  ```
+- **Breaking** `Runtime::spawn()` now returns an associated `SpawnHandle<T>`
+  type (implementing the new `JoinHandle<T>` trait) instead of a `BoxFuture`,
+  so the spawned task's result can be retrieved by joining the handle during
+  shutdown rather than only being able to await a boxed future. Custom
+  `Runtime` implementations must define `type SpawnHandle<T: Send + 'static>`
+  and update `spawn()`'s return type accordingly; the built-in `Joinable<T>`
+  helper covers the common cases of wrapping an OS thread or a tokio task
+  handle.
+- **Breaking** `PeriodicReader<E>` is now `PeriodicReader<E, R>`, generic over
+  the `Runtime` used to drive it, mirroring `BatchLogProcessor<R>` and
+  `BatchSpanProcessor<R>`. Code that names the type explicitly (e.g. in a
+  function signature or struct field) needs to add the runtime type
+  parameter; code that only calls `PeriodicReader::builder(exporter, runtime)`
+  is unaffected since the type parameter is inferred.
+- `runtime::Tokio` now runs the background worker on a dedicated OS thread
+  when the ambient tokio runtime is a `multi_thread` runtime with a single
+  worker thread, in addition to the existing `current_thread` handling.
+  Tokio defaults to one worker per CPU core, so on single-CPU hosts (e.g.
+  containers limited to 1 vCPU) calling `shutdown()` from a spawned task
+  could previously block the runtime's only worker thread and deadlock
+  ([#2802](https://github.com/open-telemetry/opentelemetry-rust/issues/2802)).
 
 ## 0.32.1
 

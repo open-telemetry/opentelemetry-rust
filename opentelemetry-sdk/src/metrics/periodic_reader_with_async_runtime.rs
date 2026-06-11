@@ -13,7 +13,8 @@ use futures_util::{
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::{to_interval_stream, JoinError, JoinHandle, Runtime};
+use crate::runtime::{to_interval_stream, Runtime};
+use crate::util::{join_timeout_error_to_otel_error, join_with_timeout, WorkerState};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
@@ -107,7 +108,6 @@ where
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader<E, RT> {
         let (message_sender, message_receiver) = mpsc::channel(256);
-        let runtime = self.runtime.clone();
 
         let worker = move |reader: &PeriodicReader<E, RT>| -> RT::SpawnHandle<OTelSdkResult> {
             let runtime = self.runtime.clone();
@@ -144,9 +144,11 @@ where
                 message_sender,
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
-                worker_handle: None,
             })),
-            runtime,
+            // No worker is running until `register_pipeline` spawns one;
+            // `Complete(Ok(()))` mirrors the old `worker_handle: None` case,
+            // where shutting down before registration was a no-op.
+            worker_handle: Arc::new(Mutex::new(WorkerState::Complete(Ok(())))),
         }
     }
 }
@@ -192,7 +194,12 @@ where
 pub struct PeriodicReader<E: PushMetricExporter, R: Runtime> {
     exporter: Arc<E>,
     inner: Arc<Mutex<PeriodicReaderInner<E, R>>>,
-    runtime: R,
+    /// Handle to the background worker task. Used to join on shutdown.
+    ///
+    /// Deliberately kept in its own mutex, separate from `inner`: the worker
+    /// task calls back into `collect()`, which locks `inner`, so holding
+    /// `inner` locked across the blocking join below would deadlock.
+    worker_handle: Arc<Mutex<WorkerState<R::SpawnHandle<OTelSdkResult>>>>,
 }
 
 impl<E: PushMetricExporter, R: Runtime> Clone for PeriodicReader<E, R> {
@@ -200,7 +207,7 @@ impl<E: PushMetricExporter, R: Runtime> Clone for PeriodicReader<E, R> {
         Self {
             exporter: Arc::clone(&self.exporter),
             inner: Arc::clone(&self.inner),
-            runtime: self.runtime.clone(),
+            worker_handle: Arc::clone(&self.worker_handle),
         }
     }
 }
@@ -222,8 +229,6 @@ struct PeriodicReaderInner<E: PushMetricExporter, R: Runtime> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
     sdk_producer_or_worker: ProducerOrWorker<E, R>,
-    /// Handle to the background worker task. Used to join on shutdown.
-    worker_handle: Option<R::SpawnHandle<OTelSdkResult>>,
 }
 
 #[derive(Debug)]
@@ -361,7 +366,9 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
         inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
         // Spawn the worker and capture the handle
         let handle = worker(self);
-        inner.worker_handle = Some(handle);
+        if let Ok(mut worker_handle) = self.worker_handle.lock() {
+            *worker_handle = WorkerState::Running(handle);
+        }
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
@@ -409,46 +416,64 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
             .and_then(|res| res)
     }
 
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
-        let mut inner = self
-            .inner
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        // Hold the lock for the whole shutdown: only the caller that finds
+        // `Running` sends the shutdown message and joins the worker. Any
+        // concurrent caller blocks here and then reads back the cached
+        // `Complete` result below, instead of racing to return `Ok(())`
+        // before the worker has actually finished. This lock is deliberately
+        // separate from `inner` (see the field comment on `worker_handle`).
+        let mut worker_guard = self
+            .worker_handle
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        if inner.is_shutdown {
-            return Err(OTelSdkError::AlreadyShutdown);
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Lock poisoned: {e}")))?;
+
+        if let WorkerState::Complete(cached) = &*worker_guard {
+            return match cached {
+                Ok(()) => Ok(()),
+                Err(msg) => Err(OTelSdkError::InternalFailure(msg.clone())),
+            };
         }
 
-        inner
-            .message_sender
-            .try_send(Message::Shutdown)
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
+        {
+            let mut inner = self
+                .inner
+                .lock()
+                .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
+            if inner.is_shutdown {
+                return Err(OTelSdkError::AlreadyShutdown);
+            }
+            inner
+                .message_sender
+                .try_send(Message::Shutdown)
+                .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
+        } // don't hold `inner` while joining - the worker needs to call collect(), which locks `inner`
 
-        // Take the worker handle to join
-        let handle = inner.worker_handle.take();
-        drop(inner); // don't hold lock when joining - worker needs to call collect()
-
-        // Join the worker and get the result
-        let shutdown_result = match handle {
-            Some(h) => h.join().map_err(|e| match e {
-                JoinError::Panic(_) => {
-                    OTelSdkError::InternalFailure("Worker task panicked".to_string())
-                }
-                #[cfg(feature = "rt-tokio")]
-                JoinError::Cancelled => {
-                    OTelSdkError::InternalFailure("Worker task was cancelled".to_string())
-                }
-            })?,
-            None => Ok(()), // Worker not started or already shut down
+        let handle = match std::mem::replace(&mut *worker_guard, WorkerState::Complete(Ok(()))) {
+            WorkerState::Running(h) => h,
+            WorkerState::Complete(_) => unreachable!("checked above"),
         };
 
-        // Set shutdown flag after worker completes
-        let mut inner = self
-            .inner
-            .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
-        inner.is_shutdown = true;
+        let result = match join_with_timeout(handle, timeout) {
+            Ok(result) => result,
+            Err(err) => Err(join_timeout_error_to_otel_error(
+                err,
+                "periodic reader",
+                timeout,
+            )),
+        };
 
-        shutdown_result
+        *worker_guard = WorkerState::Complete(match &result {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        });
+
+        // Set shutdown flag after the worker completes.
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.is_shutdown = true;
+        }
+
+        result
     }
 
     /// To construct a [MetricReader][metric-reader] when setting up an SDK,
@@ -466,14 +491,17 @@ impl<E: PushMetricExporter, R: Runtime> MetricReader for PeriodicReader<E, R> {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::PeriodicReader;
-    use crate::error::OTelSdkError;
+    use crate::error::{OTelSdkError, OTelSdkResult};
+    use crate::metrics::exporter::PushMetricExporter;
     use crate::metrics::reader::MetricReader;
+    use crate::metrics::Temporality;
     use crate::{
         metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
         runtime, Resource,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
+    use std::time::Duration;
 
     #[test]
     fn collection_triggered_by_interval_tokio() {
@@ -550,5 +578,126 @@ mod tests {
             .build();
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         meter_provider.shutdown().expect("shutdown should succeed");
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    ///
+    /// A multi_thread runtime with a single worker is just as starvation-prone
+    /// as the current_thread flavor: tokio defaults to one worker per CPU, so
+    /// any single-vCPU host (e.g. a 1-CPU container) gets exactly this
+    /// configuration. Blocking that lone worker on shutdown must not deadlock.
+    ///
+    /// Shutdown is performed inside a spawned task so it runs *on* the single
+    /// worker thread — the test body itself runs on the `block_on` caller
+    /// thread and would not exhibit the starvation.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn shutdown_does_not_deadlock_on_single_worker_multi_thread_tokio_runtime() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(std::time::Duration::from_secs(10))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        tokio::spawn(async move {
+            meter_provider.shutdown().expect("shutdown should succeed");
+        })
+        .await
+        .expect("shutdown task should complete without deadlocking");
+    }
+
+    #[derive(Debug, Clone)]
+    struct FailingExporter;
+
+    impl PushMetricExporter for FailingExporter {
+        async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure("export failed".into()))
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct PanickingExporter;
+
+    impl PushMetricExporter for PanickingExporter {
+        async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
+            panic!("export blew up");
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn temporality(&self) -> Temporality {
+            Temporality::Cumulative
+        }
+    }
+
+    // Registers an observable counter so `collect_and_export` always has
+    // metrics to hand to the exporter; without one, `collect_and_export`
+    // returns `Ok(())` before ever invoking `export`.
+    fn build_meter_provider_with_reader<E: PushMetricExporter>(
+        reader: PeriodicReader<E, runtime::Tokio>,
+    ) -> SdkMeterProvider {
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(|obs| obs.observe(1, &[]))
+            .build();
+        meter_provider
+    }
+
+    // See the comment on the same-named test in `log_processor_with_async_runtime.rs`
+    // for why `worker_threads` is pinned here.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_returns_final_export_error() {
+        // If the worker's final export on shutdown fails, shutdown() must
+        // propagate that error rather than swallowing it.
+        let reader = PeriodicReader::builder(FailingExporter, runtime::Tokio)
+            .with_interval(Duration::from_secs(3600))
+            .build();
+        let meter_provider = build_meter_provider_with_reader(reader);
+
+        match meter_provider.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("export failed"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_surfaces_worker_panic() {
+        // If the worker panics during the final export on shutdown, shutdown()
+        // must surface the original panic message rather than a generic error.
+        let reader = PeriodicReader::builder(PanickingExporter, runtime::Tokio)
+            .with_interval(Duration::from_secs(3600))
+            .build();
+        let meter_provider = build_meter_provider_with_reader(reader);
+
+        match meter_provider.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(
+                    msg.contains("panicked during shutdown"),
+                    "unexpected message: {msg}"
+                );
+                assert!(msg.contains("export blew up"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure with panic message, got {other:?}"),
+        }
     }
 }
