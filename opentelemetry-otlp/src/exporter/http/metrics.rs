@@ -77,6 +77,7 @@ fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "http-proto")]
     #[test]
     fn test_handle_invalid_protobuf() {
         // Corrupted/invalid protobuf data
@@ -86,6 +87,7 @@ mod tests {
         handle_partial_success(&invalid, Protocol::HttpBinary);
     }
 
+    #[cfg(feature = "http-proto")]
     #[test]
     fn test_handle_empty_response() {
         let empty = vec![];
