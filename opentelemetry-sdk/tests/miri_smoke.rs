@@ -1,3 +1,5 @@
+// Targeted Miri regression check for SDK default resource construction.
+// This does not imply general opentelemetry-rust Miri support; see #3554.
 #[cfg(feature = "metrics")]
 #[test]
 fn default_meter_provider_builds() {

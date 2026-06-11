@@ -51,6 +51,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
+  # Targeted Miri regression check for SDK default resource construction.
+  # Broader Miri support and CI policy are tracked in #3554.
   miri:
     runs-on: ubuntu-latest
     steps:
