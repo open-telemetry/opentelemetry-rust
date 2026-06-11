@@ -20,6 +20,66 @@ const BYTES_BOUNDARIES: &[f64] = &[
     10000.0,
 ];
 
+#[test]
+fn scope_info_labels_are_added_to_metric_points() {
+    let registry = prometheus::Registry::new();
+    let exporter = ExporterBuilder::default()
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+
+    let scope = InstrumentationScope::builder("scope-test")
+        .with_version("v1.2.3")
+        .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
+        .with_attributes([
+            KeyValue::new("custom.scope.attr", "first"),
+            KeyValue::new("custom/scope/attr", "second"),
+            KeyValue::new("version", "reserved-version"),
+            KeyValue::new("schema_url", "reserved-schema-url"),
+        ])
+        .build();
+    let meter = provider.meter_with_scope(scope);
+
+    let counter = meter.u64_counter("scope.counter").build();
+    counter.add(1, &[KeyValue::new("metric.attr", "metric-value")]);
+
+    let output = gather_and_encode(registry);
+
+    assert!(output.contains(
+        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test",otel_scope_version="v1.2.3",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0",otel_scope_custom_scope_attr="first;second"} 1"#
+    ));
+    assert!(!output.contains("otel_scope_info"));
+    assert!(!output.contains("reserved-version"));
+    assert!(!output.contains("reserved-schema-url"));
+}
+
+#[test]
+fn scope_info_labels_can_be_disabled() {
+    let registry = prometheus::Registry::new();
+    let exporter = ExporterBuilder::default()
+        .scope_info_enabled(false)
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+
+    let scope = InstrumentationScope::builder("scope-test")
+        .with_version("v1.2.3")
+        .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
+        .with_attributes([KeyValue::new("custom.scope.attr", "scope-value")])
+        .build();
+    let meter = provider.meter_with_scope(scope);
+
+    let counter = meter.u64_counter("scope.counter").build();
+    counter.add(1, &[KeyValue::new("metric.attr", "metric-value")]);
+
+    let output = gather_and_encode(registry);
+
+    assert!(output.contains(r#"scope_counter_total{metric_attr="metric-value"} 1"#));
+    assert!(!output.contains("otel_scope_"));
+}
+
 #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/pull/2224"]
 #[test]
 fn prometheus_exporter_integration() {
@@ -262,7 +322,7 @@ fn prometheus_exporter_integration() {
         },
         TestCase {
             name: "without scope_info",
-            builder: ExporterBuilder::default().without_scope_info(),
+            builder: ExporterBuilder::default().scope_info_enabled(false),
             expected_file: "without_scope_info.txt",
             record_metrics: Box::new(|meter| {
                 let attrs = vec![KeyValue::new("A", "B"), KeyValue::new("C", "D")];
@@ -279,7 +339,7 @@ fn prometheus_exporter_integration() {
         TestCase {
             name: "without scope_info and target_info",
             builder: ExporterBuilder::default()
-                .without_scope_info()
+                .scope_info_enabled(false)
                 .without_target_info(),
             expected_file: "without_scope_and_target_info.txt",
             record_metrics: Box::new(|meter| {
@@ -394,15 +454,18 @@ fn prometheus_exporter_integration() {
 }
 
 fn gather_and_compare(registry: prometheus::Registry, expected: String, name: &'static str) {
+    let expected = get_platform_specific_string(expected);
+    let output_string = get_platform_specific_string(gather_and_encode(registry));
+
+    assert_eq!(output_string, expected, "{name}");
+}
+
+fn gather_and_encode(registry: prometheus::Registry) -> String {
     let mut output = Vec::new();
     let encoder = TextEncoder::new();
     let metric_families = registry.gather();
     encoder.encode(&metric_families, &mut output).unwrap();
-
-    let expected = get_platform_specific_string(expected);
-    let output_string = get_platform_specific_string(String::from_utf8(output).unwrap());
-
-    assert_eq!(output_string, expected, "{name}");
+    String::from_utf8(output).unwrap()
 }
 
 ///  Returns a String which uses the platform specific new line feed character.
