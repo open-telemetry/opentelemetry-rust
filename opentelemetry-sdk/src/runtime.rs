@@ -165,32 +165,15 @@ impl Runtime for Tokio {
         F: Future<Output = T> + Send + 'static,
         T: Send + 'static,
     {
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            match handle.runtime_flavor() {
-                tokio::runtime::RuntimeFlavor::CurrentThread => {
-                    // Single-threaded runtime: spawn on a separate OS thread with its
-                    // own tokio runtime to avoid deadlocks. We can't use the existing
-                    // handle because current_thread runtimes can only be driven from
-                    // their original thread.
-                    // We can't drive the future from a thread _without_ tokio as
-                    // it may be doing tokio specific things (like tokio::time::sleep).
-                    Joinable::from_thread(std::thread::spawn(move || {
-                        let rt = tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .expect("failed to create tokio runtime");
-                        rt.block_on(future)
-                    }))
-                }
-                _ => {
-                    // Multi-threaded runtime: use tokio::spawn directly
-                    Joinable::from_tokio(tokio::spawn(future))
-                }
-            }
-        } else {
-            // No tokio runtime context: create a new runtime on an OS thread.
-            // As above, we can't drive the future without tokio, as it may be
-            // doing tokio-specific things like tokio::time::sleep.
+        // Spawn the future on a dedicated OS thread driving its own
+        // single-threaded tokio runtime. We can't drive the future from a
+        // thread _without_ tokio as it may be doing tokio-specific things
+        // (like tokio::time::sleep).
+        fn spawn_on_dedicated_thread<F, T>(future: F) -> Joinable<T>
+        where
+            F: Future<Output = T> + Send + 'static,
+            T: Send + 'static,
+        {
             Joinable::from_thread(std::thread::spawn(move || {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
@@ -198,6 +181,33 @@ impl Runtime for Tokio {
                     .expect("failed to create tokio runtime");
                 rt.block_on(future)
             }))
+        }
+
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // Joining the spawned task at shutdown blocks the calling thread.
+            // If the surrounding runtime only has a single thread available to
+            // drive tasks, that blocks the worker task itself and deadlocks
+            // (#2802). That happens for the current_thread flavor, but also
+            // for a multi_thread runtime configured with one worker thread —
+            // tokio defaults to one worker per CPU, so any single-vCPU host
+            // hits this too. In both cases run the worker on a dedicated OS
+            // thread instead. We can't reuse the existing handle for the
+            // current_thread flavor because such runtimes can only be driven
+            // from their original thread.
+            let starvation_prone = match handle.runtime_flavor() {
+                tokio::runtime::RuntimeFlavor::CurrentThread => true,
+                _ => handle.metrics().num_workers() <= 1,
+            };
+
+            if starvation_prone {
+                spawn_on_dedicated_thread(future)
+            } else {
+                // Multi-threaded runtime with spare workers: use tokio::spawn directly
+                Joinable::from_tokio(tokio::spawn(future))
+            }
+        } else {
+            // No tokio runtime context: create a new runtime on an OS thread.
+            spawn_on_dedicated_thread(future)
         }
     }
 
@@ -313,5 +323,44 @@ impl Runtime for NoAsync {
         async move {
             std::thread::sleep(duration);
         }
+    }
+}
+
+#[cfg(all(test, feature = "experimental_async_runtime", feature = "rt-tokio"))]
+mod tests {
+    use super::*;
+
+    fn spawned_handle_kind() -> String {
+        let handle = Tokio.spawn(async {});
+        format!("{handle:?}")
+    }
+
+    /// See https://github.com/open-telemetry/opentelemetry-rust/issues/2802:
+    /// joining a task spawned onto a current_thread runtime would block the
+    /// only thread able to drive it, so it must run on a dedicated OS thread.
+    #[tokio::test(flavor = "current_thread")]
+    async fn tokio_spawn_uses_dedicated_thread_on_current_thread_runtime() {
+        assert_eq!(spawned_handle_kind(), "Joinable::Thread");
+    }
+
+    /// See https://github.com/open-telemetry/opentelemetry-rust/issues/2802:
+    /// a multi_thread runtime with a single worker (tokio's default on a
+    /// 1-vCPU host) is equally starvation-prone and must also use a
+    /// dedicated OS thread.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn tokio_spawn_uses_dedicated_thread_on_single_worker_runtime() {
+        assert_eq!(spawned_handle_kind(), "Joinable::Thread");
+    }
+
+    /// With spare workers, the task should run on the existing runtime.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn tokio_spawn_uses_tokio_task_on_multi_worker_runtime() {
+        assert_eq!(spawned_handle_kind(), "Joinable::TokioTask");
+    }
+
+    /// Without an ambient tokio runtime, a dedicated thread is the only option.
+    #[test]
+    fn tokio_spawn_uses_dedicated_thread_outside_runtime() {
+        assert_eq!(spawned_handle_kind(), "Joinable::Thread");
     }
 }

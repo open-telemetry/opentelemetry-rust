@@ -551,4 +551,28 @@ mod tests {
         let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
         meter_provider.shutdown().expect("shutdown should succeed");
     }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    ///
+    /// A multi_thread runtime with a single worker is just as starvation-prone
+    /// as the current_thread flavor: tokio defaults to one worker per CPU, so
+    /// any single-vCPU host (e.g. a 1-CPU container) gets exactly this
+    /// configuration. Blocking that lone worker on shutdown must not deadlock.
+    ///
+    /// Shutdown is performed inside a spawned task so it runs *on* the single
+    /// worker thread — the test body itself runs on the `block_on` caller
+    /// thread and would not exhibit the starvation.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn shutdown_does_not_deadlock_on_single_worker_multi_thread_tokio_runtime() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+            .with_interval(std::time::Duration::from_secs(10))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        tokio::spawn(async move {
+            meter_provider.shutdown().expect("shutdown should succeed");
+        })
+        .await
+        .expect("shutdown task should complete without deadlocking");
+    }
 }
