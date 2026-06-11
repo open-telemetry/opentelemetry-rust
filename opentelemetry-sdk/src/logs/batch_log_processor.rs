@@ -391,15 +391,14 @@ impl BatchLogProcessor {
     // plain identifiers; the spec requires dotted attribute names like
     // `otel.component.type`, which tracing's own macros accept via quoted-key
     // syntax. Behaviour is otherwise identical to otel_info!/otel_warn!.
+    //
+    // The processor relies on its owning LoggerProvider to invoke shutdown
+    // exactly once (the provider holds the only reference and guards calls
+    // with an atomic CAS). We therefore do not defend against re-invocation.
     fn emit_shutdown_event(&self, result: &OTelSdkResult, duration_secs: f64) {
         let result_str = match result {
             Ok(()) => "success",
             Err(OTelSdkError::Timeout(_)) => "timed_out",
-            Err(OTelSdkError::AlreadyShutdown) => {
-                // Idempotent re-invocation: per spec a component is shut down
-                // at most once; subsequent calls are no-ops and emit no event.
-                return;
-            }
             Err(_) => "failed",
         };
         let is_success = result_str == "success";
