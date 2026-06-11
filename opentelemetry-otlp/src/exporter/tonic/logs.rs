@@ -154,25 +154,18 @@ impl LogExporter for TonicLogsClient {
 
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         let shutdown_start = Instant::now();
-        let was_first_shutdown = match self
+        let result = self
             .inner
             .lock()
             .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))
-        {
-            Ok(mut guard) => guard.take().is_some(),
-            Err(e) => {
-                let duration_secs = shutdown_start.elapsed().as_secs_f64();
-                self.emit_shutdown_event("failed", duration_secs);
-                return Err(e);
-            }
-        };
-
+            .map(|mut guard| {
+                guard.take();
+            });
         let duration_secs = shutdown_start.elapsed().as_secs_f64();
-        if was_first_shutdown {
-            self.emit_shutdown_event("success", duration_secs);
-        }
-        // Idempotent re-invocation: emit no event per spec.
-        Ok(())
+
+        let result_str = if result.is_ok() { "success" } else { "failed" };
+        self.emit_shutdown_event(result_str, duration_secs);
+        result
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
@@ -185,6 +178,11 @@ impl TonicLogsClient {
     // BatchLogProcessor::emit_shutdown_event for the rationale on using
     // opentelemetry::_private (tracing) directly instead of the
     // otel_info!/otel_warn! macros.
+    //
+    // The exporter relies on its owning processor to invoke shutdown exactly
+    // once (the processor holds the only reference and is itself guarded by
+    // LoggerProvider's idempotent shutdown). We therefore do not defend against
+    // re-invocation here.
     fn emit_shutdown_event(&self, result_str: &'static str, duration_secs: f64) {
         if result_str == "success" {
             #[cfg(feature = "internal-logs")]
