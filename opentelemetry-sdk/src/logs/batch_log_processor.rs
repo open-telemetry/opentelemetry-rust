@@ -17,6 +17,7 @@
 
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::log_processor::LogProcessor;
+use crate::util::BlockingStrategy;
 use crate::{
     logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
@@ -316,27 +317,28 @@ impl LogProcessor for BatchLogProcessor {
                         }
                         OTelSdkResult::Ok(())
                     })
-                    .map_err(|err| match err {
-                        RecvTimeoutError::Timeout => {
-                            // TODO: When shutdown times out, log records still
-                            // in the queue or mid-export are silently lost. The
-                            // background thread is not joined and may continue
-                            // running. Consider: (1) recording the lost count
-                            // in the self-diagnostics counter, (2) joining the
-                            // thread with a best-effort wait, or (3) signalling
-                            // the thread to abort the current export.
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Timeout",
-                                message = "BatchLogProcessor shutdown timing out."
-                            );
-                            OTelSdkError::Timeout(timeout)
-                        }
-                        _ => {
-                            otel_error!(
-                                name: "BatchLogProcessor.Shutdown.Error",
-                                error = format!("{}", err)
-                            );
-                            OTelSdkError::InternalFailure(format!("{err}"))
+                    .map_err(|err| {
+                        // The worker thread is unreachable from here: Timeout
+                        // means it is hung in `block_on(export_future)` and
+                        // joining would deadlock; Disconnected means it has
+                        // already exited. Take the handle out so subsequent
+                        // shutdown attempts do not see a stale `Some(_)`.
+                        drop(self.handle.lock().unwrap().take());
+                        match err {
+                            RecvTimeoutError::Timeout => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Timeout",
+                                    message = "BatchLogProcessor shutdown timing out."
+                                );
+                                OTelSdkError::Timeout(timeout)
+                            }
+                            _ => {
+                                otel_error!(
+                                    name: "BatchLogProcessor.Shutdown.Error",
+                                    error = format!("{}", err)
+                                );
+                                OTelSdkError::InternalFailure(format!("{err}"))
+                            }
                         }
                     })?
             }
@@ -380,6 +382,7 @@ impl BatchLogProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        let blocking_strategy = BlockingStrategy::new();
 
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
@@ -406,6 +409,7 @@ impl BatchLogProcessor {
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
                     max_export_size: usize,
+                    blocking_strategy: &BlockingStrategy,
                 ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
@@ -431,13 +435,15 @@ impl BatchLogProcessor {
                         }
                         total_exported_logs += count_of_logs;
 
-                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+                        result =
+                            export_batch_sync(exporter, logs, last_export_time, blocking_strategy);
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
                     result
                 }
 
+                let blocking_strategy = blocking_strategy;
                 loop {
                     let remaining_time = config
                         .scheduled_delay
@@ -460,6 +466,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
@@ -471,6 +478,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                             let _ = sender.send(result);
                         }
@@ -483,6 +491,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                             let _ = exporter.shutdown();
                             let _ = sender.send(result);
@@ -511,6 +520,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &blocking_strategy,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -609,6 +619,7 @@ fn export_batch_sync<E>(
     exporter: &E,
     batch: &mut Vec<Box<(SdkLogRecord, InstrumentationScope)>>,
     last_export_time: &mut Instant,
+    blocking_strategy: &BlockingStrategy,
 ) -> OTelSdkResult
 where
     E: LogExporter + ?Sized,
@@ -620,7 +631,7 @@ where
     }
 
     let export = exporter.export(LogBatch::new_with_owned_data(batch.as_slice()));
-    let export_result = futures_executor::block_on(export);
+    let export_result = blocking_strategy.block_on(export);
 
     // Clear the batch vec after exporting
     batch.clear();
@@ -836,7 +847,7 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
@@ -1110,6 +1121,173 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
+    }
+
+    // Mock exporter that uses tokio::spawn internally, simulating tonic/gRPC
+    // exporters where the export future depends on tokio tasks. Without
+    // BlockingStrategy, this deadlocks on constrained runtimes because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks.
+    #[derive(Debug, Clone)]
+    struct TokioSpawnLogExporter {
+        exported_count: Arc<AtomicUsize>,
+    }
+
+    impl TokioSpawnLogExporter {
+        fn new() -> Self {
+            Self {
+                exported_count: Arc::new(AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    impl LogExporter for TokioSpawnLogExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            let count = batch.len();
+            // Simulate tonic/gRPC: the export future needs tokio::spawn plus
+            // live timer and IO drivers on the worker thread.
+            let result = tokio::spawn(async move {
+                crate::util::exercise_tokio_drivers().await;
+                count
+            })
+            .await
+            .unwrap();
+            assert_eq!(result, count);
+            self.exported_count.fetch_add(count, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn shutdown(&self) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
+    // Regression test for deadlock on constrained tokio runtimes (#2802, #3356).
+    // Uses TokioSpawnLogExporter which internally calls tokio::spawn(),
+    // simulating tonic/gRPC exporters where the export future depends on
+    // tokio-spawned tasks. Without BlockingStrategy, this deadlocks because
+    // futures_executor::block_on() cannot drive tokio::spawn-ed tasks
+    // without the runtime context.
+    //
+    // Note: current_thread runtime is not tested here because it has a
+    // fundamental limitation — the single runtime thread is blocked by
+    // force_flush()'s recv(), so no thread is available to drive spawned
+    // tasks. The multi_thread(1) scenario (1-vCPU k8s pods) is the primary
+    // target of this fix.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    // Exercises BatchMessage::Shutdown's drain path, which has a 5s timeout
+    // wrapper instead of force_flush's infinite recv().
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_log_processor_multi_thread_default_with_tokio_spawn_exporter_force_flush() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_log_processor_multi_thread_default_with_tokio_spawn_exporter_shutdown() {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 1);
+    }
+
+    // Drain path must not hang when the buffer is empty.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_log_processor_multi_thread_1_worker_with_tokio_spawn_exporter_shutdown_empty(
+    ) {
+        let exporter = TokioSpawnLogExporter::new();
+        let exported_count = exporter.exported_count.clone();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        processor.shutdown().unwrap();
+
+        assert_eq!(exported_count.load(Ordering::Relaxed), 0);
+    }
+
+    // Verifies the BlockingStrategy::FuturesExecutor branch — used when
+    // processors are constructed outside any tokio runtime context. A regular
+    // `#[test]` (not `#[tokio::test]`) means `Handle::try_current()` returns
+    // Err and the strategy falls back to plain `futures_executor::block_on`.
+    #[test]
+    fn test_batch_log_processor_blocking_strategy_futures_executor_branch() {
+        // `keep_records_on_shutdown` is required because InMemoryLogExporter
+        // clears its buffer in shutdown by default.
+        let exporter = InMemoryLogExporterBuilder::default()
+            .keep_records_on_shutdown()
+            .build();
+        let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        processor.force_flush().unwrap();
+        processor.shutdown().unwrap();
+
+        let exported = exporter.get_emitted_logs().unwrap();
+        assert_eq!(exported.len(), 1);
+    }
+
+    // Pins the documented current_thread limitation: with a tokio-spawn-dependent
+    // exporter, the runtime's only thread is blocked in shutdown_with_timeout's
+    // recv_timeout, so the spawned task never makes progress and the timeout fires.
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_batch_log_processor_current_thread_with_tokio_spawn_exporter_shutdown_times_out()
+    {
+        let exporter = TokioSpawnLogExporter::new();
+        let processor = BatchLogProcessor::new(exporter, BatchConfig::default());
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+        processor.emit(&mut record, &instrumentation);
+
+        let result = processor.shutdown_with_timeout(Duration::from_millis(100));
+        assert!(matches!(result, Err(OTelSdkError::Timeout(_))));
     }
 
     #[tokio::test(flavor = "multi_thread")]
