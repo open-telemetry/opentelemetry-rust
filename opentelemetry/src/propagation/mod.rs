@@ -22,9 +22,11 @@
 use std::collections::HashMap;
 
 pub mod composite;
+mod env_vars_carrier;
 pub mod text_map_propagator;
 
 pub use composite::TextMapCompositePropagator;
+pub use env_vars_carrier::EnvVarsCarrier;
 pub use text_map_propagator::TextMapPropagator;
 
 /// Injector provides an interface for adding fields from an underlying struct like `HashMap`
