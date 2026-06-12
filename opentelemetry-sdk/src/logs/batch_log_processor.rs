@@ -151,6 +151,12 @@ pub struct BatchLogProcessor {
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
 
+    // Stable component identity used for self-observability events/metrics.
+    // Format: "batching_log_processor/<index>". Always present, independent of
+    // the experimental_metrics_bound_instruments feature flag because the
+    // shutdown event (otel.sdk.component.shutdown) needs it unconditionally.
+    component_name: String,
+
     // Self-diagnostics: otel.sdk.processor.log.processed counter.
     // Gated behind experimental_metrics_bound_instruments so the hot-path
     // `add` is a single atomic increment (~1.8 ns) with no per-call
@@ -303,6 +309,23 @@ impl LogProcessor for BatchLogProcessor {
             );
         }
 
+        let shutdown_start = Instant::now();
+        let result = self.shutdown_inner(timeout);
+        let duration_secs = shutdown_start.elapsed().as_secs_f64();
+        self.emit_shutdown_event(&result, duration_secs);
+        result
+    }
+
+    fn set_resource(&mut self, resource: &Resource) {
+        let resource = Arc::new(resource.clone());
+        let _ = self
+            .message_sender
+            .try_send(BatchMessage::SetResource(resource));
+    }
+}
+
+impl BatchLogProcessor {
+    fn shutdown_inner(&self, timeout: Duration) -> OTelSdkResult {
         let (sender, receiver) = mpsc::sync_channel(1);
         match self.message_sender.try_send(BatchMessage::Shutdown(sender)) {
             Ok(_) => {
@@ -361,11 +384,53 @@ impl LogProcessor for BatchLogProcessor {
         }
     }
 
-    fn set_resource(&mut self, resource: &Resource) {
-        let resource = Arc::new(resource.clone());
-        let _ = self
-            .message_sender
-            .try_send(BatchMessage::SetResource(resource));
+    // POC: emit the otel.sdk.component.shutdown event for this processor.
+    // Per spec PR open-telemetry/semantic-conventions#3723 the event is INFO
+    // on success and WARN on any non-success result. We bypass the
+    // otel_info!/otel_warn! macros because those restrict attribute keys to
+    // plain identifiers; the spec requires dotted attribute names like
+    // `otel.component.type`, which tracing's own macros accept via quoted-key
+    // syntax. Behaviour is otherwise identical to otel_info!/otel_warn!.
+    //
+    // The processor relies on its owning LoggerProvider to invoke shutdown
+    // exactly once (the provider holds the only reference and guards calls
+    // with an atomic CAS). We therefore do not defend against re-invocation.
+    fn emit_shutdown_event(&self, result: &OTelSdkResult, duration_secs: f64) {
+        let result_str = match result {
+            Ok(()) => "success",
+            Err(OTelSdkError::Timeout(_)) => "timed_out",
+            Err(_) => "failed",
+        };
+        let is_success = result_str == "success";
+
+        if is_success {
+            #[cfg(feature = "internal-logs")]
+            opentelemetry::_private::info!(
+                name: "otel.sdk.component.shutdown",
+                target: env!("CARGO_PKG_NAME"),
+                name = "otel.sdk.component.shutdown",
+                "otel.component.type" = "batching_log_processor",
+                "otel.component.name" = self.component_name.as_str(),
+                "otel.component.shutdown.result" = result_str,
+                "otel.component.shutdown.duration" = duration_secs,
+            );
+        } else {
+            #[cfg(feature = "internal-logs")]
+            opentelemetry::_private::warn!(
+                name: "otel.sdk.component.shutdown",
+                target: env!("CARGO_PKG_NAME"),
+                name = "otel.sdk.component.shutdown",
+                "otel.component.type" = "batching_log_processor",
+                "otel.component.name" = self.component_name.as_str(),
+                "otel.component.shutdown.result" = result_str,
+                "otel.component.shutdown.duration" = duration_secs,
+            );
+        }
+
+        #[cfg(not(feature = "internal-logs"))]
+        {
+            let _ = (result_str, duration_secs);
+        }
     }
 }
 
@@ -530,13 +595,18 @@ impl BatchLogProcessor {
             })
             .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
 
+        // Stable component identity used for self-observability events/metrics.
+        // Allocated outside the metrics feature gate because the shutdown event
+        // needs it unconditionally.
+        let component_name = {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            format!("batching_log_processor/{instance_id}")
+        };
+
         // Self-diagnostics: create the otel.sdk.processor.log.processed counter
         #[cfg(feature = "experimental_metrics_bound_instruments")]
         let (processed_success, processed_queue_full, processed_after_shutdown) = {
-            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
-            let component_name = format!("batching_log_processor/{instance_id}");
-
             let meter = opentelemetry::global::meter("otel.sdk");
             let counter = meter
                 .u64_counter("otel.sdk.processor.log.processed")
@@ -562,7 +632,7 @@ impl BatchLogProcessor {
             let after_shutdown_attrs = [
                 KeyValue::new("error.type", "already_shutdown"),
                 KeyValue::new("otel.component.type", "batching_log_processor"),
-                KeyValue::new("otel.component.name", component_name),
+                KeyValue::new("otel.component.name", component_name.clone()),
             ];
 
             (
@@ -580,6 +650,7 @@ impl BatchLogProcessor {
             forceflush_timeout: Duration::from_secs(5), // TODO: make this configurable
             dropped_logs_count: AtomicUsize::new(0),
             max_queue_size,
+            component_name,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
