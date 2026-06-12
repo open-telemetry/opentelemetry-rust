@@ -41,6 +41,10 @@ where
             value: T::new_atomic_tracker(self.value.get_and_reset_value()),
         }
     }
+
+    fn merge_to(&self, target: &Self) {
+        target.value.add(self.value.get_value());
+    }
 }
 
 /// Pre-bound counter handle: writes go directly to a fixed `TrackerEntry` without
