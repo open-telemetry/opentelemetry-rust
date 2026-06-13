@@ -15,6 +15,7 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/profiles/v1development/profiles.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     "src/proto/tracez.proto",
+    "src/proto/process_context.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
@@ -70,6 +71,7 @@ fn build_tonic() {
         "metrics.v1.HistogramDataPoint",
         "metrics.v1.SummaryDataPoint",
         "profiles.v1development.Function",
+        "processcontext.v1development.ProcessContext",
     ] {
         builder = builder.type_attribute(
             path,
