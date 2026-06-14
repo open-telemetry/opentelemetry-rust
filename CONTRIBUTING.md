@@ -284,10 +284,7 @@ For users that want to implement their own exporters. It's RECOMMENDED to wrap a
 
 ### Priority of configurations
 
-OpenTelemetry supports multiple ways to configure the API, SDK and other components. The priority of configurations is as follows:
-
-- Environment variables
-- Compiling time configurations provided in the source code
+OpenTelemetry supports multiple ways to configure the API, SDK and other components. When the same setting is provided through more than one mechanism, code-based configuration (e.g. `with_xxx` builder methods) takes precedence over environment variables. New configuration added to any component in this repo MUST follow this priority.
 
 ### Experimental/Unstable features
 
