@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Breaking change**: Removed the `opentelemetry_proto::transform` module and the direct dependencies on `opentelemetry` and `opentelemetry_sdk`. The transformation helpers were intended for exporter internals and now live in `opentelemetry-otlp`. Applications should use the OTLP exporters from `opentelemetry-otlp`; custom exporters should convert SDK data to the generated protobuf types directly.
+
 ## 0.32.0
 
 Released 2026-May-08

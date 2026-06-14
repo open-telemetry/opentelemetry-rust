@@ -2,17 +2,17 @@ use super::{
     default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
+use crate::transform::common::tonic::ResourceAttributesWithSchema;
+#[cfg(feature = "logs")]
+use crate::transform::logs::tonic::group_logs_by_resource_and_scope;
+#[cfg(feature = "trace")]
+use crate::transform::trace::tonic::group_spans_by_resource_and_scope;
 use crate::{
     exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient};
-use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
-#[cfg(feature = "logs")]
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
-#[cfg(feature = "trace")]
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -387,7 +387,7 @@ pub(crate) struct OtlpHttpClient {
     retry_policy: RetryPolicy,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: crate::transform::common::tonic::ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
@@ -671,9 +671,7 @@ impl OtlpHttpClient {
         &self,
         metrics: &ResourceMetrics,
     ) -> Option<(Vec<u8>, &'static str, Option<&'static str>)> {
-        use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
-
-        let req: ExportMetricsServiceRequest = metrics.into();
+        let req = crate::transform::metrics::tonic::resource_metrics_to_export_request(metrics);
 
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
