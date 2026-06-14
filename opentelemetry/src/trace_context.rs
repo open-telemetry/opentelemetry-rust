@@ -1,7 +1,63 @@
 use std::fmt;
 use std::hash::Hash;
 use std::num::ParseIntError;
-use std::ops::{BitAnd, BitOr, Not};
+use std::ops::{BitAnd, BitOr, Deref, Not};
+
+/// A stack-allocated buffer holding the lowercase hex encoding of a trace/span ID.
+///
+/// `N` is the number of hex characters (32 for [`TraceId`], 16 for [`SpanId`]).
+/// Obtained from [`TraceId::to_hex`] or [`SpanId::to_hex`].
+///
+/// Derefs to `&str` so it can be used anywhere a string slice is expected
+/// without any heap allocation.
+///
+/// # Example
+/// ```
+/// use opentelemetry::trace::TraceId;
+///
+/// let id = TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
+/// let hex: &str = &id.to_hex();   // no allocation
+/// assert_eq!(hex, "4bf92f3577b34da6a3ce929d0e0e4736");
+/// ```
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub struct HexEncode<const N: usize>([u8; N]);
+
+impl<const N: usize> HexEncode<N> {
+    /// Return the hex string as a `&str`.
+    pub fn as_str(&self) -> &str {
+        // SAFETY: the buffer is always filled with ASCII hex digits.
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
+    }
+}
+
+impl<const N: usize> Deref for HexEncode<N> {
+    type Target = str;
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl<const N: usize> fmt::Display for HexEncode<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl<const N: usize> fmt::Debug for HexEncode<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Write `bytes` as lowercase hex digits into `out`.
+/// `out.len()` must equal `bytes.len() * 2`.
+fn encode_hex_bytes(bytes: &[u8], out: &mut [u8]) {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    for (i, &b) in bytes.iter().enumerate() {
+        out[2 * i] = HEX[(b >> 4) as usize];
+        out[2 * i + 1] = HEX[(b & 0x0f) as usize];
+    }
+}
 
 /// Flags that can be set on a `SpanContext`.
 ///
@@ -122,6 +178,25 @@ impl TraceId {
     pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
         u128::from_str_radix(hex, 16).map(TraceId)
     }
+
+    /// Return the lowercase hex representation as a stack-allocated 32-character buffer.
+    ///
+    /// Unlike `.to_string()` / `format!("{self}")`, this method does **not** allocate on
+    /// the heap. Use it on hot export paths where every allocation counts.
+    ///
+    /// # Example
+    /// ```
+    /// use opentelemetry::trace::TraceId;
+    ///
+    /// let id = TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
+    /// let hex = id.to_hex();
+    /// assert_eq!(&*hex, "4bf92f3577b34da6a3ce929d0e0e4736");
+    /// ```
+    pub fn to_hex(&self) -> HexEncode<32> {
+        let mut buf = [0u8; 32];
+        encode_hex_bytes(&self.to_bytes(), &mut buf);
+        HexEncode(buf)
+    }
 }
 
 impl From<u128> for TraceId {
@@ -182,6 +257,25 @@ impl SpanId {
     /// ```
     pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
         u64::from_str_radix(hex, 16).map(SpanId)
+    }
+
+    /// Return the lowercase hex representation as a stack-allocated 16-character buffer.
+    ///
+    /// Unlike `.to_string()` / `format!("{self}")`, this method does **not** allocate on
+    /// the heap. Use it on hot export paths where every allocation counts.
+    ///
+    /// # Example
+    /// ```
+    /// use opentelemetry::trace::SpanId;
+    ///
+    /// let id = SpanId::from_hex("00f067aa0ba902b7").unwrap();
+    /// let hex = id.to_hex();
+    /// assert_eq!(&*hex, "00f067aa0ba902b7");
+    /// ```
+    pub fn to_hex(&self) -> HexEncode<16> {
+        let mut buf = [0u8; 16];
+        encode_hex_bytes(&self.to_bytes(), &mut buf);
+        HexEncode(buf)
     }
 }
 
