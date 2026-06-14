@@ -6,6 +6,10 @@
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
   `unknown_service:<process.executable.name>` fallback outside Miri.
+- Fixed metric aggregation to export canonicalized attribute order for
+  `ValueMap`-backed data points. This prevents delta `ObservableCounter`
+  streams from treating the same logical attribute set in a different order as
+  a new stream and re-exporting the cumulative value as the delta.
 
 ## 0.32.1
 

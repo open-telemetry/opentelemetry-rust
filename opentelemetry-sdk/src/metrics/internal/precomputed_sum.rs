@@ -253,8 +253,9 @@ mod tests {
 
         let trackers = pre_sum.value_map.trackers.read().unwrap();
         let entry = trackers
-            .values()
+            .iter()
             .next()
+            .map(|(_, entry)| entry)
             .expect("entry should exist after bind+call");
         assert_eq!(entry.bound_count.load(Ordering::Relaxed), 1);
         drop(trackers);
@@ -263,8 +264,9 @@ mod tests {
 
         let trackers = pre_sum.value_map.trackers.read().unwrap();
         let entry = trackers
-            .values()
+            .iter()
             .next()
+            .map(|(_, entry)| entry)
             .expect("entry should still exist post-drop");
         assert_eq!(entry.bound_count.load(Ordering::Relaxed), 0);
     }
