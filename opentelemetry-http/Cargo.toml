@@ -30,6 +30,10 @@ opentelemetry = { workspace = true, features = ["trace"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
+[dev-dependencies]
+axum = { version = "0.8" }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }
+
 [lints]
 workspace = true
 
