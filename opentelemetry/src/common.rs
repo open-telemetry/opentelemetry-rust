@@ -259,6 +259,20 @@ impl AsRef<str> for StringValue {
 }
 
 impl StringValue {
+    /// Create a new const `StringValue`.
+    ///
+    /// This is useful for making static label values:
+    /// ```rust
+    /// # use opentelemetry::{StringValue, KeyValue, Key, Value};
+    /// let labels = &[KeyValue::new(
+    ///     Key::from_static_str("key"),
+    ///     StringValue::from_static_str("value"),
+    /// )];
+    /// ```
+    pub const fn from_static_str(value: &'static str) -> Self {
+        StringValue(OtelString::Static(value))
+    }
+
     /// Returns a string slice to this value
     pub fn as_str(&self) -> &str {
         self.0.as_str()
