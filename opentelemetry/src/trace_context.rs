@@ -348,4 +348,65 @@ mod tests {
             assert_eq!(test_case.0, SpanId::from_bytes(test_case.2));
         }
     }
+
+    #[test]
+    fn test_trace_id_to_hex_matches_display() {
+        for (id, expected, _) in trace_id_test_data() {
+            let hex = id.to_hex();
+            assert_eq!(hex.as_str(), expected);
+            assert_eq!(&*hex, expected);
+            assert_eq!(format!("{}", hex), expected);
+            assert_eq!(format!("{:?}", hex), expected);
+        }
+    }
+
+    #[test]
+    fn test_span_id_to_hex_matches_display() {
+        for (id, expected, _) in span_id_test_data() {
+            let hex = id.to_hex();
+            assert_eq!(hex.as_str(), expected);
+            assert_eq!(&*hex, expected);
+            assert_eq!(format!("{}", hex), expected);
+            assert_eq!(format!("{:?}", hex), expected);
+        }
+    }
+
+    #[test]
+    fn test_to_hex_all_bytes() {
+        // Verify every possible byte value encodes correctly.
+        let mut bytes = [0u8; 16];
+        for i in 0u8..=255 {
+            bytes[i as usize % 16] = i;
+        }
+        let id = TraceId::from_bytes(bytes);
+        let hex = id.to_hex();
+        assert_eq!(hex.as_str(), format!("{}", id));
+        assert_eq!(hex.len(), 32);
+    }
+
+    #[test]
+    fn test_hex_encode_deref_and_clone() {
+        let id = TraceId::from_hex("4bf92f3577b34da6a3ce929d0e0e4736").unwrap();
+        let hex = id.to_hex();
+        let cloned = hex;
+        assert_eq!(hex.as_str(), cloned.as_str());
+        assert_eq!(hex, cloned);
+        // deref to &str works in string comparisons
+        let s: &str = &hex;
+        assert_eq!(s, "4bf92f3577b34da6a3ce929d0e0e4736");
+    }
+
+    #[test]
+    fn test_span_id_to_hex_invalid() {
+        let hex = SpanId::INVALID.to_hex();
+        assert_eq!(hex.as_str(), "0000000000000000");
+        assert_eq!(hex.len(), 16);
+    }
+
+    #[test]
+    fn test_trace_id_to_hex_invalid() {
+        let hex = TraceId::INVALID.to_hex();
+        assert_eq!(hex.as_str(), "00000000000000000000000000000000");
+        assert_eq!(hex.len(), 32);
+    }
 }
