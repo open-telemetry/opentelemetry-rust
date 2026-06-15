@@ -21,6 +21,7 @@ use crate::propagation::{Extractor, Injector};
 /// use opentelemetry::propagation::{Extractor, Injector, EnvVarsCarrier};
 ///
 /// // Builds the carrier, fetching the environment into the carrier mapping.
+/// // Filters any environment variables that are not already normalized.
 /// let mut carrier = EnvVarsCarrier::from_env();
 ///
 /// // Looks for the normalized "FOO" value in the carrier mapping
@@ -50,8 +51,7 @@ impl EnvVarsCarrier {
     /// Create a new `EnvVarsCarrier` object, built from environment variables.
     /// Environment variables are fetched and normalized at construction time.
     pub fn from_env() -> Self {
-        let map = std::env::vars().map(|(k, v)| (normalize(&k), v)).collect();
-
+        let map = std::env::vars().filter(|(k, _)| is_normalized(k)).collect();
         Self { map }
     }
 
@@ -105,6 +105,21 @@ fn normalize(name: &str) -> String {
         .collect()
 }
 
+fn is_normalized(name: &str) -> bool {
+    let mut chars = name.chars();
+
+    if !chars
+        .next()
+        .is_some_and(|c| c.is_ascii_uppercase() || c == '_')
+    {
+        return false;
+    }
+
+    chars
+        .find(|c| !c.is_ascii_uppercase() && !c.is_ascii_digit() && *c != '_')
+        .is_none()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,6 +132,31 @@ mod tests {
         assert_eq!(normalize("a.b.c"), "A_B_C");
         assert_eq!(normalize("key with spaces"), "KEY_WITH_SPACES");
         assert_eq!(normalize("ⵕu⾫tⅭf⼤8"), "_U_T_F_8");
+    }
+
+    #[test]
+    fn test_is_normalized_prefix() {
+        assert!(is_normalized("ABC"));
+
+        assert!(!is_normalized("3ABC")); // begins with number
+        assert!(is_normalized("_3ABC"));
+
+        assert!(!is_normalized("aBC")); // begins with lowercase letter
+        assert!(is_normalized("ABC"));
+
+        assert!(!is_normalized(".ABC")); // begins with non-alphanumeric/non-underscore character
+        assert!(is_normalized("_ABC"));
+    }
+
+    #[test]
+    fn test_is_normalized_body() {
+        assert!(is_normalized("HELLO_WORLD"));
+
+        assert!(!is_normalized("foo.bar"));
+        assert!(!is_normalized("3abc"));
+        assert!(!is_normalized("a.b.c"));
+        assert!(!is_normalized("key with spaces"));
+        assert!(!is_normalized("ⵕu⾫tⅭf⼤8"));
     }
 
     #[test]
@@ -150,9 +190,13 @@ mod tests {
 
     #[test]
     fn test_env_vars_carrier_from_env() {
+        // refer to .cargo/config.toml for the environment variable definitions
         let carrier = EnvVarsCarrier::from_env();
         let entry = carrier.get("ENV_VAR_CARRIER_TEST_VAR").unwrap();
         assert_eq!(entry, "test");
+
+        let vars = carrier.keys();
+        assert!(!vars.contains(&"ENV-VAR-CARRIER-TEST-VAR2"));
     }
 
     #[test]
