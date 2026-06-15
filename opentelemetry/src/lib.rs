@@ -253,7 +253,7 @@ pub mod context;
 pub use context::{Context, ContextGuard};
 
 mod trace_context;
-pub use trace_context::{SpanId, TraceFlags, TraceId};
+pub use trace_context::{HexEncode, SpanId, TraceFlags, TraceId};
 
 mod common;
 
