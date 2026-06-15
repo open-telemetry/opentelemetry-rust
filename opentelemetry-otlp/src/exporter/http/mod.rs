@@ -1131,6 +1131,7 @@ mod tests {
         use opentelemetry_http::{Bytes, HttpClient};
         use std::io::Read;
 
+        #[cfg(feature = "http-proto")]
         #[test]
         fn test_gzip_compression_and_decompression() {
             let client = OtlpHttpClient::new(
@@ -1163,7 +1164,7 @@ mod tests {
             assert_ne!(compressed_body, test_data.to_vec());
         }
 
-        #[cfg(feature = "zstd-http")]
+        #[cfg(all(feature = "http-proto", feature = "zstd-http"))]
         #[test]
         fn test_zstd_compression_and_decompression() {
             let client = OtlpHttpClient::new(
@@ -1194,6 +1195,7 @@ mod tests {
             assert_ne!(compressed_body, test_data.to_vec());
         }
 
+        #[cfg(feature = "http-proto")]
         #[test]
         fn test_no_compression_when_disabled() {
             let client = OtlpHttpClient::new(
@@ -1216,7 +1218,7 @@ mod tests {
             assert_eq!(content_encoding, None);
         }
 
-        #[cfg(not(feature = "gzip-http"))]
+        #[cfg(all(feature = "http-proto", not(feature = "gzip-http")))]
         #[test]
         fn test_gzip_error_when_feature_disabled() {
             let client = OtlpHttpClient::new(
@@ -1240,7 +1242,7 @@ mod tests {
                 .contains("gzip-http feature not enabled"));
         }
 
-        #[cfg(not(feature = "zstd-http"))]
+        #[cfg(all(feature = "http-proto", not(feature = "zstd-http")))]
         #[test]
         fn test_zstd_error_when_feature_disabled() {
             let client = OtlpHttpClient::new(
@@ -1352,7 +1354,7 @@ mod tests {
             }
         }
 
-        #[cfg(feature = "trace")]
+        #[cfg(all(feature = "trace", feature = "http-proto"))]
         #[test]
         fn test_build_trace_export_body_binary_protocol() {
             let client = create_test_client(crate::Protocol::HttpBinary, None);
@@ -1378,7 +1380,7 @@ mod tests {
             assert_eq!(content_encoding, None);
         }
 
-        #[cfg(all(feature = "trace", feature = "gzip-http"))]
+        #[cfg(all(feature = "http-proto", feature = "trace", feature = "gzip-http"))]
         #[test]
         fn test_build_trace_export_body_with_compression() {
             let client =
@@ -1400,7 +1402,7 @@ mod tests {
             LogBatch::new(&[])
         }
 
-        #[cfg(feature = "logs")]
+        #[cfg(all(feature = "http-proto", feature = "logs"))]
         #[test]
         fn test_build_logs_export_body_binary_protocol() {
             let client = create_test_client(crate::Protocol::HttpBinary, None);
@@ -1426,7 +1428,7 @@ mod tests {
             assert_eq!(content_encoding, None);
         }
 
-        #[cfg(all(feature = "logs", feature = "gzip-http"))]
+        #[cfg(all(feature = "http-proto", feature = "logs", feature = "gzip-http"))]
         #[test]
         fn test_build_logs_export_body_with_compression() {
             let client =
@@ -1440,7 +1442,7 @@ mod tests {
             assert_eq!(content_encoding, Some("gzip"));
         }
 
-        #[cfg(feature = "metrics")]
+        #[cfg(all(feature = "http-proto", feature = "metrics"))]
         #[test]
         fn test_build_metrics_export_body_binary_protocol() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
@@ -1470,7 +1472,7 @@ mod tests {
             assert_eq!(content_encoding, None);
         }
 
-        #[cfg(all(feature = "metrics", feature = "gzip-http"))]
+        #[cfg(all(feature = "http-proto", feature = "metrics", feature = "gzip-http"))]
         #[test]
         fn test_build_metrics_export_body_with_compression() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
@@ -1486,7 +1488,11 @@ mod tests {
             assert_eq!(content_encoding, Some("gzip"));
         }
 
-        #[cfg(all(feature = "metrics", not(feature = "gzip-http")))]
+        #[cfg(all(
+            feature = "http-proto",
+            feature = "metrics",
+            not(feature = "gzip-http")
+        ))]
         #[test]
         fn test_build_metrics_export_body_compression_error_returns_none() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
@@ -1574,7 +1580,7 @@ mod tests {
             assert_eq!(retry_policy.jitter_ms, 50);
         }
 
-        #[cfg(feature = "experimental-http-retry")]
+        #[cfg(all(feature = "http-proto", feature = "experimental-http-retry"))]
         #[test]
         fn test_default_retry_policy_when_none_configured() {
             let client = create_test_client(crate::Protocol::HttpBinary, None);
@@ -1586,7 +1592,7 @@ mod tests {
             assert_eq!(client.retry_policy.jitter_ms, 100);
         }
 
-        #[cfg(feature = "experimental-http-retry")]
+        #[cfg(all(feature = "http-proto", feature = "experimental-http-retry"))]
         #[test]
         fn test_custom_retry_policy_used() {
             use crate::retry::RetryPolicy;

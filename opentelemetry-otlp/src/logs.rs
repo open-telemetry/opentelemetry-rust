@@ -32,6 +32,9 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
 /// Protocol to use for log exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL";
+/// Whether to disable TLS for gRPC log exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSECURE";
 
 /// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]
@@ -206,8 +209,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 mod tests {
     use crate::LogExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         let result = LogExporter::builder().build();
         assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }
