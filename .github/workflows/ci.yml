@@ -51,6 +51,26 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
+  # Targeted Miri regression check for SDK default resource construction.
+  # Broader Miri support and CI policy are tracked in #3554.
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: true
+    - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+      with:
+        toolchain: nightly
+        components: miri
+    - name: Miri smoke test
+      run: cargo +nightly miri test --manifest-path=opentelemetry-sdk/Cargo.toml --no-default-features --features metrics --test miri_smoke
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -209,7 +229,7 @@ jobs:
       - name: cargo llvm-cov
         run: cargo llvm-cov --locked --all-features --workspace --lcov --lib --output-path lcov.info
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:

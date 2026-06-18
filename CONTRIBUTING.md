@@ -9,8 +9,10 @@ meeting for this group.
 
 Meeting notes are available as a public [Google
 doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
-If you have trouble accessing the doc, please get in touch on
-[Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
+If you have trouble accessing the doc, please get in touch on the
+[#otel-rust](https://cloud-native.slack.com/archives/C03GDP0H023)
+channel on CNCF Slack. If you are new to the CNCF Slack community,
+you can [create an account](https://slack.cncf.io/).
 
 The meeting is open for all to join. We invite everyone to join our meeting,
 regardless of your experience level. Whether you're a seasoned OpenTelemetry
@@ -282,10 +284,7 @@ For users that want to implement their own exporters. It's RECOMMENDED to wrap a
 
 ### Priority of configurations
 
-OpenTelemetry supports multiple ways to configure the API, SDK and other components. The priority of configurations is as follows:
-
-- Environment variables
-- Compiling time configurations provided in the source code
+OpenTelemetry supports multiple ways to configure the API, SDK and other components. When the same setting is provided through more than one mechanism, code-based configuration (e.g. `with_xxx` builder methods) takes precedence over environment variables. New configuration added to any component in this repo MUST follow this priority.
 
 ### Experimental/Unstable features
 
