@@ -6,6 +6,12 @@
   new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
   `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
   feature.
+- Fixed a race in `BatchSpanProcessor` and `BatchLogProcessor` where a
+  span/log enqueued just before `force_flush()` or `shutdown()` could be
+  missed by the flush and dropped at shutdown: the pending-item counter is
+  now incremented before enqueueing (and reverted if the queue is full), so
+  the worker's counter snapshot can no longer under-count items already in
+  the queue (#3453).
 - Default SDK Resource construction now falls back to `unknown_service` under
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
