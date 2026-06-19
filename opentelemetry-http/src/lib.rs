@@ -142,9 +142,13 @@ mod reqwest {
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
+            let capacity = response
+                .content_length()
+                .unwrap_or(0)
+                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
             let status = response.status();
             let headers = std::mem::take(response.headers_mut());
-            let mut body_bytes = Vec::new();
+            let mut body_bytes = Vec::with_capacity(capacity);
             response
                 .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
                 .read_to_end(&mut body_bytes)?;
@@ -416,29 +420,33 @@ mod tests {
 mod body_limit_tests {
     use super::MAX_RESPONSE_BODY_BYTES;
     use crate::HttpClient;
-    use axum::{routing::post, Router};
     use bytes::Bytes;
     use http::Request;
     use std::net::SocketAddr;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
     async fn start_server(body_size: usize) -> SocketAddr {
-        let app = Router::new().route(
-            "/",
-            post(move || async move {
-                let body = vec![b'a'; body_size];
-                axum::response::Response::builder()
-                    .status(200)
-                    .body(axum::body::Body::from(body))
-                    .unwrap()
-            }),
-        );
-
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
+
         tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 1024];
+                let _ = socket.read(&mut buf).await;
+
+                let body = vec![b'a'; body_size];
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+
+                let _ = socket.write_all(response.as_bytes()).await;
+                let _ = socket.write_all(&body).await;
+                let _ = socket.shutdown().await;
+            }
         });
+
         addr
     }
 
