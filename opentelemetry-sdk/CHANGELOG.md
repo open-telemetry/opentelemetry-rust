@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Bound instruments are now available for `Gauge` via the new `BoundGauge<T>`
+  type exposed by the `opentelemetry` crate. Requires the
+  `experimental_metrics_bound_instruments` feature.
 - Default SDK Resource construction now falls back to `unknown_service` under
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
