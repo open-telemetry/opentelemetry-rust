@@ -377,28 +377,64 @@ impl prometheus::core::Collector for Collector {
 /// It sanitizes invalid characters and handles duplicate keys (due to
 /// sanitization) by sorting and concatenating the values following the spec.
 fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
-    let mut keys_map = BTreeMap::<String, Vec<String>>::new();
+    let mut keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
+    let mut extra_keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
+    let mut extra_key_order = Vec::with_capacity(extra.len());
+
+    for label in extra {
+        let key = label.name().to_string();
+        if !extra_keys_map.contains_key(&key) {
+            extra_key_order.push(key.clone());
+        }
+        extra_keys_map
+            .entry(key.clone())
+            .and_modify(|values| values.push((key.clone(), label.value().to_string())))
+            .or_insert_with(|| vec![(key, label.value().to_string())]);
+    }
+
     for (key, value) in kvs {
-        let key = utils::sanitize_prom_kv(key.as_str());
-        keys_map
-            .entry(key)
-            .and_modify(|v| v.push(value.to_string()))
-            .or_insert_with(|| vec![value.to_string()]);
+        let original_key = key.as_str().to_string();
+        let sanitized_key = utils::sanitize_prom_kv(key.as_str());
+
+        if let Some(values) = extra_keys_map.get_mut(&sanitized_key) {
+            values.push((original_key, value.to_string()));
+        } else {
+            keys_map
+                .entry(sanitized_key)
+                .and_modify(|values| values.push((original_key.clone(), value.to_string())))
+                .or_insert_with(|| vec![(original_key, value.to_string())]);
+        }
     }
 
     let mut res = Vec::with_capacity(keys_map.len() + extra.len());
 
     for (key, mut values) in keys_map.into_iter() {
-        values.sort_unstable();
+        values.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
 
         let mut lp = LabelPair::default();
         lp.set_name(key);
-        lp.set_value(values.join(";"));
+        lp.set_value(
+            values
+                .into_iter()
+                .map(|(_, value)| value)
+                .collect::<Vec<_>>()
+                .join(";"),
+        );
         res.push(lp);
     }
 
-    if !extra.is_empty() {
-        res.extend(&mut extra.iter().cloned());
+    for key in extra_key_order {
+        if let Some(mut values) = extra_keys_map.remove(&key) {
+            values.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
+            res.push(label_pair(
+                key,
+                values
+                    .into_iter()
+                    .map(|(_, value)| value)
+                    .collect::<Vec<_>>()
+                    .join(";"),
+            ));
+        }
     }
 
     res
