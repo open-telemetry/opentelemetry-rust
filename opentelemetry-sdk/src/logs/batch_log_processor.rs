@@ -408,6 +408,9 @@ impl BatchLogProcessor {
             opentelemetry::_private::info!(
                 name: "otel.sdk.component.shutdown",
                 target: env!("CARGO_PKG_NAME"),
+                // `name = ...` is required as the first field to prevent the
+                // tracing macro from parsing the subsequent quoted-key fields
+                // (e.g. "otel.component.type") as a message string literal.
                 name = "otel.sdk.component.shutdown",
                 "otel.component.type" = "batching_log_processor",
                 "otel.component.name" = self.component_name.as_str(),

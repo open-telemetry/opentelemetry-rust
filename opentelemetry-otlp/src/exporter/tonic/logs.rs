@@ -189,6 +189,7 @@ impl TonicLogsClient {
             opentelemetry::_private::info!(
                 name: "otel.sdk.component.shutdown",
                 target: env!("CARGO_PKG_NAME"),
+                // `name = ...` required as the first field; see batch_log_processor.rs.
                 name = "otel.sdk.component.shutdown",
                 "otel.component.type" = "otlp_grpc_log_exporter",
                 "otel.component.name" = self.component_name.as_str(),
