@@ -61,7 +61,7 @@ expression='
 # Patch: rustdoc warns about bare URLs in doc comments. 
 # The following line wraps the specific Kubernetes ResourceRequirements URL with <...> 
 # as suggested by rustdoc warnings, so it becomes a clickable link and the warning goes away.
-"${SED[@]}" -E 's|(/// See )(https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)( for details)|\1<\2>\3|g' src/metric.rs
+"${SED[@]}" -E 's|(/// See )(https://kubernetes.io/docs/reference/generated/kubernetes-api/v[0-9]+\.[0-9]+/#resourcerequirements-v1-core)( for details)|\1<\2>\3|g' src/metric.rs
 
 # Tag unlabeled fenced code blocks in doc comments as `text` so rustdoc doesn't
 # try to compile them as Rust. Some semconv descriptions include pseudo-code

@@ -4222,7 +4222,7 @@ pub const K8S_CONTAINER_CPU_REQUEST_UTILIZATION: &str = "k8s.container.cpu.reque
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4238,7 +4238,7 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_LIMIT: &str = "k8s.container.ephemeral
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4466,7 +4466,7 @@ pub const K8S_CONTAINER_STATUS_STATE: &str = "k8s.container.status.state";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4482,7 +4482,7 @@ pub const K8S_CONTAINER_STORAGE_LIMIT: &str = "k8s.container.storage.limit";
 ///
 /// ## Notes
 ///
-/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
+/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core> for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
