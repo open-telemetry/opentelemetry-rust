@@ -30,6 +30,142 @@
 
 /// ## Description
 ///
+/// The authentication duration for a request.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authentication`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_RESULT`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Conditionally_required`: if a scheme is specified during authentication.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHENTICATION_AUTHENTICATE_DURATION: &str =
+    "aspnetcore.authentication.authenticate.duration";
+
+/// ## Description
+///
+/// The total number of times a scheme is challenged.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authentication`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{challenge}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Conditionally_required`: if a scheme is specified during authentication.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHENTICATION_CHALLENGES: &str = "aspnetcore.authentication.challenges";
+
+/// ## Description
+///
+/// The total number of times an authenticated user attempts to access a resource they are not permitted to access.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authentication`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{forbid}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Conditionally_required`: if a scheme is specified during authentication.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHENTICATION_FORBIDS: &str = "aspnetcore.authentication.forbids";
+
+/// ## Description
+///
+/// The total number of times a principal is signed in with a scheme.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authentication`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{sign_in}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Conditionally_required`: if a scheme is specified during authentication.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHENTICATION_SIGN_INS: &str = "aspnetcore.authentication.sign_ins";
+
+/// ## Description
+///
+/// The total number of times a principal is signed out with a scheme.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authentication`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{sign_out}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Conditionally_required`: if a scheme is specified during authentication.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHENTICATION_SIGN_OUTS: &str = "aspnetcore.authentication.sign_outs";
+
+/// ## Description
+///
+/// The total number of authorization attempts.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Authorization`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{attempt}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHORIZATION_POLICY`] | `Conditionally_required`: if a policy is specified.
+/// | [`crate::attribute::ASPNETCORE_AUTHORIZATION_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_USER_IS_AUTHENTICATED`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_AUTHORIZATION_ATTEMPTS: &str = "aspnetcore.authorization.attempts";
+
+/// ## Description
+///
 /// Number of exceptions caught by exception handling middleware.
 ///
 /// ## Notes
@@ -49,6 +185,385 @@
 /// | [`crate::attribute::ASPNETCORE_DIAGNOSTICS_HANDLER_TYPE`] | `Conditionally_required`: if and only if the exception was handled by this handler.
 /// | [`crate::attribute::ERROR_TYPE`] | `Required`
 pub const ASPNETCORE_DIAGNOSTICS_EXCEPTIONS: &str = "aspnetcore.diagnostics.exceptions";
+
+/// ## Description
+///
+/// The duration of authenticate attempts. The authenticate metrics is recorded by sign in methods such as PasswordSignInAsync and TwoFactorSignInAsync.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_SIGN_IN_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_SIGN_IN_TYPE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_SIGN_IN_IS_PERSISTENT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_AUTHENTICATE_DURATION: &str =
+    "aspnetcore.identity.sign_in.authenticate.duration";
+
+/// ## Description
+///
+/// The total number of check password attempts. Checks that the account is in a state that can log in and that the password is valid using the UserManager.CheckPasswordAsync method.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{attempt}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_SIGN_IN_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_CHECK_PASSWORD_ATTEMPTS: &str =
+    "aspnetcore.identity.sign_in.check_password_attempts";
+
+/// ## Description
+///
+/// The total number of calls to sign in user principals.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{sign_in}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_SIGN_IN_IS_PERSISTENT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_SIGN_INS: &str = "aspnetcore.identity.sign_in.sign_ins";
+
+/// ## Description
+///
+/// The total number of calls to sign out user principals.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{sign_out}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_SIGN_OUTS: &str = "aspnetcore.identity.sign_in.sign_outs";
+
+/// ## Description
+///
+/// The total number of two factor clients forgotten.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{client}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_TWO_FACTOR_CLIENTS_FORGOTTEN: &str =
+    "aspnetcore.identity.sign_in.two_factor_clients_forgotten";
+
+/// ## Description
+///
+/// The total number of two factor clients remembered.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{client}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_AUTHENTICATION_SCHEME`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_SIGN_IN_TWO_FACTOR_CLIENTS_REMEMBERED: &str =
+    "aspnetcore.identity.sign_in.two_factor_clients_remembered";
+
+/// ## Description
+///
+/// The number of check password attempts. Only checks whether the password is valid and not whether the user account is in a state that can log in.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{attempt}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_PASSWORD_CHECK_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_CHECK_PASSWORD_ATTEMPTS: &str =
+    "aspnetcore.identity.user.check_password_attempts";
+
+/// ## Description
+///
+/// The duration of user creation operations.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_ERROR_CODE`] | `Conditionally_required`: if an error was set on a failed identity result.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_CREATE_DURATION: &str =
+    "aspnetcore.identity.user.create.duration";
+
+/// ## Description
+///
+/// The duration of user deletion operations.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_ERROR_CODE`] | `Conditionally_required`: if an error was set on a failed identity result.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_DELETE_DURATION: &str =
+    "aspnetcore.identity.user.delete.duration";
+
+/// ## Description
+///
+/// The total number of token generations.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{count}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_TOKEN_PURPOSE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_GENERATED_TOKENS: &str =
+    "aspnetcore.identity.user.generated_tokens";
+
+/// ## Description
+///
+/// The duration of user update operations.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_ERROR_CODE`] | `Conditionally_required`: if an error was set on a failed identity result.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_RESULT`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_UPDATE_TYPE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_UPDATE_DURATION: &str =
+    "aspnetcore.identity.user.update.duration";
+
+/// ## Description
+///
+/// The total number of token verification attempts.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.Identity`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{attempt}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_TOKEN_PURPOSE`] | `Required`
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_TOKEN_VERIFIED`] | `Conditionally_required`: if no exception was thrown.
+/// | [`crate::attribute::ASPNETCORE_IDENTITY_USER_TYPE`] | `Required`
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if and only if an error has occurred.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_IDENTITY_USER_VERIFY_TOKEN_ATTEMPTS: &str =
+    "aspnetcore.identity.user.verify_token_attempts";
+
+/// ## Description
+///
+/// Total number of bytes allocated by the memory pool. Allocation occurs when a memory rental request exceeds the available pooled memory.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.MemoryPool`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_MEMORY_POOL_OWNER`] | `Conditionally_required`: if owner is specified when the memory pool is created.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_MEMORY_POOL_ALLOCATED: &str = "aspnetcore.memory_pool.allocated";
+
+/// ## Description
+///
+/// Total number of bytes evicted from the memory pool. Eviction occurs when idle pooled memory is reclaimed.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.MemoryPool`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_MEMORY_POOL_OWNER`] | `Conditionally_required`: if owner is specified when the memory pool is created.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_MEMORY_POOL_EVICTED: &str = "aspnetcore.memory_pool.evicted";
+
+/// ## Description
+///
+/// Number of bytes currently pooled and available for reuse.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.MemoryPool`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_MEMORY_POOL_OWNER`] | `Conditionally_required`: if owner is specified when the memory pool is created.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_MEMORY_POOL_POOLED: &str = "aspnetcore.memory_pool.pooled";
+
+/// ## Description
+///
+/// Total number of bytes rented from the memory pool.
+///
+/// ## Notes
+///
+/// Meter name: `Microsoft.AspNetCore.MemoryPool`; Added in: ASP.NET Core 10.0
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ASPNETCORE_MEMORY_POOL_OWNER`] | `Conditionally_required`: if owner is specified when the memory pool is created.
+#[cfg(feature = "semconv_experimental")]
+pub const ASPNETCORE_MEMORY_POOL_RENTED: &str = "aspnetcore.memory_pool.rented";
 
 /// ## Description
 ///
@@ -292,7 +807,7 @@ pub const CICD_PIPELINE_RUN_ERRORS: &str = "cicd.pipeline.run.errors";
 
 /// ## Description
 ///
-/// The number of errors in a component of the CICD system (eg. controller, scheduler, agent).
+/// The number of errors in a component of the CI/CD system (eg. controller, scheduler, agent).
 ///
 /// ## Notes
 ///
@@ -314,7 +829,7 @@ pub const CICD_SYSTEM_ERRORS: &str = "cicd.system.errors";
 
 /// ## Description
 ///
-/// The number of workers on the CICD system by state
+/// The number of workers on the CI/CD system by state
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -331,28 +846,28 @@ pub const CICD_WORKER_COUNT: &str = "cicd.worker.count";
 
 /// ## Description
 ///
-/// Total CPU time consumed
+/// CPU time consumed.
 ///
 /// ## Notes
 ///
-/// Total CPU time consumed by the specific container on all available CPU cores
+/// CPU time consumed by the specific container on all available CPU cores
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Development`  |
+/// | Status: | `Release_candidate`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API.
+/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API, containerd stats or cAdvisor.
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_CPU_TIME: &str = "container.cpu.time";
 
 /// ## Description
 ///
-/// Container's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+/// Container's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs.
 ///
 /// ## Notes
 ///
@@ -367,7 +882,7 @@ pub const CONTAINER_CPU_TIME: &str = "container.cpu.time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API.
+/// | [`crate::attribute::CPU_MODE`] | `Conditionally_required`: Required if mode is available, i.e. metrics coming from the Docker Stats API, containerd stats or cAdvisor.
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_CPU_USAGE: &str = "container.cpu.usage";
 
@@ -395,6 +910,122 @@ pub const CONTAINER_DISK_IO: &str = "container.disk.io";
 
 /// ## Description
 ///
+/// Container filesystem available bytes.
+///
+/// ## Notes
+///
+/// In K8s, this metric is derived from the
+/// [FsStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [ContainerStats.Rootfs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#ContainerStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_FILESYSTEM_AVAILABLE: &str = "container.filesystem.available";
+
+/// ## Description
+///
+/// Container filesystem capacity.
+///
+/// ## Notes
+///
+/// In K8s, this metric is derived from the
+/// [FsStats.CapacityBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [ContainerStats.Rootfs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#ContainerStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_FILESYSTEM_CAPACITY: &str = "container.filesystem.capacity";
+
+/// ## Description
+///
+/// Container filesystem usage.
+///
+/// ## Notes
+///
+/// This may not equal capacity - available.
+///
+/// In K8s, this metric is derived from the
+/// [FsStats.UsedBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [ContainerStats.Rootfs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#ContainerStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_FILESYSTEM_USAGE: &str = "container.filesystem.usage";
+
+/// ## Description
+///
+/// Container memory available.
+///
+/// ## Notes
+///
+/// Available memory for use.  This is defined as the memory limit - workingSetBytes. If memory limit is undefined, the available bytes is omitted.
+/// In general, this metric can be derived from [cadvisor](https://github.com/google/cadvisor/blob/v0.53.0/docs/storage/prometheus.md#prometheus-container-metrics) and by subtracting the `container_memory_working_set_bytes` metric from the `container_spec_memory_limit_bytes` metric.
+/// In K8s, this metric is derived from the [MemoryStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_MEMORY_AVAILABLE: &str = "container.memory.available";
+
+/// ## Description
+///
+/// Container memory paging faults.
+///
+/// ## Notes
+///
+/// In general, this metric can be derived from [cadvisor](https://github.com/google/cadvisor/blob/v0.53.0/docs/storage/prometheus.md#prometheus-container-metrics) and specifically the `container_memory_failures_total{failure_type=pgfault, scope=container}` and `container_memory_failures_total{failure_type=pgmajfault, scope=container}`metric.
+/// In K8s, this metric is derived from the [MemoryStats.PageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) and [MemoryStats.MajorPageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{fault}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_MEMORY_PAGING_FAULTS: &str = "container.memory.paging.faults";
+
+/// ## Description
+///
+/// Container memory RSS.
+///
+/// ## Notes
+///
+/// In general, this metric can be derived from [cadvisor](https://github.com/google/cadvisor/blob/v0.53.0/docs/storage/prometheus.md#prometheus-container-metrics) and specifically the `container_memory_rss` metric.
+/// In K8s, this metric is derived from the [MemoryStats.RSSBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_MEMORY_RSS: &str = "container.memory.rss";
+
+/// ## Description
+///
 /// Memory usage of the container.
 ///
 /// ## Notes
@@ -408,6 +1039,23 @@ pub const CONTAINER_DISK_IO: &str = "container.disk.io";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const CONTAINER_MEMORY_USAGE: &str = "container.memory.usage";
+
+/// ## Description
+///
+/// Container memory working set.
+///
+/// ## Notes
+///
+/// In general, this metric can be derived from [cadvisor](https://github.com/google/cadvisor/blob/v0.53.0/docs/storage/prometheus.md#prometheus-container-metrics) and specifically the `container_memory_working_set_bytes` metric.
+/// In K8s, this metric is derived from the [MemoryStats.WorkingSetBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const CONTAINER_MEMORY_WORKING_SET: &str = "container.memory.working_set";
 
 /// ## Description
 ///
@@ -433,7 +1081,7 @@ pub const CONTAINER_NETWORK_IO: &str = "container.network.io";
 
 /// ## Description
 ///
-/// The time the container has been running
+/// The time the container has been running.
 ///
 /// ## Notes
 ///
@@ -1528,17 +2176,80 @@ pub const FAAS_TIMEOUTS: &str = "faas.timeouts";
 /// |:-|:- |
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if the operation ended in an error
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
 pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.duration";
 
 /// ## Description
 ///
-/// Measures number of input and output tokens used
+/// Time per output chunk, recorded for each chunk received after the first one, measured as the time elapsed from the end of the previous chunk to the end of the current chunk.
+///
+/// ## Notes
+///
+/// This metrics SHOULD be reported for streaming calls and SHOULD NOT be reported otherwise
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const GEN_AI_CLIENT_OPERATION_TIME_PER_OUTPUT_CHUNK: &str =
+    "gen_ai.client.operation.time_per_output_chunk";
+
+/// ## Description
+///
+/// Time to receive the first chunk, measured from when the client issues the generation request to when the first chunk is received in the response stream.
+///
+/// ## Notes
+///
+/// This metrics SHOULD be reported for streaming calls and SHOULD NOT be reported otherwise
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const GEN_AI_CLIENT_OPERATION_TIME_TO_FIRST_CHUNK: &str =
+    "gen_ai.client.operation.time_to_first_chunk";
+
+/// ## Description
+///
+/// Number of input and output tokens used
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -1550,13 +2261,16 @@ pub const GEN_AI_CLIENT_OPERATION_DURATION: &str = "gen_ai.client.operation.dura
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::GEN_AI_TOKEN_TYPE`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
 pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
 
 /// ## Description
@@ -1574,12 +2288,15 @@ pub const GEN_AI_CLIENT_TOKEN_USAGE: &str = "gen_ai.client.token.usage";
 /// |:-|:- |
 /// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: if the operation ended in an error
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
 pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration";
 
 /// ## Description
@@ -1596,12 +2313,15 @@ pub const GEN_AI_SERVER_REQUEST_DURATION: &str = "gen_ai.server.request.duration
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
 pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_output_token";
 
 /// ## Description
@@ -1618,12 +2338,15 @@ pub const GEN_AI_SERVER_TIME_PER_OUTPUT_TOKEN: &str = "gen_ai.server.time_per_ou
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `Required`
+/// | [`crate::attribute::GEN_AI_PROVIDER_NAME`] | `Required`
 /// | [`crate::attribute::GEN_AI_REQUEST_MODEL`] | `Conditionally_required`: If available.
 /// | [`crate::attribute::GEN_AI_RESPONSE_MODEL`] | `Recommended`
-/// | [`crate::attribute::GEN_AI_SYSTEM`] | `Required`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: If `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
 pub const GEN_AI_SERVER_TIME_TO_FIRST_TOKEN: &str = "gen_ai.server.time_to_first_token";
 
 /// ## Description
@@ -1641,6 +2364,28 @@ pub const GEN_AI_SERVER_TIME_TO_FIRST_TOKEN: &str = "gen_ai.server.time_to_first
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_CONFIG_GOGC: &str = "go.config.gogc";
+
+/// ## Description
+///
+/// Estimated CPU time spent by the Go runtime.
+///
+/// ## Notes
+///
+/// Computed from `/cpu/classes/...` metrics. This metric is an overestimate, and not directly comparable to system CPU time measurements. Compare only with other `go.cpu.time` metrics
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::GO_CPU_DETAILED_STATE`] | `Opt_in`
+/// | [`crate::attribute::GO_CPU_STATE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const GO_CPU_TIME: &str = "go.cpu.time";
 
 /// ## Description
 ///
@@ -1692,6 +2437,22 @@ pub const GO_MEMORY_ALLOCATIONS: &str = "go.memory.allocations";
 
 /// ## Description
 ///
+/// Number of completed GC cycles.
+///
+/// ## Notes
+///
+/// Computed from `/gc/cycles/total:gc-cycles`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{gc_cycle}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const GO_MEMORY_GC_CYCLES: &str = "go.memory.gc.cycles";
+
+/// ## Description
+///
 /// Heap size target for the end of the GC cycle.
 ///
 /// ## Notes
@@ -1705,6 +2466,22 @@ pub const GO_MEMORY_ALLOCATIONS: &str = "go.memory.allocations";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_GC_GOAL: &str = "go.memory.gc.goal";
+
+/// ## Description
+///
+/// Distribution of individual GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again.
+///
+/// ## Notes
+///
+/// Computed from `/sched/pauses/total/gc:seconds`. Bucket boundaries are provided by the runtime, and are subject to change
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const GO_MEMORY_GC_PAUSE_DURATION: &str = "go.memory.gc.pause.duration";
 
 /// ## Description
 ///
@@ -1739,6 +2516,7 @@ pub const GO_MEMORY_LIMIT: &str = "go.memory.limit";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
+/// | [`crate::attribute::GO_MEMORY_DETAILED_TYPE`] | `Opt_in`
 /// | [`crate::attribute::GO_MEMORY_TYPE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const GO_MEMORY_USED: &str = "go.memory.used";
@@ -1809,7 +2587,7 @@ pub const HTTP_CLIENT_ACTIVE_REQUESTS: &str = "http.client.active_requests";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
@@ -1831,7 +2609,7 @@ pub const HTTP_CLIENT_CONNECTION_DURATION: &str = "http.client.connection.durati
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::HTTP_CONNECTION_STATE`] | `Required`
-/// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PEER_ADDRESS`] | `Opt_in`
 /// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `Recommended`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Required`
 /// | [`crate::attribute::SERVER_PORT`] | `Required`
@@ -2028,6 +2806,121 @@ pub const HTTP_SERVER_RESPONSE_BODY_SIZE: &str = "http.server.response.body.size
 
 /// ## Description
 ///
+/// Remaining fraction of battery charge
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_BATTERY_CAPACITY`] | `Recommended`
+/// | [`crate::attribute::HW_BATTERY_CHEMISTRY`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_BATTERY_CHARGE: &str = "hw.battery.charge";
+
+/// ## Description
+///
+/// Lower limit of battery charge fraction to ensure proper operation
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_BATTERY_CAPACITY`] | `Recommended`
+/// | [`crate::attribute::HW_BATTERY_CHEMISTRY`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_BATTERY_CHARGE_LIMIT: &str = "hw.battery.charge.limit";
+
+/// ## Description
+///
+/// Time left before battery is completely charged or discharged
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_BATTERY_CAPACITY`] | `Recommended`
+/// | [`crate::attribute::HW_BATTERY_CHEMISTRY`] | `Recommended`
+/// | [`crate::attribute::HW_BATTERY_STATE`] | `Conditionally_required`: If the battery is charging or discharging
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_STATE`] | `Required`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_BATTERY_TIME_LEFT: &str = "hw.battery.time_left";
+
+/// ## Description
+///
+/// CPU current frequency
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Hz` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_CPU_SPEED: &str = "hw.cpu.speed";
+
+/// ## Description
+///
+/// CPU maximum frequency
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Hz` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_CPU_SPEED_LIMIT: &str = "hw.cpu.speed.limit";
+
+/// ## Description
+///
 /// Energy consumed by the component
 /// ## Metadata
 /// | | |
@@ -2064,8 +2957,192 @@ pub const HW_ENERGY: &str = "hw.energy";
 /// | [`crate::attribute::HW_NAME`] | `Recommended`
 /// | [`crate::attribute::HW_PARENT`] | `Recommended`
 /// | [`crate::attribute::HW_TYPE`] | `Required`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const HW_ERRORS: &str = "hw.errors";
+
+/// ## Description
+///
+/// Fan speed in revolutions per minute
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `rpm` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_FAN_SPEED: &str = "hw.fan.speed";
+
+/// ## Description
+///
+/// Speed limit in rpm
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `rpm` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_FAN_SPEED_LIMIT: &str = "hw.fan.speed.limit";
+
+/// ## Description
+///
+/// Fan speed expressed as a fraction of its maximum speed
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_FAN_SPEED_RATIO: &str = "hw.fan.speed_ratio";
+
+/// ## Description
+///
+/// Received and transmitted bytes by the GPU
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_DRIVER_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_GPU_IO: &str = "hw.gpu.io";
+
+/// ## Description
+///
+/// Size of the GPU memory
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_DRIVER_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_GPU_MEMORY_LIMIT: &str = "hw.gpu.memory.limit";
+
+/// ## Description
+///
+/// GPU memory used
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_DRIVER_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_GPU_MEMORY_USAGE: &str = "hw.gpu.memory.usage";
+
+/// ## Description
+///
+/// Fraction of GPU memory used
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_DRIVER_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_GPU_MEMORY_UTILIZATION: &str = "hw.gpu.memory.utilization";
+
+/// ## Description
+///
+/// Fraction of time spent in a specific task
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_DRIVER_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_GPU_TASK`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_GPU_UTILIZATION: &str = "hw.gpu.utilization";
 
 /// ## Description
 ///
@@ -2088,7 +3165,7 @@ pub const HW_HOST_AMBIENT_TEMPERATURE: &str = "hw.host.ambient_temperature";
 
 /// ## Description
 ///
-/// Total energy consumed by the entire physical host, in joules
+/// Total energy consumed by the entire physical host, in joules.
 ///
 /// ## Notes
 ///
@@ -2130,7 +3207,7 @@ pub const HW_HOST_HEATING_MARGIN: &str = "hw.host.heating_margin";
 
 /// ## Description
 ///
-/// Instantaneous power consumed by the entire physical host in Watts (`hw.host.energy` is preferred)
+/// Instantaneous power consumed by the entire physical host in Watts (`hw.host.energy` is preferred).
 ///
 /// ## Notes
 ///
@@ -2153,7 +3230,288 @@ pub const HW_HOST_POWER: &str = "hw.host.power";
 
 /// ## Description
 ///
-/// Instantaneous power consumed by the component
+/// Size of the logical disk
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LOGICAL_DISK_RAID_LEVEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_LOGICAL_DISK_LIMIT: &str = "hw.logical_disk.limit";
+
+/// ## Description
+///
+/// Logical disk space usage
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LOGICAL_DISK_RAID_LEVEL`] | `Recommended`
+/// | [`crate::attribute::HW_LOGICAL_DISK_STATE`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_LOGICAL_DISK_USAGE: &str = "hw.logical_disk.usage";
+
+/// ## Description
+///
+/// Logical disk space utilization as a fraction
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LOGICAL_DISK_RAID_LEVEL`] | `Recommended`
+/// | [`crate::attribute::HW_LOGICAL_DISK_STATE`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_LOGICAL_DISK_UTILIZATION: &str = "hw.logical_disk.utilization";
+
+/// ## Description
+///
+/// Size of the memory module
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MEMORY_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_MEMORY_SIZE: &str = "hw.memory.size";
+
+/// ## Description
+///
+/// Link speed
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By/s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_LOGICAL_ADDRESSES`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_PHYSICAL_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NETWORK_BANDWIDTH_LIMIT: &str = "hw.network.bandwidth.limit";
+
+/// ## Description
+///
+/// Utilization of the network bandwidth as a fraction
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_LOGICAL_ADDRESSES`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_PHYSICAL_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NETWORK_BANDWIDTH_UTILIZATION: &str = "hw.network.bandwidth.utilization";
+
+/// ## Description
+///
+/// Received and transmitted network traffic in bytes
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_LOGICAL_ADDRESSES`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_PHYSICAL_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NETWORK_IO: &str = "hw.network.io";
+
+/// ## Description
+///
+/// Received and transmitted network traffic in packets (or frames)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{packet}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_LOGICAL_ADDRESSES`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_PHYSICAL_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NETWORK_PACKETS: &str = "hw.network.packets";
+
+/// ## Description
+///
+/// Link status: `1` (up) or `0` (down)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_LOGICAL_ADDRESSES`] | `Recommended`
+/// | [`crate::attribute::HW_NETWORK_PHYSICAL_ADDRESS`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_NETWORK_UP: &str = "hw.network.up";
+
+/// ## Description
+///
+/// Endurance remaining for this SSD disk
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_PHYSICAL_DISK_STATE`] | `Required`
+/// | [`crate::attribute::HW_PHYSICAL_DISK_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_PHYSICAL_DISK_ENDURANCE_UTILIZATION: &str = "hw.physical_disk.endurance_utilization";
+
+/// ## Description
+///
+/// Size of the disk
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_PHYSICAL_DISK_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_PHYSICAL_DISK_SIZE: &str = "hw.physical_disk.size";
+
+/// ## Description
+///
+/// Value of the corresponding [S.M.A.R.T.](https://wikipedia.org/wiki/S.M.A.R.T.) (Self-Monitoring, Analysis, and Reporting Technology) attribute
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_FIRMWARE_VERSION`] | `Recommended`
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_PHYSICAL_DISK_SMART_ATTRIBUTE`] | `Recommended`
+/// | [`crate::attribute::HW_PHYSICAL_DISK_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_PHYSICAL_DISK_SMART: &str = "hw.physical_disk.smart";
+
+/// ## Description
+///
+/// Instantaneous power consumed by the component.
 ///
 /// ## Notes
 ///
@@ -2177,7 +3535,74 @@ pub const HW_POWER: &str = "hw.power";
 
 /// ## Description
 ///
-/// Operational status: `1` (true) or `0` (false) for each of the possible states
+/// Maximum power output of the power supply
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `W` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_POWER_SUPPLY_LIMIT: &str = "hw.power_supply.limit";
+
+/// ## Description
+///
+/// Current power output of the power supply
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `W` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_POWER_SUPPLY_USAGE: &str = "hw.power_supply.usage";
+
+/// ## Description
+///
+/// Utilization of the power supply as a fraction of its maximum output
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_POWER_SUPPLY_UTILIZATION: &str = "hw.power_supply.utilization";
+
+/// ## Description
+///
+/// Operational status: `1` (true) or `0` (false) for each of the possible states.
 ///
 /// ## Notes
 ///
@@ -2199,6 +3624,131 @@ pub const HW_POWER: &str = "hw.power";
 /// | [`crate::attribute::HW_TYPE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const HW_STATUS: &str = "hw.status";
+
+/// ## Description
+///
+/// Operations performed by the tape drive
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{operation}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_MODEL`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SERIAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::HW_TAPE_DRIVE_OPERATION_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_VENDOR`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_TAPE_DRIVE_OPERATIONS: &str = "hw.tape_drive.operations";
+
+/// ## Description
+///
+/// Temperature in degrees Celsius
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Cel` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_TEMPERATURE: &str = "hw.temperature";
+
+/// ## Description
+///
+/// Temperature limit in degrees Celsius
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `Cel` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_TEMPERATURE_LIMIT: &str = "hw.temperature.limit";
+
+/// ## Description
+///
+/// Voltage measured by the sensor
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `V` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_VOLTAGE: &str = "hw.voltage";
+
+/// ## Description
+///
+/// Voltage limit in Volts
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `V` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_LIMIT_TYPE`] | `Recommended`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_VOLTAGE_LIMIT: &str = "hw.voltage.limit";
+
+/// ## Description
+///
+/// Nominal (expected) voltage
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `V` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::HW_ID`] | `Required`
+/// | [`crate::attribute::HW_NAME`] | `Recommended`
+/// | [`crate::attribute::HW_PARENT`] | `Recommended`
+/// | [`crate::attribute::HW_SENSOR_LOCATION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const HW_VOLTAGE_NOMINAL: &str = "hw.voltage.nominal";
 
 /// ## Description
 ///
@@ -2355,6 +3905,18 @@ pub const JVM_FILE_DESCRIPTOR_COUNT: &str = "jvm.file_descriptor.count";
 
 /// ## Description
 ///
+/// Measure of max open file descriptors as reported by the JVM
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{file_descriptor}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const JVM_FILE_DESCRIPTOR_LIMIT: &str = "jvm.file_descriptor.limit";
+
+/// ## Description
+///
 /// Duration of JVM garbage collection actions
 /// ## Metadata
 /// | | |
@@ -2508,11 +4070,7 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 
 /// ## Description
 ///
-/// Maximum CPU resource limit set for the container
-///
-/// ## Notes
-///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// Deprecated, use `k8s.container.cpu.limit.desired` and `k8s.container.cpu.limit.current` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2520,15 +4078,22 @@ pub const JVM_THREAD_COUNT: &str = "jvm.thread.count";
 /// | Unit: | `{cpu}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.container.cpu.limit.desired`., reason: renamed, renamed_to: k8s.container.cpu.limit.desired}"
+)]
 pub const K8S_CONTAINER_CPU_LIMIT: &str = "k8s.container.cpu.limit";
 
 /// ## Description
 ///
-/// CPU resource requested for the container
+/// Maximum CPU resource limit currently configured for a running container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// This metric aligns with the limit in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core)
+/// (status.containerStatuses\[*\].resources). Also see `Actual Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2536,15 +4101,128 @@ pub const K8S_CONTAINER_CPU_LIMIT: &str = "k8s.container.cpu.limit";
 /// | Unit: | `{cpu}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_LIMIT_CURRENT: &str = "k8s.container.cpu.limit.current";
+
+/// ## Description
+///
+/// Maximum CPU resource limit as defined by the container spec.
+///
+/// ## Notes
+///
+/// This metric aligns with the limit in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#container-v1-core)
+/// (spec.containers\[*\].resources). Also see `Desired Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_LIMIT_DESIRED: &str = "k8s.container.cpu.limit.desired";
+
+/// ## Description
+///
+/// The ratio of container CPU usage to its current CPU limit.
+///
+/// ## Notes
+///
+/// The current CPU limit reflects the actual resources applied to the container, as reported by
+/// [ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core).
+/// The value range is \\[0.0,1.0\\]. A value of 1.0 means the container is using 100% of its actual CPU limit.
+/// If the CPU limit is not set, this metric SHOULD NOT be emitted for that container
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_LIMIT_UTILIZATION: &str = "k8s.container.cpu.limit.utilization";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.container.cpu.request.desired` and `k8s.container.cpu.request.current` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.container.cpu.request.desired`., reason: renamed, renamed_to: k8s.container.cpu.request.desired}"
+)]
 pub const K8S_CONTAINER_CPU_REQUEST: &str = "k8s.container.cpu.request";
 
 /// ## Description
 ///
-/// Maximum ephemeral storage resource limit set for the container
+/// CPU resource requested currently configured for a running container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// This metric aligns with the request in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core)
+/// (status.containerStatuses\[*\].resources). Also see `Actual Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_REQUEST_CURRENT: &str = "k8s.container.cpu.request.current";
+
+/// ## Description
+///
+/// CPU resource requested as defined by the container spec.
+///
+/// ## Notes
+///
+/// This metric aligns with the request in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#container-v1-core)
+/// (spec.containers\[*\].resources). Also see `Desired Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_REQUEST_DESIRED: &str = "k8s.container.cpu.request.desired";
+
+/// ## Description
+///
+/// The ratio of container CPU usage to its current CPU request.
+///
+/// ## Notes
+///
+/// The current CPU request reflects the request applied to the running container, as reported by
+/// [ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core).
+/// The value range is \\[0.0,1.0\\]. A value of 1.0 means the container is using 100% of its actual CPU request.
+/// If the CPU request is not set, this metric SHOULD NOT be emitted for that container
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_CPU_REQUEST_UTILIZATION: &str = "k8s.container.cpu.request.utilization";
+
+/// ## Description
+///
+/// Maximum ephemeral storage resource limit set for the container.
+///
+/// ## Notes
+///
+/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2556,11 +4234,11 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_LIMIT: &str = "k8s.container.ephemeral
 
 /// ## Description
 ///
-/// Ephemeral storage resource requested for the container
+/// Ephemeral storage resource requested for the container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2572,11 +4250,28 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_REQUEST: &str = "k8s.container.ephemer
 
 /// ## Description
 ///
-/// Maximum memory resource limit set for the container
+/// The ephemeral storage used by a container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// The value for this metric can be compared against `metric.k8s.container.ephemeral_storage.request` and `metric.k8s.container.ephemeral_storage.limit`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_CONTAINER_EPHEMERAL_STORAGE_FS_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_EPHEMERAL_STORAGE_USAGE: &str = "k8s.container.ephemeral_storage.usage";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.container.memory.limit.desired` and `k8s.container.memory.limit.current` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2584,15 +4279,22 @@ pub const K8S_CONTAINER_EPHEMERAL_STORAGE_REQUEST: &str = "k8s.container.ephemer
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.container.memory.limit.desired`., reason: renamed, renamed_to: k8s.container.memory.limit.desired}"
+)]
 pub const K8S_CONTAINER_MEMORY_LIMIT: &str = "k8s.container.memory.limit";
 
 /// ## Description
 ///
-/// Memory resource requested for the container
+/// Maximum memory resource limit currently configured for a running container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// This metric aligns with the limit in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core)
+/// (status.containerStatuses\[*\].resources). Also see `Actual Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2600,16 +4302,91 @@ pub const K8S_CONTAINER_MEMORY_LIMIT: &str = "k8s.container.memory.limit";
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_MEMORY_LIMIT_CURRENT: &str = "k8s.container.memory.limit.current";
+
+/// ## Description
+///
+/// Maximum memory resource limit as defined by the container spec.
+///
+/// ## Notes
+///
+/// This metric aligns with the limit in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#container-v1-core)
+/// (spec.containers\[*\].resources). Also see `Desired Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_MEMORY_LIMIT_DESIRED: &str = "k8s.container.memory.limit.desired";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.container.memory.request.desired` and `k8s.container.memory.request.current` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.container.memory.request.desired`., reason: renamed, renamed_to: k8s.container.memory.request.desired}"
+)]
 pub const K8S_CONTAINER_MEMORY_REQUEST: &str = "k8s.container.memory.request";
 
 /// ## Description
 ///
-/// Indicates whether the container is currently marked as ready to accept traffic, based on its readiness probe (1 = ready, 0 = not ready)
+/// Memory resource request currently configured for a running container.
+///
+/// ## Notes
+///
+/// This metric aligns with the request in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core)
+/// (status.containerStatuses\[*\].resources). Also see `Actual Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_MEMORY_REQUEST_CURRENT: &str = "k8s.container.memory.request.current";
+
+/// ## Description
+///
+/// Memory resource requested as defined by the container spec.
+///
+/// ## Notes
+///
+/// This metric aligns with the request in the
+/// [`resources`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core) field of
+/// [K8s Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#container-v1-core)
+/// (spec.containers\[*\].resources). Also see `Desired Resources` in
+/// [https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/) for more details
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CONTAINER_MEMORY_REQUEST_DESIRED: &str = "k8s.container.memory.request.desired";
+
+/// ## Description
+///
+/// Indicates whether the container is currently marked as ready to accept traffic, based on its readiness probe (1 = ready, 0 = not ready).
 ///
 /// ## Notes
 ///
 /// This metric SHOULD reflect the value of the `ready` field in the
-/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#containerstatus-v1-core)
+/// [K8s ContainerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#containerstatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2621,7 +4398,7 @@ pub const K8S_CONTAINER_READY: &str = "k8s.container.ready";
 
 /// ## Description
 ///
-/// Describes how many times the container has restarted (since the last counter reset)
+/// Describes how many times the container has restarted (since the last counter reset).
 ///
 /// ## Notes
 ///
@@ -2641,7 +4418,7 @@ pub const K8S_CONTAINER_RESTART_COUNT: &str = "k8s.container.restart.count";
 
 /// ## Description
 ///
-/// Describes the number of K8s containers that are currently in a state for a given reason
+/// Describes the number of K8s containers that are currently in a state for a given reason.
 ///
 /// ## Notes
 ///
@@ -2663,7 +4440,7 @@ pub const K8S_CONTAINER_STATUS_REASON: &str = "k8s.container.status.reason";
 
 /// ## Description
 ///
-/// Describes the number of K8s containers that are currently in a given state
+/// Describes the number of K8s containers that are currently in a given state.
 ///
 /// ## Notes
 ///
@@ -2685,11 +4462,11 @@ pub const K8S_CONTAINER_STATUS_STATE: &str = "k8s.container.status.state";
 
 /// ## Description
 ///
-/// Maximum storage resource limit set for the container
+/// Maximum storage resource limit set for the container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2701,11 +4478,11 @@ pub const K8S_CONTAINER_STORAGE_LIMIT: &str = "k8s.container.storage.limit";
 
 /// ## Description
 ///
-/// Storage resource requested for the container
+/// Storage resource requested for the container.
 ///
 /// ## Notes
 ///
-/// See <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core> for details
+/// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcerequirements-v1-core for details
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2717,12 +4494,12 @@ pub const K8S_CONTAINER_STORAGE_REQUEST: &str = "k8s.container.storage.request";
 
 /// ## Description
 ///
-/// The number of actively running jobs for a cronjob
+/// Deprecated, use `k8s.cronjob.job.active` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `active` field of the
-/// [K8s CronJobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#cronjobstatus-v1-batch)
+/// [K8s CronJobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#cronjobstatus-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2730,16 +4507,36 @@ pub const K8S_CONTAINER_STORAGE_REQUEST: &str = "k8s.container.storage.request";
 /// | Unit: | `{job}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.cronjob.job.active`., reason: renamed, renamed_to: k8s.cronjob.job.active}"
+)]
 pub const K8S_CRONJOB_ACTIVE_JOBS: &str = "k8s.cronjob.active_jobs";
 
 /// ## Description
 ///
-/// Number of nodes that are running at least 1 daemon pod and are supposed to run the daemon pod
+/// The number of actively running jobs for a cronjob.
+///
+/// ## Notes
+///
+/// This metric aligns with the `active` field of the
+/// [K8s CronJobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#cronjobstatus-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{job}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_CRONJOB_JOB_ACTIVE: &str = "k8s.cronjob.job.active";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.daemonset.node.current_scheduled` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `currentNumberScheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2747,16 +4544,19 @@ pub const K8S_CRONJOB_ACTIVE_JOBS: &str = "k8s.cronjob.active_jobs";
 /// | Unit: | `{node}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.daemonset.node.current_scheduled`., reason: renamed, renamed_to: k8s.daemonset.node.current_scheduled}"
+)]
 pub const K8S_DAEMONSET_CURRENT_SCHEDULED_NODES: &str = "k8s.daemonset.current_scheduled_nodes";
 
 /// ## Description
 ///
-/// Number of nodes that should be running the daemon pod (including nodes currently running the daemon pod)
+/// Deprecated, use `k8s.daemonset.node.desired_scheduled` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `desiredNumberScheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2764,16 +4564,19 @@ pub const K8S_DAEMONSET_CURRENT_SCHEDULED_NODES: &str = "k8s.daemonset.current_s
 /// | Unit: | `{node}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.daemonset.node.desired_scheduled`., reason: renamed, renamed_to: k8s.daemonset.node.desired_scheduled}"
+)]
 pub const K8S_DAEMONSET_DESIRED_SCHEDULED_NODES: &str = "k8s.daemonset.desired_scheduled_nodes";
 
 /// ## Description
 ///
-/// Number of nodes that are running the daemon pod, but are not supposed to run the daemon pod
+/// Deprecated, use `k8s.daemonset.node.misscheduled` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `numberMisscheduled` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2781,16 +4584,19 @@ pub const K8S_DAEMONSET_DESIRED_SCHEDULED_NODES: &str = "k8s.daemonset.desired_s
 /// | Unit: | `{node}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.daemonset.node.misscheduled`., reason: renamed, renamed_to: k8s.daemonset.node.misscheduled}"
+)]
 pub const K8S_DAEMONSET_MISSCHEDULED_NODES: &str = "k8s.daemonset.misscheduled_nodes";
 
 /// ## Description
 ///
-/// Number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready
+/// Number of nodes that are running at least 1 daemon pod and are supposed to run the daemon pod.
 ///
 /// ## Notes
 ///
-/// This metric aligns with the `numberReady` field of the
-/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#daemonsetstatus-v1-apps)
+/// This metric aligns with the `currentNumberScheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2798,16 +4604,87 @@ pub const K8S_DAEMONSET_MISSCHEDULED_NODES: &str = "k8s.daemonset.misscheduled_n
 /// | Unit: | `{node}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_NODE_CURRENT_SCHEDULED: &str = "k8s.daemonset.node.current_scheduled";
+
+/// ## Description
+///
+/// Number of nodes that should be running the daemon pod (including nodes currently running the daemon pod).
+///
+/// ## Notes
+///
+/// This metric aligns with the `desiredNumberScheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_NODE_DESIRED_SCHEDULED: &str = "k8s.daemonset.node.desired_scheduled";
+
+/// ## Description
+///
+/// Number of nodes that are running the daemon pod, but are not supposed to run the daemon pod.
+///
+/// ## Notes
+///
+/// This metric aligns with the `numberMisscheduled` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_NODE_MISSCHEDULED: &str = "k8s.daemonset.node.misscheduled";
+
+/// ## Description
+///
+/// Number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready.
+///
+/// ## Notes
+///
+/// This metric aligns with the `numberReady` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DAEMONSET_NODE_READY: &str = "k8s.daemonset.node.ready";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.daemonset.node.ready` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `numberReady` field of the
+/// [K8s DaemonSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#daemonsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{node}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.daemonset.node.ready`., reason: renamed, renamed_to: k8s.daemonset.node.ready}"
+)]
 pub const K8S_DAEMONSET_READY_NODES: &str = "k8s.daemonset.ready_nodes";
 
 /// ## Description
 ///
-/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this deployment
+/// Deprecated, use `k8s.deployment.pod.available` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
-/// [K8s DeploymentStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstatus-v1-apps)
+/// [K8s DeploymentStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#deploymentstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2815,16 +4692,19 @@ pub const K8S_DAEMONSET_READY_NODES: &str = "k8s.daemonset.ready_nodes";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.deployment.pod.available`., reason: renamed, renamed_to: k8s.deployment.pod.available}"
+)]
 pub const K8S_DEPLOYMENT_AVAILABLE_PODS: &str = "k8s.deployment.available_pods";
 
 /// ## Description
 ///
-/// Number of desired replica pods in this deployment
+/// Deprecated, use `k8s.deployment.pod.desired` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s DeploymentSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentspec-v1-apps)
+/// [K8s DeploymentSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#deploymentspec-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2832,16 +4712,53 @@ pub const K8S_DEPLOYMENT_AVAILABLE_PODS: &str = "k8s.deployment.available_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.deployment.pod.desired`., reason: renamed, renamed_to: k8s.deployment.pod.desired}"
+)]
 pub const K8S_DEPLOYMENT_DESIRED_PODS: &str = "k8s.deployment.desired_pods";
 
 /// ## Description
 ///
-/// Current number of replica pods managed by this horizontal pod autoscaler, as last seen by the autoscaler
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this deployment.
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s DeploymentStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#deploymentstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_POD_AVAILABLE: &str = "k8s.deployment.pod.available";
+
+/// ## Description
+///
+/// Number of desired replica pods in this deployment.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s DeploymentSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#deploymentspec-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_DEPLOYMENT_POD_DESIRED: &str = "k8s.deployment.pod.desired";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.hpa.pod.current` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `currentReplicas` field of the
-/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerstatus-v2-autoscaling)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2849,16 +4766,19 @@ pub const K8S_DEPLOYMENT_DESIRED_PODS: &str = "k8s.deployment.desired_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.hpa.pod.current`., reason: renamed, renamed_to: k8s.hpa.pod.current}"
+)]
 pub const K8S_HPA_CURRENT_PODS: &str = "k8s.hpa.current_pods";
 
 /// ## Description
 ///
-/// Desired number of replica pods managed by this horizontal pod autoscaler, as last calculated by the autoscaler
+/// Deprecated, use `k8s.hpa.pod.desired` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `desiredReplicas` field of the
-/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerstatus-v2-autoscaling)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2866,16 +4786,19 @@ pub const K8S_HPA_CURRENT_PODS: &str = "k8s.hpa.current_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.hpa.pod.desired`., reason: renamed, renamed_to: k8s.hpa.pod.desired}"
+)]
 pub const K8S_HPA_DESIRED_PODS: &str = "k8s.hpa.desired_pods";
 
 /// ## Description
 ///
-/// The upper limit for the number of replica pods to which the autoscaler can scale up
+/// Deprecated, use `k8s.hpa.pod.max` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `maxReplicas` field of the
-/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerspec-v2-autoscaling)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2883,6 +4806,9 @@ pub const K8S_HPA_DESIRED_PODS: &str = "k8s.hpa.desired_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.hpa.pod.max`., reason: renamed, renamed_to: k8s.hpa.pod.max}"
+)]
 pub const K8S_HPA_MAX_PODS: &str = "k8s.hpa.max_pods";
 
 /// ## Description
@@ -2892,7 +4818,7 @@ pub const K8S_HPA_MAX_PODS: &str = "k8s.hpa.max_pods";
 /// ## Notes
 ///
 /// This metric aligns with the `averageUtilization` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
+/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#metrictarget-v2-autoscaling).
 /// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
@@ -2918,7 +4844,7 @@ pub const K8S_HPA_METRIC_TARGET_CPU_AVERAGE_UTILIZATION: &str =
 /// ## Notes
 ///
 /// This metric aligns with the `averageValue` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
+/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#metrictarget-v2-autoscaling).
 /// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
@@ -2943,7 +4869,7 @@ pub const K8S_HPA_METRIC_TARGET_CPU_AVERAGE_VALUE: &str = "k8s.hpa.metric.target
 /// ## Notes
 ///
 /// This metric aligns with the `value` field of the
-/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metrictarget-v2-autoscaling).
+/// [K8s HPA MetricTarget](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#metrictarget-v2-autoscaling).
 /// If the type of the metric is [`ContainerResource`](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-metrics-apis),
 /// the `k8s.container.name` attribute MUST be set to identify the specific container within the pod to which the metric applies
 /// ## Metadata
@@ -2963,12 +4889,12 @@ pub const K8S_HPA_METRIC_TARGET_CPU_VALUE: &str = "k8s.hpa.metric.target.cpu.val
 
 /// ## Description
 ///
-/// The lower limit for the number of replica pods to which the autoscaler can scale down
+/// Deprecated, use `k8s.hpa.pod.min` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `minReplicas` field of the
-/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerspec-v2-autoscaling)
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerspec-v2-autoscaling)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2976,16 +4902,87 @@ pub const K8S_HPA_METRIC_TARGET_CPU_VALUE: &str = "k8s.hpa.metric.target.cpu.val
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.hpa.pod.min`., reason: renamed, renamed_to: k8s.hpa.pod.min}"
+)]
 pub const K8S_HPA_MIN_PODS: &str = "k8s.hpa.min_pods";
 
 /// ## Description
 ///
-/// The number of pending and actively running pods for a job
+/// Current number of replica pods managed by this horizontal pod autoscaler, as last seen by the autoscaler.
+///
+/// ## Notes
+///
+/// This metric aligns with the `currentReplicas` field of the
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_POD_CURRENT: &str = "k8s.hpa.pod.current";
+
+/// ## Description
+///
+/// Desired number of replica pods managed by this horizontal pod autoscaler, as last calculated by the autoscaler.
+///
+/// ## Notes
+///
+/// This metric aligns with the `desiredReplicas` field of the
+/// [K8s HorizontalPodAutoscalerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerstatus-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_POD_DESIRED: &str = "k8s.hpa.pod.desired";
+
+/// ## Description
+///
+/// The upper limit for the number of replica pods to which the autoscaler can scale up.
+///
+/// ## Notes
+///
+/// This metric aligns with the `maxReplicas` field of the
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerspec-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_POD_MAX: &str = "k8s.hpa.pod.max";
+
+/// ## Description
+///
+/// The lower limit for the number of replica pods to which the autoscaler can scale down.
+///
+/// ## Notes
+///
+/// This metric aligns with the `minReplicas` field of the
+/// [K8s HorizontalPodAutoscalerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#horizontalpodautoscalerspec-v2-autoscaling)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_HPA_POD_MIN: &str = "k8s.hpa.pod.min";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.job.pod.active` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `active` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -2993,16 +4990,19 @@ pub const K8S_HPA_MIN_PODS: &str = "k8s.hpa.min_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.job.pod.active`., reason: renamed, renamed_to: k8s.job.pod.active}"
+)]
 pub const K8S_JOB_ACTIVE_PODS: &str = "k8s.job.active_pods";
 
 /// ## Description
 ///
-/// The desired number of successfully finished pods the job should be run with
+/// Deprecated, use `k8s.job.pod.desired_successful` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `completions` field of the
-/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobspec-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3010,16 +5010,19 @@ pub const K8S_JOB_ACTIVE_PODS: &str = "k8s.job.active_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.job.pod.desired_successful`., reason: renamed, renamed_to: k8s.job.pod.desired_successful}"
+)]
 pub const K8S_JOB_DESIRED_SUCCESSFUL_PODS: &str = "k8s.job.desired_successful_pods";
 
 /// ## Description
 ///
-/// The number of pods which reached phase Failed for a job
+/// Deprecated, use `k8s.job.pod.failed` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `failed` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3027,16 +5030,19 @@ pub const K8S_JOB_DESIRED_SUCCESSFUL_PODS: &str = "k8s.job.desired_successful_po
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.job.pod.failed`., reason: renamed, renamed_to: k8s.job.pod.failed}"
+)]
 pub const K8S_JOB_FAILED_PODS: &str = "k8s.job.failed_pods";
 
 /// ## Description
 ///
-/// The max desired number of pods the job should run at any given time
+/// Deprecated, use `k8s.job.pod.max_parallel` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `parallelism` field of the
-/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobspec-v1-batch)
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobspec-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3044,16 +5050,19 @@ pub const K8S_JOB_FAILED_PODS: &str = "k8s.job.failed_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.job.pod.max_parallel`., reason: renamed, renamed_to: k8s.job.pod.max_parallel}"
+)]
 pub const K8S_JOB_MAX_PARALLEL_PODS: &str = "k8s.job.max_parallel_pods";
 
 /// ## Description
 ///
-/// The number of pods which reached phase Succeeded for a job
+/// The number of pending and actively running pods for a job.
 ///
 /// ## Notes
 ///
-/// This metric aligns with the `succeeded` field of the
-/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#jobstatus-v1-batch)
+/// This metric aligns with the `active` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3061,6 +5070,94 @@ pub const K8S_JOB_MAX_PARALLEL_PODS: &str = "k8s.job.max_parallel_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_POD_ACTIVE: &str = "k8s.job.pod.active";
+
+/// ## Description
+///
+/// The desired number of successfully finished pods the job should be run with.
+///
+/// ## Notes
+///
+/// This metric aligns with the `completions` field of the
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobspec-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_POD_DESIRED_SUCCESSFUL: &str = "k8s.job.pod.desired_successful";
+
+/// ## Description
+///
+/// The number of pods which reached phase Failed for a job.
+///
+/// ## Notes
+///
+/// This metric aligns with the `failed` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_POD_FAILED: &str = "k8s.job.pod.failed";
+
+/// ## Description
+///
+/// The max desired number of pods the job should run at any given time.
+///
+/// ## Notes
+///
+/// This metric aligns with the `parallelism` field of the
+/// [K8s JobSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobspec-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_POD_MAX_PARALLEL: &str = "k8s.job.pod.max_parallel";
+
+/// ## Description
+///
+/// The number of pods which reached phase Succeeded for a job.
+///
+/// ## Notes
+///
+/// This metric aligns with the `succeeded` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_JOB_POD_SUCCESSFUL: &str = "k8s.job.pod.successful";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.job.pod.successful` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `succeeded` field of the
+/// [K8s JobStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#jobstatus-v1-batch)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.job.pod.successful`., reason: renamed, renamed_to: k8s.job.pod.successful}"
+)]
 pub const K8S_JOB_SUCCESSFUL_PODS: &str = "k8s.job.successful_pods";
 
 /// ## Description
@@ -3082,7 +5179,7 @@ pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
 
 /// ## Description
 ///
-/// Amount of cpu allocatable on the node
+/// Deprecated, use `k8s.node.cpu.allocatable` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3090,11 +5187,14 @@ pub const K8S_NAMESPACE_PHASE: &str = "k8s.namespace.phase";
 /// | Unit: | `{cpu}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.node.cpu.allocatable`., reason: renamed, renamed_to: k8s.node.cpu.allocatable}"
+)]
 pub const K8S_NODE_ALLOCATABLE_CPU: &str = "k8s.node.allocatable.cpu";
 
 /// ## Description
 ///
-/// Amount of ephemeral-storage allocatable on the node
+/// Deprecated, use `k8s.node.ephemeral_storage.allocatable` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3102,11 +5202,14 @@ pub const K8S_NODE_ALLOCATABLE_CPU: &str = "k8s.node.allocatable.cpu";
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.node.ephemeral_storage.allocatable`., reason: renamed, renamed_to: k8s.node.ephemeral_storage.allocatable}"
+)]
 pub const K8S_NODE_ALLOCATABLE_EPHEMERAL_STORAGE: &str = "k8s.node.allocatable.ephemeral_storage";
 
 /// ## Description
 ///
-/// Amount of memory allocatable on the node
+/// Deprecated, use `k8s.node.memory.allocatable` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3114,11 +5217,14 @@ pub const K8S_NODE_ALLOCATABLE_EPHEMERAL_STORAGE: &str = "k8s.node.allocatable.e
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.node.memory.allocatable`., reason: renamed, renamed_to: k8s.node.memory.allocatable}"
+)]
 pub const K8S_NODE_ALLOCATABLE_MEMORY: &str = "k8s.node.allocatable.memory";
 
 /// ## Description
 ///
-/// Amount of pods allocatable on the node
+/// Deprecated, use `k8s.node.pod.allocatable` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3126,6 +5232,9 @@ pub const K8S_NODE_ALLOCATABLE_MEMORY: &str = "k8s.node.allocatable.memory";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.node.pod.allocatable`., reason: renamed, renamed_to: k8s.node.pod.allocatable}"
+)]
 pub const K8S_NODE_ALLOCATABLE_PODS: &str = "k8s.node.allocatable.pods";
 
 /// ## Description
@@ -3152,7 +5261,19 @@ pub const K8S_NODE_CONDITION_STATUS: &str = "k8s.node.condition.status";
 
 /// ## Description
 ///
-/// Total CPU time consumed
+/// Amount of cpu allocatable on the node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_CPU_ALLOCATABLE: &str = "k8s.node.cpu.allocatable";
+
+/// ## Description
+///
+/// Total CPU time consumed.
 ///
 /// ## Notes
 ///
@@ -3162,13 +5283,13 @@ pub const K8S_NODE_CONDITION_STATUS: &str = "k8s.node.condition.status";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Development`  |
+/// | Status: | `Release_candidate`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_CPU_TIME: &str = "k8s.node.cpu.time";
 
 /// ## Description
 ///
-/// Node's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+/// Node's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs.
 ///
 /// ## Notes
 ///
@@ -3184,7 +5305,146 @@ pub const K8S_NODE_CPU_USAGE: &str = "k8s.node.cpu.usage";
 
 /// ## Description
 ///
-/// Memory usage of the Node
+/// Amount of ephemeral-storage allocatable on the node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_EPHEMERAL_STORAGE_ALLOCATABLE: &str = "k8s.node.ephemeral_storage.allocatable";
+
+/// ## Description
+///
+/// Node filesystem available bytes.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [FsStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [NodeStats.Fs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#NodeStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_FILESYSTEM_AVAILABLE: &str = "k8s.node.filesystem.available";
+
+/// ## Description
+///
+/// Node filesystem capacity.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [FsStats.CapacityBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [NodeStats.Fs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#NodeStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_FILESYSTEM_CAPACITY: &str = "k8s.node.filesystem.capacity";
+
+/// ## Description
+///
+/// Node filesystem usage.
+///
+/// ## Notes
+///
+/// This may not equal capacity - available.
+///
+/// This metric is derived from the
+/// [FsStats.UsedBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [NodeStats.Fs](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#NodeStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_FILESYSTEM_USAGE: &str = "k8s.node.filesystem.usage";
+
+/// ## Description
+///
+/// Amount of memory allocatable on the node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_ALLOCATABLE: &str = "k8s.node.memory.allocatable";
+
+/// ## Description
+///
+/// Node memory available.
+///
+/// ## Notes
+///
+/// Available memory for use.  This is defined as the memory limit - workingSetBytes. If memory limit is undefined, the available bytes is omitted.
+/// This metric is derived from the [MemoryStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [NodeStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#NodeStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_AVAILABLE: &str = "k8s.node.memory.available";
+
+/// ## Description
+///
+/// Node memory paging faults.
+///
+/// ## Notes
+///
+/// Cumulative number of major/minor page faults.
+/// This metric is derived from the [MemoryStats.PageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) and [MemoryStats.MajorPageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) fields of the [NodeStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#NodeStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{fault}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_PAGING_FAULTS: &str = "k8s.node.memory.paging.faults";
+
+/// ## Description
+///
+/// Node memory RSS.
+///
+/// ## Notes
+///
+/// The amount of anonymous and swap cache memory (includes transparent hugepages).
+/// This metric is derived from the [MemoryStats.RSSBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [NodeStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#NodeStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_RSS: &str = "k8s.node.memory.rss";
+
+/// ## Description
+///
+/// Memory usage of the Node.
 ///
 /// ## Notes
 ///
@@ -3197,6 +5457,23 @@ pub const K8S_NODE_CPU_USAGE: &str = "k8s.node.cpu.usage";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_NODE_MEMORY_USAGE: &str = "k8s.node.memory.usage";
+
+/// ## Description
+///
+/// Node memory working set.
+///
+/// ## Notes
+///
+/// The amount of working set memory. This includes recently accessed memory, dirty memory, and kernel memory. WorkingSetBytes is <= UsageBytes.
+/// This metric is derived from the [MemoryStats.WorkingSetBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [NodeStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#NodeStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_MEMORY_WORKING_SET: &str = "k8s.node.memory.working_set";
 
 /// ## Description
 ///
@@ -3236,7 +5513,84 @@ pub const K8S_NODE_NETWORK_IO: &str = "k8s.node.network.io";
 
 /// ## Description
 ///
-/// The time the Node has been running
+/// Amount of pods allocatable on the node
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_POD_ALLOCATABLE: &str = "k8s.node.pod.allocatable";
+
+/// ## Description
+///
+/// Node's system container CPU time.
+///
+/// ## Notes
+///
+/// This metric is derived from the [CPUStats.UsageCoreNanoSeconds](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L236) field of the [ContainerStats](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L157C6-L157C20) of [Node.SystemContainers](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L40) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_SYSTEM_CONTAINER_CPU_TIME: &str = "k8s.node.system_container.cpu.time";
+
+/// ## Description
+///
+/// Node's system container CPU usage, measured in cpus.
+///
+/// ## Notes
+///
+/// This metric is derived from the [CPUStats.UsageNanoCores](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L233) field of the [ContainerStats](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L157C6-L157C20) of [Node.SystemContainers](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L40) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_SYSTEM_CONTAINER_CPU_USAGE: &str = "k8s.node.system_container.cpu.usage";
+
+/// ## Description
+///
+/// Node's system container memory usage.
+///
+/// ## Notes
+///
+/// This metric is derived from the [MemoryStats.UsageBytes](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L252) field of the [ContainerStats](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L157C6-L157C20) of [Node.SystemContainers](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L40) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_SYSTEM_CONTAINER_MEMORY_USAGE: &str = "k8s.node.system_container.memory.usage";
+
+/// ## Description
+///
+/// The amount of working set memory.
+///
+/// ## Notes
+///
+/// This metric is derived from the [MemoryStats.WorkingSetBytes](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L256) field of the [ContainerStats](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L157C6-L157C20) of [Node.SystemContainers](https://github.com/kubernetes/kubelet/blob/v0.35.2/pkg/apis/stats/v1alpha1/types.go#L40) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_NODE_SYSTEM_CONTAINER_MEMORY_WORKING_SET: &str =
+    "k8s.node.system_container.memory.working_set";
+
+/// ## Description
+///
+/// The time the Node has been running.
 ///
 /// ## Notes
 ///
@@ -3253,7 +5607,105 @@ pub const K8S_NODE_UPTIME: &str = "k8s.node.uptime";
 
 /// ## Description
 ///
-/// Total CPU time consumed
+/// Number of PersistentVolumes in a given phase.
+///
+/// ## Notes
+///
+/// All possible phases should be reported at each interval to avoid gaps in the time series.
+/// This metric is derived from the `.status.phase` field of the
+/// [K8s PersistentVolumeStatus](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/#PersistentVolumeStatus)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{persistentvolume}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_PERSISTENTVOLUME_STATUS_PHASE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_PERSISTENTVOLUME_STATUS_PHASE: &str = "k8s.persistentvolume.status.phase";
+
+/// ## Description
+///
+/// The storage capacity of the PersistentVolume.
+///
+/// ## Notes
+///
+/// This metric is derived from the `.spec.capacity.storage` field of the [K8s PersistentVolumeSpec](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/#PersistentVolumeSpec)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_PERSISTENTVOLUME_STORAGE_CAPACITY: &str = "k8s.persistentvolume.storage.capacity";
+
+/// ## Description
+///
+/// Number of PersistentVolumeClaims in a given phase.
+///
+/// ## Notes
+///
+/// All possible phases should be reported at each interval to avoid gaps in the time series.
+/// This metric is derived from the `.status.phase` field of the
+/// [K8s PersistentVolumeClaimStatus](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/#PersistentVolumeClaimStatus)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{persistentvolumeclaim}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_PERSISTENTVOLUMECLAIM_STATUS_PHASE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_PERSISTENTVOLUMECLAIM_STATUS_PHASE: &str = "k8s.persistentvolumeclaim.status.phase";
+
+/// ## Description
+///
+/// The actual storage capacity provisioned for the PersistentVolumeClaim.
+///
+/// ## Notes
+///
+/// Only available when the PVC is bound. May differ from the requested capacity due to provisioner rounding.
+/// This metric is derived from the `.status.capacity.storage` field of the
+/// [K8s PersistentVolumeClaimStatus](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/#PersistentVolumeClaimStatus)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_PERSISTENTVOLUMECLAIM_STORAGE_CAPACITY: &str =
+    "k8s.persistentvolumeclaim.storage.capacity";
+
+/// ## Description
+///
+/// The storage requested by the PersistentVolumeClaim.
+///
+/// ## Notes
+///
+/// This metric is derived from the `.spec.resources.requests.storage` field of the [K8s PersistentVolumeClaimSpec](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/#PersistentVolumeClaimSpec)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_PERSISTENTVOLUMECLAIM_STORAGE_REQUEST: &str =
+    "k8s.persistentvolumeclaim.storage.request";
+
+/// ## Description
+///
+/// Total CPU time consumed.
 ///
 /// ## Notes
 ///
@@ -3263,13 +5715,13 @@ pub const K8S_NODE_UPTIME: &str = "k8s.node.uptime";
 /// |:-|:-
 /// | Instrument: | `counter` |
 /// | Unit: | `s` |
-/// | Status: | `Development`  |
+/// | Status: | `Release_candidate`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_CPU_TIME: &str = "k8s.pod.cpu.time";
 
 /// ## Description
 ///
-/// Pod's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs
+/// Pod's CPU usage, measured in cpus. Range from 0 to the number of allocatable CPUs.
 ///
 /// ## Notes
 ///
@@ -3285,7 +5737,122 @@ pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
 
 /// ## Description
 ///
-/// Memory usage of the Pod
+/// Pod filesystem available bytes.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [FsStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [PodStats.EphemeralStorage](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_FILESYSTEM_AVAILABLE: &str = "k8s.pod.filesystem.available";
+
+/// ## Description
+///
+/// Pod filesystem capacity.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [FsStats.CapacityBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [PodStats.EphemeralStorage](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_FILESYSTEM_CAPACITY: &str = "k8s.pod.filesystem.capacity";
+
+/// ## Description
+///
+/// Pod filesystem usage.
+///
+/// ## Notes
+///
+/// This may not equal capacity - available.
+///
+/// This metric is derived from the
+/// [FsStats.UsedBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#FsStats) field
+/// of the [PodStats.EphemeralStorage](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats)
+/// of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_FILESYSTEM_USAGE: &str = "k8s.pod.filesystem.usage";
+
+/// ## Description
+///
+/// Pod memory available.
+///
+/// ## Notes
+///
+/// Available memory for use.  This is defined as the memory limit - workingSetBytes. If memory limit is undefined, the available bytes is omitted.
+/// This metric is derived from the [MemoryStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_MEMORY_AVAILABLE: &str = "k8s.pod.memory.available";
+
+/// ## Description
+///
+/// Pod memory paging faults.
+///
+/// ## Notes
+///
+/// Cumulative number of major/minor page faults.
+/// This metric is derived from the [MemoryStats.PageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) and [MemoryStats.MajorPageFaults](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{fault}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_MEMORY_PAGING_FAULTS: &str = "k8s.pod.memory.paging.faults";
+
+/// ## Description
+///
+/// Pod memory RSS.
+///
+/// ## Notes
+///
+/// The amount of anonymous and swap cache memory (includes transparent hugepages).
+/// This metric is derived from the [MemoryStats.RSSBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_MEMORY_RSS: &str = "k8s.pod.memory.rss";
+
+/// ## Description
+///
+/// Memory usage of the Pod.
 ///
 /// ## Notes
 ///
@@ -3298,6 +5865,23 @@ pub const K8S_POD_CPU_USAGE: &str = "k8s.pod.cpu.usage";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const K8S_POD_MEMORY_USAGE: &str = "k8s.pod.memory.usage";
+
+/// ## Description
+///
+/// Pod memory working set.
+///
+/// ## Notes
+///
+/// The amount of working set memory. This includes recently accessed memory, dirty memory, and kernel memory. WorkingSetBytes is <= UsageBytes.
+/// This metric is derived from the [MemoryStats.WorkingSetBytes](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#MemoryStats) field of the [PodStats.Memory](https://pkg.go.dev/k8s.io/kubelet@v0.34.0/pkg/apis/stats/v1alpha1#PodStats) of the Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_MEMORY_WORKING_SET: &str = "k8s.pod.memory.working_set";
 
 /// ## Description
 ///
@@ -3337,7 +5921,51 @@ pub const K8S_POD_NETWORK_IO: &str = "k8s.pod.network.io";
 
 /// ## Description
 ///
-/// The time the Pod has been running
+/// Describes number of K8s Pods that are currently in a given phase.
+///
+/// ## Notes
+///
+/// All possible pod phases will be reported at each time interval to avoid missing metrics.
+/// Only the value corresponding to the current phase will be non-zero
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_POD_STATUS_PHASE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_STATUS_PHASE: &str = "k8s.pod.status.phase";
+
+/// ## Description
+///
+/// Describes the number of K8s Pods that are currently in a state for a given reason.
+///
+/// ## Notes
+///
+/// All possible pod status reasons will be reported at each time interval to avoid missing metrics.
+/// Only the value corresponding to the current reason will be non-zero
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_POD_STATUS_REASON`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_STATUS_REASON: &str = "k8s.pod.status.reason";
+
+/// ## Description
+///
+/// The time the Pod has been running.
 ///
 /// ## Notes
 ///
@@ -3354,41 +5982,166 @@ pub const K8S_POD_UPTIME: &str = "k8s.pod.uptime";
 
 /// ## Description
 ///
-/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replicaset
+/// Pod volume storage space available.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [VolumeStats.AvailableBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_AVAILABLE: &str = "k8s.pod.volume.available";
+
+/// ## Description
+///
+/// Pod volume total capacity.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [VolumeStats.CapacityBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_CAPACITY: &str = "k8s.pod.volume.capacity";
+
+/// ## Description
+///
+/// The total inodes in the filesystem of the Pod's volume.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [VolumeStats.Inodes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{inode}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_INODE_COUNT: &str = "k8s.pod.volume.inode.count";
+
+/// ## Description
+///
+/// The free inodes in the filesystem of the Pod's volume.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [VolumeStats.InodesFree](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{inode}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_INODE_FREE: &str = "k8s.pod.volume.inode.free";
+
+/// ## Description
+///
+/// The inodes used by the filesystem of the Pod's volume.
+///
+/// ## Notes
+///
+/// This metric is derived from the
+/// [VolumeStats.InodesUsed](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API.
+///
+/// This may not be equal to `inodes - free` because filesystem may share inodes with other filesystems
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{inode}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_INODE_USED: &str = "k8s.pod.volume.inode.used";
+
+/// ## Description
+///
+/// Pod volume usage.
+///
+/// ## Notes
+///
+/// This may not equal capacity - available.
+///
+/// This metric is derived from the
+/// [VolumeStats.UsedBytes](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#VolumeStats) field
+/// of the [PodStats](https://pkg.go.dev/k8s.io/kubelet@v0.33.0/pkg/apis/stats/v1alpha1#PodStats) of the
+/// Kubelet's stats API
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_VOLUME_NAME`] | `Required`
+/// | [`crate::attribute::K8S_VOLUME_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_POD_VOLUME_USAGE: &str = "k8s.pod.volume.usage";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.replicaset.pod.available` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `availableReplicas` field of the
-/// [K8s ReplicaSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetstatus-v1-apps)
-/// ## Metadata
-/// | | |
-/// |:-|:-
-/// | Instrument: | `updowncounter` |
-/// | Unit: | `{pod}` |
-/// | Status: | `Development`  |
-#[cfg(feature = "semconv_experimental")]
-pub const K8S_REPLICASET_AVAILABLE_PODS: &str = "k8s.replicaset.available_pods";
-
-/// ## Description
-///
-/// Number of desired replica pods in this replicaset
-///
-/// ## Notes
-///
-/// This metric aligns with the `replicas` field of the
-/// [K8s ReplicaSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicasetspec-v1-apps)
-/// ## Metadata
-/// | | |
-/// |:-|:-
-/// | Instrument: | `updowncounter` |
-/// | Unit: | `{pod}` |
-/// | Status: | `Development`  |
-#[cfg(feature = "semconv_experimental")]
-pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
-
-/// ## Description
-///
-/// Deprecated, use `k8s.replicationcontroller.available_pods` instead
+/// [K8s ReplicaSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicasetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3397,14 +6150,83 @@ pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `k8s.replicationcontroller.available_pods`., reason: renamed, renamed_to: k8s.replicationcontroller.available_pods}"
+    note = "{note: Replaced by `k8s.replicaset.pod.available`., reason: renamed, renamed_to: k8s.replicaset.pod.available}"
+)]
+pub const K8S_REPLICASET_AVAILABLE_PODS: &str = "k8s.replicaset.available_pods";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.replicaset.pod.desired` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicaSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicasetspec-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicaset.pod.desired`., reason: renamed, renamed_to: k8s.replicaset.pod.desired}"
+)]
+pub const K8S_REPLICASET_DESIRED_PODS: &str = "k8s.replicaset.desired_pods";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replicaset.
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s ReplicaSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicasetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_POD_AVAILABLE: &str = "k8s.replicaset.pod.available";
+
+/// ## Description
+///
+/// Number of desired replica pods in this replicaset.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicaSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicasetspec-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICASET_POD_DESIRED: &str = "k8s.replicaset.pod.desired";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.replicationcontroller.pod.available` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicationcontroller.pod.available`., reason: renamed, renamed_to: k8s.replicationcontroller.pod.available}"
 )]
 pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
     "k8s.replication_controller.available_pods";
 
 /// ## Description
 ///
-/// Deprecated, use `k8s.replicationcontroller.desired_pods` instead
+/// Deprecated, use `k8s.replicationcontroller.pod.desired` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3413,18 +6235,13 @@ pub const K8S_REPLICATION_CONTROLLER_AVAILABLE_PODS: &str =
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 #[deprecated(
-    note = "{note: Replaced by `k8s.replicationcontroller.desired_pods`., reason: renamed, renamed_to: k8s.replicationcontroller.desired_pods}"
+    note = "{note: Replaced by `k8s.replicationcontroller.pod.desired`., reason: renamed, renamed_to: k8s.replicationcontroller.pod.desired}"
 )]
 pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_controller.desired_pods";
 
 /// ## Description
 ///
-/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replication controller
-///
-/// ## Notes
-///
-/// This metric aligns with the `availableReplicas` field of the
-/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerstatus-v1-core)
+/// Deprecated, use `k8s.replicationcontroller.pod.available` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3432,17 +6249,15 @@ pub const K8S_REPLICATION_CONTROLLER_DESIRED_PODS: &str = "k8s.replication_contr
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicationcontroller.pod.available`., reason: renamed, renamed_to: k8s.replicationcontroller.pod.available}"
+)]
 pub const K8S_REPLICATIONCONTROLLER_AVAILABLE_PODS: &str =
     "k8s.replicationcontroller.available_pods";
 
 /// ## Description
 ///
-/// Number of desired replica pods in this replication controller
-///
-/// ## Notes
-///
-/// This metric aligns with the `replicas` field of the
-/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#replicationcontrollerspec-v1-core)
+/// Deprecated, use `k8s.replicationcontroller.pod.desired` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3450,7 +6265,44 @@ pub const K8S_REPLICATIONCONTROLLER_AVAILABLE_PODS: &str =
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.replicationcontroller.pod.desired`., reason: renamed, renamed_to: k8s.replicationcontroller.pod.desired}"
+)]
 pub const K8S_REPLICATIONCONTROLLER_DESIRED_PODS: &str = "k8s.replicationcontroller.desired_pods";
+
+/// ## Description
+///
+/// Total number of available replica pods (ready for at least minReadySeconds) targeted by this replication controller.
+///
+/// ## Notes
+///
+/// This metric aligns with the `availableReplicas` field of the
+/// [K8s ReplicationControllerStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicationcontrollerstatus-v1-core)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICATIONCONTROLLER_POD_AVAILABLE: &str = "k8s.replicationcontroller.pod.available";
+
+/// ## Description
+///
+/// Number of desired replica pods in this replication controller.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s ReplicationControllerSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#replicationcontrollerspec-v1-core)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_REPLICATIONCONTROLLER_POD_DESIRED: &str = "k8s.replicationcontroller.pod.desired";
 
 /// ## Description
 ///
@@ -3460,7 +6312,7 @@ pub const K8S_REPLICATIONCONTROLLER_DESIRED_PODS: &str = "k8s.replicationcontrol
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3478,7 +6330,7 @@ pub const K8S_RESOURCEQUOTA_CPU_LIMIT_HARD: &str = "k8s.resourcequota.cpu.limit.
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3496,7 +6348,7 @@ pub const K8S_RESOURCEQUOTA_CPU_LIMIT_USED: &str = "k8s.resourcequota.cpu.limit.
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3514,7 +6366,7 @@ pub const K8S_RESOURCEQUOTA_CPU_REQUEST_HARD: &str = "k8s.resourcequota.cpu.requ
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3532,7 +6384,7 @@ pub const K8S_RESOURCEQUOTA_CPU_REQUEST_USED: &str = "k8s.resourcequota.cpu.requ
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3551,7 +6403,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_LIMIT_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3570,7 +6422,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_LIMIT_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3589,7 +6441,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_REQUEST_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3608,7 +6460,7 @@ pub const K8S_RESOURCEQUOTA_EPHEMERAL_STORAGE_REQUEST_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3632,7 +6484,7 @@ pub const K8S_RESOURCEQUOTA_HUGEPAGE_COUNT_REQUEST_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3656,7 +6508,7 @@ pub const K8S_RESOURCEQUOTA_HUGEPAGE_COUNT_REQUEST_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3674,7 +6526,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_LIMIT_HARD: &str = "k8s.resourcequota.memory.
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3692,7 +6544,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_LIMIT_USED: &str = "k8s.resourcequota.memory.
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3710,7 +6562,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_REQUEST_HARD: &str = "k8s.resourcequota.memor
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3728,7 +6580,7 @@ pub const K8S_RESOURCEQUOTA_MEMORY_REQUEST_USED: &str = "k8s.resourcequota.memor
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3751,7 +6603,7 @@ pub const K8S_RESOURCEQUOTA_OBJECT_COUNT_HARD: &str = "k8s.resourcequota.object_
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core)
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3774,7 +6626,7 @@ pub const K8S_RESOURCEQUOTA_OBJECT_COUNT_USED: &str = "k8s.resourcequota.object_
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core).
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3801,7 +6653,7 @@ pub const K8S_RESOURCEQUOTA_PERSISTENTVOLUMECLAIM_COUNT_HARD: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core).
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3828,7 +6680,7 @@ pub const K8S_RESOURCEQUOTA_PERSISTENTVOLUMECLAIM_COUNT_USED: &str =
 /// ## Notes
 ///
 /// This metric is retrieved from the `hard` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core).
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3854,7 +6706,7 @@ pub const K8S_RESOURCEQUOTA_STORAGE_REQUEST_HARD: &str = "k8s.resourcequota.stor
 /// ## Notes
 ///
 /// This metric is retrieved from the `used` field of the
-/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#resourcequotastatus-v1-core).
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core).
 ///
 /// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
 /// storage class
@@ -3874,12 +6726,80 @@ pub const K8S_RESOURCEQUOTA_STORAGE_REQUEST_USED: &str = "k8s.resourcequota.stor
 
 /// ## Description
 ///
-/// The number of replica pods created by the statefulset controller from the statefulset version indicated by currentRevision
+/// Number of endpoints for a service by condition and address type.
+///
+/// ## Notes
+///
+/// This metric is derived from the Kubernetes [EndpointSlice API](https://kubernetes.io/docs/reference/kubernetes-api/service-resources/endpoint-slice-v1/).
+/// It reports the number of network endpoints backing a Service, broken down by their condition and address type.
+///
+/// In dual-stack or multi-protocol clusters, separate counts are reported for each address family (`IPv4`, `IPv6`, `FQDN`).
+///
+/// When the optional `zone` attribute is enabled, counts are further broken down by availability zone for zone-aware monitoring.
+///
+/// An endpoint may be reported under multiple conditions simultaneously (e.g., both `serving` and `terminating` during a graceful shutdown).
+/// See [K8s EndpointConditions](https://kubernetes.io/docs/reference/kubernetes-api/service-resources/endpoint-slice-v1/) for more details.
+///
+/// The conditions represent:
+///
+/// - `ready`: Endpoints capable of receiving new connections.
+/// - `serving`: Endpoints currently handling traffic.
+/// - `terminating`: Endpoints that are being phased out but may still be handling existing connections.
+///
+/// For Services with `publishNotReadyAddresses` enabled (common for headless StatefulSets),
+/// this metric will include endpoints that are published despite not being ready.
+/// The `k8s.service.publish_not_ready_addresses` resource attribute indicates this setting
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{endpoint}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_SERVICE_ENDPOINT_ADDRESS_TYPE`] | `Required`
+/// | [`crate::attribute::K8S_SERVICE_ENDPOINT_CONDITION`] | `Required`
+/// | [`crate::attribute::K8S_SERVICE_ENDPOINT_ZONE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_SERVICE_ENDPOINT_COUNT: &str = "k8s.service.endpoint.count";
+
+/// ## Description
+///
+/// Number of load balancer ingress points (external IPs/hostnames) assigned to the service.
+///
+/// ## Notes
+///
+/// This metric reports the number of external ingress points (IP addresses or hostnames)
+/// assigned to a LoadBalancer Service.
+///
+/// It is only emitted for Services of type `LoadBalancer` and reflects the assignments
+/// made by the underlying infrastructure's load balancer controller in the
+/// [.status.loadBalancer.ingress](https://kubernetes.io/docs/reference/kubernetes-api/service-resources/service-v1/#ServiceStatus) field.
+///
+/// A value of `0` indicates that no ingress points have been assigned yet (e.g., during provisioning).
+/// A value greater than `1` may occur when multiple IPs or hostnames are assigned (e.g., dual-stack configurations).
+///
+/// This metric signals that external endpoints have been assigned by the load balancer controller, but it does not
+/// guarantee that the load balancer is healthy
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{ingress}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_SERVICE_LOAD_BALANCER_INGRESS_COUNT: &str = "k8s.service.load_balancer.ingress.count";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.statefulset.pod.current` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `currentReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3887,16 +6807,19 @@ pub const K8S_RESOURCEQUOTA_STORAGE_REQUEST_USED: &str = "k8s.resourcequota.stor
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.statefulset.pod.current`., reason: renamed, renamed_to: k8s.statefulset.pod.current}"
+)]
 pub const K8S_STATEFULSET_CURRENT_PODS: &str = "k8s.statefulset.current_pods";
 
 /// ## Description
 ///
-/// Number of desired replica pods in this statefulset
+/// Deprecated, use `k8s.statefulset.pod.desired` instead.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `replicas` field of the
-/// [K8s StatefulSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetspec-v1-apps)
+/// [K8s StatefulSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetspec-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3904,16 +6827,53 @@ pub const K8S_STATEFULSET_CURRENT_PODS: &str = "k8s.statefulset.current_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.statefulset.pod.desired`., reason: renamed, renamed_to: k8s.statefulset.pod.desired}"
+)]
 pub const K8S_STATEFULSET_DESIRED_PODS: &str = "k8s.statefulset.desired_pods";
 
 /// ## Description
 ///
-/// The number of replica pods created for this statefulset with a Ready Condition
+/// The number of replica pods created by the statefulset controller from the statefulset version indicated by currentRevision.
+///
+/// ## Notes
+///
+/// This metric aligns with the `currentReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_POD_CURRENT: &str = "k8s.statefulset.pod.current";
+
+/// ## Description
+///
+/// Number of desired replica pods in this statefulset.
+///
+/// ## Notes
+///
+/// This metric aligns with the `replicas` field of the
+/// [K8s StatefulSetSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetspec-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_POD_DESIRED: &str = "k8s.statefulset.pod.desired";
+
+/// ## Description
+///
+/// The number of replica pods created for this statefulset with a Ready Condition.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `readyReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3921,16 +6881,16 @@ pub const K8S_STATEFULSET_DESIRED_PODS: &str = "k8s.statefulset.desired_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-pub const K8S_STATEFULSET_READY_PODS: &str = "k8s.statefulset.ready_pods";
+pub const K8S_STATEFULSET_POD_READY: &str = "k8s.statefulset.pod.ready";
 
 /// ## Description
 ///
-/// Number of replica pods created by the statefulset controller from the statefulset version indicated by updateRevision
+/// Number of replica pods created by the statefulset controller from the statefulset version indicated by updateRevision.
 ///
 /// ## Notes
 ///
 /// This metric aligns with the `updatedReplicas` field of the
-/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#statefulsetstatus-v1-apps)
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -3938,6 +6898,46 @@ pub const K8S_STATEFULSET_READY_PODS: &str = "k8s.statefulset.ready_pods";
 /// | Unit: | `{pod}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const K8S_STATEFULSET_POD_UPDATED: &str = "k8s.statefulset.pod.updated";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.statefulset.pod.ready` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `readyReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.statefulset.pod.ready`., reason: renamed, renamed_to: k8s.statefulset.pod.ready}"
+)]
+pub const K8S_STATEFULSET_READY_PODS: &str = "k8s.statefulset.ready_pods";
+
+/// ## Description
+///
+/// Deprecated, use `k8s.statefulset.pod.updated` instead.
+///
+/// ## Notes
+///
+/// This metric aligns with the `updatedReplicas` field of the
+/// [K8s StatefulSetStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#statefulsetstatus-v1-apps)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{pod}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `k8s.statefulset.pod.updated`., reason: renamed, renamed_to: k8s.statefulset.pod.updated}"
+)]
 pub const K8S_STATEFULSET_UPDATED_PODS: &str = "k8s.statefulset.updated_pods";
 
 /// ## Description
@@ -4134,6 +7134,122 @@ pub const KESTREL_TLS_HANDSHAKE_DURATION: &str = "kestrel.tls_handshake.duration
 /// | [`crate::attribute::SERVER_ADDRESS`] | `Recommended`
 /// | [`crate::attribute::SERVER_PORT`] | `Recommended`
 pub const KESTREL_UPGRADED_CONNECTIONS: &str = "kestrel.upgraded_connections";
+
+/// ## Description
+///
+/// The duration of the MCP request or notification as observed on the sender from the time it was sent until the response or ack is received
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation fails.
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `{"recommended": "should be set to `execute_tool` when the operation describes a tool call and should not be set otherwise.\n"}`
+/// | [`crate::attribute::GEN_AI_PROMPT_NAME`] | `Conditionally_required`: When operation is related to a specific prompt.
+/// | [`crate::attribute::GEN_AI_TOOL_NAME`] | `Conditionally_required`: When operation is related to a specific tool.
+/// | [`crate::attribute::JSONRPC_PROTOCOL_VERSION`] | `{"recommended": "when it's not `2.0`."}`
+/// | [`crate::attribute::MCP_METHOD_NAME`] | `Required`
+/// | [`crate::attribute::MCP_PROTOCOL_VERSION`] | `Recommended`
+/// | [`crate::attribute::MCP_RESOURCE_URI`] | `Opt_in`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If response contains an error code.
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "if applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when `server.address` is set"}`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const MCP_CLIENT_OPERATION_DURATION: &str = "mcp.client.operation.duration";
+
+/// ## Description
+///
+/// The duration of the MCP session as observed on the MCP client
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if session ends with an error.
+/// | [`crate::attribute::JSONRPC_PROTOCOL_VERSION`] | `{"recommended": "when it's not `2.0`."}`
+/// | [`crate::attribute::MCP_PROTOCOL_VERSION`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "if applicable"}`
+/// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when `server.address` is set"}`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const MCP_CLIENT_SESSION_DURATION: &str = "mcp.client.session.duration";
+
+/// ## Description
+///
+/// MCP request or notification duration as observed on the receiver from the time it was received until the result or ack is sent
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation fails.
+/// | [`crate::attribute::GEN_AI_OPERATION_NAME`] | `{"recommended": "should be set to `execute_tool` when the operation describes a tool call and should not be set otherwise.\n"}`
+/// | [`crate::attribute::GEN_AI_PROMPT_NAME`] | `Conditionally_required`: When operation is related to a specific prompt.
+/// | [`crate::attribute::GEN_AI_TOOL_NAME`] | `Conditionally_required`: When operation is related to a specific tool.
+/// | [`crate::attribute::JSONRPC_PROTOCOL_VERSION`] | `{"recommended": "when it's not `2.0`."}`
+/// | [`crate::attribute::MCP_METHOD_NAME`] | `Required`
+/// | [`crate::attribute::MCP_PROTOCOL_VERSION`] | `Recommended`
+/// | [`crate::attribute::MCP_RESOURCE_URI`] | `Opt_in`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: If response contains an error code.
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const MCP_SERVER_OPERATION_DURATION: &str = "mcp.server.operation.duration";
+
+/// ## Description
+///
+/// The duration of the MCP session as observed on the MCP server
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if session ends with an error.
+/// | [`crate::attribute::JSONRPC_PROTOCOL_VERSION`] | `{"recommended": "when it's not `2.0`."}`
+/// | [`crate::attribute::MCP_PROTOCOL_VERSION`] | `Recommended`
+/// | [`crate::attribute::NETWORK_PROTOCOL_NAME`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_PROTOCOL_VERSION`] | `{"recommended": "when applicable."}`
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Moved to the [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions-genai).\n, reason: uncategorized}"
+)]
+pub const MCP_SERVER_SESSION_DURATION: &str = "mcp.server.session.duration";
 
 /// ## Description
 ///
@@ -4399,6 +7515,292 @@ pub const MESSAGING_RECEIVE_MESSAGES: &str = "messaging.receive.messages";
 
 /// ## Description
 ///
+/// Reports the count of kernel NFS client TCP segments and UDP datagrams handled.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.netudpcnt and svc_stat.nettcpcnt
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_NET_COUNT: &str = "nfs.client.net.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS client TCP connections accepted.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.nettcpconn
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{connection}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_NET_TCP_CONNECTION_ACCEPTED: &str = "nfs.client.net.tcp.connection.accepted";
+
+/// ## Description
+///
+/// Reports the count of kernel NFSv4+ client operations
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{operation}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NFS_OPERATION_NAME`] | `Recommended`
+/// | [`crate::attribute::ONC_RPC_VERSION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_OPERATION_COUNT: &str = "nfs.client.operation.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS client procedures
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{procedure}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ONC_RPC_PROCEDURE_NAME`] | `Recommended`
+/// | [`crate::attribute::ONC_RPC_VERSION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_PROCEDURE_COUNT: &str = "nfs.client.procedure.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS client RPC authentication refreshes.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.rpcauthrefresh
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{authrefresh}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_RPC_AUTHREFRESH_COUNT: &str = "nfs.client.rpc.authrefresh.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS client RPCs sent, regardless of whether they're accepted/rejected by the server.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.rpccnt
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{request}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_RPC_COUNT: &str = "nfs.client.rpc.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS client RPC retransmits.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.rpcretrans
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{retransmit}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_CLIENT_RPC_RETRANSMIT_COUNT: &str = "nfs.client.rpc.retransmit.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server stale file handles.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel NFSD_STATS_FH_STALE counter in the nfsd_net struct
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{fh}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_FH_STALE_COUNT: &str = "nfs.server.fh.stale.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server bytes returned to receive and transmit (read and write) requests.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel NFSD_STATS_IO_READ and NFSD_STATS_IO_WRITE counters in the nfsd_net struct
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_IO: &str = "nfs.server.io";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server TCP segments and UDP datagrams handled.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.nettcpcnt and svc_stat.netudpcnt
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{record}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_TRANSPORT`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_NET_COUNT: &str = "nfs.server.net.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server TCP connections accepted.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.nettcpconn
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{connection}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_NET_TCP_CONNECTION_ACCEPTED: &str = "nfs.server.net.tcp.connection.accepted";
+
+/// ## Description
+///
+/// Reports the count of kernel NFSv4+ server operations
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{operation}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NFS_OPERATION_NAME`] | `Recommended`
+/// | [`crate::attribute::ONC_RPC_VERSION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_OPERATION_COUNT: &str = "nfs.server.operation.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server procedures
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{procedure}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ONC_RPC_PROCEDURE_NAME`] | `Recommended`
+/// | [`crate::attribute::ONC_RPC_VERSION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_PROCEDURE_COUNT: &str = "nfs.server.procedure.count";
+
+/// ## Description
+///
+/// Reports the kernel NFS server reply cache request count by cache hit status
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{request}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NFS_SERVER_REPCACHE_STATUS`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_REPCACHE_REQUESTS: &str = "nfs.server.repcache.requests";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server RPCs handled.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel's svc_stat.rpccnt, the count of good RPCs. This metric can have
+/// an error.type of "format", "auth", or "client" for svc_stat.badfmt, svc_stat.badauth, and svc_stat.badclnt
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{request}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_RPC_COUNT: &str = "nfs.server.rpc.count";
+
+/// ## Description
+///
+/// Reports the count of kernel NFS server available threads.
+///
+/// ## Notes
+///
+/// Linux: this metric is taken from the Linux kernel nfsd_th_cnt variable
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{thread}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const NFS_SERVER_THREAD_COUNT: &str = "nfs.server.thread.count";
+
+/// ## Description
+///
 /// Event loop maximum delay.
 ///
 /// ## Notes
@@ -4548,13 +7950,464 @@ pub const NODEJS_EVENTLOOP_UTILIZATION: &str = "nodejs.eventloop.utilization";
 
 /// ## Description
 ///
-/// The number of log records for which the export has finished, either successful or failed
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_CPU_LIMIT_HARD: &str = "openshift.clusterquota.cpu.limit.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_CPU_LIMIT_USED: &str = "openshift.clusterquota.cpu.limit.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_CPU_REQUEST_HARD: &str = "openshift.clusterquota.cpu.request.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{cpu}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_CPU_REQUEST_USED: &str = "openshift.clusterquota.cpu.request.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_EPHEMERAL_STORAGE_LIMIT_HARD: &str =
+    "openshift.clusterquota.ephemeral_storage.limit.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_EPHEMERAL_STORAGE_LIMIT_USED: &str =
+    "openshift.clusterquota.ephemeral_storage.limit.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_EPHEMERAL_STORAGE_REQUEST_HARD: &str =
+    "openshift.clusterquota.ephemeral_storage.request.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_EPHEMERAL_STORAGE_REQUEST_USED: &str =
+    "openshift.clusterquota.ephemeral_storage.request.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{hugepage}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_HUGEPAGE_SIZE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_HUGEPAGE_COUNT_REQUEST_HARD: &str =
+    "openshift.clusterquota.hugepage_count.request.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{hugepage}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_HUGEPAGE_SIZE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_HUGEPAGE_COUNT_REQUEST_USED: &str =
+    "openshift.clusterquota.hugepage_count.request.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_MEMORY_LIMIT_HARD: &str =
+    "openshift.clusterquota.memory.limit.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_MEMORY_LIMIT_USED: &str =
+    "openshift.clusterquota.memory.limit.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_MEMORY_REQUEST_HARD: &str =
+    "openshift.clusterquota.memory.request.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_MEMORY_REQUEST_USED: &str =
+    "openshift.clusterquota.memory.request.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{object}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_RESOURCEQUOTA_RESOURCE_NAME`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_OBJECT_COUNT_HARD: &str =
+    "openshift.clusterquota.object_count.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{object}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_RESOURCEQUOTA_RESOURCE_NAME`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_OBJECT_COUNT_USED: &str =
+    "openshift.clusterquota.object_count.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total).
+///
+/// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
+/// storage class
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{persistentvolumeclaim}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_STORAGECLASS_NAME`] | `Conditionally_required`: The `k8s.storageclass.name` should be required when a resource quota is defined for a specific storage class.
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_PERSISTENTVOLUMECLAIM_COUNT_HARD: &str =
+    "openshift.clusterquota.persistentvolumeclaim_count.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total).
+///
+/// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
+/// storage class
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{persistentvolumeclaim}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_STORAGECLASS_NAME`] | `Conditionally_required`: The `k8s.storageclass.name` should be required when a resource quota is defined for a specific storage class.
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_PERSISTENTVOLUMECLAIM_COUNT_USED: &str =
+    "openshift.clusterquota.persistentvolumeclaim_count.used";
+
+/// ## Description
+///
+/// The enforced hard limit of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Hard` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total).
+///
+/// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
+/// storage class
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_STORAGECLASS_NAME`] | `Conditionally_required`: The `k8s.storageclass.name` should be required when a resource quota is defined for a specific storage class.
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_STORAGE_REQUEST_HARD: &str =
+    "openshift.clusterquota.storage.request.hard";
+
+/// ## Description
+///
+/// The current observed total usage of the resource across all projects.
+///
+/// ## Notes
+///
+/// This metric is retrieved from the `Status.Total.Used` field of the
+/// [K8s ResourceQuotaStatus](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcequotastatus-v1-core)
+/// of the
+/// [ClusterResourceQuota](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/schedule_and_quota_apis/clusterresourcequota-quota-openshift-io-v1#status-total).
+///
+/// The `k8s.storageclass.name` should be required when a resource quota is defined for a specific
+/// storage class
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::K8S_STORAGECLASS_NAME`] | `Conditionally_required`: The `k8s.storageclass.name` should be required when a resource quota is defined for a specific storage class.
+#[cfg(feature = "semconv_experimental")]
+pub const OPENSHIFT_CLUSTERQUOTA_STORAGE_REQUEST_USED: &str =
+    "openshift.clusterquota.storage.request.used";
+
+/// ## Description
+///
+/// The number of log records for which the export has finished, either successful or failed.
 ///
 /// ## Notes
 ///
 /// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
 /// For exporters with partial success semantics (e.g. OTLP with `rejected_log_records`), rejected log records MUST count as failed and only non-rejected log records count as success.
-/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`.
+/// If the exporter retries failed export attempts, the export operation is considered finished only after the final attempt has concluded.
+/// Each log record MUST be counted exactly once per export operation: intermediate failed attempts that are followed by a retry MUST NOT increment the counter,
+/// and `error.type` reflects the cause of the final attempt
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4575,11 +8428,12 @@ pub const OTEL_SDK_EXPORTER_LOG_EXPORTED: &str = "otel.sdk.exporter.log.exported
 
 /// ## Description
 ///
-/// The number of log records which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+/// The number of log records which were passed to the exporter, but that have not been exported yet (neither successful, nor failed).
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
+/// Log records are counted as inflight from when they are passed to the exporter until the export operation has concluded.
+/// If the exporter retries failed export attempts, log records remain inflight across all retry attempts and any backoff between them
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4599,13 +8453,16 @@ pub const OTEL_SDK_EXPORTER_LOG_INFLIGHT: &str = "otel.sdk.exporter.log.inflight
 
 /// ## Description
 ///
-/// The number of metric data points for which the export has finished, either successful or failed
+/// The number of metric data points for which the export has finished, either successful or failed.
 ///
 /// ## Notes
 ///
 /// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
 /// For exporters with partial success semantics (e.g. OTLP with `rejected_data_points`), rejected data points MUST count as failed and only non-rejected data points count as success.
-/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`.
+/// If the exporter retries failed export attempts, the export operation is considered finished only after the final attempt has concluded.
+/// Each metric data point MUST be counted exactly once per export operation: intermediate failed attempts that are followed by a retry MUST NOT increment the counter,
+/// and `error.type` reflects the cause of the final attempt
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4627,11 +8484,12 @@ pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_EXPORTED: &str =
 
 /// ## Description
 ///
-/// The number of metric data points which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+/// The number of metric data points which were passed to the exporter, but that have not been exported yet (neither successful, nor failed).
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
+/// Metric data points are counted as inflight from when they are passed to the exporter until the export operation has concluded.
+/// If the exporter retries failed export attempts, metric data points remain inflight across all retry attempts and any backoff between them
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4658,7 +8516,10 @@ pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_INFLIGHT: &str =
 ///
 /// This metric defines successful operations using the full success definitions for [http](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success-1)
 /// and [grpc](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/docs/specification.md#full-success). Anything else is defined as an unsuccessful operation. For successful
-/// operations, `error.type` MUST NOT be set. For unsuccessful export operations, `error.type` MUST contain a relevant failure cause
+/// operations, `error.type` MUST NOT be set. For unsuccessful export operations, `error.type` MUST contain a relevant failure cause.
+/// If the exporter retries failed export attempts, exactly one observation MUST be recorded per export operation,
+/// covering the wall-clock duration from the start of the first attempt through the conclusion of the final attempt (including any backoff between attempts).
+/// `error.type` reflects the cause of the final attempt
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4673,7 +8534,7 @@ pub const OTEL_SDK_EXPORTER_METRIC_DATA_POINT_INFLIGHT: &str =
 /// | [`crate::attribute::HTTP_RESPONSE_STATUS_CODE`] | `{"recommended": "when applicable"}`
 /// | [`crate::attribute::OTEL_COMPONENT_NAME`] | `Recommended`
 /// | [`crate::attribute::OTEL_COMPONENT_TYPE`] | `Recommended`
-/// | [`crate::attribute::RPC_GRPC_STATUS_CODE`] | `{"recommended": "when applicable"}`
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `{"recommended": "when applicable"}`
 /// | [`crate::attribute::SERVER_ADDRESS`] | `{"recommended": "when applicable"}`
 /// | [`crate::attribute::SERVER_PORT`] | `{"recommended": "when applicable"}`
 #[cfg(feature = "semconv_experimental")]
@@ -4681,13 +8542,16 @@ pub const OTEL_SDK_EXPORTER_OPERATION_DURATION: &str = "otel.sdk.exporter.operat
 
 /// ## Description
 ///
-/// The number of spans for which the export has finished, either successful or failed
+/// The number of spans for which the export has finished, either successful or failed.
 ///
 /// ## Notes
 ///
 /// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause.
 /// For exporters with partial success semantics (e.g. OTLP with `rejected_spans`), rejected spans MUST count as failed and only non-rejected spans count as success.
-/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`
+/// If no rejection reason is available, `rejected` SHOULD be used as value for `error.type`.
+/// If the exporter retries failed export attempts, the export operation is considered finished only after the final attempt has concluded.
+/// Each span MUST be counted exactly once per export operation: intermediate failed attempts that are followed by a retry MUST NOT increment the counter,
+/// and `error.type` reflects the cause of the final attempt
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4723,11 +8587,12 @@ pub const OTEL_SDK_EXPORTER_SPAN_EXPORTED_COUNT: &str = "otel.sdk.exporter.span.
 
 /// ## Description
 ///
-/// The number of spans which were passed to the exporter, but that have not been exported yet (neither successful, nor failed)
+/// The number of spans which were passed to the exporter, but that have not been exported yet (neither successful, nor failed).
 ///
 /// ## Notes
 ///
-/// For successful exports, `error.type` MUST NOT be set. For failed exports, `error.type` MUST contain the failure cause
+/// Spans are counted as inflight from when they are passed to the exporter until the export operation has concluded.
+/// If the exporter retries failed export attempts, spans remain inflight across all retry attempts and any backoff between them
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -4799,11 +8664,13 @@ pub const OTEL_SDK_METRIC_READER_COLLECTION_DURATION: &str =
 
 /// ## Description
 ///
-/// The number of log records for which the processing has finished, either successful or failed
+/// The number of log records for which the processing has finished, either successful or failed.
 ///
 /// ## Notes
 ///
 /// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` MUST contain the failure cause.
+/// SDK Batching Log Record Processors MUST use `queue_full` as the value of `error.type` for log records dropped due to a full queue.
+/// SDK Log Record Processors MUST use `already_shutdown` as the value of `error.type` for log records dropped because the processor has already been shut down.
 /// For the SDK Simple and Batching Log Record Processor a log record is considered to be processed already when it has been submitted to the exporter,
 /// not when the corresponding export call has finished
 /// ## Metadata
@@ -4824,7 +8691,7 @@ pub const OTEL_SDK_PROCESSOR_LOG_PROCESSED: &str = "otel.sdk.processor.log.proce
 
 /// ## Description
 ///
-/// The maximum number of log records the queue of a given instance of an SDK Log Record processor can hold
+/// The maximum number of log records the queue of a given instance of an SDK Log Record processor can hold.
 ///
 /// ## Notes
 ///
@@ -4846,7 +8713,7 @@ pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_CAPACITY: &str = "otel.sdk.processor.log.
 
 /// ## Description
 ///
-/// The number of log records in the queue of a given instance of an SDK log processor
+/// The number of log records in the queue of a given instance of an SDK log processor.
 ///
 /// ## Notes
 ///
@@ -4868,11 +8735,13 @@ pub const OTEL_SDK_PROCESSOR_LOG_QUEUE_SIZE: &str = "otel.sdk.processor.log.queu
 
 /// ## Description
 ///
-/// The number of spans for which the processing has finished, either successful or failed
+/// The number of spans for which the processing has finished, either successful or failed.
 ///
 /// ## Notes
 ///
 /// For successful processing, `error.type` MUST NOT be set. For failed processing, `error.type` MUST contain the failure cause.
+/// SDK Batching Span Processors MUST use `queue_full` as the value of `error.type` for spans dropped due to a full queue.
+/// SDK Span Processors MUST use `already_shutdown` as the value of `error.type` for spans dropped because the processor has already been shut down.
 /// For the SDK Simple and Batching Span Processor a span is considered to be processed already when it has been submitted to the exporter, not when the corresponding export call has finished
 /// ## Metadata
 /// | | |
@@ -4907,7 +8776,7 @@ pub const OTEL_SDK_PROCESSOR_SPAN_PROCESSED_COUNT: &str = "otel.sdk.processor.sp
 
 /// ## Description
 ///
-/// The maximum number of spans the queue of a given instance of an SDK span processor can hold
+/// The maximum number of spans the queue of a given instance of an SDK span processor can hold.
 ///
 /// ## Notes
 ///
@@ -4929,7 +8798,7 @@ pub const OTEL_SDK_PROCESSOR_SPAN_QUEUE_CAPACITY: &str = "otel.sdk.processor.spa
 
 /// ## Description
 ///
-/// The number of spans in the queue of a given instance of an SDK span processor
+/// The number of spans in the queue of a given instance of an SDK span processor.
 ///
 /// ## Notes
 ///
@@ -5009,7 +8878,7 @@ pub const OTEL_SDK_SPAN_LIVE_COUNT: &str = "otel.sdk.span.live.count";
 
 /// ## Description
 ///
-/// The number of created spans
+/// The number of created spans.
 ///
 /// ## Notes
 ///
@@ -5042,13 +8911,13 @@ pub const OTEL_SDK_SPAN_STARTED: &str = "otel.sdk.span.started";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::PROCESS_CONTEXT_SWITCH_TYPE`] | `Recommended`
+/// | [`crate::attribute::PROCESS_CONTEXT_SWITCH_TYPE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CONTEXT_SWITCHES: &str = "process.context_switches";
 
 /// ## Description
 ///
-/// Total CPU seconds broken down by different states
+/// Total CPU seconds broken down by different CPU modes
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5059,7 +8928,7 @@ pub const PROCESS_CONTEXT_SWITCHES: &str = "process.context_switches";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Recommended`
+/// | [`crate::attribute::CPU_MODE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CPU_TIME: &str = "process.cpu.time";
 
@@ -5076,7 +8945,7 @@ pub const PROCESS_CPU_TIME: &str = "process.cpu.time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_MODE`] | `Recommended`
+/// | [`crate::attribute::CPU_MODE`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_CPU_UTILIZATION: &str = "process.cpu.utilization";
 
@@ -5093,7 +8962,7 @@ pub const PROCESS_CPU_UTILIZATION: &str = "process.cpu.utilization";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::DISK_IO_DIRECTION`] | `Recommended`
+/// | [`crate::attribute::DISK_IO_DIRECTION`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_DISK_IO: &str = "process.disk.io";
 
@@ -5134,13 +9003,13 @@ pub const PROCESS_MEMORY_VIRTUAL: &str = "process.memory.virtual";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_NETWORK_IO: &str = "process.network.io";
 
 /// ## Description
 ///
-/// Number of file descriptors in use by the process
+/// Deprecated, use `process.unix.file_descriptor.count` instead
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5148,6 +9017,9 @@ pub const PROCESS_NETWORK_IO: &str = "process.network.io";
 /// | Unit: | `{file_descriptor}` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `process.unix.file_descriptor.count`., reason: renamed, renamed_to: process.unix.file_descriptor.count}"
+)]
 pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descriptor.count";
 
 /// ## Description
@@ -5163,7 +9035,7 @@ pub const PROCESS_OPEN_FILE_DESCRIPTOR_COUNT: &str = "process.open_file_descript
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::PROCESS_PAGING_FAULT_TYPE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_PAGING_FAULTS: &str = "process.paging.faults";
 
@@ -5178,6 +9050,18 @@ pub const PROCESS_PAGING_FAULTS: &str = "process.paging.faults";
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
 pub const PROCESS_THREAD_COUNT: &str = "process.thread.count";
+
+/// ## Description
+///
+/// Number of unix file descriptors in use by the process
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{file_descriptor}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_UNIX_FILE_DESCRIPTOR_COUNT: &str = "process.unix.file_descriptor.count";
 
 /// ## Description
 ///
@@ -5198,7 +9082,46 @@ pub const PROCESS_UPTIME: &str = "process.uptime";
 
 /// ## Description
 ///
-/// Measures the duration of outbound RPC.
+/// Number of handles held by the process
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{handle}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const PROCESS_WINDOWS_HANDLE_COUNT: &str = "process.windows.handle.count";
+
+/// ## Description
+///
+/// Measures the duration of an outgoing Remote Procedure Call (RPC).
+///
+/// ## Notes
+///
+/// When this metric is reported alongside an RPC client span, the metric value
+/// SHOULD be the same as the RPC client span duration
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Release_candidate`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
+#[cfg(feature = "semconv_experimental")]
+pub const RPC_CLIENT_CALL_DURATION: &str = "rpc.client.call.duration";
+
+/// ## Description
+///
+/// Deprecated, use `rpc.client.call.duration` instead. Note: the unit also changed from `ms` to `s`.
 ///
 /// ## Notes
 ///
@@ -5212,7 +9135,20 @@ pub const PROCESS_UPTIME: &str = "process.uptime";
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `rpc.client.call.duration` with unit `s`., reason: uncategorized}"
+)]
 pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 
 /// ## Description
@@ -5228,7 +9164,18 @@ pub const RPC_CLIENT_DURATION: &str = "rpc.client.duration";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 
 /// ## Description
@@ -5246,7 +9193,18 @@ pub const RPC_CLIENT_REQUEST_SIZE: &str = "rpc.client.request.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 
 /// ## Description
@@ -5262,7 +9220,18 @@ pub const RPC_CLIENT_REQUESTS_PER_RPC: &str = "rpc.client.requests_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 
 /// ## Description
@@ -5280,12 +9249,50 @@ pub const RPC_CLIENT_RESPONSE_SIZE: &str = "rpc.client.response.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Conditionally_required`: If available.
+/// | [`crate::attribute::SERVER_PORT`] | `Conditionally_required`: if applicable and if `server.address` is set.
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 
 /// ## Description
 ///
-/// Measures the duration of inbound RPC.
+/// Measures the duration of an incoming Remote Procedure Call (RPC).
+///
+/// ## Notes
+///
+/// When this metric is reported alongside an RPC server span, the metric value
+/// SHOULD be the same as the RPC server span duration
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `histogram` |
+/// | Unit: | `s` |
+/// | Status: | `Release_candidate`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
+#[cfg(feature = "semconv_experimental")]
+pub const RPC_SERVER_CALL_DURATION: &str = "rpc.server.call.duration";
+
+/// ## Description
+///
+/// Deprecated, use `rpc.server.call.duration` instead. Note: the unit also changed from `ms` to `s`.
 ///
 /// ## Notes
 ///
@@ -5299,7 +9306,20 @@ pub const RPC_CLIENT_RESPONSES_PER_RPC: &str = "rpc.client.responses_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `ms` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `rpc.server.call.duration` with unit `s`., reason: uncategorized}"
+)]
 pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 
 /// ## Description
@@ -5315,7 +9335,18 @@ pub const RPC_SERVER_DURATION: &str = "rpc.server.duration";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 
 /// ## Description
@@ -5333,7 +9364,18 @@ pub const RPC_SERVER_REQUEST_SIZE: &str = "rpc.server.request.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 
 /// ## Description
@@ -5349,7 +9391,18 @@ pub const RPC_SERVER_REQUESTS_PER_RPC: &str = "rpc.server.requests_per_rpc";
 /// | Instrument: | `histogram` |
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 
 /// ## Description
@@ -5367,7 +9420,18 @@ pub const RPC_SERVER_RESPONSE_SIZE: &str = "rpc.server.response.size";
 /// | Instrument: | `histogram` |
 /// | Unit: | `{count}` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::ERROR_TYPE`] | `Conditionally_required`: If and only if the operation failed.
+/// | [`crate::attribute::RPC_METHOD`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_RESPONSE_STATUS_CODE`] | `Conditionally_required`: if available.
+/// | [`crate::attribute::RPC_SYSTEM_NAME`] | `Required`
+/// | [`crate::attribute::SERVER_ADDRESS`] | `Opt_in`
+/// | [`crate::attribute::SERVER_PORT`] | `Opt_in`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(note = "{note: Removed, no replacement at this time., reason: obsoleted}")]
 pub const RPC_SERVER_RESPONSES_PER_RPC: &str = "rpc.server.responses_per_rpc";
 
 /// ## Description
@@ -5431,7 +9495,7 @@ pub const SYSTEM_CPU_FREQUENCY: &str = "system.cpu.frequency";
 
 /// ## Description
 ///
-/// Reports the number of logical (virtual) processor cores created by the operating system to manage multitasking
+/// Reports the number of logical (virtual) processor cores created by the operating system to manage multitasking.
 ///
 /// ## Notes
 ///
@@ -5447,7 +9511,7 @@ pub const SYSTEM_CPU_LOGICAL_COUNT: &str = "system.cpu.logical.count";
 
 /// ## Description
 ///
-/// Reports the number of actual physical processor cores on the hardware
+/// Reports the number of actual physical processor cores on the hardware.
 ///
 /// ## Notes
 ///
@@ -5474,7 +9538,7 @@ pub const SYSTEM_CPU_PHYSICAL_COUNT: &str = "system.cpu.physical.count";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Opt_in`
 /// | [`crate::attribute::CPU_MODE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
@@ -5492,12 +9556,14 @@ pub const SYSTEM_CPU_TIME: &str = "system.cpu.time";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Recommended`
+/// | [`crate::attribute::CPU_LOGICAL_NUMBER`] | `Opt_in`
 /// | [`crate::attribute::CPU_MODE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_CPU_UTILIZATION: &str = "system.cpu.utilization";
 
 /// ## Description
+///
+/// Disk bytes transferred
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5515,7 +9581,7 @@ pub const SYSTEM_DISK_IO: &str = "system.disk.io";
 
 /// ## Description
 ///
-/// Time disk spent activated
+/// Time disk spent activated.
 ///
 /// ## Notes
 ///
@@ -5557,6 +9623,8 @@ pub const SYSTEM_DISK_IO_TIME: &str = "system.disk.io_time";
 pub const SYSTEM_DISK_LIMIT: &str = "system.disk.limit";
 
 /// ## Description
+///
+/// The number of disk reads/writes merged into single physical disk access operations
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5574,7 +9642,7 @@ pub const SYSTEM_DISK_MERGED: &str = "system.disk.merged";
 
 /// ## Description
 ///
-/// Sum of the time each operation took to complete
+/// Sum of the time each operation took to complete.
 ///
 /// ## Notes
 ///
@@ -5598,6 +9666,8 @@ pub const SYSTEM_DISK_MERGED: &str = "system.disk.merged";
 pub const SYSTEM_DISK_OPERATION_TIME: &str = "system.disk.operation_time";
 
 /// ## Description
+///
+/// Disk operations count
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5635,6 +9705,26 @@ pub const SYSTEM_FILESYSTEM_LIMIT: &str = "system.filesystem.limit";
 
 /// ## Description
 ///
+/// Filesystem lock counts
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{lock}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::FILE_LOCK_MECHANISM`] | `Recommended`
+/// | [`crate::attribute::FILE_LOCK_MODE`] | `Recommended`
+/// | [`crate::attribute::FILE_LOCK_TYPE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_FILESYSTEM_LOCK_COUNT: &str = "system.filesystem.lock.count";
+
+/// ## Description
+///
 /// Reports a filesystem's space usage across different states.
 ///
 /// ## Notes
@@ -5660,6 +9750,8 @@ pub const SYSTEM_FILESYSTEM_LIMIT: &str = "system.filesystem.limit";
 pub const SYSTEM_FILESYSTEM_USAGE: &str = "system.filesystem.usage";
 
 /// ## Description
+///
+/// Fraction of filesystem bytes used
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5680,7 +9772,54 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 
 /// ## Description
 ///
-/// An estimate of how much memory is available for starting new applications, without causing swapping
+/// The number of packets transferred
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{packet}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `system.memory.linux.available`., reason: renamed, renamed_to: system.memory.linux.available}"
+)]
+pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
+
+/// ## Description
+///
+/// The number of packets transferred
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{packet}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::LINUX_MEMORY_SLAB_STATE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `system.memory.linux.slab.usage`., reason: renamed, renamed_to: system.memory.linux.slab.usage}"
+)]
+pub const SYSTEM_LINUX_MEMORY_SLAB_USAGE: &str = "system.linux.memory.slab.usage";
+
+/// ## Description
+///
+/// Total virtual memory available in the system
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
+
+/// ## Description
+///
+/// An estimate of how much memory is available for starting new applications, without causing swapping.
 ///
 /// ## Notes
 ///
@@ -5696,46 +9835,102 @@ pub const SYSTEM_FILESYSTEM_UTILIZATION: &str = "system.filesystem.utilization";
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
-pub const SYSTEM_LINUX_MEMORY_AVAILABLE: &str = "system.linux.memory.available";
+pub const SYSTEM_MEMORY_LINUX_AVAILABLE: &str = "system.memory.linux.available";
 
 /// ## Description
 ///
-/// Reports the memory used by the Linux kernel for managing caches of frequently used objects.
+/// Total number of hugepages available
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{page}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_LIMIT: &str = "system.memory.linux.hugepages.limit";
+
+/// ## Description
 ///
-/// ## Notes
-///
-/// The sum over the `reclaimable` and `unreclaimable` state values in `linux.memory.slab.usage` SHOULD be equal to the total slab memory available on the system.
-/// Note that the total slab memory is not constant and may vary over time.
-/// See also the [Slab allocator](https://blogs.oracle.com/linux/post/understanding-linux-kernel-memory-statistics) and `Slab` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html)
+/// System hugepage size in bytes
 /// ## Metadata
 /// | | |
 /// |:-|:-
 /// | Instrument: | `updowncounter` |
 /// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_PAGE_SIZE: &str = "system.memory.linux.hugepages.page_size";
+
+/// ## Description
+///
+/// Number of reserved hugepages.
+///
+/// ## Notes
+///
+/// Hugepages for which a commitment to allocate has been made, but no allocation has yet been made.
+/// This is reported as a separate metric rather than a `usage` state because reserved pages are already counted in `free` pages.
+/// They represent a subset of free pages that cannot be used for non-reserved allocations
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{page}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_RESERVED: &str = "system.memory.linux.hugepages.reserved";
+
+/// ## Description
+///
+/// Number of surplus hugepages.
+///
+/// ## Notes
+///
+/// Overcommitted hugepages beyond the persistent pool.
+/// This is reported as a separate metric rather than a `usage` state because surplus pages can be in either `used` or `free` state.
+/// Including them in `usage` would break the convention that `usage` states sum to the `limit`
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{page}` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_SURPLUS: &str = "system.memory.linux.hugepages.surplus";
+
+/// ## Description
+///
+/// Number of hugepages in use by state
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `{page}` |
 /// | Status: | `Development`  |
 ///
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::LINUX_MEMORY_SLAB_STATE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_MEMORY_LINUX_HUGEPAGES_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-pub const SYSTEM_LINUX_MEMORY_SLAB_USAGE: &str = "system.linux.memory.slab.usage";
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_USAGE: &str = "system.memory.linux.hugepages.usage";
 
 /// ## Description
 ///
-/// Total memory available in the system.
-///
-/// ## Notes
-///
-/// Its value SHOULD equal the sum of `system.memory.state` over all states
+/// Percentage of hugepages in use by state
 /// ## Metadata
 /// | | |
 /// |:-|:-
-/// | Instrument: | `updowncounter` |
-/// | Unit: | `By` |
+/// | Instrument: | `gauge` |
+/// | Unit: | `1` |
 /// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_MEMORY_LINUX_HUGEPAGES_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
-pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
+pub const SYSTEM_MEMORY_LINUX_HUGEPAGES_UTILIZATION: &str =
+    "system.memory.linux.hugepages.utilization";
 
 /// ## Description
 ///
@@ -5752,16 +9947,49 @@ pub const SYSTEM_MEMORY_LIMIT: &str = "system.memory.limit";
 /// | Unit: | `By` |
 /// | Status: | `Development`  |
 #[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_SHARED: &str = "system.memory.linux.shared";
+
+/// ## Description
+///
+/// Reports the memory used by the Linux kernel for managing caches of frequently used objects.
+///
+/// ## Notes
+///
+/// The sum over the `reclaimable` and `unreclaimable` state values in `memory.linux.slab.usage` SHOULD be equal to the total slab memory available on the system.
+/// Note that the total slab memory is not constant and may vary over time.
+/// See also the [Slab allocator](https://blogs.oracle.com/linux/post/understanding-linux-kernel-memory-statistics) and `Slab` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::SYSTEM_MEMORY_LINUX_SLAB_STATE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_MEMORY_LINUX_SLAB_USAGE: &str = "system.memory.linux.slab.usage";
+
+/// ## Description
+///
+/// Deprecated, use `system.memory.linux.shared` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `system.memory.linux.shared`., reason: renamed, renamed_to: system.memory.linux.shared}"
+)]
 pub const SYSTEM_MEMORY_SHARED: &str = "system.memory.shared";
 
 /// ## Description
 ///
-/// Reports memory in use by state.
-///
-/// ## Notes
-///
-/// The sum over all `system.memory.state` values SHOULD equal the total memory
-/// available on the system, that is `system.memory.limit`
+/// Reports memory in use by state
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5777,6 +10005,8 @@ pub const SYSTEM_MEMORY_SHARED: &str = "system.memory.shared";
 pub const SYSTEM_MEMORY_USAGE: &str = "system.memory.usage";
 
 /// ## Description
+///
+/// Percentage of memory bytes in use
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5792,6 +10022,8 @@ pub const SYSTEM_MEMORY_USAGE: &str = "system.memory.usage";
 pub const SYSTEM_MEMORY_UTILIZATION: &str = "system.memory.utilization";
 
 /// ## Description
+///
+/// The number of connections
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5832,7 +10064,7 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 
 /// ## Description
 ///
-/// Count of packets that are dropped or discarded even though there was no error
+/// Count of packets that are dropped or discarded even though there was no error.
 ///
 /// ## Notes
 ///
@@ -5854,17 +10086,20 @@ pub const SYSTEM_NETWORK_CONNECTIONS: &str = "system.network.connections";
 /// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `system.network.packet.dropped`., reason: renamed, renamed_to: system.network.packet.dropped}"
+)]
 pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 
 /// ## Description
 ///
-/// Count of network errors detected
+/// Count of network errors detected.
 ///
 /// ## Notes
 ///
 /// Measured as:
 ///
-/// - Linux: the `errs` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html)).
+/// - Linux: the `errs` column in `/proc/net/dev` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html)).
 /// - Windows: [`InErrors`/`OutErrors`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
 ///   from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)
 /// ## Metadata
@@ -5883,6 +10118,8 @@ pub const SYSTEM_NETWORK_DROPPED: &str = "system.network.dropped";
 pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 
 /// ## Description
+///
+/// The number of bytes transmitted and received
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5899,6 +10136,8 @@ pub const SYSTEM_NETWORK_ERRORS: &str = "system.network.errors";
 pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 
 /// ## Description
+///
+/// The number of packets transferred
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5912,9 +10151,58 @@ pub const SYSTEM_NETWORK_IO: &str = "system.network.io";
 /// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
 /// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_NETWORK_PACKET_COUNT: &str = "system.network.packet.count";
+
+/// ## Description
+///
+/// Count of packets that are dropped or discarded even though there was no error.
+///
+/// ## Notes
+///
+/// Measured as:
+///
+/// - Linux: the `drop` column in `/proc/net/dev` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html))
+/// - Windows: [`InDiscards`/`OutDiscards`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
+///   from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{packet}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_INTERFACE_NAME`] | `Recommended`
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+pub const SYSTEM_NETWORK_PACKET_DROPPED: &str = "system.network.packet.dropped";
+
+/// ## Description
+///
+/// The number of packets transferred
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `counter` |
+/// | Unit: | `{packet}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::NETWORK_IO_DIRECTION`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_DEVICE`] | `Recommended`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `system.network.packet.count`., reason: renamed, renamed_to: system.network.packet.count}"
+)]
 pub const SYSTEM_NETWORK_PACKETS: &str = "system.network.packets";
 
 /// ## Description
+///
+/// The number of page faults
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5925,11 +10213,13 @@ pub const SYSTEM_NETWORK_PACKETS: &str = "system.network.packets";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::SYSTEM_PAGING_TYPE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PAGING_FAULTS: &str = "system.paging.faults";
 
 /// ## Description
+///
+/// The number of paging operations
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5941,7 +10231,7 @@ pub const SYSTEM_PAGING_FAULTS: &str = "system.paging.faults";
 /// | Name | Requirement |
 /// |:-|:- |
 /// | [`crate::attribute::SYSTEM_PAGING_DIRECTION`] | `Recommended`
-/// | [`crate::attribute::SYSTEM_PAGING_TYPE`] | `Recommended`
+/// | [`crate::attribute::SYSTEM_PAGING_FAULT_TYPE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PAGING_OPERATIONS: &str = "system.paging.operations";
 
@@ -5964,6 +10254,8 @@ pub const SYSTEM_PAGING_OPERATIONS: &str = "system.paging.operations";
 pub const SYSTEM_PAGING_USAGE: &str = "system.paging.usage";
 
 /// ## Description
+///
+/// Swap (unix) or pagefile (windows) utilization
 /// ## Metadata
 /// | | |
 /// |:-|:-
@@ -5992,7 +10284,7 @@ pub const SYSTEM_PAGING_UTILIZATION: &str = "system.paging.utilization";
 /// ## Attributes
 /// | Name | Requirement |
 /// |:-|:- |
-/// | [`crate::attribute::SYSTEM_PROCESS_STATUS`] | `Recommended`
+/// | [`crate::attribute::PROCESS_STATE`] | `Recommended`
 #[cfg(feature = "semconv_experimental")]
 pub const SYSTEM_PROCESS_COUNT: &str = "system.process.count";
 
@@ -6010,7 +10302,7 @@ pub const SYSTEM_PROCESS_CREATED: &str = "system.process.created";
 
 /// ## Description
 ///
-/// The time the system has been running
+/// The time the system has been running.
 ///
 /// ## Notes
 ///
@@ -6048,6 +10340,61 @@ pub const V8JS_GC_DURATION: &str = "v8js.gc.duration";
 
 /// ## Description
 ///
+/// Deprecated, use `v8js.memory.heap.space.available_size` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `v8js.memory.heap.space.available_size`., reason: renamed, renamed_to: v8js.memory.heap.space.available_size}"
+)]
+pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size";
+
+/// ## Description
+///
+/// Deprecated, use `v8js.memory.heap.space.physical_size` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `v8js.memory.heap.space.physical_size`., reason: renamed, renamed_to: v8js.memory.heap.space.physical_size}"
+)]
+pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
+
+/// ## Description
+///
+/// Deprecated, use `v8js.memory.heap.space.size` instead
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `updowncounter` |
+/// | Unit: | `By` |
+/// | Status: | `Development`  |
+#[cfg(feature = "semconv_experimental")]
+#[deprecated(
+    note = "{note: Replaced by `v8js.memory.heap.space.size`., reason: renamed, renamed_to: v8js.memory.heap.space.size}"
+)]
+pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
+
+/// ## Description
+///
 /// Heap space available size.
 ///
 /// ## Notes
@@ -6065,7 +10412,7 @@ pub const V8JS_GC_DURATION: &str = "v8js.gc.duration";
 /// |:-|:- |
 /// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size";
+pub const V8JS_MEMORY_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.memory.heap.space.available_size";
 
 /// ## Description
 ///
@@ -6086,11 +10433,11 @@ pub const V8JS_HEAP_SPACE_AVAILABLE_SIZE: &str = "v8js.heap.space.available_size
 /// |:-|:- |
 /// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
+pub const V8JS_MEMORY_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.memory.heap.space.physical_size";
 
 /// ## Description
 ///
-/// Total heap memory size pre-allocated.
+/// Total heap memory size pre-allocated for a heap space.
 ///
 /// ## Notes
 ///
@@ -6107,7 +10454,7 @@ pub const V8JS_HEAP_SPACE_PHYSICAL_SIZE: &str = "v8js.heap.space.physical_size";
 /// |:-|:- |
 /// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
-pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
+pub const V8JS_MEMORY_HEAP_SPACE_SIZE: &str = "v8js.memory.heap.space.size";
 
 /// ## Description
 ///
@@ -6129,6 +10476,27 @@ pub const V8JS_MEMORY_HEAP_LIMIT: &str = "v8js.memory.heap.limit";
 /// | [`crate::attribute::V8JS_HEAP_SPACE_NAME`] | `Required`
 #[cfg(feature = "semconv_experimental")]
 pub const V8JS_MEMORY_HEAP_USED: &str = "v8js.memory.heap.used";
+
+/// ## Description
+///
+/// Gauge of the active resources that are currently keeping the event loop alive.
+///
+/// ## Notes
+///
+/// The values can be retrieved from [`process.getActiveResourcesInfo()`](https://nodejs.org/api/process.html#processgetactiveresourcesinfo)
+/// ## Metadata
+/// | | |
+/// |:-|:-
+/// | Instrument: | `gauge` |
+/// | Unit: | `{resource}` |
+/// | Status: | `Development`  |
+///
+/// ## Attributes
+/// | Name | Requirement |
+/// |:-|:- |
+/// | [`crate::attribute::V8JS_RESOURCE_TYPE`] | `Required`
+#[cfg(feature = "semconv_experimental")]
+pub const V8JS_RESOURCE_ACTIVE: &str = "v8js.resource.active";
 
 /// ## Description
 ///
@@ -6296,7 +10664,7 @@ pub const VCS_REF_LINES_DELTA: &str = "vcs.ref.lines_delta";
 
 /// ## Description
 ///
-/// The number of revisions (commits) a ref (branch) is ahead/behind the branch from the `vcs.ref.base.name` attribute
+/// The number of revisions (commits) a ref (branch) is ahead/behind the branch from the `vcs.ref.base.name` attribute.
 ///
 /// ## Notes
 ///
