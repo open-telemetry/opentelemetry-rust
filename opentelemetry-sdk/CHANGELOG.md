@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Default SDK Resource construction now falls back to `unknown_service` under
+  Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
+  isolation mode while preserving the normal
+  `unknown_service:<process.executable.name>` fallback outside Miri.
+
 ## 0.32.1
 
 Released 2026-May-23

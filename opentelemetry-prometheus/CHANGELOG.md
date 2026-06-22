@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Replace `without_scope_info` with `scope_info_enabled` to configure Prometheus instrumentation scope labels, inverting the option from disabling scope info to enabling it. Before this change, the exporter emitted an `otel_scope_info` metric and only added `otel_scope_name`/`otel_scope_version` labels to metric points. Now scope info is enabled by default on metric points with `otel_scope_name`, `otel_scope_version`, `otel_scope_schema_url`, and scope attributes prefixed with `otel_scope_`; setting `scope_info_enabled(false)` suppresses those labels. [#3503](https://github.com/open-telemetry/opentelemetry-rust/pull/3503)
+
 ## 0.32.0
 
 Released 2026-May-08
