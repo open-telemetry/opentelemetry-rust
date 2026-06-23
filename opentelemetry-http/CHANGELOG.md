@@ -2,6 +2,13 @@
 
 ## vNext
 
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
+  `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a
+  custom `reqwest::Client` with a `rustls::ClientConfig` containing
+  `rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())`, then supply it
+  to the exporter with `with_http_client()`.
+
 ## 0.32.0
 
 Released 2026-May-08
