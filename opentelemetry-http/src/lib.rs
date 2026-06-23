@@ -90,11 +90,16 @@ pub trait HttpClient: Debug + Send + Sync {
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
+#[cfg(any(feature = "reqwest", feature = "hyper"))]
+const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
+
 #[cfg(feature = "reqwest")]
 mod reqwest {
     use opentelemetry::otel_debug;
 
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use super::{
+        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+    };
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
@@ -102,10 +107,26 @@ mod reqwest {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
+            let capacity = response
+                .content_length()
+                .unwrap_or(0)
+                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+
+            let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
+
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
+            while let Some(chunk) = response.chunk().await? {
+                if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                    let mut http_response = Response::builder().status(status).body(Bytes::new())?;
+                    *http_response.headers_mut() = headers;
+                    return Ok(http_response);
+                }
+                body_bytes.extend_from_slice(&chunk);
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes().await?)?;
+                .status(status)
+                .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -117,13 +138,28 @@ mod reqwest {
     #[async_trait]
     impl HttpClient for reqwest::blocking::Client {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
+            use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
+            let capacity = response
+                .content_length()
+                .unwrap_or(0)
+                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
+            let mut body_bytes = Vec::with_capacity(capacity);
+            response
+                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                .read_to_end(&mut body_bytes)?;
+            if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                let mut http_response = Response::builder().status(status).body(Bytes::new())?;
+                *http_response.headers_mut() = headers;
+                return Ok(http_response);
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes()?)?;
+                .status(status)
+                .body(Bytes::from(body_bytes))?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -133,7 +169,9 @@ mod reqwest {
 
 #[cfg(feature = "hyper")]
 pub mod hyper {
-    use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
+    use super::{
+        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+    };
     use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
@@ -200,11 +238,31 @@ pub mod hyper {
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
             let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
+            let capacity = response
+                .body()
+                .size_hint()
+                .upper()
+                .unwrap_or(0)
+                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+            let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
-
+            let mut body = response.into_body();
+            while let Some(frame) = body.frame().await {
+                let frame = frame?;
+                if let Ok(chunk) = frame.into_data() {
+                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                        let mut http_response =
+                            Response::builder().status(status).body(Bytes::new())?;
+                        *http_response.headers_mut() = headers;
+                        return Ok(http_response);
+                    }
+                    body_bytes.extend_from_slice(&chunk);
+                }
+            }
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.into_body().collect().await?.to_bytes())?;
+                .status(status)
+                .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response.error_for_status()?)
@@ -355,5 +413,66 @@ mod tests {
 
         assert!(new_carrier.capacity() >= initial_capacity);
         assert!(new_carrier.capacity() >= 5);
+    }
+}
+
+#[cfg(all(test, feature = "reqwest"))]
+mod body_limit_tests {
+    use super::MAX_RESPONSE_BODY_BYTES;
+    use crate::HttpClient;
+    use bytes::Bytes;
+    use http::Request;
+    use std::net::SocketAddr;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    async fn start_server(body_size: usize) -> SocketAddr {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 1024];
+                let _ = socket.read(&mut buf).await;
+
+                let body = vec![b'a'; body_size];
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+
+                let _ = socket.write_all(response.as_bytes()).await;
+                let _ = socket.write_all(&body).await;
+                let _ = socket.shutdown().await;
+            }
+        });
+
+        addr
+    }
+
+    #[tokio::test]
+    async fn test_body_within_limit() {
+        let addr = start_server(100).await;
+        let client = reqwest::Client::new();
+        let request = Request::builder()
+            .method("POST")
+            .uri(format!("http://{}/", addr))
+            .body(Bytes::new())
+            .unwrap();
+        let response = client.send_bytes(request).await.unwrap();
+        assert_eq!(response.body().len(), 100);
+    }
+
+    #[tokio::test]
+    async fn test_body_exceeds_limit() {
+        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+        let client = reqwest::Client::new();
+        let request = Request::builder()
+            .method("POST")
+            .uri(format!("http://{}/", addr))
+            .body(Bytes::new())
+            .unwrap();
+        let result = client.send_bytes(request).await.unwrap();
+        assert_eq!(result.body().len(), 0);
     }
 }
