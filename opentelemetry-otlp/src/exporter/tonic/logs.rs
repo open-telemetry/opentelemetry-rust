@@ -25,6 +25,7 @@ pub(crate) struct TonicLogsClient {
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    #[cfg_attr(not(feature = "internal-logs"), allow(dead_code))]
     component_name: String,
 }
 

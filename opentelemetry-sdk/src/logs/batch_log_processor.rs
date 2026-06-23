@@ -155,6 +155,13 @@ pub struct BatchLogProcessor {
     // Format: "batching_log_processor/<index>". Always present, independent of
     // the experimental_metrics_bound_instruments feature flag because the
     // shutdown event (otel.sdk.component.shutdown) needs it unconditionally.
+    #[cfg_attr(
+        not(any(
+            feature = "internal-logs",
+            feature = "experimental_metrics_bound_instruments"
+        )),
+        allow(dead_code)
+    )]
     component_name: String,
 
     // Self-diagnostics: otel.sdk.processor.log.processed counter.
