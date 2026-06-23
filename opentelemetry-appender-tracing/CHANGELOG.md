@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Add optional tracing span name enrichment under the
+  `experimental_span_attributes` feature. Enable with
+  `OpenTelemetryTracingBridge::builder().with_tracing_span_name(<attribute-key>)`
+  by setting a user-chosen attribute key for the span name.
+
 ## 0.32.0
 
 Released 2026-May-08
