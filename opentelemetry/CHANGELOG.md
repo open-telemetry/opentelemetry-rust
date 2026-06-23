@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **Added** `BoundGauge<T>` type and `Gauge::bind()` method, extending the
+  experimental bound-instrument API (previously available for `Counter` and
+  `Histogram`) to `Gauge`. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
+
 ## 0.32.0
 
 Released 2026-May-08
