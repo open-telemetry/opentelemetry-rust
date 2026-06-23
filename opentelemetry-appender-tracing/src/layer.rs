@@ -395,7 +395,7 @@ where
             logger: provider.logger(""),
             _phantom: Default::default(),
             #[cfg(feature = "experimental_span_attributes")]
-            span_attribute_allowlist: None,
+            span_attributes: None,
         }
     }
 
