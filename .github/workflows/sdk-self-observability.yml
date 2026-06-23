@@ -1,0 +1,94 @@
+name: SDK Self-Observability Live Check
+
+# Validates that self-observability telemetry emitted by the OpenTelemetry
+# SDK (metrics about its own internal state) complies with the published
+# semantic conventions. Tracked by:
+# https://github.com/open-telemetry/opentelemetry-rust/issues/3553
+
+env:
+  CI: true
+  WEAVER_VERSION: v0.24.0
+  # Pin to a release that contains the otel.sdk.* metric definitions.
+  SEMCONV_REGISTRY: 'https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.42.0.tar.gz[model]'
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'opentelemetry-sdk/**'
+      - 'opentelemetry-otlp/**'
+      - 'examples/self-obs-live-check/**'
+      - '.github/workflows/sdk-self-observability.yml'
+  merge_group:
+  push:
+    branches:
+      - main
+    paths:
+      - 'opentelemetry-sdk/**'
+      - 'opentelemetry-otlp/**'
+      - 'examples/self-obs-live-check/**'
+      - '.github/workflows/sdk-self-observability.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal --no-self-update
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: self-obs-live-check-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build live-check app
+        run: cargo build --release -p self-obs-live-check
+
+      - name: Setup weaver
+        uses: open-telemetry/weaver/.github/actions/setup-weaver@v0.24.0
+        with:
+          version: ${{ env.WEAVER_VERSION }}
+
+      - name: Start weaver live-check
+        id: live-check
+        uses: open-telemetry/weaver/.github/actions/weaver-live-check-start@v0.24.0
+        with:
+          registry: ${{ env.SEMCONV_REGISTRY }}
+
+      - name: Run live-check app
+        env:
+          OTEL_METRIC_EXPORT_INTERVAL: '2000'
+          OTEL_BSP_SCHEDULE_DELAY: '1000'
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ steps.live-check.outputs.otlp-grpc-endpoint }}
+        run: |
+          set -euo pipefail
+          ./target/release/self-obs-live-check > "${{ steps.live-check.outputs.state-dir }}/app.log" 2>&1
+          echo "App exited cleanly"
+
+      - name: Stop weaver live-check
+        if: always()
+        uses: open-telemetry/weaver/.github/actions/weaver-live-check-stop@v0.24.0
+        with:
+          fail-on: violation
+
+      - name: Upload live-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-self-obs-live-check
+          path: ${{ steps.live-check.outputs.state-dir }}
+          if-no-files-found: warn
