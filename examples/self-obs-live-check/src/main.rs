@@ -42,7 +42,18 @@ async fn main() {
     // Wire tracing -> OTel logs so we can emit log records via tracing macros
     let otel_layer =
         opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge::new(&logger_provider);
+
+    // Only route logs from our app and opentelemetry crates to OTel.
+    // Without this filter, internal tracing events from h2/tonic/hyper
+    // (the gRPC transport) leak through the bridge and produce weaver
+    // violations for attributes like `conn`, `frame`, `stream.id` that
+    // don't exist in the semconv registry.
+    let filter = tracing_subscriber::EnvFilter::new(
+        "self_obs_live_check=trace,opentelemetry=trace,opentelemetry_sdk=trace,opentelemetry_otlp=trace",
+    );
+
     tracing_subscriber::registry()
+        .with(filter)
         .with(otel_layer)
         .with(tracing_subscriber::fmt::layer().with_target(true))
         .init();
