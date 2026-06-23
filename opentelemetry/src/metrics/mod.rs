@@ -7,7 +7,8 @@ mod meter;
 pub mod noop;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub use instruments::{
-    counter::BoundCounter, gauge::BoundGauge, histogram::BoundHistogram, BoundSyncInstrument,
+    counter::BoundCounter, gauge::BoundGauge, histogram::BoundHistogram,
+    up_down_counter::BoundUpDownCounter, BoundSyncInstrument,
 };
 pub use instruments::{
     counter::{Counter, ObservableCounter},
