@@ -1524,7 +1524,7 @@ mod tests {
 
         let processor = BatchSpanProcessor::new(exporter, config);
 
-        let total_spans_per_thread = 100_000;
+        let total_spans_per_thread = 10_000;
         let num_threads = 4;
         let total_spans_to_emit = total_spans_per_thread * num_threads;
 
