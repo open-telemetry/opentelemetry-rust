@@ -1,19 +1,20 @@
 // Purpose-built binary for the sdk-self-observability CI workflow.
 //
 // Exercises the SDK's self-observability metrics by:
-//   1. Creating a MeterProvider (so the SDK can emit metrics about itself)
-//   2. Creating a LoggerProvider with a BatchLogProcessor + OTLP exporter
+//   1. Creating a MeterProvider whose OTLP exporter points at weaver
+//   2. Creating a LoggerProvider with a BatchLogProcessor (no-op exporter)
 //   3. Emitting log records (exercises otel.sdk.log.created + otel.sdk.processor.log.processed)
 //   4. Calling shutdown (exercises metrics flush + future shutdown event)
 //
-// The OTLP endpoint is taken from OTEL_EXPORTER_OTLP_ENDPOINT (set by CI
-// to point at the weaver live-check listener). Metrics and logs both go
-// to the same endpoint.
+// Only METRICS go to weaver (for live-check validation). Log records flow
+// through the processor pipeline (to generate the self-obs metrics) but
+// are NOT exported to weaver — they would fail validation because they
+// carry app-specific attributes the semconv registry doesn't declare.
 
 use opentelemetry::global;
-use opentelemetry_otlp::{LogExporter, MetricExporter};
+use opentelemetry_otlp::MetricExporter;
 use opentelemetry_sdk::{
-    logs::SdkLoggerProvider,
+    logs::{InMemoryLogExporter, SdkLoggerProvider},
     metrics::{PeriodicReader, SdkMeterProvider},
     Resource,
 };
@@ -23,7 +24,7 @@ const SERVICE_NAME: &str = "self-obs-live-check";
 
 #[tokio::main]
 async fn main() {
-    // --- MeterProvider (SDK uses this internally for self-obs metrics) ---
+    // --- MeterProvider: exports metrics to weaver via OTLP gRPC ---
     let metric_exporter = MetricExporter::builder().with_tonic().build().unwrap();
     let reader = PeriodicReader::builder(metric_exporter).build();
     let meter_provider = SdkMeterProvider::builder()
@@ -32,28 +33,18 @@ async fn main() {
         .build();
     global::set_meter_provider(meter_provider.clone());
 
-    // --- LoggerProvider with OTLP exporter (self-obs target) ---
-    let log_exporter = LogExporter::builder().with_tonic().build().unwrap();
+    // --- LoggerProvider: logs pass through the BLP (generating self-obs
+    // metrics) but export to an in-memory sink, NOT to weaver. ---
+    let log_exporter = InMemoryLogExporter::default();
     let logger_provider = SdkLoggerProvider::builder()
         .with_resource(Resource::builder().with_service_name(SERVICE_NAME).build())
         .with_batch_exporter(log_exporter)
         .build();
 
-    // Wire tracing -> OTel logs so we can emit log records via tracing macros
+    // Wire tracing -> OTel logs
     let otel_layer =
         opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge::new(&logger_provider);
-
-    // Only route logs from our app and opentelemetry crates to OTel.
-    // Without this filter, internal tracing events from h2/tonic/hyper
-    // (the gRPC transport) leak through the bridge and produce weaver
-    // violations for attributes like `conn`, `frame`, `stream.id` that
-    // don't exist in the semconv registry.
-    let filter = tracing_subscriber::EnvFilter::new(
-        "self_obs_live_check=trace,opentelemetry=trace,opentelemetry_sdk=trace,opentelemetry_otlp=trace",
-    );
-
     tracing_subscriber::registry()
-        .with(filter)
         .with(otel_layer)
         .with(tracing_subscriber::fmt::layer().with_target(true))
         .init();

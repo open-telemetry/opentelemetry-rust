@@ -80,10 +80,64 @@ jobs:
           echo "App exited cleanly"
 
       - name: Stop weaver live-check
+        id: weaver-stop
         if: always()
         uses: open-telemetry/weaver/.github/actions/weaver-live-check-stop@v0.24.0
         with:
           fail-on: violation
+
+      - name: Print live-check findings
+        if: always()
+        run: |
+          REPORT="${{ steps.weaver-stop.outputs.report-path }}"
+          if [ ! -s "$REPORT" ]; then
+            echo "No report found at $REPORT"
+            exit 0
+          fi
+          echo "## Live-check findings"
+          python3 -c "
+          import json, sys
+          report = json.load(open('$REPORT'))
+          stats = report.get('statistics', {})
+          levels = stats.get('advice_level_counts', {})
+          print(f'Total advisories: {stats.get(\"total_advisories\",0)}')
+          print(f'  violations: {levels.get(\"violation\",0)}, improvements: {levels.get(\"improvement\",0)}, info: {levels.get(\"information\",0)}')
+          print()
+          if levels.get('violation', 0) == 0:
+              print('No violations found.')
+              sys.exit(0)
+          print('Violations:')
+          seen = set()
+          for s in report.get('samples', []):
+              for sig in ['metric', 'log']:
+                  item = s.get(sig)
+                  if not item: continue
+                  name = item.get('name', item.get('metric_name', '?'))
+                  for dp in item.get('data_points', [{}]):
+                      for attr in dp.get('attributes', []):
+                          for adv in attr.get('live_check_result', {}).get('all_advice', []):
+                              if adv.get('level') == 'violation':
+                                  msg = adv.get('message','')
+                                  key = (name, msg)
+                                  if key not in seen:
+                                      seen.add(key)
+                                      print(f'  ::error::{sig}={name}: {msg}')
+                  for attr in item.get('attributes', []):
+                      for adv in attr.get('live_check_result', {}).get('all_advice', []):
+                          if adv.get('level') == 'violation':
+                              msg = adv.get('message','')
+                              key = (name, msg)
+                              if key not in seen:
+                                  seen.add(key)
+                                  print(f'  ::error::{sig}={name}: {msg}')
+                  for adv in item.get('live_check_result', {}).get('all_advice', []):
+                      if adv.get('level') == 'violation':
+                          msg = adv.get('message','')
+                          key = (name, msg)
+                          if key not in seen:
+                              seen.add(key)
+                              print(f'  ::error::{sig}={name}: {msg}')
+          "
 
       - name: Upload live-check report
         if: always()
