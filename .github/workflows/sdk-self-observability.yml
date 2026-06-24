@@ -103,40 +103,52 @@ jobs:
           print(f'Total advisories: {stats.get(\"total_advisories\",0)}')
           print(f'  violations: {levels.get(\"violation\",0)}, improvements: {levels.get(\"improvement\",0)}, info: {levels.get(\"information\",0)}')
           print()
-          if levels.get('violation', 0) == 0:
-              print('No violations found.')
-              sys.exit(0)
-          print('Violations:')
+
+          # Collect all unique findings by level
+          findings = []
           seen = set()
           for s in report.get('samples', []):
               for sig in ['metric', 'log']:
                   item = s.get(sig)
                   if not item: continue
                   name = item.get('name', item.get('metric_name', '?'))
+                  sources = []
                   for dp in item.get('data_points', [{}]):
-                      for attr in dp.get('attributes', []):
-                          for adv in attr.get('live_check_result', {}).get('all_advice', []):
-                              if adv.get('level') == 'violation':
-                                  msg = adv.get('message','')
-                                  key = (name, msg)
-                                  if key not in seen:
-                                      seen.add(key)
-                                      print(f'  ::error::{sig}={name}: {msg}')
-                  for attr in item.get('attributes', []):
+                      sources.extend(dp.get('attributes', []))
+                  sources.extend(item.get('attributes', []))
+                  for attr in sources:
                       for adv in attr.get('live_check_result', {}).get('all_advice', []):
-                          if adv.get('level') == 'violation':
-                              msg = adv.get('message','')
-                              key = (name, msg)
-                              if key not in seen:
-                                  seen.add(key)
-                                  print(f'  ::error::{sig}={name}: {msg}')
-                  for adv in item.get('live_check_result', {}).get('all_advice', []):
-                      if adv.get('level') == 'violation':
                           msg = adv.get('message','')
                           key = (name, msg)
                           if key not in seen:
                               seen.add(key)
-                              print(f'  ::error::{sig}={name}: {msg}')
+                              findings.append((adv.get('level','?'), sig, name, msg))
+                  for adv in item.get('live_check_result', {}).get('all_advice', []):
+                      msg = adv.get('message','')
+                      key = (name, msg)
+                      if key not in seen:
+                          seen.add(key)
+                          findings.append((adv.get('level','?'), sig, name, msg))
+
+          # Print violations as errors
+          violations = [f for f in findings if f[0] == 'violation']
+          if violations:
+              print('Violations:')
+              for lvl, sig, name, msg in violations:
+                  print(f'  ::error::{sig}={name}: {msg}')
+              print()
+          else:
+              print('No violations found.')
+
+          # Print up to 5 improvements/info as notices (full report in artifact)
+          others = [f for f in findings if f[0] in ('improvement', 'information')]
+          if others:
+              shown = others[:5]
+              print(f'Top findings ({len(shown)} of {len(others)}, see report artifact for full list):')
+              for lvl, sig, name, msg in shown:
+                  print(f'  [{lvl}] {sig}={name}: {msg}')
+              if len(others) > 5:
+                  print(f'  ... and {len(others) - 5} more.')
           "
 
       - name: Upload live-check report
