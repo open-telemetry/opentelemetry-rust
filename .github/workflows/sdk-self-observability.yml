@@ -94,61 +94,73 @@ jobs:
             echo "No report found at $REPORT"
             exit 0
           fi
-          echo "## Live-check findings"
           python3 -c "
           import json, sys
+
           report = json.load(open('$REPORT'))
           stats = report.get('statistics', {})
           levels = stats.get('advice_level_counts', {})
-          print(f'Total advisories: {stats.get(\"total_advisories\",0)}')
-          print(f'  violations: {levels.get(\"violation\",0)}, improvements: {levels.get(\"improvement\",0)}, info: {levels.get(\"information\",0)}')
-          print()
+          total = stats.get('total_advisories', 0)
+          violations = levels.get('violation', 0)
+          improvements = levels.get('improvement', 0)
+          info = levels.get('information', 0)
 
-          # Collect all unique findings by level
-          findings = []
-          seen = set()
-          for s in report.get('samples', []):
-              for sig in ['metric', 'log']:
-                  item = s.get(sig)
-                  if not item: continue
-                  name = item.get('name', item.get('metric_name', '?'))
-                  sources = []
-                  for dp in item.get('data_points', [{}]):
-                      sources.extend(dp.get('attributes', []))
-                  sources.extend(item.get('attributes', []))
-                  for attr in sources:
-                      for adv in attr.get('live_check_result', {}).get('all_advice', []):
+          # --- Step summary (markdown table on workflow page) ---
+          with open('$GITHUB_STEP_SUMMARY', 'a') as summary:
+              summary.write('## SDK Self-Observability Live Check\n\n')
+              summary.write(f'Total advisories: {total} · ')
+              summary.write(f'violations: {violations} · improvements: {improvements} · info: {info}\n\n')
+
+              # Collect unique findings
+              findings = []
+              seen = set()
+              for s in report.get('samples', []):
+                  for sig in ['metric', 'log']:
+                      item = s.get(sig)
+                      if not item: continue
+                      name = item.get('name', item.get('metric_name', '?'))
+                      sources = []
+                      for dp in item.get('data_points', [{}]):
+                          sources.extend(dp.get('attributes', []))
+                      sources.extend(item.get('attributes', []))
+                      for attr in sources:
+                          for adv in attr.get('live_check_result', {}).get('all_advice', []):
+                              msg = adv.get('message','')
+                              key = (name, msg)
+                              if key not in seen:
+                                  seen.add(key)
+                                  findings.append((adv.get('level','?'), sig, name, msg))
+                      for adv in item.get('live_check_result', {}).get('all_advice', []):
                           msg = adv.get('message','')
                           key = (name, msg)
                           if key not in seen:
                               seen.add(key)
                               findings.append((adv.get('level','?'), sig, name, msg))
-                  for adv in item.get('live_check_result', {}).get('all_advice', []):
-                      msg = adv.get('message','')
-                      key = (name, msg)
-                      if key not in seen:
-                          seen.add(key)
-                          findings.append((adv.get('level','?'), sig, name, msg))
 
-          # Print violations as errors
-          violations = [f for f in findings if f[0] == 'violation']
+              if findings:
+                  summary.write('| Level | Signal | Name | Finding |\n')
+                  summary.write('| --- | --- | --- | --- |\n')
+                  for lvl, sig, name, msg in sorted(findings, key=lambda f: {'violation':0,'improvement':1,'information':2}.get(f[0],3)):
+                      summary.write(f'| {lvl} | {sig} | \`{name}\` | {msg} |\n')
+              else:
+                  summary.write('No findings.\n')
+
+          # --- CI log output (concise) ---
+          print(f'Live-check: {total} advisories ({violations} violations, {improvements} improvements, {info} info)')
           if violations:
-              print('Violations:')
-              for lvl, sig, name, msg in violations:
-                  print(f'  ::error::{sig}={name}: {msg}')
               print()
+              for lvl, sig, name, msg in findings:
+                  if lvl == 'violation':
+                      print(f'::error::{sig}={name}: {msg}')
           else:
-              print('No violations found.')
-
-          # Print up to 5 improvements/info as notices (full report in artifact)
-          others = [f for f in findings if f[0] in ('improvement', 'information')]
-          if others:
-              shown = others[:5]
-              print(f'Top findings ({len(shown)} of {len(others)}, see report artifact for full list):')
-              for lvl, sig, name, msg in shown:
-                  print(f'  [{lvl}] {sig}={name}: {msg}')
-              if len(others) > 5:
-                  print(f'  ... and {len(others) - 5} more.')
+              print('No violations.')
+              others = [f for f in findings if f[0] in ('improvement', 'information')]
+              if others:
+                  print(f'Top findings ({min(5, len(others))} of {len(others)}):')
+                  for lvl, sig, name, msg in others[:5]:
+                      print(f'  [{lvl}] {sig}={name}: {msg}')
+                  if len(others) > 5:
+                      print(f'  ... and {len(others) - 5} more (see step summary).')
           "
 
       - name: Upload live-check report
