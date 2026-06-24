@@ -122,12 +122,12 @@
 //!
 //! In future, additional types may be supported.
 //!
-//! ## Tracing Span Attribute Enrichment
+//! ## Tracing Span Enrichment
 //!
 //! By default, only the fields on the `tracing` event itself are captured. Optionally,
 //! attributes from active [`tracing::span!`](https://docs.rs/tracing/latest/tracing/macro.span.html)
-//! scopes can be copied onto each emitted log record. **"Span" here refers to a `tracing` span,
-//! not an `opentelemetry::trace::Span`.**
+//! scopes and/or the current tracing span name can be copied onto each emitted log record.
+//! **"Span" here refers to a `tracing` span, not an `opentelemetry::trace::Span`.**
 //!
 //! Gated behind the `experimental_span_attributes` cargo feature.
 //!
@@ -146,20 +146,35 @@
 //! let layer = OpenTelemetryTracingBridge::builder(&provider)
 //!     .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
 //!     .build();
+//!
+//! // Copy the current tracing span name onto log records under a user-chosen
+//! // log attribute key:
+//! let layer = OpenTelemetryTracingBridge::builder(&provider)
+//!     .with_tracing_span_name("span.name")
+//!     .build();
+//!
+//! // Span attributes and span name can also be enabled together:
+//! let layer = OpenTelemetryTracingBridge::builder(&provider)
+//!     .with_tracing_span_attributes(TracingSpanAttributes::all())
+//!     .with_tracing_span_name("span.name")
+//!     .build();
 //! ```
 //!
-//! When enrichment is enabled, attributes from all ancestor spans (root to leaf)
-//! are collected and added to the log record before the event's own fields.
+//! When span-attribute enrichment is enabled, attributes from all ancestor spans
+//! (root to leaf) are collected and added to the log record before the event's
+//! own fields. When span-name enrichment is enabled, the current (leaf) tracing
+//! span name is stored under the provided log attribute key. The argument to
+//! `with_tracing_span_name` is the log attribute key, not the span name itself.
 //!
 //! > **Note:** This crate does not convert `tracing` spans into OpenTelemetry spans.
 //! > Use [`tracing-opentelemetry`](https://docs.rs/tracing-opentelemetry/latest/tracing_opentelemetry/)
-//! > for that. The span enrichment feature here only *reads* tracing-span fields to
-//! > copy them onto log records — it does not create or manage OpenTelemetry spans.
+//! > for that. The span enrichment feature here only *reads* tracing-span fields and
+//! > metadata to copy them onto log records — it does not create or manage OpenTelemetry spans.
 //!
 //! ## Feature Flags
 //!
-//! - `experimental_span_attributes`: Enables tracing-span attribute enrichment
-//!   (`TracingSpanAttributes`, `with_tracing_span_attributes`).
+//! - `experimental_span_attributes`: Enables tracing-span enrichment
+//!   (`TracingSpanAttributes`, `with_tracing_span_attributes`, `with_tracing_span_name`).
 //! - `experimental_metadata_attributes`: Adds source code metadata (`code.filepath`,
 //!   `code.filename`, `code.namespace`, `code.lineno`) as log record attributes.
 //!
