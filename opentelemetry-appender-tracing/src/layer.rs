@@ -378,7 +378,7 @@ where
     /// Creates a bridge using the default OpenTelemetry logger scope.
     ///
     /// The default scope uses an empty scope name for the appender logger.
-    /// Use [`Self::builder_with_scope`] to provide a
+    /// Use [`Self::builder_with_scope_attributes`] to provide a
     /// custom [`InstrumentationScope`].
     pub fn new(provider: &P) -> Self {
         Self::builder(provider).build()
@@ -401,7 +401,7 @@ where
 
     /// Creates a builder that uses a custom OpenTelemetry [`InstrumentationScope`]
     /// for the appender logger.
-    pub fn builder_with_scope(
+    pub fn builder_with_scope_attributes(
         provider: &P,
         scope: InstrumentationScope,
     ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
@@ -952,8 +952,11 @@ mod tests {
             .with_attributes([KeyValue::new("scope-key", "scope-value")])
             .build();
         let subscriber = tracing_subscriber::registry().with(
-            layer::OpenTelemetryTracingBridge::builder_with_scope(&logger_provider, scope.clone())
-                .build(),
+            layer::OpenTelemetryTracingBridge::builder_with_scope_attributes(
+                &logger_provider,
+                scope.clone(),
+            )
+            .build(),
         );
 
         let _guard = tracing::subscriber::set_default(subscriber);
