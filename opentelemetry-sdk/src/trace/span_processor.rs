@@ -583,17 +583,20 @@ impl SpanProcessor for BatchSpanProcessor {
 
     /// Handles span end.
     fn on_end(&self, span: SpanData) {
+        // Count the span before enqueueing it so that a concurrent
+        // force_flush()/shutdown() drain never observes an
+        // enqueued-but-uncounted span and misses it (issue #3453). If the
+        // send fails, the increment is reverted in the error arms below.
+        let previous_batch_size = self.current_batch_size.fetch_add(1, Ordering::AcqRel);
         let result = self.span_sender.try_send(span);
 
         // match for result and handle each separately
         match result {
             Ok(_) => {
                 // Successfully sent the span to the data channel.
-                // Increment the current batch size and check if it has reached
-                // the max export batch size.
-                if self.current_batch_size.fetch_add(1, Ordering::AcqRel) + 1
-                    >= self.max_export_batch_size
-                {
+                // Check if the current batch size has reached the max export
+                // batch size.
+                if previous_batch_size + 1 >= self.max_export_batch_size {
                     // Check if the a control message for exporting spans is
                     // already sent to the worker thread. If not, send a control
                     // message to export spans. `export_span_message_sent` is set
@@ -630,6 +633,8 @@ impl SpanProcessor for BatchSpanProcessor {
                 }
             }
             Err(std::sync::mpsc::TrySendError::Full(_)) => {
+                // The span never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
                 // Increment dropped spans count. The first time we have to drop
                 // a span, emit a warning.
                 if self.dropped_spans_count.fetch_add(1, Ordering::Relaxed) == 0 {
@@ -638,6 +643,8 @@ impl SpanProcessor for BatchSpanProcessor {
                 }
             }
             Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
+                // The span never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
                 // Given background thread is the only receiver, and it's
                 // disconnected, it indicates the thread is shutdown
                 otel_warn!(
@@ -1332,6 +1339,216 @@ mod tests {
         assert!(
             receiver.try_recv().is_ok(),
             "one span should remain queued for a later export cycle"
+        );
+    }
+
+    #[test]
+    fn batchspanprocessor_drain_handles_counted_but_not_yet_enqueued_spans() {
+        // Since on_end() increments `current_batch_size` before enqueueing
+        // (issue #3453), a concurrent drain can observe a counter that is
+        // higher than the channel depth. The drain must export what is
+        // available, keep the surplus count intact (no underflow), and pick
+        // the late span up on a later cycle.
+        let exporter = MockSpanExporter::new();
+        let exported_spans = exporter.exported_spans.clone();
+        let (sender, receiver) = std::sync::mpsc::sync_channel(4);
+        // Two spans counted, but only one has landed in the channel so far.
+        let current_batch_size = AtomicUsize::new(2);
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(4)
+            .build();
+        let mut spans = Vec::with_capacity(config.max_export_batch_size);
+        let mut last_export_time = Instant::now();
+
+        sender.send(create_test_span("landed")).unwrap();
+
+        let result = BatchSpanProcessor::get_spans_and_export(
+            &receiver,
+            &exporter,
+            &mut spans,
+            &mut last_export_time,
+            &current_batch_size,
+            &config,
+        );
+
+        assert!(result.is_ok(), "export should succeed");
+        assert_eq!(
+            exported_spans.lock().unwrap().len(),
+            1,
+            "only the span that landed in the channel can be exported"
+        );
+        assert_eq!(
+            current_batch_size.load(Ordering::Relaxed),
+            1,
+            "the count of the not-yet-enqueued span must survive the drain"
+        );
+
+        // The late span lands; a later drain cycle must export it and settle
+        // the counter back to zero.
+        sender.send(create_test_span("late")).unwrap();
+        let result = BatchSpanProcessor::get_spans_and_export(
+            &receiver,
+            &exporter,
+            &mut spans,
+            &mut last_export_time,
+            &current_batch_size,
+            &config,
+        );
+
+        assert!(result.is_ok(), "export should succeed");
+        assert_eq!(
+            exported_spans.lock().unwrap().len(),
+            2,
+            "the late span should be exported on the next cycle"
+        );
+        assert_eq!(
+            current_batch_size.load(Ordering::Relaxed),
+            0,
+            "counter should settle to zero once everything is exported"
+        );
+    }
+
+    #[derive(Debug)]
+    struct BlockingExporter {
+        exported_count: Arc<AtomicUsize>,
+        export_started: std::sync::mpsc::SyncSender<()>,
+        release: Arc<Mutex<std::sync::mpsc::Receiver<()>>>,
+    }
+
+    impl SpanExporter for BlockingExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            let _ = self.export_started.try_send(());
+            // Block until the test releases the export.
+            let _ = self.release.lock().unwrap().recv();
+            self.exported_count.fetch_add(batch.len(), Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn batchspanprocessor_on_end_reverts_count_when_queue_full() {
+        let (started_sender, started_receiver) = std::sync::mpsc::sync_channel(8);
+        let (release_sender, release_receiver) = std::sync::mpsc::sync_channel(8);
+        let exported_count = Arc::new(AtomicUsize::new(0));
+        let exporter = BlockingExporter {
+            exported_count: exported_count.clone(),
+            export_started: started_sender,
+            release: Arc::new(Mutex::new(release_receiver)),
+        };
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(4)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        // Fill the queue to the export threshold; the worker drains all four
+        // spans and blocks inside export().
+        for _ in 0..4 {
+            processor.on_end(create_test_span("first_batch"));
+        }
+        started_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("worker should start exporting the first batch");
+
+        // While the worker is blocked, refill the queue and overflow it by
+        // two spans, which must be dropped and their counts reverted.
+        for _ in 0..4 {
+            processor.on_end(create_test_span("second_batch"));
+        }
+        for _ in 0..2 {
+            processor.on_end(create_test_span("overflow"));
+        }
+
+        assert_eq!(processor.dropped_spans_count.load(Ordering::Relaxed), 2);
+        // 4 spans in-flight in the blocked export (not yet subtracted) plus
+        // 4 spans queued. Without the queue-full revert this would read 10.
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            8,
+            "dropped spans must not remain counted as pending"
+        );
+
+        // Release the in-flight export and the one triggered by force_flush.
+        release_sender.send(()).unwrap();
+        release_sender.send(()).unwrap();
+        let flush_result = processor.force_flush();
+        assert!(flush_result.is_ok(), "force flush failed unexpectedly");
+
+        assert_eq!(
+            exported_count.load(Ordering::SeqCst),
+            8,
+            "all spans that entered the queue must be exported"
+        );
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            0,
+            "counter should settle to zero; a leftover value indicates the \
+             queue-full path did not revert its increment"
+        );
+    }
+
+    /// A slow exporter that counts the number of spans received.
+    /// Used for stress testing the BatchSpanProcessor.
+    #[derive(Debug)]
+    struct CountingSpanExporter {
+        count: Arc<AtomicUsize>,
+    }
+
+    impl SpanExporter for CountingSpanExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            self.count.fetch_add(batch.len(), Ordering::SeqCst);
+            // Simulate slow export to cause queue buildup and drops
+            std::thread::sleep(Duration::from_millis(20));
+            Ok(())
+        }
+    }
+
+    /// Stress test that verifies all spans are accounted for.
+    /// With multiple threads pushing spans faster than the exporter can
+    /// handle, some spans will inevitably be dropped. This test validates:
+    /// total_spans_sent == spans_received_by_exporter + spans_dropped
+    #[test]
+    fn batchspanprocessor_all_spans_accounted_for() {
+        let count = Arc::new(AtomicUsize::new(0));
+        let exporter = CountingSpanExporter {
+            count: count.clone(),
+        };
+
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_millis(5))
+            .build();
+
+        let processor = BatchSpanProcessor::new(exporter, config);
+
+        let total_spans_per_thread = 10_000;
+        let num_threads = 4;
+        let total_spans_to_emit = total_spans_per_thread * num_threads;
+
+        std::thread::scope(|s| {
+            for _ in 0..num_threads {
+                s.spawn(|| {
+                    for _ in 0..total_spans_per_thread {
+                        processor.on_end(create_test_span("stress test span"));
+                    }
+                });
+            }
+        });
+
+        // Shutdown the processor to ensure all buffered spans are flushed
+        processor.shutdown().unwrap();
+
+        let spans_received = count.load(Ordering::SeqCst);
+        let spans_dropped = processor.dropped_spans_count.load(Ordering::SeqCst);
+
+        // The invariant: every span is either received or dropped
+        assert_eq!(
+            spans_received + spans_dropped,
+            total_spans_to_emit,
+            "Spans unaccounted for! Received: {spans_received}, Dropped: {spans_dropped}, Total emitted: {total_spans_to_emit}"
         );
     }
 
