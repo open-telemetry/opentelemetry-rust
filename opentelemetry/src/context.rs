@@ -19,12 +19,17 @@ use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::marker::PhantomData;
 use std::sync::Arc;
+#[cfg(feature = "experimental_context_observer")]
+use std::sync::OnceLock;
 
 #[cfg(feature = "futures")]
 mod future_ext;
 
 #[cfg(feature = "futures")]
 pub use future_ext::{FutureExt, WithContext};
+
+#[cfg(feature = "experimental_context_observer")]
+pub use context_observer::*;
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
@@ -98,7 +103,25 @@ pub struct Context {
     pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
     suppress_telemetry: bool,
+    /// A context's observer view of this [Context].
+    ///
+    /// The main application for observers is to share information from the current context with
+    /// external readers (e.g. a full host eBPF profiler). In that case, the observer will attach
+    /// and detach some data on context events using its own mechanism. The shared data has no
+    /// reason to match our internal representation ([Context]).
+    ///
+    /// [observer_state] makes it possible to store the observer's view of the context alongside a
+    /// [Context] value, such that it can be attached and detached on context events.
+    #[cfg(feature = "experimental_context_observer")]
+    observer_cx_view: OnceLock<Arc<dyn ObserverContextView>>,
 }
+
+/// A context's observer view of a [Context]. This is basically an arbitrary data structure.
+///
+/// The `Any` supertrait lets an observer recover the concrete type it stored in the
+/// `observer_cx_view` slot (via trait upcasting to `&dyn Any` and `downcast_ref`).
+#[cfg(feature = "experimental_context_observer")]
+pub trait ObserverContextView: Any + Send + Sync {}
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
 
@@ -264,6 +287,8 @@ impl Context {
             #[cfg(feature = "trace")]
             span: self.span.clone(),
             suppress_telemetry: self.suppress_telemetry,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_cx_view: OnceLock::new(),
         }
     }
 
@@ -363,6 +388,8 @@ impl Context {
             #[cfg(feature = "trace")]
             span: self.span.clone(),
             suppress_telemetry: true,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_cx_view: OnceLock::new(),
         }
     }
 
@@ -426,12 +453,21 @@ impl Context {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
     }
 
+    /// Returns the observer's view of this context, if any.
+    #[cfg(feature = "experimental_context_observer")]
+    #[inline]
+    pub fn observer_cx_view(&self) -> &OnceLock<Arc<dyn ObserverContextView>> {
+        &self.observer_cx_view
+    }
+
     #[cfg(feature = "trace")]
     pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
         Self::map_current(|cx| Context {
             span: Some(Arc::new(value)),
             entries: cx.entries.clone(),
             suppress_telemetry: cx.suppress_telemetry,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_cx_view: OnceLock::new(),
         })
     }
 
@@ -441,6 +477,8 @@ impl Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
             suppress_telemetry: self.suppress_telemetry,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_cx_view: OnceLock::new(),
         }
     }
 }
@@ -557,6 +595,11 @@ impl ContextStack {
         // top of the [`ContextStack`] as the `current_cx`.
         let next_id = self.stack.len() + 1;
         if next_id < ContextStack::MAX_POS.into() {
+            #[cfg(feature = "experimental_context_observer")]
+            if let Some(observer) = GlobalContextObserver::get() {
+                observer.on_context_enter(&self.current_cx, &cx);
+            }
+
             let current_cx = std::mem::replace(&mut self.current_cx, cx);
             self.stack.push(Some(current_cx));
             next_id as u16
@@ -602,6 +645,11 @@ impl ContextStack {
             // empty context is always at the bottom of the stack if the
             // [`ContextStack`] is not empty.
             if let Some(Some(next_cx)) = self.stack.pop() {
+                #[cfg(feature = "experimental_context_observer")]
+                if let Some(observer) = GlobalContextObserver::get() {
+                    observer.on_context_exit(&self.current_cx, &next_cx);
+                }
+
                 // Extract and return only the span to avoid cloning the entire Context
                 #[cfg(feature = "trace")]
                 {
@@ -650,6 +698,51 @@ impl Default for ContextStack {
             current_cx: Context::default(),
             stack: Vec::with_capacity(ContextStack::INITIAL_CAPACITY),
             _marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_context_observer")]
+mod context_observer {
+    use super::*;
+
+    /// An observer trait for monitoring context transitions.
+    ///
+    /// Implementors of this trait can observe when a context is entered or exited,
+    /// allowing for custom logic to be executed during context switches.
+    pub trait ContextObserver {
+        /// Called when a context is entered, allowing observers to react to the transition
+        /// from one context (`from`) to another (`to`).
+        fn on_context_enter(&self, from: &Context, to: &Context);
+
+        /// Called when a context is exited, allowing observers to react to the transition
+        /// from one context (`from`) to another (`to`).
+        fn on_context_exit(&self, from: &Context, to: &Context);
+    }
+
+    static GLOBAL_CONTEXT_OBSERVER: OnceLock<Arc<dyn ContextObserver + Send + Sync>> =
+        OnceLock::new();
+
+    /// A global observer for context transitions.
+    ///
+    /// This struct provides static methods to set and get a global context observer.
+    #[allow(missing_debug_implementations)]
+    pub struct GlobalContextObserver;
+
+    impl GlobalContextObserver {
+        /// Sets the global context observer, logging a warning if it was already set.
+        pub fn set(observer: Arc<dyn ContextObserver + Send + Sync>) {
+            if GLOBAL_CONTEXT_OBSERVER.set(observer).is_err() {
+                otel_warn!(
+                    name: "GlobalContextObserver.SetFailed",
+                    message = "Global context observer was already set. Ignoring new observer."
+                );
+            }
+        }
+
+        /// Returns the global context observer.
+        pub(super) fn get<'a>() -> Option<&'a Arc<dyn ContextObserver + Send + Sync>> {
+            GLOBAL_CONTEXT_OBSERVER.get()
         }
     }
 }
