@@ -36,6 +36,19 @@ impl Default for Config {
             resource: Cow::Owned(Resource::builder().build()),
         };
 
+        // `OTEL_ATTRIBUTE_COUNT_LIMIT` is the general fallback for the maximum
+        // span attribute count; the span-specific
+        // `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` takes precedence when both are set.
+        // It does not affect the per-event / per-link attribute limits, which
+        // have their own defaults per the spec.
+        // See https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#attribute-limits
+        if let Some(max_attributes) = env::var("OTEL_ATTRIBUTE_COUNT_LIMIT")
+            .ok()
+            .and_then(|count_limit| u32::from_str(&count_limit).ok())
+        {
+            config.span_limits.max_attributes_per_span = max_attributes;
+        }
+
         if let Some(max_attributes_per_span) = env::var("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT")
             .ok()
             .and_then(|count_limit| u32::from_str(&count_limit).ok())
@@ -133,5 +146,69 @@ impl Default for Config {
         }
 
         config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+    use crate::trace::span_limit::{
+        DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
+        DEFAULT_MAX_ATTRIBUTES_PER_SPAN,
+    };
+
+    #[test]
+    fn otel_attribute_count_limit_sets_span_attribute_limit() {
+        temp_env::with_vars(
+            [
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", Some("64")),
+                ("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", None::<&str>),
+            ],
+            || {
+                let config = Config::default();
+                assert_eq!(config.span_limits.max_attributes_per_span, 64);
+                // The general limit must not touch the per-event / per-link
+                // attribute limits, which keep their own defaults.
+                assert_eq!(
+                    config.span_limits.max_attributes_per_event,
+                    DEFAULT_MAX_ATTRIBUTES_PER_EVENT
+                );
+                assert_eq!(
+                    config.span_limits.max_attributes_per_link,
+                    DEFAULT_MAX_ATTRIBUTES_PER_LINK
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn span_attribute_count_limit_overrides_general_limit() {
+        temp_env::with_vars(
+            [
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", Some("64")),
+                ("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", Some("32")),
+            ],
+            || {
+                let config = Config::default();
+                assert_eq!(config.span_limits.max_attributes_per_span, 32);
+            },
+        );
+    }
+
+    #[test]
+    fn default_span_attribute_limit_when_unset() {
+        temp_env::with_vars(
+            [
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", None::<&str>),
+                ("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", None::<&str>),
+            ],
+            || {
+                let config = Config::default();
+                assert_eq!(
+                    config.span_limits.max_attributes_per_span,
+                    DEFAULT_MAX_ATTRIBUTES_PER_SPAN
+                );
+            },
+        );
     }
 }

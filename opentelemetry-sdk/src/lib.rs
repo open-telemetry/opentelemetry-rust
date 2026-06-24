@@ -94,11 +94,17 @@
 //! | `OTEL_TRACES_SAMPLER` | Sampler to use. Valid values: `always_on`, `always_off`, `traceidratio`, `parentbased_always_on`, `parentbased_always_off`, `parentbased_traceidratio`. | `parentbased_always_on` |
 //! | `OTEL_TRACES_SAMPLER_ARG` | Argument for the sampler. Used when `OTEL_TRACES_SAMPLER` is `traceidratio` or `parentbased_traceidratio`. Must be a float between 0.0 and 1.0. | `1.0` |
 //!
+//! ### General Attribute Limits
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_ATTRIBUTE_COUNT_LIMIT` | Maximum number of attributes allowed on a span. Acts as the fallback for `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT`, which takes precedence when both are set. | `128` |
+//!
 //! ### Trace: Span Limits
 //!
 //! | Variable | Description | Default |
 //! |---|---|---|
-//! | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` | Maximum number of attributes allowed on a span. | `128` |
+//! | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` | Maximum number of attributes allowed on a span. Overrides `OTEL_ATTRIBUTE_COUNT_LIMIT` when set. | `128` |
 //! | `OTEL_SPAN_EVENT_COUNT_LIMIT` | Maximum number of events allowed on a span. | `128` |
 //! | `OTEL_SPAN_LINK_COUNT_LIMIT` | Maximum number of links allowed on a span. | `128` |
 //!

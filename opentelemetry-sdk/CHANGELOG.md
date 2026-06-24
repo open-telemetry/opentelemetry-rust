@@ -5,6 +5,10 @@
 - Bound instruments are now available for `Gauge` via the new `BoundGauge<T>`
   type exposed by the `opentelemetry` crate. Requires the
   `experimental_metrics_bound_instruments` feature.
+- Added support for the `OTEL_ATTRIBUTE_COUNT_LIMIT` environment variable,
+  the spec-defined general fallback for the maximum span attribute count. The
+  span-specific `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` continues to take precedence
+  when both are set.
 - Default SDK Resource construction now falls back to `unknown_service` under
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
