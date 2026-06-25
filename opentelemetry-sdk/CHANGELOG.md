@@ -10,6 +10,7 @@
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
   `unknown_service:<process.executable.name>` fallback outside Miri.
+- Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).  
 
 ## 0.32.1
 
