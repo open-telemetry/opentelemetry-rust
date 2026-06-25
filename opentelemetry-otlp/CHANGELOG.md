@@ -2,6 +2,32 @@
 
 ## vNext
 
+- Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
+  `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
+  `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
+  Per the spec, these only apply to gRPC connections. When an endpoint has no explicit scheme,
+  `INSECURE=true` uses `http://`, `INSECURE=false` (default) uses `https://` with auto-TLS.
+  **Breaking:** Schemeless endpoints (e.g., `collector.example.com:4317`) now default to `https://`  
+  instead of being passed as-is. Set `OTEL_EXPORTER_OTLP_INSECURE=true` for plaintext connections.
+  Endpoints with an explicit scheme (e.g., `http://`, `https://`, `unix://`) are unaffected.
+  [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
+  [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0, making this feature broken for anyone resolving `reqwest >= 0.13.0`.
+  **Migration**: Use `reqwest-rustls` instead (now correctly uses `reqwest/rustls` with platform native
+  trust roots). If you specifically need Mozilla's embedded CA bundle, construct a custom client:
+  ```rust
+  let root_store = rustls::RootCertStore::from_iter(
+      webpki_roots::TLS_SERVER_ROOTS.iter().cloned(),
+  );
+  let tls_config = rustls::ClientConfig::builder()
+      .with_root_certificates(root_store)
+      .with_no_client_auth();
+  let client = reqwest::Client::builder()
+      .tls_backend_preconfigured(tls_config)
+      .build()?;
+  exporter_builder.with_http_client(client)
+  ```
 - Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).
 
 ## 0.32.0

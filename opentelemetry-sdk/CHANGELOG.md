@@ -2,6 +2,14 @@
 
 ## vNext
 
+- Bound instruments are now available for `Gauge` and `UpDownCounter` via the
+  new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
+  `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
+  feature.
+- Default SDK Resource construction now falls back to `unknown_service` under
+  Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
+  isolation mode while preserving the normal
+  `unknown_service:<process.executable.name>` fallback outside Miri.
 - Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).  
 
 ## 0.32.1

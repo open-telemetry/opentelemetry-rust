@@ -44,6 +44,9 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
 /// Protocol to use for metrics exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
+/// Whether to disable TLS for gRPC metrics exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_METRICS_INSECURE: &str = "OTEL_EXPORTER_OTLP_METRICS_INSECURE";
 /// Temporality preference for metrics, defaults to cumulative.
 pub const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
@@ -351,8 +354,10 @@ impl MetricExporter {
 mod build_tests {
     use crate::MetricExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         // Verify that `MetricExporter::builder().build()` succeeds
         // when at least one transport feature is enabled.
         let result = MetricExporter::builder().build();
