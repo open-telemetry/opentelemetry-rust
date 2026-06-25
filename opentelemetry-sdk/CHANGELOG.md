@@ -10,6 +10,13 @@
   Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
   isolation mode while preserving the normal
   `unknown_service:<process.executable.name>` fallback outside Miri.
+- Added SDK self-observability metric `otel.sdk.processor.log.processed` for
+  `BatchLogProcessor` (feature-gated behind
+  `experimental_metrics_bound_instruments`). The metric counts processed log
+  records and includes `error.type` dimensions for outcomes like
+  `queue_full` and `already_shutdown`, enabling operators to distinguish
+  successful processing from drops due to full queue or post-shutdown emits.
+  ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514))
 
 ## 0.32.1
 
