@@ -1,6 +1,6 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    InstrumentationScope, Key,
+    InstrumentationScope, Key, KeyValue,
 };
 #[cfg(feature = "experimental_span_attributes")]
 use std::borrow::Cow;
@@ -379,7 +379,7 @@ where
     ///
     /// The default scope uses an empty scope name for the appender logger.
     /// Use [`Self::builder_with_scope_attributes`] to provide a
-    /// custom [`InstrumentationScope`].
+    /// custom set of instrumentation scope attributes.
     pub fn new(provider: &P) -> Self {
         Self::builder(provider).build()
     }
@@ -399,12 +399,15 @@ where
         }
     }
 
-    /// Creates a builder that uses a custom OpenTelemetry [`InstrumentationScope`]
-    /// for the appender logger.
+    /// Creates a builder that uses custom OpenTelemetry instrumentation scope
+    /// attributes for the appender logger.
     pub fn builder_with_scope_attributes(
         provider: &P,
-        scope: InstrumentationScope,
+        attributes: impl IntoIterator<Item = KeyValue>,
     ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        let scope = InstrumentationScope::builder("")
+            .with_attributes(attributes)
+            .build();
         OpenTelemetryTracingBridgeBuilder {
             logger: provider.logger_with_scope(scope),
             _phantom: Default::default(),
@@ -940,21 +943,16 @@ mod tests {
     }
 
     #[test]
-    fn tracing_appender_with_custom_scope() {
+    fn tracing_appender_with_custom_scope_attributes() {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        let scope = InstrumentationScope::builder("test.scope")
-            .with_version("1.2.3")
-            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
-            .with_attributes([KeyValue::new("scope-key", "scope-value")])
-            .build();
         let subscriber = tracing_subscriber::registry().with(
             layer::OpenTelemetryTracingBridge::builder_with_scope_attributes(
                 &logger_provider,
-                scope.clone(),
+                [KeyValue::new("scope-key", "scope-value")],
             )
             .build(),
         );
@@ -972,14 +970,8 @@ mod tests {
             .first()
             .expect("At least one log is expected to be present.");
 
-        let instrumentation_scope = &log.instrumentation;
-        assert_eq!(instrumentation_scope.name(), "test.scope");
-        assert_eq!(instrumentation_scope.version(), Some("1.2.3"));
-        assert_eq!(
-            instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schemas/1.0.0")
-        );
-        assert!(instrumentation_scope
+        assert!(log
+            .instrumentation
             .attributes()
             .eq([KeyValue::new("scope-key", "scope-value")].iter()));
         exporter.reset();
