@@ -2,6 +2,8 @@
 
 ## vNext
 
+- `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
+  (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` type and `Gauge::bind()` method, extending the
   experimental bound-instrument API (previously available for `Counter` and
   `Histogram`) to `Gauge`. Gated behind the
