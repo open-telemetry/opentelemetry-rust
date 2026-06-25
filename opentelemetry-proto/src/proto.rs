@@ -508,5 +508,12 @@ pub mod tonic {
         pub mod v1development;
     }
 
+    /// Generated types for process context sharing.
+    #[path = ""]
+    pub mod processcontext {
+        #[path = "opentelemetry.proto.processcontext.v1development.rs"]
+        pub mod v1development;
+    }
+
     pub use crate::transform::common::tonic::Attributes;
 }
