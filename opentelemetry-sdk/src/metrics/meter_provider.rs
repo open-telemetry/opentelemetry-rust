@@ -1,7 +1,7 @@
 use core::fmt;
 use opentelemetry::{
     metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, otel_info, InstrumentationScope,
+    otel_debug, otel_error, otel_info, otel_warn, InstrumentationScope,
 };
 use std::time::Duration;
 use std::{
@@ -34,6 +34,7 @@ use super::{
 #[derive(Clone, Debug)]
 pub struct SdkMeterProvider {
     inner: Arc<SdkMeterProviderInner>,
+    component_name: String,
 }
 
 #[derive(Debug)]
@@ -115,7 +116,27 @@ impl SdkMeterProvider {
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
-        self.inner.shutdown()
+        let shutdown_start = std::time::Instant::now();
+        let result = self.inner.shutdown();
+        let duration_secs = shutdown_start.elapsed().as_secs_f64();
+        match &result {
+            Ok(()) => {
+                otel_info!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "otel.component.type" = "meter_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
+            }
+            Err(_) => {
+                otel_warn!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "error.type" = "failed",
+                    "otel.component.type" = "meter_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
+            }
+        }
+        result
     }
 
     /// shutdown with default timeout
@@ -401,6 +422,10 @@ impl MeterProviderBuilder {
             builder = format!("{:?}", &self),
         );
 
+        static INSTANCE_COUNTER: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
@@ -411,6 +436,7 @@ impl MeterProviderBuilder {
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
             }),
+            component_name: format!("meter_provider/{instance_id}"),
         };
 
         otel_debug!(
