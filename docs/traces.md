@@ -41,11 +41,11 @@ log guidance.
    *edge* spans (see #4 below for nuance). Use it primarily for logs and
    events (see [logs.md](logs.md)).
 
-4. **Bridging from `tracing::span!` to OpenTelemetry spans.** If you are
-   already using `tracing::span!` and want those spans surfaced as
-   OpenTelemetry spans, the third-party [`tracing-opentelemetry`] crate
-   provides a bridge. It is maintained outside the OpenTelemetry project
-   and is not part of this repo; we mention it here for completeness.
+4. **Bridging from `tracing::span!` to OpenTelemetry spans.** **For new
+   code, prefer the OpenTelemetry Tracing API directly (item 2).** If you
+   have an existing `tracing::span!`-heavy codebase, the third-party
+   [`tracing-opentelemetry`] crate provides a bridge. It is maintained
+   outside the OpenTelemetry project and is not part of this repo.
 
    For *internal* spans (spans that represent in-process work and never cross
    a process boundary), `tracing::span!` through this bridge produces a
@@ -55,7 +55,8 @@ log guidance.
    limitations matter primarily for *edge* spans (e.g., incoming/outgoing
    HTTP, messaging), where span kind, links, and remote parents are central
    to the OpenTelemetry data model. The bridge offers extension APIs to
-   express these concepts.
+   express these concepts, but these are a workaround, not the recommended
+   path for edge spans.
 
 ## See Also
 

@@ -8,24 +8,29 @@ This document provides guidance on leveraging OpenTelemetry logs in Rust
 applications.
 
 In short: for application logging, use [`tracing`] with the
-[`opentelemetry-appender-tracing`] appender. Existing `tracing` or `log`
-instrumentation can continue to work as-is; adopting OpenTelemetry for logs
-is primarily a setup change, not a code rewrite. For span guidance, see
-[traces.md](traces.md).
+[`opentelemetry-appender-tracing`] appender (not [`tracing-opentelemetry`],
+which bridges *spans*, not logs — see [traces.md](traces.md)). If you have
+an existing codebase using the [`log`] crate, keep using it and bridge to
+OpenTelemetry via [`opentelemetry-appender-log`]; but for **new code, use
+`tracing`**, which supports structured logging and is what OpenTelemetry
+itself uses internally. Adopting OpenTelemetry for logs is primarily a setup
+change, not a code rewrite. For span guidance, see [traces.md](traces.md).
 
 [`tracing`]: https://crates.io/crates/tracing
+[`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
+[`log`]: https://crates.io/crates/log
 [`opentelemetry-appender-tracing`]: ../opentelemetry-appender-tracing/README.md
+[`opentelemetry-appender-log`]: ../opentelemetry-appender-log/README.md
 
 ## OpenTelemetry Log Bridge API
 
-The OpenTelemetry Log Bridge API (part of the `opentelemetry` crate) is public
-and technically usable directly, but OpenTelemetry Rust deliberately does not
-advertise it as an end-user logging API. Instead, we point users at `tracing`
-and its existing ecosystem, with the Log Bridge API reserved for authoring
-appenders. Bridges for the
+Do **not** use the OpenTelemetry Log Bridge API (part of the `opentelemetry`
+crate) directly in application code. It is public only to allow authoring
+appenders that bridge existing logging frameworks into OpenTelemetry, and is
+not intended as an end-user logging API. Bridges for the
 [`tracing`](https://docs.rs/opentelemetry-appender-tracing/) and
 [`log`](https://docs.rs/opentelemetry-appender-log/) crates are already
-available.
+available; application code should emit logs via those crates.
 
 ## Instrumentation Guidance
 
@@ -53,9 +58,11 @@ available.
 
 5. **In-proc contextual enrichment via `tracing::span!`**: Use `tracing::span!`
    to attach contextual attributes (e.g. `session.id`, `request.id`) that
-   should apply to every log inside that scope. The appender supports copying
-   these span attributes onto each emitted `LogRecord` via the experimental
-   `experimental_span_attributes` cargo feature; see the
+   should apply to every log inside that scope. This is the recommended
+   pattern. The appender supports copying these span attributes onto each
+   emitted `LogRecord` via the `experimental_span_attributes` cargo feature;
+   the feature is experimental because the implementation may evolve, not
+   the pattern itself. See the
    [appender README](../opentelemetry-appender-tracing/README.md) for usage.
 
 ### Example
@@ -80,9 +87,7 @@ above and explicitly set the `name` field on every `tracing` log, each log maps 
 an OpenTelemetry Event. (Without an explicit `name`, the synthesized source-location
 string is technically present but is not a meaningful EventName.)
 
-**Note**: These are **not** mapped to Span Events. If you specifically need
-Span Events today, record them with the OpenTelemetry tracing API
-(`Span::add_event` / `add_event_with_timestamp`). Otherwise, prefer Events
+**Note**: These are **not** mapped to Span Events. Prefer Events
 (Logs with an EventName) as described above. [OTEP-4430] proposes deprecating
 the *Span Events API* in favor of Events.
 
