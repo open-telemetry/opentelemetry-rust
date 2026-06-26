@@ -43,12 +43,12 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// flush the data and the destination is unavailable). SDK authors
     /// can decide if they want to make the shutdown timeout
     /// configurable.
-    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         Ok(())
     }
     /// Shuts down the exporter with default timeout.
-    fn shutdown(&mut self) -> OTelSdkResult {
-        self.shutdown_with_timeout(Duration::from_nanos(5))
+    fn shutdown(&self) -> OTelSdkResult {
+        self.shutdown_with_timeout(Duration::from_secs(5))
     }
 
     /// This is a hint to ensure that the export of any Spans the exporter
@@ -66,7 +66,7 @@ pub trait SpanExporter: Send + Sync + Debug {
     /// implemented as a blocking API or an asynchronous API which notifies the caller via
     /// a callback or an event. OpenTelemetry client authors can decide if they want to
     /// make the flush timeout configurable.
-    fn force_flush(&mut self) -> OTelSdkResult {
+    fn force_flush(&self) -> OTelSdkResult {
         Ok(())
     }
 
@@ -82,6 +82,8 @@ pub struct SpanData {
     pub span_context: SpanContext,
     /// Span parent id
     pub parent_span_id: SpanId,
+    /// Parent span is remote flag (for span flags)
+    pub parent_span_is_remote: bool,
     /// Span kind
     pub span_kind: SpanKind,
     /// Span name

@@ -245,3 +245,31 @@ impl RuntimeChannel for TokioCurrentThread {
         )
     }
 }
+
+/// Runtime implementation for synchronous execution environments.
+///
+/// This runtime can be used when executing in a non-async environment.
+/// The runtime methods will perform their operations synchronously.
+#[cfg(feature = "experimental_async_runtime")]
+#[derive(Debug, Clone, Copy)]
+pub struct NoAsync;
+
+#[cfg(feature = "experimental_async_runtime")]
+impl Runtime for NoAsync {
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
+        std::thread::spawn(move || {
+            futures_executor::block_on(future);
+        });
+    }
+
+    // Needed because async fn would borrow `self`, violating the `'static` requirement.
+    #[allow(clippy::manual_async_fn)]
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send + 'static {
+        async move {
+            std::thread::sleep(duration);
+        }
+    }
+}

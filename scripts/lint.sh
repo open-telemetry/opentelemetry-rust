@@ -21,7 +21,7 @@ if rustup component add clippy && \
   cargo clippy --manifest-path=opentelemetry-prometheus/Cargo.toml --all-targets --all-features -- \
     -Dwarnings
 
-  cargo_feature opentelemetry "trace,metrics,logs,spec_unstable_logs_enabled,testing"
+  cargo_feature opentelemetry "trace,metrics,logs,testing"
 
   cargo_feature opentelemetry-otlp "default"
   cargo_feature opentelemetry-otlp "default,tls"

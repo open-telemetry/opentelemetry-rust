@@ -22,7 +22,7 @@ pub struct ExportProfilesServiceRequest {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportProfilesServiceResponse {
     /// The details of a partially successful export request.
     ///
@@ -36,7 +36,7 @@ pub struct ExportProfilesServiceResponse {
     /// In such cases, the `rejected_<signal>` MUST have a value of `0` and
     /// the `error_message` MUST be non-empty.
     ///
-    /// A `partial_success` message with an empty value (rejected_<signal> = 0 and
+    /// A `partial_success` message with an empty value (rejected\_<signal> = 0 and
     /// `error_message` = "") is equivalent to it not being set/present. Senders
     /// SHOULD interpret it the same way as in the full success case.
     #[prost(message, optional, tag = "1")]
@@ -45,7 +45,7 @@ pub struct ExportProfilesServiceResponse {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ExportProfilesPartialSuccess {
     /// The number of rejected profiles.
     ///
@@ -172,7 +172,7 @@ pub mod profiles_service_client {
                         format!("Service was not ready: {}", e.into()),
                     )
                 })?;
-            let codec = tonic::codec::ProstCodec::default();
+            let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/opentelemetry.proto.collector.profiles.v1development.ProfilesService/Export",
             );
@@ -318,7 +318,7 @@ pub mod profiles_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ExportSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
+                        let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
                                 accept_compression_encodings,

@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
     global::BoxedTracer,
     trace::{
@@ -11,9 +11,10 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     trace::{Sampler, SdkTracerProvider, SpanData, SpanExporter},
 };
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use std::fmt::Display;
+use std::hint::black_box;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("context");
@@ -170,7 +171,7 @@ impl SpanExporter for NoopExporter {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -179,7 +180,8 @@ criterion_group! {
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -187,4 +189,5 @@ criterion_group! {
         .measurement_time(std::time::Duration::from_secs(2));
     targets = criterion_benchmark
 }
+
 criterion_main!(benches);

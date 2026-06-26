@@ -31,6 +31,10 @@ pub use text_map_propagator::TextMapPropagator;
 pub trait Injector {
     /// Add a key and value to the underlying data.
     fn set(&mut self, key: &str, value: String);
+
+    #[allow(unused_variables)]
+    /// Hint to reserve capacity for at least `additional` more entries to be inserted.
+    fn reserve(&mut self, additional: usize) {}
 }
 
 /// Extractor provides an interface for removing fields from an underlying struct like `HashMap`
@@ -51,6 +55,11 @@ impl<S: std::hash::BuildHasher> Injector for HashMap<String, String, S> {
     /// Set a key and value in the HashMap.
     fn set(&mut self, key: &str, value: String) {
         self.insert(key.to_lowercase(), value);
+    }
+
+    /// Reserves capacity for at least `additional` more entries to be inserted.
+    fn reserve(&mut self, additional: usize) {
+        self.reserve(additional);
     }
 }
 
@@ -116,5 +125,54 @@ mod tests {
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
+    }
+
+    #[test]
+    fn hash_map_injector_reserve() {
+        let mut carrier = HashMap::new();
+
+        // Test that reserve doesn't panic and works correctly
+        Injector::reserve(&mut carrier, 10);
+
+        // Verify the HashMap still works after reserve
+        Injector::set(&mut carrier, "test_key", "test_value".to_string());
+        assert_eq!(Extractor::get(&carrier, "test_key"), Some("test_value"));
+
+        // Test reserve with zero capacity
+        Injector::reserve(&mut carrier, 0);
+        Injector::set(&mut carrier, "another_key", "another_value".to_string());
+        assert_eq!(
+            Extractor::get(&carrier, "another_key"),
+            Some("another_value")
+        );
+
+        // Test that capacity is actually reserved (at least the requested amount)
+        let mut new_carrier = HashMap::new();
+        Injector::reserve(&mut new_carrier, 5);
+        let initial_capacity = new_carrier.capacity();
+
+        // Add some elements and verify capacity doesn't decrease
+        for i in 0..3 {
+            Injector::set(
+                &mut new_carrier,
+                &format!("key{}", i),
+                format!("value{}", i),
+            );
+        }
+
+        assert!(new_carrier.capacity() >= initial_capacity);
+        assert!(new_carrier.capacity() >= 5);
+    }
+
+    #[test]
+    fn injector_reserve() {
+        // Test to have full line coverage of default method
+        struct TestInjector();
+        impl Injector for TestInjector {
+            fn set(&mut self, _key: &str, _value: String) {}
+        }
+        let mut test_injector = TestInjector();
+        Injector::reserve(&mut test_injector, 4711);
+        Injector::set(&mut test_injector, "key", "value".to_string());
     }
 }

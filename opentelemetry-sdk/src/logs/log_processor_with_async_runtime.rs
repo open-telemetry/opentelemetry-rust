@@ -87,7 +87,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn shutdown(&self) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -628,6 +628,10 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
     #[derive(Debug)]
@@ -652,6 +656,10 @@ mod tests {
         }
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -767,13 +775,17 @@ mod tests {
             BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
-            .with_resource(Resource::new(vec![
-                KeyValue::new("k1", "v1"),
-                KeyValue::new("k2", "v3"),
-                KeyValue::new("k3", "v3"),
-                KeyValue::new("k4", "v4"),
-                KeyValue::new("k5", "v5"),
-            ]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![
+                        KeyValue::new("k1", "v1"),
+                        KeyValue::new("k2", "v3"),
+                        KeyValue::new("k3", "v3"),
+                        KeyValue::new("k4", "v4"),
+                        KeyValue::new("k5", "v5"),
+                    ])
+                    .build(),
+            )
             .build();
         provider.force_flush().unwrap();
         assert_eq!(exporter.get_resource().unwrap().into_iter().count(), 5);

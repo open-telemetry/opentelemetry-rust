@@ -3,9 +3,8 @@ use crate::trace::sampler::jaeger_remote::remote::{
     SamplingStrategyResponse,
 };
 use crate::trace::sampler::sample_based_on_probability;
-use opentelemetry::trace::{
-    SamplingDecision, SamplingResult, TraceContextExt, TraceId, TraceState,
-};
+use crate::trace::{SamplingDecision, SamplingResult};
+use opentelemetry::trace::{TraceContextExt, TraceId, TraceState};
 use opentelemetry::{otel_warn, Context};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};

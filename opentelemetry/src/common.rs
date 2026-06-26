@@ -6,9 +6,9 @@ use std::hash::{Hash, Hasher};
 
 /// The key part of attribute [KeyValue] pairs.
 ///
-/// See the [attribute naming] spec for guidelines.
+/// See the [naming] spec for guidelines.
 ///
-/// [attribute naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/attribute-naming.md
+/// [naming]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/naming.md
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Key(OtelString);
@@ -81,8 +81,8 @@ impl fmt::Debug for Key {
 impl From<Key> for String {
     fn from(key: Key) -> Self {
         match key.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }
@@ -268,8 +268,8 @@ impl StringValue {
 impl From<StringValue> for String {
     fn from(s: StringValue) -> Self {
         match s.0 {
-            OtelString::Owned(s) => s.to_string(),
-            OtelString::Static(s) => s.to_string(),
+            OtelString::Owned(s) => s.into_string(),
+            OtelString::Static(s) => s.to_owned(),
             OtelString::RefCounted(s) => s.to_string(),
         }
     }

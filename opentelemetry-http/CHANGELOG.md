@@ -2,8 +2,28 @@
 
 ## vNext
 
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
+  `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a
+  custom `reqwest::Client` with a `rustls::ClientConfig` containing
+  `rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())`, then supply it
+  to the exporter with `with_http_client()`.
+
+## 0.32.0
+
+Released 2026-May-08
+
+- `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
+
+## 0.31.0
+
+Released 2025-Sep-25
+
 - Implementation of `Extractor::get_all` for `HeaderExtractor`
 - Support `HttpClient` implementation for `HyperClient<C>` with custom connectors beyond `HttpConnector`, enabling Unix Domain Socket connections and other custom transports
+- Add `reqwest` and `reqwest-blocking` features to enable async and blocking
+  reqwest HTTP clients
+- Updated `opentelemetry` dependency to version 0.31.0.
 
 ## 0.30.0
 

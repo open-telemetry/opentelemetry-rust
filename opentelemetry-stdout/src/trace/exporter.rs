@@ -59,7 +59,7 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
         }
     }
 
-    fn shutdown(&mut self) -> OTelSdkResult {
+    fn shutdown(&self) -> OTelSdkResult {
         self.is_shutdown.store(true, Ordering::SeqCst);
         Ok(())
     }
@@ -94,18 +94,28 @@ fn print_spans(batch: Vec<SpanData>) {
             });
 
         println!();
-        println!("\tName        : {}", &span.name);
-        println!("\tTraceId     : {}", &span.span_context.trace_id());
-        println!("\tSpanId      : {}", &span.span_context.span_id());
-        println!("\tTraceFlags  : {:?}", &span.span_context.trace_flags());
-        println!("\tParentSpanId: {}", &span.parent_span_id);
-        println!("\tKind        : {:?}", &span.span_kind);
+        println!("\tName         : {}", &span.name);
+        println!("\tTraceId      : {}", &span.span_context.trace_id());
+        println!("\tSpanId       : {}", &span.span_context.span_id());
+        println!("\tTraceFlags   : {:?}", &span.span_context.trace_flags());
+        if span.parent_span_id == opentelemetry::SpanId::INVALID {
+            println!("\tParentSpanId : None (root span)");
+        } else {
+            println!("\tParentSpanId : {}", &span.parent_span_id);
+        }
+        println!("\tKind         : {:?}", &span.span_kind);
 
         let datetime: DateTime<Utc> = span.start_time.into();
-        println!("\tStart time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
+        println!(
+            "\tStart time   : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
         let datetime: DateTime<Utc> = span.end_time.into();
-        println!("\tEnd time: {}", datetime.format("%Y-%m-%d %H:%M:%S%.6f"));
-        println!("\tStatus: {:?}", &span.status);
+        println!(
+            "\tEnd time     : {}",
+            datetime.format("%Y-%m-%d %H:%M:%S%.6f")
+        );
+        println!("\tStatus       : {:?}", &span.status);
 
         let mut print_header = true;
         for kv in span.attributes.iter() {

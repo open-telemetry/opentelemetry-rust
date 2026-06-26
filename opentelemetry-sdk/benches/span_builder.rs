@@ -8,7 +8,7 @@ use opentelemetry_sdk::{
     trace as sdktrace,
     trace::{SpanData, SpanExporter},
 };
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -80,7 +80,7 @@ const MAP_KEYS: [&str; 64] = [
     "key.56", "key.57", "key.58", "key.59", "key.60", "key.61", "key.62", "key.63", "key.64",
 ];
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 criterion_group! {
     name = benches;
     config = Criterion::default()
@@ -89,7 +89,7 @@ criterion_group! {
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = criterion_benchmark
 }
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", not(feature = "bench_profiling")))]
 criterion_group! {
     name = benches;
     config = Criterion::default()

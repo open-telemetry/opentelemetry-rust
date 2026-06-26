@@ -13,7 +13,7 @@ path = "src/main.rs"
 bench = false
 
 [dependencies]
-opentelemetry_sdk = { path = "../../opentelemetry-sdk", features = ["logs"] }
+opentelemetry_sdk = { workspace = true, features = ["logs"] }
 opentelemetry-stdout = { workspace = true, features = ["logs"] }
 opentelemetry-appender-tracing = { workspace = true }
 tracing = { workspace = true, features = ["std"]}

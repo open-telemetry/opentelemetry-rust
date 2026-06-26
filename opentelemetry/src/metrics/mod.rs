@@ -4,7 +4,12 @@ use std::sync::Arc;
 
 mod instruments;
 mod meter;
-pub(crate) mod noop;
+pub mod noop;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub use instruments::{
+    counter::BoundCounter, gauge::BoundGauge, histogram::BoundHistogram,
+    up_down_counter::BoundUpDownCounter, BoundSyncInstrument,
+};
 pub use instruments::{
     counter::{Counter, ObservableCounter},
     gauge::{Gauge, ObservableGauge},
@@ -14,6 +19,7 @@ pub use instruments::{
     SyncInstrument,
 };
 pub use meter::{Meter, MeterProvider};
+pub use noop::NoopMeterProvider;
 
 /// SDK implemented trait for creating instruments
 pub trait InstrumentProvider {

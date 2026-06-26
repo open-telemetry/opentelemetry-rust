@@ -27,6 +27,8 @@ pub struct Span {
 pub(crate) struct SpanData {
     /// Span parent id
     pub(crate) parent_span_id: SpanId,
+    /// Parent span is remote flag (for span flags)
+    pub(crate) parent_span_is_remote: bool,
     /// Span kind
     pub(crate) span_kind: SpanKind,
     /// Span name
@@ -254,6 +256,7 @@ fn build_export_data(
     crate::trace::SpanData {
         span_context,
         parent_span_id: data.parent_span_id,
+        parent_span_is_remote: data.parent_span_is_remote,
         span_kind: data.span_kind,
         name: data.name,
         start_time: data.start_time,
@@ -285,7 +288,8 @@ mod tests {
         let provider = crate::trace::SdkTracerProvider::default();
         let tracer = provider.tracer("opentelemetry");
         let data = SpanData {
-            parent_span_id: SpanId::from_u64(0),
+            parent_span_id: SpanId::from(0),
+            parent_span_is_remote: false,
             span_kind: trace::SpanKind::Internal,
             name: "opentelemetry".into(),
             start_time: opentelemetry::time::now(),
@@ -611,8 +615,8 @@ mod tests {
         let tracer = provider.tracer("opentelemetry-test");
 
         let mut link = Link::with_context(SpanContext::new(
-            TraceId::from_u128(12),
-            SpanId::from_u64(12),
+            TraceId::from(12),
+            SpanId::from(12),
             TraceFlags::default(),
             false,
             Default::default(),
@@ -645,8 +649,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -659,8 +663,8 @@ mod tests {
         // add links using span api after building the span
         span.add_link(
             SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -703,6 +707,42 @@ mod tests {
             .events;
         let event_vec: Vec<_> = span_events.events;
         assert_eq!(event_vec.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
+    }
+
+    #[test]
+    fn multiple_processors_receive_span_data() {
+        use crate::trace::InMemorySpanExporterBuilder;
+
+        let exporter1 = InMemorySpanExporterBuilder::new().build();
+        let exporter2 = InMemorySpanExporterBuilder::new().build();
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter1.clone())
+            .with_simple_exporter(exporter2.clone())
+            .build();
+
+        let tracer = provider.tracer("test");
+        let mut span = tracer.start("multi_processor_span");
+        span.set_attribute(KeyValue::new("key", "value"));
+        span.end();
+
+        let spans1 = exporter1.get_finished_spans().unwrap();
+        let spans2 = exporter2.get_finished_spans().unwrap();
+
+        assert_eq!(spans1.len(), 1);
+        assert_eq!(spans2.len(), 1);
+        assert_eq!(spans1[0].name, "multi_processor_span");
+        assert_eq!(spans2[0].name, "multi_processor_span");
+        assert_eq!(spans1[0].attributes, spans2[0].attributes);
+        // Verify instrumentation scope is correctly propagated to both processors
+        assert_eq!(spans1[0].instrumentation_scope.name(), "test");
+        assert_eq!(spans2[0].instrumentation_scope.name(), "test");
+        assert_eq!(
+            spans1[0].instrumentation_scope,
+            spans2[0].instrumentation_scope
+        );
+
+        let _ = provider.shutdown();
     }
 
     #[test]

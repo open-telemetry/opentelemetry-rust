@@ -2,6 +2,71 @@
 
 ## vNext
 
+- Add custom instrumentation scope attributes support via
+  `OpenTelemetryTracingBridge::builder_with_scope_attributes(..)`.
+  [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
+
+## 0.32.0
+
+Released 2026-May-08
+
+- **Add tracing span attribute enrichment (experimental).** When enabled,
+  attributes attached to active [`tracing`] spans are copied onto each emitted
+  log record. "Span" here refers to a [`tracing::span!`][tracing-span] from the
+  [`tracing`] crate (the appender's source), **not** an OpenTelemetry span.
+  [#3482][3482], [#3505][3505]
+
+  Gated behind the new **`experimental_span_attributes`** cargo feature. As
+  with all `experimental_*` features in this repo, the API may change without
+  a major version bump until it is stabilized; once stable, the feature flag
+  will be removed.
+
+  Enrichment is **disabled by default** (no per-span overhead) and must be
+  opted into at runtime via a single builder method that accepts a
+  [`TracingSpanAttributes`] value:
+
+  ```rust
+  use opentelemetry_appender_tracing::layer::TracingSpanAttributes;
+
+  // Copy all tracing-span attributes onto log records:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::all())
+      .build();
+
+  // Or copy only an allowlist of attributes:
+  let layer = OpenTelemetryTracingBridge::builder(&provider)
+      .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+      .build();
+  ```
+
+- Remove the `experimental_use_tracing_span_context` since
+  `tracing-opentelemetry` now supports [activating][31901] the OpenTelemetry
+  context for the current tracing span. This fixes [#3190][3190] — the
+  circular dependency introduced by depending on `tracing-opentelemetry`
+  that depends on `opentelemetry`.
+- "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
+  backing specification) is now stable and is enabled by default. [#3278][3278]
+
+[`tracing`]: https://crates.io/crates/tracing
+[tracing-span]: https://docs.rs/tracing/latest/tracing/macro.span.html
+[3190]: https://github.com/open-telemetry/opentelemetry-rust/issues/3190
+[3278]: https://github.com/open-telemetry/opentelemetry-rust/pull/3278
+[3482]: https://github.com/open-telemetry/opentelemetry-rust/pull/3482
+[3505]: https://github.com/open-telemetry/opentelemetry-rust/pull/3505
+[31901]: https://github.com/tokio-rs/tracing-opentelemetry/blob/884b00cf438557733bd9cef9456281bea8c4bea1/src/layer.rs#L842
+
+## 0.31.1
+
+Released 2025-Oct-1
+
+- Bump `tracing-opentelemetry` to 0.32
+
+## 0.31.0
+
+Released 2025-Sep-25
+
+- Updated `opentelemetry` dependency to version 0.31.0.
+
 ## 0.30.1
 
 Released 2025-June-05
@@ -14,13 +79,11 @@ Released 2025-May-23
 
 - Updated `opentelemetry` dependency to version 0.30.0.
 
-
 ## 0.29.1
 
 Released 2025-Mar-24
 
 - Bump `tracing-opentelemetry` to 0.30
-
 
 ## 0.29.0
 
@@ -62,16 +125,16 @@ Receivers (processors, exporters) are expected to use `LogRecord.target()` as
 scope name. This is already done in OTLP Exporters, so this change should be
 transparent to most users.
 
-- Passes event name  to the `event_enabled` method on the `Logger`. This allows
+- Passes event name to the `event_enabled` method on the `Logger`. This allows
   implementations (SDK, processor, exporters) to leverage this additional
   information to determine if an event is enabled.
 
 - `u64`, `i128`, `u128` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
-when conversion is feasible. Otherwise stored as
-`opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
-allocation when values can be represented in their original types.
+  when conversion is feasible. Otherwise stored as
+  `opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
+  allocation when values can be represented in their original types.
 - Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
-of string.
+  of string.
 - `Error` fields are reported using attribute named "exception.message". For
   example, the below will now report an attribute named "exception.message",
   instead of previously reporting the user provided attribute "error".
@@ -83,7 +146,7 @@ of string.
 
 Released 2025-Feb-12
 
-- New *experimental* feature to use trace_id & span_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
+- New _experimental_ feature to use trace_id & span_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
 
 ## 0.28.0
 
@@ -133,7 +196,7 @@ Released 2024-Sep-30
 
 ### Added
 
-- New experimental metadata attributes feature (experimental\_metadata\_attributes) [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+- New experimental metadata attributes feature (experimental_metadata_attributes) [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
   - Experimental new attributes for tracing metadata
   - Fixes the following for events emitted using log crate
     - Normalized metadata fields

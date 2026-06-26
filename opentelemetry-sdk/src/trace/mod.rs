@@ -7,7 +7,6 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
-mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -23,7 +22,6 @@ pub mod span_processor_with_async_runtime;
 mod tracer;
 
 pub use config::Config;
-pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 
@@ -38,7 +36,7 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, ShouldSample};
+pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
@@ -60,13 +58,14 @@ mod runtime_tests;
 mod tests {
     use super::*;
     use crate::error::OTelSdkResult;
+    use crate::trace::{SamplingDecision, SamplingResult};
     use crate::{
         trace::span_limit::{DEFAULT_MAX_EVENT_PER_SPAN, DEFAULT_MAX_LINKS_PER_SPAN},
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SamplingDecision, SamplingResult, SpanKind, Status, TraceContextExt, TraceState},
+        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -77,6 +76,20 @@ mod tests {
         Context, KeyValue,
     };
     use std::time::Duration;
+
+    // Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/3510
+    #[test]
+    fn nested_span_in_get_active_span_with_simple_processor() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        get_active_span(|_span| {
+            let _nested = tracer.span_builder("nested").start(&tracer);
+        });
+    }
 
     #[test]
     fn span_modification_via_context() {
@@ -137,10 +150,22 @@ mod tests {
             }
         }
 
-        fn on_end(&self, _span: SpanData) {
-            // TODO: Accessing Context::current() will panic today and hence commented out.
+        fn on_end(&self, span: SpanData) {
+            // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
-            // let _c = Context::current();
+            Context::current();
+
+            // IMPORTANT NOTE: The context returned here is whatever context happens
+            // to be current at this moment, which may be unrelated to the span being ended.
+            // The span's baggage was extracted in on_start and stored as attributes.
+
+            // Verify: on_start stored the baggage as an attribute
+            assert!(
+                span.attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "bag-key"),
+                "Baggage should have been stored as span attribute in on_start"
+            );
         }
 
         fn force_flush(&self) -> crate::error::OTelSdkResult {
@@ -352,8 +377,8 @@ mod tests {
         let mut links = Vec::new();
         for _i in 0..(DEFAULT_MAX_LINKS_PER_SPAN * 2) {
             links.push(Link::with_context(SpanContext::new(
-                TraceId::from_u128(12),
-                SpanId::from_u64(12),
+                TraceId::from(12),
+                SpanId::from(12),
                 TraceFlags::default(),
                 false,
                 Default::default(),
@@ -422,8 +447,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),
@@ -475,8 +500,8 @@ mod tests {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
 
         let parent_context = Context::new().with_span(TestSpan(SpanContext::new(
-            TraceId::from_u128(10000),
-            SpanId::from_u64(20),
+            TraceId::from(10000),
+            SpanId::from(20),
             TraceFlags::SAMPLED,
             true,
             trace_state.clone(),

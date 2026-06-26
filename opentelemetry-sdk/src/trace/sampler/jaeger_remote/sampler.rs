@@ -1,18 +1,25 @@
 use crate::runtime::{to_interval_stream, RuntimeChannel};
-use crate::trace::error::TraceError;
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
 use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
-use crate::trace::{Sampler, ShouldSample};
+use crate::trace::{Sampler, SamplingResult, ShouldSample};
 use futures_util::{stream, StreamExt as _};
 use http::Uri;
-use opentelemetry::trace::{Link, SamplingResult, SpanKind, TraceId};
+use opentelemetry::trace::{Link, SpanKind, TraceId};
 use opentelemetry::{otel_warn, Context, KeyValue};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use thiserror::Error;
 
 const DEFAULT_REMOTE_SAMPLER_ENDPOINT: &str = "http://localhost:5778/sampling";
+
+#[derive(Error, Debug)]
+#[non_exhaustive]
+pub enum JaegerRemoteSamplerBuildError {
+    #[error("Invalid endpoint. Unable to create JaegerRemoteSampler.")]
+    InvalidEndpoint(String),
+}
 
 /// Builder for [`JaegerRemoteSampler`].
 /// See [Sampler::jaeger_remote] for details.
@@ -100,9 +107,9 @@ where
     ///
     /// - the endpoint provided is empty.
     /// - the service name provided is empty.
-    pub fn build(self) -> Result<Sampler, TraceError> {
+    pub fn build(self) -> Result<Sampler, JaegerRemoteSamplerBuildError> {
         let endpoint = Self::get_endpoint(&self.endpoint, &self.service_name)
-            .map_err(|err_str| TraceError::Other(err_str.into()))?;
+            .map_err(JaegerRemoteSamplerBuildError::InvalidEndpoint)?;
 
         Ok(Sampler::JaegerRemote(JaegerRemoteSampler::new(
             self.runtime,

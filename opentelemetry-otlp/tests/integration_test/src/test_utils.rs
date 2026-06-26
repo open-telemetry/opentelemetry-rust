@@ -13,7 +13,7 @@
 //! Only a single test suite can run at once, as each container has statically mapped ports, but
 //! this works nicely with the way cargo executes the suite.
 //!
-//! To skip integration tests with cargo, you can run `cargo test --mod`, which will run unit tests
+//! To skip integration tests with cargo, you can run `cargo test --lib`, which will run unit tests
 //! only.
 //!
 #![cfg(unix)]

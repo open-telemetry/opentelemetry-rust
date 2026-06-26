@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use opentelemetry::{
     global::{self},
     trace::{Span, Tracer},

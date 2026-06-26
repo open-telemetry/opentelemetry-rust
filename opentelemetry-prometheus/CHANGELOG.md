@@ -2,6 +2,25 @@
 
 ## vNext
 
+- Replace `without_scope_info` with `scope_info_enabled` to configure Prometheus instrumentation scope labels, inverting the option from disabling scope info to enabling it. Before this change, the exporter emitted an `otel_scope_info` metric and only added `otel_scope_name`/`otel_scope_version` labels to metric points. Now scope info is enabled by default on metric points with `otel_scope_name`, `otel_scope_version`, `otel_scope_schema_url`, and scope attributes prefixed with `otel_scope_`; setting `scope_info_enabled(false)` suppresses those labels. [#3503](https://github.com/open-telemetry/opentelemetry-rust/pull/3503)
+
+## 0.32.0
+
+Released 2026-May-08
+
+- Un-deprecate `opentelemetry-prometheus` and remove stale discontinuation notices. [#3288](https://github.com/open-telemetry/opentelemetry-rust/issues/3288)
+- Set MSRV to 1.81.0 to match the `prometheus` dependency requirement.
+
+## v0.31.1
+
+- Remove `protobuf` dependency from `prometheus`
+
+## v0.31.0
+
+- Update `opentelemetry` dependency version to 0.31.0
+- Update `opentelemetry_sdk` dependency version to 0.31.0
+- Update `opentelemetry-semantic-conventions` dependency version to 0.31.0
+
 ## 0.29.1
 
 Released 2025-April-11

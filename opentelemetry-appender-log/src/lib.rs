@@ -91,7 +91,6 @@
 //!
 //! This library provides the following Cargo features:
 //!
-//! - `spec_unstable_logs_enabled`: Allow users to control the log level.
 //! - `with-serde`: Support complex values as attributes without stringifying them.
 //!
 //! [Logs Bridge API]: https://opentelemetry.io/docs/specs/otel/logs/bridge-api/
@@ -134,15 +133,9 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        #[cfg(feature = "spec_unstable_logs_enabled")]
-        return self.logger.event_enabled(
-            severity_of_level(_metadata.level()),
-            _metadata.target(),
-            None,
-        );
-        #[cfg(not(feature = "spec_unstable_logs_enabled"))]
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        self.logger
+            .event_enabled(severity_of_level(metadata.level()), metadata.target(), None)
     }
 
     fn log(&self, record: &Record) {
@@ -313,8 +306,8 @@ mod any_value {
 
     use opentelemetry::{logs::AnyValue, Key, StringValue};
     use serde::ser::{
-        Error, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
-        SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer, StdError,
+        Error, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+        SerializeTupleStruct, SerializeTupleVariant, Serializer, StdError,
     };
 
     /// Serialize an arbitrary `serde::Serialize` into an `AnyValue`.
@@ -493,7 +486,7 @@ mod any_value {
         }
 
         fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok, Self::Error> {
-            name.serialize(self)
+            Ok(Some(AnyValue::String(name.into())))
         }
 
         fn serialize_unit_variant(
@@ -502,7 +495,7 @@ mod any_value {
             _: u32,
             variant: &'static str,
         ) -> Result<Self::Ok, Self::Error> {
-            variant.serialize(self)
+            Ok(Some(AnyValue::String(variant.into())))
         }
 
         fn serialize_newtype_struct<T: serde::Serialize + ?Sized>(
@@ -687,7 +680,8 @@ mod any_value {
         ) -> Result<(), Self::Error> {
             let key = match key.serialize(ValueSerializer)? {
                 Some(AnyValue::String(key)) => Key::from(String::from(key)),
-                key => Key::from(format!("{key:?}")),
+                Some(key) => Key::from(format!("{key:?}")),
+                None => Key::from("None"),
             };
 
             self.key = Some(key);
@@ -791,9 +785,6 @@ mod tests {
         // As a result of using `with_simple_exporter` while building the logger provider,
         // the processor used is a `SimpleLogProcessor` which has an implementation of `event_enabled`
         // that always returns true.
-        #[cfg(feature = "spec_unstable_logs_enabled")]
-        assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
-        #[cfg(not(feature = "spec_unstable_logs_enabled"))]
         assert!(otel_log_appender.enabled(&log::Metadata::builder().build()));
     }
 

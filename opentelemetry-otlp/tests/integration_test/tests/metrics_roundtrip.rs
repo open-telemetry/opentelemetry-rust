@@ -21,6 +21,7 @@ mod metrictests_roundtrip {
     use integration_test_runner::metric_helpers::{
         self, validate_metrics_against_results, SLEEP_DURATION,
     };
+    use opentelemetry::metrics::MeterProvider;
 
     use super::*;
 
@@ -54,7 +55,7 @@ mod metrictests_roundtrip {
         const METER_NAME: &str = "test_u64_counter_meter";
 
         // Add data to u64_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+        let meter = meter_provider.meter(METER_NAME);
 
         let counter = meter.u64_counter("counter_u64").build();
         counter.add(
@@ -80,7 +81,7 @@ mod metrictests_roundtrip {
         const METER_NAME: &str = "test_histogram_meter";
 
         // Add data to histogram
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+        let meter = meter_provider.meter(METER_NAME);
         let histogram = meter.u64_histogram("example_histogram").build();
         histogram.record(42, &[KeyValue::new("mykey3", "myvalue4")]);
 
@@ -98,7 +99,7 @@ mod metrictests_roundtrip {
         const METER_NAME: &str = "test_up_down_meter";
 
         // Add data to up_down_counter
-        let meter = opentelemetry::global::meter_provider().meter(METER_NAME);
+        let meter = meter_provider.meter(METER_NAME);
         let up_down_counter = meter.i64_up_down_counter("example_up_down_counter").build();
         up_down_counter.add(-1, &[KeyValue::new("mykey5", "myvalue5")]);
 

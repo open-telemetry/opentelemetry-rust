@@ -26,7 +26,7 @@ impl TraceState {
             return false;
         }
 
-        let allowed_special = |b: u8| (b == b'_' || b == b'-' || b == b'*' || b == b'/');
+        let allowed_special = |b: u8| b == b'_' || b == b'-' || b == b'*' || b == b'/';
         let mut vendor_start = None;
         for (i, &b) in key.as_bytes().iter().enumerate() {
             if !(b.is_ascii_lowercase() || b.is_ascii_digit() || allowed_special(b) || b == b'@') {
@@ -208,6 +208,50 @@ impl FromStr for TraceState {
         }
 
         TraceState::from_key_value(key_value_pairs)
+    }
+}
+
+/// Iterator over TraceState key-value pairs as (&str, &str)
+#[derive(Debug)]
+pub struct TraceStateIter<'a> {
+    inner: Option<std::collections::vec_deque::Iter<'a, (String, String)>>,
+}
+
+impl<'a> Iterator for TraceStateIter<'a> {
+    type Item = (&'a str, &'a str);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner
+            .as_mut()?
+            .next()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match &self.inner {
+            Some(iter) => iter.size_hint(),
+            None => (0, Some(0)),
+        }
+    }
+}
+
+impl ExactSizeIterator for TraceStateIter<'_> {
+    fn len(&self) -> usize {
+        match &self.inner {
+            Some(iter) => iter.len(),
+            None => 0,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a TraceState {
+    type Item = (&'a str, &'a str);
+    type IntoIter = TraceStateIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        TraceStateIter {
+            inner: self.0.as_ref().map(|deque| deque.iter()),
+        }
     }
 }
 
@@ -416,5 +460,40 @@ mod tests {
                entries count: 1, suppress_telemetry: false \
              }"
         );
+    }
+
+    #[test]
+    fn test_tracestate_iter_empty() {
+        let ts = TraceState::NONE;
+        let mut iter = ts.into_iter();
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.len(), 0);
+    }
+
+    #[test]
+    fn test_tracestate_iter_single() {
+        let ts = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
+        let mut iter = ts.into_iter();
+        assert_eq!(iter.next(), Some(("foo", "bar")));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn test_tracestate_iter_multiple() {
+        let ts = TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]).unwrap();
+        let mut iter = ts.into_iter();
+        assert_eq!(iter.next(), Some(("foo", "bar")));
+        assert_eq!(iter.next(), Some(("apple", "banana")));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_tracestate_iter_size_hint_and_len() {
+        let ts = TraceState::from_key_value(vec![("foo", "bar"), ("apple", "banana")]).unwrap();
+        let iter = ts.into_iter();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        assert_eq!(iter.len(), 2);
     }
 }

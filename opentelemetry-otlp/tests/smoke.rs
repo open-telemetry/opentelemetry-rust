@@ -136,3 +136,108 @@ async fn smoke_tracer() {
     let first_event = first_span.events.first().unwrap();
     assert_eq!("my-test-event", first_event.name);
 }
+
+// Smoke test for partial success handling. We set everything up and push some
+// partial success messages through with the expectation that it doesn't all fall apart.
+#[tokio::test(flavor = "multi_thread")]
+async fn partial_success_handling() {
+    use opentelemetry_proto::tonic::collector::trace::v1::ExportTracePartialSuccess;
+
+    struct PartialSuccessServer {
+        tx: Mutex<mpsc::Sender<ExportTraceServiceRequest>>,
+    }
+
+    impl PartialSuccessServer {
+        pub fn new(tx: mpsc::Sender<ExportTraceServiceRequest>) -> Self {
+            Self { tx: Mutex::new(tx) }
+        }
+    }
+
+    #[tonic::async_trait]
+    impl TraceService for PartialSuccessServer {
+        async fn export(
+            &self,
+            request: tonic::Request<ExportTraceServiceRequest>,
+        ) -> Result<tonic::Response<ExportTraceServiceResponse>, tonic::Status> {
+            self.tx
+                .lock()
+                .unwrap()
+                .try_send(request.into_inner())
+                .expect("Channel full");
+
+            // Return partial success response
+            Ok(tonic::Response::new(ExportTraceServiceResponse {
+                partial_success: Some(ExportTracePartialSuccess {
+                    rejected_spans: 5,
+                    error_message: "Some spans were rejected due to invalid data".to_string(),
+                }),
+            }))
+        }
+    }
+
+    println!("Starting partial success test...");
+    let addr: SocketAddr = "[::1]:0".parse().unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let stream = TcpListenerStream::new(listener).map(|s| {
+        if let Ok(ref s) = s {
+            println!("Got new conn at {}", s.peer_addr().unwrap());
+        }
+        s
+    });
+
+    let (req_tx, mut req_rx) = mpsc::channel(10);
+    let service = TraceServiceServer::new(PartialSuccessServer::new(req_tx));
+    tokio::task::spawn(async move {
+        tonic::transport::Server::builder()
+            .add_service(service)
+            .serve_with_incoming(stream)
+            .await
+            .expect("Server failed");
+    });
+
+    {
+        println!("Installing tracer provider for partial success test...");
+        let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+            .with_batch_exporter(
+                opentelemetry_otlp::SpanExporter::builder()
+                    .with_tonic()
+                    .with_endpoint(format!("http://{}", addr))
+                    .build()
+                    .expect("SpanExporter failed to build"),
+            )
+            .build();
+
+        global::set_tracer_provider(tracer_provider.clone());
+        let tracer = global::tracer("partial-success-test");
+
+        println!("Sending span...");
+        let mut span = tracer
+            .span_builder("test-span-partial-success")
+            .with_kind(SpanKind::Server)
+            .start(&tracer);
+        span.end();
+
+        // Export should succeed even with partial success response
+        tracer_provider
+            .shutdown()
+            .expect("tracer_provider should shutdown successfully despite partial success");
+    }
+
+    println!("Waiting for request...");
+    let req = req_rx.recv().await.expect("missing export request");
+    let first_span = req
+        .resource_spans
+        .first()
+        .unwrap()
+        .scope_spans
+        .first()
+        .unwrap()
+        .spans
+        .first()
+        .unwrap();
+    assert_eq!("test-span-partial-success", first_span.name);
+    println!("Partial success test completed successfully");
+}

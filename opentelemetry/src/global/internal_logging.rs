@@ -26,7 +26,7 @@ macro_rules! otel_info {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::info!( name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::info!( name: $name, target: env!("CARGO_PKG_NAME"), name = $name);
         }
 
         #[cfg(test)]
@@ -39,10 +39,10 @@ macro_rules! otel_info {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr, $($key:tt = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::info!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
+            $crate::_private::info!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+);
         }
 
         #[cfg(test)]
@@ -77,7 +77,7 @@ macro_rules! otel_warn {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::warn!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::warn!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name);
         }
 
         #[cfg(test)]
@@ -90,7 +90,7 @@ macro_rules! otel_warn {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr, $($key:tt = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             $crate::_private::warn!(name: $name,
@@ -99,7 +99,6 @@ macro_rules! otel_warn {
                             $($key = {
                                     $value
                             }),+,
-                            ""
                     )
         }
 
@@ -135,7 +134,7 @@ macro_rules! otel_debug {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name);
         }
 
         #[cfg(test)]
@@ -148,10 +147,10 @@ macro_rules! otel_debug {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr, $($key:tt = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+, "");
+            $crate::_private::debug!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, $($key = $value),+);
         }
 
         #[cfg(test)]
@@ -186,7 +185,7 @@ macro_rules! otel_error {
     (name: $name:expr $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
-            $crate::_private::error!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name, "");
+            $crate::_private::error!(name: $name, target: env!("CARGO_PKG_NAME"), name = $name);
         }
 
         #[cfg(test)]
@@ -199,7 +198,7 @@ macro_rules! otel_error {
             let _ = $name; // Compiler will optimize this out as it's unused.
         }
     };
-    (name: $name:expr, $($key:ident = $value:expr),+ $(,)?) => {
+    (name: $name:expr, $($key:tt = $value:expr),+ $(,)?) => {
         #[cfg(feature = "internal-logs")]
         {
             $crate::_private::error!(name: $name,
@@ -208,7 +207,6 @@ macro_rules! otel_error {
                             $($key = {
                                     $value
                             }),+,
-                            ""
                     )
         }
 

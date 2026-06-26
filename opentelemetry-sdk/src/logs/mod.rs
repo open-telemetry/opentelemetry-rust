@@ -25,10 +25,6 @@ pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{SdkLogRecord, TraceContext};
 pub use simple_log_processor::SimpleLogProcessor;
 
-#[cfg(feature = "experimental_logs_concurrent_log_processor")]
-/// Module for ConcurrentLogProcessor.
-pub mod concurrent_log_processor;
-
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
 /// Module for BatchLogProcessor with async runtime.
 pub mod log_processor_with_async_runtime;
@@ -127,7 +123,7 @@ mod tests {
             .build();
 
         let scope = InstrumentationScope::builder("test_logger")
-            .with_schema_url("https://opentelemetry.io/schema/1.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
             .with_attributes(vec![(KeyValue::new("test_k", "test_v"))])
             .build();
 
@@ -149,7 +145,7 @@ mod tests {
         assert_eq!(instrumentation_scope.name(), "test_logger");
         assert_eq!(
             instrumentation_scope.schema_url(),
-            Some("https://opentelemetry.io/schema/1.0.0")
+            Some("https://opentelemetry.io/schemas/1.0.0")
         );
         assert!(instrumentation_scope
             .attributes()
@@ -171,7 +167,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> crate::error::OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -277,7 +273,7 @@ mod tests {
             Ok(())
         }
 
-        fn shutdown(&self) -> OTelSdkResult {
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }

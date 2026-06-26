@@ -1,16 +1,18 @@
 # Contributing to opentelemetry-rust
 
-The Rust special interest group (SIG) meets weekly on Tuesdays at 9 AM Pacific
-Time. The meeting is subject to change depending on contributors'
-availability. Check the [OpenTelemetry community
+The Rust special interest group (SIG) meets on alternating weeks between Tuesday
+at 9:00 AM PT and Wednesday at 8:00 AM PT. The meeting is subject to change
+depending on contributors' availability. Check the [OpenTelemetry community
 calendar](https://github.com/open-telemetry/community?tab=readme-ov-file#calendar)
 for specific dates and for Zoom meeting links. "OTel Rust SIG" is the name of
 meeting for this group.
 
 Meeting notes are available as a public [Google
 doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
-If you have trouble accessing the doc, please get in touch on
-[Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
+If you have trouble accessing the doc, please get in touch on the
+[#otel-rust](https://cloud-native.slack.com/archives/C03GDP0H023)
+channel on CNCF Slack. If you are new to the CNCF Slack community,
+you can [create an account](https://slack.cncf.io/).
 
 The meeting is open for all to join. We invite everyone to join our meeting,
 regardless of your experience level. Whether you're a seasoned OpenTelemetry
@@ -27,6 +29,31 @@ and
 [**Maintainer**](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ## Pull Requests
+
+### Before You Start
+
+If you'd like to work on something that isn't already tracked as an issue —
+whether it's a new feature, enhancement, or significant refactor — please
+[create an issue](https://github.com/open-telemetry/opentelemetry-rust/issues/new)
+first and describe your proposal. This gives maintainers a chance to provide
+feedback on the approach before you invest significant time, and helps avoid
+situations where a PR doesn't align with the project's direction.
+
+For bug fixes or small improvements to existing functionality, opening a PR
+directly is fine.
+
+If you're new to the codebase, these docs will help you get oriented:
+
+- [Architecture overview](docs/design/architecture.md) — workspace structure,
+  API/SDK separation, and crate responsibilities
+- Signal-specific design docs:
+  [traces](docs/design/traces.md),
+  [metrics](docs/design/metrics.md),
+  [logs](docs/design/logs.md)
+- [Architectural decision records](docs/adr/) — context behind past design
+  choices
+- [Library guidelines](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/library-guidelines.md)
+  from the OpenTelemetry specification
 
 ### Prerequisites
 
@@ -98,6 +125,25 @@ for us to generate a changelog  standard.
 - Include benchmarks (before/after) in the summary, for contributions that are
   performance enhancements.
 
+### Pull Request Size and Scope
+
+We recommend keeping PRs under 500 lines (excluding `Cargo.lock` and generated
+code) to allow thorough and timely reviews. If your change is larger than this,
+consider breaking it into incremental PRs — for example:
+
+1. **First PR**: Introduce new types, traits, or structural scaffolding.
+2. **Follow-up PRs**: Add the implementation, split further if needed.
+3. **Final PR**: Wire everything together and update documentation.
+
+For changes that span multiple signals (traces, metrics, logs), consider
+starting with a PR that targets just one signal. This lets maintainers review
+the approach on a smaller surface area and give feedback before you replicate
+it across all three.
+
+Refactoring must be in its own PR with no behavior changes. Mixing refactoring
+with new functionality makes it difficult for reviewers to verify correctness
+and often leads to longer review cycles.
+
 ### How to Get PRs Merged
 
 A PR is considered to be **ready to merge** when:
@@ -114,6 +160,94 @@ the maintainers decided to defer the PR to the next release train. Also,
 maintainers may decide to wait for more than one approval for certain PRs,
 particularly ones that are affecting multiple areas, or topics that may warrant
 more discussion.
+
+## Issue Lifecycle and Labels
+
+We use GitHub labels to track issue status and help contributors find work.
+Understanding these labels will help you know which issues are ready to be
+worked on and how to find ones that match your experience level.
+
+### Filing Issues
+
+When creating a new issue, please use one of the provided
+[issue templates](https://github.com/open-telemetry/opentelemetry-rust/issues/new/choose)
+(Bug Report or Feature Request). The templates automatically apply triage
+labels so that maintainers can find and review new issues. Avoid creating
+blank issues, as they won't have the correct labels and may be overlooked.
+
+### Triage
+
+Every new issue filed through a template starts with `triage:todo`. Maintainers
+review these and either:
+
+- **`triage:accepted`** — the issue has been reviewed and is ready to be worked
+  on. If you're looking for something to contribute, start here.
+- **`triage:needmoreinfo`** — the issue needs clarification from the reporter
+  before it can be acted on.
+
+**Don't start work on an issue that hasn't been triaged.** An issue with
+`triage:todo` may be a duplicate, out of scope, or need a different approach
+than what's described. Wait for `triage:accepted` or ask in the issue if you're
+interested.
+
+### Finding Work
+
+- **`good first issue`** — scoped issues suitable for newcomers to the
+  codebase. These are a starting point, not a restriction — newcomers are
+  welcome to work on any accepted issue.
+- **`help wanted`** — issues where maintainers welcome contributions and will
+  provide extra guidance.
+
+### Area Labels
+
+These indicate which part of the codebase an issue relates to:
+
+| Label | Area |
+|---|---|
+| `A-trace` | Tracing signal |
+| `A-metrics` | Metrics signal |
+| `A-log` | Logs signal |
+| `A-common` | Cross-cutting / not signal-specific |
+
+### Module Labels
+
+These indicate which crate is affected:
+
+| Label | Crate |
+|---|---|
+| `M-api` | `opentelemetry` (API) |
+| `M-sdk` | `opentelemetry-sdk` |
+| `M-exporter-otlp` | `opentelemetry-otlp` |
+| `M-exporter-prometheus` | `opentelemetry-prometheus` |
+| `M-exporter-zipkin` | `opentelemetry-zipkin` |
+
+### Priority
+
+| Label | Meaning |
+|---|---|
+| `priority:p0` | Critical stop-the-world issues. Drop everything. |
+| `priority:p1` | High priority — should be addressed soon. |
+| `priority:p2` | Medium priority. |
+| `priority:p3` | Low priority — nice to have. |
+
+### Versioning
+
+These labels are applied to PRs to indicate their semver impact:
+
+| Label | Impact |
+|---|---|
+| `version:breaking` | Breaking change (major version bump) |
+| `version:minor` | New functionality (minor version bump) |
+| `version:patch` | Bug fix (patch version bump) |
+
+### Other Labels
+
+| Label | Meaning |
+|---|---|
+| `S-blocked-spec` | Blocked on an unresolved spec issue |
+| `platform:windows` / `platform:linux` / `platform:mac` / `platform:wasm` | Platform-specific |
+| `performance` | Performance-related |
+| `documentation/examples` | Documentation or examples improvement |
 
 ## Design Choices
 
@@ -150,10 +284,7 @@ For users that want to implement their own exporters. It's RECOMMENDED to wrap a
 
 ### Priority of configurations
 
-OpenTelemetry supports multiple ways to configure the API, SDK and other components. The priority of configurations is as follows:
-
-- Environment variables
-- Compiling time configurations provided in the source code
+OpenTelemetry supports multiple ways to configure the API, SDK and other components. When the same setting is provided through more than one mechanism, code-based configuration (e.g. `with_xxx` builder methods) takes precedence over environment variables. New configuration added to any component in this repo MUST follow this priority.
 
 ### Experimental/Unstable features
 
@@ -189,8 +320,13 @@ issues.
 - Run `cargo test --all` - this will execute code and doc tests for all
 projects in this workspace.
 - Run `cargo bench` - this will run benchmarks to show performance
-- Run `cargo bench` - this will run benchmarks to show performance
 regressions
+
+Benchmarks are run daily against `main` and results are tracked over time.
+The continuous benchmark dashboard is published at
+<https://open-telemetry.github.io/opentelemetry-rust/dev/bench/>.
+PRs with the `performance` label will also get a benchmark comparison
+comment showing any regressions or improvements.
 
 ## FAQ
 

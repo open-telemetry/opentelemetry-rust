@@ -246,10 +246,38 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { processors, ..self }
     }
 
-    /// The `Resource` to be associated with this Provider.
+    /// Associates a [Resource] with a [SdkLoggerProvider].
+    ///
+    /// This [Resource] represents the entity producing telemetry and is associated
+    /// with all `Logger`s the [SdkLoggerProvider] will create.
+    ///
+    /// By default, if this option is not used, the default [Resource] will be used.
+    ///
+    /// When constructing a [Resource], use [`Resource::builder()`] to preserve
+    /// SDK-provided defaults such as `telemetry.sdk.*` and `service.name`.
+    /// Using [`Resource::builder_empty()`] will **not** include these attributes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::{Resource, logs::SdkLoggerProvider};
+    /// use opentelemetry::KeyValue;
+    ///
+    /// let provider = SdkLoggerProvider::builder()
+    ///     .with_resource(
+    ///         Resource::builder()
+    ///             .with_service_name("my-service")
+    ///             .with_attributes([KeyValue::new("deployment.environment.name", "production")])
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     ///
     /// *Note*: Calls to this method are additive, each call merges the provided
     /// resource with the previous one.
+    ///
+    /// [`Resource::builder()`]: Resource::builder
+    /// [`Resource::builder_empty()`]: Resource::builder_empty
     pub fn with_resource(self, resource: Resource) -> Self {
         let resource = match self.resource {
             Some(existing) => Some(existing.merge(&resource)),
@@ -283,21 +311,24 @@ impl LoggerProviderBuilder {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "trace")]
+    use crate::logs::TraceContext;
+    #[cfg(feature = "trace")]
+    use crate::trace::SdkTracerProvider;
     use crate::{
-        logs::{InMemoryLogExporter, LogBatch, SdkLogRecord, TraceContext},
+        logs::{InMemoryLogExporter, LogBatch, SdkLogRecord},
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        trace::SdkTracerProvider,
         Resource,
     };
 
     use super::*;
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider};
+    #[cfg(feature = "trace")]
+    use opentelemetry::trace::TraceContextExt;
+    #[cfg(feature = "trace")]
     use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
-    use opentelemetry::{
-        logs::{AnyValue, LogRecord as _, Logger, LoggerProvider},
-        trace::TraceContextExt,
-    };
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
     use std::sync::atomic::AtomicU64;
@@ -399,6 +430,10 @@ mod tests {
             *res = resource.clone();
             self.exporter.set_resource(resource);
         }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
     impl TestProcessorForResource {
         fn new(exporter: TestExporterForResource) -> Self {
@@ -470,11 +505,15 @@ mod tests {
             let _ = super::SdkLoggerProvider::builder()
                 .with_log_processor(processor_with_resource.clone())
                 .build();
-            assert_resource(
-                &processor_with_resource,
-                &exporter_with_resource,
-                SERVICE_NAME,
-                Some("unknown_service"),
+            let service_name = processor_with_resource
+                .resource()
+                .get(&Key::from_static_str(SERVICE_NAME))
+                .map(|v| v.to_string())
+                .unwrap();
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
             );
             assert_telemetry_resource(&processor_with_resource, &exporter_with_resource);
         });
@@ -509,11 +548,15 @@ mod tests {
                 let _ = super::SdkLoggerProvider::builder()
                     .with_log_processor(processor_with_resource.clone())
                     .build();
-                assert_resource(
-                    &processor_with_resource,
-                    &exporter_with_resource,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &processor_with_resource,
@@ -551,11 +594,15 @@ mod tests {
                     )
                     .with_log_processor(processor_with_resource.clone())
                     .build();
-                assert_resource(
-                    &processor_with_resource,
-                    &exporter_with_resource,
-                    SERVICE_NAME,
-                    Some("unknown_service"),
+                let service_name = processor_with_resource
+                    .resource()
+                    .get(&Key::from_static_str(SERVICE_NAME))
+                    .map(|v| v.to_string())
+                    .unwrap();
+                assert!(
+                    service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                    "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                    service_name
                 );
                 assert_resource(
                     &processor_with_resource,
@@ -591,6 +638,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "trace")]
     fn trace_context_test() {
         let exporter = InMemoryLogExporter::default();
 
@@ -607,8 +655,8 @@ mod tests {
         tracer.in_span("test-span", |cx| {
             let ambient_ctxt = cx.span().span_context().clone();
             let explicit_ctxt = TraceContext {
-                trace_id: TraceId::from_u128(13),
-                span_id: SpanId::from_u64(14),
+                trace_id: TraceId::from(13),
+                span_id: SpanId::from(14),
                 trace_flags: None,
             };
 
@@ -856,14 +904,26 @@ mod tests {
     #[test]
     fn with_resource_multiple_calls_ensure_additive() {
         let builder = SdkLoggerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("key1", "value1")]))
-            .with_resource(Resource::new(vec![KeyValue::new("key2", "value2")]))
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key1", "value1")])
+                    .build(),
+            )
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key2", "value2")])
+                    .build(),
+            )
             .with_resource(
                 Resource::builder_empty()
                     .with_schema_url(vec![], "http://example.com")
                     .build(),
             )
-            .with_resource(Resource::new(vec![KeyValue::new("key3", "value3")]));
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attributes(vec![KeyValue::new("key3", "value3")])
+                    .build(),
+            );
 
         let resource = builder.resource.unwrap();
 

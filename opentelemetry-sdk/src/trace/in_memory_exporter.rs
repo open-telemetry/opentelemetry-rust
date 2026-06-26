@@ -1,8 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::{SpanData, SpanExporter};
-use crate::InMemoryExporterError;
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use std::time::Duration;
 
 /// An in-memory span exporter that stores span data in memory.
@@ -51,6 +50,8 @@ use std::time::Duration;
 pub struct InMemorySpanExporter {
     spans: Arc<Mutex<Vec<SpanData>>>,
     resource: Arc<Mutex<Resource>>,
+    should_reset_on_shutdown: bool,
+    shutdown_called: Arc<AtomicBool>,
 }
 
 impl Default for InMemorySpanExporter {
@@ -67,7 +68,9 @@ impl Default for InMemorySpanExporter {
 /// let exporter = InMemorySpanExporterBuilder::new().build();
 /// ```
 #[derive(Clone, Debug)]
-pub struct InMemorySpanExporterBuilder {}
+pub struct InMemorySpanExporterBuilder {
+    reset_on_shutdown: bool,
+}
 
 impl Default for InMemorySpanExporterBuilder {
     fn default() -> Self {
@@ -78,7 +81,9 @@ impl Default for InMemorySpanExporterBuilder {
 impl InMemorySpanExporterBuilder {
     /// Creates a new instance of the `InMemorySpanExporterBuilder`.
     pub fn new() -> Self {
-        Self {}
+        Self {
+            reset_on_shutdown: true,
+        }
     }
 
     /// Creates a new instance of the `InMemorySpanExporter`.
@@ -86,16 +91,33 @@ impl InMemorySpanExporterBuilder {
         InMemorySpanExporter {
             spans: Arc::new(Mutex::new(Vec::new())),
             resource: Arc::new(Mutex::new(Resource::builder().build())),
+            should_reset_on_shutdown: self.reset_on_shutdown,
+            shutdown_called: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// If set, the records will not be [`InMemorySpanExporter::reset`] on shutdown.
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub(crate) fn keep_records_on_shutdown(self) -> Self {
+        Self {
+            reset_on_shutdown: false,
         }
     }
 }
 
 impl InMemorySpanExporter {
+    /// Returns true if shutdown was called.
+    pub fn is_shutdown_called(&self) -> bool {
+        self.shutdown_called
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Returns the finished span as a vector of `SpanData`.
     ///
     /// # Errors
     ///
-    /// Returns a `TraceError` if the internal lock cannot be acquired.
+    /// Returns an `OTelSdkError`.
     ///
     /// # Example
     ///
@@ -105,12 +127,12 @@ impl InMemorySpanExporter {
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
     /// ```
-    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, InMemoryExporterError> {
+    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, OTelSdkError> {
         let spans = self
             .spans
             .lock()
             .map(|spans_guard| spans_guard.iter().cloned().collect())
-            .map_err(InMemoryExporterError::from)?;
+            .map_err(OTelSdkError::from)?;
         Ok(spans)
     }
 
@@ -139,8 +161,12 @@ impl SpanExporter for InMemorySpanExporter {
         result
     }
 
-    fn shutdown_with_timeout(&mut self, _timeout: Duration) -> OTelSdkResult {
-        self.reset();
+    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        self.shutdown_called
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        if self.should_reset_on_shutdown {
+            self.reset();
+        }
         Ok(())
     }
 

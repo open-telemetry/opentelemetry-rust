@@ -1,7 +1,11 @@
 use opentelemetry::{
     logs::{AnyValue, LogRecord, Logger, LoggerProvider, Severity},
-    Key,
+    InstrumentationScope, Key, KeyValue,
 };
+#[cfg(feature = "experimental_span_attributes")]
+use std::borrow::Cow;
+#[cfg(feature = "experimental_span_attributes")]
+use std::collections::HashSet;
 use tracing_core::Level;
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_core::Metadata;
@@ -178,6 +182,179 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
     // TODO: Remaining field types from AnyValue : Bytes, ListAny, Boolean
 }
 
+/// Visitor to extract fields from a tracing span.
+/// Takes a mutable reference to a Vec to append fields to, and an optional
+/// allowlist to include only named attributes.
+#[cfg(feature = "experimental_span_attributes")]
+struct SpanFieldVisitor<'a> {
+    attributes: &'a mut Vec<(Key, AnyValue)>,
+    allowlist: Option<&'a HashSet<Cow<'static, str>>>,
+}
+
+#[cfg(feature = "experimental_span_attributes")]
+impl SpanFieldVisitor<'_> {
+    #[inline]
+    fn allowed(&self, field: &tracing::field::Field) -> bool {
+        self.allowlist
+            .map_or(true, |set| set.contains(field.name()))
+    }
+}
+
+#[cfg(feature = "experimental_span_attributes")]
+impl tracing::field::Visit for SpanFieldVisitor<'_> {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if self.allowed(field) {
+            self.attributes.push((
+                Key::from(field.name()),
+                AnyValue::from(format!("{value:?}")),
+            ));
+        }
+    }
+
+    fn record_error(
+        &mut self,
+        field: &tracing::field::Field,
+        value: &(dyn std::error::Error + 'static),
+    ) {
+        if self.allowed(field) {
+            self.attributes.push((
+                Key::new("exception.message"),
+                AnyValue::from(value.to_string()),
+            ));
+        }
+    }
+
+    fn record_bytes(&mut self, field: &tracing::field::Field, value: &[u8]) {
+        if self.allowed(field) {
+            self.attributes
+                .push((Key::from(field.name()), AnyValue::from(value)));
+        }
+    }
+
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if self.allowed(field) {
+            self.attributes
+                .push((Key::from(field.name()), AnyValue::from(value.to_owned())));
+        }
+    }
+
+    fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
+        if self.allowed(field) {
+            self.attributes
+                .push((Key::from(field.name()), AnyValue::from(value)));
+        }
+    }
+
+    fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+        if self.allowed(field) {
+            if let Ok(signed) = i64::try_from(value) {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(signed)));
+            } else {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
+            }
+        }
+    }
+
+    fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
+        if self.allowed(field) {
+            self.attributes
+                .push((Key::from(field.name()), AnyValue::from(value)));
+        }
+    }
+
+    fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
+        if self.allowed(field) {
+            self.attributes
+                .push((Key::from(field.name()), AnyValue::from(value)));
+        }
+    }
+
+    fn record_i128(&mut self, field: &tracing::field::Field, value: i128) {
+        if self.allowed(field) {
+            if let Ok(signed) = i64::try_from(value) {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(signed)));
+            } else {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
+            }
+        }
+    }
+
+    fn record_u128(&mut self, field: &tracing::field::Field, value: u128) {
+        if self.allowed(field) {
+            if let Ok(signed) = i64::try_from(value) {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(signed)));
+            } else {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(format!("{value}"))));
+            }
+        }
+    }
+}
+
+/// Stored span attributes in the span's extensions.
+/// Similar to how `tracing_subscriber::fmt::FormattedFields` stores formatted
+/// field data directly in span extensions - the Registry's internal locking
+/// provides the necessary synchronization.
+#[cfg(feature = "experimental_span_attributes")]
+#[derive(Debug)]
+struct StoredSpanAttributes {
+    attributes: Vec<(Key, AnyValue)>,
+}
+
+/// Configures which attributes from active [`tracing`] spans are copied onto
+/// each emitted log record.
+///
+/// "Span" here refers to a [`tracing::span!`] from the [`tracing`] crate,
+/// **not** an `opentelemetry::trace::Span`.
+///
+/// Pass this to [`OpenTelemetryTracingBridgeBuilder::with_tracing_span_attributes`] to
+/// enable tracing-span attribute enrichment.
+///
+/// [`tracing`]: https://crates.io/crates/tracing
+/// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
+#[cfg(feature = "experimental_span_attributes")]
+pub struct TracingSpanAttributes(TracingSpanAttributesInner);
+
+#[cfg(feature = "experimental_span_attributes")]
+enum TracingSpanAttributesInner {
+    All,
+    Allowlist(HashSet<Cow<'static, str>>),
+}
+
+#[cfg(feature = "experimental_span_attributes")]
+impl TracingSpanAttributes {
+    /// Copy **all** tracing-span attributes onto log records.
+    pub fn all() -> Self {
+        Self(TracingSpanAttributesInner::All)
+    }
+
+    /// Copy only the tracing-span attributes whose keys are in the given
+    /// allowlist.
+    pub fn allowlist(keys: impl IntoIterator<Item = impl Into<Cow<'static, str>>>) -> Self {
+        Self(TracingSpanAttributesInner::Allowlist(
+            keys.into_iter().map(Into::into).collect(),
+        ))
+    }
+}
+
+#[cfg(feature = "experimental_span_attributes")]
+impl std::fmt::Debug for TracingSpanAttributes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            TracingSpanAttributesInner::All => f.write_str("TracingSpanAttributes::all()"),
+            TracingSpanAttributesInner::Allowlist(set) => f
+                .debug_tuple("TracingSpanAttributes::allowlist")
+                .field(set)
+                .finish(),
+        }
+    }
+}
+
 pub struct OpenTelemetryTracingBridge<P, L>
 where
     P: LoggerProvider<Logger = L> + Send + Sync,
@@ -185,6 +362,12 @@ where
 {
     logger: L,
     _phantom: std::marker::PhantomData<P>, // P is not used.
+    // Tracing-span attribute enrichment configuration:
+    // - `None` => disabled (default). No per-span work, no scope walk.
+    // - `Some(All)` => copy all tracing-span attributes onto log records.
+    // - `Some(Allowlist(set))` => copy only attributes whose keys are in `set`.
+    #[cfg(feature = "experimental_span_attributes")]
+    span_attributes: Option<TracingSpanAttributesInner>,
 }
 
 impl<P, L> OpenTelemetryTracingBridge<P, L>
@@ -192,8 +375,18 @@ where
     P: LoggerProvider<Logger = L> + Send + Sync,
     L: Logger + Send + Sync,
 {
+    /// Creates a bridge using the default OpenTelemetry logger scope.
+    ///
+    /// The default scope uses an empty scope name for the appender logger.
+    /// Use [`Self::builder_with_scope_attributes`] to provide a
+    /// custom set of instrumentation scope attributes.
     pub fn new(provider: &P) -> Self {
-        OpenTelemetryTracingBridge {
+        Self::builder(provider).build()
+    }
+
+    /// Creates a builder using the default OpenTelemetry logger scope.
+    pub fn builder(provider: &P) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        OpenTelemetryTracingBridgeBuilder {
             // Using empty scope name.
             // The name/version of this library itself can be added
             // as a Scope attribute, once a semantic convention is
@@ -201,6 +394,73 @@ where
             // See https://github.com/open-telemetry/semantic-conventions/issues/1550
             logger: provider.logger(""),
             _phantom: Default::default(),
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attributes: None,
+        }
+    }
+
+    /// Creates a builder that uses custom OpenTelemetry instrumentation scope
+    /// attributes for the appender logger.
+    pub fn builder_with_scope_attributes(
+        provider: &P,
+        attributes: impl IntoIterator<Item = KeyValue>,
+    ) -> OpenTelemetryTracingBridgeBuilder<P, L> {
+        let scope = InstrumentationScope::builder("")
+            .with_attributes(attributes)
+            .build();
+        OpenTelemetryTracingBridgeBuilder {
+            logger: provider.logger_with_scope(scope),
+            _phantom: Default::default(),
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attributes: None,
+        }
+    }
+}
+
+pub struct OpenTelemetryTracingBridgeBuilder<P, L>
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    logger: L,
+    _phantom: std::marker::PhantomData<P>,
+    #[cfg(feature = "experimental_span_attributes")]
+    span_attributes: Option<TracingSpanAttributesInner>,
+}
+
+impl<P, L> OpenTelemetryTracingBridgeBuilder<P, L>
+where
+    P: LoggerProvider<Logger = L> + Send + Sync,
+    L: Logger + Send + Sync,
+{
+    /// Enable copying attributes from active [`tracing`] spans onto each
+    /// emitted log record. ("Span" here means a [`tracing::span!`] from the
+    /// [`tracing`] crate, **not** an `opentelemetry::trace::Span`.)
+    ///
+    /// By default, enrichment is **disabled** and no per-span work is
+    /// performed.
+    ///
+    /// Use [`TracingSpanAttributes::all()`] to copy every tracing-span attribute, or
+    /// [`TracingSpanAttributes::allowlist(keys)`](TracingSpanAttributes::allowlist) to copy
+    /// only named attributes.
+    ///
+    /// Calling this method multiple times replaces any prior configuration —
+    /// the last call wins.
+    ///
+    /// [`tracing`]: https://crates.io/crates/tracing
+    /// [`tracing::span!`]: https://docs.rs/tracing/latest/tracing/macro.span.html
+    #[cfg(feature = "experimental_span_attributes")]
+    pub fn with_tracing_span_attributes(mut self, span_attributes: TracingSpanAttributes) -> Self {
+        self.span_attributes = Some(span_attributes.0);
+        self
+    }
+
+    pub fn build(self) -> OpenTelemetryTracingBridge<P, L> {
+        OpenTelemetryTracingBridge {
+            logger: self.logger,
+            _phantom: self._phantom,
+            #[cfg(feature = "experimental_span_attributes")]
+            span_attributes: self.span_attributes,
         }
     }
 }
@@ -214,13 +474,13 @@ where
     fn on_event(
         &self,
         event: &tracing::Event<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
+        #[cfg_attr(not(feature = "experimental_span_attributes"), allow(unused_variables))]
+        ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let metadata = event.metadata();
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
         let name = metadata.name();
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         if !self.logger.event_enabled(severity, target, Some(name)) {
             // TODO: See if we need internal logs or track the count.
             return;
@@ -238,37 +498,106 @@ where
         log_record.set_event_name(name);
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
+
+        // Extract tracing-span attributes if enrichment is enabled.
+        #[cfg(feature = "experimental_span_attributes")]
+        if self.span_attributes.is_some() {
+            // Collect attributes from all parent spans (root to leaf), including current span
+            if let Some(scope) = ctx.event_scope(event) {
+                for span_ref in scope.from_root() {
+                    // Access extensions inline - each span has its own extension lock
+                    let extensions = span_ref.extensions();
+                    if let Some(stored) = extensions.get::<StoredSpanAttributes>() {
+                        for (key, value) in stored.attributes.iter() {
+                            log_record.add_attribute(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
+        }
+
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
         visitor.visit_experimental_metadata(meta);
         // Visit fields.
         event.record(&mut visitor);
 
-        #[cfg(feature = "experimental_use_tracing_span_context")]
-        if let Some(span) = _ctx.event_span(event) {
-            use opentelemetry::trace::TraceContextExt;
-            use tracing_opentelemetry::OtelData;
-            if let Some(otd) = span.extensions().get::<OtelData>() {
-                if let Some(span_id) = otd.builder.span_id {
-                    let opt_trace_id = if otd.parent_cx.has_active_span() {
-                        Some(otd.parent_cx.span().span_context().trace_id())
-                    } else {
-                        span.scope().last().and_then(|root_span| {
-                            root_span
-                                .extensions()
-                                .get::<OtelData>()
-                                .and_then(|otd| otd.builder.trace_id)
-                        })
-                    };
-                    if let Some(trace_id) = opt_trace_id {
-                        log_record.set_trace_context(trace_id, span_id, None);
-                    }
-                }
-            }
-        }
-
         //emit record
         self.logger.emit(log_record);
+    }
+
+    #[cfg(feature = "experimental_span_attributes")]
+    fn on_new_span(
+        &self,
+        attrs: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        // Skip entirely when tracing-span attribute enrichment is disabled to
+        // avoid any per-span overhead.
+        let Some(config) = self.span_attributes.as_ref() else {
+            return;
+        };
+        let allowlist = match config {
+            TracingSpanAttributesInner::All => None,
+            TracingSpanAttributesInner::Allowlist(set) => Some(set),
+        };
+
+        let span = ctx.span(id).expect("Span not found; this is a bug");
+        let mut fields = Vec::with_capacity(attrs.fields().len());
+        let mut visitor = SpanFieldVisitor {
+            attributes: &mut fields,
+            allowlist,
+        };
+        attrs.record(&mut visitor);
+
+        // Only store if we actually found attributes to avoid empty allocations
+        if !fields.is_empty() {
+            let stored = StoredSpanAttributes { attributes: fields };
+
+            let mut extensions = span.extensions_mut();
+            extensions.insert(stored);
+        }
+    }
+
+    #[cfg(feature = "experimental_span_attributes")]
+    fn on_record(
+        &self,
+        id: &tracing::span::Id,
+        values: &tracing::span::Record<'_>,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let Some(config) = self.span_attributes.as_ref() else {
+            return;
+        };
+        let allowlist = match config {
+            TracingSpanAttributesInner::All => None,
+            TracingSpanAttributesInner::Allowlist(set) => Some(set),
+        };
+
+        let span = ctx.span(id).expect("Span not found; this is a bug");
+        let mut extensions = span.extensions_mut();
+
+        if let Some(stored) = extensions.get_mut::<StoredSpanAttributes>() {
+            // Append to existing attributes - extensions_mut() gives us mutable access
+            let mut visitor = SpanFieldVisitor {
+                attributes: &mut stored.attributes,
+                allowlist,
+            };
+            values.record(&mut visitor);
+        } else {
+            // No existing attributes, create new storage
+            let mut fields = Vec::with_capacity(values.len());
+            let mut visitor = SpanFieldVisitor {
+                attributes: &mut fields,
+                allowlist,
+            };
+            values.record(&mut visitor);
+            if !fields.is_empty() {
+                let stored = StoredSpanAttributes { attributes: fields };
+                extensions.insert(stored);
+            }
+        }
     }
 }
 
@@ -285,11 +614,13 @@ const fn severity_of_level(level: &Level) -> Severity {
 #[cfg(test)]
 mod tests {
     use crate::layer;
+    #[cfg(feature = "experimental_span_attributes")]
+    use crate::layer::TracingSpanAttributes;
     use opentelemetry::logs::Severity;
     use opentelemetry::trace::TracerProvider;
     use opentelemetry::trace::{TraceContextExt, TraceFlags, Tracer};
     use opentelemetry::InstrumentationScope;
-    use opentelemetry::{logs::AnyValue, Key};
+    use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
     use opentelemetry_sdk::logs::{InMemoryLogExporter, LogProcessor};
     use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
@@ -611,119 +942,43 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "experimental_use_tracing_span_context")]
     #[test]
-    fn tracing_appender_inside_tracing_crate_context() {
-        use opentelemetry::{trace::SpanContext, Context, SpanId, TraceId};
-        use opentelemetry_sdk::trace::InMemorySpanExporterBuilder;
-        use tracing_opentelemetry::OpenTelemetrySpanExt;
-
-        // Arrange
+    fn tracing_appender_with_custom_scope_attributes() {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let logger_provider = SdkLoggerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
 
-        // setup tracing layer to compare trace/span IDs against
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let tracer_provider = SdkTracerProvider::builder()
-            .with_simple_exporter(span_exporter.clone())
-            .build();
-        let tracer = tracer_provider.tracer("test-tracer");
-
-        let level_filter = tracing_subscriber::filter::LevelFilter::ERROR;
-        let log_layer =
-            layer::OpenTelemetryTracingBridge::new(&logger_provider).with_filter(level_filter);
-
-        let subscriber = tracing_subscriber::registry()
-            .with(log_layer)
-            .with(tracing_opentelemetry::layer().with_tracer(tracer));
-
-        // Avoiding global subscriber.init() as that does not play well with unit tests.
-        let _guard = tracing::subscriber::set_default(subscriber);
-
-        // Act
-        tracing::error_span!("outer-span").in_scope(|| {
-            error!("first-event");
-
-            tracing::error_span!("inner-span").in_scope(|| {
-                error!("second-event");
-            });
-        });
-
-        assert!(logger_provider.force_flush().is_ok());
-
-        let logs = exporter.get_emitted_logs().expect("No emitted logs");
-        assert_eq!(logs.len(), 2, "Expected 2 logs, got: {logs:?}");
-
-        let spans = span_exporter.get_finished_spans().unwrap();
-        assert_eq!(spans.len(), 2);
-
-        let trace_id = spans[0].span_context.trace_id();
-        assert_eq!(trace_id, spans[1].span_context.trace_id());
-        let inner_span_id = spans[0].span_context.span_id();
-        let outer_span_id = spans[1].span_context.span_id();
-        assert_eq!(outer_span_id, spans[0].parent_span_id);
-
-        let trace_ctx0 = logs[0].record.trace_context().unwrap();
-        let trace_ctx1 = logs[1].record.trace_context().unwrap();
-
-        assert_eq!(trace_ctx0.trace_id, trace_id);
-        assert_eq!(trace_ctx1.trace_id, trace_id);
-        assert_eq!(trace_ctx0.span_id, outer_span_id);
-        assert_eq!(trace_ctx1.span_id, inner_span_id);
-
-        // Set context from remote.
-        let remote_trace_id = TraceId::from_u128(233);
-        let remote_span_id = SpanId::from_u64(2333);
-        let remote_span_context = SpanContext::new(
-            remote_trace_id,
-            remote_span_id,
-            TraceFlags::SAMPLED,
-            true,
-            Default::default(),
+        let subscriber = tracing_subscriber::registry().with(
+            layer::OpenTelemetryTracingBridge::builder_with_scope_attributes(
+                &logger_provider,
+                [KeyValue::new("scope-key", "scope-value")],
+            )
+            .build(),
         );
 
-        // Act again.
-        tracing::error_span!("outer-span").in_scope(|| {
-            let span = tracing::Span::current();
-            let parent_context = Context::current().with_remote_span_context(remote_span_context);
-            span.set_parent(parent_context);
+        let _guard = tracing::subscriber::set_default(subscriber);
 
-            error!("first-event");
-
-            tracing::error_span!("inner-span").in_scope(|| {
-                error!("second-event");
-            });
-        });
-
+        error!(name: "scoped-event", target: "my-system", event_id = 20);
         assert!(logger_provider.force_flush().is_ok());
 
-        let logs = exporter.get_emitted_logs().expect("No emitted logs");
-        assert_eq!(logs.len(), 4, "Expected 4 logs, got: {logs:?}");
-        let logs = &logs[2..];
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        assert_eq!(exported_logs.len(), 1);
+        let log = exported_logs
+            .first()
+            .expect("At least one log is expected to be present.");
 
-        let spans = span_exporter.get_finished_spans().unwrap();
-        assert_eq!(spans.len(), 4);
-        let spans = &spans[2..];
-
-        let trace_id = spans[0].span_context.trace_id();
-        assert_eq!(trace_id, remote_trace_id);
-        assert_eq!(trace_id, spans[1].span_context.trace_id());
-        let inner_span_id = spans[0].span_context.span_id();
-        let outer_span_id = spans[1].span_context.span_id();
-        assert_eq!(outer_span_id, spans[0].parent_span_id);
-
-        let trace_ctx0 = logs[0].record.trace_context().unwrap();
-        let trace_ctx1 = logs[1].record.trace_context().unwrap();
-
-        assert_eq!(trace_ctx0.trace_id, trace_id);
-        assert_eq!(trace_ctx1.trace_id, trace_id);
-        assert_eq!(trace_ctx0.span_id, outer_span_id);
-        assert_eq!(trace_ctx1.span_id, inner_span_id);
+        assert!(log
+            .instrumentation
+            .attributes()
+            .eq([KeyValue::new("scope-key", "scope-value")].iter()));
+        exporter.reset();
     }
 
     #[test]
+    #[ignore = "log tests set a global logger that cannot be unset and affects other tests"]
     fn tracing_appender_standalone_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
@@ -800,6 +1055,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "log tests set a global logger that cannot be unset and affects other tests"]
     fn tracing_appender_inside_tracing_context_with_tracing_log() {
         // Arrange
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
@@ -916,7 +1172,6 @@ mod tests {
             // no-op
         }
 
-        #[cfg(feature = "spec_unstable_logs_enabled")]
         fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
             // assert that passed in arguments are same as the ones set in the test.
             assert_eq!(self.severity_level, level);
@@ -931,9 +1186,12 @@ mod tests {
         fn force_flush(&self) -> OTelSdkResult {
             Ok(())
         }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
+            Ok(())
+        }
     }
 
-    #[cfg(feature = "spec_unstable_logs_enabled")]
     #[test]
     fn is_enabled() {
         // Arrange
@@ -954,5 +1212,551 @@ mod tests {
         // Name, Target and Severity are expected to be passed to the IsEnabled check
         // The validation is done in the LogProcessorWithIsEnabled struct.
         error!(name: "my-event-name", target: "my-system", event_id = 20, user_name = "otel", user_email = "otel@opentelemetry.io");
+    }
+
+    #[test]
+    fn tracing_appender_span_attributes_disabled_by_default() {
+        // When `with_tracing_span_attributes` is not called on the builder, tracing-span
+        // attributes must NOT be copied onto log records.
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::new(&provider).with_filter(
+            tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }),
+        );
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", user_id = 123, endpoint = "/api/users");
+        let _enter = span.enter();
+        tracing::error!(status = 200, "test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // Event attribute is still recorded.
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("status"),
+            &AnyValue::Int(200)
+        ));
+        // Span attributes must not appear on the log record.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("user_id")));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("endpoint")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_context_enrichment_enabled() {
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act
+        let span = tracing::info_span!("test_span", user_id = 123, endpoint = "/api/users");
+        let _enter = span.enter();
+        tracing::error!(status = 200, "test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // Should contain span attributes
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_id"),
+            &AnyValue::Int(123)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("endpoint"),
+            &AnyValue::String("/api/users".into())
+        ));
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("status"),
+            &AnyValue::Int(200)
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_nested_spans_collect_all_parent_attributes() {
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act: Create nested spans with different attributes
+        let outer_span = tracing::info_span!("outer", request_id = "req-123");
+        let _outer_guard = outer_span.enter();
+
+        // Create inner span nested within outer span
+        let inner_span = tracing::info_span!("inner", user_id = "user-456");
+        let _inner_guard = inner_span.enter();
+
+        // Emit event in innermost span context
+        tracing::error!(status = 200, "Event message");
+
+        drop(_inner_guard);
+        drop(_outer_guard);
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // Verify outer span attribute is included
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("request_id"),
+            &AnyValue::String("req-123".into())
+        ));
+
+        // Verify inner span attribute is included
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("user_id"),
+            &AnyValue::String("user-456".into())
+        ));
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("status"),
+            &AnyValue::Int(200)
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_context_with_various_types() {
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act
+        let small_u64value: u64 = 42;
+        let big_u64value: u64 = u64::MAX;
+        let small_u128value: u128 = 42;
+        let big_u128value: u128 = u128::MAX;
+        let small_i128value: i128 = 42;
+        let big_i128value: i128 = i128::MAX;
+
+        let span = tracing::info_span!(
+            "test_span",
+            str_field = "text",
+            int_field = 42,
+            float_field = 1.5,
+            bool_field = true,
+            small_u64value,
+            big_u64value,
+            small_u128value,
+            big_u128value,
+            small_i128value,
+            big_i128value,
+            bytes_field = &[1u8, 2, 3] as &[u8]
+        );
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("str_field"),
+            &AnyValue::String("text".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("int_field"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("float_field"),
+            &AnyValue::Double(1.5)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bool_field"),
+            &AnyValue::Boolean(true)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u64value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u64value"),
+            &AnyValue::String(u64::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_u128value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_u128value"),
+            &AnyValue::String(u128::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("small_i128value"),
+            &AnyValue::Int(42)
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("big_i128value"),
+            &AnyValue::String(i128::MAX.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("bytes_field"),
+            &AnyValue::Bytes(Box::new(vec![1, 2, 3]))
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_record_after_creation() {
+        // This test verifies that span fields recorded AFTER span creation
+        // are captured via the on_record implementation.
+
+        // Arrange
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                // Allow spans at any level (needed for on_new_span to store span attributes),
+                // but only allow ERROR events to prevent internal otel_info! events from leaking
+                // in when internal-logs feature is enabled and tests run in parallel.
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Act: Create span with an empty field, then record value later
+        let span = tracing::info_span!(
+            "test_span",
+            initial_field = "present",
+            delayed_field = tracing::field::Empty
+        );
+        let _enter = span.enter();
+
+        // Record the delayed field after span creation
+        span.record("delayed_field", "recorded_later");
+
+        tracing::error!(event_attr = "event_value", "test message");
+
+        provider.force_flush().unwrap();
+
+        // Assert
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // The initial field should be captured
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("initial_field"),
+            &AnyValue::String("present".into())
+        ));
+
+        // The delayed field should be captured
+        assert!(
+            attributes_contains(
+                &log.record,
+                &Key::new("delayed_field"),
+                &AnyValue::String("recorded_later".into())
+            ),
+            "delayed_field should be captured after on_record is implemented"
+        );
+
+        // Event attribute should also be captured
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_attr"),
+            &AnyValue::String("event_value".into())
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_attribute_allowlist_includes_only_named() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", session.id = "abc", user_name = "alice");
+        let _enter = span.enter();
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("session.id"),
+            &AnyValue::String("abc".into())
+        ));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("user_name")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_attribute_allowlist_nested_spans() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let outer_span = tracing::info_span!("outer", session.id = "s1", request_id = "r1");
+        let _outer_guard = outer_span.enter();
+        let inner_span = tracing::info_span!("inner", trace_id = "t1");
+        let _inner_guard = inner_span.enter();
+        tracing::error!("test message");
+        drop(_inner_guard);
+        drop(_outer_guard);
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("session.id"),
+            &AnyValue::String("s1".into())
+        ));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("request_id")));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("trace_id")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_attributes_all_copies_all() {
+        // `TracingSpanAttributes::all()` enables enrichment and copies all
+        // tracing-span attributes (no filtering).
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::all())
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", foo = "bar");
+        let _enter = span.enter();
+        tracing::error!(event_attr = "val", "test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_attr"),
+            &AnyValue::String("val".into())
+        ));
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("foo"),
+            &AnyValue::String("bar".into())
+        ));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_span_attribute_allowlist_with_on_record() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(["session.id"]))
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!(
+            "test_span",
+            session.id = tracing::field::Empty,
+            ignored = "skip"
+        );
+        let _enter = span.enter();
+        span.record("session.id", "late");
+        tracing::error!("test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("session.id"),
+            &AnyValue::String("late".into())
+        ));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("ignored")));
+    }
+
+    #[test]
+    #[cfg(feature = "experimental_span_attributes")]
+    fn tracing_appender_empty_allowlist_copies_nothing() {
+        // An empty allowlist means "allow nothing" — enrichment is enabled
+        // but no span attributes match, so none are copied.
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let empty: Vec<&str> = vec![];
+        let layer = layer::OpenTelemetryTracingBridge::builder(&provider)
+            .with_tracing_span_attributes(TracingSpanAttributes::allowlist(empty))
+            .build()
+            .with_filter(tracing_subscriber::filter::filter_fn(|meta| {
+                meta.is_span() || *meta.level() <= tracing::Level::ERROR
+            }));
+        let subscriber = tracing_subscriber::registry().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let span = tracing::info_span!("test_span", user_id = 123, session.id = "abc");
+        let _enter = span.enter();
+        tracing::error!(event_attr = "val", "test message");
+
+        provider.force_flush().unwrap();
+        let logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(logs.len(), 1);
+        let log = &logs[0];
+
+        // Event attribute is still recorded.
+        assert!(attributes_contains(
+            &log.record,
+            &Key::new("event_attr"),
+            &AnyValue::String("val".into())
+        ));
+        // No span attributes should appear — empty allowlist means nothing passes.
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("user_id")));
+        assert!(!log
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("session.id")));
     }
 }

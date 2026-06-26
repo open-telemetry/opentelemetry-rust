@@ -47,6 +47,7 @@ pub mod tonic {
                             value: Some(AnyValue {
                                 value: Some(value.into()),
                             }),
+                            key_strindex: 0,
                         })
                         .collect(),
                 }),
@@ -98,6 +99,7 @@ pub mod tonic {
                             value: Some(AnyValue {
                                 value: Some(kv.1.clone().into()),
                             }),
+                            key_strindex: 0,
                         })
                         .collect()
                 },
@@ -165,8 +167,8 @@ pub mod tonic {
         }
     }
 
-    pub fn group_logs_by_resource_and_scope(
-        logs: LogBatch<'_>,
+    pub fn group_logs_by_resource_and_scope<'a>(
+        logs: &'a LogBatch<'a>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group logs by target or instrumentation name
@@ -226,11 +228,12 @@ mod tests {
     use opentelemetry::logs::Logger;
     use opentelemetry::logs::LoggerProvider;
     use opentelemetry::time::now;
-    use opentelemetry::InstrumentationScope;
+    use opentelemetry::{InstrumentationScope, KeyValue};
     use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
     use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
+    use std::borrow::Cow;
 
     #[derive(Debug)]
     struct MockProcessor;
@@ -239,6 +242,10 @@ mod tests {
         fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
 
         fn force_flush(&self) -> OTelSdkResult {
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
             Ok(())
         }
     }
@@ -271,7 +278,7 @@ mod tests {
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
 
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -291,7 +298,7 @@ mod tests {
         let log_batch = LogBatch::new(&logs);
         let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
         let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(log_batch, &resource);
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -310,5 +317,42 @@ mod tests {
 
         assert_eq!(scope_logs_1.log_records.len(), 1);
         assert_eq!(scope_logs_2.log_records.len(), 1);
+    }
+
+    #[test]
+    fn test_group_logs_preserves_scope_version_and_attributes_when_target_set() {
+        let resource = Resource::builder().build();
+        let processor = MockProcessor {};
+        let logger = SdkLoggerProvider::builder()
+            .with_log_processor(processor)
+            .build()
+            .logger("test");
+
+        let mut logrecord = logger.create_log_record();
+        logrecord.set_timestamp(now());
+        logrecord.set_observed_timestamp(now());
+        logrecord.set_target(Cow::Borrowed("my_app::handlers"));
+
+        let instrumentation = InstrumentationScope::builder("my-lib")
+            .with_version("1.0.0")
+            .with_attributes([KeyValue::new("feature", "metrics")])
+            .build();
+
+        let logs = [(&logrecord, &instrumentation)];
+        let log_batch = LogBatch::new(&logs);
+        let resource: ResourceAttributesWithSchema = (&resource).into();
+
+        let grouped_logs =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
+
+        assert_eq!(grouped_logs.len(), 1);
+        let resource_logs = &grouped_logs[0];
+        assert_eq!(resource_logs.scope_logs.len(), 1);
+
+        let scope = resource_logs.scope_logs[0].scope.as_ref().unwrap();
+        assert_eq!(scope.name, "my_app::handlers");
+        assert_eq!(scope.version, "1.0.0");
+        assert_eq!(scope.attributes.len(), 1);
+        assert_eq!(scope.attributes[0].key, "feature");
     }
 }
