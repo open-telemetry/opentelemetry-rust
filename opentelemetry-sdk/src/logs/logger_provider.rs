@@ -2,8 +2,8 @@ use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
-use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
-use std::time::Duration;
+use opentelemetry::{otel_debug, otel_info, otel_warn, InstrumentationScope};
+use std::time::{Duration, Instant};
 use std::{
     borrow::Cow,
     sync::{
@@ -107,14 +107,36 @@ impl SdkLoggerProvider {
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
+            let shutdown_start = Instant::now();
             // propagate the shutdown signal to processors
-            let result = self.inner.shutdown_with_timeout(timeout);
-            if result.iter().all(|res| res.is_ok()) {
+            let results = self.inner.shutdown_with_timeout(timeout);
+            let duration_secs = shutdown_start.elapsed().as_secs_f64();
+
+            let success = results.iter().all(|res| res.is_ok());
+            if success {
+                otel_info!(name: "otel.sdk.component.shutdown",
+                    "otel.component.type" = "logger_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Ok(())
             } else {
+                // Classify: timeout takes precedence over failed
+                let error_type = if results
+                    .iter()
+                    .any(|r| matches!(r, Err(OTelSdkError::Timeout(_))))
+                {
+                    "timeout"
+                } else {
+                    "failed"
+                };
+                otel_warn!(name: "otel.sdk.component.shutdown",
+                    "error.type" = error_type,
+                    "otel.component.type" = "logger_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Err(OTelSdkError::InternalFailure(format!(
                     "Shutdown errors: {:?}",
-                    result
+                    results
                         .into_iter()
                         .filter_map(Result::err)
                         .collect::<Vec<_>>()

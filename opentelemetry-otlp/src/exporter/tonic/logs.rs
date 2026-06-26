@@ -5,10 +5,8 @@ use opentelemetry_proto::tonic::collector::logs::v1::{
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time;
-use std::time::Instant;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
 
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -25,8 +23,6 @@ pub(crate) struct TonicLogsClient {
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
-    #[cfg_attr(not(feature = "internal-logs"), allow(dead_code))]
-    component_name: String,
 }
 
 struct ClientInner {
@@ -56,12 +52,6 @@ impl TonicLogsClient {
 
         otel_debug!(name: "TonicsLogsClientBuilt");
 
-        let component_name = {
-            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
-            format!("otlp_grpc_log_exporter/{instance_id}")
-        };
-
         TonicLogsClient {
             inner: Mutex::new(Some(ClientInner {
                 client,
@@ -74,7 +64,6 @@ impl TonicLogsClient {
                 jitter_ms: 100,
             }),
             resource: Default::default(),
-            component_name,
         }
     }
 }
@@ -154,65 +143,15 @@ impl LogExporter for TonicLogsClient {
     }
 
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
-        let shutdown_start = Instant::now();
-        let result = self
-            .inner
+        self.inner
             .lock()
-            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))
-            .map(|mut guard| {
-                guard.take();
-            });
-        let duration_secs = shutdown_start.elapsed().as_secs_f64();
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Failed to acquire lock: {e}")))?
+            .take();
 
-        let result_str = if result.is_ok() { "success" } else { "failed" };
-        self.emit_shutdown_event(result_str, duration_secs);
-        result
+        Ok(())
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
         self.resource = resource.into();
-    }
-}
-
-impl TonicLogsClient {
-    // POC: emit otel.sdk.component.shutdown for this exporter. See
-    // BatchLogProcessor::emit_shutdown_event for the rationale on using
-    // opentelemetry::_private (tracing) directly instead of the
-    // otel_info!/otel_warn! macros.
-    //
-    // The exporter relies on its owning processor to invoke shutdown exactly
-    // once (the processor holds the only reference and is itself guarded by
-    // LoggerProvider's idempotent shutdown). We therefore do not defend against
-    // re-invocation here.
-    fn emit_shutdown_event(&self, result_str: &'static str, duration_secs: f64) {
-        if result_str == "success" {
-            #[cfg(feature = "internal-logs")]
-            opentelemetry::_private::info!(
-                name: "otel.sdk.component.shutdown",
-                target: env!("CARGO_PKG_NAME"),
-                // `name = ...` required as the first field; see batch_log_processor.rs.
-                name = "otel.sdk.component.shutdown",
-                "otel.component.type" = "otlp_grpc_log_exporter",
-                "otel.component.name" = self.component_name.as_str(),
-                "otel.component.shutdown.result" = result_str,
-                "otel.component.shutdown.duration" = duration_secs,
-            );
-        } else {
-            #[cfg(feature = "internal-logs")]
-            opentelemetry::_private::warn!(
-                name: "otel.sdk.component.shutdown",
-                target: env!("CARGO_PKG_NAME"),
-                name = "otel.sdk.component.shutdown",
-                "otel.component.type" = "otlp_grpc_log_exporter",
-                "otel.component.name" = self.component_name.as_str(),
-                "otel.component.shutdown.result" = result_str,
-                "otel.component.shutdown.duration" = duration_secs,
-            );
-        }
-
-        #[cfg(not(feature = "internal-logs"))]
-        {
-            let _ = (result_str, duration_secs);
-        }
     }
 }
