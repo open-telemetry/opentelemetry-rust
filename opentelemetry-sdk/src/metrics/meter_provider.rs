@@ -110,12 +110,12 @@ impl SdkMeterProvider {
     ///
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
-    pub fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+    pub fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
         );
-        self.inner.shutdown()
+        self.inner.shutdown_with_timeout(timeout)
     }
 
     /// shutdown with default timeout
@@ -136,7 +136,7 @@ impl SdkMeterProviderInner {
         }
     }
 
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         if self
             .shutdown_invoked
             .swap(true, std::sync::atomic::Ordering::SeqCst)
@@ -144,7 +144,7 @@ impl SdkMeterProviderInner {
             // If the previous value was true, shutdown was already invoked.
             Err(crate::error::OTelSdkError::AlreadyShutdown)
         } else {
-            self.pipes.shutdown()
+            self.pipes.shutdown_with_timeout(timeout)
         }
     }
 
