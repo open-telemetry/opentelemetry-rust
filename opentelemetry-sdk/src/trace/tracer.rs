@@ -184,6 +184,16 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             );
         }
 
+        // no point starting a span if the SDK is disabled via OTEL_SDK_DISABLED.
+        if provider.is_disabled() {
+            return Span::new(
+                SpanContext::empty_context(),
+                None,
+                self.clone(),
+                SpanLimits::default(),
+            );
+        }
+
         let config = provider.config();
         let span_id = config.id_generator.new_span_id();
         let trace_id;
