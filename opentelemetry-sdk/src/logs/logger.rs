@@ -21,6 +21,11 @@ impl SdkLogger {
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
         SdkLogger { scope, provider }
     }
+
+    #[cfg(test)]
+    pub(crate) fn provider(&self) -> &SdkLoggerProvider {
+        &self.provider
+    }
 }
 
 impl opentelemetry::logs::Logger for SdkLogger {
@@ -58,13 +63,16 @@ impl opentelemetry::logs::Logger for SdkLogger {
 
     #[inline]
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
+        let processors = self.provider.log_processors();
+        // Early return if there are no processors
+        if processors.is_empty() {
+            return false;
+        }
         if Context::is_current_telemetry_suppressed() {
             return false;
         }
-        // Returns false if there are no log processors.
         // Returns true if at least one processor returns true.
-        self.provider
-            .log_processors()
+        processors
             .iter()
             .any(|processor| processor.event_enabled(level, target, name))
     }
