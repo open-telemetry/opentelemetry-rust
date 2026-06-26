@@ -17,6 +17,9 @@
   `queue_full` and `already_shutdown`, enabling operators to distinguish
   successful processing from drops due to full queue or post-shutdown emits.
   ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514))
+- **Feature**: Add support for `OTEL_SDK_DISABLED` environment variable [#3088][3088]
+
+[3088]: https://github.com/open-telemetry/opentelemetry-rust/pull/3088
 
 ## 0.32.1
 
