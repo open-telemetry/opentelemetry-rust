@@ -22,8 +22,16 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
         inner: Arc::new(LoggerProviderInner {
             processors: Vec::new(),
             is_shutdown: AtomicBool::new(true),
+            max_attributes_per_log: DEFAULT_MAX_ATTRIBUTES_PER_LOG,
         }),
     })
+}
+
+#[inline]
+fn read_u32_env(key: &str) -> Option<u32> {
+    std::env::var(key)
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +90,12 @@ impl SdkLoggerProvider {
         &self.inner.processors
     }
 
+    /// Maximum number of attributes retained per log record. Attributes beyond
+    /// this limit are dropped when the record is emitted.
+    pub(crate) fn max_attributes_per_log(&self) -> u32 {
+        self.inner.max_attributes_per_log
+    }
+
     /// Force flush all remaining logs in log processors and return results.
     pub fn force_flush(&self) -> OTelSdkResult {
         let result: Vec<_> = self
@@ -131,10 +145,14 @@ impl SdkLoggerProvider {
     }
 }
 
+/// Default maximum number of attributes retained per log record.
+pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LOG: u32 = 128;
+
 #[derive(Debug)]
 struct LoggerProviderInner {
     processors: Vec<Box<dyn LogProcessor>>,
     is_shutdown: AtomicBool,
+    max_attributes_per_log: u32,
 }
 
 impl LoggerProviderInner {
@@ -184,6 +202,7 @@ impl Drop for LoggerProviderInner {
 pub struct LoggerProviderBuilder {
     processors: Vec<Box<dyn LogProcessor>>,
     resource: Option<Resource>,
+    max_attributes_per_log: Option<u32>,
 }
 
 impl LoggerProviderBuilder {
@@ -287,6 +306,20 @@ impl LoggerProviderBuilder {
         LoggerProviderBuilder { resource, ..self }
     }
 
+    /// Specify the maximum number of attributes retained per log record.
+    ///
+    /// Attributes added beyond this limit are dropped when the record is
+    /// emitted. When not set, this is read from the
+    /// `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` environment variable, which falls
+    /// back to `OTEL_ATTRIBUTE_COUNT_LIMIT`, and otherwise defaults to `128`.
+    /// A value set here takes precedence over the environment variables.
+    pub fn with_max_attributes_per_log(self, max_attributes: u32) -> Self {
+        LoggerProviderBuilder {
+            max_attributes_per_log: Some(max_attributes),
+            ..self
+        }
+    }
+
     /// Create a new provider from this configuration.
     pub fn build(self) -> SdkLoggerProvider {
         let resource = self.resource.unwrap_or(Resource::builder().build());
@@ -295,10 +328,20 @@ impl LoggerProviderBuilder {
             processor.set_resource(&resource);
         }
 
+        // Precedence: explicit builder value, then
+        // `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT`, then the general
+        // `OTEL_ATTRIBUTE_COUNT_LIMIT`, then the default.
+        let max_attributes_per_log = self
+            .max_attributes_per_log
+            .or_else(|| read_u32_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT"))
+            .or_else(|| read_u32_env("OTEL_ATTRIBUTE_COUNT_LIMIT"))
+            .unwrap_or(DEFAULT_MAX_ATTRIBUTES_PER_LOG);
+
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors,
                 is_shutdown: AtomicBool::new(false),
+                max_attributes_per_log,
             }),
         };
 
@@ -793,6 +836,7 @@ mod tests {
                     flush_called.clone(),
                 ))],
                 is_shutdown: AtomicBool::new(false),
+                max_attributes_per_log: DEFAULT_MAX_ATTRIBUTES_PER_LOG,
             });
 
             {
@@ -833,6 +877,7 @@ mod tests {
                 flush_called.clone(),
             ))],
             is_shutdown: AtomicBool::new(false),
+            max_attributes_per_log: DEFAULT_MAX_ATTRIBUTES_PER_LOG,
         });
 
         // Create a scope to test behavior when providers are dropped
@@ -1006,5 +1051,99 @@ mod tests {
             *count += 1;
             Ok(())
         }
+    }
+
+    fn emit_record_with_attributes(provider: &SdkLoggerProvider, count: usize) -> usize {
+        let logger = provider.logger("test");
+        let mut record = logger.create_log_record();
+        for i in 0..count {
+            record.add_attribute(Key::new(format!("key{i}")), AnyValue::Int(i as i64));
+        }
+        logger.emit(record);
+        provider.force_flush().unwrap();
+        count
+    }
+
+    #[test]
+    fn log_record_attributes_truncated_to_default_limit() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        assert_eq!(
+            provider.max_attributes_per_log(),
+            DEFAULT_MAX_ATTRIBUTES_PER_LOG
+        );
+
+        emit_record_with_attributes(&provider, 200);
+
+        let emitted = exporter.get_emitted_logs().unwrap();
+        assert_eq!(
+            emitted[0].record.attributes_iter().count(),
+            DEFAULT_MAX_ATTRIBUTES_PER_LOG as usize
+        );
+    }
+
+    #[test]
+    fn log_record_attributes_within_limit_are_kept() {
+        let exporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        emit_record_with_attributes(&provider, 10);
+
+        let emitted = exporter.get_emitted_logs().unwrap();
+        assert_eq!(emitted[0].record.attributes_iter().count(), 10);
+    }
+
+    #[test]
+    fn builder_max_attributes_per_log_takes_precedence() {
+        temp_env::with_vars(
+            [
+                ("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", Some("16")),
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", Some("8")),
+            ],
+            || {
+                let exporter = InMemoryLogExporter::default();
+                let provider = SdkLoggerProvider::builder()
+                    .with_simple_exporter(exporter.clone())
+                    .with_max_attributes_per_log(4)
+                    .build();
+                assert_eq!(provider.max_attributes_per_log(), 4);
+
+                emit_record_with_attributes(&provider, 10);
+                let emitted = exporter.get_emitted_logs().unwrap();
+                assert_eq!(emitted[0].record.attributes_iter().count(), 4);
+            },
+        );
+    }
+
+    #[test]
+    fn logrecord_env_var_takes_precedence_over_general() {
+        temp_env::with_vars(
+            [
+                ("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", Some("16")),
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", Some("8")),
+            ],
+            || {
+                let provider = SdkLoggerProvider::builder().build();
+                assert_eq!(provider.max_attributes_per_log(), 16);
+            },
+        );
+    }
+
+    #[test]
+    fn general_env_var_is_fallback() {
+        temp_env::with_vars(
+            [
+                ("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", None::<&str>),
+                ("OTEL_ATTRIBUTE_COUNT_LIMIT", Some("8")),
+            ],
+            || {
+                let provider = SdkLoggerProvider::builder().build();
+                assert_eq!(provider.max_attributes_per_log(), 8);
+            },
+        );
     }
 }

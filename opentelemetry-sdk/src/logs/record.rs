@@ -194,6 +194,11 @@ impl SdkLogRecord {
         self.attributes.len()
     }
 
+    /// Drops attributes beyond `max_attributes`, keeping the first ones added.
+    pub(crate) fn truncate_attributes(&mut self, max_attributes: usize) {
+        self.attributes.truncate(max_attributes);
+    }
+
     #[allow(dead_code)]
     /// Checks if the `LogRecord` contains the specified attribute.
     pub(crate) fn attributes_contains(&self, key: &Key, value: &AnyValue) -> bool {

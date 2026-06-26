@@ -51,6 +51,10 @@ impl opentelemetry::logs::Logger for SdkLogger {
             record.observed_timestamp = Some(now());
         }
 
+        // Enforce the configured attribute count limit before handing the
+        // record to processors, dropping the attributes added last.
+        record.truncate_attributes(provider.max_attributes_per_log() as usize);
+
         for p in processors {
             p.emit(&mut record, &self.scope);
         }

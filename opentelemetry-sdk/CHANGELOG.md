@@ -2,6 +2,12 @@
 
 ## vNext
 
+- `SdkLoggerProvider` now enforces a maximum attribute count per log record
+  (default `128`), dropping attributes added beyond the limit when a record is
+  emitted. The limit is configurable via
+  `LoggerProviderBuilder::with_max_attributes_per_log` or the
+  `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` environment variable, which falls back
+  to `OTEL_ATTRIBUTE_COUNT_LIMIT`.
 - Bound instruments are now available for `Gauge` via the new `BoundGauge<T>`
   type exposed by the `opentelemetry` crate. Requires the
   `experimental_metrics_bound_instruments` feature.

@@ -87,6 +87,31 @@ impl<
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
 
+    /// Shortens the `GrowableArray`, keeping the first `len` elements and
+    /// dropping the rest.
+    ///
+    /// If `len` is greater than or equal to the current length, this has no
+    /// effect.
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn truncate(&mut self, len: usize) {
+        if len >= self.len() {
+            return;
+        }
+        if len <= self.count {
+            // The kept range lies entirely within the inline storage; reset
+            // the dropped inline slots to default and discard any overflow.
+            for slot in self.inline.iter_mut().take(self.count).skip(len) {
+                *slot = T::default();
+            }
+            self.count = len;
+            self.overflow = None;
+        } else if let Some(overflow) = self.overflow.as_mut() {
+            // Inline storage is fully kept; truncate the overflow vector.
+            overflow.truncate(len - MAX_INLINE_CAPACITY);
+        }
+    }
+
     /// Returns an iterator over the elements in the `GrowableArray`.
     ///
     /// The iterator yields elements from the internal array (`initial`) first, followed by elements
@@ -197,6 +222,55 @@ mod tests {
             collection.push(i);
         }
         assert_eq!(collection.len(), 15);
+    }
+
+    #[test]
+    fn test_truncate() {
+        // Truncate within the inline region (and drop the overflow).
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..15 {
+            collection.push(i);
+        }
+        collection.truncate(5);
+        assert_eq!(collection.len(), 5);
+        assert_eq!(
+            collection.iter().copied().collect::<Vec<_>>(),
+            (0..5).collect::<Vec<_>>()
+        );
+        assert_eq!(collection.get(5), None);
+
+        // Truncate within the overflow region (inline fully kept).
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..15 {
+            collection.push(i);
+        }
+        collection.truncate(12);
+        assert_eq!(collection.len(), 12);
+        assert_eq!(
+            collection.iter().copied().collect::<Vec<_>>(),
+            (0..12).collect::<Vec<_>>()
+        );
+
+        // Truncate exactly at the inline boundary.
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..15 {
+            collection.push(i);
+        }
+        collection.truncate(DEFAULT_MAX_INLINE_CAPACITY);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
+
+        // Truncate to a length >= current length is a no-op.
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..5 {
+            collection.push(i);
+        }
+        collection.truncate(10);
+        assert_eq!(collection.len(), 5);
+
+        // Truncate to zero.
+        collection.truncate(0);
+        assert_eq!(collection.len(), 0);
+        assert_eq!(collection.get(0), None);
     }
 
     #[test]
