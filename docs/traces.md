@@ -9,8 +9,9 @@ applications.
 
 In short: prefer instrumentation libraries that use the OpenTelemetry Tracing
 API for framework-level spans, and use the OpenTelemetry Tracing API
-directly to create your own custom spans. [`tracing`] is for logs and events,
-not spans. See [logs.md](logs.md) for log guidance.
+directly to create your own custom spans. [`tracing`] should be used for
+logs and events, not for OpenTelemetry spans. See [logs.md](logs.md) for
+log guidance.
 
 ## Instrumentation Guidance
 
@@ -49,11 +50,12 @@ not spans. See [logs.md](logs.md) for log guidance.
    For *internal* spans (spans that represent in-process work and never cross
    a process boundary), `tracing::span!` through this bridge produces a
    result nearly identical to using the OpenTelemetry Tracing API directly —
-   span kind, links, and remote parent are not relevant for internal spans.
-   The `tracing` limitations matter primarily for *edge* spans (e.g.,
-   incoming/outgoing HTTP, messaging), where span kind, links, and remote
-   parents are central to the OpenTelemetry data model. The bridge offers
-   extension APIs to express these concepts.
+   span kind and remote parent are not applicable to internal spans, and
+   links, while still possible, are less common there. The `tracing`
+   limitations matter primarily for *edge* spans (e.g., incoming/outgoing
+   HTTP, messaging), where span kind, links, and remote parents are central
+   to the OpenTelemetry data model. The bridge offers extension APIs to
+   express these concepts.
 
 ## See Also
 

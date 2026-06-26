@@ -83,8 +83,8 @@ string is technically present but is not a meaningful EventName.)
 **Note**: These are **not** mapped to Span Events. If you specifically need
 Span Events today, record them with the OpenTelemetry tracing API
 (`Span::add_event` / `add_event_with_timestamp`). Otherwise, prefer Events
-(Logs with an EventName) as described above. The OpenTelemetry specification
-is deprecating the *Span Events API* (see [OTEP-4430]) in favor of Events.
+(Logs with an EventName) as described above. [OTEP-4430] proposes deprecating
+the *Span Events API* in favor of Events.
 
 [OTEP-4430]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/4430-span-event-api-deprecation-plan.md
 
