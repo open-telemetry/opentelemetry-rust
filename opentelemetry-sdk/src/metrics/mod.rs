@@ -4437,6 +4437,17 @@ mod tests {
         })
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn find_overflow_gauge_datapoint<T>(
+        data_points: &[GaugeDataPoint<T>],
+    ) -> Option<&GaugeDataPoint<T>> {
+        data_points.iter().find(|&datapoint| {
+            datapoint.attributes.iter().any(|kv| {
+                kv.key.as_str() == "otel.metric.overflow" && kv.value == Value::Bool(true)
+            })
+        })
+    }
+
     fn find_scope_metric<'a>(
         metrics: &'a [ScopeMetrics],
         name: &'a str,
@@ -6007,5 +6018,653 @@ mod tests {
         assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k1"));
         assert!(dp.attributes.iter().any(|kv| kv.key.as_str() == "k2"));
         assert!(!dp.attributes.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = gauge.bind(&attrs);
+
+        bound.record(10);
+        bound.record(20);
+        bound.record(30);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(gauge_data.data_points.len(), 1, "Expected one data point");
+        let dp = &gauge_data.data_points[0];
+        assert_eq!(dp.value, 30, "Gauge should report the last recorded value");
+        assert_eq!(dp.attributes, vec![KeyValue::new("key1", "bound_value")]);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_delta() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = gauge.bind(&attrs);
+
+        bound.record(50);
+        bound.record(75);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(gauge_data.data_points.len(), 1);
+        assert_eq!(gauge_data.data_points[0].value, 75);
+
+        // Next cycle: a new record produces the new last value.
+        test_context.reset_metrics();
+        bound.record(25);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(gauge_data.data_points.len(), 1);
+        assert_eq!(
+            gauge_data.data_points[0].value, 25,
+            "Delta gauge should report only the latest value since the last collection"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_matches_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "shared")];
+        let bound = gauge.bind(&attrs);
+
+        // Bound and unbound writes target the same data point. The final
+        // exported value is whichever write happened last.
+        gauge.record(10, &attrs);
+        bound.record(20);
+        gauge.record(30, &attrs);
+        bound.record(40);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            gauge_data.data_points.len(),
+            1,
+            "Bound and unbound should share the same data point"
+        );
+        assert_eq!(
+            gauge_data.data_points[0].value, 40,
+            "Last write (via bound) should win"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_delta_no_update_no_export() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = gauge.bind(&attrs);
+
+        // Cycle 1: record and collect.
+        bound.record(10);
+        test_context.flush_metrics();
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(gauge_data.data_points.len(), 1);
+        assert_eq!(gauge_data.data_points[0].value, 10);
+
+        // Cycle 2: no record - should export nothing.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+        let resource_metrics = test_context
+            .exporter
+            .get_finished_metrics()
+            .expect("metrics export should succeed");
+        assert!(
+            resource_metrics.is_empty(),
+            "Bound gauge with no updates should not export"
+        );
+
+        // Cycle 3: record again - handle still alive.
+        test_context.reset_metrics();
+        bound.record(99);
+        test_context.flush_metrics();
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(gauge_data.data_points.len(), 1);
+        assert_eq!(
+            gauge_data.data_points[0].value, 99,
+            "Bound handle should produce fresh value after quiet cycle"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_at_overflow_attributes_to_overflow_bucket() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_gauge" {
+                Stream::builder()
+                    .with_name("my_gauge")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Delta, view);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+
+        // Fill to cardinality limit with unbound calls.
+        for v in 0..cardinality_limit {
+            gauge.record(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow - handle binds directly to the overflow tracker.
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = gauge.bind(&overflow_attrs);
+        bound.record(42);
+
+        test_context.flush_metrics();
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            gauge_data.data_points.len(),
+            cardinality_limit + 1,
+            "Expected {} unique + 1 overflow data points",
+            cardinality_limit
+        );
+
+        let overflow_dp = find_overflow_gauge_datapoint(&gauge_data.data_points)
+            .expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 42,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_multiple_handles_same_attrs() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "shared")];
+
+        let bound1 = gauge.bind(&attrs);
+        let bound2 = gauge.bind(&attrs);
+
+        bound1.record(10);
+        bound2.record(20);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            gauge_data.data_points.len(),
+            1,
+            "Multiple handles to same attrs should share data point"
+        );
+        assert_eq!(gauge_data.data_points[0].value, 20);
+
+        // Drop one handle - entry should NOT be evicted while the other handle is alive.
+        drop(bound1);
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        test_context.reset_metrics();
+        bound2.record(5);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(gauge_data.data_points.len(), 1);
+        assert_eq!(
+            gauge_data.data_points[0].value, 5,
+            "Entry should persist while any handle is alive"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let bound = gauge.bind(&[]);
+
+        // Mix bound and unbound calls with empty attributes - they must share
+        // the same data point. Last write wins.
+        gauge.record(10, &[]);
+        bound.record(20);
+        gauge.record(30, &[]);
+        bound.record(40);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            gauge_data.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        let dp = &gauge_data.data_points[0];
+        assert!(dp.attributes.is_empty());
+        assert_eq!(dp.value, 40);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_gauge" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let gauge = meter.u64_gauge("my_gauge").build();
+
+        // bind with k3 included - view should drop it at bind time.
+        let bound = gauge.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.record(10);
+        bound.record(20);
+
+        // Unbound call with a *different* k3 value: after view filtering both
+        // bound and unbound must collapse into the same data point.
+        gauge.record(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::U64(MetricData::Gauge(gauge_data)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            gauge_data.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to share the same data point"
+        );
+        assert_eq!(
+            gauge_data.data_points[0].value, 7,
+            "Last write (the unbound record) should win"
+        );
+        let attrs = &gauge_data.data_points[0].attributes;
+        assert_eq!(attrs.len(), 2);
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_gauge_drop_enables_eviction() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let gauge = test_context.meter().u64_gauge("my_gauge").build();
+        let attrs = vec![KeyValue::new("key1", "ephemeral")];
+
+        {
+            let bound = gauge.bind(&attrs);
+            bound.record(100);
+            test_context.flush_metrics();
+
+            let MetricData::Gauge(gauge_data) =
+                test_context.get_aggregation::<u64>("my_gauge", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(gauge_data.data_points.len(), 1);
+            assert_eq!(gauge_data.data_points[0].value, 100);
+            // bound drops here
+        }
+
+        // Cycle 2: no updates, bound handle dropped - entry becomes stale and evictable.
+        test_context.reset_metrics();
+        test_context.flush_metrics();
+
+        // Cycle 3: the stale entry should have been evicted, so a new unbound
+        // record should be the only data point.
+        test_context.reset_metrics();
+        gauge.record(1, &[KeyValue::new("key1", "new_entry")]);
+        test_context.flush_metrics();
+
+        let MetricData::Gauge(gauge_data) = test_context.get_aggregation::<u64>("my_gauge", None)
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(gauge_data.data_points.len(), 1);
+        let dp = find_gauge_datapoint_with_key_value(&gauge_data.data_points, "key1", "new_entry")
+            .expect("new_entry should be present");
+        assert_eq!(dp.value, 1);
+        assert!(
+            find_gauge_datapoint_with_key_value(&gauge_data.data_points, "key1", "ephemeral")
+                .is_none(),
+            "Dropped bound entry should have been evicted"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_cumulative() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        // UpDownCounter supports both positive and negative values.
+        bound.add(50);
+        bound.add(-20);
+        bound.add(30);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(sum.data_points.len(), 1, "Expected one data point");
+        assert!(
+            !sum.is_monotonic,
+            "UpDownCounter must not produce monotonic Sums"
+        );
+        assert_eq!(sum.temporality, Temporality::Cumulative);
+        assert_eq!(sum.data_points[0].value, 60);
+        assert_eq!(
+            sum.data_points[0].attributes,
+            vec![KeyValue::new("key1", "bound_value")]
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_always_cumulative_even_when_delta_requested() {
+        // UpDownCounter always uses Cumulative temporality regardless of the
+        // reader's preference. Confirm the bound API observes the same rule.
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+        let attrs = vec![KeyValue::new("key1", "bound_value")];
+        let bound = counter.bind(&attrs);
+
+        bound.add(50);
+        bound.add(-10);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+        assert_eq!(
+            sum.temporality,
+            Temporality::Cumulative,
+            "UpDownCounter must produce Cumulative regardless of reader preference"
+        );
+        assert!(!sum.is_monotonic);
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 40);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_matches_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+        let attrs = vec![KeyValue::new("key1", "shared")];
+        let bound = counter.bind(&attrs);
+
+        // Mix bound and unbound additions to the same attribute set.
+        counter.add(10, &attrs);
+        bound.add(-20);
+        counter.add(30, &attrs);
+        bound.add(40);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound should share the same data point"
+        );
+        assert!(!sum.is_monotonic);
+        assert_eq!(sum.data_points[0].value, 60);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_at_overflow_attributes_to_overflow_bucket() {
+        let cardinality_limit = 3;
+        let view = move |i: &Instrument| {
+            if i.name() == "my_updown" {
+                Stream::builder()
+                    .with_name("my_updown")
+                    .with_cardinality_limit(cardinality_limit)
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let mut test_context = TestContext::new_with_view(Temporality::Cumulative, view);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+
+        // Fill to cardinality limit with unbound calls.
+        for v in 0..cardinality_limit {
+            counter.add(1, &[KeyValue::new("A", v.to_string())]);
+        }
+
+        // bind() at overflow - handle binds directly to the overflow tracker.
+        let overflow_attrs = vec![KeyValue::new("A", "overflow_bind")];
+        let bound = counter.bind(&overflow_attrs);
+        bound.add(42);
+        bound.add(-2);
+
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            cardinality_limit + 1,
+            "Expected {} unique + 1 overflow data points",
+            cardinality_limit
+        );
+
+        let overflow_dp =
+            find_overflow_sum_datapoint(&sum.data_points).expect("overflow point expected");
+        assert_eq!(
+            overflow_dp.value, 40,
+            "Bound-at-overflow data should go to overflow bucket"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_multiple_handles_same_attrs() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+        let attrs = vec![KeyValue::new("key1", "shared")];
+
+        let bound1 = counter.bind(&attrs);
+        let bound2 = counter.bind(&attrs);
+
+        bound1.add(10);
+        bound2.add(-3);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Multiple handles to same attrs should share data point"
+        );
+        assert_eq!(sum.data_points[0].value, 7);
+
+        // Drop one handle. Cumulative state still includes its contributions
+        // and the surviving handle continues to write to the same tracker.
+        drop(bound1);
+        test_context.reset_metrics();
+        bound2.add(-5);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(
+            sum.data_points[0].value, 2,
+            "Cumulative tracker should retain prior bound contributions"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_empty_attributes_shares_with_unbound() {
+        let mut test_context = TestContext::new(Temporality::Cumulative);
+        let counter = test_context.i64_up_down_counter("test", "my_updown", None);
+        let bound = counter.bind(&[]);
+
+        // Mix bound and unbound calls with empty attributes - they must share
+        // the same data point (both route to no_attribute_tracker).
+        counter.add(10, &[]);
+        bound.add(-3);
+        counter.add(30, &[]);
+        bound.add(-2);
+        test_context.flush_metrics();
+
+        let MetricData::Sum(sum) = test_context.get_aggregation::<i64>("my_updown", None) else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "Bound and unbound with empty attributes must share the same data point"
+        );
+        assert!(sum.data_points[0].attributes.is_empty());
+        assert_eq!(sum.data_points[0].value, 35);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[cfg(feature = "spec_unstable_metrics_views")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn bound_updown_counter_view_filters_attributes_at_bind_time() {
+        use opentelemetry::Key;
+
+        let exporter = InMemoryMetricExporter::default();
+        let view = |i: &Instrument| {
+            if i.name() == "my_updown" {
+                Stream::builder()
+                    .with_allowed_attribute_keys(vec![Key::new("k1"), Key::new("k2")])
+                    .build()
+                    .ok()
+            } else {
+                None
+            }
+        };
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(view)
+            .build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.i64_up_down_counter("my_updown").build();
+
+        // bind with k3 included - view should drop it at bind time.
+        let bound = counter.bind(&[
+            KeyValue::new("k1", "v1"),
+            KeyValue::new("k2", "v2"),
+            KeyValue::new("k3", "v3"),
+        ]);
+        bound.add(10);
+        bound.add(-3);
+
+        // unbound call with a *different* k3 value: after view filtering both
+        // bound and unbound must collapse into the same data point.
+        counter.add(
+            7,
+            &[
+                KeyValue::new("k1", "v1"),
+                KeyValue::new("k2", "v2"),
+                KeyValue::new("k3", "different"),
+            ],
+        );
+
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics are expected to be exported.");
+        let metric = &resource_metrics[0].scope_metrics[0].metrics[0];
+        let data::AggregatedMetrics::I64(MetricData::Sum(sum)) = &metric.data else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            sum.data_points.len(),
+            1,
+            "view should filter k3, leaving bound+unbound to aggregate together"
+        );
+        assert!(!sum.is_monotonic);
+        assert_eq!(sum.data_points[0].value, 14);
+        let attrs = &sum.data_points[0].attributes;
+        assert_eq!(attrs.len(), 2);
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
+        assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
     }
 }
