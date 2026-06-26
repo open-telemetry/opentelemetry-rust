@@ -1,0 +1,24 @@
+[package]
+name = "shutdown-event-live-check"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.75.0"
+publish = false
+autobenches = false
+
+# Purpose-built example for the weaver live-check CI workflow that validates
+# the otel.sdk.component.shutdown event against the in-tree semconv registry.
+
+[[bin]]
+name = "shutdown-event-live-check"
+path = "src/main.rs"
+bench = false
+
+[dependencies]
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true, features = ["logs", "trace", "metrics"] }
+opentelemetry-otlp = { workspace = true, features = ["grpc-tonic", "logs"] }
+opentelemetry-appender-tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "registry", "std", "fmt"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
