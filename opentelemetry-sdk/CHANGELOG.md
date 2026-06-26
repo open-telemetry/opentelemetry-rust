@@ -34,6 +34,9 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- **Feature**: Add support for `OTEL_SDK_DISABLED` environment variable [#3088][3088]
+
+[3088]: https://github.com/open-telemetry/opentelemetry-rust/pull/3088
 
 ## 0.32.1
 
