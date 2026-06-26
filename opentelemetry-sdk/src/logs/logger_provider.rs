@@ -23,6 +23,7 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
             processors: Vec::new(),
             is_shutdown: AtomicBool::new(true),
         }),
+        component_name: String::new(),
     })
 }
 
@@ -42,6 +43,7 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
 /// [`Resource`]: crate::Resource
 pub struct SdkLoggerProvider {
     inner: Arc<LoggerProviderInner>,
+    component_name: String,
 }
 
 impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
@@ -115,6 +117,7 @@ impl SdkLoggerProvider {
             let success = results.iter().all(|res| res.is_ok());
             if success {
                 otel_info!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
                     "otel.component.type" = "logger_provider",
                     "otel.component.shutdown.duration" = duration_secs,
                 );
@@ -130,6 +133,7 @@ impl SdkLoggerProvider {
                     "failed"
                 };
                 otel_warn!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
                     "error.type" = error_type,
                     "otel.component.type" = "logger_provider",
                     "otel.component.shutdown.duration" = duration_secs,
@@ -317,11 +321,17 @@ impl LoggerProviderBuilder {
             processor.set_resource(&resource);
         }
 
+        static INSTANCE_COUNTER: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let component_name = format!("logger_provider/{instance_id}");
+
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors,
                 is_shutdown: AtomicBool::new(false),
             }),
+            component_name,
         };
 
         otel_debug!(
@@ -820,9 +830,11 @@ mod tests {
             {
                 let logger_provider1 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
+                    component_name: String::new(),
                 };
                 let logger_provider2 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
+                    component_name: String::new(),
                 };
 
                 let logger1 = logger_provider1.logger("test-logger1");
@@ -861,9 +873,11 @@ mod tests {
         {
             let logger_provider1 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
+                component_name: String::new(),
             };
             let logger_provider2 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
+                component_name: String::new(),
             };
 
             // Explicitly shut down the logger provider
