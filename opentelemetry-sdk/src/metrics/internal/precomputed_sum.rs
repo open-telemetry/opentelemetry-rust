@@ -10,7 +10,7 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::Aggregator;
-use super::{last_value::Assign, AtomicTracker, Number, ValueMap};
+use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
@@ -105,8 +105,11 @@ impl<T: Number> PrecomputedSum<T> {
         self.value_map
             .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
                 let value = aggr.value.get_value();
-                new_reported.insert(attributes.clone(), value);
-                let delta = value - *reported.get(&attributes).unwrap_or(&T::default());
+                // Canonicalize before caching in `reported`; otherwise the same
+                // attributes in a different order are cached as a distinct key.
+                let lookup_attributes = sort_and_dedup(&attributes);
+                let delta = value - *reported.get(&lookup_attributes).unwrap_or(&T::default());
+                new_reported.insert(lookup_attributes, value);
                 SumDataPoint {
                     attributes,
                     value: delta,

@@ -17,6 +17,9 @@
   `queue_full` and `already_shutdown`, enabling operators to distinguish
   successful processing from drops due to full queue or post-shutdown emits.
   ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514))
+- Fixed delta `ObservableCounter` streams treating the same logical attribute
+  set in a different order as a new stream and re-exporting the cumulative value
+  as the delta.
 
 ## 0.32.1
 
