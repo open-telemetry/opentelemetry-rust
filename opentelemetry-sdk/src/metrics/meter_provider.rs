@@ -12,7 +12,7 @@ use std::{
     },
 };
 
-use crate::error::OTelSdkResult;
+use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::Resource;
 
 use super::{
@@ -112,6 +112,13 @@ impl SdkMeterProvider {
     /// There is no guaranteed that all telemetry be flushed or all resources have
     /// been released on error.
     pub fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+        // Check idempotency at the outer level to avoid emitting multiple events.
+        // The inner shutdown_invoked swap is the authoritative guard; we read it
+        // here only to short-circuit the timing + emission path.
+        if self.inner.shutdown_invoked.load(Ordering::SeqCst) {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
+
         otel_debug!(
             name: "MeterProvider.Shutdown",
             message = "User initiated shutdown of MeterProvider."
@@ -119,6 +126,9 @@ impl SdkMeterProvider {
         let shutdown_start = std::time::Instant::now();
         let result = self.inner.shutdown();
         let duration_secs = shutdown_start.elapsed().as_secs_f64();
+
+        // Only emit the event if this was the first (actual) shutdown call.
+        // inner.shutdown() returns AlreadyShutdown on races; don't emit in that case.
         match &result {
             Ok(()) => {
                 otel_info!(name: "otel.sdk.component.shutdown",
@@ -126,6 +136,9 @@ impl SdkMeterProvider {
                     "otel.component.type" = "meter_provider",
                     "otel.component.shutdown.duration" = duration_secs,
                 );
+            }
+            Err(OTelSdkError::AlreadyShutdown) => {
+                // Race: another thread won the swap. Don't emit.
             }
             Err(_) => {
                 otel_warn!(name: "otel.sdk.component.shutdown",
