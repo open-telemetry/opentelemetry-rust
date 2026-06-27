@@ -2,8 +2,8 @@ use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
 use crate::Resource;
-use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
-use std::time::Duration;
+use opentelemetry::{otel_debug, otel_info, otel_warn, InstrumentationScope};
+use std::time::{Duration, Instant};
 use std::{
     borrow::Cow,
     sync::{
@@ -23,6 +23,7 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
             processors: Vec::new(),
             is_shutdown: AtomicBool::new(true),
         }),
+        component_name: String::new(),
     })
 }
 
@@ -42,6 +43,7 @@ fn noop_logger_provider() -> &'static SdkLoggerProvider {
 /// [`Resource`]: crate::Resource
 pub struct SdkLoggerProvider {
     inner: Arc<LoggerProviderInner>,
+    component_name: String,
 }
 
 impl opentelemetry::logs::LoggerProvider for SdkLoggerProvider {
@@ -107,14 +109,38 @@ impl SdkLoggerProvider {
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
+            let shutdown_start = Instant::now();
             // propagate the shutdown signal to processors
-            let result = self.inner.shutdown_with_timeout(timeout);
-            if result.iter().all(|res| res.is_ok()) {
+            let results = self.inner.shutdown_with_timeout(timeout);
+            let duration_secs = shutdown_start.elapsed().as_secs_f64();
+
+            let success = results.iter().all(|res| res.is_ok());
+            if success {
+                otel_info!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "otel.component.type" = "logger_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Ok(())
             } else {
+                // Classify: timeout takes precedence over failed
+                let error_type = if results
+                    .iter()
+                    .any(|r| matches!(r, Err(OTelSdkError::Timeout(_))))
+                {
+                    "timeout"
+                } else {
+                    "failed"
+                };
+                otel_warn!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "error.type" = error_type,
+                    "otel.component.type" = "logger_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Err(OTelSdkError::InternalFailure(format!(
                     "Shutdown errors: {:?}",
-                    result
+                    results
                         .into_iter()
                         .filter_map(Result::err)
                         .collect::<Vec<_>>()
@@ -295,11 +321,17 @@ impl LoggerProviderBuilder {
             processor.set_resource(&resource);
         }
 
+        static INSTANCE_COUNTER: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let component_name = format!("logger_provider/{instance_id}");
+
         let logger_provider = SdkLoggerProvider {
             inner: Arc::new(LoggerProviderInner {
                 processors,
                 is_shutdown: AtomicBool::new(false),
             }),
+            component_name,
         };
 
         otel_debug!(
@@ -798,9 +830,11 @@ mod tests {
             {
                 let logger_provider1 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
+                    component_name: String::new(),
                 };
                 let logger_provider2 = SdkLoggerProvider {
                     inner: shared_inner.clone(),
+                    component_name: String::new(),
                 };
 
                 let logger1 = logger_provider1.logger("test-logger1");
@@ -839,9 +873,11 @@ mod tests {
         {
             let logger_provider1 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
+                component_name: String::new(),
             };
             let logger_provider2 = SdkLoggerProvider {
                 inner: shared_inner.clone(),
+                component_name: String::new(),
             };
 
             // Explicitly shut down the logger provider

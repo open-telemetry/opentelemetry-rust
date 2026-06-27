@@ -71,7 +71,7 @@ use crate::trace::{
 use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::otel_debug;
-use opentelemetry::{otel_info, InstrumentationScope};
+use opentelemetry::{otel_info, otel_warn, InstrumentationScope};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -97,6 +97,7 @@ fn noop_tracer_provider() -> &'static SdkTracerProvider {
                 },
                 is_shutdown: AtomicBool::new(true),
             }),
+            component_name: String::new(),
         }
     })
 }
@@ -157,6 +158,7 @@ impl Drop for TracerProviderInner {
 #[derive(Clone, Debug)]
 pub struct SdkTracerProvider {
     inner: Arc<TracerProviderInner>,
+    component_name: String,
 }
 
 impl Default for SdkTracerProvider {
@@ -168,8 +170,12 @@ impl Default for SdkTracerProvider {
 impl SdkTracerProvider {
     /// Build a new tracer provider
     pub(crate) fn new(inner: TracerProviderInner) -> Self {
+        static INSTANCE_COUNTER: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         SdkTracerProvider {
             inner: Arc::new(inner),
+            component_name: format!("tracer_provider/{instance_id}"),
         }
     }
 
@@ -250,18 +256,39 @@ impl SdkTracerProvider {
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .is_ok()
         {
+            let shutdown_start = std::time::Instant::now();
             // propagate the shutdown signal to processors
             let results = self.inner.shutdown_with_timeout(timeout);
+            let duration_secs = shutdown_start.elapsed().as_secs_f64();
 
             if results.iter().all(|res| res.is_ok()) {
+                otel_info!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "otel.component.type" = "tracer_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Ok(())
             } else {
+                let error_type = if results
+                    .iter()
+                    .any(|r| matches!(r, Err(OTelSdkError::Timeout(_))))
+                {
+                    "timeout"
+                } else {
+                    "failed"
+                };
+                otel_warn!(name: "otel.sdk.component.shutdown",
+                    "otel.component.name" = self.component_name.as_str(),
+                    "error.type" = error_type,
+                    "otel.component.type" = "tracer_provider",
+                    "otel.component.shutdown.duration" = duration_secs,
+                );
                 Err(OTelSdkError::InternalFailure(format!(
                     "Shutdown errors: {:?}",
                     results
                         .into_iter()
                         .filter_map(Result::err)
-                        .collect::<Vec<_>>() // Collect only the errors
+                        .collect::<Vec<_>>()
                 )))
             }
         } else {
