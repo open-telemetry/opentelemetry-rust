@@ -293,8 +293,11 @@
 //! * `reqwest-blocking-client`: Use reqwest blocking http client. This feature is enabled by default.
 //! * `reqwest-client`: Use reqwest async http client.
 //! * `hyper-client`: Use hyper async http client.
-//! * `reqwest-rustls`: Use reqwest with TLS with system trust roots via `rustls-native-certs` crate.
-//! * `reqwest-rustls-webpki-roots`: Use reqwest with TLS with Mozilla's trust roots via `webpki-roots` crate.
+//! * `reqwest-rustls`: Use reqwest with TLS. Uses `rustls` with the platform's native trust roots by default.
+//!   If you need Mozilla's embedded CA bundle (webpki-roots), build a custom `reqwest::Client` with
+//!   a `rustls::ClientConfig` containing
+//!   `rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())`, then pass it
+//!   via `with_http_client()`.
 //!
 //! The following feature flags enable experimental retry support:
 //!
