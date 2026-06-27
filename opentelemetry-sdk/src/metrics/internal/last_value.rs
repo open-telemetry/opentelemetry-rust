@@ -247,9 +247,8 @@ mod tests {
         // While the handle exists, the entry's bound_count is 1.
         let trackers = last_value.value_map.trackers.read().unwrap();
         let entry = trackers
-            .iter()
+            .values()
             .next()
-            .map(|(_, entry)| entry)
             .expect("entry should exist after bind+call");
         assert_eq!(
             entry.bound_count.load(Ordering::Relaxed),
@@ -262,9 +261,8 @@ mod tests {
 
         let trackers = last_value.value_map.trackers.read().unwrap();
         let entry = trackers
-            .iter()
+            .values()
             .next()
-            .map(|(_, entry)| entry)
             .expect("entry should still exist post-drop");
         assert_eq!(
             entry.bound_count.load(Ordering::Relaxed),

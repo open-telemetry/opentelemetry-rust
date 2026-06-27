@@ -4,11 +4,11 @@ mod histogram;
 mod last_value;
 mod precomputed_sum;
 mod sum;
-mod tracker_maps;
 
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
+use std::collections::{HashMap, HashSet};
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
@@ -22,7 +22,6 @@ pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::otel_debug;
 use opentelemetry::{otel_warn, KeyValue};
-use tracker_maps::{Key, TrackerMaps};
 
 use super::data::{AggregatedMetrics, MetricData};
 
@@ -79,6 +78,9 @@ impl<A: Aggregator> TrackerEntry<A> {
     }
 }
 
+/// Map from attribute sets to their aggregator tracker entries.
+type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
@@ -88,9 +90,9 @@ where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<TrackerMaps<A>>,
+    trackers: RwLock<TrackerMap<A>>,
 
-    /// Number of distinct logical attribute sets stored in the canonical map.
+    /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
     /// Tracker for values with no attributes attached.
     no_attribute_tracker: Arc<TrackerEntry<A>>,
@@ -109,7 +111,7 @@ where
 
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
         ValueMap {
-            trackers: RwLock::new(TrackerMaps::with_capacity(1 + cardinality_limit)),
+            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
@@ -123,13 +125,11 @@ where
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
-        let update_tracker = |tracker: &Arc<TrackerEntry<A>>, value: A::PreComputedValue| {
-            tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Release);
-        };
-
         if attributes.is_empty() {
-            update_tracker(&self.no_attribute_tracker, value);
+            self.no_attribute_tracker.aggregator.update(value);
+            self.no_attribute_tracker
+                .has_been_updated
+                .store(true, Ordering::Release);
             return;
         }
 
@@ -137,9 +137,18 @@ where
             return;
         };
 
-        let key = Key::new(attributes);
-        if let Some(tracker) = trackers.get(&key) {
-            update_tracker(tracker, value);
+        // Try to retrieve and update the tracker with the attributes in the provided order first
+        if let Some(tracker) = trackers.get(attributes) {
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
+            return;
+        }
+
+        // Try to retrieve and update the tracker with the attributes sorted.
+        let sorted_attrs = sort_and_dedup(attributes);
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
             return;
         }
 
@@ -150,23 +159,34 @@ where
             return;
         };
 
-        // Recheck after acquiring the write lock in case another thread pushed
-        // an update in the meantime.
-        if let Some(tracker) = trackers.get(&key) {
-            update_tracker(tracker, value);
+        // Recheck both the provided and sorted orders after acquiring the write lock
+        // in case another thread has pushed an update in the meantime.
+        if let Some(tracker) = trackers.get(attributes) {
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
+        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            tracker.aggregator.update(value);
+            tracker.has_been_updated.store(true, Ordering::Release);
         } else if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
-            update_tracker(&new_tracker, value);
+            new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
 
-            trackers.insert(&key, new_tracker);
+            // Insert tracker with the attributes in the provided and sorted orders
+            trackers.insert(attributes.to_vec(), new_tracker.clone());
+            trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
+        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+            overflow_value.aggregator.update(value);
+            overflow_value
+                .has_been_updated
+                .store(true, Ordering::Release);
         } else {
-            let overflow_key = Key::new(stream_overflow_attributes().as_slice());
-            let overflow_tracker = trackers.get_or_insert(&overflow_key, || {
-                Arc::new(TrackerEntry::<A>::new(&self.config))
-            });
-            update_tracker(&overflow_tracker, value);
+            let new_tracker = TrackerEntry::<A>::new(&self.config);
+            new_tracker.aggregator.update(value);
+            new_tracker.has_been_updated.store(true, Ordering::Release);
+            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
         }
     }
 
@@ -193,15 +213,19 @@ where
             return Some(Arc::clone(&self.no_attribute_tracker));
         }
 
-        let key = Key::new(attributes);
-        self.bind_attrs(&key)
+        let sorted_attrs = sort_and_dedup(attributes);
+        self.bind_attrs(attributes, sorted_attrs)
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn bind_attrs(&self, key: &Key<'_>) -> Option<Arc<TrackerEntry<A>>> {
-        // Fast path: read lock lookup by cached alias.
+    fn bind_attrs(
+        &self,
+        original: &[KeyValue],
+        sorted_attrs: Vec<KeyValue>,
+    ) -> Option<Arc<TrackerEntry<A>>> {
+        // Fast path: read lock lookup using the canonical (sorted) key.
         if let Ok(trackers) = self.trackers.read() {
-            if let Some(tracker) = trackers.get(key) {
+            if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
                 tracker.bound_count.fetch_add(1, Ordering::Relaxed);
                 return Some(Arc::clone(tracker));
             }
@@ -214,7 +238,7 @@ where
         };
 
         // Recheck after acquiring write lock.
-        if let Some(tracker) = trackers.get(key) {
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             return Some(Arc::clone(tracker));
         }
@@ -222,7 +246,13 @@ where
         if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
-            trackers.insert(key, new_tracker.clone());
+            // Insert with both the original and sorted orderings so subsequent
+            // unbound measure() calls hit the fast path regardless of attr order.
+            // Mirrors `measure()`'s insert pattern.
+            if original != sorted_attrs.as_slice() {
+                trackers.insert(original.to_vec(), new_tracker.clone());
+            }
+            trackers.insert(sorted_attrs, new_tracker.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
         } else {
@@ -237,10 +267,10 @@ where
             // The overflow tracker is created lazily here if it doesn't exist
             // yet — mirrors the lazy creation in `measure()` (line above where
             // overflow is inserted on first overflowing measurement).
-            let overflow_key = Key::new(stream_overflow_attributes().as_slice());
-            let overflow_tracker = trackers.get_or_insert(&overflow_key, || {
-                Arc::new(TrackerEntry::<A>::new(&self.config))
-            });
+            let overflow_tracker = trackers
+                .entry(stream_overflow_attributes().clone())
+                .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
+                .clone();
             overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             otel_debug!(
                 name: "BoundInstrument.CardinalityOverflow",
@@ -250,7 +280,7 @@ where
         }
     }
 
-    /// Iterate through canonical attribute sets and populate `DataPoints` in readonly mode.
+    /// Iterate through all attribute sets and populate `DataPoints` in readonly mode.
     /// This is used for synchronous instruments (Counter, Histogram, etc.) in Cumulative temporality mode,
     /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
     pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
@@ -270,12 +300,15 @@ where
             return;
         };
 
+        let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
-            dest.push(map_fn(attrs.to_vec(), &tracker.aggregator));
+            if seen.insert(Arc::as_ptr(tracker)) {
+                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+            }
         }
     }
 
-    /// Iterate through canonical attribute sets in-place, populate `DataPoints` and reset.
+    /// Iterate through all attribute sets in-place, populate `DataPoints` and reset.
     /// Only entries updated since the last collection (tracked via `has_been_updated`)
     /// are exported. Stale unbound entries are evicted to prevent unbounded memory growth.
     /// Bound entries (bound_count > 0) are never evicted — they persist until explicitly
@@ -303,14 +336,17 @@ where
                 return;
             };
 
+            let mut seen = HashSet::new();
             for (attrs, tracker) in trackers.iter() {
-                if tracker.has_been_updated.swap(false, Ordering::Acquire) {
-                    dest.push(map_fn(attrs.to_vec(), &tracker.aggregator));
-                } else if attrs != overflow_attrs.as_slice()
-                    && tracker.bound_count.load(Ordering::Relaxed) == 0
-                {
-                    // Stale and not bound — candidate for eviction
-                    stale_entries.push(Arc::clone(tracker));
+                if seen.insert(Arc::as_ptr(tracker)) {
+                    if tracker.has_been_updated.swap(false, Ordering::Acquire) {
+                        dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+                    } else if attrs.as_slice() != overflow_attrs.as_slice()
+                        && tracker.bound_count.load(Ordering::Relaxed) == 0
+                    {
+                        // Stale and not bound — candidate for eviction
+                        stale_entries.push(Arc::clone(tracker));
+                    }
                 }
             }
             // Read lock released here
@@ -326,15 +362,17 @@ where
                         && entry.bound_count.load(Ordering::Acquire) == 0
                 });
 
-                let removed = trackers.evict(&stale_entries);
-                if removed > 0 {
-                    self.count.fetch_sub(removed, Ordering::SeqCst);
+                if !stale_entries.is_empty() {
+                    let stale_pointers: HashSet<*const TrackerEntry<A>> =
+                        stale_entries.iter().map(Arc::as_ptr).collect();
+                    trackers.retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
+                    self.count.fetch_sub(stale_entries.len(), Ordering::SeqCst);
                 }
             }
         }
     }
 
-    /// Iterate through canonical attribute sets, populate `DataPoints` and reset by draining the map.
+    /// Iterate through all attribute sets, populate `DataPoints` and reset by draining the map.
     /// This is used for asynchronous instruments (Observable/PrecomputedSum) in both Delta and
     /// Cumulative temporality modes, where map clearing is needed for staleness detection.
     pub(crate) fn drain_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
@@ -361,15 +399,18 @@ where
                 return;
             };
             self.count.store(0, Ordering::SeqCst);
-            trackers.take()
+            std::mem::take(&mut *trackers)
             // Write lock released here
         };
 
+        let mut seen = HashSet::new();
         for (attrs, tracker) in old_trackers {
-            dest.push(map_fn(
-                attrs.to_vec(),
-                tracker.aggregator.clone_and_reset(&self.config),
-            ));
+            if seen.insert(Arc::as_ptr(&tracker)) {
+                dest.push(map_fn(
+                    attrs,
+                    tracker.aggregator.clone_and_reset(&self.config),
+                ));
+            }
         }
     }
 }
@@ -381,6 +422,16 @@ fn prepare_data<T>(data: &mut Vec<T>, list_len: usize) {
     if total_len > data.capacity() {
         data.reserve_exact(total_len - data.capacity());
     }
+}
+
+fn sort_and_dedup(attributes: &[KeyValue]) -> Vec<KeyValue> {
+    // Use newly allocated vec here as incoming attributes are immutable so
+    // cannot sort/de-dup in-place. TODO: This allocation can be avoided by
+    // leveraging a ThreadLocal vec.
+    let mut sorted = attributes.to_vec();
+    sorted.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    sorted.dedup_by(|a, b| a.key == b.key);
+    sorted
 }
 
 /// Marks a type that can have a value added and retrieved atomically. Required since
@@ -780,72 +831,53 @@ mod tests {
 
     #[test]
     fn stale_entry_evicts_both_unsorted_and_sorted_keys() {
-        // ValueMap's lookup map stores two HashMap keys per attribute set: one
-        // for the insertion order and one for the sorted (canonical) order,
-        // both pointing to the same Arc<TrackerEntry>. The canonical map stores
-        // the single logical entry used for counting and export. This test
-        // verifies that stale eviction removes *both* lookup keys by confirming
-        // later measurements with either order do not hit a zombie entry.
+        // ValueMap stores two HashMap keys per attribute set: one for the insertion
+        // order and one for the sorted (canonical) order, both pointing to the same
+        // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
+        // keys so no zombie entries remain in the map.
         let value_map = ValueMap::<Assign<i64>>::new((), 10);
 
         // Insert with attributes deliberately in non-sorted order.
-        // measure() inserts two lookup keys:
+        // measure() inserts two keys:
         //   - unsorted: [("b", ...), ("a", ...)]
         //   - sorted:   [("a", ...), ("b", ...)]
-        // both pointing to the same Arc<TrackerEntry>, plus one canonical
-        // entry for export.
-        let unsorted_attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
-        let sorted_attrs = vec![KeyValue::new("a", 2_i64), KeyValue::new("b", 1_i64)];
+        // both pointing to the same Arc<TrackerEntry>.
+        let attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
+        value_map.measure(1_i64, attrs.as_slice());
 
-        let collect = |dest: &mut Vec<(Vec<KeyValue>, i64)>| {
-            value_map.collect_and_reset(dest, |attrs, aggr| {
-                (attrs, aggr.value.get_and_reset_value())
-            });
-        };
-
-        value_map.measure(1_i64, unsorted_attrs.as_slice());
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                2,
+                "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
+            );
+        }
+        assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
 
         // First collect: entry was updated, so it is exported and has_been_updated is reset.
-        let mut dest = Vec::new();
-        collect(&mut dest);
-        assert_eq!(dest, vec![(sorted_attrs.clone(), 1_i64)]);
+        let mut dest: Vec<Vec<KeyValue>> = Vec::new();
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 1, "first collect should export the entry");
 
         // Second collect: entry was not updated since last collect, so it is stale.
-        // Both lookup keys (unsorted + sorted) and the canonical entry must be evicted.
+        // Both HashMap keys (unsorted + sorted) must be evicted.
         dest.clear();
-        collect(&mut dest);
-        assert!(dest.is_empty(), "stale entry should not be exported");
+        value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
+        assert_eq!(dest.len(), 0, "stale entry should not be exported");
+
+        {
+            let trackers = value_map.trackers.read().unwrap();
+            assert_eq!(
+                trackers.len(),
+                0,
+                "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
+            );
+        }
         assert_eq!(
             value_map.count.load(Ordering::SeqCst),
             0,
             "count should reach 0 after eviction"
-        );
-
-        value_map.measure(2_i64, unsorted_attrs.as_slice());
-        dest.clear();
-        collect(&mut dest);
-        assert_eq!(
-            dest,
-            vec![(sorted_attrs.clone(), 2_i64)],
-            "unsorted lookup must not hit an evicted tracker"
-        );
-
-        dest.clear();
-        collect(&mut dest);
-        assert!(dest.is_empty(), "stale entry should not be exported");
-        assert_eq!(
-            value_map.count.load(Ordering::SeqCst),
-            0,
-            "count should reach 0 after eviction"
-        );
-
-        value_map.measure(3_i64, sorted_attrs.as_slice());
-        dest.clear();
-        collect(&mut dest);
-        assert_eq!(
-            dest,
-            vec![(sorted_attrs, 3_i64)],
-            "sorted lookup must not hit an evicted tracker"
         );
     }
 
