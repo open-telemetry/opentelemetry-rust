@@ -28,20 +28,13 @@ use tokio::sync::RwLock;
 /// Batch span processors need to run a background task to collect and send
 /// spans. Different runtimes need different ways to handle the background task.
 ///
-/// Note: Configuring an opentelemetry `Runtime` that's not compatible with the
-/// underlying runtime can cause deadlocks (see tokio section).
-///
 /// ### Use with Tokio
 ///
-/// Tokio currently offers two different schedulers. One is
-/// `current_thread_scheduler`, the other is `multiple_thread_scheduler`. Both
-/// of them default to use batch span processors to install span exporters.
-///
-/// Tokio's `current_thread_scheduler` can cause the program to hang forever if
-/// blocking work is scheduled with other tasks in the same runtime. To avoid
-/// this, be sure to enable the `rt-tokio-current-thread` feature in this crate
-/// if you are using that runtime (e.g. users of actix-web), and blocking tasks
-/// will then be scheduled on a different thread.
+/// Tokio currently offers two different schedulers: `current_thread_scheduler`
+/// and `multi_thread_scheduler`. The `runtime::Tokio` type automatically detects
+/// which scheduler is being used and spawns tasks appropriately to avoid deadlocks.
+/// When running in a single-threaded runtime, tasks are spawned on a dedicated
+/// OS thread to prevent blocking the main runtime.
 ///
 /// # Examples
 ///
@@ -84,6 +77,7 @@ use tokio::sync::RwLock;
 /// [`tokio`]: https://tokio.rs
 pub struct BatchSpanProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+    runtime: R,
 
     // Track dropped spans
     dropped_spans_count: AtomicUsize,
@@ -131,7 +125,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
                 OTelSdkError::InternalFailure(format!("Failed to send flush message: {err}"))
             })?;
 
-        futures_executor::block_on(res_receiver).map_err(|err| {
+        self.runtime.block_on(res_receiver).map_err(|err| {
             OTelSdkError::InternalFailure(format!("Flush response channel error: {err}"))
         })?
     }
@@ -155,7 +149,7 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
                 OTelSdkError::InternalFailure(format!("Failed to send shutdown message: {err}"))
             })?;
 
-        futures_executor::block_on(res_receiver).map_err(|err| {
+        self.runtime.block_on(res_receiver).map_err(|err| {
             OTelSdkError::InternalFailure(format!("Shutdown response channel error: {err}"))
         })?
     }
@@ -400,6 +394,7 @@ impl<R: RuntimeChannel> BatchSpanProcessor<R> {
         // Return batch processor with link to worker
         BatchSpanProcessor {
             message_sender,
+            runtime,
             dropped_spans_count: AtomicUsize::new(0),
             max_queue_size,
         }
@@ -567,7 +562,7 @@ mod tests {
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(60 * 60 * 24)) // set the tick to 24 hours so we know the span must be exported via force_flush
             .build();
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
         let handle = tokio::spawn(async move {
             loop {
                 if let Some(span) = export_receiver.recv().await {
@@ -602,7 +597,7 @@ mod tests {
             delay_for: Duration::from_millis(if !time_out { 5 } else { 60 }),
             delay_fn: tokio::time::sleep,
         };
-        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
         processor.on_end(new_test_export_span_data());
         let flush_res = processor.force_flush();
@@ -702,5 +697,16 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    #[tokio::test]
+    async fn shutdown_does_not_deadlock_on_current_thread_tokio_runtime() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(10))
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+        processor.shutdown().expect("shutdown should succeed");
     }
 }
