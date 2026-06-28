@@ -251,18 +251,18 @@ mod tests {
         let bound = Measure::bind(&pre_sum, &attrs);
         bound.call(5);
 
-        let trackers = pre_sum.value_map.trackers.read().unwrap();
-        let entry = trackers
+        let shard = pre_sum.value_map.shards[0].read().unwrap();
+        let entry = shard
             .values()
             .next()
             .expect("entry should exist after bind+call");
         assert_eq!(entry.bound_count.load(Ordering::Relaxed), 1);
-        drop(trackers);
+        drop(shard);
 
         drop(bound);
 
-        let trackers = pre_sum.value_map.trackers.read().unwrap();
-        let entry = trackers
+        let shard = pre_sum.value_map.shards[0].read().unwrap();
+        let entry = shard
             .values()
             .next()
             .expect("entry should still exist post-drop");
