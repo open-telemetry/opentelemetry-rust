@@ -7,9 +7,9 @@ child process using environment variables as the propagation carrier.
 
 1. The parent process configures the W3C `TraceContextPropagator` and starts a
    root span.
-2. The parent copies its environment into an `EnvVarInjector`, injects that span
-   context into the copy, then passes the full environment copy to a child
-   process.
+2. The parent injects that span context into an `EnvVarInjector`, then passes
+   the resulting environment variables to a child process. The child inherits
+   the rest of the parent's environment through `std::process::Command`.
 3. The child process wraps its startup environment entries with
    `EnvVarExtractor::from_os_entries(std::env::vars_os())`, extracts the
    propagated context, and starts its own span as a child of the parent's

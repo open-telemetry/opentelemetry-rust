@@ -1,11 +1,7 @@
 //! Experimental environment-variable propagation carriers.
 
 use crate::propagation::{Extractor, Injector};
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    ffi::{OsStr, OsString},
-};
+use std::{borrow::Cow, collections::HashMap, ffi::OsStr};
 
 /// Experimental extractor for propagated context stored in environment variables.
 ///
@@ -95,12 +91,11 @@ impl Extractor for EnvVarExtractor {
 ///
 /// Most callers can start with [`EnvVarInjector::new`] and let
 /// [`std::process::Command`] inherit the rest of the parent environment by
-/// default. If you need an explicit copy of existing environment entries, pass
-/// them to [`EnvVarInjector::from_entries`].
+/// default.
 #[cfg_attr(docsrs, doc(cfg(feature = "otel_unstable")))]
 #[derive(Clone, Debug, Default)]
 pub struct EnvVarInjector {
-    env: HashMap<OsString, OsString>,
+    env: HashMap<String, String>,
 }
 
 impl EnvVarInjector {
@@ -108,27 +103,12 @@ impl EnvVarInjector {
     pub fn new() -> Self {
         Self::default()
     }
-
-    /// Builds an injector from the provided environment entries.
-    ///
-    /// Existing entries are stored exactly as provided. Calls to [`Injector::set`]
-    /// normalize only the propagation keys added through this injector API.
-    pub fn from_entries<I, K, V>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: Into<OsString>,
-        V: Into<OsString>,
-    {
-        Self {
-            env: collect_injector_entries(iter),
-        }
-    }
 }
 
 impl Injector for EnvVarInjector {
     fn set(&mut self, key: &str, value: String) {
         self.env
-            .insert(normalize_env_var_key(key).as_ref().into(), value.into());
+            .insert(normalize_env_var_key(key).into_owned(), value);
     }
 
     fn reserve(&mut self, additional: usize) {
@@ -137,8 +117,8 @@ impl Injector for EnvVarInjector {
 }
 
 impl IntoIterator for EnvVarInjector {
-    type Item = (OsString, OsString);
-    type IntoIter = std::collections::hash_map::IntoIter<OsString, OsString>;
+    type Item = (String, String);
+    type IntoIter = std::collections::hash_map::IntoIter<String, String>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.env.into_iter()
@@ -150,17 +130,6 @@ where
     I: IntoIterator<Item = (K, V)>,
     K: Into<String>,
     V: Into<String>,
-{
-    iter.into_iter()
-        .map(|(key, value)| (key.into(), value.into()))
-        .collect()
-}
-
-fn collect_injector_entries<I, K, V>(iter: I) -> HashMap<OsString, OsString>
-where
-    I: IntoIterator<Item = (K, V)>,
-    K: Into<OsString>,
-    V: Into<OsString>,
 {
     iter.into_iter()
         .map(|(key, value)| (key.into(), value.into()))
@@ -228,10 +197,7 @@ fn is_normalized_env_var_name(name: &str) -> bool {
 mod tests {
     use super::*;
     use crate::propagation::{Extractor, Injector};
-    use std::{
-        collections::{HashMap, HashSet},
-        ffi::OsStr,
-    };
+    use std::collections::{HashMap, HashSet};
     use temp_env::with_vars;
 
     #[test]
@@ -322,7 +288,7 @@ mod tests {
 
     #[test]
     fn injector_normalizes_inserted_names() {
-        let mut injector = EnvVarInjector::from_entries([("PATH", "/bin"), ("traceparent", "old")]);
+        let mut injector = EnvVarInjector::new();
         Injector::reserve(&mut injector, 2);
         Injector::set(&mut injector, "x-b3-traceid", "trace-id".to_string());
         Injector::set(&mut injector, "3trace", "prefixed".to_string());
@@ -330,53 +296,10 @@ mod tests {
         let env: HashMap<_, _> = injector.into_iter().collect();
 
         assert_eq!(
-            env.get(OsStr::new("PATH")).and_then(|value| value.to_str()),
-            Some("/bin")
-        );
-        assert_eq!(
-            env.get(OsStr::new("traceparent"))
-                .and_then(|value| value.to_str()),
-            Some("old")
-        );
-        assert_eq!(
-            env.get(OsStr::new("X_B3_TRACEID"))
-                .and_then(|value| value.to_str()),
+            env.get("X_B3_TRACEID").map(String::as_str),
             Some("trace-id")
         );
-        assert_eq!(
-            env.get(OsStr::new("_3TRACE"))
-                .and_then(|value| value.to_str()),
-            Some("prefixed")
-        );
-    }
-
-    #[test]
-    fn injector_from_entries_preserves_os_entries() {
-        with_vars(vec![("OTEL_ENV_VAR_INJECTOR_TEST", Some("value"))], || {
-            let env: HashMap<_, _> = EnvVarInjector::from_entries(std::env::vars_os())
-                .into_iter()
-                .collect();
-
-            assert_eq!(
-                env.get(OsStr::new("OTEL_ENV_VAR_INJECTOR_TEST"))
-                    .and_then(|value| value.to_str()),
-                Some("value")
-            );
-        });
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn injector_from_entries_preserves_non_utf8_entries() {
-        use std::os::unix::ffi::OsStringExt;
-
-        let key = OsString::from_vec(b"OTEL_ENV_VAR_NON_UTF8_\xFF".to_vec());
-        let value = OsString::from_vec(b"value_\xFF".to_vec());
-        let env: HashMap<_, _> = EnvVarInjector::from_entries([(key.clone(), value.clone())])
-            .into_iter()
-            .collect();
-
-        assert_eq!(env.get(key.as_os_str()), Some(&value));
+        assert_eq!(env.get("_3TRACE").map(String::as_str), Some("prefixed"));
     }
 
     #[test]
@@ -391,10 +314,10 @@ mod tests {
         Injector::set(&mut injector, "tracestate", "foo=bar".to_string());
 
         let env: HashMap<_, _> = injector.into_iter().collect();
-        assert!(env.contains_key(OsStr::new("TRACEPARENT")));
-        assert!(env.contains_key(OsStr::new("TRACESTATE")));
+        assert!(env.contains_key("TRACEPARENT"));
+        assert!(env.contains_key("TRACESTATE"));
 
-        let extractor = EnvVarExtractor::from_os_entries(env);
+        let extractor = EnvVarExtractor::from_entries(env);
 
         assert_eq!(
             Extractor::get(&extractor, "traceparent"),
