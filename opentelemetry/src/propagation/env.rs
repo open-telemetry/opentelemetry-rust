@@ -60,6 +60,11 @@ impl EnvVarExtractor {
     /// Entries are stored exactly as provided. `get()` still reads only the
     /// normalized form of a propagation key, and `keys()` still returns only
     /// already-normalized names.
+    ///
+    /// Lookup in this snapshot is case-sensitive on all platforms. This can
+    /// differ from [`EnvVarExtractor::from_fields`] on platforms such as Windows,
+    /// where reading a normalized name from the process environment may match an
+    /// environment variable whose name differs only by case.
     pub fn from_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -76,6 +81,11 @@ impl EnvVarExtractor {
     /// Any entry whose name or value is not valid UTF-8 is ignored. This scans
     /// the provided entries, so prefer [`EnvVarExtractor::from_fields`] unless a
     /// propagator needs [`Extractor::keys`] to see the whole environment.
+    ///
+    /// Lookup in this snapshot is case-sensitive on all platforms. This can
+    /// differ from [`EnvVarExtractor::from_fields`] on platforms such as Windows,
+    /// where reading a normalized name from the process environment may match an
+    /// environment variable whose name differs only by case.
     pub fn from_os_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
