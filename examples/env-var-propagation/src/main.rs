@@ -49,7 +49,7 @@ fn run_parent() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 }
 
 fn run_child() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let extractor = EnvVarExtractor::from_env();
+    let extractor = EnvVarExtractor::from_os_entries(env::vars_os());
     let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&extractor));
     let remote_parent = parent_cx.span().span_context().clone();
 

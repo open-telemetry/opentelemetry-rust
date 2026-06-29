@@ -5,16 +5,18 @@ use std::{borrow::Cow, collections::HashMap, ffi::OsStr};
 
 /// Experimental extractor for propagated context stored in environment variables.
 ///
-/// `EnvVarExtractor` captures a UTF-8 snapshot of the process environment and
-/// implements [`Extractor`] with the normalization rules from the
-/// OpenTelemetry environment-variable carrier specification. Keys are stored as
-/// they appear in the source environment, `get()` normalizes the requested
-/// propagation key before lookup, and `keys()` returns only names that are
-/// already normalized.
+/// `EnvVarExtractor` owns caller-provided environment entries and implements
+/// [`Extractor`] with the normalization rules from the OpenTelemetry
+/// environment-variable carrier specification. Keys are stored as they appear
+/// in the source environment, `get()` normalizes the requested propagation key
+/// before lookup, and `keys()` returns only names that are already normalized.
 ///
-/// `from_env()` is intended for initialization-time extraction, such as child
-/// process startup. Any environment variable name or value that is not valid
-/// UTF-8 is ignored when building the snapshot.
+/// Rust's [`Extractor`] trait returns borrowed values, so this adapter reads
+/// from the environment entries supplied by the caller instead of performing
+/// hidden process-environment lookups or internal caching. To adapt the
+/// current process environment at child-process startup, pass
+/// [`std::env::vars_os()`] to [`EnvVarExtractor::from_os_entries`] at the
+/// extraction point.
 ///
 /// Environment variables are visible to other code running in the process and
 /// may be visible to other users or processes with sufficient permissions, so
@@ -29,13 +31,6 @@ impl EnvVarExtractor {
     /// Creates an empty environment-variable extractor.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Captures a UTF-8 snapshot of the current process environment.
-    ///
-    /// Non-UTF-8 environment variable names or values are ignored.
-    pub fn from_env() -> Self {
-        Self::from_os_iter(std::env::vars_os())
     }
 
     /// Builds an extractor from the provided UTF-8 environment entries.
@@ -57,7 +52,12 @@ impl EnvVarExtractor {
         }
     }
 
-    fn from_os_iter<I, K, V>(iter: I) -> Self
+    /// Builds an extractor from OS-string environment entries.
+    ///
+    /// Any entry whose name or value is not valid UTF-8 is ignored. This is
+    /// useful when passing [`std::env::vars_os()`] explicitly at the extraction
+    /// point.
+    pub fn from_os_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
         K: AsRef<OsStr>,
@@ -94,16 +94,17 @@ impl Extractor for EnvVarExtractor {
 
 /// Experimental injector for child-process environment-variable propagation.
 ///
-/// `EnvVarInjector` collects UTF-8 environment entries and implements
-/// [`Injector`] by normalizing each propagation key before storing it. This
-/// makes it suitable for passing to process-spawning APIs such as
+/// `EnvVarInjector` owns environment entries and implements [`Injector`] by
+/// normalizing each propagation key before storing it. This makes it suitable
+/// for passing to process-spawning APIs such as
 /// [`std::process::Command::envs`], while leaving the parent process
 /// environment untouched.
 ///
 /// Most callers can start with [`EnvVarInjector::new`] and let
 /// [`std::process::Command`] inherit the rest of the parent environment by
-/// default. Use [`EnvVarInjector::from_env`] when you need an explicit UTF-8
-/// copy of the current process environment.
+/// default. If you need an explicit copy of existing environment entries, pass
+/// them to [`EnvVarInjector::from_entries`] or
+/// [`EnvVarInjector::from_os_entries`].
 #[cfg_attr(docsrs, doc(cfg(feature = "otel_unstable")))]
 #[derive(Clone, Debug, Default)]
 pub struct EnvVarInjector {
@@ -114,13 +115,6 @@ impl EnvVarInjector {
     /// Creates an empty environment-variable injector.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Captures a UTF-8 copy of the current process environment.
-    ///
-    /// Non-UTF-8 environment variable names or values are ignored.
-    pub fn from_env() -> Self {
-        Self::from_os_iter(std::env::vars_os())
     }
 
     /// Builds an injector from the provided UTF-8 environment entries.
@@ -146,7 +140,10 @@ impl EnvVarInjector {
         self.env
     }
 
-    fn from_os_iter<I, K, V>(iter: I) -> Self
+    /// Builds an injector from OS-string environment entries.
+    ///
+    /// Any entry whose name or value is not valid UTF-8 is ignored.
+    pub fn from_os_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
         K: AsRef<OsStr>,
@@ -300,14 +297,14 @@ mod tests {
     }
 
     #[test]
-    fn extractor_from_env_ignores_non_normalized_entries() {
+    fn extractor_from_os_entries_ignores_non_normalized_entries() {
         with_vars(
             vec![
                 ("OTEL_ENV_VAR_EXTRACTOR_TEST", Some("value")),
                 ("otel.env.var.extractor.other", Some("ignored")),
             ],
             || {
-                let extractor = EnvVarExtractor::from_env();
+                let extractor = EnvVarExtractor::from_os_entries(std::env::vars_os());
 
                 assert_eq!(
                     Extractor::get(&extractor, "OTEL_ENV_VAR_EXTRACTOR_TEST"),
@@ -348,9 +345,9 @@ mod tests {
     }
 
     #[test]
-    fn injector_from_env_preserves_utf8_entries() {
+    fn injector_from_os_entries_preserves_utf8_entries() {
         with_vars(vec![("OTEL_ENV_VAR_INJECTOR_TEST", Some("value"))], || {
-            let env = EnvVarInjector::from_env().into_inner();
+            let env = EnvVarInjector::from_os_entries(std::env::vars_os()).into_inner();
 
             assert_eq!(
                 env.get("OTEL_ENV_VAR_INJECTOR_TEST").map(String::as_str),
