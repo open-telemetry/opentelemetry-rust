@@ -9,6 +9,7 @@ use opentelemetry_stdout::SpanExporter;
 use std::{env, error::Error, io, process::Command};
 
 fn init_tracer() -> SdkTracerProvider {
+    // Parent and child both use W3C Trace Context when encoding env vars.
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let provider = SdkTracerProvider::builder()
@@ -31,9 +32,12 @@ fn run_parent() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         span_context.span_id()
     );
 
+    // Inject into a fresh environment map so only the child process receives
+    // the propagated context variables.
     let mut child_env = EnvVarInjector::new();
     global::get_text_map_propagator(|propagator| propagator.inject_context(&cx, &mut child_env));
 
+    // Re-exec the current binary in child mode to keep the example self-contained.
     let status = Command::new(env::current_exe()?)
         .arg("--child")
         .envs(child_env.into_inner())
@@ -49,6 +53,8 @@ fn run_parent() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 }
 
 fn run_child() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    // Make the environment snapshot explicit at the extraction point instead of
+    // hiding it inside the carrier implementation.
     let extractor = EnvVarExtractor::from_os_entries(env::vars_os());
     let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&extractor));
     let remote_parent = parent_cx.span().span_context().clone();
@@ -74,6 +80,8 @@ fn run_child() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
 fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let provider = init_tracer();
+    // The parent launches the same executable with `--child` to demonstrate
+    // propagation across a real process boundary.
     let result = match env::args().nth(1).as_deref() {
         Some("--child") => run_child(),
         _ => run_parent(),
