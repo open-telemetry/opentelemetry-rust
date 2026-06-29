@@ -53,10 +53,11 @@ fn run_parent() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 }
 
 fn run_child() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    // Make the environment snapshot explicit at the extraction point instead of
-    // hiding it inside the carrier implementation.
-    let extractor = EnvVarExtractor::from_os_entries(env::vars_os());
-    let parent_cx = global::get_text_map_propagator(|propagator| propagator.extract(&extractor));
+    let parent_cx = global::get_text_map_propagator(|propagator| {
+        // Read only the environment variables used by the active propagator.
+        let extractor = EnvVarExtractor::from_fields(propagator.fields());
+        propagator.extract(&extractor)
+    });
     let remote_parent = parent_cx.span().span_context().clone();
 
     if !remote_parent.is_valid() {

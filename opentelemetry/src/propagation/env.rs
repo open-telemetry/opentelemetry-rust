@@ -11,13 +11,18 @@ use std::{borrow::Cow, collections::HashMap, ffi::OsStr};
 /// in the source environment, `get()` normalizes the requested propagation key
 /// before lookup, and `keys()` returns only names that are already normalized.
 ///
-/// The extractor snapshots the environment because [`Extractor::get`] must
-/// return `&str`, while [`std::env::var_os`] returns owned values. The snapshot
+/// The extractor stores environment values because [`Extractor::get`] must
+/// return `&str`, while [`std::env::var_os`] returns owned values. Storing values
 /// gives the carrier stable owned storage to borrow from and makes
-/// [`Extractor::keys`] operate over a consistent environment view instead of
-/// repeatedly reading process-global state. To adapt the current process
-/// environment at child-process startup, pass [`std::env::vars_os()`] to
-/// [`EnvVarExtractor::from_os_entries`] at the extraction point.
+/// [`Extractor::keys`] operate over a consistent view instead of repeatedly
+/// reading process-global state.
+///
+/// Most callers should pass the active propagator's fields to
+/// [`EnvVarExtractor::from_fields`] at child-process startup so only known
+/// propagation variables are read from the environment. Use
+/// [`EnvVarExtractor::from_os_entries`] when a propagator needs
+/// [`Extractor::keys`] to see the whole environment, such as legacy propagators
+/// that scan carrier keys by prefix.
 ///
 /// Environment variables are visible to other code running in the process and
 /// may be visible to other users or processes with sufficient permissions, so
@@ -32,6 +37,22 @@ impl EnvVarExtractor {
     /// Creates an empty environment-variable extractor.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Builds an extractor by reading the normalized form of each provided field
+    /// from the current process environment.
+    ///
+    /// This is the recommended constructor when extracting with a known
+    /// [`crate::propagation::TextMapPropagator`]. It avoids enumerating the whole
+    /// environment for propagators that only call [`Extractor::get`] for their
+    /// advertised fields. Any value that is not valid UTF-8 is ignored.
+    pub fn from_fields<'a, I>(fields: I) -> Self
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        Self {
+            env: collect_fields(fields),
+        }
     }
 
     /// Builds an extractor from the provided UTF-8 environment entries.
@@ -52,9 +73,9 @@ impl EnvVarExtractor {
 
     /// Builds an extractor from OS-string environment entries.
     ///
-    /// Any entry whose name or value is not valid UTF-8 is ignored. This is
-    /// useful when passing [`std::env::vars_os()`] explicitly at the extraction
-    /// point.
+    /// Any entry whose name or value is not valid UTF-8 is ignored. This scans
+    /// the provided entries, so prefer [`EnvVarExtractor::from_fields`] unless a
+    /// propagator needs [`Extractor::keys`] to see the whole environment.
     pub fn from_os_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -134,6 +155,24 @@ where
 {
     iter.into_iter()
         .map(|(key, value)| (key.into(), value.into()))
+        .collect()
+}
+
+fn collect_fields<'a, I>(fields: I) -> HashMap<String, String>
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    fields
+        .into_iter()
+        .filter_map(|field| {
+            let normalized = normalize_env_var_key(field);
+            std::env::var_os(normalized.as_ref()).and_then(|value| {
+                value
+                    .into_string()
+                    .ok()
+                    .map(|value| (normalized.into_owned(), value))
+            })
+        })
         .collect()
 }
 
@@ -238,6 +277,33 @@ mod tests {
         assert_eq!(
             Extractor::get(&extractor, "x-b3-traceid"),
             Some("normalized-b3")
+        );
+    }
+
+    #[test]
+    fn extractor_from_fields_reads_only_requested_environment_names() {
+        with_vars(
+            vec![
+                ("TRACEPARENT", Some("normalized")),
+                ("TRACESTATE", Some("state")),
+                ("BAGGAGE", Some("not-requested")),
+            ],
+            || {
+                let extractor =
+                    EnvVarExtractor::from_fields(["traceparent", "tracestate", "missing"]);
+
+                assert_eq!(
+                    Extractor::get(&extractor, "traceparent"),
+                    Some("normalized")
+                );
+                assert_eq!(Extractor::get(&extractor, "tracestate"), Some("state"));
+                assert_eq!(Extractor::get(&extractor, "baggage"), None);
+
+                let keys = Extractor::keys(&extractor)
+                    .into_iter()
+                    .collect::<HashSet<_>>();
+                assert_eq!(keys, HashSet::from(["TRACEPARENT", "TRACESTATE"]));
+            },
         );
     }
 
