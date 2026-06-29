@@ -11,12 +11,13 @@ use std::{borrow::Cow, collections::HashMap, ffi::OsStr};
 /// in the source environment, `get()` normalizes the requested propagation key
 /// before lookup, and `keys()` returns only names that are already normalized.
 ///
-/// Rust's [`Extractor`] trait returns borrowed values, so this adapter reads
-/// from the environment entries supplied by the caller instead of performing
-/// hidden process-environment lookups or internal caching. To adapt the
-/// current process environment at child-process startup, pass
-/// [`std::env::vars_os()`] to [`EnvVarExtractor::from_os_entries`] at the
-/// extraction point.
+/// The extractor snapshots the environment because [`Extractor::get`] must
+/// return `&str`, while [`std::env::var_os`] returns owned values. The snapshot
+/// gives the carrier stable owned storage to borrow from and makes
+/// [`Extractor::keys`] operate over a consistent environment view instead of
+/// repeatedly reading process-global state. To adapt the current process
+/// environment at child-process startup, pass [`std::env::vars_os()`] to
+/// [`EnvVarExtractor::from_os_entries`] at the extraction point.
 ///
 /// Environment variables are visible to other code running in the process and
 /// may be visible to other users or processes with sufficient permissions, so
