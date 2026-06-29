@@ -7,9 +7,9 @@ use std::{borrow::Cow, collections::HashMap, ffi::OsStr};
 ///
 /// `EnvVarExtractor` owns caller-provided environment entries and implements
 /// [`Extractor`] with the normalization rules from the OpenTelemetry
-/// environment-variable carrier specification. Keys are stored as they appear
-/// in the source environment, `get()` normalizes the requested propagation key
-/// before lookup, and `keys()` returns only names that are already normalized.
+/// environment-variable carrier specification. Only keys that are already
+/// normalized are retained, `get()` normalizes the requested propagation key
+/// before lookup, and `keys()` returns the retained names.
 ///
 /// The extractor stores environment values because [`Extractor::get`] must
 /// return `&str`, while [`std::env::var_os`] returns owned values. Storing values
@@ -57,9 +57,9 @@ impl EnvVarExtractor {
 
     /// Builds an extractor from the provided UTF-8 environment entries.
     ///
-    /// Entries are stored exactly as provided. `get()` still reads only the
-    /// normalized form of a propagation key, and `keys()` still returns only
-    /// already-normalized names.
+    /// Only entries whose names are already normalized are stored. `get()` still
+    /// reads only the normalized form of a propagation key, and `keys()` returns
+    /// the retained names.
     ///
     /// Lookup in this snapshot is case-sensitive on all platforms. This can
     /// differ from [`EnvVarExtractor::from_fields`] on platforms such as Windows,
@@ -78,8 +78,9 @@ impl EnvVarExtractor {
 
     /// Builds an extractor from OS-string environment entries.
     ///
-    /// Any entry whose name or value is not valid UTF-8 is ignored. This scans
-    /// the provided entries, so prefer [`EnvVarExtractor::from_fields`] unless a
+    /// Any entry whose name or value is not valid UTF-8 is ignored. Entries
+    /// whose names are not already normalized are also ignored. This scans the
+    /// provided entries, so prefer [`EnvVarExtractor::from_fields`] unless a
     /// propagator needs [`Extractor::keys`] to see the whole environment.
     ///
     /// Lookup in this snapshot is case-sensitive on all platforms. This can
@@ -164,7 +165,10 @@ where
     V: Into<String>,
 {
     iter.into_iter()
-        .map(|(key, value)| (key.into(), value.into()))
+        .filter_map(|(key, value)| {
+            let key = key.into();
+            is_normalized_env_var_name(&key).then(|| (key, value.into()))
+        })
         .collect()
 }
 
@@ -194,10 +198,12 @@ where
 {
     iter.into_iter()
         .filter_map(|(key, value)| {
-            Some((
-                key.as_ref().to_str()?.to_string(),
-                value.as_ref().to_str()?.to_string(),
-            ))
+            let key = key.as_ref().to_str()?;
+            if is_normalized_env_var_name(key) {
+                Some((key.to_string(), value.as_ref().to_str()?.to_string()))
+            } else {
+                None
+            }
         })
         .collect()
 }
@@ -288,6 +294,11 @@ mod tests {
             Extractor::get(&extractor, "x-b3-traceid"),
             Some("normalized-b3")
         );
+
+        let keys = Extractor::keys(&extractor)
+            .into_iter()
+            .collect::<HashSet<_>>();
+        assert_eq!(keys, HashSet::from(["TRACEPARENT", "X_B3_TRACEID"]));
     }
 
     #[test]
@@ -351,12 +362,16 @@ mod tests {
                     Extractor::get(&extractor, "otel.env.var.extractor.other"),
                     None
                 );
+
+                let keys = Extractor::keys(&extractor)
+                    .into_iter()
+                    .collect::<HashSet<_>>();
                 assert!(
-                    Extractor::keys(&extractor).contains(&"OTEL_ENV_VAR_EXTRACTOR_TEST"),
+                    keys.contains("OTEL_ENV_VAR_EXTRACTOR_TEST"),
                     "normalized keys should be visible"
                 );
                 assert!(
-                    !Extractor::keys(&extractor).contains(&"otel.env.var.extractor.other"),
+                    !keys.contains("otel.env.var.extractor.other"),
                     "non-normalized keys should be hidden"
                 );
             },
