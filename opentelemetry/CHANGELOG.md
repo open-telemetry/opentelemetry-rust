@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Added** experimental `EnvVarExtractor` and `EnvVarInjector` helpers for
+  propagating OpenTelemetry context through environment variables. This API is
+  gated behind the `otel_unstable` feature flag.
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the

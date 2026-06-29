@@ -39,7 +39,9 @@
 //! which demonstrates creating spans and propagating trace context across a
 //! gRPC client and server. See the
 //! [examples](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples)
-//! directory for additional integration patterns.
+//! directory for additional integration patterns, including
+//! [`examples/env-var-propagation`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/env-var-propagation)
+//! for parent/child process propagation via environment variables.
 //!
 //! See the [`trace`] module docs for more information on creating and managing
 //! spans.
@@ -173,7 +175,9 @@
 //!
 //!
 //! The following feature flags enable APIs defined in OpenTelemetry specification that is in experimental phase:
-//! * `otel_unstable`: Includes unstable APIs. There are no features behind this flag at the moment.
+//! * `otel_unstable`: Includes unstable APIs such as
+//!   `opentelemetry::propagation::EnvVarExtractor` and
+//!   `opentelemetry::propagation::EnvVarInjector` for environment-variable context propagation.
 //!
 //! # Related Crates
 //!

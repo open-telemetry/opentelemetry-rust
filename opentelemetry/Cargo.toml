@@ -39,12 +39,14 @@ metrics = []
 testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
+otel_unstable = []
 experimental_metrics_bound_instruments = ["metrics"]
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
+temp-env = { workspace = true }
 tokio = { version = "1.0", features = ["full"] }
 
 [[bench]]

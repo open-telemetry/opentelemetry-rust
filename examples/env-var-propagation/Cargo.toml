@@ -1,0 +1,19 @@
+[package]
+name = "env-var-propagation"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.75.0"
+publish = false
+autobenches = false
+
+[[bin]]
+name = "env-var-propagation"
+path = "src/main.rs"
+doc = false
+bench = false
+
+[dependencies]
+opentelemetry = { workspace = true, features = ["trace", "otel_unstable"] }
+opentelemetry_sdk = { workspace = true, features = ["trace"] }
+opentelemetry-stdout = { workspace = true, features = ["trace"] }
