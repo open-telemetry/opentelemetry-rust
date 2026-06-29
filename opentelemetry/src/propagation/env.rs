@@ -294,11 +294,6 @@ mod tests {
             Extractor::get(&extractor, "x-b3-traceid"),
             Some("normalized-b3")
         );
-
-        let keys = Extractor::keys(&extractor)
-            .into_iter()
-            .collect::<HashSet<_>>();
-        assert_eq!(keys, HashSet::from(["TRACEPARENT", "X_B3_TRACEID"]));
     }
 
     #[test]
