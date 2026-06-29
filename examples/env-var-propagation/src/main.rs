@@ -32,15 +32,15 @@ fn run_parent() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         span_context.span_id()
     );
 
-    // Inject into a fresh environment map so only the child process receives
-    // the propagated context variables.
-    let mut child_env = EnvVarInjector::new();
+    // Inject into an explicit copy of the parent environment so the child gets
+    // the normal environment plus the propagated context variables.
+    let mut child_env = EnvVarInjector::from_entries(env::vars_os());
     global::get_text_map_propagator(|propagator| propagator.inject_context(&cx, &mut child_env));
 
     // Re-exec the current binary in child mode to keep the example self-contained.
     let status = Command::new(env::current_exe()?)
         .arg("--child")
-        .envs(child_env.into_inner())
+        .envs(child_env)
         .status()?;
 
     cx.span().end();
