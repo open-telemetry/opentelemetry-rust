@@ -129,6 +129,13 @@ additional exporters and other related components as well.
 
 See [docs](https://docs.rs/opentelemetry).
 
+Experimental environment-variable propagation helpers are available behind the
+`otel_unstable` feature flag via
+`opentelemetry::propagation::EnvVarExtractor` and
+`opentelemetry::propagation::EnvVarInjector`. See
+[`examples/env-var-propagation`](https://github.com/open-telemetry/opentelemetry-rust/tree/main/examples/env-var-propagation)
+for an end-to-end parent/child process example using `TraceContextPropagator`.
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry/CHANGELOG.md).
