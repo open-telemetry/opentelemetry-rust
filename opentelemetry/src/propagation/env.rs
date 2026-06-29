@@ -45,10 +45,7 @@ impl EnvVarExtractor {
         V: AsRef<str>,
     {
         Self {
-            env: iter
-                .into_iter()
-                .map(|(key, value)| (key.as_ref().to_string(), value.as_ref().to_string()))
-                .collect(),
+            env: collect_entries(iter),
         }
     }
 
@@ -64,15 +61,7 @@ impl EnvVarExtractor {
         V: AsRef<OsStr>,
     {
         Self {
-            env: iter
-                .into_iter()
-                .filter_map(|(key, value)| {
-                    Some((
-                        key.as_ref().to_str()?.to_string(),
-                        value.as_ref().to_str()?.to_string(),
-                    ))
-                })
-                .collect(),
+            env: collect_os_entries(iter),
         }
     }
 }
@@ -128,10 +117,7 @@ impl EnvVarInjector {
         V: AsRef<str>,
     {
         Self {
-            env: iter
-                .into_iter()
-                .map(|(key, value)| (key.as_ref().to_string(), value.as_ref().to_string()))
-                .collect(),
+            env: collect_entries(iter),
         }
     }
 
@@ -150,15 +136,7 @@ impl EnvVarInjector {
         V: AsRef<OsStr>,
     {
         Self {
-            env: iter
-                .into_iter()
-                .filter_map(|(key, value)| {
-                    Some((
-                        key.as_ref().to_str()?.to_string(),
-                        value.as_ref().to_str()?.to_string(),
-                    ))
-                })
-                .collect(),
+            env: collect_os_entries(iter),
         }
     }
 }
@@ -190,6 +168,33 @@ impl<'a> IntoIterator for &'a EnvVarInjector {
     fn into_iter(self) -> Self::IntoIter {
         self.env.iter()
     }
+}
+
+fn collect_entries<I, K, V>(iter: I) -> HashMap<String, String>
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    iter.into_iter()
+        .map(|(key, value)| (key.as_ref().to_string(), value.as_ref().to_string()))
+        .collect()
+}
+
+fn collect_os_entries<I, K, V>(iter: I) -> HashMap<String, String>
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<OsStr>,
+    V: AsRef<OsStr>,
+{
+    iter.into_iter()
+        .filter_map(|(key, value)| {
+            Some((
+                key.as_ref().to_str()?.to_string(),
+                value.as_ref().to_str()?.to_string(),
+            ))
+        })
+        .collect()
 }
 
 fn normalize_env_var_key(key: &str) -> Cow<'_, str> {
