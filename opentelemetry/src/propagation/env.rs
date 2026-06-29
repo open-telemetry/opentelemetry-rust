@@ -199,11 +199,8 @@ where
     iter.into_iter()
         .filter_map(|(key, value)| {
             let key = key.as_ref().to_str()?;
-            if is_normalized_env_var_name(key) {
-                Some((key.to_string(), value.as_ref().to_str()?.to_string()))
-            } else {
-                None
-            }
+            let value = value.as_ref().to_str()?;
+            is_normalized_env_var_name(key).then(|| (key.to_string(), value.to_string()))
         })
         .collect()
 }
