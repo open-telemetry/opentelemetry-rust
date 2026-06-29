@@ -41,8 +41,8 @@ impl EnvVarExtractor {
     pub fn from_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
+        K: Into<String>,
+        V: Into<String>,
     {
         Self {
             env: collect_entries(iter),
@@ -108,13 +108,13 @@ impl EnvVarInjector {
 
     /// Builds an injector from the provided UTF-8 environment entries.
     ///
-    /// Existing entries are copied exactly as provided. Calls to [`Injector::set`]
+    /// Existing entries are stored exactly as provided. Calls to [`Injector::set`]
     /// normalize only the propagation keys added through this injector API.
     pub fn from_entries<I, K, V>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
-        K: AsRef<str>,
-        V: AsRef<str>,
+        K: Into<String>,
+        V: Into<String>,
     {
         Self {
             env: collect_entries(iter),
@@ -173,11 +173,11 @@ impl<'a> IntoIterator for &'a EnvVarInjector {
 fn collect_entries<I, K, V>(iter: I) -> HashMap<String, String>
 where
     I: IntoIterator<Item = (K, V)>,
-    K: AsRef<str>,
-    V: AsRef<str>,
+    K: Into<String>,
+    V: Into<String>,
 {
     iter.into_iter()
-        .map(|(key, value)| (key.as_ref().to_string(), value.as_ref().to_string()))
+        .map(|(key, value)| (key.into(), value.into()))
         .collect()
 }
 
