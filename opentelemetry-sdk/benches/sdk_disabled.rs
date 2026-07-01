@@ -1,15 +1,15 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    rustc 1.98.0-nightly (8b6558a02 2026-06-20)
-    OS: macOS 26.5.1 (arm64)
+    rustc rustc 1.98.0-nightly (096694416 2026-06-29)
+    OS: macOS 26.5.2 (arm64)
     Hardware: Apple M1
 
     | Test    | api-only | sdk-disabled | sdk-shutdown | sdk-enabled |
     |---------|----------|--------------|--------------|-------------|
-    | trace   |  20.4 ns |  38.9 ns     |  38.5 ns     |  178 ns     |
-    | log     |  0.32 ns |  1.28 ns     |  1.27 ns     |  37 ns      |
-    | metrics |  6.11 ns |  6.11 ns     |  6.10 ns     |  66 ns      |
+    | trace   |  20.3 ns |  31.9 ns     |  31.4 ns     |  185 ns     |
+    | log     |  0.32 ns |  1.28 ns     |  1.27 ns     |   38 ns     |
+    | metrics |  6.11 ns |  6.11 ns     |  6.10 ns     |   66 ns     |
 */
 
 use criterion::{criterion_group, criterion_main, Criterion};
