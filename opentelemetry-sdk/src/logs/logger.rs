@@ -65,10 +65,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
     fn event_enabled(&self, level: Severity, target: &str, name: Option<&str>) -> bool {
         let processors = self.provider.log_processors();
         // Early return if there are no processors
-        if processors.is_empty() {
-            return false;
-        }
-        if Context::is_current_telemetry_suppressed() {
+        if processors.is_empty() || Context::is_current_telemetry_suppressed() {
             return false;
         }
         // Returns true if at least one processor returns true.
