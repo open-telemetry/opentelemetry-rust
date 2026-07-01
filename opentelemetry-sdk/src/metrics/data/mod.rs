@@ -1,6 +1,6 @@
 //! Types for delivery of pre-aggregated metric time series data.
 
-use std::{borrow::Cow, time::SystemTime};
+use std::{borrow::Cow, sync::Arc, time::SystemTime};
 
 use opentelemetry::{InstrumentationScope, KeyValue};
 
@@ -226,7 +226,11 @@ impl<T> Gauge<T> {
 pub struct SumDataPoint<T> {
     /// Attributes is the set of key value pairs that uniquely identify the
     /// time series.
-    pub(crate) attributes: Vec<KeyValue>,
+    ///
+    /// Stored as `Arc<[KeyValue]>` so exported data points share the same
+    /// attribute allocation with the SDK's internal tracker map — collection
+    /// is a refcount bump instead of a heap copy per data point.
+    pub(crate) attributes: Arc<[KeyValue]>,
     /// The value of this data point.
     pub(crate) value: T,
     /// The sampled [Exemplar]s collected during the time series.
@@ -621,7 +625,7 @@ mod tests {
     #[test]
     fn validate_cloning_data_points() {
         let data_type = SumDataPoint {
-            attributes: vec![KeyValue::new("key", "value")],
+            attributes: std::sync::Arc::from([KeyValue::new("key", "value")]),
             value: 0u32,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],

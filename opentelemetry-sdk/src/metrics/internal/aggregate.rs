@@ -298,12 +298,12 @@ mod tests {
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
-                        attributes: vec![KeyValue::new("a1", 1)],
+                        attributes: std::sync::Arc::from([KeyValue::new("a1", 1)]),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     SumDataPoint {
-                        attributes: vec![KeyValue::new("a2", 1)],
+                        attributes: std::sync::Arc::from([KeyValue::new("a2", 1)]),
                         value: 2u64,
                         exemplars: vec![],
                     },
@@ -331,7 +331,7 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(a.data_points[0].attributes.as_ref(), new_attributes.as_slice());
             assert_eq!(a.data_points[0].value, 3);
         }
     }
@@ -345,12 +345,12 @@ mod tests {
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
-                        attributes: vec![KeyValue::new("a1", 1)],
+                        attributes: std::sync::Arc::from([KeyValue::new("a1", 1)]),
                         value: 1u64,
                         exemplars: vec![],
                     },
                     SumDataPoint {
-                        attributes: vec![KeyValue::new("a2", 1)],
+                        attributes: std::sync::Arc::from([KeyValue::new("a2", 1)]),
                         value: 2u64,
                         exemplars: vec![],
                     },
@@ -378,7 +378,7 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes, new_attributes.to_vec());
+            assert_eq!(a.data_points[0].attributes.as_ref(), new_attributes.as_slice());
             assert_eq!(a.data_points[0].value, 3);
         }
     }

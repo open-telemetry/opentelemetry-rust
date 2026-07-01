@@ -4698,8 +4698,8 @@ mod tests {
         let data_point = &sum.data_points[0];
         assert_eq!(data_point.value, 60);
         assert_eq!(
-            data_point.attributes,
-            vec![KeyValue::new("key1", "bound_value")]
+            data_point.attributes.as_ref(),
+            [KeyValue::new("key1", "bound_value")].as_slice()
         );
     }
 
@@ -6423,8 +6423,8 @@ mod tests {
         assert_eq!(sum.temporality, Temporality::Cumulative);
         assert_eq!(sum.data_points[0].value, 60);
         assert_eq!(
-            sum.data_points[0].attributes,
-            vec![KeyValue::new("key1", "bound_value")]
+            sum.data_points[0].attributes.as_ref(),
+            [KeyValue::new("key1", "bound_value")].as_slice()
         );
     }
 

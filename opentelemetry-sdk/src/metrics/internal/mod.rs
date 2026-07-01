@@ -26,11 +26,28 @@ use opentelemetry::{otel_warn, KeyValue};
 use super::data::{AggregatedMetrics, MetricData};
 
 // TODO Replace it with LazyLock once it is stable
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Arc<[KeyValue]>> = OnceLock::new();
+
+/// A shared empty attribute set used whenever the SDK exports a data point with
+/// no attributes. Cloning the `Arc` is a refcount bump, avoiding an allocation
+/// per collect cycle for the no-attribute case.
+static EMPTY_ATTRIBUTES: OnceLock<Arc<[KeyValue]>> = OnceLock::new();
 
 #[inline]
-fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
+fn empty_attributes() -> Arc<[KeyValue]> {
+    Arc::clone(EMPTY_ATTRIBUTES.get_or_init(|| Arc::from(Vec::<KeyValue>::new())))
+}
+
+#[inline]
+fn stream_overflow_attributes() -> &'static Arc<[KeyValue]> {
+    STREAM_OVERFLOW_ATTRIBUTES
+        .get_or_init(|| Arc::from(vec![KeyValue::new("otel.metric.overflow", true)]))
+}
+
+/// Build a shared attribute key from a slice.
+#[inline]
+fn attribute_key(attrs: &[KeyValue]) -> Arc<[KeyValue]> {
+    Arc::from(attrs)
 }
 
 pub(crate) trait Aggregator {
@@ -79,7 +96,12 @@ impl<A: Aggregator> TrackerEntry<A> {
 }
 
 /// Map from attribute sets to their aggregator tracker entries.
-type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+///
+/// Keys are `Arc<[KeyValue]>` so exported data points can share the same
+/// underlying attribute allocation with the map (a refcount bump instead of a
+/// clone). `Arc<[KeyValue]>: Borrow<[KeyValue]>` allows lookups with
+/// `&[KeyValue]` on the hot path — no allocation to probe.
+type TrackerMap<A> = HashMap<Arc<[KeyValue]>, Arc<TrackerEntry<A>>>;
 
 /// The storage for sums.
 ///
@@ -172,12 +194,17 @@ where
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
 
-            // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
-            trackers.insert(sorted_attrs, new_tracker);
+            // Insert tracker with the attributes in the provided and sorted orders.
+            // Both Arcs are cloned (refcount bump) into the map; the same
+            // Arc<[KeyValue]> also becomes the exported data point's key at
+            // collection time (no clone at export).
+            let original_key: Arc<[KeyValue]> = attribute_key(attributes);
+            let sorted_key: Arc<[KeyValue]> = Arc::from(sorted_attrs.into_boxed_slice());
+            trackers.insert(original_key, new_tracker.clone());
+            trackers.insert(sorted_key, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_ref()) {
             overflow_value.aggregator.update(value);
             overflow_value
                 .has_been_updated
@@ -186,7 +213,10 @@ where
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            trackers.insert(
+                Arc::clone(stream_overflow_attributes()),
+                Arc::new(new_tracker),
+            );
         }
     }
 
@@ -250,9 +280,12 @@ where
             // unbound measure() calls hit the fast path regardless of attr order.
             // Mirrors `measure()`'s insert pattern.
             if original != sorted_attrs.as_slice() {
-                trackers.insert(original.to_vec(), new_tracker.clone());
+                trackers.insert(attribute_key(original), new_tracker.clone());
             }
-            trackers.insert(sorted_attrs, new_tracker.clone());
+            trackers.insert(
+                Arc::from(sorted_attrs.into_boxed_slice()),
+                new_tracker.clone(),
+            );
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
         } else {
@@ -268,7 +301,7 @@ where
             // yet — mirrors the lazy creation in `measure()` (line above where
             // overflow is inserted on first overflowing measurement).
             let overflow_tracker = trackers
-                .entry(stream_overflow_attributes().clone())
+                .entry(Arc::clone(stream_overflow_attributes()))
                 .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
                 .clone();
             overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
@@ -285,7 +318,7 @@ where
     /// where attribute sets persist across collection cycles and [`ValueMap`] is not cleared.
     pub(crate) fn collect_readonly<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
-        MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
+        MapFn: FnMut(Arc<[KeyValue]>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
         if self
@@ -293,7 +326,7 @@ where
             .has_been_updated
             .load(Ordering::Acquire)
         {
-            dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
+            dest.push(map_fn(empty_attributes(), &self.no_attribute_tracker.aggregator));
         }
 
         let Ok(trackers) = self.trackers.read() else {
@@ -303,7 +336,7 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+                dest.push(map_fn(Arc::clone(attrs), &tracker.aggregator));
             }
         }
     }
@@ -317,7 +350,7 @@ where
     /// Used for synchronous instruments (Counter, Histogram, etc.) in Delta temporality mode.
     pub(crate) fn collect_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
-        MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
+        MapFn: FnMut(Arc<[KeyValue]>, &A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
         if self
@@ -325,7 +358,7 @@ where
             .has_been_updated
             .swap(false, Ordering::AcqRel)
         {
-            dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
+            dest.push(map_fn(empty_attributes(), &self.no_attribute_tracker.aggregator));
         }
 
         let overflow_attrs = stream_overflow_attributes();
@@ -340,8 +373,8 @@ where
             for (attrs, tracker) in trackers.iter() {
                 if seen.insert(Arc::as_ptr(tracker)) {
                     if tracker.has_been_updated.swap(false, Ordering::Acquire) {
-                        dest.push(map_fn(attrs.clone(), &tracker.aggregator));
-                    } else if attrs.as_slice() != overflow_attrs.as_slice()
+                        dest.push(map_fn(Arc::clone(attrs), &tracker.aggregator));
+                    } else if attrs.as_ref() != overflow_attrs.as_ref()
                         && tracker.bound_count.load(Ordering::Relaxed) == 0
                     {
                         // Stale and not bound — candidate for eviction
@@ -377,7 +410,7 @@ where
     /// Cumulative temporality modes, where map clearing is needed for staleness detection.
     pub(crate) fn drain_and_reset<Res, MapFn>(&self, dest: &mut Vec<Res>, mut map_fn: MapFn)
     where
-        MapFn: FnMut(Vec<KeyValue>, A) -> Res,
+        MapFn: FnMut(Arc<[KeyValue]>, A) -> Res,
     {
         prepare_data(dest, self.count.load(Ordering::SeqCst));
         if self
@@ -386,7 +419,7 @@ where
             .swap(false, Ordering::AcqRel)
         {
             dest.push(map_fn(
-                vec![],
+                empty_attributes(),
                 self.no_attribute_tracker
                     .aggregator
                     .clone_and_reset(&self.config),
@@ -856,7 +889,7 @@ mod tests {
         assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
 
         // First collect: entry was updated, so it is exported and has_been_updated is reset.
-        let mut dest: Vec<Vec<KeyValue>> = Vec::new();
+        let mut dest: Vec<Arc<[KeyValue]>> = Vec::new();
         value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
         assert_eq!(dest.len(), 1, "first collect should export the entry");
 

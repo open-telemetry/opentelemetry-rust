@@ -4,7 +4,6 @@ use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::Ordering;
-#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
@@ -49,7 +48,7 @@ pub(crate) struct PrecomputedSum<T: Number> {
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
-    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
+    reported: Mutex<HashMap<Arc<[KeyValue]>, T>>,
 }
 
 impl<T: Number> PrecomputedSum<T> {
@@ -236,7 +235,7 @@ mod tests {
         let sum = extract_sum(agg.expect("aggregation produced"));
         assert_eq!(sum.data_points.len(), 1);
         assert_eq!(sum.data_points[0].value, 99);
-        assert_eq!(sum.data_points[0].attributes, attrs.to_vec());
+        assert_eq!(sum.data_points[0].attributes.as_ref(), attrs.as_slice());
     }
 
     #[test]

@@ -454,7 +454,7 @@ impl<T: Number> ExpoHistogram<T> {
                 let reset = attr.clone_and_reset(&config);
                 let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
-                    attributes,
+                    attributes: attributes.to_vec(),
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)
@@ -514,7 +514,7 @@ impl<T: Number> ExpoHistogram<T> {
             .collect_readonly(&mut h.data_points, |attributes, attr| {
                 let b = attr.lock().unwrap_or_else(|err| err.into_inner());
                 data::ExponentialHistogramDataPoint {
-                    attributes,
+                    attributes: attributes.to_vec(),
                     count: b.count,
                     min: if self.record_min_max {
                         Some(b.min)

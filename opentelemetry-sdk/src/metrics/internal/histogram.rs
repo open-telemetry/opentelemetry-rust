@@ -168,7 +168,7 @@ impl<T: Number> Histogram<T> {
                 let reset = aggr.clone_and_reset(&buckets_count);
                 let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
-                    attributes,
+                    attributes: attributes.to_vec(),
                     count: b.count,
                     bounds: self.bounds.clone(),
                     bucket_counts: b.counts,
@@ -222,7 +222,7 @@ impl<T: Number> Histogram<T> {
             .collect_readonly(&mut h.data_points, |attributes, aggr| {
                 let b = aggr.lock().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
-                    attributes,
+                    attributes: attributes.to_vec(),
                     count: b.count,
                     bounds: self.bounds.clone(),
                     bucket_counts: b.counts.clone(),

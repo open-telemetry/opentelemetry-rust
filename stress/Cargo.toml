@@ -45,6 +45,12 @@ path = "src/metrics_overflow.rs"
 doc = false
 bench = false
 
+[[bin]] # Bin to measure allocations during metrics collect()
+name = "metrics_collect_alloc"
+path = "src/metrics_collect_alloc.rs"
+doc = false
+bench = false
+
 [[bin]] # Bin to run the logs stress tests
 name = "logs"
 path = "src/logs.rs"

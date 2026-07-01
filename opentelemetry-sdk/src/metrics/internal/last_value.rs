@@ -118,7 +118,7 @@ impl<T: Number> LastValue<T> {
 
         self.value_map
             .collect_and_reset(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
-                attributes,
+                attributes: attributes.to_vec(),
                 value: aggr.value.get_and_reset_value(),
                 exemplars: vec![],
             });
@@ -154,7 +154,7 @@ impl<T: Number> LastValue<T> {
 
         self.value_map
             .collect_readonly(&mut s_data.data_points, |attributes, aggr| GaugeDataPoint {
-                attributes,
+                attributes: attributes.to_vec(),
                 value: aggr.value.get_value(),
                 exemplars: vec![],
             });
