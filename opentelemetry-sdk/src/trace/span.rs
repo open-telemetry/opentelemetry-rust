@@ -19,7 +19,7 @@ use std::time::SystemTime;
 pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
-    tracer: crate::trace::SdkTracer,
+    tracer: Option<crate::trace::SdkTracer>,
     span_limits: SpanLimits,
 }
 
@@ -53,15 +53,27 @@ pub(crate) struct SpanData {
 impl Span {
     pub(crate) fn new(
         span_context: SpanContext,
-        data: Option<SpanData>,
+        data: SpanData,
         tracer: crate::trace::SdkTracer,
         span_limit: SpanLimits,
     ) -> Self {
         Span {
             span_context,
-            data,
-            tracer,
+            data: Some(data),
+            tracer: Some(tracer),
             span_limits: span_limit,
+        }
+    }
+
+    /// Creates a non-recording span (no data, no tracer). Used for spans that
+    /// are dropped by sampling, suppressed, or produced by a disabled/shutdown
+    /// provider, avoiding an unnecessary clone of the tracer's `Arc`s.
+    pub(crate) fn new_noop(span_context: SpanContext) -> Self {
+        Span {
+            span_context,
+            data: None,
+            tracer: None,
+            span_limits: SpanLimits::default(),
         }
     }
 
@@ -77,11 +89,13 @@ impl Span {
     /// This function copies all data from the current span, which will create a
     /// overhead.
     pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
-        let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-
-        self.data
-            .as_ref()
-            .map(|data| build_export_data(data.clone(), span_context, tracer))
+        let data = self.data.as_ref()?;
+        let tracer = self.tracer.as_ref()?;
+        Some(build_export_data(
+            data.clone(),
+            self.span_context.clone(),
+            tracer,
+        ))
     }
 }
 
@@ -206,7 +220,11 @@ impl Span {
             None => return,
         };
 
-        let provider = self.tracer.provider();
+        // a recording span (data is `Some`) always carries its tracer
+        let Some(tracer) = self.tracer.as_ref() else {
+            return;
+        };
+        let provider = tracer.provider();
         // skip if provider has been shut down
         if provider.is_shutdown() {
             return;
@@ -222,18 +240,14 @@ impl Span {
         match provider.span_processors() {
             [] => {}
             [processor] => {
-                processor.on_end(build_export_data(
-                    data,
-                    self.span_context.clone(),
-                    &self.tracer,
-                ));
+                processor.on_end(build_export_data(data, self.span_context.clone(), tracer));
             }
             processors => {
                 for processor in processors {
                     processor.on_end(build_export_data(
                         data.clone(),
                         self.span_context.clone(),
-                        &self.tracer,
+                        tracer,
                     ));
                 }
             }
@@ -307,7 +321,7 @@ mod tests {
         let (tracer, data) = init();
         Span::new(
             SpanContext::empty_context(),
-            Some(data),
+            data,
             tracer,
             Default::default(),
         )
@@ -315,13 +329,7 @@ mod tests {
 
     #[test]
     fn create_span_without_data() {
-        let (tracer, _) = init();
-        let mut span = Span::new(
-            SpanContext::empty_context(),
-            None,
-            tracer,
-            Default::default(),
-        );
+        let mut span = Span::new_noop(SpanContext::empty_context());
         span.with_data(|_data| panic!("there are data"));
     }
 
@@ -330,7 +338,7 @@ mod tests {
         let (tracer, data) = init();
         let mut span = Span::new(
             SpanContext::empty_context(),
-            Some(data.clone()),
+            data.clone(),
             tracer,
             Default::default(),
         );
