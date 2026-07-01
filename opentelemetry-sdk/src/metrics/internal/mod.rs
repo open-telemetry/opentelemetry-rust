@@ -326,7 +326,10 @@ where
             .has_been_updated
             .load(Ordering::Acquire)
         {
-            dest.push(map_fn(empty_attributes(), &self.no_attribute_tracker.aggregator));
+            dest.push(map_fn(
+                empty_attributes(),
+                &self.no_attribute_tracker.aggregator,
+            ));
         }
 
         let Ok(trackers) = self.trackers.read() else {
@@ -358,7 +361,10 @@ where
             .has_been_updated
             .swap(false, Ordering::AcqRel)
         {
-            dest.push(map_fn(empty_attributes(), &self.no_attribute_tracker.aggregator));
+            dest.push(map_fn(
+                empty_attributes(),
+                &self.no_attribute_tracker.aggregator,
+            ));
         }
 
         let overflow_attrs = stream_overflow_attributes();

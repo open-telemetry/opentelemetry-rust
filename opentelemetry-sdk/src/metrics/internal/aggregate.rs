@@ -331,7 +331,10 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes.as_ref(), new_attributes.as_slice());
+            assert_eq!(
+                a.data_points[0].attributes.as_ref(),
+                new_attributes.as_slice()
+            );
             assert_eq!(a.data_points[0].value, 3);
         }
     }
@@ -378,7 +381,10 @@ mod tests {
             assert_eq!(a.temporality, temporality);
             assert!(a.is_monotonic);
             assert_eq!(a.data_points.len(), 1);
-            assert_eq!(a.data_points[0].attributes.as_ref(), new_attributes.as_slice());
+            assert_eq!(
+                a.data_points[0].attributes.as_ref(),
+                new_attributes.as_slice()
+            );
             assert_eq!(a.data_points[0].value, 3);
         }
     }

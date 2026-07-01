@@ -64,7 +64,9 @@ fn snapshot() -> (usize, usize, usize) {
 fn run_scenario(name: &str, temporality: Temporality, num_streams: usize, attrs_per_stream: usize) {
     // Build meter with a manual reader so we can trigger collect directly.
     let reader: std::sync::Arc<dyn MetricReader> = std::sync::Arc::new(
-        ManualReader::builder().with_temporality(temporality).build(),
+        ManualReader::builder()
+            .with_temporality(temporality)
+            .build(),
     );
     let provider = SdkMeterProvider::builder()
         .with_reader(SharedReader(reader.clone()))
@@ -132,10 +134,7 @@ impl MetricReader for SharedReader {
     ) -> opentelemetry_sdk::error::OTelSdkResult {
         self.0.shutdown()
     }
-    fn temporality(
-        &self,
-        kind: opentelemetry_sdk::metrics::InstrumentKind,
-    ) -> Temporality {
+    fn temporality(&self, kind: opentelemetry_sdk::metrics::InstrumentKind) -> Temporality {
         self.0.temporality(kind)
     }
 }
