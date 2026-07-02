@@ -352,7 +352,7 @@ The stress harness at [stress/src/logs.rs](stress/src/logs.rs) measures
 sustained end-to-end throughput of `tracing::error!` -> appender ->
 `SdkLoggerProvider` -> no-op processor, across all available cores.
 
-Representative numbers on Apple M4 Pro (10P+4E), 24 GB RAM:
+Representative numbers on Apple M4 Pro (10P+4E), 24 GB RAM, rustc 1.95.0:
 
 - ~27 M logs/sec when the processor is enabled (full record construction,
   attribute population, processor dispatch).
