@@ -583,6 +583,81 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta_attribute_order_changes() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+
+        let observations = Arc::new(Mutex::new(std::collections::VecDeque::from([
+            (
+                100,
+                vec![
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("C", "c"),
+                ],
+            ),
+            (
+                150,
+                vec![
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                    KeyValue::new("C", "c"),
+                ],
+            ),
+            (
+                175,
+                vec![
+                    KeyValue::new("C", "c"),
+                    KeyValue::new("B", "b"),
+                    KeyValue::new("A", "a"),
+                ],
+            ),
+        ])));
+        let observations_clone = observations.clone();
+
+        let _observable_counter = test_context
+            .meter()
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(move |observer| {
+                let mut observations = observations_clone.lock().unwrap();
+                if let Some((value, attributes)) = observations.pop_front() {
+                    observer.observe(value, &attributes);
+                }
+            })
+            .build();
+
+        for expected in [100, 50, 25] {
+            test_context.flush_metrics();
+
+            let MetricData::Sum(sum) =
+                test_context.get_aggregation::<u64>("my_observable_counter", None)
+            else {
+                unreachable!()
+            };
+
+            assert_eq!(sum.data_points.len(), 1);
+            assert_eq!(sum.temporality, Temporality::Delta);
+
+            let data_point = &sum.data_points[0];
+            assert_eq!(data_point.attributes.len(), 3);
+            assert!(data_point
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "A" && kv.value.as_str() == "a"));
+            assert!(data_point
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "B" && kv.value.as_str() == "b"));
+            assert!(data_point
+                .attributes
+                .iter()
+                .any(|kv| kv.key.as_str() == "C" && kv.value.as_str() == "c"));
+            assert_eq!(data_point.value, expected);
+
+            test_context.reset_metrics();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_delta_attribute_set_reappears_after_gap() {
         // Run this test with stdout enabled to see output.
         // cargo test observable_counter_delta_attribute_set_reappears_after_gap --features=testing -- --nocapture
