@@ -1,0 +1,29 @@
+groups:
+  - id: event.otel.sdk.component.shutdown
+    type: event
+    name: otel.sdk.component.shutdown
+    stability: development
+    brief: >
+      Emitted when an SDK provider's shutdown attempt has ended, whether by
+      completing successfully, failing, or timing out.
+    attributes:
+      - ref: otel.component.type
+        requirement_level: required
+        brief: >
+          The provider type.
+        examples: ["logger_provider", "tracer_provider", "meter_provider"]
+      - ref: otel.component.name
+        requirement_level: required
+      - ref: error.type
+        requirement_level:
+          conditionally_required: if the shutdown was not successful.
+        brief: >
+          Describes the class of error that caused shutdown to fail.
+        examples: ["timeout", "failed"]
+      - id: otel.component.shutdown.duration
+        type: double
+        stability: development
+        requirement_level: recommended
+        brief: >
+          Wall-clock elapsed time of the shutdown attempt, in seconds.
+        examples: [0.015, 30.0]

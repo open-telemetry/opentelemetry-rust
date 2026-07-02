@@ -1,0 +1,12 @@
+name: io.opentelemetry.sdk
+description: >
+  In-tree semantic conventions for self-observability events emitted by the
+  OpenTelemetry Rust SDK. Validated by weaver live-check in CI.
+
+  Once open-telemetry/semantic-conventions#3723 is released, these local
+  definitions can be replaced by a dependency reference to the upstream
+  registry.
+schema_url: https://opentelemetry.io/schemas/1.42.0
+dependencies:
+  - schema_url: https://opentelemetry.io/schemas/1.42.0
+    registry_path: https://github.com/open-telemetry/semantic-conventions.git@v1.42.0[model]
