@@ -94,15 +94,15 @@ end-users.
 
 ### API Components
 
-1. **Key-Value Structs**: Used in `LogRecord`, where `Key` struct is shared
-   across signals but `Value` struct differ from Metrics and Traces. This is
-   because values in Logs can contain more complex structures than those in
+1. **Key-Value Structs**: Used in `LogRecord`, where the `Key` struct is shared
+   across signals but the `Value` struct differs from Metrics and Traces. This
+   is because values in Logs can contain more complex structures than those in
    Traces and Metrics.
 2. **Traits**:
-    - `LoggerProvider` - provides methods to obtain Logger.
-    - `Logger` - provides methods to create LogRecord and emit the created
+    - `LoggerProvider` - provides methods to obtain a Logger.
+    - `Logger` - provides methods to create a LogRecord and emit the created
       LogRecord.
-    - `LogRecord` - provides methods to populate LogRecord.
+    - `LogRecord` - provides methods to populate a LogRecord.
 3. **No-Op Implementations**: By default, the API performs no operations until
    an SDK is attached.
 
@@ -196,13 +196,12 @@ records, enrich them, filter them, and export to destinations by leveraging
 LogRecord Exporters.
 
 Similar to [LoggerProvider](#sdkloggerprovider), methods on the `LogProcessor`
-trait also takes a immutable self (`&self`) only, forcing the need to use
-interior mutability, if any mutation is required. The exception to this is
-`set_resource`, which takes a `&mut self`. This is acceptable as `set_resource`
-is called by the `SdkLoggerProvider` during build() method only, and is not
-required after that.
+trait also take an immutable self (`&self`) only, forcing the use of interior
+mutability when mutation is required. The exception is `set_resource`, which
+takes `&mut self`. This is acceptable because `set_resource` is called by the
+`SdkLoggerProvider` during `build()` only, and is not required after that.
 
-Following built-in Log processors are provided in the Log SDK:
+The following built-in Log processors are provided in the Log SDK:
 
 ##### SimpleLogProcessor
 
@@ -291,23 +290,25 @@ this crate.
 
 ## Performance
 
-// Call out things done specifically for performance
-// Rough draft
+The Logs pipeline is one of the most performance-sensitive parts of the SDK:
+in production deployments `emit()` is called on every hot path. The following
+choices are made specifically to keep that path cheap.
 
 1. `LogRecord` is stack allocated and not Boxed unless required by the component
 needing to store it beyond the logging call. (eg: BatchProcessor)
-2. LogRecords's Attribute storage is specially designed struct, that holds up to
-five attributes in stack.
-3. When passing `LogRecord`s to processor, a mutable ref is passed. This allows
-calling multiple processors one after another, without the need for cloning.
-4. `Logger` provides a `Enabled` check which can optimize performance when
-no-one is interested in the log. The check is passed from `Logger` to the
-processor, which may consult its exporter to make the decision. An example use
-case - an ETW or user-events exporter can check for the presence of listener and
-convey that decision back to logger, allowing appender to avoid even the cost of
-creating a `LogRecord` in the first place if there is no listener. This check is
-done for each log emission, and can react dynamically to changes in interest, by
-enabling/disabling ETW/user-event listener.
+2. `LogRecord`'s attribute storage is a specially designed struct that holds up
+to five attributes on the stack before spilling to the heap.
+3. When passing `LogRecord`s to processors, a mutable reference is passed. This
+allows calling multiple processors one after another without cloning, and lets a
+later processor see modifications made by an earlier one.
+4. `Logger` provides an `Enabled` check which can short-circuit log emission
+when no-one is interested in the log. The check is passed from `Logger` to the
+processor, which may consult its exporter to make the decision. For example, an
+ETW or user-events exporter can check for the presence of a listener and convey
+that decision back to the logger, allowing the appender to avoid even the cost
+of creating a `LogRecord` in the first place. This check is done for each log
+emission and reacts dynamically to changes in interest, by enabling/disabling
+ETW/user-event listeners at runtime.
 5. `tracing` has a notion of "target", which is expected to be mapped to OTel's
 concept of Instrumentation Scope for Logs, when `OpenTelemetry-Tracing-Appender`
 bridges `tracing` to OpenTelemetry. Since scopes are tied to Loggers, a naive
@@ -324,46 +325,74 @@ unique targets. (because `tracing` defaults to using module path as target).
 
 ### Perf test - benchmarks
 
-// Share ~~ numbers
+Criterion benchmarks for the `tracing` appender live in
+[opentelemetry-appender-tracing/benches/logs.rs](opentelemetry-appender-tracing/benches/logs.rs).
+They measure the cost of emitting a `tracing::error!` event through a number of
+configurations, including the OTel layer with a no-op processor.
+
+Representative numbers on Apple M4 Pro (10P+4E), rustc 1.95.0:
+
+| Test                | Average time |
+|---------------------|--------------|
+| log_no_subscriber   |       262 ps |
+| noop_layer_disabled |         4 ns |
+| noop_layer_enabled  |        12 ns |
+| ot_layer_disabled   |         7 ns |
+| ot_layer_enabled    |       122 ns |
+
+`ot_layer_disabled` is the path where the OTel processor's `event_enabled`
+check returns `false`; it confirms that the `Enabled` short-circuit described
+above keeps the disabled cost close to a bare `tracing` layer. `ot_layer_enabled`
+is the full path: build a `SdkLogRecord`, populate attributes and metadata, and
+hand it to the processor.
 
 ### Perf test - stress test
 
-// Share ~~ numbers
+The stress harness at [stress/src/logs.rs](stress/src/logs.rs) measures
+sustained end-to-end throughput of `tracing::error!` -> appender ->
+`SdkLoggerProvider` -> no-op processor, across all available cores.
+
+Representative numbers on Apple M4 Pro (10P+4E), 24 GB RAM:
+
+- ~27 M logs/sec when the processor is enabled (full record construction,
+  attribute population, processor dispatch).
+- ~1.4 B calls/sec when the processor reports `event_enabled = false` (the
+  short-circuit path).
+
+When `event_enabled` returns `false`, the per-call cost collapses to roughly
+the cost of `tracing` itself, which is already near zero.
 
 ## Internal logs
 
-OTel itself is instrumented with `tracing` crate to emit internal logs about its
-operations. This is feature gated under "internal-logs", and is enabled by
-default for all components. The `opentelemetry` provide few helper macros
-`otel_warn` etc., which in turn invokes various `tracing` macros like `warn!`
-etc. The cargo package name will be set as `target` when using `tracing`. For
-example, logs from `opentelemetry-otlp` will have target set to
-"opentelemetry-otlp".
+OTel itself is instrumented with the `tracing` crate to emit internal logs
+about its operations. This is feature gated under `internal-logs`, and is
+enabled by default for all components. The `opentelemetry` crate provides a few
+helper macros (`otel_error!`, `otel_warn!`, `otel_info!`, `otel_debug!`) which
+in turn invoke the corresponding `tracing` macros. The cargo package name is
+set as `target`, so logs from `opentelemetry-otlp` carry
+`target = "opentelemetry-otlp"`, and so on.
 
-The helper macros are part of public API, so can be used by anyone. But it is
-only meant for OTel components itself and anyone writing extensions like custom
-Exporters etc.
+The helper macros are part of the public API, so they can be used by anyone.
+However, they are only meant for OTel components themselves and for anyone
+writing extensions like custom Exporters etc.
 
-// TODO: Document the principles followed when selecting severity for internal
-logs
+### Telemetry-induced telemetry and suppression
 
 When OpenTelemetry components generate logs that could potentially feed back
 into OpenTelemetry, this can result in what is known as "telemetry-induced
-telemetry." To address this, OpenTelemetry provides a mechanism to suppress such
-telemetry using the `Context`. Components are expected to mark telemetry as
-suppressed within a specific `Context` by invoking
+telemetry." To address this, OpenTelemetry provides a mechanism to suppress
+such telemetry using the `Context`. Components are expected to mark telemetry
+as suppressed within a specific `Context` by invoking
 `Context::enter_telemetry_suppressed_scope()`. The Logs SDK implementation
 checks this flag in the current `Context` and ignores logs if suppression is
 enabled.
 
 This mechanism relies on proper in-process propagation of the `Context`.
 However, external libraries like `hyper` and `tonic`, which are used by
-OpenTelemetry in its OTLP Exporters, do not propagate OpenTelemetry's `Context`.
-As a result, the suppression mechanism does not work out-of-the-box to suppress
-logs originating from these libraries.
-
-// TODO: Document how OTLP can solve this issue without asking external
-crates to respect and propagate OTel Context.
+OpenTelemetry in its OTLP Exporters, do not propagate OpenTelemetry's
+`Context`. As a result, the suppression mechanism does not work out-of-the-box
+to suppress logs originating from these libraries. Tracking issue:
+[#2877](https://github.com/open-telemetry/opentelemetry-rust/issues/2877).
 
 ## Summary
 
