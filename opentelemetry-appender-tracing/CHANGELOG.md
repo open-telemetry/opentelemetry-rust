@@ -6,6 +6,13 @@
   `OpenTelemetryTracingBridge::builder_with_scope_attributes(..)`.
   [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
 
+- Fixes [#3543](https://github.com/open-telemetry/opentelemetry-rust/issues/3543):
+  Event metadata is now always normalized when `experimental_metadata_attributes` 
+  is enabled. In particular, when using the feature the underlying OTEL logger
+  will receive the value of `log.target` as its log event `target` for events 
+  generated from the `log` crate (e.g., via `tracing-log`) instead of the static
+  target value `"log"`.
+
 ## 0.32.0
 
 Released 2026-May-08
