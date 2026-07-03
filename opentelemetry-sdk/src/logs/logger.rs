@@ -27,7 +27,9 @@ impl opentelemetry::logs::Logger for SdkLogger {
     type LogRecord = SdkLogRecord;
 
     fn create_log_record(&self) -> Self::LogRecord {
-        SdkLogRecord::new()
+        // Stamp the record with the configured attribute limit so that
+        // `add_attribute` can enforce it eagerly as attributes are added.
+        SdkLogRecord::new_with_limit(self.provider.max_attributes_per_log())
     }
 
     /// Emit a `LogRecord`.

@@ -11,6 +11,9 @@ use std::{borrow::Cow, time::SystemTime};
 // up to 5 attributes is the most common case.
 const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 
+/// Default maximum number of attributes retained per log record.
+pub(crate) const DEFAULT_MAX_ATTRIBUTES_PER_LOG: u32 = 128;
+
 /// Represents a collection of log record attributes with a predefined capacity.
 ///
 /// This type uses `GrowableArray` to store key-value pairs of log attributes, where each attribute is an `Option<(Key, AnyValue)>`.
@@ -19,7 +22,7 @@ const PREALLOCATED_ATTRIBUTE_CAPACITY: usize = 5;
 pub(crate) type LogRecordAttributes =
     GrowableArray<Option<(Key, AnyValue)>, PREALLOCATED_ATTRIBUTE_CAPACITY>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 /// LogRecord represents all data carried by a log record, and
 /// is provided to `LogExporter`s as input.
@@ -50,6 +53,32 @@ pub struct SdkLogRecord {
 
     /// Additional attributes associated with this record
     pub(crate) attributes: LogRecordAttributes,
+
+    /// Number of attributes dropped because the attribute count limit was
+    /// reached.
+    pub(crate) dropped_attributes_count: u32,
+
+    /// Maximum number of attributes retained on this record. Attributes added
+    /// beyond this limit are dropped and counted in `dropped_attributes_count`.
+    /// This is configuration, not exported data, and is excluded from equality.
+    pub(crate) max_attributes: u32,
+}
+
+impl PartialEq for SdkLogRecord {
+    fn eq(&self, other: &Self) -> bool {
+        // `max_attributes` is build-time configuration rather than data carried
+        // by the record, so it is intentionally excluded from equality.
+        self.event_name == other.event_name
+            && self.target == other.target
+            && self.timestamp == other.timestamp
+            && self.observed_timestamp == other.observed_timestamp
+            && self.trace_context == other.trace_context
+            && self.severity_text == other.severity_text
+            && self.severity_number == other.severity_number
+            && self.body == other.body
+            && self.attributes == other.attributes
+            && self.dropped_attributes_count == other.dropped_attributes_count
+    }
 }
 
 impl opentelemetry::logs::LogRecord for SdkLogRecord {
@@ -101,7 +130,15 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
-        self.attributes.push(Some((key.into(), value.into())));
+        // Enforce the attribute count limit eagerly so that a misbehaving
+        // caller adding an unbounded number of attributes cannot grow the
+        // record's memory beyond the configured limit. Attributes past the
+        // limit are dropped and counted.
+        if self.attributes.len() < self.max_attributes as usize {
+            self.attributes.push(Some((key.into(), value.into())));
+        } else {
+            self.dropped_attributes_count += 1;
+        }
     }
 
     fn set_trace_context(
@@ -119,8 +156,15 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
 }
 
 impl SdkLogRecord {
-    /// Crate only default constructor
+    /// Crate only default constructor, using the default attribute limit.
+    #[cfg(test)]
     pub(crate) fn new() -> Self {
+        Self::new_with_limit(DEFAULT_MAX_ATTRIBUTES_PER_LOG)
+    }
+
+    /// Crate only constructor that sets the maximum number of attributes
+    /// retained on the record.
+    pub(crate) fn new_with_limit(max_attributes: u32) -> Self {
         SdkLogRecord {
             event_name: None,
             target: None,
@@ -131,7 +175,16 @@ impl SdkLogRecord {
             severity_number: None,
             body: None,
             attributes: LogRecordAttributes::default(),
+            dropped_attributes_count: 0,
+            max_attributes,
         }
+    }
+
+    /// Returns the number of attributes dropped because the attribute count
+    /// limit was reached.
+    #[inline]
+    pub fn dropped_attributes_count(&self) -> u32 {
+        self.dropped_attributes_count
     }
 
     /// Returns the event name
@@ -344,6 +397,8 @@ mod tests {
                 span_id: SpanId::from(1),
                 trace_flags: Some(TraceFlags::default()),
             }),
+            dropped_attributes_count: 0,
+            max_attributes: DEFAULT_MAX_ATTRIBUTES_PER_LOG,
         };
         log_record.add_attribute(Key::new("key"), AnyValue::String("value".into()));
 
@@ -355,6 +410,32 @@ mod tests {
         log_record_different.event_name = Some("different_event");
 
         assert_ne!(log_record, log_record_different);
+    }
+
+    #[test]
+    fn add_attribute_enforces_limit_and_counts_drops() {
+        let mut log_record = SdkLogRecord::new_with_limit(3);
+        for i in 0..10 {
+            log_record.add_attribute(Key::new(format!("key{i}")), AnyValue::Int(i));
+        }
+        // Only the first 3 attributes are retained; the storage never grows
+        // past the limit.
+        assert_eq!(log_record.attributes_iter().count(), 3);
+        assert_eq!(log_record.dropped_attributes_count(), 7);
+        // The retained attributes are the first ones added.
+        assert!(log_record.attributes_contains(&Key::new("key0"), &AnyValue::Int(0)));
+        assert!(!log_record.attributes_contains(&Key::new("key3"), &AnyValue::Int(3)));
+    }
+
+    #[test]
+    fn add_attribute_excludes_max_attributes_from_equality() {
+        let mut a = SdkLogRecord::new_with_limit(5);
+        let mut b = SdkLogRecord::new_with_limit(500);
+        a.add_attribute(Key::new("k"), AnyValue::Int(1));
+        b.add_attribute(Key::new("k"), AnyValue::Int(1));
+        // Differing limits alone must not make otherwise-identical records
+        // unequal.
+        assert_eq!(a, b);
     }
 
     #[test]

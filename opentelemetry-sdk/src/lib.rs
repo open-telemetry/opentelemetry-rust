@@ -111,6 +111,12 @@
 //! | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | Maximum batch size. Must be less than or equal to `OTEL_BSP_MAX_QUEUE_SIZE`. | `512` |
 //! | `OTEL_BSP_MAX_CONCURRENT_EXPORTS` | Maximum number of concurrent exports. Honored by `span_processor_with_async_runtime::BatchSpanProcessor`; thread-based `BatchSpanProcessor` exports serially. For concurrent exports, enable `experimental_trace_batch_span_processor_with_async_runtime` and use the async-runtime processor. | `1` |
 //!
+//! ### Logs: Log Record Limits
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` | Maximum number of attributes allowed on a log record. Falls back to `OTEL_ATTRIBUTE_COUNT_LIMIT` when unset. | `128` |
+//!
 //! ### Logs: Batch Log Record Processor (BLRP)
 //!
 //! | Variable | Description | Default |
