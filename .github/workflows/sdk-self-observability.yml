@@ -20,7 +20,7 @@ on:
     paths:
       - 'opentelemetry-sdk/**'
       - 'opentelemetry-otlp/**'
-      - 'examples/self-obs-live-check/**'
+      - '.github/ci-apps/self-obs-live-check/**'
       - '.github/workflows/sdk-self-observability.yml'
   merge_group:
   push:
@@ -29,7 +29,7 @@ on:
     paths:
       - 'opentelemetry-sdk/**'
       - 'opentelemetry-otlp/**'
-      - 'examples/self-obs-live-check/**'
+      - '.github/ci-apps/self-obs-live-check/**'
       - '.github/workflows/sdk-self-observability.yml'
 
 concurrency:
