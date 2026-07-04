@@ -173,6 +173,11 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        // Count the log record before enqueueing it so that a concurrent
+        // force_flush()/shutdown() drain never observes an
+        // enqueued-but-uncounted record and misses it (issue #3453). If the
+        // send fails, the increment is reverted in the error arms below.
+        let previous_batch_size = self.current_batch_size.fetch_add(1, Ordering::AcqRel);
         let result = self
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
@@ -185,11 +190,9 @@ impl LogProcessor for BatchLogProcessor {
                 self.processed_success.add(1);
 
                 // Successfully sent the log record to the data channel.
-                // Increment the current batch size and check if it has reached
-                // the max export batch size.
-                if self.current_batch_size.fetch_add(1, Ordering::AcqRel) + 1
-                    >= self.max_export_batch_size
-                {
+                // Check if the current batch size has reached the max export
+                // batch size.
+                if previous_batch_size + 1 >= self.max_export_batch_size {
                     // Check if the a control message for exporting logs is
                     // already sent to the worker thread. If not, send a control
                     // message to export logs. `export_log_message_sent` is set
@@ -225,6 +228,8 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Full(_)) => {
+                // The record never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
                 // Record queue-full drop in self-diagnostics
                 #[cfg(feature = "experimental_metrics_bound_instruments")]
                 self.processed_queue_full.add(1);
@@ -237,6 +242,8 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
+                // The record never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
                 // Record after-shutdown drop in self-diagnostics
                 #[cfg(feature = "experimental_metrics_bound_instruments")]
                 self.processed_after_shutdown.add(1);
@@ -848,6 +855,7 @@ mod tests {
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::mpsc;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -1117,6 +1125,90 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
+    }
+
+    #[derive(Debug)]
+    struct BlockingExporter {
+        exported_count: Arc<AtomicUsize>,
+        export_started: mpsc::SyncSender<()>,
+        release: Arc<Mutex<mpsc::Receiver<()>>>,
+    }
+
+    impl LogExporter for BlockingExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            let _ = self.export_started.try_send(());
+            // Block until the test releases the export.
+            let _ = self.release.lock().unwrap().recv();
+            self.exported_count.fetch_add(batch.len(), Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_batch_log_processor_emit_reverts_count_when_queue_full() {
+        let (started_sender, started_receiver) = mpsc::sync_channel(8);
+        let (release_sender, release_receiver) = mpsc::sync_channel(8);
+        let exported_count = Arc::new(AtomicUsize::new(0));
+        let exporter = BlockingExporter {
+            exported_count: exported_count.clone(),
+            export_started: started_sender,
+            release: Arc::new(Mutex::new(release_receiver)),
+        };
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(4)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(exporter, config);
+        let instrumentation = InstrumentationScope::default();
+        let emit = || {
+            let mut record = SdkLogRecord::new();
+            record.set_body("test log".into());
+            processor.emit(&mut record, &instrumentation);
+        };
+
+        // Fill the queue to the export threshold; the worker drains all four
+        // records and blocks inside export().
+        for _ in 0..4 {
+            emit();
+        }
+        started_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("worker should start exporting the first batch");
+
+        // While the worker is blocked, refill the queue and overflow it by
+        // two records, which must be dropped and their counts reverted.
+        for _ in 0..6 {
+            emit();
+        }
+
+        assert_eq!(processor.dropped_logs_count.load(Ordering::Relaxed), 2);
+        // 4 records in-flight in the blocked export (not yet subtracted)
+        // plus 4 records queued. Without the queue-full revert this would
+        // read 10.
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            8,
+            "dropped logs must not remain counted as pending"
+        );
+
+        // Release the in-flight export and the one triggered by force_flush.
+        release_sender.send(()).unwrap();
+        release_sender.send(()).unwrap();
+        let flush_result = processor.force_flush();
+        assert!(flush_result.is_ok(), "force flush failed unexpectedly");
+
+        assert_eq!(
+            exported_count.load(Ordering::SeqCst),
+            8,
+            "all logs that entered the queue must be exported"
+        );
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            0,
+            "counter should settle to zero; a leftover value indicates the \
+             queue-full path did not revert its increment"
+        );
     }
 
     /// A slow exporter that counts the number of logs received.
