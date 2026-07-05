@@ -18,7 +18,7 @@ opentelemetry-otlp crate.
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
-## OpenTelemetry Overview
+## Overview
 
 OpenTelemetry is an Observability framework and toolkit designed to create and
 manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
@@ -34,6 +34,22 @@ infrastructure, or runtime environment. Crucially, the storage and visualization
 of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
+
+### What does this crate contain?
+
+This crate provides an implementation of Jaeger's [text-map propagation
+format](https://www.jaegertracing.io/docs/latest/client-libraries/#propagation-format)
+for OpenTelemetry, allowing OpenTelemetry-instrumented services to interoperate
+with existing Jaeger-instrumented services during a migration.
+
+This crate only implements *context propagation*. To export telemetry to
+Jaeger, use the
+[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) crate
+— Jaeger natively supports OTLP ingestion.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-jaeger-propagator).
 
 ## Release Notes
 

@@ -12,7 +12,7 @@
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
-## OpenTelemetry Overview
+## Overview
 
 OpenTelemetry is an Observability framework and toolkit designed to create and
 manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
@@ -30,6 +30,37 @@ of telemetry is intentionally left to other tools.
 [`Prometheus`]: https://prometheus.io
 [`OpenTelemetry`]: https://crates.io/crates/opentelemetry
 
+*[Supported Rust Versions](#supported-rust-versions)*
+
+### What does this crate contain?
+
+This crate provides an exporter that exposes OpenTelemetry metrics in the
+[Prometheus text
+format](https://prometheus.io/docs/instrumenting/exposition_formats/), so that
+metrics collected via OpenTelemetry can be scraped by a Prometheus server.
+
+For new projects, consider using the
+[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) crate
+instead — Prometheus supports [native OTLP
+ingestion](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver).
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-prometheus).
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-prometheus/CHANGELOG.md).
+
+## Supported Rust Versions
+
+OpenTelemetry is built against the latest stable release. The minimum supported
+version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+on Rust versions earlier than the minimum supported version.
+
+The current stable Rust compiler and the three most recent minor versions
+before it will always be supported. For example, if the current stable compiler
+version is 1.49, the minimum supported version will not be increased past 1.46,
+three minor versions prior. Increasing the minimum supported compiler version
+is not considered a semver breaking change as long as doing so complies with
+this policy.

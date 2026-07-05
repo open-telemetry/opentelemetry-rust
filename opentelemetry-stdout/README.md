@@ -36,11 +36,13 @@ of telemetry is intentionally left to other tools.
 
 ### What does this crate contain?
 
-This crate includes exporters that support all three signals - Logs, Metrics,
-and Traces — to standard output. It is intended solely for educational and
-debugging purposes. Please note, this crate is not optimized for performance,
-and the format of the output may change, making it unsuitable for production
-environments
+This crate provides exporters for all three OpenTelemetry signals - Logs,
+Metrics and Traces - that write to standard output in a human-readable format.
+It is intended solely for learning, debugging and local development, where
+inspecting telemetry without setting up a backend is useful.
+
+This crate is not optimized for performance, and the exact output format may
+change between releases, so it should not be used in production.
 
 ## Getting started
 

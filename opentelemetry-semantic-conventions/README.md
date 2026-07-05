@@ -1,8 +1,8 @@
+# OpenTelemetry Semantic Conventions
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
-
-# OpenTelemetry Semantic Conventions
 
 Semantic conventions for applications instrumented with [`OpenTelemetry`].
 
@@ -24,6 +24,18 @@ and visualization tools.
 [`opentelemetry`]: https://crates.io/crates/opentelemetry
 
 *[Supported Rust Versions](#supported-rust-versions)*
+
+### What does this crate contain?
+
+This crate contains Rust constants generated from the [OpenTelemetry Semantic
+Conventions](https://github.com/open-telemetry/semantic-conventions)
+specification. It provides standardized attribute keys, metric names and
+resource attributes so that instrumentation produced by different libraries
+remains interoperable across processing and visualization tools.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-semantic-conventions).
 
 ## Release Notes
 
