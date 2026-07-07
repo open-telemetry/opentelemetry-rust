@@ -723,7 +723,7 @@ mod context_observer {
     /// A global observer for context transitions.
     ///
     /// This struct provides static methods to set and get a global context observer.
-    #[allow(missing_debug_implementations)]
+    #[derive(Debug)]
     pub struct GlobalContextObserver;
 
     impl GlobalContextObserver {
