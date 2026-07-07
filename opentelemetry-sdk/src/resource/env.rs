@@ -3,7 +3,8 @@
 //! Implementation of `ResourceDetector` to extract a `Resource` from environment
 //! variables.
 use crate::resource::{Resource, ResourceDetector};
-use opentelemetry::{Key, KeyValue, Value};
+use opentelemetry::{otel_warn, Key, KeyValue, Value};
+use percent_encoding::percent_decode_str;
 use std::env;
 
 const OTEL_RESOURCE_ATTRIBUTES: &str = "OTEL_RESOURCE_ATTRIBUTES";
@@ -49,10 +50,26 @@ fn construct_otel_resources(s: String) -> Resource {
                 Some(p) => p,
                 None => return None,
             };
-            let key = parts.0.trim();
-            let value = parts.1.trim();
+            // Trim OWS *before* percent-decoding so that any encoded whitespace
+            // (e.g. `%20`) is preserved. Per the Resource SDK spec, `,` and `=`
+            // in both keys and values MUST be percent-encoded, and other
+            // characters MAY be.
+            let key = percent_decode_str(parts.0.trim()).decode_utf8();
+            let value = percent_decode_str(parts.1.trim()).decode_utf8();
 
-            Some(KeyValue::new(key.to_owned(), value.to_owned()))
+            match (key, value) {
+                (Ok(key), Ok(value)) => {
+                    Some(KeyValue::new(key.into_owned(), value.into_owned()))
+                }
+                _ => {
+                    otel_warn!(
+                        name: "EnvResourceDetector.Detect.InvalidUTF8",
+                        message = "Percent-decoded resource attribute is not valid UTF-8; entry dropped",
+                        entry = entry,
+                    );
+                    None
+                }
+            }
         }))
         .build()
 }
@@ -124,7 +141,7 @@ mod tests {
             [
                 (
                     "OTEL_RESOURCE_ATTRIBUTES",
-                    Some("key=value, k = v , a= x, a=z,base64=SGVsbG8sIFdvcmxkIQ=="),
+                    Some("key=value, k = v , a= x, a=z,base64=SGVsbG8sIFdvcmxkIQ==,encoded=user%20id%3D42%2C%20name%3D%22foo%22,enc%2Ckey%3D=encoded key,bad=%FF"),
                 ),
                 ("IRRELEVANT", Some("20200810")),
             ],
@@ -140,6 +157,11 @@ mod tests {
                             KeyValue::new("a", "x"),
                             KeyValue::new("a", "z"),
                             KeyValue::new("base64", "SGVsbG8sIFdvcmxkIQ=="), // base64('Hello, World!')
+                            // Keys and values are percent-decoded per the Resource SDK spec.
+                            KeyValue::new("encoded", "user id=42, name=\"foo\""),
+                            KeyValue::new("enc,key=", "encoded key"),
+                            // `bad=%FF` is dropped: it does not percent-decode to
+                            // valid UTF-8.
                         ])
                         .build()
                 );

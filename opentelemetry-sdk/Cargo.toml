@@ -15,9 +15,19 @@ opentelemetry = { workspace = true }
 opentelemetry-http = { workspace = true, optional = true }
 futures-channel = { workspace = true, optional = true }
 futures-executor = { workspace = true, optional = true }
-futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"], optional = true }
-percent-encoding = { workspace = true, optional = true }
-rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
+futures-util = { workspace = true, features = [
+  "std",
+  "sink",
+  "async-await-macro",
+], optional = true }
+percent-encoding = { workspace = true }
+rand = { workspace = true, features = [
+  "std",
+  "std_rng",
+  "small_rng",
+  "os_rng",
+  "thread_rng",
+], optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
@@ -27,7 +37,9 @@ tokio-stream = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]
-portable-atomic = { version = "1", default-features = false, features = ["fallback"] }
+portable-atomic = { version = "1", default-features = false, features = [
+  "fallback",
+] }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -44,22 +56,76 @@ pprof = { workspace = true }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
-trace = ["opentelemetry/trace", "rand", "percent-encoding", "dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
-jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
-logs = ["opentelemetry/logs", "dep:futures-channel", "dep:futures-executor", "dep:futures-util"]
-metrics = ["opentelemetry/metrics", "dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
+trace = [
+  "opentelemetry/trace",
+  "rand",
+  "dep:futures-channel",
+  "dep:futures-executor",
+  "dep:futures-util",
+  "dep:thiserror",
+]
+jaeger_remote_sampler = [
+  "trace",
+  "opentelemetry-http",
+  "http",
+  "serde",
+  "serde_json",
+  "url",
+  "experimental_async_runtime",
+]
+logs = [
+  "opentelemetry/logs",
+  "dep:futures-channel",
+  "dep:futures-executor",
+  "dep:futures-util",
+]
+metrics = [
+  "opentelemetry/metrics",
+  "dep:futures-channel",
+  "dep:futures-executor",
+  "dep:futures-util",
+  "dep:thiserror",
+]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "tokio/sync"]
-experimental_async_runtime = ["dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
-rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
-rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
+experimental_async_runtime = [
+  "dep:futures-channel",
+  "dep:futures-executor",
+  "dep:futures-util",
+  "dep:thiserror",
+]
+rt-tokio = [
+  "tokio/rt",
+  "tokio/time",
+  "tokio-stream",
+  "experimental_async_runtime",
+]
+rt-tokio-current-thread = [
+  "tokio/rt",
+  "tokio/time",
+  "tokio-stream",
+  "experimental_async_runtime",
+]
 internal-logs = ["opentelemetry/internal-logs"]
-experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
+experimental_metrics_periodicreader_with_async_runtime = [
+  "metrics",
+  "experimental_async_runtime",
+]
 spec_unstable_metrics_views = ["metrics"]
 experimental_metrics_custom_reader = ["metrics"]
-experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
-experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
+experimental_logs_batch_log_processor_with_async_runtime = [
+  "logs",
+  "experimental_async_runtime",
+]
+experimental_trace_batch_span_processor_with_async_runtime = [
+  "tokio/sync",
+  "trace",
+  "experimental_async_runtime",
+]
 experimental_metrics_disable_name_validation = ["metrics"]
-experimental_metrics_bound_instruments = ["metrics", "opentelemetry/experimental_metrics_bound_instruments"]
+experimental_metrics_bound_instruments = [
+  "metrics",
+  "opentelemetry/experimental_metrics_bound_instruments",
+]
 bench_profiling = []
 
 [[bench]]
@@ -117,7 +183,11 @@ required-features = ["testing"]
 [[bench]]
 name = "metric"
 harness = false
-required-features = ["metrics", "spec_unstable_metrics_views", "experimental_metrics_custom_reader"]
+required-features = [
+  "metrics",
+  "spec_unstable_metrics_views",
+  "experimental_metrics_custom_reader",
+]
 
 [[bench]]
 name = "log"
@@ -127,7 +197,12 @@ required-features = ["logs"]
 [[bench]]
 name = "bound_instruments"
 harness = false
-required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]
+required-features = [
+  "metrics",
+  "experimental_metrics_custom_reader",
+  "experimental_metrics_bound_instruments",
+  "spec_unstable_metrics_views",
+]
 
 [lib]
 bench = false
