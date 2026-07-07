@@ -2,6 +2,14 @@
 
 ## vNext
 
+- **Added** `EnvironmentExtractor` and `EnvironmentInjector` carriers in
+  `opentelemetry::propagation::environment`, implementing the [environment
+  variable context propagation specification][env-carriers] for propagating
+  context across process boundaries. `EnvironmentExtractor` reads context from a
+  snapshot of the process environment; `EnvironmentInjector` collects context
+  into a normalized `HashMap` suitable for a child process's environment. Gated
+  behind the `experimental_propagation_env_carrier` feature flag, as the
+  underlying specification is not yet stable ([#3285][3285]).
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
@@ -10,6 +18,8 @@
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
 
+[3285]: https://github.com/open-telemetry/opentelemetry-rust/issues/3285
+[env-carriers]: https://opentelemetry.io/docs/specs/otel/context/env-carriers/
 ## 0.32.0
 
 Released 2026-May-08

@@ -16,12 +16,21 @@
 //! `Propagator`s uses [`Injector`] and [`Extractor`] to read and write context data to and from messages.
 //! Each specific Propagator type defines its expected carrier type, such as a string map or a byte array.
 //!
+//! The `environment` module (behind the `experimental_propagation_env_carrier` feature)
+//! provides [`Injector`]/[`Extractor`] carriers backed by environment variables,
+//! implementing the [environment variable context propagation
+//! specification](https://opentelemetry.io/docs/specs/otel/context/env-carriers/) for
+//! propagating context across process boundaries.
+//!
 //! [`Baggage`]: crate::baggage::Baggage
 //! [`Context`]: crate::Context
 
 use std::collections::HashMap;
 
 pub mod composite;
+#[cfg(feature = "experimental_propagation_env_carrier")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_propagation_env_carrier")))]
+pub mod environment;
 pub mod text_map_propagator;
 
 pub use composite::TextMapCompositePropagator;
