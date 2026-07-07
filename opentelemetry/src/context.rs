@@ -116,10 +116,7 @@ pub struct Context {
     observer_cx_view: OnceLock<Arc<dyn ObserverContextView>>,
 }
 
-/// A context's observer view of a [Context]. This is basically an arbitrary data structure.
-///
-/// The `Any` supertrait lets an observer recover the concrete type it stored in the
-/// `observer_cx_view` slot (via trait upcasting to `&dyn Any` and `downcast_ref`).
+/// A context's observer view of a [Context]. This is an arbitrary data structure.
 #[cfg(feature = "experimental_context_observer")]
 pub trait ObserverContextView: Any + Send + Sync {}
 
