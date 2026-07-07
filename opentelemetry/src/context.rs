@@ -1282,3 +1282,133 @@ mod tests {
         assert!(!Context::is_current_telemetry_suppressed());
     }
 }
+
+#[cfg(all(test, feature = "experimental_context_observer"))]
+mod observer_tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::sync::Arc;
+
+    #[derive(Debug, PartialEq)]
+    struct V(u64);
+
+    #[derive(Debug, PartialEq, Clone)]
+    enum Event {
+        Enter { from: Option<u64>, to: Option<u64> },
+        Exit { from: Option<u64>, to: Option<u64> },
+    }
+
+    thread_local! {
+        static EVENTS: RefCell<Vec<Event>> = const { RefCell::new(Vec::new()) };
+    }
+
+    fn value_of(cx: &Context) -> Option<u64> {
+        cx.get::<V>().map(|v| v.0)
+    }
+
+    // Records every transition into a thread-local buffer. As the observer is a process-global
+    // singleton, recording per-thread keeps each test's assertions isolated from context
+    // activity happening on other test threads.
+    struct RecordingObserver;
+
+    impl ContextObserver for RecordingObserver {
+        fn on_context_enter(&self, from: &Context, to: &Context) {
+            EVENTS.with(|e| {
+                e.borrow_mut().push(Event::Enter {
+                    from: value_of(from),
+                    to: value_of(to),
+                })
+            });
+        }
+
+        fn on_context_exit(&self, from: &Context, to: &Context) {
+            EVENTS.with(|e| {
+                e.borrow_mut().push(Event::Exit {
+                    from: value_of(from),
+                    to: value_of(to),
+                })
+            });
+        }
+    }
+
+    // Establishes a clean base context on the current thread and clears any previously
+    // recorded events, so the assertions below only see transitions this test triggers.
+    fn setup() -> ContextGuard {
+        // Idempotent across tests: only the first call installs the observer, but every test
+        // uses the same `RecordingObserver`, so a lost race is harmless.
+        GlobalContextObserver::set(Arc::new(RecordingObserver));
+        let guard = Context::new().attach();
+        EVENTS.with(|e| e.borrow_mut().clear());
+        guard
+    }
+
+    #[test]
+    fn global_observer_records_enter_and_exit() {
+        let _clean = setup();
+
+        {
+            let _g = Context::current().with_value(V(1)).attach();
+            // Entering fires immediately: from the clean base (no value) to `V(1)`.
+            EVENTS.with(|e| {
+                assert_eq!(
+                    *e.borrow(),
+                    vec![Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    }]
+                )
+            });
+        }
+
+        // Dropping the guard restores the base and fires the matching exit event.
+        EVENTS.with(|e| {
+            assert_eq!(
+                *e.borrow(),
+                vec![
+                    Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    },
+                    Event::Exit {
+                        from: Some(1),
+                        to: None
+                    }
+                ]
+            )
+        });
+    }
+
+    #[test]
+    fn global_observer_records_nested_transitions() {
+        let _clean = setup();
+
+        let g1 = Context::current().with_value(V(1)).attach();
+        let g2 = Context::current().with_value(V(2)).attach();
+        drop(g2);
+        drop(g1);
+
+        EVENTS.with(|e| {
+            assert_eq!(
+                *e.borrow(),
+                vec![
+                    Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    },
+                    Event::Enter {
+                        from: Some(1),
+                        to: Some(2)
+                    },
+                    Event::Exit {
+                        from: Some(2),
+                        to: Some(1)
+                    },
+                    Event::Exit {
+                        from: Some(1),
+                        to: None
+                    },
+                ]
+            )
+        });
+    }
+}
