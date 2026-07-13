@@ -73,10 +73,7 @@ fn print_spans(batch: Vec<SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{i}");
         println!("\tInstrumentation Scope");
-        println!(
-            "\t\tName         : {:?}",
-            span.instrumentation_scope.name()
-        );
+        println!("\t\tName         : {:?}", span.instrumentation_scope.name());
         if let Some(version) = &span.instrumentation_scope.version() {
             println!("\t\tVersion  : {version:?}");
         }
