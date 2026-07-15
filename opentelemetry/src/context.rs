@@ -709,6 +709,23 @@ mod context_observer {
     /// to be published through an alternative channel, but in essence it is arbitrary data computed
     /// from the context.
     ///
+    /// # Refcell already borrowed panic
+    ///
+    /// [crate::context] maintains thread-local, internal state in a `RefCell`. This is
+    /// implementation detail leaks when the `experimental_context_observer` feature is enabled:
+    /// [Self::on_context_enter] and [Self::on_context_exit] are called from a point where the cell
+    /// is currently borrowed. If a [ContextObserver] implementation calls back into a
+    /// cell-borrowing function from the Context API, typically `Context::current()`, this will
+    /// result in a `Refcell already borrowed` panic.
+    /// 
+    /// As general hygiene, with respect to the [Context] API, it is strongly advised to only use
+    /// simple getters and setters on the `from` and `to` context objects provided to the observer.
+    /// Do not call `Context::current()`, nor try to manually attach or detach context objects from
+    /// an observer.
+    ///
+    /// If you get Refcell-related panics within the [crate::context] module, this is the most
+    /// likely cause.
+    ///
     /// # Example
     ///
     /// ```
@@ -752,8 +769,6 @@ mod context_observer {
     ///         assert_eq!(view.correlation_id, 42);
     ///     }
     /// }
-    ///
-
     /// # }
     /// ```
     pub trait ContextObserver {
