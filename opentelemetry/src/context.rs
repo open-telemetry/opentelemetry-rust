@@ -8,6 +8,44 @@
 //!
 //! - [`Context`]: An immutable, execution-scoped collection of values.
 //!
+//! # Observer Views
+//!
+//! When the `experimental_context_observer` feature is enabled, an arbitrary observer-owned view
+//! can be attached to a [`Context`] via [`Context::observer_cx_view`]. The view is type-erased to
+//! `Arc<dyn ObserverContextView>`, and its concrete type is recovered through
+//! [`ObserverContextView::as_any`]:
+//!
+//! ```
+//! # #[cfg(feature = "experimental_context_observer")]
+//! # {
+//! use opentelemetry::Context;
+//! use opentelemetry::context::ObserverContextView;
+//! use std::any::Any;
+//! use std::sync::Arc;
+//!
+//! // An observer's own view of the context, carrying arbitrary data.
+//! struct MyView {
+//!     correlation_id: u64,
+//! }
+//!
+//! impl ObserverContextView for MyView {
+//!     fn as_any(&self) -> &dyn Any {
+//!         self
+//!     }
+//! }
+//!
+//! // Attach the view to a context.
+//! let cx = Context::new();
+//! cx.observer_cx_view()
+//!     .set(Arc::new(MyView { correlation_id: 42 }))
+//!     .unwrap_or_else(|_| unreachable!("view was just created and is empty"));
+//!
+//! // Later, recover the concrete type from the stored view.
+//! let view = cx.observer_cx_view().get().expect("view was set above");
+//! let my_view = view.as_any().downcast_ref::<MyView>().expect("view is a `MyView`");
+//! assert_eq!(my_view.correlation_id, 42);
+//! # }
+//! ```
 
 use crate::otel_warn;
 #[cfg(feature = "trace")]
@@ -117,8 +155,51 @@ pub struct Context {
 }
 
 /// A context's observer view of a [Context]. This is an arbitrary data structure.
+///
+/// A view is stored and retrieved as a type-erased `Arc<dyn ObserverContextView>` (see
+/// [`Context::observer_cx_view`]). To recover the original concrete type from a stored view, use
+/// [`ObserverContextView::as_any`] together with [`Any::downcast_ref`]:
+///
+/// ```
+/// # #[cfg(feature = "experimental_context_observer")]
+/// # {
+/// use opentelemetry::context::ObserverContextView;
+/// use std::any::Any;
+/// use std::sync::Arc;
+///
+/// struct MyView {
+///     correlation_id: u64,
+/// }
+///
+/// impl ObserverContextView for MyView {
+///     fn as_any(&self) -> &dyn Any {
+///         self
+///     }
+/// }
+///
+/// let view: Arc<dyn ObserverContextView> = Arc::new(MyView { correlation_id: 42 });
+/// let my_view = view.as_any().downcast_ref::<MyView>().unwrap();
+/// assert_eq!(my_view.correlation_id, 42);
+/// # }
+/// ```
+///
+/// The [`as_any`](ObserverContextView::as_any) method is required because this crate's MSRV is
+/// below the Rust version (1.86) that stabilized trait upcasting; without it, callers on the
+/// minimum supported compiler couldn't upcast `&dyn ObserverContextView` to `&dyn Any` to perform
+/// the downcast themselves.
 #[cfg(feature = "experimental_context_observer")]
-pub trait ObserverContextView: Any + Send + Sync {}
+pub trait ObserverContextView: Any + Send + Sync {
+    /// Returns this view as a `&dyn Any`, enabling downcasting back to the concrete type.
+    ///
+    /// Implementors should simply return `self`:
+    ///
+    /// ```ignore
+    /// fn as_any(&self) -> &dyn std::any::Any {
+    ///     self
+    /// }
+    /// ```
+    fn as_any(&self) -> &dyn Any;
+}
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
 
@@ -1407,5 +1488,39 @@ mod observer_tests {
                 ]
             )
         });
+    }
+
+    // An observer view carrying arbitrary data, unrelated to the internal `Context`
+    // representation.
+    struct MyView {
+        correlation_id: u64,
+    }
+
+    impl ObserverContextView for MyView {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+    }
+
+    #[test]
+    fn observer_view_roundtrips_through_as_any() {
+        let cx = Context::new();
+
+        // Attaching the view stores it type-erased as `Arc<dyn ObserverContextView>`.
+        cx.observer_cx_view()
+            .set(Arc::new(MyView { correlation_id: 7 }))
+            .unwrap_or_else(|_| unreachable!("view was just created and is empty"));
+
+        // `as_any` lets us recover the concrete type on our low MSRV, where trait upcasting to
+        // `dyn Any` is not available.
+        let view = cx.observer_cx_view().get().expect("view was set above");
+        let my_view = view
+            .as_any()
+            .downcast_ref::<MyView>()
+            .expect("view is a `MyView`");
+        assert_eq!(my_view.correlation_id, 7);
+
+        // Downcasting to an unrelated type fails gracefully rather than misbehaving.
+        assert!(view.as_any().downcast_ref::<V>().is_none());
     }
 }
