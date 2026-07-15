@@ -711,8 +711,8 @@ mod context_observer {
     ///
     /// # Refcell already borrowed panic
     ///
-    /// [crate::context] maintains thread-local, internal state in a `RefCell`. This is
-    /// implementation detail leaks when the `experimental_context_observer` feature is enabled:
+    /// [crate::context] maintains thread-local, internal state in a `RefCell`. This implementation
+    /// detail leaks when the `experimental_context_observer` feature is enabled:
     /// [Self::on_context_enter] and [Self::on_context_exit] are called from a point where the cell
     /// is currently borrowed. If a [ContextObserver] implementation calls back into a
     /// cell-borrowing function from the Context API, typically `Context::current()`, this will
@@ -808,38 +808,16 @@ mod context_observer {
     }
 
     /// A context's observer view of a [Context]. This is an arbitrary data structure. See
-    /// [ContextObserver]'s documentation for an example usage.
-    ///
-    /// ```
-    /// # #[cfg(feature = "experimental_context_observer")]
-    /// # {
-    /// use opentelemetry::context::ObserverContextView;
-    /// use std::any::Any;
-    /// use std::sync::Arc;
-    ///
-    /// struct MyView {
-    ///     correlation_id: u64,
-    /// }
-    ///
-    /// impl ObserverContextView for MyView {
-    ///     fn as_any(&self) -> &dyn Any {
-    ///         self
-    ///     }
-    /// }
-    ///
-    /// let view: Arc<dyn ObserverContextView> = Arc::new(MyView { correlation_id: 42 });
-    /// let my_view = view.as_any().downcast_ref::<MyView>().unwrap();
-    /// assert_eq!(my_view.correlation_id, 42);
-    /// # }
-    /// ```
-    ///
-    /// The [`as_any`](ObserverContextView::as_any) method is required because this crate's MSRV is
-    /// below the Rust version (1.86) that stabilized trait upcasting; without it, callers on the
-    /// minimum supported compiler couldn't upcast `&dyn ObserverContextView` to `&dyn Any` to perform
-    /// the downcast themselves.
+    /// [ContextObserver]'s documentation for examples.
     #[cfg(feature = "experimental_context_observer")]
     pub trait ObserverContextView: Any + Send + Sync {
         /// Returns this view as a `&dyn Any`, enabling downcasting back to the concrete type.
+        ///
+        /// This method is required because this crate's MSRV is below the Rust version (1.86) that
+        /// stabilized trait upcasting. Without it, callers below 1.86 couldn't upcast `&dyn
+        /// ObserverContextView` to `&dyn Any` to perform the downcast themselves.
+        ///
+        /// This is a work-around for the absence of trait upcasting before Rust 1.86.
         ///
         /// Implementors should simply return `self`:
         ///
