@@ -8,44 +8,6 @@
 //!
 //! - [`Context`]: An immutable, execution-scoped collection of values.
 //!
-//! # Observer Views
-//!
-//! When the `experimental_context_observer` feature is enabled, an arbitrary observer-owned view
-//! can be attached to a [`Context`] via [`Context::observer_cx_view`]. The view is type-erased to
-//! `Arc<dyn ObserverContextView>`, and its concrete type is recovered through
-//! [`ObserverContextView::as_any`]:
-//!
-//! ```
-//! # #[cfg(feature = "experimental_context_observer")]
-//! # {
-//! use opentelemetry::Context;
-//! use opentelemetry::context::ObserverContextView;
-//! use std::any::Any;
-//! use std::sync::Arc;
-//!
-//! // An observer's own view of the context, carrying arbitrary data.
-//! struct MyView {
-//!     correlation_id: u64,
-//! }
-//!
-//! impl ObserverContextView for MyView {
-//!     fn as_any(&self) -> &dyn Any {
-//!         self
-//!     }
-//! }
-//!
-//! // Attach the view to a context.
-//! let cx = Context::new();
-//! cx.observer_cx_view()
-//!     .set(Arc::new(MyView { correlation_id: 42 }))
-//!     .unwrap_or_else(|_| unreachable!("view was just created and is empty"));
-//!
-//! // Later, recover the concrete type from the stored view.
-//! let view = cx.observer_cx_view().get().expect("view was set above");
-//! let my_view = view.as_any().downcast_ref::<MyView>().expect("view is a `MyView`");
-//! assert_eq!(my_view.correlation_id, 42);
-//! # }
-//! ```
 
 use crate::otel_warn;
 #[cfg(feature = "trace")]
@@ -151,54 +113,7 @@ pub struct Context {
     /// [observer_state] makes it possible to store the observer's view of the context alongside a
     /// [Context] value, such that it can be attached and detached on context events.
     #[cfg(feature = "experimental_context_observer")]
-    observer_cx_view: OnceLock<Arc<dyn ObserverContextView>>,
-}
-
-/// A context's observer view of a [Context]. This is an arbitrary data structure.
-///
-/// A view is stored and retrieved as a type-erased `Arc<dyn ObserverContextView>` (see
-/// [`Context::observer_cx_view`]). To recover the original concrete type from a stored view, use
-/// [`ObserverContextView::as_any`] together with [`Any::downcast_ref`]:
-///
-/// ```
-/// # #[cfg(feature = "experimental_context_observer")]
-/// # {
-/// use opentelemetry::context::ObserverContextView;
-/// use std::any::Any;
-/// use std::sync::Arc;
-///
-/// struct MyView {
-///     correlation_id: u64,
-/// }
-///
-/// impl ObserverContextView for MyView {
-///     fn as_any(&self) -> &dyn Any {
-///         self
-///     }
-/// }
-///
-/// let view: Arc<dyn ObserverContextView> = Arc::new(MyView { correlation_id: 42 });
-/// let my_view = view.as_any().downcast_ref::<MyView>().unwrap();
-/// assert_eq!(my_view.correlation_id, 42);
-/// # }
-/// ```
-///
-/// The [`as_any`](ObserverContextView::as_any) method is required because this crate's MSRV is
-/// below the Rust version (1.86) that stabilized trait upcasting; without it, callers on the
-/// minimum supported compiler couldn't upcast `&dyn ObserverContextView` to `&dyn Any` to perform
-/// the downcast themselves.
-#[cfg(feature = "experimental_context_observer")]
-pub trait ObserverContextView: Any + Send + Sync {
-    /// Returns this view as a `&dyn Any`, enabling downcasting back to the concrete type.
-    ///
-    /// Implementors should simply return `self`:
-    ///
-    /// ```ignore
-    /// fn as_any(&self) -> &dyn std::any::Any {
-    ///     self
-    /// }
-    /// ```
-    fn as_any(&self) -> &dyn Any;
+    observer_view: OnceLock<Arc<dyn ObserverContextView>>,
 }
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
@@ -366,7 +281,7 @@ impl Context {
             span: self.span.clone(),
             suppress_telemetry: self.suppress_telemetry,
             #[cfg(feature = "experimental_context_observer")]
-            observer_cx_view: OnceLock::new(),
+            observer_view: OnceLock::new(),
         }
     }
 
@@ -467,7 +382,7 @@ impl Context {
             span: self.span.clone(),
             suppress_telemetry: true,
             #[cfg(feature = "experimental_context_observer")]
-            observer_cx_view: OnceLock::new(),
+            observer_view: OnceLock::new(),
         }
     }
 
@@ -534,8 +449,8 @@ impl Context {
     /// Returns the observer's view of this context, if any.
     #[cfg(feature = "experimental_context_observer")]
     #[inline]
-    pub fn observer_cx_view(&self) -> &OnceLock<Arc<dyn ObserverContextView>> {
-        &self.observer_cx_view
+    pub fn observer_view(&self) -> &OnceLock<Arc<dyn ObserverContextView>> {
+        &self.observer_view
     }
 
     #[cfg(feature = "trace")]
@@ -545,7 +460,7 @@ impl Context {
             entries: cx.entries.clone(),
             suppress_telemetry: cx.suppress_telemetry,
             #[cfg(feature = "experimental_context_observer")]
-            observer_cx_view: OnceLock::new(),
+            observer_view: OnceLock::new(),
         })
     }
 
@@ -556,7 +471,7 @@ impl Context {
             entries: self.entries.clone(),
             suppress_telemetry: self.suppress_telemetry,
             #[cfg(feature = "experimental_context_observer")]
-            observer_cx_view: OnceLock::new(),
+            observer_view: OnceLock::new(),
         }
     }
 }
@@ -787,8 +702,60 @@ mod context_observer {
     /// An observer trait for monitoring context transitions.
     ///
     /// Implementors of this trait can observe when a context is entered or exited, allowing for
-    /// custom logic to be executed during context switches. Implementors can cache context-specific
-    /// computed state in [Context::observer_cx_view].
+    /// custom logic to be executed during context switches.
+    ///
+    /// An observer-specific view can be attached to a [`Context`] via
+    /// [`Context::observer_view`]. A view is usually a different representation of the context
+    /// to be published through an alternative channel, but in essence it is arbitrary data computed
+    /// from the context.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[cfg(feature = "experimental_context_observer")]
+    /// # {
+    /// use opentelemetry::Context;
+    /// use opentelemetry::context::{ContextObserver, ObserverContextView};
+    /// use std::any::Any;
+    /// use std::sync::Arc;
+    ///
+    /// // An observer's own view of the context, carrying arbitrary data.
+    /// struct MyView {
+    ///     correlation_id: u64,
+    /// }
+    ///
+    /// impl ObserverContextView for MyView {
+    ///     fn as_any(&self) -> &dyn Any {
+    ///         self
+    ///     }
+    /// }
+    ///
+    /// struct Observer;
+    ///
+    /// # fn do_something(view: &MyView) { }
+    ///
+    /// impl ContextObserver for Observer {
+    ///     fn on_context_enter(&self, from: &Context, to: &Context) {
+    ///         let view = to.observer_view()
+    ///             .get_or_init(|| Arc::new(MyView { correlation_id: 42 }));
+    ///         do_something(view.as_any().downcast_ref::<MyView>().unwrap());
+    ///     }
+    ///
+    ///     fn on_context_exit(&self, from: &Context, to: &Context) {
+    ///         let view = to
+    ///             .observer_view()
+    ///             .get()
+    ///             .unwrap()
+    ///             .as_any()
+    ///             .downcast_ref::<MyView>()
+    ///             .unwrap();
+    ///         assert_eq!(view.correlation_id, 42);
+    ///     }
+    /// }
+    ///
+
+    /// # }
+    /// ```
     pub trait ContextObserver {
         /// Called when a context is entered, allowing observers to react to the transition
         /// from one context (`from`) to another (`to`).
@@ -823,6 +790,50 @@ mod context_observer {
         pub(super) fn get<'a>() -> Option<&'a Arc<dyn ContextObserver + Send + Sync>> {
             GLOBAL_CONTEXT_OBSERVER.get()
         }
+    }
+
+    /// A context's observer view of a [Context]. This is an arbitrary data structure. See
+    /// [ContextObserver]'s documentation for an example usage.
+    ///
+    /// ```
+    /// # #[cfg(feature = "experimental_context_observer")]
+    /// # {
+    /// use opentelemetry::context::ObserverContextView;
+    /// use std::any::Any;
+    /// use std::sync::Arc;
+    ///
+    /// struct MyView {
+    ///     correlation_id: u64,
+    /// }
+    ///
+    /// impl ObserverContextView for MyView {
+    ///     fn as_any(&self) -> &dyn Any {
+    ///         self
+    ///     }
+    /// }
+    ///
+    /// let view: Arc<dyn ObserverContextView> = Arc::new(MyView { correlation_id: 42 });
+    /// let my_view = view.as_any().downcast_ref::<MyView>().unwrap();
+    /// assert_eq!(my_view.correlation_id, 42);
+    /// # }
+    /// ```
+    ///
+    /// The [`as_any`](ObserverContextView::as_any) method is required because this crate's MSRV is
+    /// below the Rust version (1.86) that stabilized trait upcasting; without it, callers on the
+    /// minimum supported compiler couldn't upcast `&dyn ObserverContextView` to `&dyn Any` to perform
+    /// the downcast themselves.
+    #[cfg(feature = "experimental_context_observer")]
+    pub trait ObserverContextView: Any + Send + Sync {
+        /// Returns this view as a `&dyn Any`, enabling downcasting back to the concrete type.
+        ///
+        /// Implementors should simply return `self`:
+        ///
+        /// ```ignore
+        /// fn as_any(&self) -> &dyn std::any::Any {
+        ///     self
+        /// }
+        /// ```
+        fn as_any(&self) -> &dyn Any;
     }
 }
 
@@ -1438,14 +1449,14 @@ mod observer_tests {
     // the existing one otherwise. The view is the context's `V` value (or 0 for a value-less
     // context).
     fn install_or_reuse_view(cx: &Context) {
-        if cx.observer_cx_view().get().is_some() {
+        if cx.observer_view().get().is_some() {
             // Already initialized (e.g. a clone of an already-observed context): reuse it.
             return;
         }
 
         let correlation_id = value_of(cx).unwrap_or(0);
 
-        cx.observer_cx_view()
+        cx.observer_view()
             .set(Arc::new(MyView { correlation_id }))
             .unwrap_or_else(|_| unreachable!("view was empty, just checked above"));
         VIEWS_CREATED.with(|c| c.set(c.get() + 1));
@@ -1453,7 +1464,7 @@ mod observer_tests {
 
     // Recovers the correlation id stored in a context's observer view, if any.
     fn view_id(cx: &Context) -> Option<u64> {
-        cx.observer_cx_view()
+        cx.observer_view()
             .get()
             .and_then(|v| v.as_any().downcast_ref::<MyView>())
             .map(|v| v.correlation_id)
@@ -1573,13 +1584,13 @@ mod observer_tests {
         let cx = Context::new();
 
         // Attaching the view stores it type-erased as `Arc<dyn ObserverContextView>`.
-        cx.observer_cx_view()
+        cx.observer_view()
             .set(Arc::new(MyView { correlation_id: 7 }))
             .unwrap_or_else(|_| unreachable!("view was just created and is empty"));
 
         // `as_any` lets us recover the concrete type on our low MSRV, where trait upcasting to
         // `dyn Any` is not available.
-        let view = cx.observer_cx_view().get().expect("view was set above");
+        let view = cx.observer_view().get().expect("view was set above");
         let my_view = view
             .as_any()
             .downcast_ref::<MyView>()
