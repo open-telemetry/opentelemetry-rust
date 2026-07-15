@@ -786,8 +786,9 @@ mod context_observer {
 
     /// An observer trait for monitoring context transitions.
     ///
-    /// Implementors of this trait can observe when a context is entered or exited,
-    /// allowing for custom logic to be executed during context switches.
+    /// Implementors of this trait can observe when a context is entered or exited, allowing for
+    /// custom logic to be executed during context switches. Implementors can cache context-specific
+    /// computed state in [Context::observer_cx_view].
     pub trait ContextObserver {
         /// Called when a context is entered, allowing observers to react to the transition
         /// from one context (`from`) to another (`to`).
@@ -1364,7 +1365,7 @@ mod tests {
 #[cfg(all(test, feature = "experimental_context_observer"))]
 mod observer_tests {
     use super::*;
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use std::sync::Arc;
 
     #[derive(Debug, PartialEq)]
@@ -1384,22 +1385,37 @@ mod observer_tests {
         cx.get::<V>().map(|v| v.0)
     }
 
-    // Records every transition into a thread-local buffer. As the observer is a process-global
-    // singleton, recording per-thread keeps each test's assertions isolated from context
-    // activity happening on other test threads.
+    // When enabled, on each transition it records the event into a thread-local buffer, and on
+    // enter it also installs an observer view on the entered context and bumps the thread-local
+    // `VIEWS_CREATED` counter. See `observer_installs_and_reuses_view`.
+    //
+    // The observer is a process-global singleton, so its callbacks fire for context activity on
+    // *every* thread across the whole test binary once installed. To keep that cheap and isolated,
+    // all of its work is gated behind the per-thread `ENABLE_TEST_OBSERVER` switch: threads that
+    // didn't opt in (via `setup()`) get an inert observer.
     struct RecordingObserver;
 
     impl ContextObserver for RecordingObserver {
         fn on_context_enter(&self, from: &Context, to: &Context) {
+            if !ENABLE_TEST_OBSERVER.with(Cell::get) {
+                return;
+            }
+
             EVENTS.with(|e| {
                 e.borrow_mut().push(Event::Enter {
                     from: value_of(from),
                     to: value_of(to),
                 })
             });
+
+            install_or_reuse_view(to);
         }
 
         fn on_context_exit(&self, from: &Context, to: &Context) {
+            if !ENABLE_TEST_OBSERVER.with(Cell::get) {
+                return;
+            }
+
             EVENTS.with(|e| {
                 e.borrow_mut().push(Event::Exit {
                     from: value_of(from),
@@ -1409,20 +1425,70 @@ mod observer_tests {
         }
     }
 
-    // Establishes a clean base context on the current thread and clears any previously
-    // recorded events, so the assertions below only see transitions this test triggers.
-    fn setup() -> ContextGuard {
+    thread_local! {
+        // Master switch for the observer per thread. Enabled for the duration of a test that cares,
+        // and left false everywhere else, so we don't slow down tests unrelated to the observer.
+        // See `setup`.
+        static ENABLE_TEST_OBSERVER: Cell<bool> = const { Cell::new(false) };
+        // Counts how many distinct views the observer created on the current thread.
+        static VIEWS_CREATED: Cell<u64> = const { Cell::new(0) };
+    }
+
+    // On context enter, install the observer's view if this context doesn't have one yet, or reuse
+    // the existing one otherwise. The view is the context's `V` value (or 0 for a value-less
+    // context).
+    fn install_or_reuse_view(cx: &Context) {
+        if cx.observer_cx_view().get().is_some() {
+            // Already initialized (e.g. a clone of an already-observed context): reuse it.
+            return;
+        }
+
+        let correlation_id = value_of(cx).unwrap_or(0);
+
+        cx.observer_cx_view()
+            .set(Arc::new(MyView { correlation_id }))
+            .unwrap_or_else(|_| unreachable!("view was empty, just checked above"));
+        VIEWS_CREATED.with(|c| c.set(c.get() + 1));
+    }
+
+    // Recovers the correlation id stored in a context's observer view, if any.
+    fn view_id(cx: &Context) -> Option<u64> {
+        cx.observer_cx_view()
+            .get()
+            .and_then(|v| v.as_any().downcast_ref::<MyView>())
+            .map(|v| v.correlation_id)
+    }
+
+    // Holds the base context guard and disables the observer on this thread when dropped. The
+    // struct's own `Drop` runs before its fields, so the flag is cleared before the base context is
+    // popped, which is thus not observed (symmetrically to `setup`, which installs the base context
+    // before registering/enabling the observer).
+    struct ObserverTestGuard {
+        _cx: ContextGuard,
+    }
+
+    impl Drop for ObserverTestGuard {
+        fn drop(&mut self) {
+            ENABLE_TEST_OBSERVER.with(|e| e.set(false));
+        }
+    }
+
+    // Enables the observer on this thread, establishes a clean base context, and clears any
+    // previously recorded events, so the assertions below only see transitions this test
+    // triggers. Dropping the returned guard disables the observer again.
+    fn setup_observer() -> ObserverTestGuard {
         // Idempotent across tests: only the first call installs the observer, but every test
         // uses the same `RecordingObserver`, so a lost race is harmless.
         GlobalContextObserver::set(Arc::new(RecordingObserver));
+        ENABLE_TEST_OBSERVER.with(|e| e.set(true));
         let guard = Context::new().attach();
         EVENTS.with(|e| e.borrow_mut().clear());
-        guard
+        ObserverTestGuard { _cx: guard }
     }
 
     #[test]
     fn global_observer_records_enter_and_exit() {
-        let _clean = setup();
+        let _clean = setup_observer();
 
         {
             let _g = Context::current().with_value(V(1)).attach();
@@ -1438,7 +1504,7 @@ mod observer_tests {
             });
         }
 
-        // Dropping the guard restores the base and fires the matching exit event.
+        // Dropping the (context) guard restores the base and fires the matching exit event.
         EVENTS.with(|e| {
             assert_eq!(
                 *e.borrow(),
@@ -1458,7 +1524,7 @@ mod observer_tests {
 
     #[test]
     fn global_observer_records_nested_transitions() {
-        let _clean = setup();
+        let _clean = setup_observer();
 
         let g1 = Context::current().with_value(V(1)).attach();
         let g2 = Context::current().with_value(V(2)).attach();
@@ -1522,5 +1588,41 @@ mod observer_tests {
 
         // Downcasting to an unrelated type fails gracefully rather than misbehaving.
         assert!(view.as_any().downcast_ref::<V>().is_none());
+    }
+
+    // A realistic use of the observer view: the global observer installs its own view on each
+    // context the first time that context is entered, and reuses it on re-entry. The
+    // thread-local counter checks that exactly one view is created per distinct context.
+    #[test]
+    fn observer_installs_and_reuses_view() {
+        let _clean = setup_observer();
+
+        // Reset the counter for the work below.
+        VIEWS_CREATED.with(|c| c.set(0));
+
+        // Entering two distinct contexts installs a fresh view for each, derived from its value.
+        let g1 = Context::current().with_value(V(1)).attach();
+        assert_eq!(view_id(&Context::current()), Some(1));
+
+        let g2 = Context::current().with_value(V(2)).attach();
+        assert_eq!(view_id(&Context::current()), Some(2));
+
+        assert_eq!(VIEWS_CREATED.with(Cell::get), 2);
+
+        // Re-entering an already-observed context must reuse its view, not create a new one.
+        // `Context::current()` clones the current context, carrying along its already-set view.
+        let observed = Context::current();
+        let g3 = observed.attach();
+
+        assert_eq!(view_id(&Context::current()), Some(2));
+        assert_eq!(
+            VIEWS_CREATED.with(Cell::get),
+            2,
+            "re-entering an observed context must not create a new view"
+        );
+
+        drop(g3);
+        drop(g2);
+        drop(g1);
     }
 }
