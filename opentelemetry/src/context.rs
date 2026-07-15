@@ -717,7 +717,7 @@ mod context_observer {
     /// is currently borrowed. If a [ContextObserver] implementation calls back into a
     /// cell-borrowing function from the Context API, typically `Context::current()`, this will
     /// result in a `Refcell already borrowed` panic.
-    /// 
+    ///
     /// As general hygiene, with respect to the [Context] API, it is strongly advised to only use
     /// simple getters and setters on the `from` and `to` context objects provided to the observer.
     /// Do not call `Context::current()`, nor try to manually attach or detach context objects from
