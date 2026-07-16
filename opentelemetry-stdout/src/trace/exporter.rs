@@ -73,10 +73,7 @@ fn print_spans(batch: Vec<SpanData>) {
     for (i, span) in batch.into_iter().enumerate() {
         println!("Span #{i}");
         println!("\tInstrumentation Scope");
-        println!(
-            "\t\tName         : {:?}",
-            &span.instrumentation_scope.name()
-        );
+        println!("\t\tName         : {:?}", span.instrumentation_scope.name());
         if let Some(version) = &span.instrumentation_scope.version() {
             println!("\t\tVersion  : {version:?}");
         }
@@ -94,16 +91,16 @@ fn print_spans(batch: Vec<SpanData>) {
             });
 
         println!();
-        println!("\tName         : {}", &span.name);
-        println!("\tTraceId      : {}", &span.span_context.trace_id());
-        println!("\tSpanId       : {}", &span.span_context.span_id());
-        println!("\tTraceFlags   : {:?}", &span.span_context.trace_flags());
+        println!("\tName         : {}", span.name);
+        println!("\tTraceId      : {}", span.span_context.trace_id());
+        println!("\tSpanId       : {}", span.span_context.span_id());
+        println!("\tTraceFlags   : {:?}", span.span_context.trace_flags());
         if span.parent_span_id == opentelemetry::SpanId::INVALID {
             println!("\tParentSpanId : None (root span)");
         } else {
-            println!("\tParentSpanId : {}", &span.parent_span_id);
+            println!("\tParentSpanId : {}", span.parent_span_id);
         }
-        println!("\tKind         : {:?}", &span.span_kind);
+        println!("\tKind         : {:?}", span.span_kind);
 
         let datetime: DateTime<Utc> = span.start_time.into();
         println!(
@@ -115,7 +112,7 @@ fn print_spans(batch: Vec<SpanData>) {
             "\tEnd time     : {}",
             datetime.format("%Y-%m-%d %H:%M:%S%.6f")
         );
-        println!("\tStatus       : {:?}", &span.status);
+        println!("\tStatus       : {:?}", span.status);
 
         let mut print_header = true;
         for kv in span.attributes.iter() {
