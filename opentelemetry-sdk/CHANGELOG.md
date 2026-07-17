@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
+  optional, enabling a minimal SDK build. With `default-features = false`, the
+  SDK's only dependency is the `opentelemetry` API crate.
+  ([#3593](https://github.com/open-telemetry/opentelemetry-rust/pull/3593))
 - Bound instruments are now available for `Gauge` and `UpDownCounter` via the
   new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
   `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
