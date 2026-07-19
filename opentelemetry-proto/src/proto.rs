@@ -110,8 +110,10 @@ pub(crate) mod serializers {
                 V: de::MapAccess<'de>,
             {
                 let mut value: Option<any_value::Value> = None;
+                let mut saw_key = false;
 
                 while let Some(key) = map.next_key::<String>()? {
+                    saw_key = true;
                     let key_str = key.as_str();
                     match key_str {
                         "stringValue" => {
@@ -153,6 +155,18 @@ pub(crate) mod serializers {
 
                 if let Some(v) = value {
                     Ok(Some(v))
+                } else if !saw_key {
+                    // An empty JSON object is proto3 JSON's encoding of a
+                    // message with no fields set — for `AnyValue`, the unset
+                    // oneof ("It is valid for all values to be unspecified in
+                    // which case this AnyValue is considered to be 'empty'").
+                    // It is also what this module's own serializer emits for
+                    // `AnyValue { value: None }` (the `flatten` of an unset
+                    // oneof serializes no fields), and what real producers
+                    // emit on the wire: the OpenTelemetry Collector's file
+                    // exporter writes `"body": {}` for body-less event
+                    // records.
+                    Ok(None)
                 } else {
                     Err(de::Error::custom(
                         "Invalid data for Value, no known keys found",

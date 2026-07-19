@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Bug fix**: `with-serde` now deserializes `{}` as an empty `AnyValue` (`value: None`). Proto3 JSON encodes a message with no fields set as `{}` — the unset `oneof` the proto documents as a valid "empty" `AnyValue` — and it is what the serializer itself emits for `AnyValue { value: None }`, as well as what the OpenTelemetry Collector's file exporter writes for body-less log records. Previously this failed with "Invalid data for Value, no known keys found"; objects containing only unknown keys still fail. ([#3598](https://github.com/open-telemetry/opentelemetry-rust/issues/3598))
+
 ## 0.32.0
 
 Released 2026-May-08

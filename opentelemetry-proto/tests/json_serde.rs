@@ -473,6 +473,32 @@ mod json_serde {
         use super::*;
 
         #[test]
+        fn empty() {
+            // proto3 JSON encodes a message with no fields set as `{}` —
+            // for `AnyValue` that is the unset oneof, which the proto
+            // itself documents as valid ("It is valid for all values to
+            // be unspecified in which case this AnyValue is considered
+            // to be 'empty'"). Real producers emit it on the wire (the
+            // Collector's file exporter writes `"body": {}` for
+            // body-less event records), and it is also exactly what
+            // this crate's own serializer produces for
+            // `AnyValue { value: None }` — which previously failed to
+            // deserialize back ("Invalid data for Value, no known keys
+            // found").
+            let value = AnyValue { value: None };
+            // language=json
+            let json = r#"{}"#;
+            assert_eq!(
+                serde_json::to_string(&value).expect("serialization succeeds"),
+                json
+            );
+            assert_eq!(
+                serde_json::from_str::<AnyValue>(json).expect("deserialization succeeds"),
+                value
+            );
+        }
+
+        #[test]
         fn string() {
             let value = Value::StringValue(String::from("my.service"));
             // language=json
