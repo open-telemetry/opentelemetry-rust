@@ -110,7 +110,7 @@ pub struct Context {
     /// and detach some data on context events using its own mechanism. The shared data has no
     /// reason to match our internal representation ([Context]).
     ///
-    /// [observer_state] makes it possible to store the observer's view of the context alongside a
+    /// [observer_view] makes it possible to store the observer's view of the context alongside a
     /// [Context] value, such that it can be attached and detached on context events.
     #[cfg(feature = "experimental_context_observer")]
     observer_view: OnceLock<Arc<dyn ObserverContextView>>,
