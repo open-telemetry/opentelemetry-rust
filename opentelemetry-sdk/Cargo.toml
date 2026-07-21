@@ -13,14 +13,14 @@ autobenches = false
 [dependencies]
 opentelemetry = { workspace = true }
 opentelemetry-http = { workspace = true, optional = true }
-futures-channel = { workspace = true }
-futures-executor = { workspace = true }
-futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"] }
+futures-channel = { workspace = true, optional = true }
+futures-executor = { workspace = true, optional = true }
+futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"], optional = true }
 percent-encoding = { workspace = true, optional = true }
 rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
-thiserror = { workspace = true }
+thiserror = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 tokio = { workspace = true, default-features = false, optional = true }
 tokio-stream = { workspace = true, optional = true }
@@ -44,12 +44,12 @@ pprof = { workspace = true }
 
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
-trace = ["opentelemetry/trace", "rand", "percent-encoding"]
+trace = ["opentelemetry/trace", "rand", "percent-encoding", "dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
 jaeger_remote_sampler = ["trace", "opentelemetry-http", "http", "serde", "serde_json", "url", "experimental_async_runtime"]
-logs = ["opentelemetry/logs"]
-metrics = ["opentelemetry/metrics"]
+logs = ["opentelemetry/logs", "dep:futures-channel", "dep:futures-executor", "dep:futures-util"]
+metrics = ["opentelemetry/metrics", "dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
 testing = ["opentelemetry/testing", "trace", "metrics", "logs", "tokio/sync"]
-experimental_async_runtime = []
+experimental_async_runtime = ["dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]
 rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 internal-logs = ["opentelemetry/internal-logs"]
