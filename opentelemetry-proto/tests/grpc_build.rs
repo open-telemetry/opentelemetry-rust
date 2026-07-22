@@ -47,6 +47,10 @@ fn build_tonic() {
     // JSON files without those field cannot deserialize
     // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
     for path in [
+        "collector.trace.v1.ExportTraceServiceRequest",
+        "collector.logs.v1.ExportLogsServiceRequest",
+        "collector.metrics.v1.ExportMetricsServiceRequest",
+        "collector.profiles.v1development.ExportProfilesServiceRequest",
         "trace.v1.Span",
         "trace.v1.Span.Link",
         "trace.v1.ScopeSpans",
@@ -74,6 +78,32 @@ fn build_tonic() {
         builder = builder.type_attribute(
             path,
             "#[cfg_attr(feature = \"with-serde\", serde(default))]",
+        )
+    }
+
+    // ProtoJSON parsers accept both the lowerCamelCase JSON name and the original
+    // proto field name. Preserve this for the top-level collector payload fields.
+    for (path, alias) in [
+        (
+            "collector.trace.v1.ExportTraceServiceRequest.resource_spans",
+            "resource_spans",
+        ),
+        (
+            "collector.logs.v1.ExportLogsServiceRequest.resource_logs",
+            "resource_logs",
+        ),
+        (
+            "collector.metrics.v1.ExportMetricsServiceRequest.resource_metrics",
+            "resource_metrics",
+        ),
+        (
+            "collector.profiles.v1development.ExportProfilesServiceRequest.resource_profiles",
+            "resource_profiles",
+        ),
+    ] {
+        builder = builder.field_attribute(
+            path,
+            format!("#[cfg_attr(feature = \"with-serde\", serde(alias = \"{alias}\"))]"),
         )
     }
 

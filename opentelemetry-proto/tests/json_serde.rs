@@ -28,6 +28,16 @@ mod json_serde {
     mod export_trace_service_request {
         use super::*;
 
+        #[test]
+        fn deserialize_omitted_and_proto_name_resource_spans() {
+            let empty: ExportTraceServiceRequest = serde_json::from_str("{}").unwrap();
+            assert!(empty.resource_spans.is_empty());
+
+            let with_proto_name: ExportTraceServiceRequest =
+                serde_json::from_str(r#"{"resource_spans":[{}]}"#).unwrap();
+            assert_eq!(with_proto_name.resource_spans.len(), 1);
+        }
+
         // `ExportTraceServiceRequest` from the OpenTelemetry proto examples
         // see <https://github.com/open-telemetry/opentelemetry-proto/blob/v1.3.2/examples/trace.json>
         mod example {
@@ -866,6 +876,16 @@ mod json_serde {
     mod export_metrics_service_request {
         use super::*;
 
+        #[test]
+        fn deserialize_omitted_and_proto_name_resource_metrics() {
+            let empty: ExportMetricsServiceRequest = serde_json::from_str("{}").unwrap();
+            assert!(empty.resource_metrics.is_empty());
+
+            let with_proto_name: ExportMetricsServiceRequest =
+                serde_json::from_str(r#"{"resource_metrics":[{}]}"#).unwrap();
+            assert_eq!(with_proto_name.resource_metrics.len(), 1);
+        }
+
         // `ExportTraceServiceRequest` from the OpenTelemetry proto examples
         // see <https://github.com/open-telemetry/opentelemetry-proto/blob/v1.3.2/examples/metrics.json>
         mod example {
@@ -1258,6 +1278,16 @@ mod json_serde {
     #[cfg(feature = "logs")]
     mod export_logs_service_request {
         use super::*;
+
+        #[test]
+        fn deserialize_omitted_and_proto_name_resource_logs() {
+            let empty: ExportLogsServiceRequest = serde_json::from_str("{}").unwrap();
+            assert!(empty.resource_logs.is_empty());
+
+            let with_proto_name: ExportLogsServiceRequest =
+                serde_json::from_str(r#"{"resource_logs":[{}]}"#).unwrap();
+            assert_eq!(with_proto_name.resource_logs.len(), 1);
+        }
 
         // `ExportTraceServiceRequest` from the OpenTelemetry proto examples
         // see <https://github.com/open-telemetry/opentelemetry-proto/blob/v1.3.2/examples/logs.json>

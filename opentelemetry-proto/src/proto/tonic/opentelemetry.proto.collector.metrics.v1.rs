@@ -2,6 +2,7 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportMetricsServiceRequest {
     /// An array of ResourceMetrics.
@@ -10,6 +11,7 @@ pub struct ExportMetricsServiceRequest {
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
     #[prost(message, repeated, tag = "1")]
+    #[cfg_attr(feature = "with-serde", serde(alias = "resource_metrics"))]
     pub resource_metrics: ::prost::alloc::vec::Vec<
         super::super::super::metrics::v1::ResourceMetrics,
     >,

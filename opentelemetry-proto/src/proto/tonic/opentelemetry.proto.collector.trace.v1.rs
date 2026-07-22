@@ -2,6 +2,7 @@
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportTraceServiceRequest {
     /// An array of ResourceSpans.
@@ -10,6 +11,7 @@ pub struct ExportTraceServiceRequest {
     /// data from multiple origins typically batch the data before forwarding further and
     /// in that case this array will contain multiple elements.
     #[prost(message, repeated, tag = "1")]
+    #[cfg_attr(feature = "with-serde", serde(alias = "resource_spans"))]
     pub resource_spans: ::prost::alloc::vec::Vec<
         super::super::super::trace::v1::ResourceSpans,
     >,
