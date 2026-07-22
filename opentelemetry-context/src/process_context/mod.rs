@@ -35,7 +35,7 @@ fn encode_process_context(resource: &Resource) -> Vec<u8> {
             dropped_attributes_count: 0,
             entity_refs: vec![],
         }),
-        extra_attributes: vec![],
+        attributes: vec![],
     };
 
     ctx.encode_to_vec()
@@ -117,7 +117,7 @@ mod tests {
         let ctx = ProcessContext::decode(payload.as_slice()).expect("failed to decode payload");
         let proto_resource = ctx.resource.expect("resource should be present");
         assert_eq!(proto_resource.attributes.len(), 2);
-        assert!(ctx.extra_attributes.is_empty());
+        assert!(ctx.attributes.is_empty());
     }
 
     #[cfg(all(target_os = "linux", target_has_atomic = "64"))]
