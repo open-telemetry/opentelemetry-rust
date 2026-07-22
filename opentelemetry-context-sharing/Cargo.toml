@@ -1,9 +1,9 @@
 [package]
-name = "opentelemetry-context"
+name = "opentelemetry-context-sharing"
 version = "0.32.0"
 description = "OpenTelemetry context sharing mechanisms."
-homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context"
-repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context-sharing"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-context-sharing"
 readme = "README.md"
 categories = [
     "development-tools::debugging",
