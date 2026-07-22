@@ -4,7 +4,11 @@
 /// This message is designed to be published by OpenTelemetry SDKs via a memory-mapped
 /// region, allowing external readers (such as the OpenTelemetry eBPF Profiler) to
 /// discover and read resource attributes from instrumented processes without requiring
-/// direct integration or process activity.
+/// direct integration or process activity. It is not part of OTLP and is not
+/// exchanged via the OpenTelemetry Collector.
+///
+/// See OTEP 4719 (<https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/profiles/4719-process-ctx.md>)
+/// for details of this mechanism.
 ///
 /// Status: \[Development\]
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
@@ -13,14 +17,8 @@
 #[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProcessContext {
-    /// The resource attributes describing this process.
-    ///
-    /// Attribute keys MUST be unique (it is not allowed to have more than one
-    /// attribute with the same key). The behavior of software that receives
-    /// duplicated keys can be unpredictable.
-    ///
-    /// Attributes SHOULD follow OpenTelemetry semantic conventions where applicable.
-    /// See: <https://opentelemetry.io/docs/specs/semconv/>
+    /// The resource for this process.
+    /// If this field is not set then no resource info is known.
     #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// Additional attributes to share with external readers that are not part of
@@ -33,5 +31,5 @@ pub struct ProcessContext {
     /// Consider adding any keys here to the profiles semantic conventions in
     /// <https://opentelemetry.io/docs/specs/semconv/general/profiles/>
     #[prost(message, repeated, tag = "2")]
-    pub extra_attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
 }
