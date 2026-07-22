@@ -58,7 +58,7 @@ fn encode_process_context(resource: &Resource) -> Vec<u8> {
 ///     .with_service_name("my-service")
 ///     .build();
 ///
-/// opentelemetry_context::process_context::publish(&resource);
+/// opentelemetry_context_sharing::process_context::publish(&resource);
 /// ```
 pub fn publish(resource: &Resource) {
     let payload = encode_process_context(resource);
