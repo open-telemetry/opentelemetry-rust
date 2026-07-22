@@ -653,6 +653,24 @@ mod json_serde {
             }
         }
 
+        #[test]
+        fn deserialize_null_values_as_unset() {
+            for field in [
+                "stringValue",
+                "boolValue",
+                "intValue",
+                "doubleValue",
+                "arrayValue",
+                "kvlistValue",
+                "bytesValue",
+            ] {
+                let json = format!(r#"{{"{field}":null}}"#);
+                let actual: AnyValue =
+                    serde_json::from_str(&json).expect("null AnyValue field must deserialize");
+                assert_eq!(actual.value, None, "field: {field}");
+            }
+        }
+
         #[cfg(feature = "trace")]
         #[test]
         fn deserialize_empty_span_attribute() {
