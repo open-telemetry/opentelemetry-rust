@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
+
 ## 0.32.0
 
 Released 2026-May-08

@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Add custom instrumentation scope attributes support via
+  `OpenTelemetryTracingBridge::builder_with_scope_attributes(..)`.
+  [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
+
 ## 0.32.0
 
 Released 2026-May-08
@@ -75,13 +79,11 @@ Released 2025-May-23
 
 - Updated `opentelemetry` dependency to version 0.30.0.
 
-
 ## 0.29.1
 
 Released 2025-Mar-24
 
 - Bump `tracing-opentelemetry` to 0.30
-
 
 ## 0.29.0
 
@@ -123,16 +125,16 @@ Receivers (processors, exporters) are expected to use `LogRecord.target()` as
 scope name. This is already done in OTLP Exporters, so this change should be
 transparent to most users.
 
-- Passes event name  to the `event_enabled` method on the `Logger`. This allows
+- Passes event name to the `event_enabled` method on the `Logger`. This allows
   implementations (SDK, processor, exporters) to leverage this additional
   information to determine if an event is enabled.
 
 - `u64`, `i128`, `u128` and `usize` values are stored as `opentelemetry::logs::AnyValue::Int`
-when conversion is feasible. Otherwise stored as
-`opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
-allocation when values can be represented in their original types.
+  when conversion is feasible. Otherwise stored as
+  `opentelemetry::logs::AnyValue::String`. This avoids unnecessary string
+  allocation when values can be represented in their original types.
 - Byte arrays are stored as `opentelemetry::logs::AnyValue::Bytes` instead
-of string.
+  of string.
 - `Error` fields are reported using attribute named "exception.message". For
   example, the below will now report an attribute named "exception.message",
   instead of previously reporting the user provided attribute "error".
@@ -144,7 +146,7 @@ of string.
 
 Released 2025-Feb-12
 
-- New *experimental* feature to use trace_id & span_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
+- New _experimental_ feature to use trace_id & span_id from spans created through the [tracing](https://crates.io/crates/tracing) crate (experimental_use_tracing_span_context) [#2438](https://github.com/open-telemetry/opentelemetry-rust/pull/2438)
 
 ## 0.28.0
 
@@ -194,7 +196,7 @@ Released 2024-Sep-30
 
 ### Added
 
-- New experimental metadata attributes feature (experimental\_metadata\_attributes) [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
+- New experimental metadata attributes feature (experimental_metadata_attributes) [#1380](https://github.com/open-telemetry/opentelemetry-rust/pull/1380)
   - Experimental new attributes for tracing metadata
   - Fixes the following for events emitted using log crate
     - Normalized metadata fields

@@ -151,13 +151,10 @@ pub(crate) mod serializers {
                     }
                 }
 
-                if let Some(v) = value {
-                    Ok(Some(v))
-                } else {
-                    Err(de::Error::custom(
-                        "Invalid data for Value, no known keys found",
-                    ))
-                }
+                // An AnyValue with no selected field is valid and considered empty.
+                // Unknown fields are ignored according to the OTLP/JSON specification,
+                // so an empty or unknown-only object has the same representation.
+                Ok(value)
             }
         }
 

@@ -36,6 +36,9 @@ impl<T> Gauge<T> {
     }
 
     /// Binds this gauge to a fixed set of attributes.
+    ///
+    /// Corresponds to the `Bind` capability in the OpenTelemetry spec (status:
+    /// Development as of spec 1.57.0).
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     pub fn bind(&self, attributes: &[KeyValue]) -> BoundGauge<T> {
         BoundGauge(Arc::from(self.0.bind(attributes)))
