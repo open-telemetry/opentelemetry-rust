@@ -473,12 +473,10 @@ mod bounded_body_tests {
     fn read_request_headers(stream: &mut std::net::TcpStream) {
         let mut buf = [0u8; 4096];
         let mut request = Vec::new();
-        loop {
+        while !request.windows(4).any(|w| w == b"\r\n\r\n") {
             let n = stream.read(&mut buf).unwrap();
+            assert!(n > 0, "peer closed before end of request headers");
             request.extend_from_slice(&buf[..n]);
-            if n == 0 || request.windows(4).any(|w| w == b"\r\n\r\n") {
-                break;
-            }
         }
     }
 
@@ -493,16 +491,8 @@ mod bounded_body_tests {
                 "HTTP/1.1 200 OK\r\ncontent-length: {OVERSIZED_BODY_BYTES}\r\nconnection: close\r\n\r\n"
             )
             .unwrap();
-            let chunk = vec![0u8; 64 * 1024];
-            let mut written = 0;
-            while written < OVERSIZED_BODY_BYTES {
-                let n = chunk.len().min(OVERSIZED_BODY_BYTES - written);
-                // The client may close the connection once it hits the cap.
-                if stream.write_all(&chunk[..n]).is_err() {
-                    break;
-                }
-                written += n;
-            }
+            // Ignore write errors: the client may close once it hits the cap.
+            let _ = stream.write_all(&vec![0u8; OVERSIZED_BODY_BYTES]);
         });
         addr
     }
