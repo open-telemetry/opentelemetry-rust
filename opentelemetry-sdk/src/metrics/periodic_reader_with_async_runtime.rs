@@ -518,6 +518,26 @@ mod tests {
             .expect("collection should occur on the runtime captured at build");
     }
 
+    // multi_thread flavor: force_flush blocks the calling thread until the
+    // worker replies, deadlocking a current-thread runtime (issue #2056).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn duplicate_registration_is_ignored() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+
+        let first = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+        // The reader keeps its first registration and ignores this one.
+        let second = SdkMeterProvider::builder().with_reader(reader).build();
+
+        let counter = first.meter("test").u64_counter("c").build();
+        counter.add(1, &[]);
+        first.force_flush().unwrap();
+        assert!(!exporter.get_finished_metrics().unwrap().is_empty());
+        drop(second);
+    }
+
     #[tokio::test]
     async fn unregistered_collect() {
         // Arrange
