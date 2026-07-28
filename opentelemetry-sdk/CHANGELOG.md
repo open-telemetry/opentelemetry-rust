@@ -22,10 +22,13 @@
   `unknown_service:<process.executable.name>` fallback outside Miri.
 - Added SDK self-observability metric `otel.sdk.processor.log.processed` for
   `BatchLogProcessor` (feature-gated behind
-  `experimental_metrics_bound_instruments`). The metric counts processed log
-  records and includes `error.type` dimensions for outcomes like
-  `queue_full` and `already_shutdown`, enabling operators to distinguish
-  successful processing from drops due to full queue or post-shutdown emits.
+  `experimental_metrics_bound_instruments`). Successful records are counted at
+  the export-invocation boundary (when the processor submits a batch to the
+  exporter), independent of the export outcome, matching the OpenTelemetry SDK
+  semantic conventions; `error.type` dimensions (`queue_full`,
+  `already_shutdown`) are counted at enqueue time, enabling operators to
+  distinguish successful processing from drops due to a full queue or
+  post-shutdown emits.
   ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514))
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes

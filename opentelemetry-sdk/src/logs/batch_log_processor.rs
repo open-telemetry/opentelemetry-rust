@@ -156,8 +156,6 @@ pub struct BatchLogProcessor {
     // `add` is a single atomic increment (~1.8 ns) with no per-call
     // attribute resolution.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    processed_success: opentelemetry::metrics::BoundCounter<u64>,
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
     processed_queue_full: opentelemetry::metrics::BoundCounter<u64>,
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     processed_after_shutdown: opentelemetry::metrics::BoundCounter<u64>,
@@ -185,11 +183,10 @@ impl LogProcessor for BatchLogProcessor {
         // match for result and handle each separately
         match result {
             Ok(_) => {
-                // Record successful processing in self-diagnostics
-                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                self.processed_success.add(1);
-
                 // Successfully sent the log record to the data channel.
+                // `processed` success is counted when the batch is submitted to
+                // the exporter (in the worker thread), not here at enqueue.
+                //
                 // Check if the current batch size has reached the max export
                 // batch size.
                 if previous_batch_size + 1 >= self.max_export_batch_size {
@@ -388,156 +385,9 @@ impl BatchLogProcessor {
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
 
-        let handle = thread::Builder::new()
-            .name("OpenTelemetry.Logs.BatchProcessor".to_string())
-            .spawn(move || {
-                let _suppress_guard = Context::enter_telemetry_suppressed_scope();
-                otel_debug!(
-                    name: "BatchLogProcessor.ThreadStarted",
-                    interval_in_millisecs = config.scheduled_delay.as_millis(),
-                    max_export_batch_size = config.max_export_batch_size,
-                    max_queue_size = max_queue_size,
-                );
-                let mut last_export_time = Instant::now();
-                let mut logs = Vec::with_capacity(config.max_export_batch_size);
-                let current_batch_size = current_batch_size_for_thread;
-
-                // This method gets up to `max_export_batch_size` amount of logs from the channel and exports them.
-                // It returns the result of the export operation.
-                // It expects the logs vec to be empty when it's called.
-                #[inline]
-                fn get_logs_and_export<E>(
-                    logs_receiver: &mpsc::Receiver<LogsData>,
-                    exporter: &E,
-                    logs: &mut Vec<LogsData>,
-                    last_export_time: &mut Instant,
-                    current_batch_size: &AtomicUsize,
-                    max_export_size: usize,
-                ) -> OTelSdkResult
-                where
-                    E: LogExporter + Send + Sync + 'static,
-                {
-                    let target = current_batch_size.load(Ordering::Acquire); // `target` is used to determine the stopping criteria for exporting logs.
-                    let mut result = OTelSdkResult::Ok(());
-                    let mut total_exported_logs: usize = 0;
-
-                    while target > 0 && total_exported_logs < target {
-                        let batch_limit = max_export_size.min(target - total_exported_logs);
-
-                        // Get up to the remaining target batch size from the channel and push them to the logs vec
-                        while let Ok(log) = logs_receiver.try_recv() {
-                            logs.push(log);
-                            if logs.len() == batch_limit {
-                                break;
-                            }
-                        }
-
-                        let count_of_logs = logs.len(); // Count of logs that will be exported
-                        if count_of_logs == 0 {
-                            break;
-                        }
-                        total_exported_logs += count_of_logs;
-
-                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
-
-                        current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
-                    }
-                    result
-                }
-
-                loop {
-                    let remaining_time = config
-                        .scheduled_delay
-                        .checked_sub(last_export_time.elapsed())
-                        .unwrap_or(config.scheduled_delay);
-
-                    match message_receiver.recv_timeout(remaining_time) {
-                        Ok(BatchMessage::ExportLog(export_log_message_sent)) => {
-                            // Reset the export log message sent flag now it has has been processed.
-                            export_log_message_sent.store(false, Ordering::Relaxed);
-
-                            otel_debug!(
-                                name: "BatchLogProcessor.ExportingDueToBatchSize",
-                            );
-
-                            let _ = get_logs_and_export(
-                                &logs_receiver,
-                                &exporter,
-                                &mut logs,
-                                &mut last_export_time,
-                                &current_batch_size,
-                                max_export_batch_size,
-                            );
-                        }
-                        Ok(BatchMessage::ForceFlush(sender)) => {
-                            otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
-                            let result = get_logs_and_export(
-                                &logs_receiver,
-                                &exporter,
-                                &mut logs,
-                                &mut last_export_time,
-                                &current_batch_size,
-                                max_export_batch_size,
-                            );
-                            let _ = sender.send(result);
-                        }
-                        Ok(BatchMessage::Shutdown(sender)) => {
-                            otel_debug!(name: "BatchLogProcessor.ExportingDueToShutdown");
-                            let result = get_logs_and_export(
-                                &logs_receiver,
-                                &exporter,
-                                &mut logs,
-                                &mut last_export_time,
-                                &current_batch_size,
-                                max_export_batch_size,
-                            );
-                            let _ = exporter.shutdown();
-                            let _ = sender.send(result);
-
-                            otel_debug!(
-                                name: "BatchLogProcessor.ThreadExiting",
-                                reason = "ShutdownRequested"
-                            );
-                            //
-                            // break out the loop and return from the current background thread.
-                            //
-                            break;
-                        }
-                        Ok(BatchMessage::SetResource(resource)) => {
-                            exporter.set_resource(&resource);
-                        }
-                        Err(RecvTimeoutError::Timeout) => {
-                            otel_debug!(
-                                name: "BatchLogProcessor.ExportingDueToTimer",
-                            );
-
-                            let _ = get_logs_and_export(
-                                &logs_receiver,
-                                &exporter,
-                                &mut logs,
-                                &mut last_export_time,
-                                &current_batch_size,
-                                max_export_batch_size,
-                            );
-                        }
-                        Err(RecvTimeoutError::Disconnected) => {
-                            // Channel disconnected, only thing to do is break
-                            // out (i.e exit the thread)
-                            otel_debug!(
-                                name: "BatchLogProcessor.ThreadExiting",
-                                reason = "MessageSenderDisconnected"
-                            );
-                            break;
-                        }
-                    }
-                }
-                otel_debug!(
-                    name: "BatchLogProcessor.ThreadStopped"
-                );
-            })
-            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
-
-        // Self-diagnostics: create the otel.sdk.processor.log.processed counter
+        // Self-diagnostics: create the otel.sdk.processor.log.processed counter.
+        // Created before the worker thread is spawned so the success counter can
+        // be moved into the worker and incremented when a batch is exported.
         #[cfg(feature = "experimental_metrics_bound_instruments")]
         let (processed_success, processed_queue_full, processed_after_shutdown) = {
             static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -579,6 +429,172 @@ impl BatchLogProcessor {
             )
         };
 
+        let handle = thread::Builder::new()
+            .name("OpenTelemetry.Logs.BatchProcessor".to_string())
+            .spawn(move || {
+                let _suppress_guard = Context::enter_telemetry_suppressed_scope();
+                otel_debug!(
+                    name: "BatchLogProcessor.ThreadStarted",
+                    interval_in_millisecs = config.scheduled_delay.as_millis(),
+                    max_export_batch_size = config.max_export_batch_size,
+                    max_queue_size = max_queue_size,
+                );
+                let mut last_export_time = Instant::now();
+                let mut logs = Vec::with_capacity(config.max_export_batch_size);
+                let current_batch_size = current_batch_size_for_thread;
+
+                // Counts records for the otel.sdk.processor.log.processed
+                // metric; a no-op when the self-diagnostics feature is disabled.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                let record_processed_success = move |count: u64| processed_success.add(count);
+                #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+                let record_processed_success = |_count: u64| {};
+
+                // This method gets up to `max_export_batch_size` amount of logs from the channel and exports them.
+                // It returns the result of the export operation.
+                // It expects the logs vec to be empty when it's called.
+                #[inline]
+                fn get_logs_and_export<E, F>(
+                    logs_receiver: &mpsc::Receiver<LogsData>,
+                    exporter: &E,
+                    logs: &mut Vec<LogsData>,
+                    last_export_time: &mut Instant,
+                    current_batch_size: &AtomicUsize,
+                    max_export_size: usize,
+                    record_processed_success: &F,
+                ) -> OTelSdkResult
+                where
+                    E: LogExporter + Send + Sync + 'static,
+                    F: Fn(u64),
+                {
+                    let target = current_batch_size.load(Ordering::Acquire); // `target` is used to determine the stopping criteria for exporting logs.
+                    let mut result = OTelSdkResult::Ok(());
+                    let mut total_exported_logs: usize = 0;
+
+                    while target > 0 && total_exported_logs < target {
+                        let batch_limit = max_export_size.min(target - total_exported_logs);
+
+                        // Get up to the remaining target batch size from the channel and push them to the logs vec
+                        while let Ok(log) = logs_receiver.try_recv() {
+                            logs.push(log);
+                            if logs.len() == batch_limit {
+                                break;
+                            }
+                        }
+
+                        let count_of_logs = logs.len(); // Count of logs that will be exported
+                        if count_of_logs == 0 {
+                            break;
+                        }
+                        total_exported_logs += count_of_logs;
+
+                        // Count the batch as processed before invoking the
+                        // exporter, regardless of the export outcome.
+                        record_processed_success(count_of_logs as u64);
+
+                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+
+                        current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
+                    }
+                    result
+                }
+
+                loop {
+                    let remaining_time = config
+                        .scheduled_delay
+                        .checked_sub(last_export_time.elapsed())
+                        .unwrap_or(config.scheduled_delay);
+
+                    match message_receiver.recv_timeout(remaining_time) {
+                        Ok(BatchMessage::ExportLog(export_log_message_sent)) => {
+                            // Reset the export log message sent flag now it has has been processed.
+                            export_log_message_sent.store(false, Ordering::Relaxed);
+
+                            otel_debug!(
+                                name: "BatchLogProcessor.ExportingDueToBatchSize",
+                            );
+
+                            let _ = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
+                                &mut last_export_time,
+                                &current_batch_size,
+                                max_export_batch_size,
+                                &record_processed_success,
+                            );
+                        }
+                        Ok(BatchMessage::ForceFlush(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToForceFlush");
+                            let result = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
+                                &mut last_export_time,
+                                &current_batch_size,
+                                max_export_batch_size,
+                                &record_processed_success,
+                            );
+                            let _ = sender.send(result);
+                        }
+                        Ok(BatchMessage::Shutdown(sender)) => {
+                            otel_debug!(name: "BatchLogProcessor.ExportingDueToShutdown");
+                            let result = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
+                                &mut last_export_time,
+                                &current_batch_size,
+                                max_export_batch_size,
+                                &record_processed_success,
+                            );
+                            let _ = exporter.shutdown();
+                            let _ = sender.send(result);
+
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "ShutdownRequested"
+                            );
+                            //
+                            // break out the loop and return from the current background thread.
+                            //
+                            break;
+                        }
+                        Ok(BatchMessage::SetResource(resource)) => {
+                            exporter.set_resource(&resource);
+                        }
+                        Err(RecvTimeoutError::Timeout) => {
+                            otel_debug!(
+                                name: "BatchLogProcessor.ExportingDueToTimer",
+                            );
+
+                            let _ = get_logs_and_export(
+                                &logs_receiver,
+                                &exporter,
+                                &mut logs,
+                                &mut last_export_time,
+                                &current_batch_size,
+                                max_export_batch_size,
+                                &record_processed_success,
+                            );
+                        }
+                        Err(RecvTimeoutError::Disconnected) => {
+                            // Channel disconnected, only thing to do is break
+                            // out (i.e exit the thread)
+                            otel_debug!(
+                                name: "BatchLogProcessor.ThreadExiting",
+                                reason = "MessageSenderDisconnected"
+                            );
+                            break;
+                        }
+                    }
+                }
+                otel_debug!(
+                    name: "BatchLogProcessor.ThreadStopped"
+                );
+            })
+            .expect("Thread spawn failed."); //TODO: Handle thread spawn failure
+
         // Return batch processor with link to worker
         BatchLogProcessor {
             logs_sender,
@@ -590,8 +606,6 @@ impl BatchLogProcessor {
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
-            #[cfg(feature = "experimental_metrics_bound_instruments")]
-            processed_success,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             processed_queue_full,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -1333,6 +1347,10 @@ mod tests {
             let mut record = SdkLogRecord::new();
             processor.emit(&mut record, &instrumentation);
         }
+
+        // Flush so the batch is submitted to the exporter, which is when the
+        // counter is incremented.
+        processor.force_flush().unwrap();
 
         // Force a metrics collection
         meter_provider.force_flush().unwrap();
