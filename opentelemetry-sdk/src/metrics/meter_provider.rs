@@ -140,10 +140,16 @@ impl SdkMeterProvider {
             Err(OTelSdkError::AlreadyShutdown) => {
                 // Race: another thread won the swap. Don't emit.
             }
-            Err(_) => {
+            Err(err) => {
+                // Classify: timeout takes precedence over failed
+                let error_type = if matches!(err, OTelSdkError::Timeout(_)) {
+                    "timeout"
+                } else {
+                    "failed"
+                };
                 otel_warn!(name: "otel.sdk.component.shutdown",
                     "otel.component.name" = self.component_name.as_str(),
-                    "error.type" = "failed",
+                    "error.type" = error_type,
                     "otel.component.type" = "meter_provider",
                     "otel.component.shutdown.duration" = duration_secs,
                 );
