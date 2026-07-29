@@ -32,7 +32,7 @@
   `experimental_metrics_bound_instruments`. Each record is counted when it is
   submitted to the exporter, independent of the export outcome; records emitted
   after shutdown are reported with `error.type` (`already_shutdown`).
-  ([#PR](https://github.com/open-telemetry/opentelemetry-rust/pull/PR))
+  ([#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608))
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
