@@ -1477,8 +1477,7 @@ mod tests {
 
         meter_provider.force_flush().unwrap();
 
-        let queue_full =
-            sum_processed_log_records_with_error_type(&metric_exporter, "queue_full");
+        let queue_full = sum_processed_log_records_with_error_type(&metric_exporter, "queue_full");
         assert_eq!(
             queue_full, 2,
             "expected 2 queue_full drops, got {queue_full}"
