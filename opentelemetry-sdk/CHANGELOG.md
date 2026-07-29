@@ -37,6 +37,9 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- Added self-observability metric `otel.sdk.log.created`, counting every log
+  record submitted to the SDK (before any processing). Gated behind the
+  `experimental_metrics_bound_instruments` Cargo feature.
 
 ## 0.32.1
 
