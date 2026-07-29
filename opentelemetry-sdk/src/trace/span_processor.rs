@@ -158,13 +158,63 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 #[derive(Debug)]
 pub struct SimpleSpanProcessor<T: SpanExporter> {
     exporter: Mutex<T>,
+    is_shutdown: AtomicBool,
+
+    // Self-diagnostics: otel.sdk.processor.span.processed counter, gated behind
+    // experimental_metrics_bound_instruments. The SimpleSpanProcessor exports
+    // each span synchronously and has no queue, so the only processor-side drop
+    // is `already_shutdown`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_success: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_after_shutdown: opentelemetry::metrics::BoundCounter<u64>,
 }
 
 impl<T: SpanExporter> SimpleSpanProcessor<T> {
     /// Create a new [SimpleSpanProcessor] using the provided exporter.
     pub fn new(exporter: T) -> Self {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let (processed_success, processed_after_shutdown) = {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let component_name = format!("simple_span_processor/{instance_id}");
+
+            let meter = opentelemetry::global::meter("otel.sdk");
+            let counter = meter
+                .u64_counter("otel.sdk.processor.span.processed")
+                .with_description(
+                    "The number of spans for which the processing has finished, \
+                     either successful or failed.",
+                )
+                .with_unit("{span}")
+                .build();
+
+            // Attribute values follow the OTel semantic conventions for SDK metrics:
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorspanprocessed
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
+            let success_attrs = [
+                KeyValue::new("otel.component.type", "simple_span_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let after_shutdown_attrs = [
+                KeyValue::new("error.type", "already_shutdown"),
+                KeyValue::new("otel.component.type", "simple_span_processor"),
+                KeyValue::new("otel.component.name", component_name),
+            ];
+
+            (
+                counter.bind(&success_attrs),
+                counter.bind(&after_shutdown_attrs),
+            )
+        };
+
         Self {
             exporter: Mutex::new(exporter),
+            is_shutdown: AtomicBool::new(false),
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_success,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_after_shutdown,
         }
     }
 }
@@ -179,11 +229,30 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             return;
         }
 
-        let result = self
-            .exporter
-            .lock()
-            .map_err(|_| OTelSdkError::InternalFailure("SimpleSpanProcessor mutex poison".into()))
-            .and_then(|exporter| futures_executor::block_on(exporter.export(vec![span])));
+        // noop after shutdown
+        if self.is_shutdown.load(Ordering::Relaxed) {
+            // Record the post-shutdown drop in self-diagnostics before returning.
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            self.processed_after_shutdown.add(1);
+            otel_warn!(
+                name: "SimpleSpanProcessor.OnEnd.AfterShutdown",
+                message = "Spans are being emitted even after Shutdown. This indicates incorrect lifecycle management of TracerProvider in application. Spans will not be exported."
+            );
+            return;
+        }
+
+        let result = match self.exporter.lock() {
+            Ok(exporter) => {
+                // Count the span as processed right before submitting it to the
+                // exporter, independent of the export outcome, per semconv.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_success.add(1);
+                futures_executor::block_on(exporter.export(vec![span]))
+            }
+            Err(_) => Err(OTelSdkError::InternalFailure(
+                "SimpleSpanProcessor mutex poison".into(),
+            )),
+        };
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -200,6 +269,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        self.is_shutdown.store(true, Ordering::Relaxed);
         if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown_with_timeout(timeout)
         } else {
@@ -2119,6 +2189,86 @@ mod tests {
         assert_eq!(
             already_shutdown, 7,
             "expected 7 already_shutdown drops, got {already_shutdown}"
+        );
+
+        meter_provider.shutdown().unwrap();
+    }
+
+    /// Verifies that `otel.sdk.processor.span.processed` counts spans (with no
+    /// `error.type`) when `SimpleSpanProcessor` submits them to the exporter.
+    ///
+    /// `#[ignore]`d because it mutates process-wide state via
+    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn simple_self_diagnostics_counter_records_success() {
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let span_exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = SimpleSpanProcessor::new(span_exporter);
+
+        for _ in 0..10 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        meter_provider.force_flush().unwrap();
+
+        let processed = sum_processed_spans(&metric_exporter, None);
+        assert_eq!(
+            processed, 10,
+            "expected 10 processed spans, got {processed}"
+        );
+
+        processor.shutdown().unwrap();
+        meter_provider.shutdown().unwrap();
+    }
+
+    /// Verifies that `SimpleSpanProcessor` records post-shutdown spans with
+    /// `error.type = already_shutdown` and does not count them as success.
+    ///
+    /// `#[ignore]`d because it mutates process-wide state via
+    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn simple_self_diagnostics_counter_records_already_shutdown_drops() {
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let span_exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = SimpleSpanProcessor::new(span_exporter);
+
+        // Shut the processor down; subsequent on_end calls hit the
+        // already_shutdown branch.
+        processor.shutdown().unwrap();
+
+        for _ in 0..7 {
+            processor.on_end(new_test_export_span_data());
+        }
+
+        meter_provider.force_flush().unwrap();
+
+        let already_shutdown = sum_processed_spans(&metric_exporter, Some("already_shutdown"));
+        assert_eq!(
+            already_shutdown, 7,
+            "expected 7 already_shutdown drops, got {already_shutdown}"
+        );
+        let success = sum_processed_spans(&metric_exporter, None);
+        assert_eq!(
+            success, 0,
+            "post-shutdown spans must not be counted as success, got {success}"
         );
 
         meter_provider.shutdown().unwrap();
