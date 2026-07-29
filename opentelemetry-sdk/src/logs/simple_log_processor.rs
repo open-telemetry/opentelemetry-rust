@@ -150,13 +150,12 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         let result = match self.exporter.lock() {
             Ok(exporter) => {
                 let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
-                let export_result =
-                    futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)));
-                // The record was submitted to the exporter; count it as
-                // processed independent of the export outcome, per semconv.
+                // Count the record as processed right before submitting it to
+                // the exporter, independent of the export outcome, per semconv.
+                // Matches BatchLogProcessor, which records success before export.
                 #[cfg(feature = "experimental_metrics_bound_instruments")]
                 self.processed_success.add(1);
-                export_result
+                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
             }
             Err(_) => Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison".into(),
