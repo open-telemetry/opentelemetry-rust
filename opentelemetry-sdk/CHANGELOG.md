@@ -8,7 +8,7 @@
   submits a batch to the exporter, independent of the export outcome; spans
   dropped beforehand are reported with `error.type` (`queue_full`,
   `already_shutdown`).
-  ([#PR](https://github.com/open-telemetry/opentelemetry-rust/pull/PR))
+  ([#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609))
 - Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
   optional, enabling a minimal SDK build. With `default-features = false`, the
   SDK's only dependency is the `opentelemetry` API crate.
