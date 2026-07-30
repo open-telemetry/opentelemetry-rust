@@ -1,24 +1,27 @@
 // Purpose-built binary for the sdk-self-observability CI workflow.
 //
-// Exercises the otel.sdk.processor.log.processed metric by:
+// Exercises the SDK's otel.sdk.* self-observability metrics by:
 //   1. Creating a MeterProvider whose OTLP/gRPC exporter points at weaver
 //   2. Creating a LoggerProvider with both a BatchLogProcessor and a
-//      SimpleLogProcessor (both using in-memory log exporters)
-//   3. Emitting log records to trigger the processor metric for each
+//      SimpleLogProcessor, and a TracerProvider with both a BatchSpanProcessor
+//      and a SimpleSpanProcessor (all using in-memory signal exporters)
+//   3. Emitting log records and spans to trigger the processor metrics for each
 //   4. Shutting down to flush the metric export
 //
-// Only METRICS go to weaver (for live-check validation). Log records use
-// in-memory exporters and are NOT sent to weaver. The single metric exporter
-// collects the self-observability metrics from every processor, so both the
+// Only METRICS go to weaver (for live-check validation). Log records and spans
+// use in-memory exporters and are NOT sent to weaver. The single metric
+// exporter collects the self-observability metrics from every component, so the
 // batching and simple processor variants (distinguished by otel.component.type)
 // are validated through the same OTLP endpoint.
 
 use opentelemetry::global;
 use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
+use opentelemetry::trace::{Tracer, TracerProvider};
 use opentelemetry_otlp::MetricExporter;
 use opentelemetry_sdk::{
     logs::{InMemoryLogExporter, SdkLoggerProvider},
     metrics::{PeriodicReader, SdkMeterProvider},
+    trace::{InMemorySpanExporter, SdkTracerProvider},
     Resource,
 };
 
@@ -57,10 +60,32 @@ async fn main() {
         logger.emit(record);
     }
 
+    // A single TracerProvider with two processors: a BatchSpanProcessor and a
+    // SimpleSpanProcessor. Each ended span fans out to both, generating
+    // otel.sdk.processor.span.processed with otel.component.type =
+    // batching_span_processor and simple_span_processor respectively. Spans go
+    // to in-memory sinks (not weaver).
+    let batch_span_exporter = InMemorySpanExporter::default();
+    let simple_span_exporter = InMemorySpanExporter::default();
+    let tracer_provider = SdkTracerProvider::builder()
+        .with_resource(Resource::builder().with_service_name(SERVICE_NAME).build())
+        .with_batch_exporter(batch_span_exporter)
+        .with_simple_exporter(simple_span_exporter)
+        .build();
+
+    // Start and end spans to exercise otel.sdk.processor.span.processed for both
+    // component types.
+    let tracer = tracer_provider.tracer("self-obs-live-check");
+    for _ in 0..10 {
+        let span = tracer.start("test");
+        drop(span);
+    }
+
     // Wait for the periodic metric export to fire
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
     // Shutdown flushes remaining metrics to weaver
     let _ = logger_provider.shutdown();
+    let _ = tracer_provider.shutdown();
     let _ = meter_provider.shutdown();
 }

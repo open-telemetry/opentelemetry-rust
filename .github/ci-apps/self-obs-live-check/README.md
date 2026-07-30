@@ -13,9 +13,9 @@ semantic conventions:
    [weaver](https://github.com/open-telemetry/weaver) (started by the CI workflow).
    This single exporter collects every `otel.sdk.*` metric the SDK emits,
    regardless of which component produced it.
-2. Exercises SDK components (log processors today, more over time) so they emit
-   their self-observability metrics, then waits for the periodic export and
-   shuts down to flush.
+2. Exercises SDK components (log and span processors today, more over time) so
+   they emit their self-observability metrics, then waits for the periodic
+   export and shuts down to flush.
 
 Weaver's `registry live-check` validates the exported metrics against the
 upstream [semantic conventions](https://opentelemetry.io/docs/specs/semconv/otel/sdk-metrics/),
