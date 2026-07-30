@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Added SDK self-observability metric `otel.sdk.processor.span.processed` for
+  `BatchSpanProcessor` and `SimpleSpanProcessor`, feature-gated behind
+  `experimental_metrics_bound_instruments`. Spans are counted when the processor
+  submits them to the exporter, independent of the export outcome; spans dropped
+  beforehand are reported with `error.type` (`queue_full` for the batch queue,
+  `already_shutdown` for post-shutdown emits).
+  ([#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609))
 - Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
   optional, enabling a minimal SDK build. With `default-features = false`, the
   SDK's only dependency is the `opentelemetry` API crate.
