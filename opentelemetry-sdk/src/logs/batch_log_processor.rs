@@ -1310,222 +1310,228 @@ mod tests {
         );
     }
 
-    /// Verifies that `otel.sdk.processor.log.processed` counter records
-    /// successful log processing when `experimental_metrics_bound_instruments`
-    /// is enabled and a real MeterProvider is set as global before creating
-    /// the processor.
-    ///
-    /// This test is `#[ignore]`d because it calls
-    /// `global::set_meter_provider()` which mutates process-wide state.
-    /// CI runs it in isolation via `test.sh`.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_success() {
-        use crate::metrics::data::{AggregatedMetrics, MetricData};
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+    mod self_obs {
+        use super::*;
 
-        // Setup a real MeterProvider and set it as global BEFORE creating the
-        // BatchLogProcessor, so the processor picks up a real meter.
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
+        /// Verifies that `otel.sdk.processor.log.processed` counter records
+        /// successful log processing when `experimental_metrics_bound_instruments`
+        /// is enabled and a real MeterProvider is set as global before creating
+        /// the processor.
+        ///
+        /// This test is `#[ignore]`d because it calls
+        /// `global::set_meter_provider()` which mutates process-wide state.
+        /// CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_success() {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let log_exporter = InMemoryLogExporter::default();
-        let config = BatchConfigBuilder::default()
-            .with_max_queue_size(256)
-            .with_max_export_batch_size(64)
-            .with_scheduled_delay(Duration::from_secs(60))
-            .build();
-        let processor = BatchLogProcessor::new(log_exporter, config);
+            // Setup a real MeterProvider and set it as global BEFORE creating the
+            // BatchLogProcessor, so the processor picks up a real meter.
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        // Emit 10 logs
-        let instrumentation = InstrumentationScope::default();
-        for _ in 0..10 {
-            let mut record = SdkLogRecord::new();
-            processor.emit(&mut record, &instrumentation);
-        }
+            let log_exporter = InMemoryLogExporter::default();
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(256)
+                .with_max_export_batch_size(64)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(log_exporter, config);
 
-        // Flush so the batch is submitted to the exporter, which is when the
-        // counter is incremented.
-        processor.force_flush().unwrap();
-
-        // Force a metrics collection
-        meter_provider.force_flush().unwrap();
-
-        // Find the otel.sdk.processor.log.processed metric and sum all data points
-        let metrics = metric_exporter.get_finished_metrics().unwrap();
-        let mut found = false;
-        let mut total_value: u64 = 0;
-        for rm in &metrics {
-            for sm in &rm.scope_metrics {
-                for metric in &sm.metrics {
-                    if metric.name == "otel.sdk.processor.log.processed" {
-                        found = true;
-                        if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
-                            for dp in sum.data_points() {
-                                total_value += dp.value();
-                            }
-                        }
-                    }
-                }
+            // Emit 10 logs
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..10 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
             }
-        }
 
-        assert!(found, "otel.sdk.processor.log.processed metric not found");
-        assert_eq!(
-            total_value, 10,
-            "Expected 10 processed logs, got {total_value}"
-        );
+            // Flush so the batch is submitted to the exporter, which is when the
+            // counter is incremented.
+            processor.force_flush().unwrap();
 
-        processor.shutdown().unwrap();
-        meter_provider.shutdown().unwrap();
-    }
+            // Force a metrics collection
+            meter_provider.force_flush().unwrap();
 
-    /// Sums the values of `otel.sdk.processor.log.processed` data points whose
-    /// `error.type` attribute equals `error_type`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    fn sum_processed_log_records_with_error_type(
-        metric_exporter: &crate::metrics::InMemoryMetricExporter,
-        error_type: &str,
-    ) -> u64 {
-        use crate::metrics::data::{AggregatedMetrics, MetricData};
-
-        let metrics = metric_exporter.get_finished_metrics().unwrap();
-        let mut total: u64 = 0;
-        for rm in &metrics {
-            for sm in &rm.scope_metrics {
-                for metric in &sm.metrics {
-                    if metric.name == "otel.sdk.processor.log.processed" {
-                        if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
-                            for dp in sum.data_points() {
-                                let matches = dp.attributes().any(|kv| {
-                                    kv.key.as_str() == "error.type"
-                                        && kv.value.as_str() == error_type
-                                });
-                                if matches {
-                                    total += dp.value();
+            // Find the otel.sdk.processor.log.processed metric and sum all data points
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            let mut found = false;
+            let mut total_value: u64 = 0;
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == "otel.sdk.processor.log.processed" {
+                            found = true;
+                            if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    total_value += dp.value();
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-        total
-    }
 
-    /// Verifies that `otel.sdk.processor.log.processed` records queue-full drops
-    /// with `error.type = queue_full` when records overflow the queue while the
-    /// worker is blocked exporting.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_queue_full_drops() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+            assert!(found, "otel.sdk.processor.log.processed metric not found");
+            assert_eq!(
+                total_value, 10,
+                "Expected 10 processed logs, got {total_value}"
+            );
 
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
-
-        let (started_sender, started_receiver) = mpsc::sync_channel(8);
-        let (release_sender, release_receiver) = mpsc::sync_channel(8);
-        let exported_count = Arc::new(AtomicUsize::new(0));
-        let exporter = BlockingExporter {
-            exported_count: exported_count.clone(),
-            export_started: started_sender,
-            release: Arc::new(Mutex::new(release_receiver)),
-        };
-        let config = BatchConfigBuilder::default()
-            .with_max_queue_size(4)
-            .with_max_export_batch_size(4)
-            .with_scheduled_delay(Duration::from_secs(60))
-            .build();
-        let processor = BatchLogProcessor::new(exporter, config);
-        let instrumentation = InstrumentationScope::default();
-        let emit = || {
-            let mut record = SdkLogRecord::new();
-            processor.emit(&mut record, &instrumentation);
-        };
-
-        // Fill the queue to the export threshold; the worker drains all four
-        // records and blocks inside export().
-        for _ in 0..4 {
-            emit();
-        }
-        started_receiver
-            .recv_timeout(Duration::from_secs(5))
-            .expect("worker should start exporting the first batch");
-
-        // While the worker is blocked, refill the queue (4) and overflow it by
-        // two records, which must be dropped and counted as queue_full.
-        for _ in 0..6 {
-            emit();
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
         }
 
-        // Release the in-flight export and the one triggered by force_flush.
-        release_sender.send(()).unwrap();
-        release_sender.send(()).unwrap();
-        processor.force_flush().unwrap();
+        /// Sums the values of `otel.sdk.processor.log.processed` data points whose
+        /// `error.type` attribute equals `error_type`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        fn sum_processed_log_records_with_error_type(
+            metric_exporter: &crate::metrics::InMemoryMetricExporter,
+            error_type: &str,
+        ) -> u64 {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
 
-        meter_provider.force_flush().unwrap();
-
-        let queue_full = sum_processed_log_records_with_error_type(&metric_exporter, "queue_full");
-        assert_eq!(
-            queue_full, 2,
-            "expected 2 queue_full drops, got {queue_full}"
-        );
-
-        processor.shutdown().unwrap();
-        meter_provider.shutdown().unwrap();
-    }
-
-    /// Verifies that `otel.sdk.processor.log.processed` records post-shutdown
-    /// emits with `error.type = already_shutdown`.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_already_shutdown_drops() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
-
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
-
-        let log_exporter = InMemoryLogExporter::default();
-        let processor = BatchLogProcessor::new(log_exporter, BatchConfig::default());
-
-        // Shut the processor down so the worker thread (the only receiver)
-        // disconnects; subsequent emits hit the already_shutdown branch.
-        processor.shutdown().unwrap();
-
-        let instrumentation = InstrumentationScope::default();
-        for _ in 0..7 {
-            let mut record = SdkLogRecord::new();
-            processor.emit(&mut record, &instrumentation);
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            let mut total: u64 = 0;
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == "otel.sdk.processor.log.processed" {
+                            if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    let matches = dp.attributes().any(|kv| {
+                                        kv.key.as_str() == "error.type"
+                                            && kv.value.as_str() == error_type
+                                    });
+                                    if matches {
+                                        total += dp.value();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            total
         }
 
-        meter_provider.force_flush().unwrap();
+        /// Verifies that `otel.sdk.processor.log.processed` records queue-full drops
+        /// with `error.type = queue_full` when records overflow the queue while the
+        /// worker is blocked exporting.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_queue_full_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let already_shutdown =
-            sum_processed_log_records_with_error_type(&metric_exporter, "already_shutdown");
-        assert_eq!(
-            already_shutdown, 7,
-            "expected 7 already_shutdown drops, got {already_shutdown}"
-        );
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        meter_provider.shutdown().unwrap();
+            let (started_sender, started_receiver) = mpsc::sync_channel(8);
+            let (release_sender, release_receiver) = mpsc::sync_channel(8);
+            let exported_count = Arc::new(AtomicUsize::new(0));
+            let exporter = BlockingExporter {
+                exported_count: exported_count.clone(),
+                export_started: started_sender,
+                release: Arc::new(Mutex::new(release_receiver)),
+            };
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(4)
+                .with_max_export_batch_size(4)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(exporter, config);
+            let instrumentation = InstrumentationScope::default();
+            let emit = || {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            };
+
+            // Fill the queue to the export threshold; the worker drains all four
+            // records and blocks inside export().
+            for _ in 0..4 {
+                emit();
+            }
+            started_receiver
+                .recv_timeout(Duration::from_secs(5))
+                .expect("worker should start exporting the first batch");
+
+            // While the worker is blocked, refill the queue (4) and overflow it by
+            // two records, which must be dropped and counted as queue_full.
+            for _ in 0..6 {
+                emit();
+            }
+
+            // Release the in-flight export and the one triggered by force_flush.
+            release_sender.send(()).unwrap();
+            release_sender.send(()).unwrap();
+            processor.force_flush().unwrap();
+
+            meter_provider.force_flush().unwrap();
+
+            let queue_full =
+                sum_processed_log_records_with_error_type(&metric_exporter, "queue_full");
+            assert_eq!(
+                queue_full, 2,
+                "expected 2 queue_full drops, got {queue_full}"
+            );
+
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Verifies that `otel.sdk.processor.log.processed` records post-shutdown
+        /// emits with `error.type = already_shutdown`.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_already_shutdown_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporter::default();
+            let processor = BatchLogProcessor::new(log_exporter, BatchConfig::default());
+
+            // Shut the processor down so the worker thread (the only receiver)
+            // disconnects; subsequent emits hit the already_shutdown branch.
+            processor.shutdown().unwrap();
+
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..7 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            }
+
+            meter_provider.force_flush().unwrap();
+
+            let already_shutdown =
+                sum_processed_log_records_with_error_type(&metric_exporter, "already_shutdown");
+            assert_eq!(
+                already_shutdown, 7,
+                "expected 7 already_shutdown drops, got {already_shutdown}"
+            );
+
+            meter_provider.shutdown().unwrap();
+        }
     }
 }
