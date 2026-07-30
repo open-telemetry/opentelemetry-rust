@@ -144,7 +144,7 @@
 //! Jaeger natively supports the OTLP protocol, making it easy to send traces directly:
 //!
 //! ```shell
-//! $ docker run -p 16686:16686 -p 4317:4317 -e COLLECTOR_OTLP_ENABLED=true jaegertracing/all-in-one:latest
+//! $ docker run -p 16686:16686 -p 4317:4317 jaegertracing/jaeger:latest
 //! ```
 //!
 //! After running your application configured with the OTLP exporter, view traces at:

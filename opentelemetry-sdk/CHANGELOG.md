@@ -2,6 +2,17 @@
 
 ## vNext
 
+- Added SDK self-observability metric `otel.sdk.processor.span.processed` for
+  `BatchSpanProcessor` and `SimpleSpanProcessor`, feature-gated behind
+  `experimental_metrics_bound_instruments`. Spans are counted when the processor
+  submits them to the exporter, independent of the export outcome; spans dropped
+  beforehand are reported with `error.type` (`queue_full` for the batch queue,
+  `already_shutdown` for post-shutdown emits).
+  ([#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609))
+- Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
+  optional, enabling a minimal SDK build. With `default-features = false`, the
+  SDK's only dependency is the `opentelemetry` API crate.
+  ([#3593](https://github.com/open-telemetry/opentelemetry-rust/pull/3593))
 - Bound instruments are now available for `Gauge` and `UpDownCounter` via the
   new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
   `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
@@ -17,15 +28,24 @@
   isolation mode while preserving the normal
   `unknown_service:<process.executable.name>` fallback outside Miri.
 - Added SDK self-observability metric `otel.sdk.processor.log.processed` for
-  `BatchLogProcessor` (feature-gated behind
-  `experimental_metrics_bound_instruments`). The metric counts processed log
-  records and includes `error.type` dimensions for outcomes like
-  `queue_full` and `already_shutdown`, enabling operators to distinguish
-  successful processing from drops due to full queue or post-shutdown emits.
+  `BatchLogProcessor`, feature-gated behind
+  `experimental_metrics_bound_instruments`. Records are counted when the
+  processor submits a batch to the exporter, independent of the export
+  outcome; records dropped beforehand are reported with `error.type`
+  (`queue_full`, `already_shutdown`).
   ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514))
+- Added SDK self-observability metric `otel.sdk.processor.log.processed` for
+  `SimpleLogProcessor`, feature-gated behind
+  `experimental_metrics_bound_instruments`. Each record is counted when it is
+  submitted to the exporter, independent of the export outcome; records emitted
+  after shutdown are reported with `error.type` (`already_shutdown`).
+  ([#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608))
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- Added self-observability metric `otel.sdk.log.created`, counting every log
+  record submitted to the SDK (before any processing). Gated behind the
+  `experimental_metrics_bound_instruments` Cargo feature.
 
 ## 0.32.1
 
