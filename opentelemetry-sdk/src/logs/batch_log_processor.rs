@@ -404,6 +404,49 @@ impl BatchLogProcessor {
                 .with_unit("{log_record}")
                 .build();
 
+            // Self-diagnostics: otel.sdk.processor.log.queue.size and
+            // otel.sdk.processor.log.queue.capacity. Observable up-down counters
+            // read the current queue occupancy and the configured capacity at
+            // collection time. Weak references ensure a dropped processor stops
+            // reporting, since observable callbacks live for the meter provider's
+            // lifetime and cannot be individually unregistered.
+            let queue_attrs = [
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let size_state = Arc::downgrade(&current_batch_size);
+            let size_attrs = queue_attrs.clone();
+            let _ = meter
+                .i64_observable_up_down_counter("otel.sdk.processor.log.queue.size")
+                .with_description(
+                    "The number of log records in the queue of a given instance of an \
+                     SDK log processor.",
+                )
+                .with_unit("{log_record}")
+                .with_callback(move |observer| {
+                    if let Some(state) = size_state.upgrade() {
+                        observer.observe(state.load(Ordering::Relaxed) as i64, &size_attrs);
+                    }
+                })
+                .build();
+
+            let capacity_state = Arc::downgrade(&current_batch_size);
+            let capacity_value = max_queue_size as i64;
+            let capacity_attrs = queue_attrs;
+            let _ = meter
+                .i64_observable_up_down_counter("otel.sdk.processor.log.queue.capacity")
+                .with_description(
+                    "The maximum number of log records the queue of a given instance of \
+                     an SDK log processor can hold.",
+                )
+                .with_unit("{log_record}")
+                .with_callback(move |observer| {
+                    if capacity_state.upgrade().is_some() {
+                        observer.observe(capacity_value, &capacity_attrs);
+                    }
+                })
+                .build();
+
             // Attribute values follow the OTel semantic conventions for SDK metrics:
             // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorlogprocessed
             // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
@@ -1378,6 +1421,77 @@ mod tests {
         assert_eq!(
             total_value, 10,
             "Expected 10 processed logs, got {total_value}"
+        );
+
+        processor.shutdown().unwrap();
+        meter_provider.shutdown().unwrap();
+    }
+
+    /// Verifies that `otel.sdk.processor.log.queue.capacity` reports the
+    /// configured max queue size and `otel.sdk.processor.log.queue.size` is
+    /// observed, both carrying the component identity attributes.
+    ///
+    /// `#[ignore]`d because it mutates process-wide state via
+    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn self_diagnostics_queue_size_and_capacity() {
+        use crate::metrics::data::{AggregatedMetrics, MetricData};
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let log_exporter = InMemoryLogExporter::default();
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(256)
+            .with_max_export_batch_size(512)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(log_exporter, config);
+
+        // Force a metrics collection so the observable callbacks run.
+        meter_provider.force_flush().unwrap();
+
+        let read = |name: &str| -> Option<i64> {
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == name {
+                            if let AggregatedMetrics::I64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    let has_component = dp.attributes().any(|kv| {
+                                        kv.key.as_str() == "otel.component.type"
+                                            && kv.value.as_str() == "batching_log_processor"
+                                    });
+                                    if has_component {
+                                        return Some(dp.value());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            None
+        };
+
+        let capacity = read("otel.sdk.processor.log.queue.capacity");
+        assert_eq!(
+            capacity,
+            Some(256),
+            "queue.capacity should equal the configured max_queue_size"
+        );
+
+        let size = read("otel.sdk.processor.log.queue.size");
+        assert!(
+            size.is_some(),
+            "otel.sdk.processor.log.queue.size metric not found"
         );
 
         processor.shutdown().unwrap();
