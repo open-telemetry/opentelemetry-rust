@@ -441,6 +441,10 @@ impl BatchLogProcessor {
                 )
                 .with_unit("{log_record}")
                 .with_callback(move |observer| {
+                    // The capacity value is constant; the Weak upgrade is only a
+                    // liveness guard so a dropped processor stops emitting this
+                    // (otherwise-unregisterable) callback, keeping it consistent
+                    // with queue.size.
                     if capacity_state.upgrade().is_some() {
                         observer.observe(capacity_value, &capacity_attrs);
                     }
