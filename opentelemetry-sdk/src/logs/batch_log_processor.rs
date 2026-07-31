@@ -1437,6 +1437,8 @@ mod tests {
     /// the queue holds all 10 (the 60s scheduled delay and a large export batch
     /// size mean the worker has not drained yet), and capacity equals the
     /// configured max queue size. Both carry the component identity attributes.
+    /// After the provider (and processor) is dropped, neither metric is reported
+    /// anymore, exercising the Weak-reference liveness guard in the callbacks.
     ///
     /// `#[ignore]`d because it mutates process-wide state via
     /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
@@ -1511,7 +1513,28 @@ mod tests {
             "queue.capacity should equal the configured max_queue_size"
         );
 
+        // Dropping the provider shuts down and drops the processor, releasing the
+        // Arc<AtomicUsize> the callbacks hold a Weak to. A subsequent collection
+        // must therefore report neither metric (the Weak upgrade fails). The
+        // logger holds a handle to the provider's shared state, so it must be
+        // dropped as well.
+        metric_exporter.reset();
         provider.shutdown().unwrap();
+        drop(logger);
+        drop(provider);
+        meter_provider.force_flush().unwrap();
+
+        assert_eq!(
+            read("otel.sdk.processor.log.queue.size"),
+            None,
+            "queue.size must stop being reported after the processor is dropped"
+        );
+        assert_eq!(
+            read("otel.sdk.processor.log.queue.capacity"),
+            None,
+            "queue.capacity must stop being reported after the processor is dropped"
+        );
+
         meter_provider.shutdown().unwrap();
     }
 
