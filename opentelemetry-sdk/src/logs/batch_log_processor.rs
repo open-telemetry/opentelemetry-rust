@@ -1431,9 +1431,12 @@ mod tests {
         meter_provider.shutdown().unwrap();
     }
 
-    /// Verifies that `otel.sdk.processor.log.queue.capacity` reports the
-    /// configured max queue size and `otel.sdk.processor.log.queue.size` is
-    /// observed, both carrying the component identity attributes.
+    /// Verifies `otel.sdk.processor.log.queue.size` and
+    /// `otel.sdk.processor.log.queue.capacity` through a real
+    /// `SdkLoggerProvider` + `BatchLogProcessor`: after emitting 10 log records,
+    /// the queue holds all 10 (the 60s scheduled delay and a large export batch
+    /// size mean the worker has not drained yet), and capacity equals the
+    /// configured max queue size. Both carry the component identity attributes.
     ///
     /// `#[ignore]`d because it mutates process-wide state via
     /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
@@ -1443,6 +1446,7 @@ mod tests {
     fn self_diagnostics_queue_size_and_capacity() {
         use crate::metrics::data::{AggregatedMetrics, MetricData};
         use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+        use opentelemetry::logs::{Logger, LoggerProvider};
 
         let metric_exporter = InMemoryMetricExporter::default();
         let meter_provider = SdkMeterProvider::builder()
@@ -1450,6 +1454,8 @@ mod tests {
             .build();
         opentelemetry::global::set_meter_provider(meter_provider.clone());
 
+        // Large export batch size + long scheduled delay so the worker does not
+        // drain the queue while we observe it.
         let log_exporter = InMemoryLogExporter::default();
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(256)
@@ -1457,8 +1463,17 @@ mod tests {
             .with_scheduled_delay(Duration::from_secs(60))
             .build();
         let processor = BatchLogProcessor::new(log_exporter, config);
+        let provider = SdkLoggerProvider::builder()
+            .with_log_processor(processor)
+            .build();
 
-        // Force a metrics collection so the observable callbacks run.
+        let logger = provider.logger("test");
+        for _ in 0..10 {
+            logger.emit(logger.create_log_record());
+        }
+
+        // Force a metrics collection so the observable callbacks run. This does
+        // NOT drain the log queue (that only happens on the provider/processor).
         meter_provider.force_flush().unwrap();
 
         let read = |name: &str| -> Option<i64> {
@@ -1485,20 +1500,18 @@ mod tests {
             None
         };
 
-        let capacity = read("otel.sdk.processor.log.queue.capacity");
         assert_eq!(
-            capacity,
+            read("otel.sdk.processor.log.queue.size"),
+            Some(10),
+            "queue.size should equal the 10 undrained log records"
+        );
+        assert_eq!(
+            read("otel.sdk.processor.log.queue.capacity"),
             Some(256),
             "queue.capacity should equal the configured max_queue_size"
         );
 
-        let size = read("otel.sdk.processor.log.queue.size");
-        assert!(
-            size.is_some(),
-            "otel.sdk.processor.log.queue.size metric not found"
-        );
-
-        processor.shutdown().unwrap();
+        provider.shutdown().unwrap();
         meter_provider.shutdown().unwrap();
     }
 
