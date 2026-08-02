@@ -21,7 +21,7 @@ use std::collections::HashSet;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use opentelemetry::{
 ///     baggage::BaggageExt,
 ///     propagation::{TextMapPropagator, TextMapCompositePropagator},

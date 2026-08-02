@@ -9,6 +9,8 @@
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- **Fixed** Out-of-bounds array index in `ContextStack::pop_id` when the `trace`
+  feature is disabled.
 
 ## 0.32.0
 
