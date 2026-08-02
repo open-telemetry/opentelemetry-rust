@@ -22,9 +22,13 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install markdown-link-check
-        run: npm install -g "git://github.com/tcort/markdown-link-check.git#ef7e09486e579ba7479700b386e7ca90f34cbd0a" # v3.13.7
+        # Already pinned to an exact commit; the audit flags the install form,
+        # and the package's own dependencies remain unpinned.
+        run: npm install -g "git://github.com/tcort/markdown-link-check.git#ef7e09486e579ba7479700b386e7ca90f34cbd0a" # zizmor: ignore[adhoc-packages] v3.13.7
 
       - name: Run markdown-link-check
         run: |
