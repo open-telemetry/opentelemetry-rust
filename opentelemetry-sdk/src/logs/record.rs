@@ -105,17 +105,20 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
         K: Into<Key>,
         V: Into<AnyValue>,
     {
+        if !self.deduplicate_attributes {
+            self.attributes.push(Some((key.into(), value.into())));
+            return;
+        }
+
         let key = key.into();
         let value = value.into();
-        if self.deduplicate_attributes {
-            for i in 0..self.attributes.len() {
-                if let Some((existing_key, existing_value)) =
-                    self.attributes.get_mut(i).and_then(|opt| opt.as_mut())
-                {
-                    if *existing_key == key {
-                        *existing_value = value;
-                        return;
-                    }
+        for i in 0..self.attributes.len() {
+            if let Some((existing_key, existing_value)) =
+                self.attributes.get_mut(i).and_then(|opt| opt.as_mut())
+            {
+                if *existing_key == key {
+                    *existing_value = value;
+                    return;
                 }
             }
         }

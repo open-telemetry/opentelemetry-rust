@@ -8,14 +8,14 @@
 //! Results (unique keys — typical case, no duplicates in the batch):
 //! | Scenario                | Dedup ON  | Dedup OFF          | Overhead |
 //! |-------------------------|-----------|--------------------|----------|
-//! | add_1_unique_attribute  |  41.0 ns  |  42.3 ns           |  ~0.97x  |
-//! | add_5_unique_attributes |  75.7 ns  |  70.8 ns           |  ~1.07x  |
-//! | add_9_unique_attributes | 152.1 ns  | 110.8 ns           |  ~1.37x  |
+//! | add_1_unique_attribute  |  39.7 ns  |  38.7 ns           |  ~1.02x  |
+//! | add_5_unique_attributes |  67.9 ns  |  63.6 ns           |  ~1.07x  |
+//! | add_9_unique_attributes | 150.8 ns  | 102.0 ns           |  ~1.48x  |
 //!
 //! Results (repeated key — duplicate writes to the same key):
 //! | Scenario       | Dedup ON | Dedup OFF          |
 //! |----------------|----------|--------------------|
-//! | add_5_same_key |  54.8 ns |  72.1 ns           |
+//! | add_5_same_key |  53.6 ns |  66.3 ns           |
 //!
 //! Note: criterion does not fail CI on regression by itself. These numbers are
 //! reference values for human review in PR #3537 / issue #3497.
