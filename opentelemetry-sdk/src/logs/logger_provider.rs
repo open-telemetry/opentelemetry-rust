@@ -306,9 +306,15 @@ impl LoggerProviderBuilder {
 
     /// Controls whether log record attribute keys are deduplicated (last-write-wins).
     ///
-    /// Enabled by default per the OpenTelemetry specification. Set to `false` to
-    /// retain the previous push-only behavior and avoid the lookup cost on
-    /// `add_attribute`.
+    /// Enabled by default per the OpenTelemetry specification.
+    ///
+    /// Setting this to `false` disables deduplication to avoid lookup overhead on `add_attribute`.
+    ///
+    /// # Warning
+    ///
+    /// Per the OpenTelemetry specification, for many receivers, handling of attributes with
+    /// duplicate keys is unpredictable and it is the user's responsibility to ensure keys are
+    /// not duplicate when deduplication is disabled.
     pub fn with_log_record_attribute_deduplication(mut self, enabled: bool) -> Self {
         self.deduplicate_log_record_attributes = enabled;
         self
