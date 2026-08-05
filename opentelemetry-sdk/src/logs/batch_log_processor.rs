@@ -28,7 +28,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::KeyValue;
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -143,6 +143,8 @@ pub struct BatchLogProcessor {
     forceflush_timeout: Duration,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    queue_size: Arc<AtomicIsize>,
     max_export_batch_size: usize,
 
     // Track dropped logs - we'll log this at shutdown
@@ -184,6 +186,8 @@ impl LogProcessor for BatchLogProcessor {
         match result {
             Ok(_) => {
                 // Successfully sent the log record to the data channel.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.queue_size.fetch_add(1, Ordering::Relaxed);
                 // `processed` success is counted when the batch is submitted to
                 // the exporter (in the worker thread), not here at enqueue.
                 //
@@ -384,6 +388,10 @@ impl BatchLogProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let queue_size = Arc::new(AtomicIsize::new(0));
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let queue_size_for_thread = queue_size.clone();
 
         // Self-diagnostics: create the otel.sdk.processor.log.processed counter.
         // Created before the worker thread is spawned so the success counter can
@@ -414,7 +422,7 @@ impl BatchLogProcessor {
                 KeyValue::new("otel.component.type", "batching_log_processor"),
                 KeyValue::new("otel.component.name", component_name.clone()),
             ];
-            let size_state = Arc::downgrade(&current_batch_size);
+            let size_state = Arc::downgrade(&queue_size);
             let size_attrs = queue_attrs.clone();
             let _ = meter
                 .i64_observable_up_down_counter("otel.sdk.processor.log.queue.size")
@@ -425,13 +433,14 @@ impl BatchLogProcessor {
                 .with_unit("{log_record}")
                 .with_callback(move |observer| {
                     if let Some(state) = size_state.upgrade() {
-                        observer.observe(state.load(Ordering::Relaxed) as i64, &size_attrs);
+                        let value = state.load(Ordering::Relaxed).max(0);
+                        observer.observe(i64::try_from(value).unwrap_or(i64::MAX), &size_attrs);
                     }
                 })
                 .build();
 
-            let capacity_state = Arc::downgrade(&current_batch_size);
-            let capacity_value = max_queue_size as i64;
+            let capacity_state = Arc::downgrade(&queue_size);
+            let capacity_value = i64::try_from(max_queue_size).unwrap_or(i64::MAX);
             let capacity_attrs = queue_attrs;
             let _ = meter
                 .i64_observable_up_down_counter("otel.sdk.processor.log.queue.capacity")
@@ -489,6 +498,8 @@ impl BatchLogProcessor {
                 let mut last_export_time = Instant::now();
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
                 let current_batch_size = current_batch_size_for_thread;
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                let queue_size = queue_size_for_thread;
 
                 // Counts records for the otel.sdk.processor.log.processed
                 // metric; a no-op when the self-diagnostics feature is disabled.
@@ -507,6 +518,8 @@ impl BatchLogProcessor {
                     logs: &mut Vec<LogsData>,
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
+                    #[cfg(feature = "experimental_metrics_bound_instruments")]
+                    queue_size: &AtomicIsize,
                     max_export_size: usize,
                     record_processed_success: &F,
                 ) -> OTelSdkResult
@@ -523,6 +536,8 @@ impl BatchLogProcessor {
 
                         // Get up to the remaining target batch size from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
+                            #[cfg(feature = "experimental_metrics_bound_instruments")]
+                            queue_size.fetch_sub(1, Ordering::Relaxed);
                             logs.push(log);
                             if logs.len() == batch_limit {
                                 break;
@@ -567,6 +582,8 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
+                                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -579,6 +596,8 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
+                                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -592,6 +611,8 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
+                                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -621,6 +642,8 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
+                                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -652,6 +675,8 @@ impl BatchLogProcessor {
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            queue_size,
             max_export_batch_size,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             processed_queue_full,
@@ -1244,6 +1269,12 @@ mod tests {
         }
 
         assert_eq!(processor.dropped_logs_count.load(Ordering::Relaxed), 2);
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        assert_eq!(
+            processor.queue_size.load(Ordering::Relaxed),
+            4,
+            "queue occupancy must exclude the batch currently being exported"
+        );
         // 4 records in-flight in the blocked export (not yet subtracted)
         // plus 4 records queued. Without the queue-full revert this would
         // read 10.
