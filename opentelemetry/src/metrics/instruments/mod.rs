@@ -46,7 +46,8 @@ pub trait SyncInstrument<T>: Send + Sync {
 }
 
 /// A pre-bound synchronous instrument that records measurements without attributes.
-/// Created by calling `bind()` on a `Counter` or `Histogram` with a fixed attribute set.
+/// Created by calling `bind()` on a `Counter`, `UpDownCounter`, `Histogram`,
+/// or `Gauge` with a fixed attribute set.
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub trait BoundSyncInstrument<T>: Send + Sync {
     /// Records a measurement. The attributes were fixed at bind time.
@@ -248,7 +249,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("boundaries", &self.boundaries)
             .field(
                 "kind",
-                &format!("Histogram<{}>", &std::any::type_name::<T>()),
+                &format!("Histogram<{}>", std::any::type_name::<T>()),
             )
             .finish()
     }

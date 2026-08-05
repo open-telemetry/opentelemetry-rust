@@ -55,6 +55,39 @@ fn scope_info_labels_are_added_to_metric_points() {
 }
 
 #[test]
+fn scope_info_labels_do_not_collide_with_metric_attributes() {
+    let registry = prometheus::Registry::new();
+    let exporter = ExporterBuilder::default()
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+
+    let scope = InstrumentationScope::builder("scope-test")
+        .with_version("v1.2.3")
+        .with_schema_url("https://opentelemetry.io/schemas/1.0.0")
+        .build();
+    let meter = provider.meter_with_scope(scope);
+
+    let counter = meter.u64_counter("scope.counter").build();
+    counter.add(
+        1,
+        &[
+            KeyValue::new("metric.attr", "metric-value"),
+            KeyValue::new("otel_scope_name", "metric-scope-name"),
+            KeyValue::new("otel_scope_version", "metric-scope-version"),
+            KeyValue::new("otel_scope_schema_url", "metric-scope-schema-url"),
+        ],
+    );
+
+    let output = gather_and_encode(registry);
+
+    assert!(output.contains(
+        r#"scope_counter_total{metric_attr="metric-value",otel_scope_name="scope-test;metric-scope-name",otel_scope_version="v1.2.3;metric-scope-version",otel_scope_schema_url="https://opentelemetry.io/schemas/1.0.0;metric-scope-schema-url"} 1"#
+    ));
+}
+
+#[test]
 fn scope_info_labels_can_be_disabled() {
     let registry = prometheus::Registry::new();
     let exporter = ExporterBuilder::default()

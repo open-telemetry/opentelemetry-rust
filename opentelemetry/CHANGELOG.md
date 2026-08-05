@@ -2,6 +2,14 @@
 
 ## vNext
 
+- `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
+  (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
+- **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
+  corresponding `Gauge::bind()` / `UpDownCounter::bind()` methods), completing
+  the experimental bound-instrument API across all sync instruments
+  (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
+
 ## 0.32.0
 
 Released 2026-May-08

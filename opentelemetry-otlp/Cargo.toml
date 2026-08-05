@@ -115,7 +115,6 @@ hyper-client = ["opentelemetry-http/hyper"]
 # TLS options for reqwest-based HTTP clients, both blocking and async. Combine
 # these with either reqwest-blocking-client or reqwest-client.
 reqwest-rustls = ["reqwest", "opentelemetry-http/reqwest-rustls"]
-reqwest-rustls-webpki-roots = ["reqwest", "opentelemetry-http/reqwest-rustls-webpki-roots"]
 
 # test
 integration-testing = ["tonic", "prost", "tokio/full", "trace", "logs"]

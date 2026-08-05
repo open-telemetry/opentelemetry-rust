@@ -32,10 +32,31 @@
 pub use crate::attribute::ANDROID_APP_STATE;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_BUILD_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_CRASH_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_JANK_FRAME_COUNT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_JANK_PERIOD;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_JANK_THRESHOLD;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::APP_SCREEN_COORDINATE_X;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::APP_SCREEN_COORDINATE_Y;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_SCREEN_ID;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::APP_SCREEN_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::APP_WIDGET_ID;
@@ -258,9 +279,6 @@ pub use crate::attribute::DNS_QUESTION_NAME;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::ELASTICSEARCH_NODE_NAME;
 
-#[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::ERROR_MESSAGE;
-
 pub use crate::attribute::ERROR_TYPE;
 
 #[allow(deprecated)]
@@ -309,6 +327,9 @@ pub use crate::attribute::FAAS_TRIGGER;
 pub use crate::attribute::FEATURE_FLAG_CONTEXT_ID;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::FEATURE_FLAG_ERROR_MESSAGE;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::FEATURE_FLAG_KEY;
 
 #[cfg(feature = "semconv_experimental")]
@@ -330,94 +351,204 @@ pub use crate::attribute::FEATURE_FLAG_SET_ID;
 pub use crate::attribute::FEATURE_FLAG_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_AGENT_DESCRIPTION;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_AGENT_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_AGENT_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_AGENT_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_CONVERSATION_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_DATA_SOURCE_ID;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::GEN_AI_OPENAI_REQUEST_SERVICE_TIER;
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_EMBEDDINGS_DIMENSION_COUNT;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_EVALUATION_EXPLANATION;
 
 #[cfg(feature = "semconv_experimental")]
-pub use crate::attribute::GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_EVALUATION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_EVALUATION_SCORE_LABEL;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_EVALUATION_SCORE_VALUE;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_INPUT_MESSAGES;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_OPERATION_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_OUTPUT_MESSAGES;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_OUTPUT_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_PROMPT_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_PROVIDER_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_CHOICE_COUNT;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_ENCODING_FORMATS;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_FREQUENCY_PENALTY;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_MAX_TOKENS;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_MODEL;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_PRESENCE_PENALTY;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_SEED;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_STOP_SEQUENCES;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_REQUEST_STREAM;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_TEMPERATURE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_TOP_K;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_REQUEST_TOP_P;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_RESPONSE_FINISH_REASONS;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_RESPONSE_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_RESPONSE_MODEL;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_RETRIEVAL_DOCUMENTS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_RETRIEVAL_QUERY_TEXT;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_SYSTEM;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_SYSTEM_INSTRUCTIONS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_TOOL_CALL_ARGUMENTS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_TOOL_CALL_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_TOOL_CALL_RESULT;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_TOOL_DEFINITIONS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_TOOL_DESCRIPTION;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_TOOL_NAME;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_TOOL_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_USAGE_INPUT_TOKENS;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::GEN_AI_USAGE_OUTPUT_TOKENS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_USAGE_REASONING_OUTPUT_TOKENS;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::GEN_AI_WORKFLOW_NAME;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::GRAPHQL_DOCUMENT;
@@ -457,6 +588,28 @@ pub use crate::attribute::HTTP_ROUTE;
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::IOS_APP_STATE;
 
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::JSONRPC_PROTOCOL_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::JSONRPC_REQUEST_ID;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::MCP_METHOD_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::MCP_PROTOCOL_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::MCP_RESOURCE_URI;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::MCP_SESSION_ID;
+
 pub use crate::attribute::NETWORK_LOCAL_ADDRESS;
 
 pub use crate::attribute::NETWORK_LOCAL_PORT;
@@ -474,6 +627,43 @@ pub use crate::attribute::NETWORK_TRANSPORT;
 pub use crate::attribute::NETWORK_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::OPENAI_API_TYPE;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::OPENAI_REQUEST_SERVICE_TIER;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::OPENAI_RESPONSE_SERVICE_TIER;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
+pub use crate::attribute::OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ORACLE_DB_DOMAIN;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ORACLE_DB_INSTANCE_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ORACLE_DB_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ORACLE_DB_PDB;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::ORACLE_DB_SERVICE;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::OS_NAME;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::OS_VERSION;
+
+#[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::PROCESS_COMMAND_ARGS;
 
 #[cfg(feature = "semconv_experimental")]
@@ -489,29 +679,52 @@ pub use crate::attribute::PROCESS_EXIT_CODE;
 pub use crate::attribute::PROCESS_PID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_MESSAGE_COMPRESSED_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_MESSAGE_ID;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_MESSAGE_TYPE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_MESSAGE_UNCOMPRESSED_SIZE;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::RPC_METHOD;
 
 #[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_METHOD_ORIGINAL;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_REQUEST_METADATA;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_RESPONSE_METADATA;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_RESPONSE_STATUS_CODE;
+
+#[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_SERVICE;
 
 #[cfg(feature = "semconv_experimental")]
+#[allow(deprecated)]
 pub use crate::attribute::RPC_SYSTEM;
+
+#[cfg(feature = "semconv_experimental")]
+pub use crate::attribute::RPC_SYSTEM_NAME;
 
 pub use crate::attribute::SERVER_ADDRESS;
 
 pub use crate::attribute::SERVER_PORT;
+
+pub use crate::attribute::SERVICE_VERSION;
 
 #[cfg(feature = "semconv_experimental")]
 pub use crate::attribute::SESSION_ID;
