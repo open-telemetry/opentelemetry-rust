@@ -16,12 +16,11 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use super::BoxInterceptor;
 
 use crate::retry::RetryPolicy;
-#[cfg(feature = "experimental-grpc-retry")]
-use opentelemetry_sdk::runtime::Tokio;
 
 pub(crate) struct TonicTracesClient {
     inner: Mutex<Option<ClientInner>>,
     retry_policy: RetryPolicy,
+    timeout: std::time::Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -44,6 +43,7 @@ impl TonicTracesClient {
         interceptor: BoxInterceptor,
         compression: Option<CompressionEncoding>,
         retry_policy: Option<RetryPolicy>,
+        timeout: std::time::Duration,
     ) -> Self {
         let mut client = TraceServiceClient::new(channel);
         if let Some(compression) = compression {
@@ -59,12 +59,8 @@ impl TonicTracesClient {
                 client,
                 interceptor,
             })),
-            retry_policy: retry_policy.unwrap_or(RetryPolicy {
-                max_retries: 3,
-                initial_delay_ms: 100,
-                max_delay_ms: 1600,
-                jitter_ms: 100,
-            }),
+            retry_policy: retry_policy.unwrap_or_default(),
+            timeout,
             resource: Default::default(),
         }
     }
@@ -75,11 +71,8 @@ impl SpanExporter for TonicTracesClient {
         let batch = Arc::new(batch);
 
         match super::tonic_retry_with_backoff(
-            #[cfg(feature = "experimental-grpc-retry")]
-            Tokio,
-            #[cfg(not(feature = "experimental-grpc-retry"))]
-            (),
-            self.retry_policy.clone(),
+            &self.retry_policy,
+            self.timeout,
             crate::retry_classification::grpc::classify_tonic_status,
             "TonicTracesClient.Export",
             || async {

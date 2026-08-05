@@ -35,11 +35,11 @@ opentelemetry-proto = { workspace = true, default-features = false }
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 tonic-types = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["sync", "rt"], optional = true }
+tokio = { workspace = true, features = ["sync", "rt", "time"], optional = true }
 
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-httpdate = { version = "1.0.3", optional = true }
+httpdate = { version = "1.0.3" }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
@@ -75,7 +75,7 @@ gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
 
 # grpc with retry support
-experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio"]
+
 
 # http compression
 gzip-http = ["flate2"]
@@ -94,7 +94,7 @@ tls-webpki-roots = ["tonic/tls-webpki-roots"]
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 
 # http with retry support.
-experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio", "httpdate"]
+
 
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 
@@ -109,8 +109,8 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-block
 # Async HTTP clients. Do not enable these for the default SDK
 # processors/readers; they require an export path that is driven by a Tokio
 # runtime, such as the experimental async-runtime processors/readers.
-reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-hyper-client = ["opentelemetry-http/hyper"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest", "tokio"]
+hyper-client = ["opentelemetry-http/hyper", "tokio"]
 
 # TLS options for reqwest-based HTTP clients, both blocking and async. Combine
 # these with either reqwest-blocking-client or reqwest-client.
