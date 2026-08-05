@@ -39,7 +39,7 @@ tokio = { workspace = true, features = ["sync", "rt"], optional = true }
 
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-httpdate = { version = "1.0.3", optional = true }
+httpdate = { version = "1.0.3" }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
@@ -75,7 +75,8 @@ gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
 
 # grpc with retry support
-experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio"]
+# Deprecated: retry is now always enabled. These flags are kept for backward compatibility.
+experimental-grpc-retry = ["grpc-tonic"]
 
 # http compression
 gzip-http = ["flate2"]
@@ -94,7 +95,8 @@ tls-webpki-roots = ["tonic/tls-webpki-roots"]
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
 
 # http with retry support.
-experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio", "httpdate"]
+# Deprecated: retry is now always enabled. These flags are kept for backward compatibility.
+experimental-http-retry = []
 
 http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
 

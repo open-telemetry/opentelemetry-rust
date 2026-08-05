@@ -13,7 +13,6 @@ use tonic;
 use tonic_types::StatusExt;
 
 /// HTTP-specific error classification with Retry-After header support.
-#[cfg(feature = "experimental-http-retry")]
 pub mod http {
     use super::*;
     use std::time::Duration;
@@ -164,7 +163,7 @@ pub mod grpc {
 #[cfg(test)]
 mod tests {
     // Tests for HTTP error classification
-    #[cfg(feature = "experimental-http-retry")]
+    
     mod http_tests {
         use crate::retry::RetryErrorType;
         use crate::retry_classification::http::*;
@@ -222,7 +221,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
+        
         fn test_http_429_with_retry_after_valid_date() {
             use std::time::SystemTime;
 
@@ -244,14 +243,14 @@ mod tests {
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
+        
         fn test_http_429_with_retry_after_invalid_date() {
             let result = classify_http_error(429, Some("Not a valid date"));
             assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
+        
         fn test_http_429_with_retry_after_malformed_date() {
             let result = classify_http_error(429, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
             assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
