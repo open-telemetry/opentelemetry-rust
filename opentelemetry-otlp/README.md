@@ -35,6 +35,34 @@ of telemetry is intentionally left to other tools.
 [Prometheus]: https://prometheus.io
 [Jaeger]: https://www.jaegertracing.io
 
+### What does this crate contain?
+
+This crate provides an [OTLP
+(OpenTelemetry
+Protocol)](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/README.md)
+exporter that sends telemetry to any OTLP-compatible backend such as the
+[OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector)
+or vendor endpoints. Exporters are provided for all three signals - Logs,
+Metrics and Traces - and support both `grpc` and `http` (binary protobuf or
+JSON) transports.
+
+OTLP is the recommended way to export telemetry from OpenTelemetry, as it is
+vendor-neutral and supported by most observability backends.
+
+### Related crates
+
+This crate exports telemetry produced via the OpenTelemetry SDK. It is
+commonly used alongside:
+
+- **[opentelemetry](https://crates.io/crates/opentelemetry):** The core
+  OpenTelemetry API.
+- **[opentelemetry-sdk](https://crates.io/crates/opentelemetry-sdk):** The
+  OpenTelemetry SDK implementation that this exporter plugs into.
+- **[opentelemetry-http](https://crates.io/crates/opentelemetry-http):** HTTP
+  client abstractions used by the HTTP transport in this crate.
+- **[opentelemetry-proto](https://crates.io/crates/opentelemetry-proto):**
+  Generated protobuf types used on the wire.
+
 ## Getting started
 
 See [docs](https://docs.rs/opentelemetry-otlp).
@@ -46,7 +74,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
