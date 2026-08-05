@@ -100,6 +100,7 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
         }
     }
 
+    #[inline]
     fn add_attribute<K, V>(&mut self, key: K, value: V)
     where
         K: Into<Key>,
@@ -148,6 +149,7 @@ impl SdkLogRecord {
         Self::with_deduplicate_attributes(true)
     }
 
+    #[inline]
     pub(crate) fn with_deduplicate_attributes(deduplicate_attributes: bool) -> Self {
         SdkLogRecord {
             event_name: None,

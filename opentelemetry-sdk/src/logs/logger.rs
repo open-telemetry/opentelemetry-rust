@@ -15,19 +15,26 @@ use opentelemetry::time::now;
 pub struct SdkLogger {
     scope: InstrumentationScope,
     provider: SdkLoggerProvider,
+    deduplicate_log_record_attributes: bool,
 }
 
 impl SdkLogger {
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
-        SdkLogger { scope, provider }
+        let deduplicate_log_record_attributes = provider.deduplicate_log_record_attributes();
+        SdkLogger {
+            scope,
+            provider,
+            deduplicate_log_record_attributes,
+        }
     }
 }
 
 impl opentelemetry::logs::Logger for SdkLogger {
     type LogRecord = SdkLogRecord;
 
+    #[inline]
     fn create_log_record(&self) -> Self::LogRecord {
-        SdkLogRecord::with_deduplicate_attributes(self.provider.deduplicate_log_record_attributes())
+        SdkLogRecord::with_deduplicate_attributes(self.deduplicate_log_record_attributes)
     }
 
     /// Emit a `LogRecord`.
