@@ -2,11 +2,10 @@
 
 ## vNext
 
-- Added SDK self-observability metrics `otel.sdk.processor.log.queue.size` and
-  `otel.sdk.processor.log.queue.capacity` for `BatchLogProcessor`, feature-gated
-  behind `experimental_metrics_bound_instruments`. Reported as observable
-  up-down counters that read the current queue occupancy and the configured
-  maximum queue size at collection time.
+- Added SDK self-observability metric `otel.sdk.processor.log.queue.capacity`
+  for `BatchLogProcessor`, feature-gated behind
+  `experimental_metrics_bound_instruments`. Reported as an observable up-down
+  counter that reads the configured maximum queue size at collection time.
   ([#3611](https://github.com/open-telemetry/opentelemetry-rust/pull/3611))
 - Added SDK self-observability metric `otel.sdk.processor.span.processed` for
   `BatchSpanProcessor` and `SimpleSpanProcessor`, feature-gated behind

@@ -28,7 +28,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::KeyValue;
 
-use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -143,8 +143,6 @@ pub struct BatchLogProcessor {
     forceflush_timeout: Duration,
     export_log_message_sent: Arc<AtomicBool>,
     current_batch_size: Arc<AtomicUsize>,
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    queue_size: Arc<AtomicIsize>,
     max_export_batch_size: usize,
 
     // Track dropped logs - we'll log this at shutdown
@@ -186,8 +184,6 @@ impl LogProcessor for BatchLogProcessor {
         match result {
             Ok(_) => {
                 // Successfully sent the log record to the data channel.
-                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                self.queue_size.fetch_add(1, Ordering::Relaxed);
                 // `processed` success is counted when the batch is submitted to
                 // the exporter (in the worker thread), not here at enqueue.
                 //
@@ -388,10 +384,6 @@ impl BatchLogProcessor {
         let max_export_batch_size = config.max_export_batch_size;
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
-        #[cfg(feature = "experimental_metrics_bound_instruments")]
-        let queue_size = Arc::new(AtomicIsize::new(0));
-        #[cfg(feature = "experimental_metrics_bound_instruments")]
-        let queue_size_for_thread = queue_size.clone();
 
         // Self-diagnostics: create the otel.sdk.processor.log.processed counter.
         // Created before the worker thread is spawned so the success counter can
@@ -412,36 +404,16 @@ impl BatchLogProcessor {
                 .with_unit("{log_record}")
                 .build();
 
-            // Self-diagnostics: otel.sdk.processor.log.queue.size and
-            // otel.sdk.processor.log.queue.capacity. Observable up-down counters
-            // read the current queue occupancy and the configured capacity at
-            // collection time. Weak references ensure a dropped processor stops
-            // reporting, since observable callbacks live for the meter provider's
-            // lifetime and cannot be individually unregistered.
-            let queue_attrs = [
+            // Self-diagnostics: otel.sdk.processor.log.queue.capacity. A weak
+            // reference ensures a dropped processor stops reporting, since
+            // observable callbacks live for the meter provider's lifetime and
+            // cannot be individually unregistered.
+            let capacity_attrs = [
                 KeyValue::new("otel.component.type", "batching_log_processor"),
                 KeyValue::new("otel.component.name", component_name.clone()),
             ];
-            let size_state = Arc::downgrade(&queue_size);
-            let size_attrs = queue_attrs.clone();
-            let _ = meter
-                .i64_observable_up_down_counter("otel.sdk.processor.log.queue.size")
-                .with_description(
-                    "The number of log records in the queue of a given instance of an \
-                     SDK log processor.",
-                )
-                .with_unit("{log_record}")
-                .with_callback(move |observer| {
-                    if let Some(state) = size_state.upgrade() {
-                        let value = state.load(Ordering::Relaxed).max(0);
-                        observer.observe(i64::try_from(value).unwrap_or(i64::MAX), &size_attrs);
-                    }
-                })
-                .build();
-
-            let capacity_state = Arc::downgrade(&queue_size);
+            let capacity_state = Arc::downgrade(&current_batch_size);
             let capacity_value = i64::try_from(max_queue_size).unwrap_or(i64::MAX);
-            let capacity_attrs = queue_attrs;
             let _ = meter
                 .i64_observable_up_down_counter("otel.sdk.processor.log.queue.capacity")
                 .with_description(
@@ -452,8 +424,7 @@ impl BatchLogProcessor {
                 .with_callback(move |observer| {
                     // The capacity value is constant; the Weak upgrade is only a
                     // liveness guard so a dropped processor stops emitting this
-                    // (otherwise-unregisterable) callback, keeping it consistent
-                    // with queue.size.
+                    // otherwise-unregisterable callback.
                     if capacity_state.upgrade().is_some() {
                         observer.observe(capacity_value, &capacity_attrs);
                     }
@@ -498,8 +469,6 @@ impl BatchLogProcessor {
                 let mut last_export_time = Instant::now();
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
                 let current_batch_size = current_batch_size_for_thread;
-                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                let queue_size = queue_size_for_thread;
 
                 // Counts records for the otel.sdk.processor.log.processed
                 // metric; a no-op when the self-diagnostics feature is disabled.
@@ -518,8 +487,6 @@ impl BatchLogProcessor {
                     logs: &mut Vec<LogsData>,
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
-                    #[cfg(feature = "experimental_metrics_bound_instruments")]
-                    queue_size: &AtomicIsize,
                     max_export_size: usize,
                     record_processed_success: &F,
                 ) -> OTelSdkResult
@@ -536,8 +503,6 @@ impl BatchLogProcessor {
 
                         // Get up to the remaining target batch size from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
-                            #[cfg(feature = "experimental_metrics_bound_instruments")]
-                            queue_size.fetch_sub(1, Ordering::Relaxed);
                             logs.push(log);
                             if logs.len() == batch_limit {
                                 break;
@@ -582,8 +547,6 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -596,8 +559,6 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -611,8 +572,6 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -642,8 +601,6 @@ impl BatchLogProcessor {
                                 &mut logs,
                                 &mut last_export_time,
                                 &current_batch_size,
-                                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                                &queue_size,
                                 max_export_batch_size,
                                 &record_processed_success,
                             );
@@ -675,8 +632,6 @@ impl BatchLogProcessor {
             max_queue_size,
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
-            #[cfg(feature = "experimental_metrics_bound_instruments")]
-            queue_size,
             max_export_batch_size,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             processed_queue_full,
@@ -1269,12 +1224,6 @@ mod tests {
         }
 
         assert_eq!(processor.dropped_logs_count.load(Ordering::Relaxed), 2);
-        #[cfg(feature = "experimental_metrics_bound_instruments")]
-        assert_eq!(
-            processor.queue_size.load(Ordering::Relaxed),
-            4,
-            "queue occupancy must exclude the batch currently being exported"
-        );
         // 4 records in-flight in the blocked export (not yet subtracted)
         // plus 4 records queued. Without the queue-full revert this would
         // read 10.
@@ -1462,24 +1411,19 @@ mod tests {
         meter_provider.shutdown().unwrap();
     }
 
-    /// Verifies `otel.sdk.processor.log.queue.size` and
-    /// `otel.sdk.processor.log.queue.capacity` through a real
-    /// `SdkLoggerProvider` + `BatchLogProcessor`: after emitting 10 log records,
-    /// the queue holds all 10 (the 60s scheduled delay and a large export batch
-    /// size mean the worker has not drained yet), and capacity equals the
-    /// configured max queue size. Both carry the component identity attributes.
-    /// After the provider (and processor) is dropped, neither metric is reported
-    /// anymore, exercising the Weak-reference liveness guard in the callbacks.
+    /// Verifies `otel.sdk.processor.log.queue.capacity` through a real
+    /// `SdkLoggerProvider` + `BatchLogProcessor`. The metric reports the
+    /// configured max queue size with the component identity attributes and
+    /// stops reporting after the provider (and processor) is dropped.
     ///
     /// `#[ignore]`d because it mutates process-wide state via
     /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     #[ignore]
-    fn self_diagnostics_queue_size_and_capacity() {
+    fn self_diagnostics_queue_capacity() {
         use crate::metrics::data::{AggregatedMetrics, MetricData};
         use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
-        use opentelemetry::logs::{Logger, LoggerProvider};
 
         let metric_exporter = InMemoryMetricExporter::default();
         let meter_provider = SdkMeterProvider::builder()
@@ -1487,23 +1431,14 @@ mod tests {
             .build();
         opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        // Large export batch size + long scheduled delay so the worker does not
-        // drain the queue while we observe it.
         let log_exporter = InMemoryLogExporter::default();
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(256)
-            .with_max_export_batch_size(512)
-            .with_scheduled_delay(Duration::from_secs(60))
             .build();
         let processor = BatchLogProcessor::new(log_exporter, config);
         let provider = SdkLoggerProvider::builder()
             .with_log_processor(processor)
             .build();
-
-        let logger = provider.logger("test");
-        for _ in 0..10 {
-            logger.emit(logger.create_log_record());
-        }
 
         // Force a metrics collection so the observable callbacks run. This does
         // NOT drain the log queue (that only happens on the provider/processor).
@@ -1534,32 +1469,19 @@ mod tests {
         };
 
         assert_eq!(
-            read("otel.sdk.processor.log.queue.size"),
-            Some(10),
-            "queue.size should equal the 10 undrained log records"
-        );
-        assert_eq!(
             read("otel.sdk.processor.log.queue.capacity"),
             Some(256),
             "queue.capacity should equal the configured max_queue_size"
         );
 
         // Dropping the provider shuts down and drops the processor, releasing the
-        // Arc<AtomicUsize> the callbacks hold a Weak to. A subsequent collection
-        // must therefore report neither metric (the Weak upgrade fails). The
-        // logger holds a handle to the provider's shared state, so it must be
-        // dropped as well.
+        // Arc<AtomicUsize> the callback holds a Weak to. A subsequent collection
+        // must therefore omit the metric because the Weak upgrade fails.
         metric_exporter.reset();
         provider.shutdown().unwrap();
-        drop(logger);
         drop(provider);
         meter_provider.force_flush().unwrap();
 
-        assert_eq!(
-            read("otel.sdk.processor.log.queue.size"),
-            None,
-            "queue.size must stop being reported after the processor is dropped"
-        );
         assert_eq!(
             read("otel.sdk.processor.log.queue.capacity"),
             None,

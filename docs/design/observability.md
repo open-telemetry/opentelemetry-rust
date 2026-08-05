@@ -18,31 +18,16 @@ following the [semantic conventions for SDK metrics](https://github.com/open-tel
 
 **Attributes:**
 
-- `otel.component.type`: `batching_log_processor`
-- `otel.component.name`: `batching_log_processor/{id}` (auto-assigned)
-- `error.type`: `queue_full` when dropped due to a full queue;
-  `already_shutdown` when emitted after shutdown; absent on success.
+| Attribute | Value |
+|-----------|-------|
+| `otel.component.type` | `batching_log_processor` |
+| `otel.component.name` | `batching_log_processor/{id}` (auto-assigned) |
+| `error.type` | `queue_full` when dropped due to full queue; `already_shutdown` when emitted after shutdown. Absent on success. |
 
 The counter is incremented on every `emit()` call: once for successful
 enqueue, once with `error.type=queue_full` when dropped due to a full queue,
 and once with `error.type=already_shutdown` when emitted after the processor
 has been shut down.
-
-### `otel.sdk.processor.log.queue.size`
-
-- **Instrument**: `ObservableUpDownCounter<i64>`
-- **Unit**: `{log_record}`
-- **Description**: The number of log records in the queue of a given instance
-  of an SDK log processor.
-- **Component**: `BatchLogProcessor`
-
-**Attributes:**
-
-- `otel.component.type`: `batching_log_processor`
-- `otel.component.name`: `batching_log_processor/{id}` (auto-assigned)
-
-The callback observes the current channel occupancy at collection time. Log
-records in a batch currently being exported are not included.
 
 ### `otel.sdk.processor.log.queue.capacity`
 
@@ -57,8 +42,8 @@ records in a batch currently being exported are not included.
 - `otel.component.type`: `batching_log_processor`
 - `otel.component.name`: `batching_log_processor/{id}` (auto-assigned)
 
-The callback observes the configured maximum queue size. Both queue metrics
-stop reporting after the processor is dropped.
+The callback observes the configured maximum queue size and stops reporting
+after the processor is dropped.
 
 ## Feature Gate
 
@@ -120,6 +105,7 @@ means no self-diagnostics data.
 
 ## TODO
 
+- Emit `otel.sdk.processor.log.queue.size` (current queue depth).
 - Emit `otel.sdk.exporter.log.exported` from log exporters.
 - Add self-diagnostics to `BatchSpanProcessor`.
 - Add self-diagnostics to `SimpleLogProcessor`.
