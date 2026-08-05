@@ -1,5 +1,5 @@
 use std::{
-    env, fmt, mem,
+    env, fmt,
     sync::{Arc, Mutex, Weak},
     time::Duration,
 };
@@ -106,45 +106,54 @@ where
 
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader<E> {
+        let PeriodicReaderBuilder {
+            interval,
+            timeout,
+            exporter,
+            runtime,
+        } = self;
         let (message_sender, message_receiver) = mpsc::channel(256);
 
-        let worker = move |reader: &PeriodicReader<E>| {
-            let runtime = self.runtime.clone();
-            let reader = reader.clone();
-            self.runtime.spawn(async move {
-                let ticker = to_interval_stream(runtime.clone(), self.interval)
-                    .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
-                    .map(|_| Message::Export);
-                let messages = Box::pin(stream::select(message_receiver, ticker));
-                PeriodicReaderWorker {
-                    reader,
-                    timeout: self.timeout,
-                    runtime,
-                    rm: ResourceMetrics {
-                        resource: Resource::empty(),
-                        scope_metrics: Vec::new(),
-                    },
-                }
-                .run(messages)
-                .await
-            });
+        let reader = PeriodicReader {
+            exporter: Arc::new(exporter),
+            inner: Arc::new(Mutex::new(PeriodicReaderInner {
+                message_sender,
+                is_shutdown: false,
+                sdk_producer: None,
+            })),
         };
+
+        // Spawn eagerly so the worker runs on the runtime that is ambient
+        // when the reader is built, not whichever one later builds the
+        // provider (issue #3601).
+        let worker_reader = reader.clone();
+        let worker_runtime = runtime.clone();
+        runtime.spawn(async move {
+            let ticker = to_interval_stream(worker_runtime.clone(), interval)
+                .skip(1) // The ticker is fired immediately, so we should skip the first one to align with the interval.
+                .map(|_| Message::Export);
+            let messages = Box::pin(stream::select(message_receiver, ticker));
+            PeriodicReaderWorker {
+                reader: worker_reader,
+                timeout,
+                runtime: worker_runtime,
+                rm: ResourceMetrics {
+                    resource: Resource::empty(),
+                    scope_metrics: Vec::new(),
+                },
+            }
+            .run(messages)
+            .await
+        });
 
         otel_debug!(
             name: "PeriodicReader.BuildCompleted",
             message = "Periodic reader built.",
-            interval_in_secs = self.interval.as_secs(),
-            temporality = format!("{:?}", self.exporter.temporality()),
+            interval_in_secs = interval.as_secs(),
+            temporality = format!("{:?}", reader.exporter.temporality()),
         );
 
-        PeriodicReader {
-            exporter: Arc::new(self.exporter),
-            inner: Arc::new(Mutex::new(PeriodicReaderInner {
-                message_sender,
-                is_shutdown: false,
-                sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
-            })),
-        }
+        reader
     }
 }
 
@@ -188,7 +197,7 @@ where
 /// ```
 pub struct PeriodicReader<E: PushMetricExporter> {
     exporter: Arc<E>,
-    inner: Arc<Mutex<PeriodicReaderInner<E>>>,
+    inner: Arc<Mutex<PeriodicReaderInner>>,
 }
 
 impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
@@ -216,10 +225,10 @@ impl<E: PushMetricExporter> fmt::Debug for PeriodicReader<E> {
     }
 }
 
-struct PeriodicReaderInner<E: PushMetricExporter> {
+struct PeriodicReaderInner {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
-    sdk_producer_or_worker: ProducerOrWorker<E>,
+    sdk_producer: Option<Weak<dyn SdkProducer>>,
 }
 
 #[derive(Debug)]
@@ -227,12 +236,6 @@ enum Message {
     Export,
     Flush(oneshot::Sender<OTelSdkResult>),
     Shutdown(oneshot::Sender<OTelSdkResult>),
-}
-
-enum ProducerOrWorker<E: PushMetricExporter> {
-    Producer(Weak<dyn SdkProducer>),
-    #[allow(clippy::type_complexity)]
-    Worker(Box<dyn FnOnce(&PeriodicReader<E>) + Send + Sync>),
 }
 
 struct PeriodicReaderWorker<E: PushMetricExporter, RT: Runtime> {
@@ -340,18 +343,14 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             Err(_) => return,
         };
 
-        let worker = match &mut inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(_) => {
-                // Only register once. If producer is already set, do nothing.
-                otel_debug!(name: "PeriodicReader.DuplicateRegistration",
-                    message = "duplicate registration found, did not register periodic reader.");
-                return;
-            }
-            ProducerOrWorker::Worker(w) => mem::replace(w, Box::new(|_| {})),
-        };
+        if inner.sdk_producer.is_some() {
+            // Only register once. If producer is already set, do nothing.
+            otel_debug!(name: "PeriodicReader.DuplicateRegistration",
+                message = "duplicate registration found, did not register periodic reader.");
+            return;
+        }
 
-        inner.sdk_producer_or_worker = ProducerOrWorker::Producer(pipeline);
-        worker(self);
+        inner.sdk_producer = Some(pipeline);
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
@@ -364,10 +363,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             return Err(OTelSdkError::AlreadyShutdown);
         }
 
-        if let Some(producer) = match &inner.sdk_producer_or_worker {
-            ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
-            ProducerOrWorker::Worker(_) => None,
-        } {
+        if let Some(producer) = inner.sdk_producer.as_ref().and_then(|p| p.upgrade()) {
             producer.produce(rm)?;
         } else {
             return Err(OTelSdkError::InternalFailure(
@@ -491,7 +487,59 @@ mod tests {
     }
 
     #[test]
-    fn unregistered_collect() {
+    fn worker_runs_on_runtime_ambient_at_reader_build() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let exporter = InMemoryMetricExporter::default();
+        let reader = {
+            let _guard = rt.enter();
+            PeriodicReader::builder(exporter.clone(), runtime::Tokio)
+                .with_interval(std::time::Duration::from_millis(1))
+                .build()
+        };
+
+        // No tokio runtime is ambient while the provider is built; before the
+        // fix for issue #3601 the worker was spawned here and panicked.
+        let (sender, receiver) = mpsc::channel();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let _counter = meter
+            .u64_observable_counter("testcounter")
+            .with_callback(move |_| {
+                let _ = sender.send(());
+            })
+            .build();
+
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("collection should occur on the runtime captured at build");
+    }
+
+    // multi_thread flavor: force_flush blocks the calling thread until the
+    // worker replies, deadlocking a current-thread runtime (issue #2056).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn duplicate_registration_is_ignored() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
+
+        let first = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+        // The reader keeps its first registration and ignores this one.
+        let second = SdkMeterProvider::builder().with_reader(reader).build();
+
+        let counter = first.meter("test").u64_counter("c").build();
+        counter.add(1, &[]);
+        first.force_flush().unwrap();
+        assert!(!exporter.get_finished_metrics().unwrap().is_empty());
+        drop(second);
+    }
+
+    #[tokio::test]
+    async fn unregistered_collect() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
         let reader = PeriodicReader::builder(exporter.clone(), runtime::Tokio).build();
