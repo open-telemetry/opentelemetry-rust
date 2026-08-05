@@ -48,11 +48,7 @@ impl HttpExportError {
     }
 
     /// Create a new HttpExportError with retry-after header
-    pub(crate) fn with_retry_after(
-        status_code: u16,
-        retry_after: String,
-        message: String,
-    ) -> Self {
+    pub(crate) fn with_retry_after(status_code: u16, retry_after: String, message: String) -> Self {
         Self {
             status_code,
             retry_after: Some(retry_after),
@@ -382,8 +378,9 @@ impl OtlpHttpClient {
     /// Shared HTTP export logic used by all exporters with retry support.
     ///
     /// Uses the configured retry policy with the exporter timeout as the deadline.
-    /// Delays between retries use `std::thread::sleep`, which is safe because the
-    /// SDK's batch processors call exporters from a dedicated OS thread.
+    /// Delays between retries adapt to the calling context: cooperative
+    /// `tokio::time::sleep` inside a Tokio runtime, or `std::thread::sleep`
+    /// on bare OS threads (the SDK's default batch processors).
     async fn export_http_with_retry<F, T>(
         &self,
         data: T,
@@ -411,13 +408,8 @@ impl OtlpHttpClient {
             classify_http_export_error,
             operation_name,
             || async {
-                self.export_http_once(
-                    &retry_data,
-                    content_type,
-                    content_encoding,
-                    operation_name,
-                )
-                .await
+                self.export_http_once(&retry_data, content_type, content_encoding, operation_name)
+                    .await
             },
         )
         .await
@@ -1025,7 +1017,7 @@ mod tests {
                 client: None,
                 headers: Some(initial_headers),
                 compression: None,
-                
+
                 retry_policy: None,
             },
             exporter_config: crate::exporter::ExportConfig::default(),
@@ -1094,7 +1086,6 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
-                
                 None,
             );
 
@@ -1127,7 +1118,6 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
-                
                 None,
             );
 
@@ -1158,7 +1148,6 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 None, // No compression
-                
                 None,
             );
 
@@ -1181,7 +1170,6 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Gzip),
-                
                 None,
             );
 
@@ -1205,7 +1193,6 @@ mod tests {
                 crate::Protocol::HttpBinary,
                 std::time::Duration::from_secs(10),
                 Some(crate::Compression::Zstd),
-                
                 None,
             );
 
@@ -1269,7 +1256,6 @@ mod tests {
                 protocol,
                 std::time::Duration::from_secs(10),
                 compression,
-                
                 None,
             )
         }
@@ -1509,7 +1495,6 @@ mod tests {
             ));
         }
 
-        
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;

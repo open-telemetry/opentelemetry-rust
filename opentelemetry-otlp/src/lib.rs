@@ -552,7 +552,7 @@
 //! can be customized:
 //!
 //! ```no_run
-//! # #[cfg(feature = "trace")]
+//! # #[cfg(all(feature = "trace", feature = "http-proto"))]
 //! # {
 //! use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
 //!

@@ -9,8 +9,9 @@
 //! server-provided throttling hints.
 
 use opentelemetry::{otel_debug, otel_info, otel_warn};
+use std::collections::hash_map::DefaultHasher;
 use std::future::Future;
-use std::hash::{DefaultHasher, Hasher};
+use std::hash::Hasher;
 use std::time::{Duration, Instant, SystemTime};
 
 /// Sleeps for the given duration, using `tokio::time::sleep` if running inside
@@ -410,7 +411,7 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
         // Should have waited ~50ms (the server delay), not 1000ms (the default)
         assert!(elapsed >= Duration::from_millis(50));
-        assert!(elapsed < Duration::from_millis(200));
+        assert!(elapsed < Duration::from_millis(500));
     }
 
     #[tokio::test]

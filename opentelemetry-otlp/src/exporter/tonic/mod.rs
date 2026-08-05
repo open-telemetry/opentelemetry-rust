@@ -173,7 +173,7 @@ impl Default for TonicExporterBuilder {
 
 impl TonicExporterBuilder {
     // This is for clippy to work with only the grpc-tonic feature enabled
-    #[allow(unused)]
+    #[allow(unused, clippy::type_complexity)]
     fn build_channel(
         self,
         signal_endpoint_var: &str,
@@ -262,13 +262,7 @@ impl TonicExporterBuilder {
 
         // If a custom channel was provided, use that channel instead of creating one
         if let Some(channel) = self.tonic_config.channel {
-            return Ok((
-                channel,
-                interceptor,
-                compression,
-                retry_policy,
-                timeout,
-            ));
+            return Ok((channel, interceptor, compression, retry_policy, timeout));
         }
 
         let config = self.exporter_config;
@@ -332,13 +326,7 @@ impl TonicExporterBuilder {
         let channel = endpoint.timeout(timeout).connect_lazy();
 
         otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
-        Ok((
-            channel,
-            interceptor,
-            compression,
-            retry_policy,
-            timeout,
-        ))
+        Ok((channel, interceptor, compression, retry_policy, timeout))
     }
 
     fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
@@ -410,7 +398,8 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
         )?;
 
-        let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy, timeout);
+        let client =
+            TonicMetricsClient::new(channel, interceptor, compression, retry_policy, timeout);
 
         Ok(MetricExporter::from_tonic(client, temporality))
     }
@@ -431,7 +420,8 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
         )?;
 
-        let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy, timeout);
+        let client =
+            TonicTracesClient::new(channel, interceptor, compression, retry_policy, timeout);
 
         Ok(crate::SpanExporter::from_tonic(client))
     }
@@ -439,9 +429,9 @@ impl TonicExporterBuilder {
 
 /// Retries a tonic export operation with exponential backoff.
 ///
-/// Uses `std::thread::sleep` for delays between retries. This is safe because
-/// tonic exporters are called from the SDK's dedicated export thread via
-/// `futures_executor::block_on`.
+/// Delays between retries adapt to the calling context: cooperative
+/// `tokio::time::sleep` inside a Tokio runtime, or `std::thread::sleep`
+/// on bare OS threads.
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
