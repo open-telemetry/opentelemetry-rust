@@ -2,6 +2,13 @@
 
 ## vNext
 
+- `EnvResourceDetector` now percent-decodes attribute keys and values read from
+  `OTEL_RESOURCE_ATTRIBUTES`, matching the W3C Baggage encoding required by the
+  Resource SDK specification. For example,
+  `OTEL_RESOURCE_ATTRIBUTES=key=hello%20world` now yields the value
+  `hello world`. Entries that do not percent-decode to valid UTF-8 are dropped
+  and a warning is logged.
+  ([#857](https://github.com/open-telemetry/opentelemetry-rust/issues/857))
 - Added SDK self-observability metric `otel.sdk.processor.span.processed` for
   `BatchSpanProcessor` and `SimpleSpanProcessor`, feature-gated behind
   `experimental_metrics_bound_instruments`. Spans are counted when the processor
