@@ -44,6 +44,8 @@
 pub(crate) mod aggregation;
 pub mod data;
 mod error;
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+mod exemplar;
 pub mod exporter;
 pub(crate) mod instrument;
 pub(crate) mod internal;
@@ -72,6 +74,9 @@ pub mod in_memory_exporter;
 pub use in_memory_exporter::{InMemoryMetricExporter, InMemoryMetricExporterBuilder};
 
 pub use aggregation::*;
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+#[cfg_attr(docsrs, doc(cfg(feature = "spec_unstable_metrics_exemplars")))]
+pub use exemplar::ExemplarFilter;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use manual_reader::*;
 pub use meter_provider::*;
@@ -6741,5 +6746,114 @@ mod tests {
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
         assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+}
+
+#[cfg(all(test, feature = "testing", feature = "spec_unstable_metrics_exemplars"))]
+mod exemplar_tests {
+    use opentelemetry::metrics::MeterProvider as _;
+    use opentelemetry::trace::{SpanContext, TraceContextExt, TraceState};
+    use opentelemetry::{Context, SpanId, TraceFlags, TraceId};
+
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use crate::metrics::{
+        ExemplarFilter, InMemoryMetricExporter, PeriodicReader, SdkMeterProvider,
+    };
+
+    const TRACE_ID: u128 = 0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10;
+    const SPAN_ID: u64 = 0x1112_1314_1516_1718;
+
+    /// End-to-end check that the filter set on the builder actually reaches the
+    /// histogram aggregation, and that a recorded exemplar carries the ids of
+    /// the sampled span it was recorded under.
+    #[test]
+    fn builder_filter_reaches_the_histogram_and_captures_trace_context() {
+        let exporter = InMemoryMetricExporter::default();
+        let provider = SdkMeterProvider::builder()
+            .with_reader(PeriodicReader::builder(exporter.clone()).build())
+            .with_exemplar_filter(ExemplarFilter::TraceBased)
+            .build();
+
+        let histogram = provider.meter("test").f64_histogram("latency").build();
+
+        let span_cx = SpanContext::new(
+            TraceId::from(TRACE_ID),
+            SpanId::from(SPAN_ID),
+            TraceFlags::SAMPLED,
+            false,
+            TraceState::default(),
+        );
+        {
+            let _guard = Context::current()
+                .with_remote_span_context(span_cx)
+                .attach();
+            histogram.record(1.5, &[]);
+        }
+
+        provider.force_flush().expect("flush should succeed");
+
+        let exemplars: Vec<_> = exporter
+            .get_finished_metrics()
+            .expect("metrics should be exported")
+            .into_iter()
+            .flat_map(|rm| {
+                rm.scope_metrics()
+                    .flat_map(|sm| sm.metrics())
+                    .filter_map(|m| match m.data() {
+                        AggregatedMetrics::F64(MetricData::Histogram(h)) => Some(h),
+                        _ => None,
+                    })
+                    .flat_map(|h| h.data_points())
+                    .flat_map(|dp| dp.exemplars())
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].value, 1.5);
+        assert_eq!(exemplars[0].trace_id, TraceId::from(TRACE_ID).to_bytes());
+        assert_eq!(exemplars[0].span_id, SpanId::from(SPAN_ID).to_bytes());
+    }
+
+    /// The opt-out must be total: nothing is collected even inside a sampled span.
+    #[test]
+    fn always_off_collects_nothing() {
+        let exporter = InMemoryMetricExporter::default();
+        let provider = SdkMeterProvider::builder()
+            .with_reader(PeriodicReader::builder(exporter.clone()).build())
+            .with_exemplar_filter(ExemplarFilter::AlwaysOff)
+            .build();
+
+        let histogram = provider.meter("test").f64_histogram("latency").build();
+
+        let span_cx = SpanContext::new(
+            TraceId::from(TRACE_ID),
+            SpanId::from(SPAN_ID),
+            TraceFlags::SAMPLED,
+            false,
+            TraceState::default(),
+        );
+        {
+            let _guard = Context::current()
+                .with_remote_span_context(span_cx)
+                .attach();
+            histogram.record(1.5, &[]);
+        }
+
+        provider.force_flush().expect("flush should succeed");
+
+        let has_exemplars = exporter
+            .get_finished_metrics()
+            .expect("metrics should be exported")
+            .iter()
+            .flat_map(|rm| rm.scope_metrics().flat_map(|sm| sm.metrics()))
+            .any(|m| match m.data() {
+                AggregatedMetrics::F64(MetricData::Histogram(h)) => {
+                    h.data_points().any(|dp| dp.exemplars().count() > 0)
+                }
+                _ => false,
+            });
+        assert!(!has_exemplars);
     }
 }

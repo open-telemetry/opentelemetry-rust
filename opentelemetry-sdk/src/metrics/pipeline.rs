@@ -14,7 +14,7 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal::{self, AggregateBuilder, Number},
+        internal::{self, AggregateBuilder, ExemplarSampler, Number},
         reader::{MetricReader, SdkProducer},
         view::View,
     },
@@ -38,6 +38,8 @@ pub struct Pipeline {
     pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    exemplar_filter: crate::metrics::ExemplarFilter,
     inner: Mutex<PipelineInner>,
 }
 
@@ -416,10 +418,16 @@ where
             let cardinality_limit = stream
                 .cardinality_limit
                 .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
+            #[cfg(feature = "spec_unstable_metrics_exemplars")]
+            let exemplars = ExemplarSampler::new(self.pipeline.exemplar_filter);
+            #[cfg(not(feature = "spec_unstable_metrics_exemplars"))]
+            let exemplars = ExemplarSampler::new();
+
             let b = AggregateBuilder::new(
                 self.pipeline.reader.temporality(kind),
                 filter,
                 cardinality_limit,
+                exemplars,
             );
             let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
                 Ok(Some(inst)) => inst,
@@ -661,6 +669,8 @@ impl Pipelines {
         res: Resource,
         readers: Vec<Box<dyn MetricReader>>,
         views: Vec<Arc<dyn View>>,
+        #[cfg(feature = "spec_unstable_metrics_exemplars")]
+        exemplar_filter: crate::metrics::ExemplarFilter,
     ) -> Self {
         let mut pipes = Vec::with_capacity(readers.len());
         for r in readers {
@@ -668,6 +678,8 @@ impl Pipelines {
                 resource: res.clone(),
                 reader: r,
                 views: views.clone(),
+                #[cfg(feature = "spec_unstable_metrics_exemplars")]
+                exemplar_filter,
                 inner: Default::default(),
             });
             p.reader.register_pipeline(Arc::downgrade(&p));

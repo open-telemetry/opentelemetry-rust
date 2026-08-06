@@ -1336,13 +1336,18 @@ mod tests {
             TestCase {
                 name: "Delta Single",
                 build: Box::new(move || {
-                    AggregateBuilder::new(Temporality::Delta, None, CARDINALITY_LIMIT_DEFAULT)
-                        .exponential_bucket_histogram(
-                            max_size,
-                            max_scale,
-                            record_min_max,
-                            record_sum,
-                        )
+                    AggregateBuilder::new(
+                        Temporality::Delta,
+                        None,
+                        CARDINALITY_LIMIT_DEFAULT,
+                        Default::default(),
+                    )
+                    .exponential_bucket_histogram(
+                        max_size,
+                        max_scale,
+                        record_min_max,
+                        record_sum,
+                    )
                 }),
                 input: vec![vec![4, 4, 4, 2, 16, 1]
                     .into_iter()
@@ -1381,6 +1386,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        Default::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1426,6 +1432,7 @@ mod tests {
                         Temporality::Delta,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        Default::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,
@@ -1474,6 +1481,7 @@ mod tests {
                         Temporality::Cumulative,
                         None,
                         CARDINALITY_LIMIT_DEFAULT,
+                        Default::default(),
                     )
                     .exponential_bucket_histogram(
                         max_size,

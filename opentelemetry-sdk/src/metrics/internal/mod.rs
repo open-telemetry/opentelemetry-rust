@@ -1,4 +1,5 @@
 mod aggregate;
+mod exemplar;
 mod exponential_histogram;
 mod histogram;
 mod last_value;
@@ -18,6 +19,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
+pub(crate) use exemplar::{AlignedHistogramBucketReservoir, ExemplarOffer, ExemplarSampler};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::otel_debug;
