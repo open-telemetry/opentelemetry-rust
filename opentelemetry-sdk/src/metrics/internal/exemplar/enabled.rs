@@ -54,12 +54,13 @@ impl ExemplarOffer {
     }
 
     fn into_exemplar<T>(self, value: T) -> Exemplar<T> {
+        let this = self;
         Exemplar {
-            filtered_attributes: self.filtered_attributes,
-            time: self.time,
+            filtered_attributes: this.filtered_attributes,
+            time: this.time,
             value,
-            span_id: self.span_id,
-            trace_id: self.trace_id,
+            span_id: this.span_id,
+            trace_id: this.trace_id,
         }
     }
 }
@@ -83,11 +84,17 @@ impl ExemplarSampler {
     ///
     /// `AlwaysOff` returns before touching thread-local storage, so a user who
     /// has opted out pays only a predictable-branch on an enum discriminant.
+    ///
+    /// Boxed so that the ineligible case — every measurement outside a sampled
+    /// span, which is the common one — costs a null pointer to carry down to
+    /// the aggregator rather than a 64-byte struct. The allocation happens only
+    /// for measurements that are actually going to be sampled, which are
+    /// allocating an `Exemplar` anyway.
     #[inline]
-    pub(crate) fn offer(&self) -> Option<ExemplarOffer> {
+    pub(crate) fn offer(&self) -> Option<Box<ExemplarOffer>> {
         match self.filter {
             ExemplarFilter::AlwaysOff => None,
-            ExemplarFilter::AlwaysOn => Some(Context::map_current(|cx| {
+            ExemplarFilter::AlwaysOn => Some(Box::new(Context::map_current(|cx| {
                 let mut offer = ExemplarOffer::at(now());
                 // An unsampled or absent span leaves the ids zeroed, which is
                 // what the spec asks for: the measurement is still eligible.
@@ -99,7 +106,7 @@ impl ExemplarSampler {
                     }
                 }
                 offer
-            })),
+            }))),
             ExemplarFilter::TraceBased => Context::map_current(|cx| {
                 if !cx.has_active_span() {
                     return None;
@@ -111,7 +118,7 @@ impl ExemplarSampler {
                 let mut offer = ExemplarOffer::at(now());
                 offer.trace_id = span_cx.trace_id().to_bytes();
                 offer.span_id = span_cx.span_id().to_bytes();
-                Some(offer)
+                Some(Box::new(offer))
             }),
         }
     }

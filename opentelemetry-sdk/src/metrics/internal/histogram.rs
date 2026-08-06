@@ -26,16 +26,16 @@ where
     type InitConfig = usize;
     /// Value, bucket index, and — when the measurement is exemplar-eligible —
     /// the sampled trace context captured for it.
-    type PreComputedValue = (T, usize, Option<ExemplarOffer>);
+    type PreComputedValue = (T, usize, Option<Box<ExemplarOffer>>);
 
-    fn update(&self, (value, index, exemplar): (T, usize, Option<ExemplarOffer>)) {
+    fn update(&self, (value, index, exemplar): (T, usize, Option<Box<ExemplarOffer>>)) {
         let mut buckets = self.lock().unwrap_or_else(|err| err.into_inner());
 
         if let Some(offer) = exemplar {
             // Free of extra synchronization: this aggregator already holds the
             // lock for the counter update, and the bucket index the aligned
             // reservoir keys on was resolved during precomputation.
-            buckets.exemplars.offer(value, index, offer);
+            buckets.exemplars.offer(value, index, *offer);
         }
 
         buckets.total += value;
@@ -294,7 +294,7 @@ where
                 offer.set_filtered_attributes(attrs, filtered);
             }
             self.value_map
-                .measure((measurement, index, exemplar.clone()), filtered);
+                .measure((measurement, index, exemplar.take()), filtered);
         })
     }
 

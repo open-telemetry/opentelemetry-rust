@@ -29,7 +29,7 @@ impl ExemplarSampler {
 
     /// Always `None`, so no aggregator ever reaches its reservoir.
     #[inline]
-    pub(crate) fn offer(&self) -> Option<ExemplarOffer> {
+    pub(crate) fn offer(&self) -> Option<Box<ExemplarOffer>> {
         None
     }
 }
