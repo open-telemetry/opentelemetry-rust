@@ -176,11 +176,9 @@ where
                         let delay_ms = std::cmp::min(delay + jitter, policy.max_delay_ms);
                         let sleep_duration = Duration::from_millis(delay_ms);
 
-                        // Don't sleep longer than the remaining budget
+                        // If the backoff delay would consume all remaining budget, fail now
                         let remaining = deadline.saturating_sub(start.elapsed());
-                        let actual_sleep = sleep_duration.min(remaining);
-
-                        if actual_sleep.is_zero() {
+                        if sleep_duration >= remaining {
                             otel_warn!(name: "Export.Failed.DeadlineExceeded",
                                 operation = operation_name,
                                 retries = attempt,
@@ -192,10 +190,10 @@ where
                         otel_debug!(name: "Export.InProgress.Retrying",
                             operation = operation_name,
                             attempt = attempt,
-                            delay_ms = actual_sleep.as_millis(),
+                            delay_ms = sleep_duration.as_millis(),
                             message = "OTLP export failed with retryable error - retrying"
                         );
-                        sleep_for(actual_sleep).await;
+                        sleep_for(sleep_duration).await;
                         delay = std::cmp::min(delay * 2, policy.max_delay_ms);
                     }
                     RetryErrorType::Throttled(server_delay) if attempt < policy.max_retries => {
@@ -203,11 +201,9 @@ where
                         // Cap server-provided delay to prevent excessive blocking
                         let capped_delay = server_delay.min(MAX_THROTTLE_DURATION);
 
-                        // Further constrain to remaining time budget
+                        // If the throttle delay would consume all remaining budget, fail now
                         let remaining = deadline.saturating_sub(start.elapsed());
-                        let actual_sleep = capped_delay.min(remaining);
-
-                        if actual_sleep.is_zero() {
+                        if capped_delay >= remaining {
                             otel_warn!(name: "Export.Failed.DeadlineExceeded",
                                 operation = operation_name,
                                 retries = attempt,
@@ -219,11 +215,11 @@ where
                         otel_info!(name: "Export.InProgress.Throttled",
                             operation = operation_name,
                             attempt = attempt,
-                            delay_ms = actual_sleep.as_millis(),
+                            delay_ms = capped_delay.as_millis(),
                             server_requested_ms = server_delay.as_millis(),
                             message = "OTLP export throttled by OTLP endpoint - delaying and retrying"
                         );
-                        sleep_for(actual_sleep).await;
+                        sleep_for(capped_delay).await;
                         // Don't update exponential backoff delay since server provided specific timing
                     }
                     _ => {
@@ -481,6 +477,113 @@ mod tests {
         let elapsed = start.elapsed();
         assert!(result.is_err());
         // Should be capped by the deadline, not sleep for 120s or even 30s
+        assert!(elapsed < Duration::from_millis(500));
+    }
+
+    // Tests exercising the dedicated-thread (std::thread::sleep) path.
+    // These use futures_executor::block_on with no Tokio runtime present.
+
+    #[test]
+    fn test_retry_succeeds_after_retries_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err("error")
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+        // Should have slept at least ~10ms for each of 2 retries
+        assert!(elapsed >= Duration::from_millis(20));
+    }
+
+    #[test]
+    fn test_retry_deadline_exceeded_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 100,
+            initial_delay_ms: 50,
+            max_delay_ms: 200,
+            jitter_ms: 0,
+        };
+        let deadline = Duration::from_millis(120);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert!(result.is_err());
+        // Should have stopped before exhausting 100 retries due to deadline
+        assert!(attempts.load(Ordering::SeqCst) < 10);
+        // Shouldn't have taken much longer than the deadline
+        assert!(elapsed < Duration::from_millis(300));
+    }
+
+    #[test]
+    fn test_retry_throttled_uses_server_delay_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 1000,
+            max_delay_ms: 5000,
+            jitter_ms: 0,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Throttled(Duration::from_millis(50)),
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 1 {
+                        Err(())
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        // Should have waited ~50ms (the server delay), not 1000ms (the default)
+        assert!(elapsed >= Duration::from_millis(50));
         assert!(elapsed < Duration::from_millis(500));
     }
 }

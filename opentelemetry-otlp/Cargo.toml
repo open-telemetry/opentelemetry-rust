@@ -39,7 +39,7 @@ tokio = { workspace = true, features = ["sync", "rt", "time"], optional = true }
 
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
-httpdate = { version = "1.0.3" }
+httpdate = { version = "1.0.3", optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
@@ -52,6 +52,7 @@ zstd = { version = "0.13", optional = true }
 tokio-stream = { workspace = true, features = ["net"] }
 opentelemetry_sdk = { workspace = true, features = ["trace", "testing"], default-features = false }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+futures-executor = { workspace = true }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
@@ -74,9 +75,6 @@ grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-p
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
 
-# grpc with retry support
-
-
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
@@ -91,12 +89,9 @@ tls-roots = ["tonic/tls-native-roots"]
 tls-webpki-roots = ["tonic/tls-webpki-roots"]
 
 # http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "httpdate", "trace", "metrics"]
 
-# http with retry support.
-
-
-http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
+http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "httpdate", "trace", "metrics"]
 
 #
 # HTTP clients

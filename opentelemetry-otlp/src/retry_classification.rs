@@ -65,7 +65,8 @@ pub mod http {
             return Some(Duration::from_secs(capped_seconds));
         }
 
-        // Try parsing as HTTP date
+        // Try parsing as HTTP date (requires httpdate crate)
+        #[cfg(feature = "httpdate")]
         if let Ok(delay_seconds) = parse_http_date_to_delay(retry_after) {
             // Cap at 10 minutes. TODO - what's sensible here?
             let capped_seconds = delay_seconds.min(600);
@@ -76,6 +77,7 @@ pub mod http {
     }
 
     /// Parses HTTP date format and returns delay in seconds from now.
+    #[cfg(feature = "httpdate")]
     fn parse_http_date_to_delay(date_str: &str) -> Result<u64, ()> {
         use std::time::SystemTime;
 
@@ -221,7 +223,7 @@ mod tests {
         }
 
         #[test]
-
+        #[cfg(feature = "httpdate")]
         fn test_http_429_with_retry_after_valid_date() {
             use std::time::SystemTime;
 
@@ -243,14 +245,14 @@ mod tests {
         }
 
         #[test]
-
+        #[cfg(feature = "httpdate")]
         fn test_http_429_with_retry_after_invalid_date() {
             let result = classify_http_error(429, Some("Not a valid date"));
             assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
         }
 
         #[test]
-
+        #[cfg(feature = "httpdate")]
         fn test_http_429_with_retry_after_malformed_date() {
             let result = classify_http_error(429, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
             assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
