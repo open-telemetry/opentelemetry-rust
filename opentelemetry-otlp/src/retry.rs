@@ -14,10 +14,15 @@ use std::future::Future;
 use std::hash::Hasher;
 use std::time::{Duration, Instant, SystemTime};
 
-/// Sleeps for the given duration, using `tokio::time::sleep` if running inside
-/// a Tokio runtime (cooperative, won't block other tasks), or falling back to
-/// `std::thread::sleep` when on a bare OS thread (e.g. the SDK's default
-/// batch-processor export thread).
+/// Sleeps for the given duration.
+///
+/// Uses `tokio::time::sleep` when the `tokio` feature is enabled and a Tokio
+/// runtime is present (cooperative, won't block the reactor); otherwise falls
+/// back to `std::thread::sleep`.
+///
+/// Note: `tokio` is not a default feature, so default builds
+/// (`reqwest-blocking-client`) always use `std::thread::sleep`. It is pulled in
+/// by `grpc-tonic`, `reqwest-client`, and `hyper-client`.
 async fn sleep_for(duration: Duration) {
     #[cfg(feature = "tokio")]
     {
