@@ -7,6 +7,8 @@ mod log_processor;
 mod logger;
 mod logger_provider;
 pub(crate) mod record;
+#[cfg(feature = "experimental_logs_flight_recorder")]
+mod scoped_flight_recorder_log_processor;
 mod simple_log_processor;
 
 /// In-Memory log exporter for testing purpose.
@@ -30,6 +32,12 @@ pub use log_processor::LogProcessor;
 pub use logger::SdkLogger;
 pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};
 pub use record::{SdkLogRecord, TraceContext};
+#[cfg(feature = "experimental_logs_flight_recorder")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_logs_flight_recorder")))]
+pub use scoped_flight_recorder_log_processor::{
+    ScopedFlightRecorder, ScopedFlightRecorderLogProcessor,
+    ScopedFlightRecorderLogProcessorBuilder, ScopedFlightRecorderScope,
+};
 pub use simple_log_processor::SimpleLogProcessor;
 
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]

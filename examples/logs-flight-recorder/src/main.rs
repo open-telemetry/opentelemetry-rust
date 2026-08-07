@@ -7,7 +7,7 @@ use opentelemetry::logs::Severity;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, Protocol, WithExportConfig};
 use opentelemetry_sdk::logs::{
-    BatchConfigBuilder, BatchLogProcessor, FlightRecorderLogProcessor, FlightRecorderTrigger,
+    BatchConfigBuilder, BatchLogProcessor, ScopedFlightRecorder, ScopedFlightRecorderLogProcessor,
     SdkLoggerProvider,
 };
 use opentelemetry_sdk::Resource;
@@ -26,12 +26,13 @@ use url::form_urlencoded;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:3000";
 const DEFAULT_MAX_RECORDS: usize = 64;
+const DEFAULT_MAX_ACTIVE_SCOPES: usize = 1_024;
 const MAX_LOGS_PER_REQUEST: usize = 100;
 
 type HttpBody = BoxBody<Bytes, Infallible>;
 
 struct AppState {
-    trigger: FlightRecorderTrigger,
+    recorder: ScopedFlightRecorder,
     next_request_id: AtomicU64,
 }
 
@@ -45,12 +46,14 @@ enum Outcome {
 struct WorkRequest {
     outcome: Outcome,
     log_count: usize,
+    delay_ms: u64,
     request_id: String,
 }
 
 fn init_logs(
     max_records: usize,
-) -> Result<(SdkLoggerProvider, FlightRecorderTrigger), Box<dyn Error>> {
+    max_active_scopes: usize,
+) -> Result<(SdkLoggerProvider, ScopedFlightRecorder), Box<dyn Error>> {
     let exporter = LogExporter::builder()
         .with_http()
         .with_protocol(Protocol::HttpBinary)
@@ -63,8 +66,9 @@ fn init_logs(
                 .build(),
         )
         .build();
-    let (flight_recorder, trigger) = FlightRecorderLogProcessor::builder(batch_processor)
-        .with_max_records(max_records)
+    let (flight_recorder, recorder) = ScopedFlightRecorderLogProcessor::builder(batch_processor)
+        .with_max_records_per_scope(max_records)
+        .with_max_active_scopes(max_active_scopes)
         .with_max_buffered_severity(Severity::Info4)
         .build();
     let provider = SdkLoggerProvider::builder()
@@ -76,7 +80,7 @@ fn init_logs(
         .with_log_processor(flight_recorder)
         .build();
 
-    Ok((provider, trigger))
+    Ok((provider, recorder))
 }
 
 fn response(status: StatusCode, body: impl Into<Bytes>) -> Response<HttpBody> {
@@ -95,6 +99,7 @@ fn parse_work_request(
 ) -> Result<WorkRequest, &'static str> {
     let mut outcome = Outcome::Ok;
     let mut log_count = 5;
+    let mut delay_ms = 0;
     let mut request_id = default_request_id.to_string();
 
     for (key, value) in form_urlencoded::parse(request.uri().query().unwrap_or_default().as_bytes())
@@ -116,6 +121,14 @@ fn parse_work_request(
                     return Err("logs must be an integer between 1 and 100");
                 }
             }
+            "delay_ms" => {
+                delay_ms = value
+                    .parse()
+                    .map_err(|_| "delay_ms must be an integer between 0 and 1000")?;
+                if delay_ms > 1_000 {
+                    return Err("delay_ms must be an integer between 0 and 1000");
+                }
+            }
             "request_id" => request_id = value.into_owned(),
             _ => {}
         }
@@ -128,6 +141,7 @@ fn parse_work_request(
     Ok(WorkRequest {
         outcome,
         log_count,
+        delay_ms,
         request_id,
     })
 }
@@ -153,36 +167,65 @@ async fn handle_request(
         Outcome::Warn => "warn",
         Outcome::Error => "error",
     };
+    let recording_scope = match state.recorder.try_start() {
+        Some(scope) => scope,
+        None => {
+            return Ok(response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "flight recorder active-scope limit reached",
+            ));
+        }
+    };
 
-    for step in 1..=work.log_count {
-        info!(
-            target: "flight_recorder_demo",
-            event_kind = "work",
-            request_id = work.request_id.as_str(),
-            outcome,
-            step,
-            "processing request"
-        );
-    }
+    recording_scope
+        .with_context(async {
+            for step in 1..=work.log_count {
+                info!(
+                    target: "flight_recorder_demo",
+                    event_kind = "work",
+                    request_id = work.request_id.as_str(),
+                    outcome,
+                    step,
+                    "processing request"
+                );
+                if work.delay_ms > 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(work.delay_ms)).await;
+                }
+            }
+
+            if work.outcome == Outcome::Warn {
+                warn!(
+                    target: "flight_recorder_demo",
+                    event_kind = "warning",
+                    request_id = work.request_id.as_str(),
+                    outcome,
+                    "request completed with a warning; bypassing the flight recorder"
+                );
+            } else if work.outcome == Outcome::Error {
+                error!(
+                    target: "flight_recorder_demo",
+                    event_kind = "failure",
+                    request_id = work.request_id.as_str(),
+                    outcome,
+                    "request failed; triggering the flight recorder"
+                );
+            }
+        })
+        .await;
 
     if work.outcome == Outcome::Ok {
+        recording_scope.discard();
         return Ok(response(
             StatusCode::OK,
             format!(
-                "request {} completed; logs remain in the flight recorder",
+                "request {} completed; scoped logs discarded",
                 work.request_id
             ),
         ));
     }
 
     if work.outcome == Outcome::Warn {
-        warn!(
-            target: "flight_recorder_demo",
-            event_kind = "warning",
-            request_id = work.request_id.as_str(),
-            outcome,
-            "request completed with a warning; bypassing the flight recorder"
-        );
+        recording_scope.discard();
         return Ok(response(
             StatusCode::OK,
             format!(
@@ -192,14 +235,7 @@ async fn handle_request(
         ));
     }
 
-    error!(
-        target: "flight_recorder_demo",
-        event_kind = "failure",
-        request_id = work.request_id.as_str(),
-        outcome,
-        "request failed; triggering the flight recorder"
-    );
-    match tokio::task::block_in_place(|| state.trigger.trigger()) {
+    match tokio::task::block_in_place(|| recording_scope.trigger()) {
         Ok(()) => Ok(response(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!(
@@ -234,19 +270,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if max_records == 0 {
         return Err("FLIGHT_RECORDER_MAX_RECORDS must be greater than zero".into());
     }
+    let max_active_scopes = parse_env(
+        "FLIGHT_RECORDER_MAX_ACTIVE_SCOPES",
+        DEFAULT_MAX_ACTIVE_SCOPES,
+    )?;
+    if max_active_scopes == 0 {
+        return Err("FLIGHT_RECORDER_MAX_ACTIVE_SCOPES must be greater than zero".into());
+    }
 
-    let (logger_provider, trigger) = init_logs(max_records)?;
+    let (logger_provider, recorder) = init_logs(max_records, max_active_scopes)?;
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider)
         .with_filter(EnvFilter::new("off").add_directive("flight_recorder_demo=info".parse()?));
     tracing_subscriber::registry().with(otel_layer).try_init()?;
 
     let state = Arc::new(AppState {
-        trigger,
+        recorder,
         next_request_id: AtomicU64::new(1),
     });
     let listener = TcpListener::bind(listen_addr).await?;
     eprintln!("flight recorder demo listening on http://{listen_addr}");
-    eprintln!("try: /work?result=ok|warn|error&logs=5");
+    eprintln!("try: /work?result=ok|warn|error&logs=5&delay_ms=0");
 
     loop {
         tokio::select! {

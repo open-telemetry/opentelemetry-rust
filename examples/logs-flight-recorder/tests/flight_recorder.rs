@@ -198,7 +198,7 @@ async fn wait_for_records(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
+async fn isolates_concurrent_scopes_and_exports_triggered_snapshots_to_otlp() {
     let (collector_address, requests, collector_task) = start_fake_collector().await;
     let app_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let app_address = app_listener.local_addr().unwrap();
@@ -221,13 +221,6 @@ async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
     wait_until_ready(app_address).await;
 
     assert_eq!(
-        get(app_address, "/work?result=ok&logs=4&request_id=successful").await,
-        200
-    );
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    assert!(requests.lock().unwrap().is_empty());
-
-    assert_eq!(
         get(app_address, "/work?result=warn&logs=1&request_id=warning").await,
         200
     );
@@ -241,13 +234,23 @@ async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
         Some("request completed with a warning; bypassing the flight recorder")
     );
 
+    let successful_request = tokio::spawn(get(
+        app_address,
+        "/work?result=ok&logs=4&delay_ms=75&request_id=successful",
+    ));
+    tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(
-        get(app_address, "/work?result=error&logs=2&request_id=failing").await,
+        get(
+            app_address,
+            "/work?result=error&logs=2&delay_ms=10&request_id=failing",
+        )
+        .await,
         500
     );
+    assert_eq!(successful_request.await.unwrap(), 200);
 
-    let records = wait_for_records(&requests, 7).await;
-    assert_eq!(records.len(), 7);
+    let records = wait_for_records(&requests, 4).await;
+    assert_eq!(records.len(), 4);
 
     let identities = records
         .iter()
@@ -272,9 +275,6 @@ async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
         [
             ("warning".into(), "warning".into(), None),
             ("failing".into(), "failure".into(), None),
-            ("successful".into(), "work".into(), Some(3)),
-            ("successful".into(), "work".into(), Some(4)),
-            ("warning".into(), "work".into(), Some(1)),
             ("failing".into(), "work".into(), Some(1)),
             ("failing".into(), "work".into(), Some(2)),
         ]
@@ -283,29 +283,26 @@ async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
     assert!(records[2..]
         .iter()
         .all(|record| record.severity_number == 9));
+    assert!(records.iter().all(|record| {
+        string_attribute(record, "request_id") != Some("successful")
+            && !(string_attribute(record, "request_id") == Some("warning")
+                && string_attribute(record, "event_kind") == Some("work"))
+    }));
 
-    assert_eq!(
-        get(
-            app_address,
-            "/work?result=ok&logs=1&request_id=after-trigger"
-        )
-        .await,
-        200
-    );
     tokio::time::sleep(Duration::from_millis(200)).await;
-    assert_eq!(all_log_records(&requests.lock().unwrap()).len(), 7);
+    assert_eq!(all_log_records(&requests.lock().unwrap()).len(), 4);
 
     assert_eq!(
         get(
             app_address,
-            "/work?result=error&logs=1&request_id=second-failure"
+            "/work?result=error&logs=1&request_id=second-failure",
         )
         .await,
         500
     );
-    let records = wait_for_records(&requests, 10).await;
-    assert_eq!(records.len(), 10);
-    let second_snapshot = records[7..]
+    let records = wait_for_records(&requests, 6).await;
+    assert_eq!(records.len(), 6);
+    let second_snapshot = records[4..]
         .iter()
         .map(|record| {
             (
@@ -319,7 +316,6 @@ async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
         second_snapshot,
         [
             ("second-failure", "failure", None),
-            ("after-trigger", "work", Some(1)),
             ("second-failure", "work", Some(1)),
         ]
     );

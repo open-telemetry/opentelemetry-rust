@@ -13,18 +13,28 @@ exports the recent context leading up to that condition.
 This is an experimental prototype enabled by the
 `experimental_logs_flight_recorder` feature.
 
-## How it works
+The SDK prototype provides two variants:
 
-The `FlightRecorderLogProcessor` wraps another `LogProcessor`, such as a
+- `FlightRecorderLogProcessor` maintains one application-wide buffer.
+- `ScopedFlightRecorderLogProcessor` maintains an isolated buffer for each
+  explicitly created operation scope.
+
+The demo uses scoped recording to model concurrent HTTP requests without
+coupling the SDK API to a particular Rust web framework.
+
+## How scoped recording works
+
+The `ScopedFlightRecorderLogProcessor` wraps another `LogProcessor`, such as a
 `BatchLogProcessor`:
 
 ```text
 application logs
       |
       v
-FlightRecorderLogProcessor
-  INFO and lower: bounded ring buffer
+ScopedFlightRecorderLogProcessor
+  INFO and lower with context: per-operation ring buffer
   WARN and higher: direct path
+  logs without a scope: direct path
       |
       | only after a trigger
       v
@@ -34,13 +44,13 @@ BatchLogProcessor
 OTLP exporter
 ```
 
-Creating the processor also returns a cloneable `FlightRecorderTrigger`. The
-handle can be passed to application logic, request handlers, health monitors, or
-controllers that know when the retained logs should be exported.
+Creating the processor also returns a cloneable `ScopedFlightRecorder` handle.
+Applications use it to create a scope at a request, job, RPC, or message
+boundary.
 
 ```rust
 use opentelemetry_sdk::logs::{
-    BatchConfigBuilder, BatchLogProcessor, FlightRecorderLogProcessor,
+    BatchConfigBuilder, BatchLogProcessor, ScopedFlightRecorderLogProcessor,
     SdkLoggerProvider,
 };
 use opentelemetry::logs::Severity;
@@ -55,9 +65,10 @@ let batch_processor = BatchLogProcessor::builder(exporter)
     )
     .build();
 
-let (flight_recorder, trigger) =
-    FlightRecorderLogProcessor::builder(batch_processor)
-        .with_max_records(MAX_RECORDS)
+let (flight_recorder, recorder) =
+    ScopedFlightRecorderLogProcessor::builder(batch_processor)
+        .with_max_records_per_scope(MAX_RECORDS)
+        .with_max_active_scopes(1_024)
         .with_max_buffered_severity(Severity::Info4)
         .build();
 
@@ -65,15 +76,24 @@ let logger_provider = SdkLoggerProvider::builder()
     .with_log_processor(flight_recorder)
     .build();
 
-// Application code decides when the retained context is valuable.
-if operation_failed {
-    trigger.trigger()?;
+let operation = recorder.try_start().expect("scope capacity available");
+let result = operation
+    .with_context(async {
+        run_operation().await
+    })
+    .await;
+
+if result.is_err() {
+    operation.trigger()?;
+} else {
+    operation.discard();
 }
 ```
 
 When wrapping a batch processor, its queue should have at least as many free
-slots as the maximum flight-recorder snapshot. This example configures both
-limits to the same record count.
+slots as the maximum snapshot from one scope. This example configures both
+limits to the same record count. The active-scope limit bounds total memory
+usage under high request concurrency.
 
 ## Running the demo
 
@@ -88,14 +108,16 @@ cargo run -p logs-flight-recorder
 
 The server listens on `127.0.0.1:3000` by default.
 
-A successful request generates logs but does not export them:
+A successful request generates scoped INFO logs and discards them when the
+request completes:
 
 ```shell
 curl "http://127.0.0.1:3000/work?result=ok&logs=5&request_id=successful"
 ```
 
-A warning request demonstrates the normal export path. Its INFO records remain
-buffered, while its WARN record is handed directly to the batch processor:
+A warning request demonstrates the normal export path. Its INFO records are
+discarded with the successful scope, while its WARN record is handed directly
+to the batch processor:
 
 ```shell
 curl "http://127.0.0.1:3000/work?result=warn&logs=5&request_id=warning"
@@ -107,23 +129,32 @@ A failing request records its own logs and triggers the current snapshot:
 curl "http://127.0.0.1:3000/work?result=error&logs=5&request_id=failing"
 ```
 
-The exported snapshot can include logs from the earlier successful request.
-This is expected because the prototype uses one application-wide buffer rather
-than a separate buffer for each request. Every demo log includes a
-`request_id` attribute so interleaved requests can be distinguished.
+Only the failing request's buffered INFO records are exported. Logs from
+successful or concurrently executing requests remain isolated in their own
+scopes.
+
+Use `delay_ms` to make concurrent request isolation easy to observe:
+
+```shell
+curl "http://127.0.0.1:3000/work?result=ok&logs=5&delay_ms=200&request_id=slow-success" &
+curl "http://127.0.0.1:3000/work?result=error&logs=2&request_id=failure"
+```
+
+The failure snapshot contains only records with `request_id=failure`.
 
 Configuration:
 
 | Environment variable | Default | Description |
 | --- | --- | --- |
 | `FLIGHT_RECORDER_LISTEN_ADDR` | `127.0.0.1:3000` | Demo HTTP listen address |
-| `FLIGHT_RECORDER_MAX_RECORDS` | `64` | Maximum retained log records |
+| `FLIGHT_RECORDER_MAX_RECORDS` | `64` | Maximum retained records per request |
+| `FLIGHT_RECORDER_MAX_ACTIVE_SCOPES` | `1024` | Maximum concurrent request scopes |
 | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | OTLP exporter default | OTLP logs endpoint |
 
 ## Trigger ideas
 
-The trigger is deliberately independent of any Rust web framework. Applications
-can invoke it when:
+Scopes are deliberately independent of any Rust web framework. Applications
+can create and trigger them around:
 
 - a request or background job fails;
 - an operation exceeds a latency threshold;
@@ -142,11 +173,16 @@ configurable.
 - INFO and lower-severity records are buffered by default; WARN and higher
   records bypass the buffer.
 - The oldest records are overwritten when the buffer is full.
-- Triggering drains the current snapshot. Logs arriving during replay are kept
-  for the next trigger.
-- `force_flush` also triggers and exports the current snapshot.
+- Each operation scope has its own ring buffer.
+- Triggering drains that scope and switches it to passthrough so subsequent
+  records follow the normal path.
+- Dropping or discarding an untriggered scope loses its buffered records.
+- Logs without an attached scope follow the normal path.
+- Independently spawned tasks must explicitly use the same scope's
+  `with_context` wrapper.
+- `force_flush` triggers and exports all currently active scoped snapshots.
 - Untriggered records are discarded during shutdown.
 - Snapshot handoff is at-most-once and best-effort because the wrapped
   `LogProcessor::emit` API cannot report whether each record was accepted.
-- The buffer is application-wide per processor instance. Per-request or
-  operation-scoped buffers are not implemented.
+- The global `FlightRecorderLogProcessor` remains available when one shared
+  application-wide history is preferred.
