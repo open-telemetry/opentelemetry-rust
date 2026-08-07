@@ -1,6 +1,8 @@
 //! # OpenTelemetry Log SDK
 mod batch_log_processor;
 mod export;
+#[cfg(feature = "experimental_logs_flight_recorder")]
+mod flight_recorder_log_processor;
 mod log_processor;
 mod logger;
 mod logger_provider;
@@ -19,6 +21,11 @@ pub use batch_log_processor::{
     BatchConfig, BatchConfigBuilder, BatchLogProcessor, BatchLogProcessorBuilder,
 };
 pub use export::{LogBatch, LogExporter};
+#[cfg(feature = "experimental_logs_flight_recorder")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_logs_flight_recorder")))]
+pub use flight_recorder_log_processor::{
+    FlightRecorderLogProcessor, FlightRecorderLogProcessorBuilder, FlightRecorderTrigger,
+};
 pub use log_processor::LogProcessor;
 pub use logger::SdkLogger;
 pub use logger_provider::{LoggerProviderBuilder, SdkLoggerProvider};

@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Added an experimental global flight-recorder log processor, feature-gated
+  behind `experimental_logs_flight_recorder`. It retains a configurable number
+  of recent log records in a bounded ring buffer and exports the current
+  snapshot through a wrapped processor when its cloneable trigger is invoked.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and
