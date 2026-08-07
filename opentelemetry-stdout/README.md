@@ -36,11 +36,13 @@ of telemetry is intentionally left to other tools.
 
 ### What does this crate contain?
 
-This crate includes exporters that support all three signals - Logs, Metrics,
-and Traces — to standard output. It is intended solely for educational and
-debugging purposes. Please note, this crate is not optimized for performance,
-and the format of the output may change, making it unsuitable for production
-environments
+This crate provides exporters for all three OpenTelemetry signals - Logs,
+Metrics and Traces - that write to standard output in a human-readable format.
+It is intended solely for learning, debugging and local development, where
+inspecting telemetry without setting up a backend is useful.
+
+This crate is not optimized for performance, and the exact output format may
+change between releases, so it should not be used in production.
 
 ## Getting started
 
@@ -53,7 +55,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
