@@ -23,7 +23,8 @@ application logs
       |
       v
 FlightRecorderLogProcessor
-  bounded in-memory ring buffer
+  INFO and lower: bounded ring buffer
+  WARN and higher: direct path
       |
       | only after a trigger
       v
@@ -42,6 +43,7 @@ use opentelemetry_sdk::logs::{
     BatchConfigBuilder, BatchLogProcessor, FlightRecorderLogProcessor,
     SdkLoggerProvider,
 };
+use opentelemetry::logs::Severity;
 
 const MAX_RECORDS: usize = 1_024;
 
@@ -56,6 +58,7 @@ let batch_processor = BatchLogProcessor::builder(exporter)
 let (flight_recorder, trigger) =
     FlightRecorderLogProcessor::builder(batch_processor)
         .with_max_records(MAX_RECORDS)
+        .with_max_buffered_severity(Severity::Info4)
         .build();
 
 let logger_provider = SdkLoggerProvider::builder()
@@ -91,6 +94,13 @@ A successful request generates logs but does not export them:
 curl "http://127.0.0.1:3000/work?result=ok&logs=5&request_id=successful"
 ```
 
+A warning request demonstrates the normal export path. Its INFO records remain
+buffered, while its WARN record is handed directly to the batch processor:
+
+```shell
+curl "http://127.0.0.1:3000/work?result=warn&logs=5&request_id=warning"
+```
+
 A failing request records its own logs and triggers the current snapshot:
 
 ```shell
@@ -121,13 +131,16 @@ can invoke it when:
 - a health check detects degradation;
 - business logic encounters an unexpected state.
 
-High-severity logs that must always be delivered can use a separate processor.
-The flight recorder can then retain verbose contextual logs for selective
-export.
+By default, the flight recorder buffers the TRACE, DEBUG, and INFO severity
+ranges. WARN, ERROR, and FATAL records bypass the ring buffer and follow the
+wrapped processor's normal export path. The maximum buffered severity is
+configurable.
 
 ## Prototype semantics and limitations
 
 - Capacity is based on record count, not estimated encoded bytes.
+- INFO and lower-severity records are buffered by default; WARN and higher
+  records bypass the buffer.
 - The oldest records are overwritten when the buffer is full.
 - Triggering drains the current snapshot. Logs arriving during replay are kept
   for the next trigger.
@@ -137,4 +150,3 @@ export.
   `LogProcessor::emit` API cannot report whether each record was accepted.
 - The buffer is application-wide per processor instance. Per-request or
   operation-scoped buffers are not implemented.
-

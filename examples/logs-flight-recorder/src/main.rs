@@ -3,6 +3,7 @@ use hyper::body::{Bytes, Incoming};
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use opentelemetry::logs::Severity;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, Protocol, WithExportConfig};
 use opentelemetry_sdk::logs::{
@@ -17,7 +18,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
@@ -37,6 +38,7 @@ struct AppState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Outcome {
     Ok,
+    Warn,
     Error,
 }
 
@@ -63,6 +65,7 @@ fn init_logs(
         .build();
     let (flight_recorder, trigger) = FlightRecorderLogProcessor::builder(batch_processor)
         .with_max_records(max_records)
+        .with_max_buffered_severity(Severity::Info4)
         .build();
     let provider = SdkLoggerProvider::builder()
         .with_resource(
@@ -100,8 +103,9 @@ fn parse_work_request(
             "result" => {
                 outcome = match value.as_ref() {
                     "ok" => Outcome::Ok,
+                    "warn" => Outcome::Warn,
                     "error" => Outcome::Error,
-                    _ => return Err("result must be 'ok' or 'error'"),
+                    _ => return Err("result must be 'ok', 'warn', or 'error'"),
                 };
             }
             "logs" => {
@@ -146,6 +150,7 @@ async fn handle_request(
     };
     let outcome = match work.outcome {
         Outcome::Ok => "ok",
+        Outcome::Warn => "warn",
         Outcome::Error => "error",
     };
 
@@ -165,6 +170,23 @@ async fn handle_request(
             StatusCode::OK,
             format!(
                 "request {} completed; logs remain in the flight recorder",
+                work.request_id
+            ),
+        ));
+    }
+
+    if work.outcome == Outcome::Warn {
+        warn!(
+            target: "flight_recorder_demo",
+            event_kind = "warning",
+            request_id = work.request_id.as_str(),
+            outcome,
+            "request completed with a warning; bypassing the flight recorder"
+        );
+        return Ok(response(
+            StatusCode::OK,
+            format!(
+                "request {} completed; warning followed the normal export path",
                 work.request_id
             ),
         ));
@@ -224,7 +246,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
     let listener = TcpListener::bind(listen_addr).await?;
     eprintln!("flight recorder demo listening on http://{listen_addr}");
-    eprintln!("try: /work?result=ok&logs=5 and /work?result=error&logs=5");
+    eprintln!("try: /work?result=ok|warn|error&logs=5");
 
     loop {
         tokio::select! {

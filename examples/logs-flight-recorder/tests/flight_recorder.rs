@@ -174,8 +174,31 @@ fn string_body(record: &LogRecord) -> Option<&str> {
         })
 }
 
+async fn wait_for_records(
+    requests: &Mutex<Vec<ExportLogsServiceRequest>>,
+    expected_count: usize,
+) -> Vec<LogRecord> {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let records = {
+                let requests = requests.lock().unwrap();
+                all_log_records(&requests)
+                    .into_iter()
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            if records.len() >= expected_count {
+                break records;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("collector did not receive the expected logs")
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
+async fn routes_high_severity_logs_and_exports_triggered_snapshots_to_otlp() {
     let (collector_address, requests, collector_task) = start_fake_collector().await;
     let app_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let app_address = app_listener.local_addr().unwrap();
@@ -205,35 +228,37 @@ async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
     assert!(requests.lock().unwrap().is_empty());
 
     assert_eq!(
+        get(app_address, "/work?result=warn&logs=1&request_id=warning").await,
+        200
+    );
+    let records = wait_for_records(&requests, 1).await;
+    assert_eq!(records.len(), 1);
+    assert_eq!(string_attribute(&records[0], "request_id"), Some("warning"));
+    assert_eq!(string_attribute(&records[0], "event_kind"), Some("warning"));
+    assert_eq!(records[0].severity_number, 13);
+    assert_eq!(
+        string_body(&records[0]),
+        Some("request completed with a warning; bypassing the flight recorder")
+    );
+
+    assert_eq!(
         get(app_address, "/work?result=error&logs=2&request_id=failing").await,
         500
     );
 
-    let records = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            let records = {
-                let requests = requests.lock().unwrap();
-                all_log_records(&requests)
-                    .into_iter()
-                    .cloned()
-                    .collect::<Vec<_>>()
-            };
-            if records.len() >= 5 {
-                break records;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("collector did not receive the expected logs");
-    assert_eq!(records.len(), 5);
+    let records = wait_for_records(&requests, 7).await;
+    assert_eq!(records.len(), 7);
 
     let identities = records
         .iter()
         .map(|record| {
             assert!(matches!(
                 string_body(record),
-                Some("processing request" | "request failed; triggering the flight recorder")
+                Some(
+                    "processing request"
+                        | "request completed with a warning; bypassing the flight recorder"
+                        | "request failed; triggering the flight recorder"
+                )
             ));
             (
                 string_attribute(record, "request_id").unwrap().to_string(),
@@ -245,13 +270,19 @@ async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
     assert_eq!(
         identities,
         [
+            ("warning".into(), "warning".into(), None),
+            ("failing".into(), "failure".into(), None),
             ("successful".into(), "work".into(), Some(3)),
             ("successful".into(), "work".into(), Some(4)),
+            ("warning".into(), "work".into(), Some(1)),
             ("failing".into(), "work".into(), Some(1)),
             ("failing".into(), "work".into(), Some(2)),
-            ("failing".into(), "failure".into(), None),
         ]
     );
+    assert_eq!(records[1].severity_number, 17);
+    assert!(records[2..]
+        .iter()
+        .all(|record| record.severity_number == 9));
 
     assert_eq!(
         get(
@@ -262,7 +293,7 @@ async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
         200
     );
     tokio::time::sleep(Duration::from_millis(200)).await;
-    assert_eq!(all_log_records(&requests.lock().unwrap()).len(), 5);
+    assert_eq!(all_log_records(&requests.lock().unwrap()).len(), 7);
 
     assert_eq!(
         get(
@@ -272,25 +303,9 @@ async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
         .await,
         500
     );
-    let records = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            let records = {
-                let requests = requests.lock().unwrap();
-                all_log_records(&requests)
-                    .into_iter()
-                    .cloned()
-                    .collect::<Vec<_>>()
-            };
-            if records.len() >= 8 {
-                break records;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("collector did not receive the second snapshot");
-    assert_eq!(records.len(), 8);
-    let second_snapshot = records[5..]
+    let records = wait_for_records(&requests, 10).await;
+    assert_eq!(records.len(), 10);
+    let second_snapshot = records[7..]
         .iter()
         .map(|record| {
             (
@@ -303,9 +318,9 @@ async fn exports_only_the_triggered_bounded_snapshot_to_otlp() {
     assert_eq!(
         second_snapshot,
         [
+            ("second-failure", "failure", None),
             ("after-trigger", "work", Some(1)),
             ("second-failure", "work", Some(1)),
-            ("second-failure", "failure", None),
         ]
     );
 

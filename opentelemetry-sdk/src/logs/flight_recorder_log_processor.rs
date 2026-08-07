@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock, TryLockError};
 use std::time::{Duration, Instant};
 
 const DEFAULT_MAX_RECORDS: usize = 2_048;
+const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
 
 type BufferedLog = (SdkLogRecord, InstrumentationScope);
 
@@ -19,6 +20,12 @@ type BufferedLog = (SdkLogRecord, InstrumentationScope);
 /// [`FlightRecorderTrigger::trigger`] drains the current snapshot into the
 /// wrapped processor and then force-flushes it. Calling
 /// [`LogProcessor::force_flush`] has the same effect.
+///
+/// By default, records in the TRACE, DEBUG, and INFO severity ranges are
+/// buffered, while WARN, ERROR, and FATAL records bypass the buffer and are
+/// immediately handed to the wrapped processor. Records without a severity are
+/// buffered. The threshold can be changed with
+/// [`FlightRecorderLogProcessorBuilder::with_max_buffered_severity`].
 ///
 /// When wrapping a [`crate::logs::BatchLogProcessor`], configure its queue to
 /// have at least `max_records` free slots when a trigger starts. Triggers are
@@ -39,6 +46,7 @@ impl<P: LogProcessor> Debug for FlightRecorderLogProcessor<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("FlightRecorderLogProcessor")
             .field("max_records", &self.shared.max_records)
+            .field("max_buffered_severity", &self.shared.max_buffered_severity)
             .finish_non_exhaustive()
     }
 }
@@ -49,6 +57,7 @@ impl<P: LogProcessor> FlightRecorderLogProcessor<P> {
         FlightRecorderLogProcessorBuilder {
             delegate,
             max_records: DEFAULT_MAX_RECORDS,
+            max_buffered_severity: DEFAULT_MAX_BUFFERED_SEVERITY,
         }
     }
 }
@@ -58,6 +67,7 @@ impl<P: LogProcessor> FlightRecorderLogProcessor<P> {
 pub struct FlightRecorderLogProcessorBuilder<P: LogProcessor> {
     delegate: P,
     max_records: usize,
+    max_buffered_severity: Severity,
 }
 
 impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
@@ -68,6 +78,16 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
     /// [`build`](Self::build) panics if `max_records` is zero.
     pub fn with_max_records(mut self, max_records: usize) -> Self {
         self.max_records = max_records;
+        self
+    }
+
+    /// Sets the highest severity retained by the flight recorder.
+    ///
+    /// Records with a higher severity bypass the ring buffer and are handed
+    /// directly to the wrapped processor. Records without a severity are
+    /// buffered.
+    pub fn with_max_buffered_severity(mut self, severity: Severity) -> Self {
+        self.max_buffered_severity = severity;
         self
     }
 
@@ -90,6 +110,7 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
             }),
             trigger_lock: Mutex::new(()),
             max_records: self.max_records,
+            max_buffered_severity: self.max_buffered_severity,
         });
         let trigger = FlightRecorderTrigger {
             inner: shared.clone(),
@@ -133,6 +154,7 @@ struct Shared<P: LogProcessor> {
     state: Mutex<State>,
     trigger_lock: Mutex<()>,
     max_records: usize,
+    max_buffered_severity: Severity,
 }
 
 struct State {
@@ -147,6 +169,15 @@ impl<P: LogProcessor> Shared<P> {
             .lock()
             .map_err(|err| mutex_error("trigger", err))?;
 
+        let delegate = self
+            .delegate
+            .write()
+            .map_err(|err| lock_error("delegate", err))?;
+
+        // Export records that bypassed the recorder before replaying the
+        // contextual snapshot.
+        delegate.force_flush()?;
+
         let snapshot = {
             let mut state = self
                 .state
@@ -158,10 +189,9 @@ impl<P: LogProcessor> Shared<P> {
             std::mem::take(&mut state.records)
         };
 
-        let delegate = self
-            .delegate
-            .read()
-            .map_err(|err| lock_error("delegate", err))?;
+        if snapshot.is_empty() {
+            return Ok(());
+        }
         for (mut record, instrumentation) in snapshot {
             delegate.emit(&mut record, &instrumentation);
         }
@@ -201,6 +231,42 @@ impl<P: LogProcessor> TriggerFlightRecorder for Shared<P> {
 
 impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        if record
+            .severity_number()
+            .is_some_and(|severity| severity > self.shared.max_buffered_severity)
+        {
+            let delegate = match self.shared.delegate.read() {
+                Ok(delegate) => delegate,
+                Err(err) => {
+                    otel_warn!(
+                        name: "FlightRecorderLogProcessor.DelegateLockFailed",
+                        error = format!("{err}")
+                    );
+                    return;
+                }
+            };
+            let state = match self.shared.state.lock() {
+                Ok(state) => state,
+                Err(err) => {
+                    otel_warn!(
+                        name: "FlightRecorderLogProcessor.BufferLockFailed",
+                        error = format!("{err}")
+                    );
+                    return;
+                }
+            };
+            if state.is_shutdown {
+                otel_warn!(
+                    name: "FlightRecorderLogProcessor.EmitAfterShutdown",
+                    message = "FlightRecorderLogProcessor dropped a log emitted after shutdown."
+                );
+                return;
+            }
+            drop(state);
+            delegate.emit(record, instrumentation);
+            return;
+        }
+
         let buffered_log = (record.clone(), instrumentation.clone());
         let mut state = match self.shared.state.lock() {
             Ok(state) => state,
@@ -251,7 +317,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
         let remaining = timeout.saturating_sub(start.elapsed());
         self.shared
             .delegate
-            .read()
+            .write()
             .map_err(|err| lock_error("delegate", err))?
             .shutdown_with_timeout(remaining)
     }
@@ -384,6 +450,12 @@ mod tests {
         record
     }
 
+    fn record_with_severity(body: &'static str, severity: Severity) -> SdkLogRecord {
+        let mut record = record(body);
+        record.set_severity_number(severity);
+        record
+    }
+
     fn bodies(processor: &TestProcessor) -> Vec<String> {
         processor
             .records
@@ -409,7 +481,7 @@ mod tests {
 
         trigger.trigger().unwrap();
         assert_eq!(bodies(&delegate), ["one", "two"]);
-        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 1);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 2);
     }
 
     #[test]
@@ -440,7 +512,7 @@ mod tests {
         trigger.trigger().unwrap();
 
         assert_eq!(bodies(&delegate), ["one", "two"]);
-        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 2);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 4);
     }
 
     #[test]
@@ -488,7 +560,7 @@ mod tests {
         second_thread.join().unwrap().unwrap();
 
         assert_eq!(bodies(&delegate), ["one"]);
-        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 2);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 3);
     }
 
     #[test]
@@ -501,7 +573,51 @@ mod tests {
         processor.force_flush().unwrap();
 
         assert_eq!(bodies(&delegate), ["one"]);
-        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 1);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn higher_severity_records_bypass_the_buffer() {
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor.emit(&mut record_with_severity("info", Severity::Info), &scope);
+        processor.emit(&mut record_with_severity("warn", Severity::Warn), &scope);
+
+        assert_eq!(bodies(&delegate), ["warn"]);
+        trigger.trigger().unwrap();
+        assert_eq!(bodies(&delegate), ["warn", "info"]);
+    }
+
+    #[test]
+    fn higher_severity_records_are_dropped_after_shutdown() {
+        let delegate = TestProcessor::new(true);
+        let (processor, _trigger) = FlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor
+            .shutdown_with_timeout(Duration::from_secs(1))
+            .unwrap();
+        processor.emit(&mut record_with_severity("warn", Severity::Warn), &scope);
+
+        assert!(bodies(&delegate).is_empty());
+    }
+
+    #[test]
+    fn buffered_severity_threshold_is_configurable() {
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_buffered_severity(Severity::Warn4)
+            .build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor.emit(&mut record_with_severity("warn", Severity::Warn), &scope);
+        processor.emit(&mut record_with_severity("error", Severity::Error), &scope);
+
+        assert_eq!(bodies(&delegate), ["error"]);
+        trigger.trigger().unwrap();
+        assert_eq!(bodies(&delegate), ["error", "warn"]);
     }
 
     #[test]
