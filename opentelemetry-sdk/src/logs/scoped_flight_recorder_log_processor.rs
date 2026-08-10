@@ -312,18 +312,21 @@ impl<P: LogProcessor> ScopedShared<P> {
             .map_err(|err| lock_error("delegate", err))?;
         delegate.force_flush()?;
 
-        let mut emitted = false;
         for buffer in buffers {
-            for (mut record, instrumentation) in buffer.take_and_passthrough()? {
-                emitted = true;
+            let snapshot = buffer.take_and_passthrough()?;
+            if snapshot.is_empty() {
+                continue;
+            }
+            for (mut record, instrumentation) in snapshot {
                 delegate.emit(&mut record, &instrumentation);
             }
+            // Bound each handoff to one scope so a delegate queue sized for
+            // max_records_per_scope does not need capacity for every active
+            // scope at once.
+            delegate.force_flush()?;
         }
-        if emitted {
-            delegate.force_flush()
-        } else {
-            Ok(())
-        }
+
+        Ok(())
     }
 
     fn active_buffers(&self) -> Result<Vec<Arc<ScopeBuffer>>, OTelSdkError> {
@@ -527,6 +530,35 @@ mod tests {
         flushes: Arc<AtomicUsize>,
     }
 
+    #[derive(Debug, Clone)]
+    struct BoundedQueueProcessor {
+        pending: Arc<Mutex<Vec<BufferedLog>>>,
+        exported: Arc<Mutex<Vec<BufferedLog>>>,
+        dropped: Arc<AtomicUsize>,
+        capacity: usize,
+    }
+
+    impl LogProcessor for BoundedQueueProcessor {
+        fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+            let mut pending = self.pending.lock().unwrap();
+            if pending.len() == self.capacity {
+                self.dropped.fetch_add(1, Ordering::Relaxed);
+                return;
+            }
+            pending.push((record.clone(), instrumentation.clone()));
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            let mut pending = self.pending.lock().unwrap();
+            self.exported.lock().unwrap().extend(pending.drain(..));
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
     impl TestProcessor {
         fn new() -> Self {
             Self {
@@ -666,6 +698,36 @@ mod tests {
         let mut exported = bodies(&delegate);
         exported.sort();
         assert_eq!(exported, ["first", "second"]);
+    }
+
+    #[test]
+    fn force_flush_replays_each_scope_within_delegate_queue_capacity() {
+        let delegate = BoundedQueueProcessor {
+            pending: Arc::new(Mutex::new(Vec::new())),
+            exported: Arc::new(Mutex::new(Vec::new())),
+            dropped: Arc::new(AtomicUsize::new(0)),
+            capacity: 2,
+        };
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_records_per_scope(2)
+            .build();
+        let first = recorder.try_start().unwrap();
+        let second = recorder.try_start().unwrap();
+        let instrumentation = InstrumentationScope::builder("test").build();
+
+        futures_executor::block_on(first.with_context(async {
+            processor.emit(&mut record("first-1", Severity::Info), &instrumentation);
+            processor.emit(&mut record("first-2", Severity::Info), &instrumentation);
+        }));
+        futures_executor::block_on(second.with_context(async {
+            processor.emit(&mut record("second-1", Severity::Info), &instrumentation);
+            processor.emit(&mut record("second-2", Severity::Info), &instrumentation);
+        }));
+
+        processor.force_flush().unwrap();
+
+        assert_eq!(delegate.dropped.load(Ordering::Relaxed), 0);
+        assert_eq!(delegate.exported.lock().unwrap().len(), 4);
     }
 
     #[test]
