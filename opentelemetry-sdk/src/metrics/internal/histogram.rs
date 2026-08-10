@@ -80,7 +80,10 @@ impl<T: Number> Buckets<T> {
             total: T::default(),
             min: T::max(),
             max: T::min(),
-            exemplars: AlignedHistogramBucketReservoir::new(n),
+            // An empty-boundary histogram deliberately exports no bucket
+            // counts, but every measurement still belongs to the single
+            // conceptual bucket at index zero.
+            exemplars: AlignedHistogramBucketReservoir::new(n.max(1)),
         }
     }
 }
@@ -376,16 +379,20 @@ mod exemplar_tests {
     const TRACE_ID: u128 = 0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10;
     const SPAN_ID: u64 = 0x1112_1314_1516_1718;
 
-    fn hist(filter: ExemplarFilter) -> Histogram<i64> {
+    fn hist_with_bounds(filter: ExemplarFilter, bounds: Vec<f64>) -> Histogram<i64> {
         Histogram::<i64>::new(
             Temporality::Delta,
             AttributeSetFilter::new(None),
-            vec![1.0, 3.0, 6.0],
+            bounds,
             false,
             false,
             2000,
             ExemplarSampler::new(filter),
         )
+    }
+
+    fn hist(filter: ExemplarFilter) -> Histogram<i64> {
+        hist_with_bounds(filter, vec![1.0, 3.0, 6.0])
     }
 
     /// Attaches a span context to the current thread for the guard's lifetime.
@@ -434,6 +441,30 @@ mod exemplar_tests {
         // measurement being dropped.
         assert_eq!(exemplars[0].trace_id, [0; 16]);
         assert_eq!(exemplars[0].span_id, [0; 8]);
+    }
+
+    #[test]
+    fn always_on_captures_ids_of_an_active_unsampled_span() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        {
+            let _guard = active_span(TraceFlags::default());
+            Measure::call(&hist, 2, &[]);
+        }
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].trace_id, TraceId::from(TRACE_ID).to_bytes());
+        assert_eq!(exemplars[0].span_id, SpanId::from(SPAN_ID).to_bytes());
+    }
+
+    #[test]
+    fn empty_boundaries_still_retain_an_exemplar() {
+        let hist = hist_with_bounds(ExemplarFilter::AlwaysOn, vec![]);
+        Measure::call(&hist, 2, &[]);
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].value, 2);
     }
 
     #[test]

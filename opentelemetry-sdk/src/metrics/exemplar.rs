@@ -21,8 +21,9 @@
 pub enum ExemplarFilter {
     /// Every measurement is eligible to become an exemplar.
     ///
-    /// Measurements recorded outside a sampled span still produce an exemplar,
-    /// with an all-zero trace id and span id.
+    /// Measurements recorded outside an active span still produce an exemplar,
+    /// with an all-zero trace id and span id. An active span's ids are retained
+    /// regardless of its sampling decision.
     AlwaysOn,
 
     /// No measurement is eligible. Exemplar collection is effectively disabled

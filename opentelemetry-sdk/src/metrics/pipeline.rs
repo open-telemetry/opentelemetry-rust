@@ -419,7 +419,22 @@ where
                 .cardinality_limit
                 .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
             #[cfg(feature = "spec_unstable_metrics_exemplars")]
-            let exemplars = ExemplarSampler::new(self.pipeline.exemplar_filter);
+            let exemplars = ExemplarSampler::new(
+                if matches!(
+                    kind,
+                    InstrumentKind::ObservableCounter
+                        | InstrumentKind::ObservableUpDownCounter
+                        | InstrumentKind::ObservableGauge
+                ) {
+                    // Asynchronous observations run during collection and do
+                    // not carry the API-call context required for trace/span
+                    // correlation. Avoid capturing the collector's context;
+                    // asynchronous exemplars remain outside this PR's scope.
+                    crate::metrics::ExemplarFilter::AlwaysOff
+                } else {
+                    self.pipeline.exemplar_filter
+                },
+            );
             #[cfg(not(feature = "spec_unstable_metrics_exemplars"))]
             let exemplars = ExemplarSampler::new();
 

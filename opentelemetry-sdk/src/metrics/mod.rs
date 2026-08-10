@@ -6757,7 +6757,8 @@ mod exemplar_tests {
 
     use crate::metrics::data::{AggregatedMetrics, MetricData};
     use crate::metrics::{
-        ExemplarFilter, InMemoryMetricExporter, PeriodicReader, SdkMeterProvider,
+        aggregation::Aggregation, ExemplarFilter, InMemoryMetricExporter, Instrument,
+        PeriodicReader, SdkMeterProvider, Stream,
     };
 
     const TRACE_ID: u128 = 0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10;
@@ -6855,5 +6856,52 @@ mod exemplar_tests {
                 _ => false,
             });
         assert!(!has_exemplars);
+    }
+
+    #[test]
+    fn observable_instruments_do_not_collect_exemplars() {
+        let exporter = InMemoryMetricExporter::default();
+        let provider = SdkMeterProvider::builder()
+            .with_reader(PeriodicReader::builder(exporter.clone()).build())
+            .with_exemplar_filter(ExemplarFilter::AlwaysOn)
+            .with_view(|instrument: &Instrument| {
+                (instrument.name == "requests").then(|| {
+                    Stream::builder()
+                        .with_aggregation(Aggregation::ExplicitBucketHistogram {
+                            boundaries: vec![1.0, 2.0],
+                            record_min_max: true,
+                        })
+                        .build()
+                        .expect("stream should be valid")
+                })
+            })
+            .build();
+
+        let _counter = provider
+            .meter("test")
+            .u64_observable_counter("requests")
+            .with_callback(|observer| observer.observe(1, &[]))
+            .build();
+
+        provider.force_flush().expect("flush should succeed");
+
+        let metrics = exporter
+            .get_finished_metrics()
+            .expect("metrics should be exported")
+            .into_iter()
+            .flat_map(|rm| {
+                rm.scope_metrics()
+                    .flat_map(|sm| sm.metrics())
+                    .filter_map(|m| match m.data() {
+                        AggregatedMetrics::U64(MetricData::Histogram(h)) => Some(h),
+                        _ => None,
+                    })
+                    .flat_map(|h| h.data_points())
+                    .map(|dp| (dp.count(), dp.exemplars().count()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(metrics, vec![(1, 0)]);
     }
 }

@@ -96,14 +96,13 @@ impl ExemplarSampler {
             ExemplarFilter::AlwaysOff => None,
             ExemplarFilter::AlwaysOn => Some(Box::new(Context::map_current(|cx| {
                 let mut offer = ExemplarOffer::at(now());
-                // An unsampled or absent span leaves the ids zeroed, which is
-                // what the spec asks for: the measurement is still eligible.
+                // AlwaysOn makes the measurement eligible independently of the
+                // span's sampling decision. Preserve any active span context;
+                // only an absent span leaves the ids zeroed.
                 if cx.has_active_span() {
                     let span_cx = cx.span().span_context().clone();
-                    if span_cx.is_sampled() {
-                        offer.trace_id = span_cx.trace_id().to_bytes();
-                        offer.span_id = span_cx.span_id().to_bytes();
-                    }
+                    offer.trace_id = span_cx.trace_id().to_bytes();
+                    offer.span_id = span_cx.span_id().to_bytes();
                 }
                 offer
             }))),
