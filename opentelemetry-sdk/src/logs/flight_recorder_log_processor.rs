@@ -1,4 +1,5 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::flight_recorder::estimated_log_size;
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
 use opentelemetry::logs::Severity;
@@ -8,10 +9,12 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, TryLockError};
 use std::time::{Duration, Instant};
 
-const DEFAULT_MAX_RECORDS: usize = 2_048;
+const DEFAULT_MAX_RECORDS: usize = 1_024;
+const DEFAULT_MAX_BUFFER_SIZE_BYTES: usize = 4 * 1024 * 1024;
+const DEFAULT_MAX_RECORD_SIZE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
 
-type BufferedLog = (SdkLogRecord, InstrumentationScope);
+type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
 /// A log processor that retains recent logs until explicitly triggered.
 ///
@@ -57,6 +60,8 @@ impl<P: LogProcessor> FlightRecorderLogProcessor<P> {
         FlightRecorderLogProcessorBuilder {
             delegate,
             max_records: DEFAULT_MAX_RECORDS,
+            max_buffer_size_bytes: DEFAULT_MAX_BUFFER_SIZE_BYTES,
+            max_record_size_bytes: DEFAULT_MAX_RECORD_SIZE_BYTES,
             max_buffered_severity: DEFAULT_MAX_BUFFERED_SEVERITY,
         }
     }
@@ -67,6 +72,8 @@ impl<P: LogProcessor> FlightRecorderLogProcessor<P> {
 pub struct FlightRecorderLogProcessorBuilder<P: LogProcessor> {
     delegate: P,
     max_records: usize,
+    max_buffer_size_bytes: usize,
+    max_record_size_bytes: usize,
     max_buffered_severity: Severity,
 }
 
@@ -78,6 +85,21 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
     /// [`build`](Self::build) panics if `max_records` is zero.
     pub fn with_max_records(mut self, max_records: usize) -> Self {
         self.max_records = max_records;
+        self
+    }
+
+    /// Sets the maximum estimated memory retained by the ring buffer.
+    pub fn with_max_buffer_size_bytes(mut self, max_buffer_size_bytes: usize) -> Self {
+        self.max_buffer_size_bytes = max_buffer_size_bytes;
+        self
+    }
+
+    /// Sets the maximum estimated size of an individual buffered record.
+    ///
+    /// Larger records bypass the recorder and follow the wrapped processor's
+    /// normal path.
+    pub fn with_max_record_size_bytes(mut self, max_record_size_bytes: usize) -> Self {
+        self.max_record_size_bytes = max_record_size_bytes;
         self
     }
 
@@ -101,15 +123,26 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
             self.max_records > 0,
             "flight recorder max_records must be greater than zero"
         );
+        assert!(
+            self.max_buffer_size_bytes > 0,
+            "flight recorder max_buffer_size_bytes must be greater than zero"
+        );
+        assert!(
+            self.max_record_size_bytes > 0,
+            "flight recorder max_record_size_bytes must be greater than zero"
+        );
 
         let shared = Arc::new(Shared {
             delegate: RwLock::new(self.delegate),
             state: Mutex::new(State {
                 records: VecDeque::new(),
+                buffer_size_bytes: 0,
                 is_shutdown: false,
             }),
             trigger_lock: Mutex::new(()),
             max_records: self.max_records,
+            max_buffer_size_bytes: self.max_buffer_size_bytes,
+            max_record_size_bytes: self.max_record_size_bytes,
             max_buffered_severity: self.max_buffered_severity,
         });
         let trigger = FlightRecorderTrigger {
@@ -154,11 +187,14 @@ struct Shared<P: LogProcessor> {
     state: Mutex<State>,
     trigger_lock: Mutex<()>,
     max_records: usize,
+    max_buffer_size_bytes: usize,
+    max_record_size_bytes: usize,
     max_buffered_severity: Severity,
 }
 
 struct State {
     records: VecDeque<BufferedLog>,
+    buffer_size_bytes: usize,
     is_shutdown: bool,
 }
 
@@ -186,13 +222,14 @@ impl<P: LogProcessor> Shared<P> {
             if state.is_shutdown {
                 return Err(OTelSdkError::AlreadyShutdown);
             }
+            state.buffer_size_bytes = 0;
             std::mem::take(&mut state.records)
         };
 
         if snapshot.is_empty() {
             return Ok(());
         }
-        for (mut record, instrumentation) in snapshot {
+        for (mut record, instrumentation, _) in snapshot {
             delegate.emit(&mut record, &instrumentation);
         }
         delegate.force_flush()
@@ -267,7 +304,25 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
             return;
         }
 
-        let buffered_log = (record.clone(), instrumentation.clone());
+        let estimated_size = estimated_log_size(record, instrumentation);
+        if estimated_size > self.shared.max_record_size_bytes
+            || estimated_size > self.shared.max_buffer_size_bytes
+        {
+            let delegate = match self.shared.delegate.read() {
+                Ok(delegate) => delegate,
+                Err(err) => {
+                    otel_warn!(
+                        name: "FlightRecorderLogProcessor.DelegateLockFailed",
+                        error = format!("{err}")
+                    );
+                    return;
+                }
+            };
+            delegate.emit(record, instrumentation);
+            return;
+        }
+
+        let buffered_log = (record.clone(), instrumentation.clone(), estimated_size);
         let mut state = match self.shared.state.lock() {
             Ok(state) => state,
             Err(err) => {
@@ -287,9 +342,16 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
             return;
         }
 
-        if state.records.len() == self.shared.max_records {
-            state.records.pop_front();
+        while state.records.len() == self.shared.max_records
+            || estimated_size > self.shared.max_buffer_size_bytes - state.buffer_size_bytes
+        {
+            if let Some((_, _, evicted_size)) = state.records.pop_front() {
+                state.buffer_size_bytes -= evicted_size;
+            } else {
+                break;
+            }
         }
+        state.buffer_size_bytes += estimated_size;
         state.records.push_back(buffered_log);
     }
 
@@ -312,6 +374,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
             }
             state.is_shutdown = true;
             state.records.clear();
+            state.buffer_size_bytes = 0;
         }
 
         let remaining = timeout.saturating_sub(start.elapsed());
@@ -393,7 +456,7 @@ mod tests {
             self.records
                 .lock()
                 .unwrap()
-                .push((record.clone(), instrumentation.clone()));
+                .push((record.clone(), instrumentation.clone(), 0));
         }
 
         fn force_flush(&self) -> OTelSdkResult {
@@ -432,7 +495,7 @@ mod tests {
             self.records
                 .lock()
                 .unwrap()
-                .push((record.clone(), instrumentation.clone()));
+                .push((record.clone(), instrumentation.clone(), 0));
         }
 
         fn force_flush(&self) -> OTelSdkResult {
@@ -462,7 +525,7 @@ mod tests {
             .lock()
             .unwrap()
             .iter()
-            .map(|(record, _)| match record.body() {
+            .map(|(record, _, _)| match record.body() {
                 Some(AnyValue::String(value)) => value.to_string(),
                 body => panic!("unexpected body: {body:?}"),
             })
@@ -498,6 +561,39 @@ mod tests {
         trigger.trigger().unwrap();
 
         assert_eq!(bodies(&delegate), ["two", "three"]);
+    }
+
+    #[test]
+    fn byte_capacity_overwrites_oldest_records() {
+        let delegate = TestProcessor::new(true);
+        let scope = InstrumentationScope::builder("test").build();
+        let estimated_size = estimated_log_size(&record("one"), &scope);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_buffer_size_bytes(estimated_size * 2)
+            .build();
+
+        processor.emit(&mut record("one"), &scope);
+        processor.emit(&mut record("two"), &scope);
+        processor.emit(&mut record("six"), &scope);
+        trigger.trigger().unwrap();
+
+        assert_eq!(bodies(&delegate), ["two", "six"]);
+    }
+
+    #[test]
+    fn oversized_records_bypass_the_buffer() {
+        let delegate = TestProcessor::new(true);
+        let scope = InstrumentationScope::builder("test").build();
+        let estimated_size = estimated_log_size(&record("oversized"), &scope);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_record_size_bytes(estimated_size - 1)
+            .build();
+
+        processor.emit(&mut record("oversized"), &scope);
+
+        assert_eq!(bodies(&delegate), ["oversized"]);
+        trigger.trigger().unwrap();
+        assert_eq!(bodies(&delegate), ["oversized"]);
     }
 
     #[test]

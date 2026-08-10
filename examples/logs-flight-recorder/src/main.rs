@@ -26,7 +26,10 @@ use url::form_urlencoded;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:3000";
 const DEFAULT_MAX_RECORDS: usize = 64;
-const DEFAULT_MAX_ACTIVE_SCOPES: usize = 1_024;
+const DEFAULT_MAX_ACTIVE_SCOPES: usize = 128;
+const DEFAULT_MAX_BUFFER_BYTES_PER_SCOPE: usize = 256 * 1024;
+const DEFAULT_MAX_TOTAL_BUFFER_BYTES: usize = 16 * 1024 * 1024;
+const DEFAULT_MAX_RECORD_BYTES: usize = 64 * 1024;
 const MAX_LOGS_PER_REQUEST: usize = 100;
 
 type HttpBody = BoxBody<Bytes, Infallible>;
@@ -53,6 +56,9 @@ struct WorkRequest {
 fn init_logs(
     max_records: usize,
     max_active_scopes: usize,
+    max_buffer_bytes_per_scope: usize,
+    max_total_buffer_bytes: usize,
+    max_record_bytes: usize,
 ) -> Result<(SdkLoggerProvider, ScopedFlightRecorder), Box<dyn Error>> {
     let exporter = LogExporter::builder()
         .with_http()
@@ -69,6 +75,9 @@ fn init_logs(
     let (flight_recorder, recorder) = ScopedFlightRecorderLogProcessor::builder(batch_processor)
         .with_max_records_per_scope(max_records)
         .with_max_active_scopes(max_active_scopes)
+        .with_max_buffer_size_bytes_per_scope(max_buffer_bytes_per_scope)
+        .with_max_total_buffer_size_bytes(max_total_buffer_bytes)
+        .with_max_record_size_bytes(max_record_bytes)
         .with_max_buffered_severity(Severity::Info4)
         .build();
     let provider = SdkLoggerProvider::builder()
@@ -277,8 +286,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if max_active_scopes == 0 {
         return Err("FLIGHT_RECORDER_MAX_ACTIVE_SCOPES must be greater than zero".into());
     }
+    let max_buffer_bytes_per_scope = parse_env(
+        "FLIGHT_RECORDER_MAX_BUFFER_BYTES_PER_SCOPE",
+        DEFAULT_MAX_BUFFER_BYTES_PER_SCOPE,
+    )?;
+    let max_total_buffer_bytes = parse_env(
+        "FLIGHT_RECORDER_MAX_TOTAL_BUFFER_BYTES",
+        DEFAULT_MAX_TOTAL_BUFFER_BYTES,
+    )?;
+    let max_record_bytes = parse_env("FLIGHT_RECORDER_MAX_RECORD_BYTES", DEFAULT_MAX_RECORD_BYTES)?;
+    if max_buffer_bytes_per_scope == 0 || max_total_buffer_bytes == 0 || max_record_bytes == 0 {
+        return Err("flight recorder byte limits must be greater than zero".into());
+    }
 
-    let (logger_provider, recorder) = init_logs(max_records, max_active_scopes)?;
+    let (logger_provider, recorder) = init_logs(
+        max_records,
+        max_active_scopes,
+        max_buffer_bytes_per_scope,
+        max_total_buffer_bytes,
+        max_record_bytes,
+    )?;
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider)
         .with_filter(EnvFilter::new("off").add_directive("flight_recorder_demo=info".parse()?));
     tracing_subscriber::registry().with(otel_layer).try_init()?;

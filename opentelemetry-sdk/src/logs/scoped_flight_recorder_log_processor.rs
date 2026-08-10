@@ -1,4 +1,5 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::logs::flight_recorder::estimated_log_size;
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
 use opentelemetry::logs::Severity;
@@ -11,11 +12,14 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, TryLockError, Weak};
 use std::time::{Duration, Instant};
 
-const DEFAULT_MAX_RECORDS_PER_SCOPE: usize = 2_048;
-const DEFAULT_MAX_ACTIVE_SCOPES: usize = 1_024;
+const DEFAULT_MAX_RECORDS_PER_SCOPE: usize = 256;
+const DEFAULT_MAX_ACTIVE_SCOPES: usize = 128;
+const DEFAULT_MAX_BUFFER_SIZE_BYTES_PER_SCOPE: usize = 256 * 1024;
+const DEFAULT_MAX_TOTAL_BUFFER_SIZE_BYTES: usize = 16 * 1024 * 1024;
+const DEFAULT_MAX_RECORD_SIZE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
 
-type BufferedLog = (SdkLogRecord, InstrumentationScope);
+type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
 static NEXT_PROCESSOR_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -37,6 +41,15 @@ impl<P: LogProcessor> Debug for ScopedFlightRecorderLogProcessor<P> {
         f.debug_struct("ScopedFlightRecorderLogProcessor")
             .field("max_records_per_scope", &self.shared.max_records_per_scope)
             .field("max_active_scopes", &self.shared.max_active_scopes)
+            .field(
+                "max_buffer_size_bytes_per_scope",
+                &self.shared.max_buffer_size_bytes_per_scope,
+            )
+            .field(
+                "max_total_buffer_size_bytes",
+                &self.shared.memory_budget.limit,
+            )
+            .field("max_record_size_bytes", &self.shared.max_record_size_bytes)
             .field("max_buffered_severity", &self.shared.max_buffered_severity)
             .finish_non_exhaustive()
     }
@@ -49,6 +62,9 @@ impl<P: LogProcessor> ScopedFlightRecorderLogProcessor<P> {
             delegate,
             max_records_per_scope: DEFAULT_MAX_RECORDS_PER_SCOPE,
             max_active_scopes: DEFAULT_MAX_ACTIVE_SCOPES,
+            max_buffer_size_bytes_per_scope: DEFAULT_MAX_BUFFER_SIZE_BYTES_PER_SCOPE,
+            max_total_buffer_size_bytes: DEFAULT_MAX_TOTAL_BUFFER_SIZE_BYTES,
+            max_record_size_bytes: DEFAULT_MAX_RECORD_SIZE_BYTES,
             max_buffered_severity: DEFAULT_MAX_BUFFERED_SEVERITY,
         }
     }
@@ -60,6 +76,9 @@ pub struct ScopedFlightRecorderLogProcessorBuilder<P: LogProcessor> {
     delegate: P,
     max_records_per_scope: usize,
     max_active_scopes: usize,
+    max_buffer_size_bytes_per_scope: usize,
+    max_total_buffer_size_bytes: usize,
+    max_record_size_bytes: usize,
     max_buffered_severity: Severity,
 }
 
@@ -73,6 +92,30 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
     /// Sets the maximum number of simultaneously active recording scopes.
     pub fn with_max_active_scopes(mut self, max_active_scopes: usize) -> Self {
         self.max_active_scopes = max_active_scopes;
+        self
+    }
+
+    /// Sets the maximum estimated memory retained by each active scope.
+    pub fn with_max_buffer_size_bytes_per_scope(
+        mut self,
+        max_buffer_size_bytes_per_scope: usize,
+    ) -> Self {
+        self.max_buffer_size_bytes_per_scope = max_buffer_size_bytes_per_scope;
+        self
+    }
+
+    /// Sets the aggregate estimated memory retained across all active scopes.
+    pub fn with_max_total_buffer_size_bytes(mut self, max_total_buffer_size_bytes: usize) -> Self {
+        self.max_total_buffer_size_bytes = max_total_buffer_size_bytes;
+        self
+    }
+
+    /// Sets the maximum estimated size of an individual buffered record.
+    ///
+    /// Larger records bypass the recorder and follow the wrapped processor's
+    /// normal path.
+    pub fn with_max_record_size_bytes(mut self, max_record_size_bytes: usize) -> Self {
+        self.max_record_size_bytes = max_record_size_bytes;
         self
     }
 
@@ -96,6 +139,18 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
             self.max_active_scopes > 0,
             "scoped flight recorder max_active_scopes must be greater than zero"
         );
+        assert!(
+            self.max_buffer_size_bytes_per_scope > 0,
+            "scoped flight recorder max_buffer_size_bytes_per_scope must be greater than zero"
+        );
+        assert!(
+            self.max_total_buffer_size_bytes > 0,
+            "scoped flight recorder max_total_buffer_size_bytes must be greater than zero"
+        );
+        assert!(
+            self.max_record_size_bytes > 0,
+            "scoped flight recorder max_record_size_bytes must be greater than zero"
+        );
 
         let shared = Arc::new(ScopedShared {
             delegate: RwLock::new(self.delegate),
@@ -106,6 +161,9 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
             processor_id: NEXT_PROCESSOR_ID.fetch_add(1, Ordering::Relaxed),
             max_records_per_scope: self.max_records_per_scope,
             max_active_scopes: self.max_active_scopes,
+            max_buffer_size_bytes_per_scope: self.max_buffer_size_bytes_per_scope,
+            max_record_size_bytes: self.max_record_size_bytes,
+            memory_budget: Arc::new(MemoryBudget::new(self.max_total_buffer_size_bytes)),
             max_buffered_severity: self.max_buffered_severity,
         });
         let recorder = ScopedFlightRecorder {
@@ -203,12 +261,16 @@ struct ScopeBuffer {
     id: usize,
     processor_id: usize,
     max_records: usize,
+    max_buffer_size_bytes: usize,
+    memory_budget: Arc<MemoryBudget>,
+    accounted_bytes: AtomicUsize,
     state: Mutex<ScopeState>,
 }
 
 struct ScopeState {
     status: ScopeStatus,
     records: VecDeque<BufferedLog>,
+    buffer_size_bytes: usize,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -223,6 +285,7 @@ impl ScopeBuffer {
         &self,
         record: &SdkLogRecord,
         instrumentation: &InstrumentationScope,
+        estimated_size: usize,
     ) -> Result<bool, OTelSdkError> {
         let mut state = self
             .state
@@ -231,25 +294,60 @@ impl ScopeBuffer {
         if state.status != ScopeStatus::Recording {
             return Ok(false);
         }
-        if state.records.len() == self.max_records {
+        let mut remaining_records = state.records.len();
+        let mut remaining_bytes = state.buffer_size_bytes;
+        let mut eviction_count = 0;
+        let mut eviction_bytes = 0;
+        for (_, _, size) in &state.records {
+            if remaining_records < self.max_records
+                && estimated_size <= self.max_buffer_size_bytes - remaining_bytes
+            {
+                break;
+            }
+            remaining_records -= 1;
+            remaining_bytes -= size;
+            eviction_count += 1;
+            eviction_bytes += size;
+        }
+
+        let additional_bytes = estimated_size.saturating_sub(eviction_bytes);
+        if !self.memory_budget.try_reserve(additional_bytes) {
+            return Ok(false);
+        }
+
+        for _ in 0..eviction_count {
             state.records.pop_front();
         }
+        if eviction_bytes > estimated_size {
+            self.memory_budget.release(eviction_bytes - estimated_size);
+        }
+        state.buffer_size_bytes = remaining_bytes + estimated_size;
+        self.accounted_bytes
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |accounted| {
+                Some(accounted - eviction_bytes + estimated_size)
+            })
+            .expect("scope byte accounting must not underflow");
         state
             .records
-            .push_back((record.clone(), instrumentation.clone()));
+            .push_back((record.clone(), instrumentation.clone(), estimated_size));
         Ok(true)
     }
 
-    fn take_and_passthrough(&self) -> Result<VecDeque<BufferedLog>, OTelSdkError> {
+    fn take_and_passthrough(&self) -> Result<BufferedSnapshot, OTelSdkError> {
         let mut state = self
             .state
             .lock()
             .map_err(|err| mutex_error("scope buffer", err))?;
         if state.status != ScopeStatus::Recording {
-            return Ok(VecDeque::new());
+            return Ok(BufferedSnapshot::empty(self.memory_budget.clone()));
         }
         state.status = ScopeStatus::Passthrough;
-        Ok(std::mem::take(&mut state.records))
+        state.buffer_size_bytes = 0;
+        self.accounted_bytes.store(0, Ordering::Release);
+        Ok(BufferedSnapshot {
+            records: std::mem::take(&mut state.records),
+            memory_budget: self.memory_budget.clone(),
+        })
     }
 
     fn discard(&self) {
@@ -257,6 +355,8 @@ impl ScopeBuffer {
             Ok(mut state) => {
                 state.status = ScopeStatus::Discarded;
                 state.records.clear();
+                state.buffer_size_bytes = 0;
+                self.release_all_accounted_bytes();
             }
             Err(err) => {
                 otel_warn!(
@@ -264,6 +364,81 @@ impl ScopeBuffer {
                     error = format!("{err}")
                 );
             }
+        }
+    }
+
+    fn release_all_accounted_bytes(&self) {
+        let bytes = self.accounted_bytes.swap(0, Ordering::AcqRel);
+        self.memory_budget.release(bytes);
+    }
+}
+
+struct BufferedSnapshot {
+    records: VecDeque<BufferedLog>,
+    memory_budget: Arc<MemoryBudget>,
+}
+
+impl BufferedSnapshot {
+    fn empty(memory_budget: Arc<MemoryBudget>) -> Self {
+        Self {
+            records: VecDeque::new(),
+            memory_budget,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+
+    fn pop_front(&mut self) -> Option<BufferedLog> {
+        self.records.pop_front()
+    }
+
+    fn release(&self, bytes: usize) {
+        self.memory_budget.release(bytes);
+    }
+}
+
+impl Drop for BufferedSnapshot {
+    fn drop(&mut self) {
+        let bytes = self.records.iter().map(|(_, _, size)| size).sum();
+        self.memory_budget.release(bytes);
+    }
+}
+
+impl Drop for ScopeBuffer {
+    fn drop(&mut self) {
+        self.release_all_accounted_bytes();
+    }
+}
+
+struct MemoryBudget {
+    used: AtomicUsize,
+    limit: usize,
+}
+
+impl MemoryBudget {
+    fn new(limit: usize) -> Self {
+        Self {
+            used: AtomicUsize::new(0),
+            limit,
+        }
+    }
+
+    fn try_reserve(&self, bytes: usize) -> bool {
+        if bytes == 0 {
+            return true;
+        }
+        self.used
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
+                used.checked_add(bytes).filter(|total| *total <= self.limit)
+            })
+            .is_ok()
+    }
+
+    fn release(&self, bytes: usize) {
+        if bytes > 0 {
+            self.used.fetch_sub(bytes, Ordering::AcqRel);
         }
     }
 }
@@ -277,6 +452,9 @@ struct ScopedShared<P: LogProcessor> {
     processor_id: usize,
     max_records_per_scope: usize,
     max_active_scopes: usize,
+    max_buffer_size_bytes_per_scope: usize,
+    max_record_size_bytes: usize,
+    memory_budget: Arc<MemoryBudget>,
     max_buffered_severity: Severity,
 }
 
@@ -313,12 +491,13 @@ impl<P: LogProcessor> ScopedShared<P> {
         delegate.force_flush()?;
 
         for buffer in buffers {
-            let snapshot = buffer.take_and_passthrough()?;
+            let mut snapshot = buffer.take_and_passthrough()?;
             if snapshot.is_empty() {
                 continue;
             }
-            for (mut record, instrumentation) in snapshot {
+            while let Some((mut record, instrumentation, estimated_size)) = snapshot.pop_front() {
                 delegate.emit(&mut record, &instrumentation);
+                snapshot.release(estimated_size);
             }
             // Bound each handoff to one scope so a delegate queue sized for
             // max_records_per_scope does not need capacity for every active
@@ -387,9 +566,13 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
             id,
             processor_id: self.processor_id,
             max_records: self.max_records_per_scope,
+            max_buffer_size_bytes: self.max_buffer_size_bytes_per_scope,
+            memory_budget: self.memory_budget.clone(),
+            accounted_bytes: AtomicUsize::new(0),
             state: Mutex::new(ScopeState {
                 status: ScopeStatus::Recording,
                 records: VecDeque::new(),
+                buffer_size_bytes: 0,
             }),
         });
         scopes.insert(id, Arc::downgrade(&buffer));
@@ -425,6 +608,13 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             severity <= self.shared.max_buffered_severity
         });
         if should_buffer {
+            let estimated_size = estimated_log_size(record, instrumentation);
+            if estimated_size > self.shared.max_record_size_bytes
+                || estimated_size > self.shared.max_buffer_size_bytes_per_scope
+            {
+                self.shared.emit_to_delegate(record, instrumentation);
+                return;
+            }
             let buffer = Context::map_current(|context| {
                 context
                     .get::<ScopedBufferContext>()
@@ -432,7 +622,7 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             });
             if let Some(buffer) = buffer {
                 if buffer.processor_id == self.shared.processor_id {
-                    match buffer.try_buffer(record, instrumentation) {
+                    match buffer.try_buffer(record, instrumentation, estimated_size) {
                         Ok(true) => return,
                         Ok(false) => {}
                         Err(err) => {
@@ -545,7 +735,7 @@ mod tests {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
                 return;
             }
-            pending.push((record.clone(), instrumentation.clone()));
+            pending.push((record.clone(), instrumentation.clone(), 0));
         }
 
         fn force_flush(&self) -> OTelSdkResult {
@@ -573,7 +763,7 @@ mod tests {
             self.records
                 .lock()
                 .unwrap()
-                .push((record.clone(), instrumentation.clone()));
+                .push((record.clone(), instrumentation.clone(), 0));
         }
 
         fn force_flush(&self) -> OTelSdkResult {
@@ -599,7 +789,7 @@ mod tests {
             .lock()
             .unwrap()
             .iter()
-            .map(|(record, _)| match record.body() {
+            .map(|(record, _, _)| match record.body() {
                 Some(AnyValue::String(value)) => value.to_string(),
                 body => panic!("unexpected body: {body:?}"),
             })
@@ -747,6 +937,148 @@ mod tests {
         scope.trigger().unwrap();
 
         assert_eq!(bodies(&delegate), ["two", "three"]);
+    }
+
+    #[test]
+    fn scope_byte_capacity_overwrites_oldest_records() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size = estimated_log_size(&record("one", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_buffer_size_bytes_per_scope(estimated_size * 2)
+            .build();
+        let scope = recorder.try_start().unwrap();
+
+        futures_executor::block_on(scope.with_context(async {
+            processor.emit(&mut record("one", Severity::Info), &instrumentation);
+            processor.emit(&mut record("two", Severity::Info), &instrumentation);
+            processor.emit(&mut record("six", Severity::Info), &instrumentation);
+        }));
+        scope.trigger().unwrap();
+
+        assert_eq!(bodies(&delegate), ["two", "six"]);
+    }
+
+    #[test]
+    fn aggregate_byte_capacity_is_shared_across_scopes() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size = estimated_log_size(&record("first", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_buffer_size_bytes_per_scope(estimated_size * 2)
+            .with_max_total_buffer_size_bytes(estimated_size)
+            .build();
+        let first = recorder.try_start().unwrap();
+        let second = recorder.try_start().unwrap();
+
+        futures_executor::block_on(first.with_context(async {
+            processor.emit(&mut record("first", Severity::Info), &instrumentation);
+        }));
+        futures_executor::block_on(second.with_context(async {
+            processor.emit(&mut record("other", Severity::Info), &instrumentation);
+        }));
+        assert_eq!(bodies(&delegate), ["other"]);
+
+        first.discard();
+        futures_executor::block_on(second.with_context(async {
+            processor.emit(&mut record("third", Severity::Info), &instrumentation);
+        }));
+        second.trigger().unwrap();
+
+        assert_eq!(bodies(&delegate), ["other", "third"]);
+    }
+
+    #[test]
+    fn failed_aggregate_reservation_preserves_existing_snapshot() {
+        const LARGE_BODY: &str =
+            "a much larger record that requires more aggregate capacity than the existing record";
+
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let small_size = estimated_log_size(&record("a", Severity::Info), &instrumentation);
+        let large_size = estimated_log_size(&record(LARGE_BODY, Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_records_per_scope(1)
+            .with_max_buffer_size_bytes_per_scope(large_size)
+            .with_max_total_buffer_size_bytes(small_size * 2)
+            .build();
+        let first = recorder.try_start().unwrap();
+        let second = recorder.try_start().unwrap();
+
+        futures_executor::block_on(first.with_context(async {
+            processor.emit(&mut record("a", Severity::Info), &instrumentation);
+        }));
+        futures_executor::block_on(second.with_context(async {
+            processor.emit(&mut record("b", Severity::Info), &instrumentation);
+        }));
+        futures_executor::block_on(first.with_context(async {
+            processor.emit(&mut record(LARGE_BODY, Severity::Info), &instrumentation);
+        }));
+
+        assert_eq!(bodies(&delegate), [LARGE_BODY]);
+        first.trigger().unwrap();
+        assert_eq!(bodies(&delegate), [LARGE_BODY, "a"]);
+        second.discard();
+    }
+
+    #[test]
+    fn aggregate_byte_capacity_is_released_by_scope_lifecycle() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) =
+            ScopedFlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let instrumentation = InstrumentationScope::builder("test").build();
+
+        let discarded = recorder.try_start().unwrap();
+        futures_executor::block_on(discarded.with_context(async {
+            processor.emit(&mut record("discard", Severity::Info), &instrumentation);
+        }));
+        assert!(processor.shared.memory_budget.used.load(Ordering::Acquire) > 0);
+        discarded.discard();
+        assert_eq!(
+            processor.shared.memory_budget.used.load(Ordering::Acquire),
+            0
+        );
+
+        let triggered = recorder.try_start().unwrap();
+        futures_executor::block_on(triggered.with_context(async {
+            processor.emit(&mut record("trigger", Severity::Info), &instrumentation);
+        }));
+        triggered.trigger().unwrap();
+        assert_eq!(
+            processor.shared.memory_budget.used.load(Ordering::Acquire),
+            0
+        );
+
+        let dropped = recorder.try_start().unwrap();
+        futures_executor::block_on(dropped.with_context(async {
+            processor.emit(&mut record("dropped", Severity::Info), &instrumentation);
+        }));
+        assert!(processor.shared.memory_budget.used.load(Ordering::Acquire) > 0);
+        drop(dropped);
+        assert_eq!(
+            processor.shared.memory_budget.used.load(Ordering::Acquire),
+            0
+        );
+    }
+
+    #[test]
+    fn oversized_scoped_records_bypass_the_buffer() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size =
+            estimated_log_size(&record("oversized", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_record_size_bytes(estimated_size - 1)
+            .build();
+        let scope = recorder.try_start().unwrap();
+
+        futures_executor::block_on(scope.with_context(async {
+            processor.emit(&mut record("oversized", Severity::Info), &instrumentation);
+        }));
+
+        assert_eq!(bodies(&delegate), ["oversized"]);
+        scope.trigger().unwrap();
+        assert_eq!(bodies(&delegate), ["oversized"]);
     }
 
     #[test]

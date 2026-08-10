@@ -2,6 +2,8 @@
 mod batch_log_processor;
 mod export;
 #[cfg(feature = "experimental_logs_flight_recorder")]
+mod flight_recorder;
+#[cfg(feature = "experimental_logs_flight_recorder")]
 mod flight_recorder_log_processor;
 mod log_processor;
 mod logger;

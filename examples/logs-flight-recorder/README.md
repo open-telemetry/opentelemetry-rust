@@ -55,7 +55,7 @@ use opentelemetry_sdk::logs::{
 };
 use opentelemetry::logs::Severity;
 
-const MAX_RECORDS: usize = 1_024;
+const MAX_RECORDS: usize = 256;
 
 let batch_processor = BatchLogProcessor::builder(exporter)
     .with_batch_config(
@@ -68,7 +68,10 @@ let batch_processor = BatchLogProcessor::builder(exporter)
 let (flight_recorder, recorder) =
     ScopedFlightRecorderLogProcessor::builder(batch_processor)
         .with_max_records_per_scope(MAX_RECORDS)
-        .with_max_active_scopes(1_024)
+        .with_max_active_scopes(128)
+        .with_max_buffer_size_bytes_per_scope(256 * 1024)
+        .with_max_total_buffer_size_bytes(16 * 1024 * 1024)
+        .with_max_record_size_bytes(64 * 1024)
         .with_max_buffered_severity(Severity::Info4)
         .build();
 
@@ -92,8 +95,9 @@ if result.is_err() {
 
 When wrapping a batch processor, its queue should have at least as many free
 slots as the maximum snapshot from one scope. This example configures both
-limits to the same record count. The active-scope limit bounds total memory
-usage under high request concurrency.
+limits to the same record count. Estimated byte limits provide the primary
+memory bounds: each scope defaults to 256 KiB, all scopes share a 16 MiB
+aggregate budget, and records estimated above 64 KiB bypass buffering.
 
 ## Running the demo
 
@@ -148,7 +152,10 @@ Configuration:
 | --- | --- | --- |
 | `FLIGHT_RECORDER_LISTEN_ADDR` | `127.0.0.1:3000` | Demo HTTP listen address |
 | `FLIGHT_RECORDER_MAX_RECORDS` | `64` | Maximum retained records per request |
-| `FLIGHT_RECORDER_MAX_ACTIVE_SCOPES` | `1024` | Maximum concurrent request scopes |
+| `FLIGHT_RECORDER_MAX_ACTIVE_SCOPES` | `128` | Maximum concurrent request scopes |
+| `FLIGHT_RECORDER_MAX_BUFFER_BYTES_PER_SCOPE` | `262144` | Maximum estimated retained bytes per request |
+| `FLIGHT_RECORDER_MAX_TOTAL_BUFFER_BYTES` | `16777216` | Aggregate estimated retained bytes across requests |
+| `FLIGHT_RECORDER_MAX_RECORD_BYTES` | `65536` | Records above this estimated size bypass buffering |
 | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | OTLP exporter default | OTLP logs endpoint |
 
 ## Trigger ideas
@@ -169,7 +176,10 @@ configurable.
 
 ## Prototype semantics and limitations
 
-- Capacity is based on record count, not estimated encoded bytes.
+- Capacity is bounded by both record count and a conservative in-memory size
+  estimate. This is not the serialized OTLP size.
+- When the aggregate scoped byte budget is exhausted, new low-severity records
+  bypass buffering and follow the normal export path.
 - INFO and lower-severity records are buffered by default; WARN and higher
   records bypass the buffer.
 - The oldest records are overwritten when the buffer is full.
