@@ -369,6 +369,8 @@ mod tests {
 
 #[cfg(all(test, feature = "spec_unstable_metrics_exemplars"))]
 mod exemplar_tests {
+    use std::sync::Arc;
+
     use opentelemetry::trace::{SpanContext, TraceContextExt, TraceState};
     use opentelemetry::{Context, ContextGuard, SpanId, TraceFlags, TraceId};
 
@@ -409,12 +411,16 @@ mod exemplar_tests {
             .attach()
     }
 
-    fn collect(hist: &Histogram<i64>) -> Vec<Exemplar<i64>> {
+    fn collect_data_points(hist: &Histogram<i64>) -> Vec<HistogramDataPoint<i64>> {
         let (_, dp) = ComputeAggregation::call(hist, None);
         let Some(AggregatedMetrics::I64(MetricData::Histogram(h))) = dp else {
             unreachable!()
         };
         h.data_points
+    }
+
+    fn collect(hist: &Histogram<i64>) -> Vec<Exemplar<i64>> {
+        collect_data_points(hist)
             .into_iter()
             .flat_map(|dp| dp.exemplars)
             .collect()
@@ -441,6 +447,41 @@ mod exemplar_tests {
         // measurement being dropped.
         assert_eq!(exemplars[0].trace_id, [0; 16]);
         assert_eq!(exemplars[0].span_id, [0; 8]);
+    }
+
+    #[test]
+    fn exemplar_retains_attributes_filtered_out_of_the_metric_stream() {
+        let hist = Histogram::<i64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(Some(Arc::new(|kv: &KeyValue| {
+                kv.key.as_str() == "retained"
+            }))),
+            vec![1.0, 3.0, 6.0],
+            false,
+            false,
+            2000,
+            ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+        );
+        let retained = KeyValue::new("retained", "metric");
+        let filtered = KeyValue::new("filtered", "exemplar");
+
+        Measure::call(&hist, 2, &[retained.clone(), filtered.clone()]);
+
+        let data_points = collect_data_points(&hist);
+        assert_eq!(data_points.len(), 1);
+        assert_eq!(
+            data_points[0].attributes().cloned().collect::<Vec<_>>(),
+            vec![retained]
+        );
+        let exemplars = &data_points[0].exemplars;
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(
+            exemplars[0]
+                .filtered_attributes()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![filtered]
+        );
     }
 
     #[test]

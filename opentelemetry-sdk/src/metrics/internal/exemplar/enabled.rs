@@ -168,3 +168,17 @@ impl<T: Number> AlignedHistogramBucketReservoir<T> {
         self.slots.iter_mut().filter_map(Option::take).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reservoir_ignores_an_out_of_range_bucket_index() {
+        let mut reservoir = AlignedHistogramBucketReservoir::<i64>::new(1);
+
+        reservoir.offer(1, 1, ExemplarOffer::at(SystemTime::UNIX_EPOCH));
+
+        assert!(reservoir.take().is_empty());
+    }
+}
