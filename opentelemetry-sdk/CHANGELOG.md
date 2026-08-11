@@ -18,7 +18,8 @@
   need to wait for delegate flush completion. With
   `experimental_metrics_bound_instruments`, SDK metrics report buffering,
   eviction, overflow, replay, scope admission, discard, trigger, and handoff
-  activity.
+  activity. A `record_on_error` helper manages the common fallible-operation
+  workflow by discarding successful scopes and handing off failed ones.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and

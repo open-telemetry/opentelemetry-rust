@@ -106,6 +106,27 @@ snapshot: consumers should use record timestamps for ordering. `trigger()`
 pre-flushes normal-path records before replay, but those newer records can
 therefore still arrive before the older snapshot.
 
+For the common `Result` workflow, `record_on_error` manages the scope
+automatically:
+
+```rust
+let result = recorder
+    .record_on_error(async {
+        run_operation().await
+    })
+    .await;
+```
+
+An `Ok` result discards the snapshot. An `Err` result hands it off and returns
+`ScopedFlightRecorderOperationError::Operation`; admission and handoff failures
+have separate variants that preserve the original operation error. This helper
+uses handoff rather than flush-completing `trigger()` so it remains independent
+of runtime-specific flush or blocking APIs. Handoff submits the snapshot but
+does not confirm OTLP export completion; short-lived applications must still
+flush or shut down their logger provider before exiting. The delegate's `emit`
+implementation can still block, and cancelling the helper discards the
+in-progress snapshot.
+
 When wrapping a batch processor, its queue should have at least as many free
 slots as the maximum snapshot from one scope. This example configures both
 limits to the same record count. Estimated byte limits provide the primary

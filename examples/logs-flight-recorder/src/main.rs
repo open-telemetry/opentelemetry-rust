@@ -8,7 +8,7 @@ use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, Protocol, WithExportConfig};
 use opentelemetry_sdk::logs::{
     BatchConfigBuilder, BatchLogProcessor, ScopedFlightRecorder, ScopedFlightRecorderLogProcessor,
-    SdkLoggerProvider,
+    ScopedFlightRecorderOperationError, SdkLoggerProvider,
 };
 use opentelemetry_sdk::Resource;
 use std::convert::Infallible;
@@ -176,15 +176,9 @@ async fn handle_request(
         Outcome::Warn => "warn",
         Outcome::Error => "error",
     };
-    let recording_scope = match state.recorder.try_start() {
-        Ok(scope) => scope,
-        Err(err) => {
-            return Ok(response(StatusCode::SERVICE_UNAVAILABLE, err.to_string()));
-        }
-    };
-
-    recording_scope
-        .with_context(async {
+    let recorded = state
+        .recorder
+        .record_on_error(async {
             for step in 1..=work.log_count {
                 info!(
                     target: "flight_recorder_demo",
@@ -216,42 +210,50 @@ async fn handle_request(
                     "request failed; triggering the flight recorder"
                 );
             }
+
+            if work.outcome == Outcome::Error {
+                Err("request failed")
+            } else {
+                Ok(())
+            }
         })
         .await;
 
-    if work.outcome == Outcome::Ok {
-        recording_scope.discard();
-        return Ok(response(
+    match recorded {
+        Ok(()) if work.outcome == Outcome::Ok => Ok(response(
             StatusCode::OK,
             format!(
                 "request {} completed; scoped logs discarded",
                 work.request_id
             ),
-        ));
-    }
-
-    if work.outcome == Outcome::Warn {
-        recording_scope.discard();
-        return Ok(response(
+        )),
+        Ok(()) => Ok(response(
             StatusCode::OK,
             format!(
                 "request {} completed; warning followed the normal export path",
                 work.request_id
             ),
-        ));
-    }
-
-    match tokio::task::block_in_place(|| recording_scope.trigger()) {
-        Ok(()) => Ok(response(
+        )),
+        Err(ScopedFlightRecorderOperationError::Operation(_)) => Ok(response(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!(
-                "request {} failed; flight recorder snapshot exported",
+                "request {} failed; flight recorder snapshot handed off",
                 work.request_id
             ),
         )),
-        Err(err) => Ok(response(
+        Err(ScopedFlightRecorderOperationError::Start(err)) => {
+            Ok(response(StatusCode::SERVICE_UNAVAILABLE, err.to_string()))
+        }
+        Err(ScopedFlightRecorderOperationError::Handoff { handoff, .. }) => Ok(response(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("request {} failed; trigger failed: {err}", work.request_id),
+            format!(
+                "request {} failed; snapshot handoff failed: {handoff}",
+                work.request_id
+            ),
+        )),
+        Err(_) => Ok(response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("request {} failed", work.request_id),
         )),
     }
 }

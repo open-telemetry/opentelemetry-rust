@@ -123,6 +123,48 @@ impl fmt::Display for ScopedFlightRecorderStartError {
 
 impl Error for ScopedFlightRecorderStartError {}
 
+/// Failure from [`ScopedFlightRecorder::record_on_error`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ScopedFlightRecorderOperationError<E> {
+    /// A recording scope could not be admitted.
+    Start(ScopedFlightRecorderStartError),
+    /// The operation failed and its snapshot was handed off successfully.
+    Operation(E),
+    /// The operation failed and snapshot handoff also failed.
+    Handoff {
+        /// The original operation error.
+        operation: E,
+        /// The snapshot handoff error.
+        handoff: OTelSdkError,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for ScopedFlightRecorderOperationError<E> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Start(err) => write!(f, "flight recorder scope admission failed: {err}"),
+            Self::Operation(err) => write!(f, "recorded operation failed: {err}"),
+            Self::Handoff { operation, handoff } => {
+                write!(
+                    f,
+                    "recorded operation failed ({operation}) and snapshot handoff failed: {handoff}"
+                )
+            }
+        }
+    }
+}
+
+impl<E: Error + 'static> Error for ScopedFlightRecorderOperationError<E> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Start(err) => Some(err),
+            Self::Operation(err) => Some(err),
+            Self::Handoff { handoff, .. } => Some(handoff),
+        }
+    }
+}
+
 impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
     /// Sets the maximum number of records retained by each active scope.
     pub fn with_max_records_per_scope(mut self, max_records: usize) -> Self {
@@ -247,6 +289,37 @@ impl ScopedFlightRecorder {
                 inner: self.inner.clone(),
                 buffer,
             })
+    }
+
+    /// Runs a fallible operation in a recording scope.
+    ///
+    /// Successful operations discard their buffered logs. Failed operations
+    /// hand off their snapshot without waiting for delegate flush completion.
+    /// Cancelling or dropping this future discards the in-progress snapshot.
+    /// Use the lower-level scope API when failure handling must call
+    /// [`ScopedFlightRecorderScope::trigger`] and wait for a flush.
+    pub async fn record_on_error<F, T, E>(
+        &self,
+        future: F,
+    ) -> Result<T, ScopedFlightRecorderOperationError<E>>
+    where
+        F: Future<Output = Result<T, E>>,
+    {
+        let scope = self
+            .try_start()
+            .map_err(ScopedFlightRecorderOperationError::Start)?;
+        match scope.with_context(future).await {
+            Ok(value) => {
+                scope.discard();
+                Ok(value)
+            }
+            Err(operation) => match scope.handoff() {
+                Ok(()) => Err(ScopedFlightRecorderOperationError::Operation(operation)),
+                Err(handoff) => {
+                    Err(ScopedFlightRecorderOperationError::Handoff { operation, handoff })
+                }
+            },
+        }
     }
 }
 
@@ -930,6 +1003,68 @@ mod tests {
 
         assert_eq!(bodies(&delegate), ["first"]);
         second.discard();
+    }
+
+    #[test]
+    fn record_on_error_discards_success_and_hands_off_failure() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) =
+            ScopedFlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let instrumentation = InstrumentationScope::builder("test").build();
+
+        let success = futures_executor::block_on(recorder.record_on_error(async {
+            processor.emit(&mut record("success", Severity::Info), &instrumentation);
+            Ok::<_, &'static str>("ok")
+        }));
+        assert_eq!(success.unwrap(), "ok");
+        assert!(bodies(&delegate).is_empty());
+
+        let failure = futures_executor::block_on(recorder.record_on_error(async {
+            processor.emit(&mut record("failure", Severity::Info), &instrumentation);
+            Err::<(), _>("operation failed")
+        }));
+        assert!(matches!(
+            failure,
+            Err(ScopedFlightRecorderOperationError::Operation(
+                "operation failed"
+            ))
+        ));
+        assert_eq!(bodies(&delegate), ["failure"]);
+    }
+
+    #[test]
+    fn record_on_error_preserves_start_and_handoff_failures() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate)
+            .with_max_active_scopes(1)
+            .build();
+        let active = recorder.try_start().unwrap();
+
+        let rejected = futures_executor::block_on(
+            recorder.record_on_error(async { Ok::<_, &'static str>(()) }),
+        );
+        assert!(matches!(
+            rejected,
+            Err(ScopedFlightRecorderOperationError::Start(
+                ScopedFlightRecorderStartError::ScopeLimitReached
+            ))
+        ));
+        active.discard();
+        drop(active);
+
+        let handoff_failure = futures_executor::block_on(recorder.record_on_error(async {
+            processor
+                .shutdown_with_timeout(Duration::from_secs(1))
+                .unwrap();
+            Err::<(), _>("operation failed")
+        }));
+        match handoff_failure {
+            Err(ScopedFlightRecorderOperationError::Handoff {
+                operation: "operation failed",
+                handoff: OTelSdkError::AlreadyShutdown,
+            }) => {}
+            other => panic!("unexpected result: {other:?}"),
+        }
     }
 
     #[test]
