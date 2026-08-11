@@ -1,5 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
-use crate::logs::flight_recorder::estimated_log_size;
+use crate::logs::flight_recorder::{
+    estimated_log_size, lock_with_timeout, should_buffer, BufferedLog, LogBuffer, TimedLockError,
+};
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
 use opentelemetry::logs::Severity;
@@ -10,7 +12,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::future::{poll_fn, Future};
 use std::pin::pin;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, RwLock, TryLockError, Weak};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant};
 
 const DEFAULT_MAX_RECORDS_PER_SCOPE: usize = 256;
@@ -21,8 +23,6 @@ const DEFAULT_MAX_RECORD_SIZE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
 const DEFAULT_OVERFLOW_POLICY: ScopedFlightRecorderOverflowPolicy =
     ScopedFlightRecorderOverflowPolicy::Drop;
-
-type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
 static NEXT_PROCESSOR_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -311,8 +311,6 @@ trait ScopedFlightRecorderCore: Send + Sync {
 struct ScopeBuffer {
     id: usize,
     processor_id: usize,
-    max_records: usize,
-    max_buffer_size_bytes: usize,
     memory_budget: Arc<MemoryBudget>,
     accounted_bytes: AtomicUsize,
     state: Mutex<ScopeState>,
@@ -320,8 +318,7 @@ struct ScopeBuffer {
 
 struct ScopeState {
     status: ScopeStatus,
-    records: VecDeque<BufferedLog>,
-    buffer_size_bytes: usize,
+    buffer: LogBuffer,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -351,42 +348,24 @@ impl ScopeBuffer {
         if state.status != ScopeStatus::Recording {
             return Ok(BufferResult::Passthrough);
         }
-        let mut remaining_records = state.records.len();
-        let mut remaining_bytes = state.buffer_size_bytes;
-        let mut eviction_count = 0;
-        let mut eviction_bytes = 0;
-        for (_, _, size) in &state.records {
-            if remaining_records < self.max_records
-                && estimated_size <= self.max_buffer_size_bytes - remaining_bytes
-            {
-                break;
-            }
-            remaining_records -= 1;
-            remaining_bytes -= size;
-            eviction_count += 1;
-            eviction_bytes += size;
-        }
-
-        let additional_bytes = estimated_size.saturating_sub(eviction_bytes);
+        let plan = state.buffer.plan_insertion(estimated_size);
+        let additional_bytes = estimated_size.saturating_sub(plan.bytes);
         if !self.memory_budget.try_reserve(additional_bytes) {
             return Ok(BufferResult::Overflow);
         }
 
-        for _ in 0..eviction_count {
-            state.records.pop_front();
+        if plan.bytes > estimated_size {
+            self.memory_budget.release(plan.bytes - estimated_size);
         }
-        if eviction_bytes > estimated_size {
-            self.memory_budget.release(eviction_bytes - estimated_size);
-        }
-        state.buffer_size_bytes = remaining_bytes + estimated_size;
         self.accounted_bytes
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |accounted| {
-                Some(accounted - eviction_bytes + estimated_size)
+                Some(accounted - plan.bytes + estimated_size)
             })
             .expect("scope byte accounting must not underflow");
-        state
-            .records
-            .push_back((record.clone(), instrumentation.clone(), estimated_size));
+        state.buffer.insert(
+            (record.clone(), instrumentation.clone(), estimated_size),
+            plan,
+        );
         Ok(BufferResult::Buffered)
     }
 
@@ -399,10 +378,9 @@ impl ScopeBuffer {
             return Ok(BufferedSnapshot::empty(self.memory_budget.clone()));
         }
         state.status = ScopeStatus::Passthrough;
-        state.buffer_size_bytes = 0;
         self.accounted_bytes.store(0, Ordering::Release);
         Ok(BufferedSnapshot {
-            records: std::mem::take(&mut state.records),
+            records: state.buffer.take(),
             memory_budget: self.memory_budget.clone(),
         })
     }
@@ -411,8 +389,7 @@ impl ScopeBuffer {
         match self.state.lock() {
             Ok(mut state) => {
                 state.status = ScopeStatus::Discarded;
-                state.records.clear();
-                state.buffer_size_bytes = 0;
+                state.buffer.clear();
                 self.release_all_accounted_bytes();
             }
             Err(err) => {
@@ -582,30 +559,6 @@ impl<P: LogProcessor> ScopedShared<P> {
         });
         Ok(buffers)
     }
-
-    fn lock_trigger_with_timeout(
-        &self,
-        timeout: Duration,
-    ) -> Result<MutexGuard<'_, ()>, OTelSdkError> {
-        let start = Instant::now();
-        loop {
-            match self.trigger_lock.try_lock() {
-                Ok(guard) => return Ok(guard),
-                Err(TryLockError::Poisoned(err)) => {
-                    return Err(mutex_error("trigger", err));
-                }
-                Err(TryLockError::WouldBlock) => {
-                    let Some(remaining) = timeout.checked_sub(start.elapsed()) else {
-                        return Err(OTelSdkError::Timeout(timeout));
-                    };
-                    if remaining.is_zero() {
-                        return Err(OTelSdkError::Timeout(timeout));
-                    }
-                    std::thread::sleep(remaining.min(Duration::from_millis(1)));
-                }
-            }
-        }
-    }
 }
 
 impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
@@ -629,14 +582,14 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
         let buffer = Arc::new(ScopeBuffer {
             id,
             processor_id: self.processor_id,
-            max_records: self.max_records_per_scope,
-            max_buffer_size_bytes: self.max_buffer_size_bytes_per_scope,
             memory_budget: self.memory_budget.clone(),
             accounted_bytes: AtomicUsize::new(0),
             state: Mutex::new(ScopeState {
                 status: ScopeStatus::Recording,
-                records: VecDeque::new(),
-                buffer_size_bytes: 0,
+                buffer: LogBuffer::new(
+                    self.max_records_per_scope,
+                    self.max_buffer_size_bytes_per_scope,
+                ),
             }),
         });
         scopes.insert(id, Arc::downgrade(&buffer));
@@ -668,10 +621,7 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             return;
         }
 
-        let should_buffer = record.severity_number().map_or(true, |severity| {
-            severity <= self.shared.max_buffered_severity
-        });
-        if should_buffer {
+        if should_buffer(record, self.shared.max_buffered_severity) {
             let buffer = Context::map_current(|context| {
                 context
                     .get::<ScopedBufferContext>()
@@ -730,7 +680,13 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let start = Instant::now();
-        let _trigger_guard = self.shared.lock_trigger_with_timeout(timeout)?;
+        let _trigger_guard =
+            lock_with_timeout(&self.shared.trigger_lock, timeout).map_err(|err| match err {
+                TimedLockError::Poisoned => OTelSdkError::InternalFailure(
+                    "ScopedFlightRecorderLogProcessor trigger mutex poisoned".into(),
+                ),
+                TimedLockError::Timeout => OTelSdkError::Timeout(timeout),
+            })?;
         if self.shared.is_shutdown.swap(true, Ordering::AcqRel) {
             return Err(OTelSdkError::AlreadyShutdown);
         }

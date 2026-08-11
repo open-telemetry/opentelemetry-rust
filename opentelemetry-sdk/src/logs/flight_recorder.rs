@@ -1,7 +1,111 @@
 use crate::logs::SdkLogRecord;
 use opentelemetry::logs::AnyValue;
+use opentelemetry::logs::Severity;
 use opentelemetry::{Array, InstrumentationScope, KeyValue, Value};
+use std::collections::VecDeque;
 use std::mem::size_of;
+use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::time::{Duration, Instant};
+
+pub(crate) type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
+
+pub(crate) struct EvictionPlan {
+    pub(crate) count: usize,
+    pub(crate) bytes: usize,
+}
+
+pub(crate) struct LogBuffer {
+    records: VecDeque<BufferedLog>,
+    size_bytes: usize,
+    max_records: usize,
+    max_size_bytes: usize,
+}
+
+impl LogBuffer {
+    pub(crate) fn new(max_records: usize, max_size_bytes: usize) -> Self {
+        Self {
+            records: VecDeque::new(),
+            size_bytes: 0,
+            max_records,
+            max_size_bytes,
+        }
+    }
+
+    pub(crate) fn plan_insertion(&self, size: usize) -> EvictionPlan {
+        let mut remaining_records = self.records.len();
+        let mut remaining_bytes = self.size_bytes;
+        let mut plan = EvictionPlan { count: 0, bytes: 0 };
+        for (_, _, record_size) in &self.records {
+            if remaining_records < self.max_records && size <= self.max_size_bytes - remaining_bytes
+            {
+                break;
+            }
+            remaining_records -= 1;
+            remaining_bytes -= record_size;
+            plan.count += 1;
+            plan.bytes += record_size;
+        }
+        plan
+    }
+
+    pub(crate) fn insert(&mut self, log: BufferedLog, plan: EvictionPlan) {
+        for _ in 0..plan.count {
+            self.records.pop_front();
+        }
+        self.size_bytes = self.size_bytes - plan.bytes + log.2;
+        self.records.push_back(log);
+    }
+
+    pub(crate) fn push_overwriting(&mut self, log: BufferedLog) -> usize {
+        let plan = self.plan_insertion(log.2);
+        let evicted_bytes = plan.bytes;
+        self.insert(log, plan);
+        evicted_bytes
+    }
+
+    pub(crate) fn take(&mut self) -> VecDeque<BufferedLog> {
+        self.size_bytes = 0;
+        std::mem::take(&mut self.records)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.records.clear();
+        self.size_bytes = 0;
+    }
+}
+
+pub(crate) fn should_buffer(record: &SdkLogRecord, max_severity: Severity) -> bool {
+    record
+        .severity_number()
+        .map_or(true, |severity| severity <= max_severity)
+}
+
+pub(crate) enum TimedLockError {
+    Poisoned,
+    Timeout,
+}
+
+pub(crate) fn lock_with_timeout<T>(
+    lock: &Mutex<T>,
+    timeout: Duration,
+) -> Result<MutexGuard<'_, T>, TimedLockError> {
+    let start = Instant::now();
+    loop {
+        match lock.try_lock() {
+            Ok(guard) => return Ok(guard),
+            Err(TryLockError::Poisoned(_)) => return Err(TimedLockError::Poisoned),
+            Err(TryLockError::WouldBlock) => {
+                let Some(remaining) = timeout.checked_sub(start.elapsed()) else {
+                    return Err(TimedLockError::Timeout);
+                };
+                if remaining.is_zero() {
+                    return Err(TimedLockError::Timeout);
+                }
+                std::thread::sleep(remaining.min(Duration::from_millis(1)));
+            }
+        }
+    }
+}
 
 /// Conservatively estimates retained in-memory size, not serialized OTLP size.
 pub(crate) fn estimated_log_size(

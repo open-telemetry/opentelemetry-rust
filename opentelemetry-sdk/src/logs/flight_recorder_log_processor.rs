@@ -1,20 +1,21 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
-use crate::logs::flight_recorder::estimated_log_size;
+#[cfg(test)]
+use crate::logs::flight_recorder::BufferedLog;
+use crate::logs::flight_recorder::{
+    estimated_log_size, lock_with_timeout, should_buffer, LogBuffer, TimedLockError,
+};
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_warn, InstrumentationScope};
-use std::collections::VecDeque;
 use std::fmt::{self, Debug, Formatter};
-use std::sync::{Arc, Mutex, MutexGuard, RwLock, TryLockError};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 const DEFAULT_MAX_RECORDS: usize = 1_024;
 const DEFAULT_MAX_BUFFER_SIZE_BYTES: usize = 4 * 1024 * 1024;
 const DEFAULT_MAX_RECORD_SIZE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
-
-type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
 /// A log processor that retains recent logs until explicitly triggered.
 ///
@@ -135,8 +136,7 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
         let shared = Arc::new(Shared {
             delegate: RwLock::new(self.delegate),
             state: Mutex::new(State {
-                records: VecDeque::new(),
-                buffer_size_bytes: 0,
+                buffer: LogBuffer::new(self.max_records, self.max_buffer_size_bytes),
                 is_shutdown: false,
             }),
             trigger_lock: Mutex::new(()),
@@ -193,8 +193,7 @@ struct Shared<P: LogProcessor> {
 }
 
 struct State {
-    records: VecDeque<BufferedLog>,
-    buffer_size_bytes: usize,
+    buffer: LogBuffer,
     is_shutdown: bool,
 }
 
@@ -222,8 +221,7 @@ impl<P: LogProcessor> Shared<P> {
             if state.is_shutdown {
                 return Err(OTelSdkError::AlreadyShutdown);
             }
-            state.buffer_size_bytes = 0;
-            std::mem::take(&mut state.records)
+            state.buffer.take()
         };
 
         if snapshot.is_empty() {
@@ -233,30 +231,6 @@ impl<P: LogProcessor> Shared<P> {
             delegate.emit(&mut record, &instrumentation);
         }
         delegate.force_flush()
-    }
-
-    fn lock_trigger_with_timeout(
-        &self,
-        timeout: Duration,
-    ) -> Result<MutexGuard<'_, ()>, OTelSdkError> {
-        let start = Instant::now();
-        loop {
-            match self.trigger_lock.try_lock() {
-                Ok(guard) => return Ok(guard),
-                Err(TryLockError::Poisoned(err)) => {
-                    return Err(mutex_error("trigger", err));
-                }
-                Err(TryLockError::WouldBlock) => {
-                    let Some(remaining) = timeout.checked_sub(start.elapsed()) else {
-                        return Err(OTelSdkError::Timeout(timeout));
-                    };
-                    if remaining.is_zero() {
-                        return Err(OTelSdkError::Timeout(timeout));
-                    }
-                    std::thread::sleep(remaining.min(Duration::from_millis(1)));
-                }
-            }
-        }
     }
 }
 
@@ -268,10 +242,7 @@ impl<P: LogProcessor> TriggerFlightRecorder for Shared<P> {
 
 impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
-        if record
-            .severity_number()
-            .is_some_and(|severity| severity > self.shared.max_buffered_severity)
-        {
+        if !should_buffer(record, self.shared.max_buffered_severity) {
             let delegate = match self.shared.delegate.read() {
                 Ok(delegate) => delegate,
                 Err(err) => {
@@ -342,17 +313,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
             return;
         }
 
-        while state.records.len() == self.shared.max_records
-            || estimated_size > self.shared.max_buffer_size_bytes - state.buffer_size_bytes
-        {
-            if let Some((_, _, evicted_size)) = state.records.pop_front() {
-                state.buffer_size_bytes -= evicted_size;
-            } else {
-                break;
-            }
-        }
-        state.buffer_size_bytes += estimated_size;
-        state.records.push_back(buffered_log);
+        state.buffer.push_overwriting(buffered_log);
     }
 
     fn force_flush(&self) -> OTelSdkResult {
@@ -361,7 +322,13 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let start = Instant::now();
-        let _trigger_guard = self.shared.lock_trigger_with_timeout(timeout)?;
+        let _trigger_guard =
+            lock_with_timeout(&self.shared.trigger_lock, timeout).map_err(|err| match err {
+                TimedLockError::Poisoned => OTelSdkError::InternalFailure(
+                    "FlightRecorderLogProcessor trigger mutex poisoned".into(),
+                ),
+                TimedLockError::Timeout => OTelSdkError::Timeout(timeout),
+            })?;
 
         {
             let mut state = self
@@ -373,8 +340,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
                 return Err(OTelSdkError::AlreadyShutdown);
             }
             state.is_shutdown = true;
-            state.records.clear();
-            state.buffer_size_bytes = 0;
+            state.buffer.clear();
         }
 
         let remaining = timeout.saturating_sub(start.elapsed());
