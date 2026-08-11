@@ -160,6 +160,16 @@ pub struct FlightRecorderTrigger {
 }
 
 impl FlightRecorderTrigger {
+    /// Hands the current snapshot to the wrapped processor without flushing it.
+    ///
+    /// This avoids waiting for exporter completion, but it is still
+    /// synchronous: acquiring recorder locks and the wrapped processor's
+    /// `emit` implementation may block. Existing records in a bounded delegate
+    /// queue count against the capacity available to the snapshot.
+    pub fn handoff(&self) -> OTelSdkResult {
+        self.inner.handoff()
+    }
+
     /// Drains and exports the current flight-recorder snapshot.
     ///
     /// Concurrent triggers are serialized. Records emitted while a snapshot is
@@ -179,6 +189,7 @@ impl Debug for FlightRecorderTrigger {
 }
 
 trait TriggerFlightRecorder: Send + Sync {
+    fn handoff(&self) -> OTelSdkResult;
     fn trigger(&self) -> OTelSdkResult;
 }
 
@@ -198,7 +209,7 @@ struct State {
 }
 
 impl<P: LogProcessor> Shared<P> {
-    fn trigger_and_flush(&self) -> OTelSdkResult {
+    fn replay_snapshot(&self, flush: bool) -> OTelSdkResult {
         let _trigger_guard = self
             .trigger_lock
             .lock()
@@ -209,9 +220,11 @@ impl<P: LogProcessor> Shared<P> {
             .write()
             .map_err(|err| lock_error("delegate", err))?;
 
-        // Export records that bypassed the recorder before replaying the
-        // contextual snapshot.
-        delegate.force_flush()?;
+        if flush {
+            // Export records that bypassed the recorder before replaying the
+            // contextual snapshot.
+            delegate.force_flush()?;
+        }
 
         let snapshot = {
             let mut state = self
@@ -230,13 +243,21 @@ impl<P: LogProcessor> Shared<P> {
         for (mut record, instrumentation, _) in snapshot {
             delegate.emit(&mut record, &instrumentation);
         }
-        delegate.force_flush()
+        if flush {
+            delegate.force_flush()
+        } else {
+            Ok(())
+        }
     }
 }
 
 impl<P: LogProcessor> TriggerFlightRecorder for Shared<P> {
+    fn handoff(&self) -> OTelSdkResult {
+        self.replay_snapshot(false)
+    }
+
     fn trigger(&self) -> OTelSdkResult {
-        self.trigger_and_flush()
+        self.replay_snapshot(true)
     }
 }
 
@@ -317,7 +338,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
     }
 
     fn force_flush(&self) -> OTelSdkResult {
-        self.shared.trigger_and_flush()
+        self.shared.replay_snapshot(true)
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
@@ -452,6 +473,23 @@ mod tests {
         block_next_emit: Arc<AtomicBool>,
     }
 
+    #[derive(Debug)]
+    struct FailingFlushProcessor;
+
+    impl LogProcessor for FailingFlushProcessor {
+        fn emit(&self, _record: &mut SdkLogRecord, _instrumentation: &InstrumentationScope) {}
+
+        fn force_flush(&self) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "delegate flush failed".into(),
+            ))
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            Ok(())
+        }
+    }
+
     impl LogProcessor for BlockingProcessor {
         fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
             if self.block_next_emit.swap(false, Ordering::Relaxed) {
@@ -511,6 +549,48 @@ mod tests {
         trigger.trigger().unwrap();
         assert_eq!(bodies(&delegate), ["one", "two"]);
         assert_eq!(delegate.flushes.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn handoff_replays_without_flushing_delegate() {
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor.emit(&mut record("one"), &scope);
+        trigger.handoff().unwrap();
+
+        assert_eq!(bodies(&delegate), ["one"]);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn handoff_does_not_reorder_existing_delegate_records() {
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor.emit(&mut record("info"), &scope);
+        processor.emit(&mut record_with_severity("warn", Severity::Warn), &scope);
+        trigger.handoff().unwrap();
+
+        assert_eq!(bodies(&delegate), ["warn", "info"]);
+    }
+
+    #[test]
+    fn handoff_succeeds_when_delegate_flush_would_fail() {
+        let (processor, trigger) =
+            FlightRecorderLogProcessor::builder(FailingFlushProcessor).build();
+        let scope = InstrumentationScope::builder("test").build();
+
+        processor.emit(&mut record("one"), &scope);
+        trigger.handoff().unwrap();
+
+        processor.emit(&mut record("two"), &scope);
+        assert!(matches!(
+            trigger.trigger(),
+            Err(OTelSdkError::InternalFailure(_))
+        ));
     }
 
     #[test]

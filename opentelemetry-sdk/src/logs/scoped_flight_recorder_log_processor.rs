@@ -284,6 +284,15 @@ impl ScopedFlightRecorderScope {
         self.inner.trigger(&self.buffer)
     }
 
+    /// Hands this scope's buffered snapshot to the wrapped processor and
+    /// switches the scope to passthrough without flushing the delegate.
+    ///
+    /// This avoids waiting for exporter completion, but acquiring recorder
+    /// locks and the wrapped processor's `emit` implementation may still block.
+    pub fn handoff(&self) -> OTelSdkResult {
+        self.inner.handoff(&self.buffer)
+    }
+
     /// Discards this scope's buffered records.
     pub fn discard(&self) {
         self.buffer.discard();
@@ -305,6 +314,7 @@ struct ScopedBufferContext {
 
 trait ScopedFlightRecorderCore: Send + Sync {
     fn try_start(&self) -> Result<Arc<ScopeBuffer>, ScopedFlightRecorderStartError>;
+    fn handoff(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult;
     fn trigger(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult;
 }
 
@@ -543,6 +553,19 @@ impl<P: LogProcessor> ScopedShared<P> {
         Ok(())
     }
 
+    fn handoff_snapshot(&self, buffer: Arc<ScopeBuffer>) -> OTelSdkResult {
+        let delegate = self
+            .delegate
+            .write()
+            .map_err(|err| lock_error("delegate", err))?;
+        let mut snapshot = buffer.take_and_passthrough()?;
+        while let Some((mut record, instrumentation, estimated_size)) = snapshot.pop_front() {
+            delegate.emit(&mut record, &instrumentation);
+            snapshot.release(estimated_size);
+        }
+        Ok(())
+    }
+
     fn active_buffers(&self) -> Result<Vec<Arc<ScopeBuffer>>, OTelSdkError> {
         let mut scopes = self
             .scopes
@@ -594,6 +617,20 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
         });
         scopes.insert(id, Arc::downgrade(&buffer));
         Ok(buffer)
+    }
+
+    fn handoff(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult {
+        if self.is_shutdown.load(Ordering::Acquire) {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
+        let _trigger_guard = self
+            .trigger_lock
+            .lock()
+            .map_err(|err| mutex_error("trigger", err))?;
+        if self.is_shutdown.load(Ordering::Acquire) {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
+        self.handoff_snapshot(buffer.clone())
     }
 
     fn trigger(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult {
@@ -884,6 +921,23 @@ mod tests {
         }));
 
         assert_eq!(bodies(&delegate), ["before", "after"]);
+    }
+
+    #[test]
+    fn handoff_replays_without_flushing_delegate() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) =
+            ScopedFlightRecorderLogProcessor::builder(delegate.clone()).build();
+        let scope = recorder.try_start().unwrap();
+        let instrumentation = InstrumentationScope::builder("test").build();
+
+        futures_executor::block_on(scope.with_context(async {
+            processor.emit(&mut record("before", Severity::Info), &instrumentation);
+        }));
+        scope.handoff().unwrap();
+
+        assert_eq!(bodies(&delegate), ["before"]);
+        assert_eq!(delegate.flushes.load(Ordering::Relaxed), 0);
     }
 
     #[test]

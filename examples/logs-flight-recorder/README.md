@@ -94,6 +94,18 @@ if result.is_err() {
 }
 ```
 
+`trigger()` waits for the wrapped processor's `force_flush` and is appropriate
+when completion must be observed before continuing. `handoff()` only submits the
+snapshot to the wrapped processor. It avoids waiting for exporter completion,
+but remains synchronous around recorder locks and delegate `emit` calls. Both
+operations are serialized with other triggers. Because `handoff()` does not
+pre-flush a bounded delegate queue, the application must account for records
+already queued when sizing that queue. It also does not preserve submission
+order between records already on the delegate's normal path and the older
+snapshot: consumers should use record timestamps for ordering. `trigger()`
+pre-flushes normal-path records before replay, but those newer records can
+therefore still arrive before the older snapshot.
+
 When wrapping a batch processor, its queue should have at least as many free
 slots as the maximum snapshot from one scope. This example configures both
 limits to the same record count. Estimated byte limits provide the primary
@@ -191,6 +203,8 @@ configurable.
 - Each operation scope has its own ring buffer.
 - Triggering drains that scope and switches it to passthrough so subsequent
   records follow the normal path.
+- `handoff` submits a snapshot without flushing; `trigger` additionally
+  pre-flushes and flushes after replay.
 - Dropping or discarding an untriggered scope loses its buffered records.
 - Logs without an attached scope follow the normal path.
 - Independently spawned tasks must explicitly use the same scope's
