@@ -38,7 +38,8 @@ pub use record::{SdkLogRecord, TraceContext};
 #[cfg_attr(docsrs, doc(cfg(feature = "experimental_logs_flight_recorder")))]
 pub use scoped_flight_recorder_log_processor::{
     ScopedFlightRecorder, ScopedFlightRecorderLogProcessor,
-    ScopedFlightRecorderLogProcessorBuilder, ScopedFlightRecorderScope,
+    ScopedFlightRecorderLogProcessorBuilder, ScopedFlightRecorderOverflowPolicy,
+    ScopedFlightRecorderScope, ScopedFlightRecorderStartError,
 };
 pub use simple_log_processor::SimpleLogProcessor;
 

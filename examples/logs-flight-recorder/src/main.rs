@@ -177,12 +177,9 @@ async fn handle_request(
         Outcome::Error => "error",
     };
     let recording_scope = match state.recorder.try_start() {
-        Some(scope) => scope,
-        None => {
-            return Ok(response(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "flight recorder active-scope limit reached",
-            ));
+        Ok(scope) => scope,
+        Err(err) => {
+            return Ok(response(StatusCode::SERVICE_UNAVAILABLE, err.to_string()));
         }
     };
 

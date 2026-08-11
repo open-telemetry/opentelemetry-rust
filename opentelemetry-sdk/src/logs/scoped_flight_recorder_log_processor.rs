@@ -5,6 +5,7 @@ use crate::Resource;
 use opentelemetry::logs::Severity;
 use opentelemetry::{otel_warn, Context, InstrumentationScope};
 use std::collections::{HashMap, VecDeque};
+use std::error::Error;
 use std::fmt::{self, Debug, Formatter};
 use std::future::{poll_fn, Future};
 use std::pin::pin;
@@ -18,6 +19,8 @@ const DEFAULT_MAX_BUFFER_SIZE_BYTES_PER_SCOPE: usize = 256 * 1024;
 const DEFAULT_MAX_TOTAL_BUFFER_SIZE_BYTES: usize = 16 * 1024 * 1024;
 const DEFAULT_MAX_RECORD_SIZE_BYTES: usize = 64 * 1024;
 const DEFAULT_MAX_BUFFERED_SEVERITY: Severity = Severity::Info4;
+const DEFAULT_OVERFLOW_POLICY: ScopedFlightRecorderOverflowPolicy =
+    ScopedFlightRecorderOverflowPolicy::Drop;
 
 type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
@@ -50,6 +53,7 @@ impl<P: LogProcessor> Debug for ScopedFlightRecorderLogProcessor<P> {
                 &self.shared.memory_budget.limit,
             )
             .field("max_record_size_bytes", &self.shared.max_record_size_bytes)
+            .field("overflow_policy", &self.shared.overflow_policy)
             .field("max_buffered_severity", &self.shared.max_buffered_severity)
             .finish_non_exhaustive()
     }
@@ -65,6 +69,7 @@ impl<P: LogProcessor> ScopedFlightRecorderLogProcessor<P> {
             max_buffer_size_bytes_per_scope: DEFAULT_MAX_BUFFER_SIZE_BYTES_PER_SCOPE,
             max_total_buffer_size_bytes: DEFAULT_MAX_TOTAL_BUFFER_SIZE_BYTES,
             max_record_size_bytes: DEFAULT_MAX_RECORD_SIZE_BYTES,
+            overflow_policy: DEFAULT_OVERFLOW_POLICY,
             max_buffered_severity: DEFAULT_MAX_BUFFERED_SEVERITY,
         }
     }
@@ -79,8 +84,43 @@ pub struct ScopedFlightRecorderLogProcessorBuilder<P: LogProcessor> {
     max_buffer_size_bytes_per_scope: usize,
     max_total_buffer_size_bytes: usize,
     max_record_size_bytes: usize,
+    overflow_policy: ScopedFlightRecorderOverflowPolicy,
     max_buffered_severity: Severity,
 }
+
+/// Behavior for low-severity records that cannot be retained.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ScopedFlightRecorderOverflowPolicy {
+    /// Drops the incoming record, preserving the recorder's ingestion savings.
+    Drop,
+    /// Sends the incoming record through the wrapped processor.
+    Export,
+}
+
+/// The reason a new recording scope could not be admitted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ScopedFlightRecorderStartError {
+    /// The configured active-scope limit has been reached.
+    ScopeLimitReached,
+    /// The processor has shut down.
+    Shutdown,
+    /// The active-scope registry is unavailable.
+    InternalFailure,
+}
+
+impl fmt::Display for ScopedFlightRecorderStartError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ScopeLimitReached => f.write_str("flight recorder active-scope limit reached"),
+            Self::Shutdown => f.write_str("flight recorder processor is shut down"),
+            Self::InternalFailure => f.write_str("flight recorder scope registry is unavailable"),
+        }
+    }
+}
+
+impl Error for ScopedFlightRecorderStartError {}
 
 impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
     /// Sets the maximum number of records retained by each active scope.
@@ -112,10 +152,19 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
 
     /// Sets the maximum estimated size of an individual buffered record.
     ///
-    /// Larger records bypass the recorder and follow the wrapped processor's
-    /// normal path.
+    /// Larger records are handled by the configured overflow policy.
     pub fn with_max_record_size_bytes(mut self, max_record_size_bytes: usize) -> Self {
         self.max_record_size_bytes = max_record_size_bytes;
+        self
+    }
+
+    /// Sets how low-severity records are handled when recorder limits prevent
+    /// them from being buffered.
+    pub fn with_overflow_policy(
+        mut self,
+        overflow_policy: ScopedFlightRecorderOverflowPolicy,
+    ) -> Self {
+        self.overflow_policy = overflow_policy;
         self
     }
 
@@ -164,6 +213,7 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
             max_buffer_size_bytes_per_scope: self.max_buffer_size_bytes_per_scope,
             max_record_size_bytes: self.max_record_size_bytes,
             memory_budget: Arc::new(MemoryBudget::new(self.max_total_buffer_size_bytes)),
+            overflow_policy: self.overflow_policy,
             max_buffered_severity: self.max_buffered_severity,
         });
         let recorder = ScopedFlightRecorder {
@@ -183,9 +233,10 @@ pub struct ScopedFlightRecorder {
 impl ScopedFlightRecorder {
     /// Starts a recording scope.
     ///
-    /// Returns `None` when the configured active-scope limit has been reached or
-    /// the processor has shut down. Logs without a scope use the normal path.
-    pub fn try_start(&self) -> Option<ScopedFlightRecorderScope> {
+    /// Returns an explicit error when the configured active-scope limit has
+    /// been reached, the processor has shut down, or admission cannot inspect
+    /// the active-scope registry.
+    pub fn try_start(&self) -> Result<ScopedFlightRecorderScope, ScopedFlightRecorderStartError> {
         self.inner
             .try_start()
             .map(|buffer| ScopedFlightRecorderScope {
@@ -253,7 +304,7 @@ struct ScopedBufferContext {
 }
 
 trait ScopedFlightRecorderCore: Send + Sync {
-    fn try_start(&self) -> Option<Arc<ScopeBuffer>>;
+    fn try_start(&self) -> Result<Arc<ScopeBuffer>, ScopedFlightRecorderStartError>;
     fn trigger(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult;
 }
 
@@ -280,19 +331,25 @@ enum ScopeStatus {
     Discarded,
 }
 
+enum BufferResult {
+    Buffered,
+    Passthrough,
+    Overflow,
+}
+
 impl ScopeBuffer {
     fn try_buffer(
         &self,
         record: &SdkLogRecord,
         instrumentation: &InstrumentationScope,
         estimated_size: usize,
-    ) -> Result<bool, OTelSdkError> {
+    ) -> Result<BufferResult, OTelSdkError> {
         let mut state = self
             .state
             .lock()
             .map_err(|err| mutex_error("scope buffer", err))?;
         if state.status != ScopeStatus::Recording {
-            return Ok(false);
+            return Ok(BufferResult::Passthrough);
         }
         let mut remaining_records = state.records.len();
         let mut remaining_bytes = state.buffer_size_bytes;
@@ -312,7 +369,7 @@ impl ScopeBuffer {
 
         let additional_bytes = estimated_size.saturating_sub(eviction_bytes);
         if !self.memory_budget.try_reserve(additional_bytes) {
-            return Ok(false);
+            return Ok(BufferResult::Overflow);
         }
 
         for _ in 0..eviction_count {
@@ -330,7 +387,7 @@ impl ScopeBuffer {
         state
             .records
             .push_back((record.clone(), instrumentation.clone(), estimated_size));
-        Ok(true)
+        Ok(BufferResult::Buffered)
     }
 
     fn take_and_passthrough(&self) -> Result<BufferedSnapshot, OTelSdkError> {
@@ -455,6 +512,7 @@ struct ScopedShared<P: LogProcessor> {
     max_buffer_size_bytes_per_scope: usize,
     max_record_size_bytes: usize,
     memory_budget: Arc<MemoryBudget>,
+    overflow_policy: ScopedFlightRecorderOverflowPolicy,
     max_buffered_severity: Severity,
 }
 
@@ -551,14 +609,20 @@ impl<P: LogProcessor> ScopedShared<P> {
 }
 
 impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
-    fn try_start(&self) -> Option<Arc<ScopeBuffer>> {
+    fn try_start(&self) -> Result<Arc<ScopeBuffer>, ScopedFlightRecorderStartError> {
         if self.is_shutdown.load(Ordering::Acquire) {
-            return None;
+            return Err(ScopedFlightRecorderStartError::Shutdown);
         }
-        let mut scopes = self.scopes.lock().ok()?;
+        let mut scopes = self
+            .scopes
+            .lock()
+            .map_err(|_| ScopedFlightRecorderStartError::InternalFailure)?;
         scopes.retain(|_, buffer| buffer.strong_count() > 0);
-        if self.is_shutdown.load(Ordering::Acquire) || scopes.len() >= self.max_active_scopes {
-            return None;
+        if self.is_shutdown.load(Ordering::Acquire) {
+            return Err(ScopedFlightRecorderStartError::Shutdown);
+        }
+        if scopes.len() >= self.max_active_scopes {
+            return Err(ScopedFlightRecorderStartError::ScopeLimitReached);
         }
 
         let id = self.next_scope_id.fetch_add(1, Ordering::Relaxed);
@@ -576,7 +640,7 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
             }),
         });
         scopes.insert(id, Arc::downgrade(&buffer));
-        Some(buffer)
+        Ok(buffer)
     }
 
     fn trigger(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult {
@@ -608,13 +672,6 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             severity <= self.shared.max_buffered_severity
         });
         if should_buffer {
-            let estimated_size = estimated_log_size(record, instrumentation);
-            if estimated_size > self.shared.max_record_size_bytes
-                || estimated_size > self.shared.max_buffer_size_bytes_per_scope
-            {
-                self.shared.emit_to_delegate(record, instrumentation);
-                return;
-            }
             let buffer = Context::map_current(|context| {
                 context
                     .get::<ScopedBufferContext>()
@@ -622,9 +679,27 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             });
             if let Some(buffer) = buffer {
                 if buffer.processor_id == self.shared.processor_id {
+                    let estimated_size = estimated_log_size(record, instrumentation);
+                    if estimated_size > self.shared.max_record_size_bytes
+                        || estimated_size > self.shared.max_buffer_size_bytes_per_scope
+                    {
+                        if self.shared.overflow_policy == ScopedFlightRecorderOverflowPolicy::Export
+                        {
+                            self.shared.emit_to_delegate(record, instrumentation);
+                        }
+                        return;
+                    }
                     match buffer.try_buffer(record, instrumentation, estimated_size) {
-                        Ok(true) => return,
-                        Ok(false) => {}
+                        Ok(BufferResult::Buffered) => return,
+                        Ok(BufferResult::Passthrough) => {}
+                        Ok(BufferResult::Overflow) => {
+                            if self.shared.overflow_policy
+                                == ScopedFlightRecorderOverflowPolicy::Export
+                            {
+                                self.shared.emit_to_delegate(record, instrumentation);
+                            }
+                            return;
+                        }
                         Err(err) => {
                             otel_warn!(
                                 name: "ScopedFlightRecorderLogProcessor.BufferLockFailed",
@@ -863,9 +938,12 @@ mod tests {
             .build();
 
         let first = recorder.try_start().unwrap();
-        assert!(recorder.try_start().is_none());
+        assert_eq!(
+            recorder.try_start().unwrap_err(),
+            ScopedFlightRecorderStartError::ScopeLimitReached
+        );
         drop(first);
-        assert!(recorder.try_start().is_some());
+        assert!(recorder.try_start().is_ok());
     }
 
     #[test]
@@ -967,6 +1045,7 @@ mod tests {
         let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
             .with_max_buffer_size_bytes_per_scope(estimated_size * 2)
             .with_max_total_buffer_size_bytes(estimated_size)
+            .with_overflow_policy(ScopedFlightRecorderOverflowPolicy::Export)
             .build();
         let first = recorder.try_start().unwrap();
         let second = recorder.try_start().unwrap();
@@ -989,6 +1068,29 @@ mod tests {
     }
 
     #[test]
+    fn aggregate_overflow_drops_by_default() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size = estimated_log_size(&record("first", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_total_buffer_size_bytes(estimated_size)
+            .build();
+        let first = recorder.try_start().unwrap();
+        let second = recorder.try_start().unwrap();
+
+        futures_executor::block_on(first.with_context(async {
+            processor.emit(&mut record("first", Severity::Info), &instrumentation);
+        }));
+        futures_executor::block_on(second.with_context(async {
+            processor.emit(&mut record("other", Severity::Info), &instrumentation);
+        }));
+
+        assert!(bodies(&delegate).is_empty());
+        first.discard();
+        second.discard();
+    }
+
+    #[test]
     fn failed_aggregate_reservation_preserves_existing_snapshot() {
         const LARGE_BODY: &str =
             "a much larger record that requires more aggregate capacity than the existing record";
@@ -1001,6 +1103,7 @@ mod tests {
             .with_max_records_per_scope(1)
             .with_max_buffer_size_bytes_per_scope(large_size)
             .with_max_total_buffer_size_bytes(small_size * 2)
+            .with_overflow_policy(ScopedFlightRecorderOverflowPolicy::Export)
             .build();
         let first = recorder.try_start().unwrap();
         let second = recorder.try_start().unwrap();
@@ -1069,6 +1172,7 @@ mod tests {
             estimated_log_size(&record("oversized", Severity::Info), &instrumentation);
         let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
             .with_max_record_size_bytes(estimated_size - 1)
+            .with_overflow_policy(ScopedFlightRecorderOverflowPolicy::Export)
             .build();
         let scope = recorder.try_start().unwrap();
 
@@ -1078,6 +1182,41 @@ mod tests {
 
         assert_eq!(bodies(&delegate), ["oversized"]);
         scope.trigger().unwrap();
+        assert_eq!(bodies(&delegate), ["oversized"]);
+    }
+
+    #[test]
+    fn oversized_scoped_records_drop_by_default() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size =
+            estimated_log_size(&record("oversized", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_record_size_bytes(estimated_size - 1)
+            .build();
+        let scope = recorder.try_start().unwrap();
+
+        futures_executor::block_on(scope.with_context(async {
+            processor.emit(&mut record("oversized", Severity::Info), &instrumentation);
+        }));
+
+        assert!(bodies(&delegate).is_empty());
+        scope.trigger().unwrap();
+        assert!(bodies(&delegate).is_empty());
+    }
+
+    #[test]
+    fn oversized_records_outside_a_scope_follow_the_normal_path() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size =
+            estimated_log_size(&record("oversized", Severity::Info), &instrumentation);
+        let (processor, _recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_record_size_bytes(estimated_size - 1)
+            .build();
+
+        processor.emit(&mut record("oversized", Severity::Info), &instrumentation);
+
         assert_eq!(bodies(&delegate), ["oversized"]);
     }
 
@@ -1113,7 +1252,10 @@ mod tests {
             .shutdown_with_timeout(Duration::from_secs(1))
             .unwrap();
 
-        assert!(recorder.try_start().is_none());
+        assert_eq!(
+            recorder.try_start().unwrap_err(),
+            ScopedFlightRecorderStartError::Shutdown
+        );
         assert!(matches!(
             scope.trigger(),
             Err(OTelSdkError::AlreadyShutdown)

@@ -51,7 +51,7 @@ boundary.
 ```rust
 use opentelemetry_sdk::logs::{
     BatchConfigBuilder, BatchLogProcessor, ScopedFlightRecorderLogProcessor,
-    SdkLoggerProvider,
+    ScopedFlightRecorderOverflowPolicy, SdkLoggerProvider,
 };
 use opentelemetry::logs::Severity;
 
@@ -72,6 +72,7 @@ let (flight_recorder, recorder) =
         .with_max_buffer_size_bytes_per_scope(256 * 1024)
         .with_max_total_buffer_size_bytes(16 * 1024 * 1024)
         .with_max_record_size_bytes(64 * 1024)
+        .with_overflow_policy(ScopedFlightRecorderOverflowPolicy::Drop)
         .with_max_buffered_severity(Severity::Info4)
         .build();
 
@@ -79,7 +80,7 @@ let logger_provider = SdkLoggerProvider::builder()
     .with_log_processor(flight_recorder)
     .build();
 
-let operation = recorder.try_start().expect("scope capacity available");
+let operation = recorder.try_start()?;
 let result = operation
     .with_context(async {
         run_operation().await
@@ -179,7 +180,11 @@ configurable.
 - Capacity is bounded by both record count and a conservative in-memory size
   estimate. This is not the serialized OTLP size.
 - When the aggregate scoped byte budget is exhausted, new low-severity records
-  bypass buffering and follow the normal export path.
+  are dropped by default, preserving the expected ingestion-cost bound. Set
+  `ScopedFlightRecorderOverflowPolicy::Export` to send them through the wrapped
+  processor instead.
+- Scope admission reports whether the active-scope limit was reached, the
+  processor was shut down, or an internal registry failure occurred.
 - INFO and lower-severity records are buffered by default; WARN and higher
   records bypass the buffer.
 - The oldest records are overwritten when the buffer is full.

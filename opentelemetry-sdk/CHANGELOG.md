@@ -11,7 +11,9 @@
   OpenTelemetry context propagation to isolate buffers for concurrent requests,
   jobs, or other logical operations. Configurable per-record, per-buffer, and
   aggregate scoped byte limits bound estimated retained memory in addition to
-  record-count limits.
+  record-count limits. Scope admission returns explicit errors, and records
+  that cannot be buffered are dropped by default rather than unexpectedly
+  increasing export volume; an opt-in export overflow policy is available.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and
