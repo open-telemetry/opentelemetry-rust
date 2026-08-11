@@ -1,6 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::flight_recorder::{
-    estimated_log_size, lock_with_timeout, should_buffer, BufferedLog, LogBuffer, TimedLockError,
+    estimated_log_size, lock_with_timeout, should_buffer, BufferedLog, FlightRecorderMetrics,
+    LogBuffer, TimedLockError,
 };
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
@@ -215,6 +216,9 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderLogProcessorBuilder<P> {
             memory_budget: Arc::new(MemoryBudget::new(self.max_total_buffer_size_bytes)),
             overflow_policy: self.overflow_policy,
             max_buffered_severity: self.max_buffered_severity,
+            metrics: Arc::new(FlightRecorderMetrics::new(
+                "scoped_flight_recorder_log_processor",
+            )),
         });
         let recorder = ScopedFlightRecorder {
             inner: shared.clone(),
@@ -321,7 +325,9 @@ trait ScopedFlightRecorderCore: Send + Sync {
 struct ScopeBuffer {
     id: usize,
     processor_id: usize,
+    max_record_size_bytes: usize,
     memory_budget: Arc<MemoryBudget>,
+    metrics: Arc<FlightRecorderMetrics>,
     accounted_bytes: AtomicUsize,
     state: Mutex<ScopeState>,
 }
@@ -339,9 +345,10 @@ enum ScopeStatus {
 }
 
 enum BufferResult {
-    Buffered,
+    Buffered { evicted: usize },
     Passthrough,
     Overflow,
+    Oversized,
 }
 
 impl ScopeBuffer {
@@ -357,6 +364,9 @@ impl ScopeBuffer {
             .map_err(|err| mutex_error("scope buffer", err))?;
         if state.status != ScopeStatus::Recording {
             return Ok(BufferResult::Passthrough);
+        }
+        if estimated_size > self.max_record_size_bytes || !state.buffer.can_fit(estimated_size) {
+            return Ok(BufferResult::Oversized);
         }
         let plan = state.buffer.plan_insertion(estimated_size);
         let additional_bytes = estimated_size.saturating_sub(plan.bytes);
@@ -376,7 +386,9 @@ impl ScopeBuffer {
             (record.clone(), instrumentation.clone(), estimated_size),
             plan,
         );
-        Ok(BufferResult::Buffered)
+        Ok(BufferResult::Buffered {
+            evicted: plan.count,
+        })
     }
 
     fn take_and_passthrough(&self) -> Result<BufferedSnapshot, OTelSdkError> {
@@ -398,9 +410,13 @@ impl ScopeBuffer {
     fn discard(&self) {
         match self.state.lock() {
             Ok(mut state) => {
+                if state.status != ScopeStatus::Recording {
+                    return;
+                }
                 state.status = ScopeStatus::Discarded;
                 state.buffer.clear();
                 self.release_all_accounted_bytes();
+                self.metrics.scope_discarded();
             }
             Err(err) => {
                 otel_warn!(
@@ -452,6 +468,13 @@ impl Drop for BufferedSnapshot {
 
 impl Drop for ScopeBuffer {
     fn drop(&mut self) {
+        if self
+            .state
+            .get_mut()
+            .is_ok_and(|state| state.status == ScopeStatus::Recording)
+        {
+            self.metrics.scope_discarded();
+        }
         self.release_all_accounted_bytes();
     }
 }
@@ -501,6 +524,7 @@ struct ScopedShared<P: LogProcessor> {
     memory_budget: Arc<MemoryBudget>,
     overflow_policy: ScopedFlightRecorderOverflowPolicy,
     max_buffered_severity: Severity,
+    metrics: Arc<FlightRecorderMetrics>,
 }
 
 impl<P: LogProcessor> ScopedShared<P> {
@@ -540,6 +564,7 @@ impl<P: LogProcessor> ScopedShared<P> {
             if snapshot.is_empty() {
                 continue;
             }
+            self.metrics.replayed(snapshot.records.len());
             while let Some((mut record, instrumentation, estimated_size)) = snapshot.pop_front() {
                 delegate.emit(&mut record, &instrumentation);
                 snapshot.release(estimated_size);
@@ -559,6 +584,7 @@ impl<P: LogProcessor> ScopedShared<P> {
             .write()
             .map_err(|err| lock_error("delegate", err))?;
         let mut snapshot = buffer.take_and_passthrough()?;
+        self.metrics.replayed(snapshot.records.len());
         while let Some((mut record, instrumentation, estimated_size)) = snapshot.pop_front() {
             delegate.emit(&mut record, &instrumentation);
             snapshot.release(estimated_size);
@@ -587,17 +613,20 @@ impl<P: LogProcessor> ScopedShared<P> {
 impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
     fn try_start(&self) -> Result<Arc<ScopeBuffer>, ScopedFlightRecorderStartError> {
         if self.is_shutdown.load(Ordering::Acquire) {
+            self.metrics.scope_rejected();
             return Err(ScopedFlightRecorderStartError::Shutdown);
         }
-        let mut scopes = self
-            .scopes
-            .lock()
-            .map_err(|_| ScopedFlightRecorderStartError::InternalFailure)?;
+        let mut scopes = self.scopes.lock().map_err(|_| {
+            self.metrics.scope_rejected();
+            ScopedFlightRecorderStartError::InternalFailure
+        })?;
         scopes.retain(|_, buffer| buffer.strong_count() > 0);
         if self.is_shutdown.load(Ordering::Acquire) {
+            self.metrics.scope_rejected();
             return Err(ScopedFlightRecorderStartError::Shutdown);
         }
         if scopes.len() >= self.max_active_scopes {
+            self.metrics.scope_rejected();
             return Err(ScopedFlightRecorderStartError::ScopeLimitReached);
         }
 
@@ -605,7 +634,9 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
         let buffer = Arc::new(ScopeBuffer {
             id,
             processor_id: self.processor_id,
+            max_record_size_bytes: self.max_record_size_bytes,
             memory_budget: self.memory_budget.clone(),
+            metrics: self.metrics.clone(),
             accounted_bytes: AtomicUsize::new(0),
             state: Mutex::new(ScopeState {
                 status: ScopeStatus::Recording,
@@ -616,6 +647,7 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
             }),
         });
         scopes.insert(id, Arc::downgrade(&buffer));
+        self.metrics.scope_admitted();
         Ok(buffer)
     }
 
@@ -630,7 +662,9 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
         if self.is_shutdown.load(Ordering::Acquire) {
             return Err(OTelSdkError::AlreadyShutdown);
         }
-        self.handoff_snapshot(buffer.clone())
+        self.handoff_snapshot(buffer.clone())?;
+        self.metrics.handed_off();
+        Ok(())
     }
 
     fn trigger(&self, buffer: &Arc<ScopeBuffer>) -> OTelSdkResult {
@@ -644,7 +678,9 @@ impl<P: LogProcessor + 'static> ScopedFlightRecorderCore for ScopedShared<P> {
         if self.is_shutdown.load(Ordering::Acquire) {
             return Err(OTelSdkError::AlreadyShutdown);
         }
-        self.flush_snapshots([buffer.clone()])
+        self.flush_snapshots([buffer.clone()])?;
+        self.metrics.triggered();
+        Ok(())
     }
 }
 
@@ -667,23 +703,32 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             if let Some(buffer) = buffer {
                 if buffer.processor_id == self.shared.processor_id {
                     let estimated_size = estimated_log_size(record, instrumentation);
-                    if estimated_size > self.shared.max_record_size_bytes
-                        || estimated_size > self.shared.max_buffer_size_bytes_per_scope
-                    {
-                        if self.shared.overflow_policy == ScopedFlightRecorderOverflowPolicy::Export
-                        {
-                            self.shared.emit_to_delegate(record, instrumentation);
-                        }
-                        return;
-                    }
                     match buffer.try_buffer(record, instrumentation, estimated_size) {
-                        Ok(BufferResult::Buffered) => return,
+                        Ok(BufferResult::Buffered { evicted }) => {
+                            self.shared.metrics.buffered(1);
+                            self.shared.metrics.evicted(evicted);
+                            return;
+                        }
                         Ok(BufferResult::Passthrough) => {}
                         Ok(BufferResult::Overflow) => {
                             if self.shared.overflow_policy
                                 == ScopedFlightRecorderOverflowPolicy::Export
                             {
+                                self.shared.metrics.capacity_overflow(true);
                                 self.shared.emit_to_delegate(record, instrumentation);
+                            } else {
+                                self.shared.metrics.capacity_overflow(false);
+                            }
+                            return;
+                        }
+                        Ok(BufferResult::Oversized) => {
+                            if self.shared.overflow_policy
+                                == ScopedFlightRecorderOverflowPolicy::Export
+                            {
+                                self.shared.metrics.oversized(true);
+                                self.shared.emit_to_delegate(record, instrumentation);
+                            } else {
+                                self.shared.metrics.oversized(false);
                             }
                             return;
                         }
@@ -712,7 +757,9 @@ impl<P: LogProcessor + 'static> LogProcessor for ScopedFlightRecorderLogProcesso
             return Err(OTelSdkError::AlreadyShutdown);
         }
         let buffers = self.shared.active_buffers()?;
-        self.shared.flush_snapshots(buffers)
+        self.shared.flush_snapshots(buffers)?;
+        self.shared.metrics.triggered();
+        Ok(())
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
@@ -1231,6 +1278,25 @@ mod tests {
     }
 
     #[test]
+    fn oversized_records_after_trigger_follow_the_normal_path() {
+        let delegate = TestProcessor::new();
+        let instrumentation = InstrumentationScope::builder("test").build();
+        let estimated_size =
+            estimated_log_size(&record("oversized", Severity::Info), &instrumentation);
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_record_size_bytes(estimated_size - 1)
+            .build();
+        let scope = recorder.try_start().unwrap();
+        scope.trigger().unwrap();
+
+        futures_executor::block_on(scope.with_context(async {
+            processor.emit(&mut record("oversized", Severity::Info), &instrumentation);
+        }));
+
+        assert_eq!(bodies(&delegate), ["oversized"]);
+    }
+
+    #[test]
     fn discarded_scope_does_not_export() {
         let delegate = TestProcessor::new();
         let (processor, recorder) =
@@ -1271,5 +1337,77 @@ mod tests {
             Err(OTelSdkError::AlreadyShutdown)
         ));
         assert!(bodies(&delegate).is_empty());
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn self_diagnostics_report_scope_admission_rejection_and_discard() {
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let delegate = TestProcessor::new();
+        let (_processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate)
+            .with_max_active_scopes(1)
+            .build();
+        let scope = recorder.try_start().unwrap();
+        assert_eq!(
+            recorder.try_start().unwrap_err(),
+            ScopedFlightRecorderStartError::ScopeLimitReached
+        );
+        scope.discard();
+        meter_provider.force_flush().unwrap();
+
+        assert_eq!(
+            diagnostic_action_total(&metric_exporter, "scope_admitted"),
+            1
+        );
+        assert_eq!(
+            diagnostic_action_total(&metric_exporter, "scope_rejected"),
+            1
+        );
+        assert_eq!(
+            diagnostic_action_total(&metric_exporter, "scope_discarded"),
+            1
+        );
+
+        meter_provider.shutdown().unwrap();
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn diagnostic_action_total(
+        exporter: &crate::metrics::InMemoryMetricExporter,
+        action: &str,
+    ) -> u64 {
+        use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+        exporter
+            .get_finished_metrics()
+            .unwrap()
+            .iter()
+            .flat_map(|resource| &resource.scope_metrics)
+            .flat_map(|scope| &scope.metrics)
+            .filter(|metric| {
+                metric
+                    .name
+                    .starts_with("otel.sdk.processor.log.flight_recorder.")
+            })
+            .filter_map(|metric| match &metric.data {
+                AggregatedMetrics::U64(MetricData::Sum(sum)) => Some(sum),
+                _ => None,
+            })
+            .flat_map(|sum| sum.data_points())
+            .filter(|point| {
+                point.attributes().any(|attribute| {
+                    attribute.key.as_str() == "action" && attribute.value.as_str() == action
+                })
+            })
+            .map(|point| point.value())
+            .sum()
     }
 }

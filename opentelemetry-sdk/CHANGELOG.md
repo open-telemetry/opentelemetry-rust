@@ -15,7 +15,10 @@
   that cannot be buffered are dropped by default rather than unexpectedly
   increasing export volume; an opt-in export overflow policy is available.
   Trigger handles also provide a handoff-only operation when callers do not
-  need to wait for delegate flush completion.
+  need to wait for delegate flush completion. With
+  `experimental_metrics_bound_instruments`, SDK metrics report buffering,
+  eviction, overflow, replay, scope admission, discard, trigger, and handoff
+  activity.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and

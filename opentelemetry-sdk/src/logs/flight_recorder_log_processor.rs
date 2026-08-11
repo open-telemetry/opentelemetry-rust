@@ -2,7 +2,8 @@ use crate::error::{OTelSdkError, OTelSdkResult};
 #[cfg(test)]
 use crate::logs::flight_recorder::BufferedLog;
 use crate::logs::flight_recorder::{
-    estimated_log_size, lock_with_timeout, should_buffer, LogBuffer, TimedLockError,
+    estimated_log_size, lock_with_timeout, should_buffer, FlightRecorderMetrics, LogBuffer,
+    TimedLockError,
 };
 use crate::logs::{LogProcessor, SdkLogRecord};
 use crate::Resource;
@@ -144,6 +145,7 @@ impl<P: LogProcessor + 'static> FlightRecorderLogProcessorBuilder<P> {
             max_buffer_size_bytes: self.max_buffer_size_bytes,
             max_record_size_bytes: self.max_record_size_bytes,
             max_buffered_severity: self.max_buffered_severity,
+            metrics: FlightRecorderMetrics::new("flight_recorder_log_processor"),
         });
         let trigger = FlightRecorderTrigger {
             inner: shared.clone(),
@@ -201,6 +203,7 @@ struct Shared<P: LogProcessor> {
     max_buffer_size_bytes: usize,
     max_record_size_bytes: usize,
     max_buffered_severity: Severity,
+    metrics: FlightRecorderMetrics,
 }
 
 struct State {
@@ -240,6 +243,7 @@ impl<P: LogProcessor> Shared<P> {
         if snapshot.is_empty() {
             return Ok(());
         }
+        self.metrics.replayed(snapshot.len());
         for (mut record, instrumentation, _) in snapshot {
             delegate.emit(&mut record, &instrumentation);
         }
@@ -253,11 +257,15 @@ impl<P: LogProcessor> Shared<P> {
 
 impl<P: LogProcessor> TriggerFlightRecorder for Shared<P> {
     fn handoff(&self) -> OTelSdkResult {
-        self.replay_snapshot(false)
+        self.replay_snapshot(false)?;
+        self.metrics.handed_off();
+        Ok(())
     }
 
     fn trigger(&self) -> OTelSdkResult {
-        self.replay_snapshot(true)
+        self.replay_snapshot(true)?;
+        self.metrics.triggered();
+        Ok(())
     }
 }
 
@@ -300,6 +308,7 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
         if estimated_size > self.shared.max_record_size_bytes
             || estimated_size > self.shared.max_buffer_size_bytes
         {
+            self.shared.metrics.oversized(true);
             let delegate = match self.shared.delegate.read() {
                 Ok(delegate) => delegate,
                 Err(err) => {
@@ -334,11 +343,15 @@ impl<P: LogProcessor> LogProcessor for FlightRecorderLogProcessor<P> {
             return;
         }
 
-        state.buffer.push_overwriting(buffered_log);
+        let evicted = state.buffer.push_overwriting(buffered_log);
+        self.shared.metrics.buffered(1);
+        self.shared.metrics.evicted(evicted.count);
     }
 
     fn force_flush(&self) -> OTelSdkResult {
-        self.shared.replay_snapshot(true)
+        self.shared.replay_snapshot(true)?;
+        self.shared.metrics.triggered();
+        Ok(())
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
@@ -827,5 +840,67 @@ mod tests {
         let _ = FlightRecorderLogProcessor::builder(delegate)
             .with_max_records(0)
             .build();
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    #[ignore]
+    fn self_diagnostics_report_buffer_eviction_replay_and_trigger() {
+        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+        let metric_exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(metric_exporter.clone())
+            .build();
+        opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate)
+            .with_max_records(1)
+            .build();
+        let scope = InstrumentationScope::builder("test").build();
+        processor.emit(&mut record("one"), &scope);
+        processor.emit(&mut record("two"), &scope);
+        trigger.trigger().unwrap();
+        meter_provider.force_flush().unwrap();
+
+        assert_eq!(diagnostic_action_total(&metric_exporter, "buffered"), 2);
+        assert_eq!(diagnostic_action_total(&metric_exporter, "evicted"), 1);
+        assert_eq!(diagnostic_action_total(&metric_exporter, "replayed"), 1);
+        assert_eq!(diagnostic_action_total(&metric_exporter, "triggered"), 1);
+
+        meter_provider.shutdown().unwrap();
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn diagnostic_action_total(
+        exporter: &crate::metrics::InMemoryMetricExporter,
+        action: &str,
+    ) -> u64 {
+        use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+        exporter
+            .get_finished_metrics()
+            .unwrap()
+            .iter()
+            .flat_map(|resource| &resource.scope_metrics)
+            .flat_map(|scope| &scope.metrics)
+            .filter(|metric| {
+                metric
+                    .name
+                    .starts_with("otel.sdk.processor.log.flight_recorder.")
+            })
+            .filter_map(|metric| match &metric.data {
+                AggregatedMetrics::U64(MetricData::Sum(sum)) => Some(sum),
+                _ => None,
+            })
+            .flat_map(|sum| sum.data_points())
+            .filter(|point| {
+                point.attributes().any(|attribute| {
+                    attribute.key.as_str() == "action" && attribute.value.as_str() == action
+                })
+            })
+            .map(|point| point.value())
+            .sum()
     }
 }

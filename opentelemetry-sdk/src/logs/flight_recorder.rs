@@ -4,14 +4,161 @@ use opentelemetry::logs::Severity;
 use opentelemetry::{Array, InstrumentationScope, KeyValue, Value};
 use std::collections::VecDeque;
 use std::mem::size_of;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::time::{Duration, Instant};
 
 pub(crate) type BufferedLog = (SdkLogRecord, InstrumentationScope, usize);
 
+#[derive(Clone, Copy)]
 pub(crate) struct EvictionPlan {
     pub(crate) count: usize,
     pub(crate) bytes: usize,
+}
+
+pub(crate) struct FlightRecorderMetrics {
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    buffered: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    evicted: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    replayed: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    oversized_dropped: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    oversized_exported: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    capacity_dropped: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    capacity_exported: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    scopes_admitted: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    scopes_rejected: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    scopes_discarded: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    triggered: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    handed_off: opentelemetry::metrics::BoundCounter<u64>,
+}
+
+impl FlightRecorderMetrics {
+    pub(crate) fn new(component_type: &'static str) -> Self {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let component_name = format!("{component_type}/{instance_id}");
+            let meter = opentelemetry::global::meter("otel.sdk");
+            let records = meter
+                .u64_counter("otel.sdk.processor.log.flight_recorder.records")
+                .with_description("The number of log records handled by a flight recorder.")
+                .with_unit("{log_record}")
+                .build();
+            let events = meter
+                .u64_counter("otel.sdk.processor.log.flight_recorder.events")
+                .with_description("The number of flight-recorder lifecycle events.")
+                .with_unit("{event}")
+                .build();
+            let bind = |counter: &opentelemetry::metrics::Counter<u64>, action| {
+                counter.bind(&[
+                    KeyValue::new("action", action),
+                    KeyValue::new("otel.component.type", component_type),
+                    KeyValue::new("otel.component.name", component_name.clone()),
+                ])
+            };
+
+            Self {
+                buffered: bind(&records, "buffered"),
+                evicted: bind(&records, "evicted"),
+                replayed: bind(&records, "replayed"),
+                oversized_dropped: bind(&records, "oversized_dropped"),
+                oversized_exported: bind(&records, "oversized_exported"),
+                capacity_dropped: bind(&records, "capacity_dropped"),
+                capacity_exported: bind(&records, "capacity_exported"),
+                scopes_admitted: bind(&events, "scope_admitted"),
+                scopes_rejected: bind(&events, "scope_rejected"),
+                scopes_discarded: bind(&events, "scope_discarded"),
+                triggered: bind(&events, "triggered"),
+                handed_off: bind(&events, "handed_off"),
+            }
+        }
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        {
+            let _ = component_type;
+            Self {}
+        }
+    }
+
+    pub(crate) fn buffered(&self, count: usize) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.buffered.add(u64::try_from(count).unwrap_or(u64::MAX));
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        let _ = count;
+    }
+
+    pub(crate) fn evicted(&self, count: usize) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.evicted.add(u64::try_from(count).unwrap_or(u64::MAX));
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        let _ = count;
+    }
+
+    pub(crate) fn replayed(&self, count: usize) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.replayed.add(u64::try_from(count).unwrap_or(u64::MAX));
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        let _ = count;
+    }
+
+    pub(crate) fn oversized(&self, exported: bool) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        if exported {
+            self.oversized_exported.add(1);
+        } else {
+            self.oversized_dropped.add(1);
+        }
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        let _ = exported;
+    }
+
+    pub(crate) fn capacity_overflow(&self, exported: bool) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        if exported {
+            self.capacity_exported.add(1);
+        } else {
+            self.capacity_dropped.add(1);
+        }
+        #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+        let _ = exported;
+    }
+
+    pub(crate) fn scope_admitted(&self) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.scopes_admitted.add(1);
+    }
+
+    pub(crate) fn scope_rejected(&self) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.scopes_rejected.add(1);
+    }
+
+    pub(crate) fn scope_discarded(&self) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.scopes_discarded.add(1);
+    }
+
+    pub(crate) fn triggered(&self) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.triggered.add(1);
+    }
+
+    pub(crate) fn handed_off(&self) {
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        self.handed_off.add(1);
+    }
 }
 
 pub(crate) struct LogBuffer {
@@ -48,6 +195,10 @@ impl LogBuffer {
         plan
     }
 
+    pub(crate) fn can_fit(&self, size: usize) -> bool {
+        size <= self.max_size_bytes
+    }
+
     pub(crate) fn insert(&mut self, log: BufferedLog, plan: EvictionPlan) {
         for _ in 0..plan.count {
             self.records.pop_front();
@@ -56,11 +207,10 @@ impl LogBuffer {
         self.records.push_back(log);
     }
 
-    pub(crate) fn push_overwriting(&mut self, log: BufferedLog) -> usize {
+    pub(crate) fn push_overwriting(&mut self, log: BufferedLog) -> EvictionPlan {
         let plan = self.plan_insertion(log.2);
-        let evicted_bytes = plan.bytes;
         self.insert(log, plan);
-        evicted_bytes
+        plan
     }
 
     pub(crate) fn take(&mut self) -> VecDeque<BufferedLog> {

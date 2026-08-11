@@ -171,6 +171,21 @@ Configuration:
 | `FLIGHT_RECORDER_MAX_RECORD_BYTES` | `65536` | Records above this estimated size bypass buffering |
 | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | OTLP exporter default | OTLP logs endpoint |
 
+## Self-observability
+
+When `experimental_metrics_bound_instruments` is also enabled, recorder
+instances emit SDK metrics through the global meter provider:
+
+- `otel.sdk.processor.log.flight_recorder.records` counts buffered, evicted,
+  replayed, oversized, and capacity-overflow records using the `action`
+  attribute.
+- `otel.sdk.processor.log.flight_recorder.events` counts scope admission,
+  rejection, discard, trigger, and handoff events.
+
+Both experimental, recorder-specific metrics include the conventional
+`otel.component.type` and a unique `otel.component.name` used by other SDK
+processor metrics.
+
 ## Trigger ideas
 
 Scopes are deliberately independent of any Rust web framework. Applications
