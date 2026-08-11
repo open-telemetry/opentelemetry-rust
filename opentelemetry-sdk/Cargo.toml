@@ -99,6 +99,11 @@ name = "log_processor"
 harness = false
 
 [[bench]]
+name = "flight_recorder"
+harness = false
+required-features = ["experimental_logs_flight_recorder"]
+
+[[bench]]
 name = "log_enabled"
 harness = false
 

@@ -536,6 +536,12 @@ mod tests {
         record
     }
 
+    fn owned_record(body: String) -> SdkLogRecord {
+        let mut record = SdkLogRecord::new();
+        record.set_body(AnyValue::from(body));
+        record
+    }
+
     fn bodies(processor: &TestProcessor) -> Vec<String> {
         processor
             .records
@@ -818,6 +824,54 @@ mod tests {
         processor
             .shutdown_with_timeout(Duration::from_secs(1))
             .unwrap();
+    }
+
+    #[test]
+    fn concurrent_emit_and_handoff_stress_preserves_all_records() {
+        let delegate = TestProcessor::new(true);
+        let (processor, trigger) = FlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_records(4_096)
+            .with_max_buffer_size_bytes(16 * 1024 * 1024)
+            .build();
+        let processor = Arc::new(processor);
+        let running = Arc::new(AtomicBool::new(true));
+
+        let trigger_thread = {
+            let trigger = trigger.clone();
+            let running = running.clone();
+            std::thread::spawn(move || {
+                while running.load(Ordering::Acquire) {
+                    trigger.handoff().unwrap();
+                    std::thread::yield_now();
+                }
+            })
+        };
+        let mut workers = Vec::new();
+        for worker in 0..4 {
+            let processor = processor.clone();
+            workers.push(std::thread::spawn(move || {
+                let instrumentation = InstrumentationScope::builder("stress").build();
+                for sequence in 0..500 {
+                    processor.emit(
+                        &mut owned_record(format!("{worker}:{sequence}")),
+                        &instrumentation,
+                    );
+                }
+            }));
+        }
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        running.store(false, Ordering::Release);
+        trigger_thread.join().unwrap();
+        trigger.handoff().unwrap();
+
+        let exported = bodies(&delegate);
+        assert_eq!(exported.len(), 2_000);
+        let mut unique = exported;
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), 2_000);
     }
 
     #[test]

@@ -971,6 +971,13 @@ mod tests {
         record
     }
 
+    fn owned_record(body: String, severity: Severity) -> SdkLogRecord {
+        let mut record = SdkLogRecord::new();
+        record.set_body(AnyValue::from(body));
+        record.set_severity_number(severity);
+        record
+    }
+
     fn bodies(processor: &TestProcessor) -> Vec<String> {
         processor
             .records
@@ -1472,6 +1479,95 @@ mod tests {
             Err(OTelSdkError::AlreadyShutdown)
         ));
         assert!(bodies(&delegate).is_empty());
+    }
+
+    #[test]
+    fn concurrent_scoped_emit_handoff_and_discard_stress_is_isolated() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate.clone())
+            .with_max_records_per_scope(128)
+            .build();
+        let processor = Arc::new(processor);
+        let mut workers = Vec::new();
+
+        for worker in 0..8 {
+            let processor = processor.clone();
+            let recorder = recorder.clone();
+            workers.push(std::thread::spawn(move || {
+                let scope = recorder.try_start().unwrap();
+                let instrumentation = InstrumentationScope::builder("stress").build();
+                futures_executor::block_on(scope.with_context(async {
+                    for sequence in 0..100 {
+                        processor.emit(
+                            &mut owned_record(format!("{worker}:{sequence}"), Severity::Info),
+                            &instrumentation,
+                        );
+                    }
+                }));
+                if worker % 2 == 0 {
+                    scope.handoff().unwrap();
+                } else {
+                    scope.discard();
+                }
+            }));
+        }
+        for worker in workers {
+            worker.join().unwrap();
+        }
+
+        let exported = bodies(&delegate);
+        assert_eq!(exported.len(), 400);
+        assert!(exported.iter().all(|body| {
+            body.split_once(':')
+                .and_then(|(worker, _)| worker.parse::<usize>().ok())
+                .is_some_and(|worker| worker % 2 == 0)
+        }));
+        processor
+            .shutdown_with_timeout(Duration::from_secs(1))
+            .unwrap();
+    }
+
+    #[test]
+    fn concurrent_scoped_emit_handoff_and_shutdown_liveness_stress() {
+        let delegate = TestProcessor::new();
+        let (processor, recorder) = ScopedFlightRecorderLogProcessor::builder(delegate).build();
+        let processor = Arc::new(processor);
+        let barrier = Arc::new(std::sync::Barrier::new(3));
+        let mut workers = Vec::new();
+
+        for worker in 0..2 {
+            let scope = recorder.try_start().unwrap();
+            let processor = processor.clone();
+            let barrier = barrier.clone();
+            workers.push(std::thread::spawn(move || {
+                let instrumentation = InstrumentationScope::builder("stress").build();
+                barrier.wait();
+                futures_executor::block_on(scope.with_context(async {
+                    for sequence in 0..50 {
+                        processor.emit(
+                            &mut owned_record(format!("{worker}:{sequence}"), Severity::Info),
+                            &instrumentation,
+                        );
+                    }
+                }));
+                assert!(matches!(
+                    scope.handoff(),
+                    Ok(()) | Err(OTelSdkError::AlreadyShutdown)
+                ));
+            }));
+        }
+
+        barrier.wait();
+        processor
+            .shutdown_with_timeout(Duration::from_secs(1))
+            .unwrap();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        assert_eq!(
+            recorder.try_start().unwrap_err(),
+            ScopedFlightRecorderStartError::Shutdown
+        );
     }
 
     #[cfg(feature = "experimental_metrics_bound_instruments")]

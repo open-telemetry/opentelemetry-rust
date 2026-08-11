@@ -20,6 +20,8 @@
   eviction, overflow, replay, scope admission, discard, trigger, and handoff
   activity. A `record_on_error` helper manages the common fallible-operation
   workflow by discarding successful scopes and handing off failed ones.
+  Criterion benchmarks and concurrent emit/trigger/discard/shutdown stress
+  tests cover the recorder hot paths.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and

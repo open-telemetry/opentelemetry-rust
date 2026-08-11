@@ -207,6 +207,17 @@ Both experimental, recorder-specific metrics include the conventional
 `otel.component.type` and a unique `otel.component.name` used by other SDK
 processor metrics.
 
+## Benchmarks
+
+The SDK includes Criterion coverage for global buffered/bypass emits and the
+combined scoped context-propagation plus buffered-emit path:
+
+```shell
+cargo bench -p opentelemetry_sdk \
+  --features experimental_logs_flight_recorder \
+  --bench flight_recorder
+```
+
 ## Trigger ideas
 
 Scopes are deliberately independent of any Rust web framework. Applications
