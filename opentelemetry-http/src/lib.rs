@@ -101,7 +101,7 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
-            let mut response = self.execute(request).await?.error_for_status()?;
+            let mut response = self.execute(request).await?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -119,7 +119,7 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
-            let mut response = self.execute(request)?.error_for_status()?;
+            let mut response = self.execute(request)?;
             let headers = std::mem::take(response.headers_mut());
             let mut http_response = Response::builder()
                 .status(response.status())
@@ -134,7 +134,6 @@ mod reqwest {
 #[cfg(feature = "hyper")]
 pub mod hyper {
     use super::{async_trait, Bytes, HttpClient, HttpError, Request, Response};
-    use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
@@ -207,7 +206,7 @@ pub mod hyper {
                 .body(response.into_body().collect().await?.to_bytes())?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response.error_for_status()?)
+            Ok(http_response)
         }
     }
 
@@ -258,6 +257,10 @@ impl<T> ResponseExt for Response<T> {
 mod tests {
     use super::*;
     use http::HeaderValue;
+    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    use std::io::{Read, Write};
+    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    use std::net::TcpListener;
 
     #[test]
     fn http_headers_get() {
@@ -307,6 +310,36 @@ mod tests {
         assert_eq!(got.len(), 2);
         assert!(got.contains(&"headername1"));
         assert!(got.contains(&"headername2"));
+    }
+
+    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    #[test]
+    fn reqwest_blocking_preserves_error_response_status_and_headers() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            stream
+                .write_all(
+                    b"HTTP/1.1 429 Too Many Requests\r\n\
+                      Retry-After: 7\r\n\
+                      Content-Length: 0\r\n\
+                      Connection: close\r\n\r\n",
+                )
+                .unwrap();
+        });
+
+        let client = ::reqwest::blocking::Client::new();
+        let request = Request::post(format!("http://{address}/v1/traces"))
+            .body(Bytes::new())
+            .unwrap();
+        let response = futures_executor::block_on(client.send_bytes(request)).unwrap();
+
+        server.join().unwrap();
+        assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(response.headers().get("retry-after").unwrap(), "7");
     }
 
     #[test]

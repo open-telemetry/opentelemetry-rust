@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Return HTTP error responses from the built-in reqwest and hyper clients instead
+  of converting 4xx and 5xx statuses into transport errors. This preserves the
+  response status and headers for exporter retry classification.
 - **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
   removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
   `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a

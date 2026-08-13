@@ -29,6 +29,9 @@ opentelemetry = { workspace = true, features = ["trace"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
+[dev-dependencies]
+futures-executor = { workspace = true }
+
 [lints]
 workspace = true
 
