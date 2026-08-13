@@ -7,38 +7,32 @@
 //! specified retry policy, using exponential backoff and jitter to determine the delay between
 //! retries. The function uses error classification to determine retry behavior and can honor
 //! server-provided throttling hints.
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-use opentelemetry::{otel_debug, otel_info};
 
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-use opentelemetry::otel_warn;
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-use opentelemetry_sdk::runtime::Runtime;
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
+use opentelemetry::{otel_debug, otel_info, otel_warn};
+use std::collections::hash_map::DefaultHasher;
 use std::future::Future;
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-use std::hash::{DefaultHasher, Hasher};
-use std::time::Duration;
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-use std::time::SystemTime;
+use std::hash::Hasher;
+use std::time::{Duration, Instant, SystemTime};
+
+/// Sleeps for the given duration.
+///
+/// Uses `tokio::time::sleep` when the `tokio` feature is enabled and a Tokio
+/// runtime is present (cooperative, won't block the reactor); otherwise falls
+/// back to `std::thread::sleep`.
+///
+/// Note: `tokio` is not a default feature, so default builds
+/// (`reqwest-blocking-client`) always use `std::thread::sleep`. It is pulled in
+/// by `grpc-tonic`, `reqwest-client`, and `hyper-client`.
+async fn sleep_for(duration: Duration) {
+    #[cfg(feature = "tokio")]
+    {
+        if tokio::runtime::Handle::try_current().is_ok() {
+            tokio::time::sleep(duration).await;
+            return;
+        }
+    }
+    std::thread::sleep(duration);
+}
 
 /// Classification of errors for retry purposes.
 #[derive(Debug, Clone, PartialEq)]
@@ -65,11 +59,38 @@ pub struct RetryPolicy {
     pub jitter_ms: u64,
 }
 
+impl Default for RetryPolicy {
+    /// Default retry policy performs no retries (single attempt only).
+    /// Use `RetryPolicy::recommended()` or configure explicitly to enable retry.
+    fn default() -> Self {
+        Self {
+            max_retries: 0,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        }
+    }
+}
+
+impl RetryPolicy {
+    /// Recommended retry policy per the OTLP spec: 3 retries with exponential
+    /// backoff (100ms initial, 1600ms max, 100ms jitter).
+    pub fn recommended() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 1600,
+            jitter_ms: 100,
+        }
+    }
+}
+
+/// Maximum duration a server-provided throttle delay (Retry-After / RetryInfo) is allowed
+/// to block the export thread. Any server-provided delay exceeding this cap is truncated.
+/// This prevents a misbehaving server from stalling the export pipeline indefinitely.
+const MAX_THROTTLE_DURATION: Duration = Duration::from_secs(30);
+
 // Generates a random jitter value up to max_jitter
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
 fn generate_jitter(max_jitter: u64) -> u64 {
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -83,13 +104,27 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 
 /// Retries the given operation with exponential backoff, jitter, and error classification.
 ///
-/// This function provides sophisticated retry behavior by classifying errors
-/// and honoring server-provided throttling hints (e.g., HTTP Retry-After, gRPC RetryInfo).
+/// This function provides retry behavior by classifying errors and honoring server-provided
+/// throttling hints (e.g., HTTP Retry-After, gRPC RetryInfo).
+///
+/// Delays between retries adapt to the calling context: when running inside a Tokio
+/// runtime (gRPC/async HTTP exporters), `tokio::time::sleep` is used cooperatively;
+/// on a bare OS thread (the SDK's default batch processors), `std::thread::sleep`
+/// is used instead.
+///
+/// A time budget (deadline) bounds the total retry duration. If the budget is exhausted,
+/// the function returns the last error without further retries.
+///
+/// **Note:** The deadline governs whether to start another retry and caps inter-retry
+/// sleep durations, but it does not cancel an in-flight export operation. On dedicated
+/// threads (the SDK's default batch processors), individual export calls do not have a
+/// timeout today, so a single slow export can exceed the deadline. This is an existing
+/// limitation.
 ///
 /// # Arguments
 ///
-/// * `runtime` - The async runtime to use for delays.
 /// * `policy` - The retry policy configuration.
+/// * `deadline` - Maximum total time allowed for all retry attempts combined.
 /// * `error_classifier` - Function to classify errors for retry decisions.
 /// * `operation_name` - The name of the operation being retried.
 /// * `operation` - The operation to be retried.
@@ -98,69 +133,100 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 ///
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
-#[cfg(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-))]
-pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
-    runtime: R,
-    policy: RetryPolicy,
+pub async fn retry_with_backoff<F, Fut, T, E, C>(
+    policy: &RetryPolicy,
+    deadline: Duration,
     error_classifier: C,
     operation_name: &str,
     mut operation: F,
 ) -> Result<T, E>
 where
-    R: Runtime,
     F: FnMut() -> Fut,
     E: std::fmt::Debug,
     Fut: Future<Output = Result<T, E>>,
     C: Fn(&E) -> RetryErrorType,
 {
+    let start = Instant::now();
     let mut attempt = 0;
     let mut delay = policy.initial_delay_ms;
 
     loop {
         match operation().await {
-            Ok(result) => return Ok(result), // Return the result if the operation succeeds
+            Ok(result) => return Ok(result),
             Err(err) => {
-                // Classify the error
+                // Check time budget before deciding to retry
+                let elapsed = start.elapsed();
+                if elapsed >= deadline {
+                    otel_warn!(name: "Export.Failed.DeadlineExceeded",
+                        operation = operation_name,
+                        retries = attempt,
+                        elapsed_ms = elapsed.as_millis(),
+                        message = "OTLP export deadline exceeded - telemetry data will be lost"
+                    );
+                    return Err(err);
+                }
+
                 let error_type = error_classifier(&err);
 
                 match error_type {
                     RetryErrorType::NonRetryable => {
                         otel_warn!(name: "Export.Failed.NonRetryable",
                             operation = operation_name,
-                            message = "OTLP export failed with non-retryable error - telemetry data will be lost");
+                            message = "OTLP export failed with non-retryable error - telemetry data will be lost"
+                        );
                         return Err(err);
                     }
                     RetryErrorType::Retryable if attempt < policy.max_retries => {
                         attempt += 1;
-                        // Use exponential backoff with jitter
                         let jitter = generate_jitter(policy.jitter_ms);
-                        let delay_with_jitter = std::cmp::min(delay + jitter, policy.max_delay_ms);
+                        let delay_ms = std::cmp::min(delay + jitter, policy.max_delay_ms);
+                        let sleep_duration = Duration::from_millis(delay_ms);
+
+                        // If the backoff delay would consume all remaining budget, fail now
+                        let remaining = deadline.saturating_sub(start.elapsed());
+                        if sleep_duration >= remaining {
+                            otel_warn!(name: "Export.Failed.DeadlineExceeded",
+                                operation = operation_name,
+                                retries = attempt,
+                                message = "OTLP export deadline exceeded during backoff - telemetry data will be lost"
+                            );
+                            return Err(err);
+                        }
+
                         otel_debug!(name: "Export.InProgress.Retrying",
                             operation = operation_name,
                             attempt = attempt,
-                            delay_ms = delay_with_jitter,
-                            jitter_ms = jitter,
+                            delay_ms = sleep_duration.as_millis(),
                             message = "OTLP export failed with retryable error - retrying"
                         );
-                        runtime
-                            .delay(Duration::from_millis(delay_with_jitter))
-                            .await;
-                        delay = std::cmp::min(delay * 2, policy.max_delay_ms); // Exponential backoff
+                        sleep_for(sleep_duration).await;
+                        delay = std::cmp::min(delay * 2, policy.max_delay_ms);
                     }
                     RetryErrorType::Throttled(server_delay) if attempt < policy.max_retries => {
                         attempt += 1;
-                        // Use server-specified delay (overrides exponential backoff)
+                        // Cap server-provided delay to prevent excessive blocking
+                        let capped_delay = server_delay.min(MAX_THROTTLE_DURATION);
+
+                        // If the throttle delay would consume all remaining budget, fail now
+                        let remaining = deadline.saturating_sub(start.elapsed());
+                        if capped_delay >= remaining {
+                            otel_warn!(name: "Export.Failed.DeadlineExceeded",
+                                operation = operation_name,
+                                retries = attempt,
+                                message = "OTLP export deadline exceeded during throttle - telemetry data will be lost"
+                            );
+                            return Err(err);
+                        }
+
                         otel_info!(name: "Export.InProgress.Throttled",
                             operation = operation_name,
                             attempt = attempt,
-                            delay_ms = server_delay.as_millis(),
+                            delay_ms = capped_delay.as_millis(),
+                            server_requested_ms = server_delay.as_millis(),
                             message = "OTLP export throttled by OTLP endpoint - delaying and retrying"
                         );
-                        runtime.delay(server_delay).await;
-                        // Don't update exponential backoff delay for next attempt since server provided specific timing
+                        sleep_for(capped_delay).await;
+                        // Don't update exponential backoff delay since server provided specific timing
                     }
                     _ => {
                         // Max retries reached
@@ -177,159 +243,36 @@ where
     }
 }
 
-/// No-op retry function for when experimental_async_runtime is not enabled.
-/// This function will execute the operation exactly once without any retries.
-#[cfg(not(any(
-    feature = "experimental-grpc-retry",
-    feature = "experimental-http-retry"
-)))]
-pub async fn retry_with_backoff<R, F, Fut, T, E, C>(
-    _runtime: R,
-    _policy: RetryPolicy,
-    _error_classifier: C,
-    _operation_name: &str,
-    mut operation: F,
-) -> Result<T, E>
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<T, E>>,
-{
-    // Without experimental_async_runtime, we just execute once without retries
-    operation().await
-}
-
-#[cfg(all(test, feature = "experimental-grpc-retry"))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry_sdk::runtime::Tokio;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::Duration;
-    use tokio::time::timeout;
 
-    // Test to ensure generate_jitter returns a value within the expected range
-    #[tokio::test]
-    async fn test_generate_jitter() {
+    #[test]
+    fn test_generate_jitter() {
         let max_jitter = 100;
         let jitter = generate_jitter(max_jitter);
         assert!(jitter <= max_jitter);
     }
 
-    // Test to ensure retry_with_exponential_backoff succeeds on the first attempt
-    #[tokio::test]
-    async fn test_retry_with_exponential_backoff_success() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
-        let result = retry_with_backoff(
-            runtime,
-            policy,
-            |_: &()| RetryErrorType::Retryable,
-            "test_operation",
-            || Box::pin(async { Ok::<_, ()>("success") }),
-        )
-        .await;
-
-        assert_eq!(result, Ok("success"));
+    #[test]
+    fn test_default_retry_policy() {
+        let policy = RetryPolicy::default();
+        assert_eq!(policy.max_retries, 0);
+        assert_eq!(policy.initial_delay_ms, 100);
+        assert_eq!(policy.max_delay_ms, 1600);
+        assert_eq!(policy.jitter_ms, 100);
     }
 
-    // Test to ensure retry_with_exponential_backoff retries the operation and eventually succeeds
-    #[tokio::test]
-    async fn test_retry_with_exponential_backoff_retries() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
-        let attempts = AtomicUsize::new(0);
-
-        let result = retry_with_backoff(
-            runtime,
-            policy,
-            |_: &&str| RetryErrorType::Retryable,
-            "test_operation",
-            || {
-                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 2 {
-                        Err::<&str, &str>("error") // Fail the first two attempts
-                    } else {
-                        Ok::<&str, &str>("success") // Succeed on the third attempt
-                    }
-                })
-            },
-        )
-        .await;
-
-        assert_eq!(result, Ok("success"));
-        assert_eq!(attempts.load(Ordering::SeqCst), 3); // Ensure there were 3 attempts
+    #[test]
+    fn test_recommended_retry_policy() {
+        let policy = RetryPolicy::recommended();
+        assert_eq!(policy.max_retries, 3);
+        assert_eq!(policy.initial_delay_ms, 100);
+        assert_eq!(policy.max_delay_ms, 1600);
+        assert_eq!(policy.jitter_ms, 100);
     }
 
-    // Test to ensure retry_with_exponential_backoff fails after max retries
-    #[tokio::test]
-    async fn test_retry_with_exponential_backoff_failure() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
-        let attempts = AtomicUsize::new(0);
-
-        let result = retry_with_backoff(
-            runtime,
-            policy,
-            |_: &&str| RetryErrorType::Retryable,
-            "test_operation",
-            || {
-                attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async { Err::<(), _>("error") }) // Always fail
-            },
-        )
-        .await;
-
-        assert_eq!(result, Err("error"));
-        assert_eq!(attempts.load(Ordering::SeqCst), 4); // Ensure there were 4 attempts (initial + 3 retries)
-    }
-
-    // Test to ensure retry_with_exponential_backoff respects the timeout
-    #[tokio::test]
-    async fn test_retry_with_exponential_backoff_timeout() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 12, // Increase the number of retries
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
-        let result = timeout(
-            Duration::from_secs(1),
-            retry_with_backoff(
-                runtime,
-                policy,
-                |_: &&str| RetryErrorType::Retryable,
-                "test_operation",
-                || {
-                    Box::pin(async { Err::<(), _>("error") }) // Always fail
-                },
-            ),
-        )
-        .await;
-
-        assert!(result.is_err()); // Ensure the operation times out
-    }
-
-    // Tests for error classification (Phase 1)
     #[test]
     fn test_retry_error_type_equality() {
         assert_eq!(RetryErrorType::NonRetryable, RetryErrorType::NonRetryable);
@@ -341,156 +284,312 @@ mod tests {
         assert_ne!(RetryErrorType::Retryable, RetryErrorType::NonRetryable);
     }
 
-    // Tests for enhanced retry function (Phase 3)
     #[tokio::test]
-    async fn test_retry_with_throttling_non_retryable_error() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
+    async fn test_retry_success_on_first_attempt() {
+        let policy = RetryPolicy::default();
+        let deadline = Duration::from_secs(10);
 
-        let attempts = AtomicUsize::new(0);
-
-        // Classifier that returns non-retryable
-        let classifier = |_: &()| RetryErrorType::NonRetryable;
-
-        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
-            attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async { Err::<(), _>(()) }) // Always fail
-        })
-        .await;
-
-        assert!(result.is_err());
-        assert_eq!(attempts.load(Ordering::SeqCst), 1); // Should only try once
-    }
-
-    #[tokio::test]
-    async fn test_retry_with_throttling_retryable_error() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10, // Short delay for test
-            max_delay_ms: 100,
-            jitter_ms: 5,
-        };
-
-        let attempts = AtomicUsize::new(0);
-
-        // Classifier that returns retryable
-        let classifier = |_: &()| RetryErrorType::Retryable;
-
-        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
-            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async move {
-                if attempt < 1 {
-                    Err::<&str, ()>(()) // Fail first attempt
-                } else {
-                    Ok("success") // Succeed on retry
-                }
-            })
-        })
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            || Box::pin(async { Ok::<_, ()>("success") }),
+        )
         .await;
 
         assert_eq!(result, Ok("success"));
-        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Should try twice
     }
 
     #[tokio::test]
-    async fn test_retry_with_throttling_throttled_error() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        };
-
-        let attempts = AtomicUsize::new(0);
-
-        // Classifier that returns throttled with short delay
-        let classifier = |_: &()| RetryErrorType::Throttled(Duration::from_millis(10));
-
-        let start_time = std::time::Instant::now();
-
-        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
-            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async move {
-                if attempt < 1 {
-                    Err::<&str, ()>(()) // Fail first attempt (will be throttled)
-                } else {
-                    Ok("success") // Succeed on retry
-                }
-            })
-        })
-        .await;
-
-        let elapsed = start_time.elapsed();
-
-        assert_eq!(result, Ok("success"));
-        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Should try twice
-        assert!(elapsed >= Duration::from_millis(10)); // Should have waited for throttle delay
-    }
-
-    #[tokio::test]
-    async fn test_retry_with_throttling_max_attempts_exceeded() {
-        let runtime = Tokio;
-        let policy = RetryPolicy {
-            max_retries: 1, // Only 1 retry
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 5,
-        };
-
-        let attempts = AtomicUsize::new(0);
-
-        // Classifier that returns retryable
-        let classifier = |_: &()| RetryErrorType::Retryable;
-
-        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
-            attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async { Err::<(), _>(()) }) // Always fail
-        })
-        .await;
-
-        assert!(result.is_err());
-        assert_eq!(attempts.load(Ordering::SeqCst), 2); // Initial attempt + 1 retry
-    }
-
-    #[tokio::test]
-    async fn test_retry_with_throttling_mixed_error_types() {
-        let runtime = Tokio;
+    async fn test_retry_succeeds_after_retries() {
         let policy = RetryPolicy {
             max_retries: 3,
             initial_delay_ms: 10,
             max_delay_ms: 100,
             jitter_ms: 5,
         };
-
+        let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 
-        // Classifier that returns different types based on attempt number
-        let classifier = |err: &usize| match *err {
-            0 => RetryErrorType::Retryable,
-            1 => RetryErrorType::Throttled(Duration::from_millis(10)),
-            _ => RetryErrorType::Retryable,
-        };
-
-        let result = retry_with_backoff(runtime, policy, classifier, "test_operation", || {
-            let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-            Box::pin(async move {
-                if attempt < 2 {
-                    Err(attempt) // Return attempt number as error
-                } else {
-                    Ok("success") // Succeed on third attempt
-                }
-            })
-        })
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err("error")
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
         .await;
 
         assert_eq!(result, Ok("success"));
-        assert_eq!(attempts.load(Ordering::SeqCst), 3); // Should try three times
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn test_retry_fails_after_max_retries() {
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>("error") })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Err("error"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 4); // initial + 3 retries
+    }
+
+    #[tokio::test]
+    async fn test_retry_non_retryable_stops_immediately() {
+        let policy = RetryPolicy::default();
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::NonRetryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) })
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(attempts.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn test_retry_throttled_uses_server_delay() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 1000, // high default delay
+            max_delay_ms: 5000,
+            jitter_ms: 0,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Throttled(Duration::from_millis(50)),
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 1 {
+                        Err(())
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        let elapsed = start.elapsed();
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        // Should have waited ~50ms (the server delay), not 1000ms (the default)
+        assert!(elapsed >= Duration::from_millis(50));
+        assert!(elapsed < Duration::from_millis(500));
+    }
+
+    #[tokio::test]
+    async fn test_retry_deadline_exceeded() {
+        let policy = RetryPolicy {
+            max_retries: 100, // many retries allowed
+            initial_delay_ms: 50,
+            max_delay_ms: 200,
+            jitter_ms: 0,
+        };
+        // Very short deadline
+        let deadline = Duration::from_millis(120);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) })
+            },
+        )
+        .await;
+
+        let elapsed = start.elapsed();
+        assert!(result.is_err());
+        // Should have stopped before exhausting 100 retries due to deadline
+        assert!(attempts.load(Ordering::SeqCst) < 10);
+        // Shouldn't have taken much longer than the deadline
+        assert!(elapsed < Duration::from_millis(300));
+    }
+
+    #[tokio::test]
+    async fn test_retry_throttle_capped_at_max() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 0,
+        };
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        // Server requests 120s delay (exceeds MAX_THROTTLE_DURATION of 30s)
+        // But deadline is short so we don't wait 30s in tests
+        let short_deadline = Duration::from_millis(200);
+        let result = retry_with_backoff(
+            &policy,
+            short_deadline,
+            |_: &()| RetryErrorType::Throttled(Duration::from_secs(120)),
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) })
+            },
+        )
+        .await;
+
+        let elapsed = start.elapsed();
+        assert!(result.is_err());
+        // Should be capped by the deadline, not sleep for 120s or even 30s
+        assert!(elapsed < Duration::from_millis(500));
+    }
+
+    // Tests exercising the dedicated-thread (std::thread::sleep) path.
+    // These use futures_executor::block_on with no Tokio runtime present.
+
+    #[test]
+    fn test_retry_succeeds_after_retries_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 5,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &&str| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err("error")
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+        // Should have slept at least ~10ms for each of 2 retries
+        assert!(elapsed >= Duration::from_millis(20));
+    }
+
+    #[test]
+    fn test_retry_deadline_exceeded_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 100,
+            initial_delay_ms: 50,
+            max_delay_ms: 200,
+            jitter_ms: 0,
+        };
+        let deadline = Duration::from_millis(120);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            || {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Err::<(), _>(()) })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert!(result.is_err());
+        // Should have stopped before exhausting 100 retries due to deadline
+        assert!(attempts.load(Ordering::SeqCst) < 10);
+        // Shouldn't have taken much longer than the deadline
+        assert!(elapsed < Duration::from_millis(300));
+    }
+
+    #[test]
+    fn test_retry_throttled_uses_server_delay_no_tokio() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 1000,
+            max_delay_ms: 5000,
+            jitter_ms: 0,
+        };
+        let deadline = Duration::from_secs(10);
+        let attempts = AtomicUsize::new(0);
+
+        let start = Instant::now();
+        let result = futures_executor::block_on(retry_with_backoff(
+            &policy,
+            deadline,
+            |_: &()| RetryErrorType::Throttled(Duration::from_millis(50)),
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 1 {
+                        Err(())
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        ));
+
+        let elapsed = start.elapsed();
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        // Should have waited ~50ms (the server delay), not 1000ms (the default)
+        assert!(elapsed >= Duration::from_millis(50));
+        assert!(elapsed < Duration::from_millis(500));
     }
 }
