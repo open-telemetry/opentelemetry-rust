@@ -10,14 +10,24 @@
   async-runtime processors.
   The default `RetryPolicy` performs no retries (preserving existing behaviour).
   To enable retries, configure a policy via `.with_retry_policy(RetryPolicy::recommended())`
-  which provides exponential backoff with 3 attempts.
+  which provides exponential backoff with up to 3 retries (4 attempts total).
   **Migration**: Remove the experimental retry feature flags from your `Cargo.toml`.
   If you were relying on them to enable retry, configure a policy explicitly instead:
   ```rust
+  // HTTP
   use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
 
   let exporter = opentelemetry_otlp::SpanExporter::builder()
       .with_http()
+      .with_retry_policy(RetryPolicy::recommended())
+      .build()?;
+  ```
+  ```rust
+  // gRPC (tonic)
+  use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
+
+  let exporter = opentelemetry_otlp::SpanExporter::builder()
+      .with_tonic()
       .with_retry_policy(RetryPolicy::recommended())
       .build()?;
   ```

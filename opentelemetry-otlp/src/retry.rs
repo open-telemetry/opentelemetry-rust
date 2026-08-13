@@ -115,6 +115,12 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 /// A time budget (deadline) bounds the total retry duration. If the budget is exhausted,
 /// the function returns the last error without further retries.
 ///
+/// **Note:** The deadline governs whether to start another retry and caps inter-retry
+/// sleep durations, but it does not cancel an in-flight export operation. On dedicated
+/// threads (the SDK's default batch processors), individual export calls do not have a
+/// timeout today, so a single slow export can exceed the deadline. This is an existing
+/// limitation.
+///
 /// # Arguments
 ///
 /// * `policy` - The retry policy configuration.
