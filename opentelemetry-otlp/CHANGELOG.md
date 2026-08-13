@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Preserve sub-second gRPC `RetryInfo` delays instead of truncating them to
+  whole seconds.
 - **Breaking** Removed experimental retry feature flags (`grpc-tonic-with-retry`,
   `http-proto-with-retry`, `http-json-with-retry`). Retry support is now always
   included for both gRPC and HTTP exporters and works with all processor types,

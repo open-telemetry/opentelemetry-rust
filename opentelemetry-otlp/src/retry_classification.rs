@@ -101,12 +101,11 @@ pub mod grpc {
     #[cfg(feature = "grpc-tonic")]
     pub fn classify_tonic_status(status: &tonic::Status) -> RetryErrorType {
         // Use tonic-types to extract RetryInfo - this is the proper way!
-        let retry_info_seconds = status
+        let retry_delay = status
             .get_details_retry_info()
-            .and_then(|retry_info| retry_info.retry_delay)
-            .map(|duration| duration.as_secs());
+            .and_then(|retry_info| retry_info.retry_delay);
 
-        classify_grpc_error(status.code(), retry_info_seconds)
+        classify_grpc_error(status.code(), retry_delay)
     }
 
     /// Classifies gRPC errors based on status code and metadata.
@@ -117,21 +116,20 @@ pub mod grpc {
     ///
     /// # Arguments
     /// * `grpc_code` - gRPC status code as tonic::Code enum
-    /// * `retry_info_seconds` - Parsed retry delay from RetryInfo metadata, if present
+    /// * `retry_delay` - Parsed retry delay from RetryInfo metadata, if present
     fn classify_grpc_error(
         grpc_code: tonic::Code,
-        retry_info_seconds: Option<u64>,
+        retry_delay: Option<std::time::Duration>,
     ) -> RetryErrorType {
         match grpc_code {
             // RESOURCE_EXHAUSTED: Special case per OTLP spec
             // Retryable only if server provides RetryInfo indicating recovery is possible
             tonic::Code::ResourceExhausted => {
-                if let Some(seconds) = retry_info_seconds {
+                if let Some(delay) = retry_delay {
                     // Server signals recovery is possible - use throttled retry
-                    let capped_seconds = seconds.min(600); // Cap at 10 minutes. TODO - what's sensible here?
-                    return RetryErrorType::Throttled(std::time::Duration::from_secs(
-                        capped_seconds,
-                    ));
+                    return RetryErrorType::Throttled(
+                        delay.min(std::time::Duration::from_secs(600)),
+                    );
                 }
                 // No RetryInfo - treat as non-retryable per OTLP spec
                 RetryErrorType::NonRetryable
@@ -437,18 +435,18 @@ mod tests {
             fn test_classify_status_with_fractional_retry_info() {
                 // Create a tonic::Status with fractional seconds RetryInfo
                 let error_details =
-                    ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(5500))); // 5.5 seconds
+                    ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(500)));
                 let status = tonic::Status::with_error_details(
                     tonic::Code::ResourceExhausted,
                     "rate limited",
                     error_details,
                 );
 
-                // Should use exact duration (5.5s = 5s)
+                // Fractional seconds are preserved.
                 let result = classify_tonic_status(&status);
                 assert_eq!(
                     result,
-                    RetryErrorType::Throttled(std::time::Duration::from_secs(5))
+                    RetryErrorType::Throttled(std::time::Duration::from_millis(500))
                 );
             }
 
