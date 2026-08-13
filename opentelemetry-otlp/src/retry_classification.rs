@@ -127,6 +127,7 @@ pub mod grpc {
             tonic::Code::ResourceExhausted => {
                 if let Some(delay) = retry_delay {
                     // Server signals recovery is possible - use throttled retry
+                    // Cap at 10 minutes. TODO - what's sensible here?
                     return RetryErrorType::Throttled(
                         delay.min(std::time::Duration::from_secs(600)),
                     );
