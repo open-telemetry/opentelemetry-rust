@@ -404,6 +404,34 @@ impl BatchLogProcessor {
                 .with_unit("{log_record}")
                 .build();
 
+            // Self-diagnostics: otel.sdk.processor.log.queue.capacity. A weak
+            // reference ensures a dropped processor stops reporting, since
+            // observable callbacks live for the meter provider's lifetime and
+            // cannot be individually unregistered.
+            let capacity_attrs = [
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let capacity_state = Arc::downgrade(&current_batch_size);
+            let capacity_value = i64::try_from(max_queue_size).unwrap_or(i64::MAX);
+            let _ = meter
+                .i64_observable_up_down_counter("otel.sdk.processor.log.queue.capacity")
+                .with_description(
+                    "The maximum number of log records the queue of a given instance of \
+                     an SDK log processor can hold.",
+                )
+                .with_unit("{log_record}")
+                .with_callback(move |observer| {
+                    // The capacity value is constant; this is only a liveness
+                    // guard so a dropped processor stops emitting this
+                    // otherwise-unregisterable callback. `strong_count()` is
+                    // sufficient since the callback never reads the state.
+                    if capacity_state.strong_count() > 0 {
+                        observer.observe(capacity_value, &capacity_attrs);
+                    }
+                })
+                .build();
+
             // Attribute values follow the OTel semantic conventions for SDK metrics:
             // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorlogprocessed
             // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
@@ -1385,6 +1413,86 @@ mod tests {
             );
 
             processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Verifies `otel.sdk.processor.log.queue.capacity` through a real
+        /// `SdkLoggerProvider` + `BatchLogProcessor`. The metric reports the
+        /// configured max queue size with the component identity attributes and
+        /// stops reporting after the provider (and processor) is dropped.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_queue_capacity() {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporter::default();
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(256)
+                .build();
+            let processor = BatchLogProcessor::new(log_exporter, config);
+            let provider = SdkLoggerProvider::builder()
+                .with_log_processor(processor)
+                .build();
+
+            // Force a metrics collection so the observable callbacks run. This does
+            // NOT drain the log queue (that only happens on the provider/processor).
+            meter_provider.force_flush().unwrap();
+
+            let read = |name: &str| -> Option<i64> {
+                let metrics = metric_exporter.get_finished_metrics().unwrap();
+                for rm in &metrics {
+                    for sm in &rm.scope_metrics {
+                        for metric in &sm.metrics {
+                            if metric.name == name {
+                                if let AggregatedMetrics::I64(MetricData::Sum(sum)) = &metric.data {
+                                    for dp in sum.data_points() {
+                                        let has_component = dp.attributes().any(|kv| {
+                                            kv.key.as_str() == "otel.component.type"
+                                                && kv.value.as_str() == "batching_log_processor"
+                                        });
+                                        if has_component {
+                                            return Some(dp.value());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                None
+            };
+
+            assert_eq!(
+                read("otel.sdk.processor.log.queue.capacity"),
+                Some(256),
+                "queue.capacity should equal the configured max_queue_size"
+            );
+
+            // Dropping the provider shuts down and drops the processor, releasing the
+            // Arc<AtomicUsize> the callback holds a Weak to. A subsequent collection
+            // must therefore omit the metric because the Weak upgrade fails.
+            metric_exporter.reset();
+            provider.shutdown().unwrap();
+            drop(provider);
+            meter_provider.force_flush().unwrap();
+
+            assert_eq!(
+                read("otel.sdk.processor.log.queue.capacity"),
+                None,
+                "queue.capacity must stop being reported after the processor is dropped"
+            );
+
             meter_provider.shutdown().unwrap();
         }
 
