@@ -35,7 +35,7 @@ opentelemetry-proto = { workspace = true, default-features = false }
 prost = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 tonic-types = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["sync", "rt"], optional = true }
+tokio = { workspace = true, features = ["sync", "rt", "time"], optional = true }
 
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
@@ -52,6 +52,7 @@ zstd = { version = "0.13", optional = true }
 tokio-stream = { workspace = true, features = ["net"] }
 opentelemetry_sdk = { workspace = true, features = ["trace", "testing"], default-features = false }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+futures-executor = { workspace = true }
 futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
@@ -74,9 +75,6 @@ grpc-tonic = ["tonic", "tonic-types", "prost", "http", "tokio", "opentelemetry-p
 gzip-tonic = ["tonic/gzip"]
 zstd-tonic = ["tonic/zstd"]
 
-# grpc with retry support
-experimental-grpc-retry = ["grpc-tonic", "opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio"]
-
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
@@ -91,12 +89,9 @@ tls-roots = ["tonic/tls-native-roots"]
 tls-webpki-roots = ["tonic/tls-webpki-roots"]
 
 # http binary
-http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "trace", "metrics"]
+http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "httpdate", "trace", "metrics"]
 
-# http with retry support.
-experimental-http-retry = ["opentelemetry_sdk/experimental_async_runtime", "opentelemetry_sdk/rt-tokio", "tokio", "httpdate"]
-
-http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "trace", "metrics"]
+http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "httpdate", "trace", "metrics"]
 
 #
 # HTTP clients
@@ -109,8 +104,8 @@ reqwest-blocking-client = ["reqwest/blocking", "opentelemetry-http/reqwest-block
 # Async HTTP clients. Do not enable these for the default SDK
 # processors/readers; they require an export path that is driven by a Tokio
 # runtime, such as the experimental async-runtime processors/readers.
-reqwest-client = ["reqwest", "opentelemetry-http/reqwest"]
-hyper-client = ["opentelemetry-http/hyper"]
+reqwest-client = ["reqwest", "opentelemetry-http/reqwest", "tokio"]
+hyper-client = ["opentelemetry-http/hyper", "tokio"]
 
 # TLS options for reqwest-based HTTP clients, both blocking and async. Combine
 # these with either reqwest-blocking-client or reqwest-client.
