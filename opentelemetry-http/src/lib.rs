@@ -257,10 +257,21 @@ impl<T> ResponseExt for Response<T> {
 mod tests {
     use super::*;
     use http::HeaderValue;
-    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
     use std::io::{Read, Write};
-    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
-    use std::net::TcpListener;
+    #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
+    use std::net::{SocketAddr, TcpListener};
+    #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
+    use std::thread::JoinHandle;
 
     #[test]
     fn http_headers_get() {
@@ -312,9 +323,11 @@ mod tests {
         assert!(got.contains(&"headername2"));
     }
 
-    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
-    #[test]
-    fn reqwest_blocking_preserves_error_response_status_and_headers() {
+    #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
+    fn spawn_error_response_server() -> (SocketAddr, JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let server = std::thread::spawn(move || {
@@ -330,12 +343,59 @@ mod tests {
                 )
                 .unwrap();
         });
+        (address, server)
+    }
 
+    #[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+    #[test]
+    fn reqwest_blocking_preserves_error_response_status_and_headers() {
+        let (address, server) = spawn_error_response_server();
         let client = ::reqwest::blocking::Client::new();
         let request = Request::post(format!("http://{address}/v1/traces"))
             .body(Bytes::new())
             .unwrap();
         let response = futures_executor::block_on(client.send_bytes(request)).unwrap();
+
+        server.join().unwrap();
+        assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(response.headers().get("retry-after").unwrap(), "7");
+    }
+
+    #[cfg(all(feature = "reqwest", not(target_arch = "wasm32")))]
+    #[test]
+    fn reqwest_async_preserves_error_response_status_and_headers() {
+        let (address, server) = spawn_error_response_server();
+        let client = ::reqwest::Client::new();
+        let request = Request::post(format!("http://{address}/v1/traces"))
+            .body(Bytes::new())
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let response = runtime.block_on(client.send_bytes(request)).unwrap();
+
+        server.join().unwrap();
+        assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(response.headers().get("retry-after").unwrap(), "7");
+    }
+
+    #[cfg(all(feature = "hyper", not(target_arch = "wasm32")))]
+    #[test]
+    fn hyper_preserves_error_response_status_and_headers() {
+        let (address, server) = spawn_error_response_server();
+        let client = crate::hyper::HyperClient::with_default_connector(
+            std::time::Duration::from_secs(2),
+            None,
+        );
+        let request = Request::post(format!("http://{address}/v1/traces"))
+            .body(Bytes::new())
+            .unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let response = runtime.block_on(client.send_bytes(request)).unwrap();
 
         server.join().unwrap();
         assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
