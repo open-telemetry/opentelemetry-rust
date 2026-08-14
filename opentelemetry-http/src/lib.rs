@@ -337,9 +337,9 @@ mod tests {
             stream
                 .write_all(
                     b"HTTP/1.1 429 Too Many Requests\r\n\
-                      Retry-After: 7\r\n\
-                      Content-Length: 0\r\n\
-                      Connection: close\r\n\r\n",
+Retry-After: 7\r\n\
+Content-Length: 0\r\n\
+Connection: close\r\n\r\n",
                 )
                 .unwrap();
         });
