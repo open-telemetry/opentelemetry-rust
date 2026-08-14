@@ -1559,4 +1559,206 @@ mod tests {
             assert_eq!(client.retry_policy.jitter_ms, 200);
         }
     }
+
+    /// Integration tests verifying retry behavior end-to-end through the HTTP exporter.
+    /// These test the full path: HttpClient response -> HttpExportError -> classification -> retry loop.
+    #[cfg(feature = "http-proto")]
+    mod retry_integration_tests {
+        use super::super::OtlpHttpClient;
+        use crate::retry::RetryPolicy;
+        use opentelemetry_http::{Bytes, HttpClient};
+        use std::collections::HashMap;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        /// Mock HTTP client that returns a sequence of responses controlled by an attempt counter.
+        #[derive(Debug)]
+        struct SequencedMockClient {
+            attempts: AtomicUsize,
+            responses: Vec<http::Response<Bytes>>,
+        }
+
+        impl SequencedMockClient {
+            fn new(responses: Vec<http::Response<Bytes>>) -> Self {
+                Self {
+                    attempts: AtomicUsize::new(0),
+                    responses,
+                }
+            }
+
+            fn attempt_count(&self) -> usize {
+                self.attempts.load(Ordering::SeqCst)
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl HttpClient for SequencedMockClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                let attempt = self.attempts.fetch_add(1, Ordering::SeqCst);
+                let idx = attempt.min(self.responses.len() - 1);
+                let resp = &self.responses[idx];
+                // Clone the response
+                let mut builder = http::Response::builder().status(resp.status());
+                for (k, v) in resp.headers() {
+                    builder = builder.header(k, v);
+                }
+                Ok(builder.body(resp.body().clone()).unwrap())
+            }
+        }
+
+        /// Mock that returns Err (simulating network failure) for the first N attempts,
+        /// then Ok(200).
+        #[derive(Debug)]
+        struct NetworkFailureMockClient {
+            attempts: AtomicUsize,
+            fail_count: usize,
+        }
+
+        impl NetworkFailureMockClient {
+            fn new(fail_count: usize) -> Self {
+                Self {
+                    attempts: AtomicUsize::new(0),
+                    fail_count,
+                }
+            }
+
+            fn attempt_count(&self) -> usize {
+                self.attempts.load(Ordering::SeqCst)
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl HttpClient for NetworkFailureMockClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                let attempt = self.attempts.fetch_add(1, Ordering::SeqCst);
+                if attempt < self.fail_count {
+                    Err("connection refused".into())
+                } else {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .body(Bytes::new())
+                        .unwrap())
+                }
+            }
+        }
+
+        fn build_test_body(
+            _client: &OtlpHttpClient,
+            _data: (),
+        ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
+            Ok((vec![1, 2, 3], "application/x-protobuf", None))
+        }
+
+        fn make_client(mock: Arc<dyn HttpClient>, retry_policy: RetryPolicy) -> OtlpHttpClient {
+            OtlpHttpClient::new(
+                mock,
+                "http://localhost:4318/v1/traces".parse().unwrap(),
+                HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(5),
+                None,
+                Some(retry_policy),
+            )
+        }
+
+        fn retry_policy() -> RetryPolicy {
+            RetryPolicy {
+                max_retries: 3,
+                initial_delay_ms: 1,
+                max_delay_ms: 10,
+                jitter_ms: 0,
+            }
+        }
+
+        #[test]
+        fn retries_on_503_then_succeeds() {
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(503)
+                    .body(Bytes::new())
+                    .unwrap(),
+                http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_ok());
+            assert_eq!(mock.attempt_count(), 2);
+        }
+
+        #[test]
+        fn does_not_retry_on_400() {
+            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
+                .status(400)
+                .body(Bytes::new())
+                .unwrap()]));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_err());
+            assert_eq!(mock.attempt_count(), 1);
+        }
+
+        #[test]
+        fn retries_on_429_with_retry_after() {
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(429)
+                    .header("retry-after", "1")
+                    .body(Bytes::new())
+                    .unwrap(),
+                http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let start = std::time::Instant::now();
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_ok());
+            assert_eq!(mock.attempt_count(), 2);
+            // Should have honored the 1s Retry-After
+            assert!(start.elapsed() >= std::time::Duration::from_millis(900));
+        }
+
+        #[test]
+        fn retries_on_network_error() {
+            let mock = Arc::new(NetworkFailureMockClient::new(2));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_ok());
+            assert_eq!(mock.attempt_count(), 3);
+        }
+    }
 }
