@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Bound HTTP response body reads to 4 MB in the `reqwest`, `reqwest-blocking`, and
+  `hyper` client implementations. Bodies are now read incrementally and truncated at
+  the limit instead of being buffered without bound, so a misbehaving or malicious
+  endpoint can no longer exhaust memory. The `hyper` client also no longer reads
+  response bodies for non-success statuses.
+  [#3439](https://github.com/open-telemetry/opentelemetry-rust/issues/3439)
+
 - **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
   removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
   `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a

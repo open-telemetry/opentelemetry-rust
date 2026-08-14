@@ -62,6 +62,22 @@ impl Extractor for HeaderExtractor<'_> {
 
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+/// Maximum bytes read from an HTTP response body, protecting against memory
+/// exhaustion from a misbehaving endpoint. 4 MB matches the OpenTelemetry
+/// .NET SDK.
+#[cfg(any(feature = "reqwest", feature = "hyper"))]
+const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+/// Initial body buffer capacity: the content-length hint capped at
+/// [`MAX_RESPONSE_BODY_BYTES`] so a hostile hint cannot force a large allocation.
+#[cfg(any(feature = "reqwest", feature = "hyper"))]
+fn initial_body_capacity(content_length: Option<u64>) -> usize {
+    let hint = content_length.unwrap_or(0);
+    usize::try_from(hint)
+        .unwrap_or(MAX_RESPONSE_BODY_BYTES)
+        .min(MAX_RESPONSE_BODY_BYTES)
+}
+
 /// A minimal interface necessary for sending requests over HTTP.
 /// Used primarily for exporting telemetry over HTTP. Also used for fetching
 /// sampling strategies for JaegerRemoteSampler
@@ -102,10 +118,43 @@ mod reqwest {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request).await?.error_for_status()?;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
-            let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes().await?)?;
+
+            // Truncation is not an error: the exporter must not retry
+            // because a response body was too large.
+            #[cfg(not(target_arch = "wasm32"))]
+            let body = {
+                let mut body = bytes::BytesMut::with_capacity(super::initial_body_capacity(
+                    response.content_length(),
+                ));
+                while let Some(chunk) = response.chunk().await? {
+                    if body.len() + chunk.len() > super::MAX_RESPONSE_BODY_BYTES {
+                        otel_debug!(
+                            name: "ReqwestClient.ResponseBodyTruncated",
+                            max_response_body_bytes = super::MAX_RESPONSE_BODY_BYTES as u64
+                        );
+                        break;
+                    }
+                    body.extend_from_slice(&chunk);
+                }
+                body.freeze()
+            };
+            // wasm reqwest has no incremental read; truncate after the fact.
+            #[cfg(target_arch = "wasm32")]
+            let body = {
+                let mut body = response.bytes().await?;
+                if body.len() > super::MAX_RESPONSE_BODY_BYTES {
+                    otel_debug!(
+                        name: "ReqwestClient.ResponseBodyTruncated",
+                        max_response_body_bytes = super::MAX_RESPONSE_BODY_BYTES as u64
+                    );
+                    body = body.slice(..super::MAX_RESPONSE_BODY_BYTES);
+                }
+                body
+            };
+
+            let mut http_response = Response::builder().status(status).body(body)?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -120,10 +169,24 @@ mod reqwest {
             otel_debug!(name: "ReqwestBlockingClient.Send");
             let request = request.try_into()?;
             let mut response = self.execute(request)?.error_for_status()?;
+            let status = response.status();
+            let capacity = super::initial_body_capacity(response.content_length());
             let headers = std::mem::take(response.headers_mut());
-            let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.bytes()?)?;
+
+            // Read one byte past the limit so truncation is detectable.
+            let mut body = Vec::with_capacity(capacity);
+            let mut limited =
+                std::io::Read::take(response, super::MAX_RESPONSE_BODY_BYTES as u64 + 1);
+            std::io::Read::read_to_end(&mut limited, &mut body)?;
+            if body.len() > super::MAX_RESPONSE_BODY_BYTES {
+                otel_debug!(
+                    name: "ReqwestBlockingClient.ResponseBodyTruncated",
+                    max_response_body_bytes = super::MAX_RESPONSE_BODY_BYTES as u64
+                );
+                body.truncate(super::MAX_RESPONSE_BODY_BYTES);
+            }
+
+            let mut http_response = Response::builder().status(status).body(Bytes::from(body))?;
             *http_response.headers_mut() = headers;
 
             Ok(http_response)
@@ -200,14 +263,40 @@ pub mod hyper {
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
             let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
+            let status = response.status();
             let headers = std::mem::take(response.headers_mut());
 
+            // Non-success responses only need the status; skip the body.
+            if !status.is_success() {
+                let mut http_response = Response::builder().status(status).body(Bytes::new())?;
+                *http_response.headers_mut() = headers;
+                return http_response.error_for_status();
+            }
+
+            let mut body = response.into_body();
+            let size_hint = HttpBody::size_hint(&body);
+            let mut collected = bytes::BytesMut::with_capacity(super::initial_body_capacity(
+                size_hint.exact().or(size_hint.upper()),
+            ));
+            while let Some(frame) = body.frame().await {
+                if let Ok(data) = frame?.into_data() {
+                    if collected.len() + data.len() > super::MAX_RESPONSE_BODY_BYTES {
+                        otel_debug!(
+                            name: "HyperClient.ResponseBodyTruncated",
+                            max_response_body_bytes = super::MAX_RESPONSE_BODY_BYTES as u64
+                        );
+                        break;
+                    }
+                    collected.extend_from_slice(&data);
+                }
+            }
+
             let mut http_response = Response::builder()
-                .status(response.status())
-                .body(response.into_body().collect().await?.to_bytes())?;
+                .status(status)
+                .body(collected.freeze())?;
             *http_response.headers_mut() = headers;
 
-            Ok(http_response.error_for_status()?)
+            Ok(http_response)
         }
     }
 
@@ -258,6 +347,17 @@ impl<T> ResponseExt for Response<T> {
 mod tests {
     use super::*;
     use http::HeaderValue;
+
+    #[cfg(any(feature = "reqwest", feature = "hyper"))]
+    #[test]
+    fn initial_body_capacity_is_capped() {
+        assert_eq!(initial_body_capacity(None), 0);
+        assert_eq!(initial_body_capacity(Some(1024)), 1024);
+        assert_eq!(
+            initial_body_capacity(Some(u64::MAX)),
+            MAX_RESPONSE_BODY_BYTES
+        );
+    }
 
     #[test]
     fn http_headers_get() {
@@ -355,5 +455,132 @@ mod tests {
 
         assert!(new_carrier.capacity() >= initial_capacity);
         assert!(new_carrier.capacity() >= 5);
+    }
+}
+
+#[cfg(all(
+    test,
+    not(target_arch = "wasm32"),
+    any(feature = "reqwest", feature = "hyper")
+))]
+mod bounded_body_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{SocketAddr, TcpListener};
+
+    const OVERSIZED_BODY_BYTES: usize = MAX_RESPONSE_BODY_BYTES + 64 * 1024;
+
+    fn read_request_headers(stream: &mut std::net::TcpStream) {
+        let mut buf = [0u8; 4096];
+        let mut request = Vec::new();
+        while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+            let n = stream.read(&mut buf).unwrap();
+            assert!(n > 0, "peer closed before end of request headers");
+            request.extend_from_slice(&buf[..n]);
+        }
+    }
+
+    fn spawn_oversized_server() -> SocketAddr {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_request_headers(&mut stream);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\ncontent-length: {OVERSIZED_BODY_BYTES}\r\nconnection: close\r\n\r\n"
+            )
+            .unwrap();
+            // Ignore write errors: the client may close once it hits the cap.
+            let _ = stream.write_all(&vec![0u8; OVERSIZED_BODY_BYTES]);
+        });
+        addr
+    }
+
+    fn get_request(addr: SocketAddr) -> Request<Bytes> {
+        Request::builder()
+            .method("GET")
+            .uri(format!("http://{addr}/"))
+            .body(Bytes::new())
+            .unwrap()
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[test]
+    fn reqwest_truncates_oversized_response_body() {
+        let addr = spawn_oversized_server();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let response = rt
+            .block_on(async {
+                let client = ::reqwest::Client::new();
+                client.send_bytes(get_request(addr)).await
+            })
+            .unwrap();
+        assert!(response.body().len() <= MAX_RESPONSE_BODY_BYTES);
+        assert!(response.body().len() < OVERSIZED_BODY_BYTES);
+        assert!(!response.body().is_empty());
+    }
+
+    #[cfg(all(feature = "reqwest", feature = "reqwest-blocking"))]
+    #[test]
+    fn reqwest_blocking_truncates_oversized_response_body() {
+        let addr = spawn_oversized_server();
+        let client = ::reqwest::blocking::Client::new();
+        let response = futures_executor::block_on(client.send_bytes(get_request(addr))).unwrap();
+        assert_eq!(response.body().len(), MAX_RESPONSE_BODY_BYTES);
+    }
+
+    #[cfg(feature = "hyper")]
+    #[test]
+    fn hyper_truncates_oversized_response_body() {
+        let addr = spawn_oversized_server();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let response = rt
+            .block_on(async {
+                let client = crate::hyper::HyperClient::with_default_connector(
+                    std::time::Duration::from_secs(10),
+                    None,
+                );
+                client.send_bytes(get_request(addr)).await
+            })
+            .unwrap();
+        assert!(response.body().len() <= MAX_RESPONSE_BODY_BYTES);
+        assert!(response.body().len() < OVERSIZED_BODY_BYTES);
+        assert!(!response.body().is_empty());
+    }
+
+    #[cfg(feature = "hyper")]
+    #[test]
+    fn hyper_does_not_read_error_response_body() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_request_headers(&mut stream);
+            write!(
+                stream,
+                "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 10\r\nconnection: close\r\n\r\n0123456789"
+            )
+            .unwrap();
+        });
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let result = rt.block_on(async {
+            let client = crate::hyper::HyperClient::with_default_connector(
+                std::time::Duration::from_secs(10),
+                None,
+            );
+            client.send_bytes(get_request(addr)).await
+        });
+        let error = result.expect_err("non-success status must surface as an error");
+        assert!(error.to_string().contains("500"));
     }
 }
