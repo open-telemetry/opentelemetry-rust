@@ -113,7 +113,7 @@ pub struct Context {
     /// [observer_view] makes it possible to store the observer's view of the context alongside a
     /// [Context] value, such that it can be attached and detached on context events.
     #[cfg(feature = "experimental_context_observer")]
-    observer_view: OnceLock<Arc<dyn ObserverContextView>>,
+    observer_view: Option<Arc<dyn ObserverContextView>>,
 }
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
@@ -275,14 +275,16 @@ impl Context {
             entries.insert(TypeId::of::<T>(), Arc::new(value));
             Some(Arc::new(entries))
         };
+
         Context {
             entries,
             #[cfg(feature = "trace")]
             span: self.span.clone(),
             suppress_telemetry: self.suppress_telemetry,
             #[cfg(feature = "experimental_context_observer")]
-            observer_view: OnceLock::new(),
+            observer_view: None,
         }
+        .with_observer_view()
     }
 
     /// Replaces the current context on this thread with this context.
@@ -382,8 +384,9 @@ impl Context {
             span: self.span.clone(),
             suppress_telemetry: true,
             #[cfg(feature = "experimental_context_observer")]
-            observer_view: OnceLock::new(),
+            observer_view: None,
         }
+        .with_observer_view()
     }
 
     /// Enters a scope where telemetry is suppressed.
@@ -446,21 +449,41 @@ impl Context {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
     }
 
+    // Initialize `self.observer_view` for a newly created context using the current context
+    // observer, if set.
+    #[cfg(feature = "experimental_context_observer")]
+    fn with_observer_view(mut self) -> Self {
+        if let Some(observer) = GlobalContextObserver::get() {
+            self.observer_view = observer.make_view(&self);
+        }
+
+        self
+    }
+
+    // No-op when the experimental_context_observer feature is not enabled.
+    #[cfg(not(feature = "experimental_context_observer"))]
+    const fn with_observer_view(self) -> Self {
+        self
+    }
+
     /// Returns the observer's view of this context, if any.
     #[cfg(feature = "experimental_context_observer")]
     #[inline]
-    pub fn observer_view(&self) -> &OnceLock<Arc<dyn ObserverContextView>> {
+    pub fn observer_view(&self) -> &Option<Arc<dyn ObserverContextView>> {
         &self.observer_view
     }
 
     #[cfg(feature = "trace")]
     pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Self::map_current(|cx| Context {
-            span: Some(Arc::new(value)),
-            entries: cx.entries.clone(),
-            suppress_telemetry: cx.suppress_telemetry,
-            #[cfg(feature = "experimental_context_observer")]
-            observer_view: OnceLock::new(),
+        Self::map_current(|cx| {
+            Context {
+                span: Some(Arc::new(value)),
+                entries: cx.entries.clone(),
+                suppress_telemetry: cx.suppress_telemetry,
+                #[cfg(feature = "experimental_context_observer")]
+                observer_view: None,
+            }
+            .with_observer_view()
         })
     }
 
@@ -471,8 +494,9 @@ impl Context {
             entries: self.entries.clone(),
             suppress_telemetry: self.suppress_telemetry,
             #[cfg(feature = "experimental_context_observer")]
-            observer_view: OnceLock::new(),
+            observer_view: None,
         }
+        .with_observer_view()
     }
 }
 
@@ -753,20 +777,22 @@ mod context_observer {
     ///
     /// impl ContextObserver for Observer {
     ///     fn on_context_enter(&self, from: &Context, to: &Context) {
-    ///         let view = to.observer_view()
-    ///             .get_or_init(|| Arc::new(MyView { correlation_id: 42 }));
+    ///         let view = to.observer_view().unwrap();
     ///         do_something(view.as_any().downcast_ref::<MyView>().unwrap());
     ///     }
     ///
     ///     fn on_context_exit(&self, from: &Context, to: &Context) {
     ///         let view = to
     ///             .observer_view()
-    ///             .get()
     ///             .unwrap()
     ///             .as_any()
     ///             .downcast_ref::<MyView>()
     ///             .unwrap();
     ///         assert_eq!(view.correlation_id, 42);
+    ///     }
+    ///
+    ///     fn make_view(&self, ctx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+    ///         Some(Arc::new(MyView { correlation_id: 42 }))
     ///     }
     /// }
     /// # }
@@ -779,6 +805,14 @@ mod context_observer {
         /// Called when a context is exited, allowing observers to react to the transition
         /// from one context (`from`) to another (`to`).
         fn on_context_exit(&self, from: &Context, to: &Context);
+
+        /// Derive a fresh view for a newly created context. The provided `ctx` has an unitialized
+        /// view sets to `None`.
+        ///
+        /// The default implementation returns `None` for observers that don't use the view.
+        fn make_view(&self, _ctx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+            None
+        }
     }
 
     static GLOBAL_CONTEXT_OBSERVER: OnceLock<Arc<dyn ContextObserver + Send + Sync>> =
@@ -1411,8 +1445,6 @@ mod observer_tests {
                     to: value_of(to),
                 })
             });
-
-            install_or_reuse_view(to);
         }
 
         fn on_context_exit(&self, from: &Context, to: &Context) {
@@ -1427,6 +1459,15 @@ mod observer_tests {
                 })
             });
         }
+
+        // On context enter, install the observer's view if this context doesn't have one yet, or reuse
+        // the existing one otherwise. The view is the context's `V` value (or 0 for a value-less
+        // context).
+        fn make_view(&self, cx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+            let correlation_id = value_of(cx).unwrap_or(0);
+            VIEWS_CREATED.with(|c| c.set(c.get() + 1));
+            Some(Arc::new(MyView { correlation_id }))
+        }
     }
 
     thread_local! {
@@ -1438,27 +1479,10 @@ mod observer_tests {
         static VIEWS_CREATED: Cell<u64> = const { Cell::new(0) };
     }
 
-    // On context enter, install the observer's view if this context doesn't have one yet, or reuse
-    // the existing one otherwise. The view is the context's `V` value (or 0 for a value-less
-    // context).
-    fn install_or_reuse_view(cx: &Context) {
-        if cx.observer_view().get().is_some() {
-            // Already initialized (e.g. a clone of an already-observed context): reuse it.
-            return;
-        }
-
-        let correlation_id = value_of(cx).unwrap_or(0);
-
-        cx.observer_view()
-            .set(Arc::new(MyView { correlation_id }))
-            .unwrap_or_else(|_| unreachable!("view was empty, just checked above"));
-        VIEWS_CREATED.with(|c| c.set(c.get() + 1));
-    }
-
     // Recovers the correlation id stored in a context's observer view, if any.
     fn view_id(cx: &Context) -> Option<u64> {
         cx.observer_view()
-            .get()
+            .as_ref()
             .and_then(|v| v.as_any().downcast_ref::<MyView>())
             .map(|v| v.correlation_id)
     }
@@ -1570,28 +1594,6 @@ mod observer_tests {
         fn as_any(&self) -> &dyn Any {
             self
         }
-    }
-
-    #[test]
-    fn observer_view_roundtrips_through_as_any() {
-        let cx = Context::new();
-
-        // Attaching the view stores it type-erased as `Arc<dyn ObserverContextView>`.
-        cx.observer_view()
-            .set(Arc::new(MyView { correlation_id: 7 }))
-            .unwrap_or_else(|_| unreachable!("view was just created and is empty"));
-
-        // `as_any` lets us recover the concrete type on our low MSRV, where trait upcasting to
-        // `dyn Any` is not available.
-        let view = cx.observer_view().get().expect("view was set above");
-        let my_view = view
-            .as_any()
-            .downcast_ref::<MyView>()
-            .expect("view is a `MyView`");
-        assert_eq!(my_view.correlation_id, 7);
-
-        // Downcasting to an unrelated type fails gracefully rather than misbehaving.
-        assert!(view.as_any().downcast_ref::<V>().is_none());
     }
 
     // A realistic use of the observer view: the global observer installs its own view on each
