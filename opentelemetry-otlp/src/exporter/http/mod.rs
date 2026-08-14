@@ -1735,25 +1735,19 @@ mod tests {
                     .body(Bytes::new())
                     .unwrap(),
             ]));
-            let client = OtlpHttpClient::new(
-                mock.clone(),
-                "http://localhost:4318/v1/traces".parse().unwrap(),
-                HashMap::new(),
-                crate::Protocol::HttpBinary,
-                // Keep this short so the test can verify Retry-After handling without real sleeps.
-                std::time::Duration::from_millis(50),
-                None,
-                Some(retry_policy()),
-            );
+            let client = make_client(mock.clone(), retry_policy());
 
+            let start = std::time::Instant::now();
             let result = futures_executor::block_on(client.export_http_with_retry(
                 (),
                 build_test_body,
                 "test",
             ));
 
-            assert!(result.is_err());
-            assert_eq!(mock.attempt_count(), 1);
+            assert!(result.is_ok());
+            assert_eq!(mock.attempt_count(), 2);
+            // Should have honored the 1s Retry-After
+            assert!(start.elapsed() >= std::time::Duration::from_millis(900));
         }
 
         #[test]
