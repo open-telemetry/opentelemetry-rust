@@ -102,7 +102,7 @@ impl opentelemetry::logs::Logger for SdkLogger {
 }
 
 #[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
-mod tests {
+mod self_obs {
     use crate::logs::SdkLoggerProvider;
     use crate::metrics::data::{AggregatedMetrics, MetricData};
     use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
