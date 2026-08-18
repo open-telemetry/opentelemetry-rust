@@ -31,22 +31,21 @@ pub mod http {
         retry_after_header: Option<&str>,
     ) -> RetryErrorType {
         match status_code {
-            // 429 Too Many Requests - check for Retry-After
-            429 => {
+            // OTLP/HTTP throttling responses may provide an explicit retry delay.
+            429 | 503 => {
                 if let Some(retry_after) = retry_after_header {
                     if let Some(duration) = parse_retry_after(retry_after) {
                         return RetryErrorType::Throttled(duration);
                     }
                 }
-                // Fallback to retryable if no valid Retry-After
                 RetryErrorType::Retryable
             }
-            // 5xx Server errors - retryable
-            500..=599 => RetryErrorType::Retryable,
-            // 4xx Client errors (except 429) - not retryable
-            400..=499 => RetryErrorType::NonRetryable,
-            // Other codes - retryable (network issues, etc.)
-            _ => RetryErrorType::Retryable,
+            // Other retryable response codes defined by OTLP/HTTP.
+            502 | 504 => RetryErrorType::Retryable,
+            // The HTTP exporter uses status 0 for failures without a response.
+            0 => RetryErrorType::Retryable,
+            // All other HTTP response status codes must not be retried.
+            _ => RetryErrorType::NonRetryable,
         }
     }
 
@@ -171,90 +170,103 @@ mod tests {
         use std::time::Duration;
 
         #[test]
-        fn test_http_429_with_retry_after_seconds() {
-            let result = classify_http_error(429, Some("30"));
-            assert_eq!(result, RetryErrorType::Throttled(Duration::from_secs(30)));
+        fn test_http_throttling_responses_with_retry_after_seconds() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("30"));
+                assert_eq!(result, RetryErrorType::Throttled(Duration::from_secs(30)));
+            }
         }
 
         #[test]
-        fn test_http_429_with_large_retry_after_capped() {
-            let result = classify_http_error(429, Some("900")); // 15 minutes
-            assert_eq!(
-                result,
-                RetryErrorType::Throttled(std::time::Duration::from_secs(600))
-            ); // Capped at 10 minutes
+        fn test_http_throttling_responses_with_large_retry_after_capped() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("900")); // 15 minutes
+                assert_eq!(
+                    result,
+                    RetryErrorType::Throttled(std::time::Duration::from_secs(600))
+                ); // Capped at 10 minutes
+            }
         }
 
         #[test]
-        fn test_http_429_with_invalid_retry_after() {
-            let result = classify_http_error(429, Some("invalid"));
-            assert_eq!(result, RetryErrorType::Retryable); // Fallback
+        fn test_http_throttling_responses_with_invalid_retry_after() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("invalid"));
+                assert_eq!(result, RetryErrorType::Retryable); // Fallback
+            }
         }
 
         #[test]
-        fn test_http_429_without_retry_after() {
-            let result = classify_http_error(429, None);
-            assert_eq!(result, RetryErrorType::Retryable); // Fallback
+        fn test_http_throttling_responses_without_retry_after() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, None);
+                assert_eq!(result, RetryErrorType::Retryable); // Fallback
+            }
         }
 
         #[test]
-        fn test_http_5xx_errors() {
-            assert_eq!(classify_http_error(500, None), RetryErrorType::Retryable);
+        fn test_http_retryable_response_codes() {
             assert_eq!(classify_http_error(502, None), RetryErrorType::Retryable);
             assert_eq!(classify_http_error(503, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(599, None), RetryErrorType::Retryable);
+            assert_eq!(classify_http_error(504, None), RetryErrorType::Retryable);
         }
 
         #[test]
-        fn test_http_4xx_errors() {
-            assert_eq!(classify_http_error(400, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(401, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(403, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(404, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(499, None), RetryErrorType::NonRetryable);
+        fn test_http_non_retryable_response_codes() {
+            for status_code in [400, 401, 403, 404, 408, 499, 500, 501, 505, 599] {
+                assert_eq!(
+                    classify_http_error(status_code, None),
+                    RetryErrorType::NonRetryable
+                );
+            }
         }
 
         #[test]
-        fn test_http_other_errors() {
-            assert_eq!(classify_http_error(100, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(200, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(300, None), RetryErrorType::Retryable);
+        fn test_http_network_error_is_retryable() {
+            assert_eq!(classify_http_error(0, None), RetryErrorType::Retryable);
         }
 
         #[test]
         #[cfg(feature = "httpdate")]
-        fn test_http_429_with_retry_after_valid_date() {
+        fn test_http_throttling_responses_with_retry_after_valid_date() {
             use std::time::SystemTime;
 
             // Create a time 30 seconds in the future
             let future_time = SystemTime::now() + Duration::from_secs(30);
             let date_str = httpdate::fmt_http_date(future_time);
-            let result = classify_http_error(429, Some(&date_str));
-            match result {
-                RetryErrorType::Throttled(duration) => {
-                    let secs = duration.as_secs();
-                    assert!(
-                        (29..=30).contains(&secs),
-                        "Expected ~30 seconds, got {}",
-                        secs
-                    );
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some(&date_str));
+                match result {
+                    RetryErrorType::Throttled(duration) => {
+                        let secs = duration.as_secs();
+                        assert!(
+                            (29..=30).contains(&secs),
+                            "Expected ~30 seconds, got {}",
+                            secs
+                        );
+                    }
+                    _ => panic!("Expected Throttled, got {:?}", result),
                 }
-                _ => panic!("Expected Throttled, got {:?}", result),
             }
         }
 
         #[test]
         #[cfg(feature = "httpdate")]
-        fn test_http_429_with_retry_after_invalid_date() {
-            let result = classify_http_error(429, Some("Not a valid date"));
-            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+        fn test_http_throttling_responses_with_retry_after_invalid_date() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("Not a valid date"));
+                assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+            }
         }
 
         #[test]
         #[cfg(feature = "httpdate")]
-        fn test_http_429_with_retry_after_malformed_date() {
-            let result = classify_http_error(429, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
-            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+        fn test_http_throttling_responses_with_retry_after_malformed_date() {
+            for status_code in [429, 503] {
+                let result =
+                    classify_http_error(status_code, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
+                assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+            }
         }
     }
 
