@@ -419,6 +419,7 @@ mod tests {
 #[cfg(all(test, any(feature = "reqwest", feature = "hyper")))]
 mod body_limit_tests {
     use super::MAX_RESPONSE_BODY_BYTES;
+    use crate::hyper:;Body;
     use crate::HttpClient;
     use bytes::Bytes;
     use http::Request;
