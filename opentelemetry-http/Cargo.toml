@@ -30,7 +30,7 @@ reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
 [dev-dependencies]
-features-executor = { workspace = true }
+futures-executor = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 
 [lints]
