@@ -7,6 +7,9 @@
   OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
   after compression; oversized requests are discarded without being sent or
   retried.
+- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
+  `Unavailable` responses without a positive delay continue to use exponential
+  backoff.
 - Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
   and 504, as required by the OTLP specification. The exporter now also honors
   `Retry-After` on 503 responses. Other HTTP error responses, including 500,
