@@ -2,6 +2,40 @@
 
 ## vNext
 
+- Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
+  and 504, as required by the OTLP specification. The exporter now also honors
+  `Retry-After` on 503 responses. Other HTTP error responses, including 500,
+  are now treated as non-retryable.
+- **Breaking** Removed experimental retry feature flags (`grpc-tonic-with-retry`,
+  `http-proto-with-retry`, `http-json-with-retry`). Retry support is now always
+  included for both gRPC and HTTP exporters and works with all processor types,
+  including the default `BatchSpanProcessor`, `BatchLogProcessor`, and
+  `PeriodicReader` (which use a dedicated OS thread), as well as the experimental
+  async-runtime processors.
+  The default `RetryPolicy` performs no retries (preserving existing behaviour).
+  To enable retries, configure a policy via `.with_retry_policy(RetryPolicy::recommended())`
+  which provides exponential backoff with up to 3 retries (4 attempts total).
+  **Migration**: Remove the experimental retry feature flags from your `Cargo.toml`.
+  If you were relying on them to enable retry, configure a policy explicitly instead:
+  ```rust
+  // HTTP
+  use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
+
+  let exporter = opentelemetry_otlp::SpanExporter::builder()
+      .with_http()
+      .with_retry_policy(RetryPolicy::recommended())
+      .build()?;
+  ```
+  ```rust
+  // gRPC (tonic)
+  use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
+
+  let exporter = opentelemetry_otlp::SpanExporter::builder()
+      .with_tonic()
+      .with_retry_policy(RetryPolicy::recommended())
+      .build()?;
+  ```
+  [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
   `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
   `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.

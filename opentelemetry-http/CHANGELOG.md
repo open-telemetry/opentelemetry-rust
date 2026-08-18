@@ -4,6 +4,11 @@
 
 - Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
 
+- Return HTTP error responses from the built-in reqwest and hyper clients instead
+  of converting 4xx and 5xx statuses into transport errors. This preserves the
+  response status and headers for exporter retry classification.
+  If your code relied on `send_bytes` returning `Err` for non-success statuses,
+  call `ResponseExt::error_for_status()` on the response instead.
 - **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
   removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
   `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a

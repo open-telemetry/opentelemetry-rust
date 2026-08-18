@@ -45,17 +45,19 @@ cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::ru
 cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::runtime_tests::test_set_provider_single_thread_tokio_shutdown -- --ignored --exact
 
 echo "Running ignored tests for opentelemetry-sdk package (self-diagnostics, requires global MeterProvider)"
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::batch_log_processor::tests::self_diagnostics_counter_records_success -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::span_processor::tests::self_diagnostics_counter_records_success -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::span_processor::tests::self_diagnostics_counter_records_queue_full_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::span_processor::tests::self_diagnostics_counter_records_already_shutdown_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::span_processor::tests::simple_self_diagnostics_counter_records_success -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features trace::span_processor::tests::simple_self_diagnostics_counter_records_already_shutdown_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::batch_log_processor::tests::self_diagnostics_counter_records_queue_full_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::batch_log_processor::tests::self_diagnostics_counter_records_already_shutdown_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::simple_log_processor::tests::self_diagnostics_counter_records_success -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::simple_log_processor::tests::self_diagnostics_counter_records_already_shutdown_drops -- --ignored --exact
-cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features logs::logger::tests::log_created_counts_intake_without_processors -- --ignored --exact
+# Self-observability tests live in `self_obs` modules and each needs its own
+# process (they rely on a set-once global MeterProvider). Discover them by
+# module path so new metrics don't require editing this script.
+self_obs_tests=$(cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features --lib -- --ignored --list 2>/dev/null | sed -n 's/: test$//p' | grep '::self_obs::' || true)
+if [ -z "${self_obs_tests}" ]; then
+  echo "ERROR: no ::self_obs:: tests discovered; the module marker may be broken"
+  exit 1
+fi
+while read -r self_obs_test; do
+  cargo test --manifest-path=opentelemetry-sdk/Cargo.toml --all-features --lib "${self_obs_test}" -- --ignored --exact
+done <<EOF
+${self_obs_tests}
+EOF
 
 echo "Running ignored tests for opentelemetry-appender-tracing package (global logger tests)"
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact

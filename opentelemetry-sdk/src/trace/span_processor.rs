@@ -2044,233 +2044,238 @@ mod tests {
         total
     }
 
-    /// Verifies that `otel.sdk.processor.span.processed` counts spans (with no
-    /// `error.type`) when the processor submits a batch to the exporter.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_success() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+    mod self_obs {
+        use super::*;
 
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
+        /// Verifies that `otel.sdk.processor.span.processed` counts spans (with no
+        /// `error.type`) when the processor submits a batch to the exporter.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_success() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let config = BatchConfigBuilder::default()
-            .with_max_queue_size(256)
-            .with_max_export_batch_size(64)
-            .with_scheduled_delay(Duration::from_secs(60))
-            .build();
-        let processor = BatchSpanProcessor::new(span_exporter, config);
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        for _ in 0..10 {
-            processor.on_end(create_test_span("success"));
+            let span_exporter = InMemorySpanExporterBuilder::new().build();
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(256)
+                .with_max_export_batch_size(64)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchSpanProcessor::new(span_exporter, config);
+
+            for _ in 0..10 {
+                processor.on_end(create_test_span("success"));
+            }
+
+            // Flush so the batch is submitted to the exporter, which is when the
+            // counter is incremented.
+            processor.force_flush().unwrap();
+            meter_provider.force_flush().unwrap();
+
+            let processed = sum_processed_spans(&metric_exporter, None);
+            assert_eq!(
+                processed, 10,
+                "expected 10 processed spans, got {processed}"
+            );
+
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
         }
 
-        // Flush so the batch is submitted to the exporter, which is when the
-        // counter is incremented.
-        processor.force_flush().unwrap();
-        meter_provider.force_flush().unwrap();
+        /// Verifies that `otel.sdk.processor.span.processed` records queue-full drops
+        /// with `error.type = queue_full` when spans overflow the queue while the
+        /// worker is blocked exporting.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_queue_full_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let processed = sum_processed_spans(&metric_exporter, None);
-        assert_eq!(
-            processed, 10,
-            "expected 10 processed spans, got {processed}"
-        );
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        processor.shutdown().unwrap();
-        meter_provider.shutdown().unwrap();
-    }
+            let (started_sender, started_receiver) = std::sync::mpsc::sync_channel(8);
+            let (release_sender, release_receiver) = std::sync::mpsc::sync_channel(8);
+            let exported_count = Arc::new(AtomicUsize::new(0));
+            let exporter = BlockingExporter {
+                exported_count: exported_count.clone(),
+                export_started: started_sender,
+                release: Arc::new(Mutex::new(release_receiver)),
+            };
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(4)
+                .with_max_export_batch_size(4)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchSpanProcessor::new(exporter, config);
 
-    /// Verifies that `otel.sdk.processor.span.processed` records queue-full drops
-    /// with `error.type = queue_full` when spans overflow the queue while the
-    /// worker is blocked exporting.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_queue_full_drops() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+            // Fill the queue to the export threshold; the worker drains all four
+            // spans and blocks inside export().
+            for _ in 0..4 {
+                processor.on_end(create_test_span("first_batch"));
+            }
+            started_receiver
+                .recv_timeout(Duration::from_secs(5))
+                .expect("worker should start exporting the first batch");
 
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
+            // While the worker is blocked, refill the queue (4) and overflow it by
+            // two spans, which must be dropped and counted as queue_full.
+            for _ in 0..4 {
+                processor.on_end(create_test_span("second_batch"));
+            }
+            for _ in 0..2 {
+                processor.on_end(create_test_span("overflow"));
+            }
 
-        let (started_sender, started_receiver) = std::sync::mpsc::sync_channel(8);
-        let (release_sender, release_receiver) = std::sync::mpsc::sync_channel(8);
-        let exported_count = Arc::new(AtomicUsize::new(0));
-        let exporter = BlockingExporter {
-            exported_count: exported_count.clone(),
-            export_started: started_sender,
-            release: Arc::new(Mutex::new(release_receiver)),
-        };
-        let config = BatchConfigBuilder::default()
-            .with_max_queue_size(4)
-            .with_max_export_batch_size(4)
-            .with_scheduled_delay(Duration::from_secs(60))
-            .build();
-        let processor = BatchSpanProcessor::new(exporter, config);
+            // Release the in-flight export and the one triggered by force_flush.
+            release_sender.send(()).unwrap();
+            release_sender.send(()).unwrap();
+            processor.force_flush().unwrap();
+            meter_provider.force_flush().unwrap();
 
-        // Fill the queue to the export threshold; the worker drains all four
-        // spans and blocks inside export().
-        for _ in 0..4 {
-            processor.on_end(create_test_span("first_batch"));
-        }
-        started_receiver
-            .recv_timeout(Duration::from_secs(5))
-            .expect("worker should start exporting the first batch");
+            let queue_full = sum_processed_spans(&metric_exporter, Some("queue_full"));
+            assert_eq!(
+                queue_full, 2,
+                "expected 2 queue_full drops, got {queue_full}"
+            );
 
-        // While the worker is blocked, refill the queue (4) and overflow it by
-        // two spans, which must be dropped and counted as queue_full.
-        for _ in 0..4 {
-            processor.on_end(create_test_span("second_batch"));
-        }
-        for _ in 0..2 {
-            processor.on_end(create_test_span("overflow"));
-        }
-
-        // Release the in-flight export and the one triggered by force_flush.
-        release_sender.send(()).unwrap();
-        release_sender.send(()).unwrap();
-        processor.force_flush().unwrap();
-        meter_provider.force_flush().unwrap();
-
-        let queue_full = sum_processed_spans(&metric_exporter, Some("queue_full"));
-        assert_eq!(
-            queue_full, 2,
-            "expected 2 queue_full drops, got {queue_full}"
-        );
-
-        processor.shutdown().unwrap();
-        meter_provider.shutdown().unwrap();
-    }
-
-    /// Verifies that `otel.sdk.processor.span.processed` records post-shutdown
-    /// emits with `error.type = already_shutdown`.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn self_diagnostics_counter_records_already_shutdown_drops() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
-
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
-
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = BatchSpanProcessor::new(span_exporter, BatchConfig::default());
-
-        // Shut the processor down so the worker thread (the only receiver)
-        // disconnects; subsequent on_end calls hit the already_shutdown branch.
-        processor.shutdown().unwrap();
-
-        for _ in 0..7 {
-            processor.on_end(create_test_span("after_shutdown"));
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
         }
 
-        meter_provider.force_flush().unwrap();
+        /// Verifies that `otel.sdk.processor.span.processed` records post-shutdown
+        /// emits with `error.type = already_shutdown`.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_already_shutdown_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let already_shutdown = sum_processed_spans(&metric_exporter, Some("already_shutdown"));
-        assert_eq!(
-            already_shutdown, 7,
-            "expected 7 already_shutdown drops, got {already_shutdown}"
-        );
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        meter_provider.shutdown().unwrap();
-    }
+            let span_exporter = InMemorySpanExporterBuilder::new().build();
+            let processor = BatchSpanProcessor::new(span_exporter, BatchConfig::default());
 
-    /// Verifies that `otel.sdk.processor.span.processed` counts spans (with no
-    /// `error.type`) when `SimpleSpanProcessor` submits them to the exporter.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn simple_self_diagnostics_counter_records_success() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+            // Shut the processor down so the worker thread (the only receiver)
+            // disconnects; subsequent on_end calls hit the already_shutdown branch.
+            processor.shutdown().unwrap();
 
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
+            for _ in 0..7 {
+                processor.on_end(create_test_span("after_shutdown"));
+            }
 
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = SimpleSpanProcessor::new(span_exporter);
+            meter_provider.force_flush().unwrap();
 
-        for _ in 0..10 {
-            processor.on_end(new_test_export_span_data());
+            let already_shutdown = sum_processed_spans(&metric_exporter, Some("already_shutdown"));
+            assert_eq!(
+                already_shutdown, 7,
+                "expected 7 already_shutdown drops, got {already_shutdown}"
+            );
+
+            meter_provider.shutdown().unwrap();
         }
 
-        meter_provider.force_flush().unwrap();
+        /// Verifies that `otel.sdk.processor.span.processed` counts spans (with no
+        /// `error.type`) when `SimpleSpanProcessor` submits them to the exporter.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn simple_self_diagnostics_counter_records_success() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let processed = sum_processed_spans(&metric_exporter, None);
-        assert_eq!(
-            processed, 10,
-            "expected 10 processed spans, got {processed}"
-        );
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        processor.shutdown().unwrap();
-        meter_provider.shutdown().unwrap();
-    }
+            let span_exporter = InMemorySpanExporterBuilder::new().build();
+            let processor = SimpleSpanProcessor::new(span_exporter);
 
-    /// Verifies that `SimpleSpanProcessor` records post-shutdown spans with
-    /// `error.type = already_shutdown` and does not count them as success.
-    ///
-    /// `#[ignore]`d because it mutates process-wide state via
-    /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
-    #[cfg(feature = "experimental_metrics_bound_instruments")]
-    #[test]
-    #[ignore]
-    fn simple_self_diagnostics_counter_records_already_shutdown_drops() {
-        use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+            for _ in 0..10 {
+                processor.on_end(new_test_export_span_data());
+            }
 
-        let metric_exporter = InMemoryMetricExporter::default();
-        let meter_provider = SdkMeterProvider::builder()
-            .with_periodic_exporter(metric_exporter.clone())
-            .build();
-        opentelemetry::global::set_meter_provider(meter_provider.clone());
+            meter_provider.force_flush().unwrap();
 
-        let span_exporter = InMemorySpanExporterBuilder::new().build();
-        let processor = SimpleSpanProcessor::new(span_exporter);
+            let processed = sum_processed_spans(&metric_exporter, None);
+            assert_eq!(
+                processed, 10,
+                "expected 10 processed spans, got {processed}"
+            );
 
-        // Shut the processor down; subsequent on_end calls hit the
-        // already_shutdown branch.
-        processor.shutdown().unwrap();
-
-        for _ in 0..7 {
-            processor.on_end(new_test_export_span_data());
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
         }
 
-        meter_provider.force_flush().unwrap();
+        /// Verifies that `SimpleSpanProcessor` records post-shutdown spans with
+        /// `error.type = already_shutdown` and does not count them as success.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn simple_self_diagnostics_counter_records_already_shutdown_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
 
-        let already_shutdown = sum_processed_spans(&metric_exporter, Some("already_shutdown"));
-        assert_eq!(
-            already_shutdown, 7,
-            "expected 7 already_shutdown drops, got {already_shutdown}"
-        );
-        let success = sum_processed_spans(&metric_exporter, None);
-        assert_eq!(
-            success, 0,
-            "post-shutdown spans must not be counted as success, got {success}"
-        );
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
 
-        meter_provider.shutdown().unwrap();
+            let span_exporter = InMemorySpanExporterBuilder::new().build();
+            let processor = SimpleSpanProcessor::new(span_exporter);
+
+            // Shut the processor down; subsequent on_end calls hit the
+            // already_shutdown branch.
+            processor.shutdown().unwrap();
+
+            for _ in 0..7 {
+                processor.on_end(new_test_export_span_data());
+            }
+
+            meter_provider.force_flush().unwrap();
+
+            let already_shutdown = sum_processed_spans(&metric_exporter, Some("already_shutdown"));
+            assert_eq!(
+                already_shutdown, 7,
+                "expected 7 already_shutdown drops, got {already_shutdown}"
+            );
+            let success = sum_processed_spans(&metric_exporter, None);
+            assert_eq!(
+                success, 0,
+                "post-shutdown spans must not be counted as success, got {success}"
+            );
+
+            meter_provider.shutdown().unwrap();
+        }
     }
 }
