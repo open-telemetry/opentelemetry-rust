@@ -14,6 +14,8 @@ use thiserror::Error;
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
+const MAX_LIST_MEMBERS: usize = 32;
+
 impl TraceState {
     /// The default `TraceState`, as a constant
     pub const NONE: TraceState = TraceState(None);
@@ -61,7 +63,10 @@ impl TraceState {
         !(value.contains(',') || value.contains('='))
     }
 
-    /// Creates a new `TraceState` from the given key-value collection.
+    /// Creates a new `TraceState` from the given key-value collection, keeping at most the 32
+    /// list-members the [W3C specification] allows.
+    ///
+    /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header-field-values
     ///
     /// # Examples
     ///
@@ -82,6 +87,7 @@ impl TraceState {
     {
         let ordered_data = trace_state
             .into_iter()
+            .take(MAX_LIST_MEMBERS)
             .map(|(key, value)| {
                 let (key, value) = (key.to_string(), value.to_string());
                 if !TraceState::valid_key(key.as_str()) {
@@ -120,6 +126,9 @@ impl TraceState {
     /// invalid per the [W3 Spec] an `Err` is returned, else a new `TraceState` with the
     /// updated key/value is returned.
     ///
+    /// A `TraceState` holds at most the 32 list-members the [W3 Spec] allows. Inserting into a full
+    /// `TraceState` keeps the inserted pair and drops the last list-member.
+    ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
     pub fn insert<K, V>(&self, key: K, value: V) -> TraceStateResult<TraceState>
     where
@@ -136,6 +145,9 @@ impl TraceState {
 
         let mut trace_state = self.delete_from_deque(&key);
         let kvs = trace_state.0.get_or_insert(VecDeque::with_capacity(1));
+        if kvs.len() >= MAX_LIST_MEMBERS {
+            kvs.truncate(MAX_LIST_MEMBERS - 1);
+        }
 
         kvs.push_front((key, value));
 
@@ -193,10 +205,9 @@ impl FromStr for TraceState {
     type Err = TraceStateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let list_members: Vec<&str> = s.split_terminator(',').collect();
-        let mut key_value_pairs: Vec<(String, String)> = Vec::with_capacity(list_members.len());
+        let mut key_value_pairs: Vec<(String, String)> = Vec::new();
 
-        for list_member in list_members {
+        for list_member in s.split_terminator(',').take(MAX_LIST_MEMBERS) {
             match list_member.find('=') {
                 None => return Err(TraceStateError::List(list_member.to_string())),
                 Some(separator_index) => {
@@ -495,5 +506,73 @@ mod tests {
         let iter = ts.into_iter();
         assert_eq!(iter.size_hint(), (2, Some(2)));
         assert_eq!(iter.len(), 2);
+    }
+
+    #[test]
+    fn test_tracestate_from_str_keeps_at_most_32_list_members() {
+        let header = (0..64)
+            .map(|i| format!("key{i}=value{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let trace_state = TraceState::from_str(&header).unwrap();
+
+        assert_eq!(trace_state.into_iter().count(), 32);
+        assert_eq!(trace_state.get("key0"), Some("value0"));
+        assert_eq!(trace_state.get("key31"), Some("value31"));
+        assert_eq!(trace_state.get("key32"), None);
+    }
+    #[test]
+    fn test_tracestate_from_str_ignores_invalid_members_beyond_the_limit() {
+        let mut members: Vec<String> = (0..32).map(|i| format!("key{i}=value{i}")).collect();
+        members.push("invalid-no-separator".to_string());
+        let trace_state = TraceState::from_str(&members.join(",")).unwrap();
+
+        assert_eq!(trace_state.into_iter().count(), 32);
+    }
+    #[test]
+    fn test_tracestate_from_str_rejects_invalid_members_within_the_limit() {
+        let mut members: Vec<String> = (0..31).map(|i| format!("key{i}=value{i}")).collect();
+        members.push("invalid-no-separator".to_string());
+
+        assert!(TraceState::from_str(&members.join(",")).is_err());
+    }
+    #[test]
+    fn test_tracestate_from_key_value_keeps_at_most_32_list_members() {
+        let kvs: Vec<(String, String)> = (0..64)
+            .map(|i| (format!("key{i}"), format!("value{i}")))
+            .collect();
+        let trace_state = TraceState::from_key_value(kvs).unwrap();
+
+        assert_eq!(trace_state.into_iter().count(), 32);
+        assert_eq!(trace_state.get("key0"), Some("value0"));
+        assert_eq!(trace_state.get("key32"), None);
+    }
+    #[test]
+    fn test_tracestate_insert_keeps_at_most_32_list_members() {
+        let mut trace_state = TraceState::default();
+        for i in 0..64 {
+            trace_state = trace_state
+                .insert(format!("key{i}"), format!("value{i}"))
+                .unwrap();
+        }
+
+        assert_eq!(trace_state.into_iter().count(), 32);
+        assert_eq!(trace_state.get("key63"), Some("value63"));
+        assert_eq!(trace_state.get("key32"), Some("value32"));
+        assert_eq!(trace_state.get("key31"), None);
+    }
+    #[test]
+    fn test_tracestate_insert_of_an_existing_key_evicts_nothing() {
+        let mut trace_state = TraceState::default();
+        for i in 0..32 {
+            trace_state = trace_state
+                .insert(format!("key{i}"), format!("value{i}"))
+                .unwrap();
+        }
+        let updated = trace_state.insert("key20", "updated").unwrap();
+
+        assert_eq!(updated.into_iter().count(), 32);
+        assert_eq!(updated.get("key20"), Some("updated"));
+        assert_eq!(updated.get("key0"), Some("value0"));
     }
 }
