@@ -419,7 +419,6 @@ mod tests {
 #[cfg(all(test, any(feature = "reqwest", feature = "hyper")))]
 mod body_limit_tests {
     use super::MAX_RESPONSE_BODY_BYTES;
-    use crate::hyper:;Body;
     use crate::HttpClient;
     use bytes::Bytes;
     use http::Request;
@@ -430,31 +429,24 @@ mod body_limit_tests {
     async fn start_server(body_size: usize) -> SocketAddr {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-
         tokio::spawn(async move {
             if let Ok((mut socket, _)) = listener.accept().await {
                 let mut buf = [0u8; 1024];
                 let _ = socket.read(&mut buf).await;
-
                 let body = vec![b'a'; body_size];
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                     body.len()
                 );
-
                 let _ = socket.write_all(response.as_bytes()).await;
                 let _ = socket.write_all(&body).await;
                 let _ = socket.shutdown().await;
             }
         });
-
         addr
     }
 
-    #[tokio::test]
-    async fn test_body_within_limit() {
-        let addr = start_server(100).await;
-        let client = reqwest::Client::new();
+    async fn assert_within_limit(client: &dyn HttpClient, addr: SocketAddr) {
         let request = Request::builder()
             .method("POST")
             .uri(format!("http://{}/", addr))
@@ -464,38 +456,27 @@ mod body_limit_tests {
         assert_eq!(response.body().len(), 100);
     }
 
-    #[tokio::test]
-    async fn test_body_exceeds_limit() {
-        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
-        let client = reqwest::Client::new();
-        let request = Request::builder()
-            .method("POST")
-            .uri(format!("http://{}/", addr))
-            .body(Bytes::new())
-            .unwrap();
-        let result = client.send_bytes(request).await.unwrap();
-        assert_eq!(result.body().len(), 0);
-    }
-
-    async fn assert_within_limt(client: &dyn HttpClient, addr: SocketAddr) {
-        let request = Request::builder()
-            .method("POST")
-            .uri(format!("http://{}/", addr))
-            .body(Body::bytes())
-            .unwarp();
-
-        let response = client.send_bytes(request).await.unwarp();
-        assert_eq!(response.body().len(), 100);
-    }
-
     async fn assert_exceeds_limit(client: &dyn HttpClient, addr: SocketAddr) {
         let request = Request::builder()
             .method("POST")
             .uri(format!("http://{}/", addr))
             .body(Bytes::new())
             .unwrap();
-
         let result = client.send_bytes(request).await.unwrap();
         assert_eq!(result.body().len(), 0);
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn reqwest_body_within_limit() {
+        let addr = start_server(100).await;
+        assert_within_limit(&reqwest::Client::new(), addr).await;
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn reqwest_body_exceeds_limit() {
+        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+        assert_exceeds_limit(&reqwest::Client::new(), addr).await;
     }
 }
