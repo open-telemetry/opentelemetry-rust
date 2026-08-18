@@ -1723,6 +1723,24 @@ mod tests {
         }
 
         #[test]
+        fn does_not_retry_on_unlisted_server_error() {
+            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
+                .status(500)
+                .body(Bytes::new())
+                .unwrap()]));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_err());
+            assert_eq!(mock.attempt_count(), 1);
+        }
+
+        #[test]
         fn retries_on_429_with_retry_after() {
             let mock = Arc::new(SequencedMockClient::new(vec![
                 http::Response::builder()
@@ -1747,6 +1765,33 @@ mod tests {
             assert!(result.is_ok());
             assert_eq!(mock.attempt_count(), 2);
             // Should have honored the 1s Retry-After
+            assert!(start.elapsed() >= std::time::Duration::from_millis(900));
+        }
+
+        #[test]
+        fn retries_on_503_with_retry_after() {
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(503)
+                    .header("retry-after", "1")
+                    .body(Bytes::new())
+                    .unwrap(),
+                http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
+            let client = make_client(mock.clone(), retry_policy());
+
+            let start = std::time::Instant::now();
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ));
+
+            assert!(result.is_ok());
+            assert_eq!(mock.attempt_count(), 2);
             assert!(start.elapsed() >= std::time::Duration::from_millis(900));
         }
 

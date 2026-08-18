@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
+  and 504, as required by the OTLP specification. The exporter now also honors
+  `Retry-After` on 503 responses. Other HTTP error responses, including 500,
+  are now treated as non-retryable.
 - **Breaking** Removed experimental retry feature flags (`grpc-tonic-with-retry`,
   `http-proto-with-retry`, `http-json-with-retry`). Retry support is now always
   included for both gRPC and HTTP exporters and works with all processor types,
