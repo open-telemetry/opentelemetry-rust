@@ -168,7 +168,7 @@ mod reqwest {
             }
             let mut http_response = Response::builder()
                 .status(status)
-                .body(body_bytes.freeze())?;
+                .body(Bytes::from(body_bytes))?;
 
             *http_response.headers_mut() = headers;
             Ok(http_response)
