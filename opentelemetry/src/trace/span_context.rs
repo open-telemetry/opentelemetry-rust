@@ -10,7 +10,7 @@ use thiserror::Error;
 ///
 /// Please review the [W3C specification] for details on this field.
 ///
-/// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header
+/// [W3C specification]: https://www.w3.org/TR/trace-context-2/#tracestate-header
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct TraceState(Option<VecDeque<(String, String)>>);
 
@@ -22,7 +22,7 @@ impl TraceState {
 
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     ///
-    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#key
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#key
     fn valid_key(key: &str) -> bool {
         if key.len() > 256 {
             return false;
@@ -54,7 +54,7 @@ impl TraceState {
 
     /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec].
     ///
-    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#value
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#value
     fn valid_value(value: &str) -> bool {
         if value.len() > 256 {
             return false;
@@ -64,9 +64,11 @@ impl TraceState {
     }
 
     /// Creates a new `TraceState` from the given key-value collection, keeping at most the 32
-    /// list-members the [W3C specification] allows.
+    /// list-members the [W3C specification] allows. Pairs beyond the 32nd are dropped without
+    /// being validated, so a key or value that would otherwise make this return an `Err` has no
+    /// effect if it only appears past the limit.
     ///
-    /// [W3C specification]: https://www.w3.org/TR/trace-context/#tracestate-header-field-values
+    /// [W3C specification]: https://www.w3.org/TR/trace-context-2/#tracestate-header-field-values
     ///
     /// # Examples
     ///
@@ -129,7 +131,7 @@ impl TraceState {
     /// A `TraceState` holds at most the 32 list-members the [W3 Spec] allows. Inserting into a full
     /// `TraceState` keeps the inserted pair and drops the last list-member.
     ///
-    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#mutating-the-tracestate-field
     pub fn insert<K, V>(&self, key: K, value: V) -> TraceStateResult<TraceState>
     where
         K: Into<String>,
@@ -160,7 +162,7 @@ impl TraceState {
     ///
     /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
     ///
-    /// [W3 Spec]: https://www.w3.org/TR/trace-context/#mutating-the-tracestate-field
+    /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#mutating-the-tracestate-field
     pub fn delete<K: Into<String>>(&self, key: K) -> TraceStateResult<TraceState> {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
@@ -275,20 +277,20 @@ type TraceStateResult<T> = Result<T, TraceStateError>;
 pub enum TraceStateError {
     /// The key is invalid.
     ///
-    /// See <https://www.w3.org/TR/trace-context/#key> for requirement for keys.
-    #[error("{0} is not a valid key in TraceState, see https://www.w3.org/TR/trace-context/#key for more details")]
+    /// See <https://www.w3.org/TR/trace-context-2/#key> for requirement for keys.
+    #[error("{0} is not a valid key in TraceState, see https://www.w3.org/TR/trace-context-2/#key for more details")]
     Key(String),
 
     /// The value is invalid.
     ///
-    /// See <https://www.w3.org/TR/trace-context/#value> for requirement for values.
-    #[error("{0} is not a valid value in TraceState, see https://www.w3.org/TR/trace-context/#value for more details")]
+    /// See <https://www.w3.org/TR/trace-context-2/#value> for requirement for values.
+    #[error("{0} is not a valid value in TraceState, see https://www.w3.org/TR/trace-context-2/#value for more details")]
     Value(String),
 
     /// The list is invalid.
     ///
-    /// See <https://www.w3.org/TR/trace-context/#list> for requirement for list members.
-    #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context/#list for more details")]
+    /// See <https://www.w3.org/TR/trace-context-2/#list> for requirement for list members.
+    #[error("{0} is not a valid list member in TraceState, see https://www.w3.org/TR/trace-context-2/#list for more details")]
     List(String),
 }
 
@@ -520,6 +522,12 @@ mod tests {
         assert_eq!(trace_state.get("key0"), Some("value0"));
         assert_eq!(trace_state.get("key31"), Some("value31"));
         assert_eq!(trace_state.get("key32"), None);
+
+        let expected_header = (0..32)
+            .map(|i| format!("key{i}=value{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert_eq!(trace_state.header(), expected_header);
     }
     #[test]
     fn test_tracestate_from_str_ignores_invalid_members_beyond_the_limit() {
