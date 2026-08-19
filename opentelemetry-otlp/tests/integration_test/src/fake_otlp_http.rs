@@ -81,6 +81,8 @@ impl FakeOtlpHttpEndpoint {
 
                 let response = responses
                     .pop_front()
+                    // Fall back to 500 if more requests arrive than scripted responses;
+                    // this makes unexpected extra requests fail visibly in assertions.
                     .unwrap_or_else(|| ScriptedHttpResponse::new(500));
                 if let Err(error) = write_response(&mut stream, response).await {
                     server_errors.lock().unwrap().push(error.to_string());
