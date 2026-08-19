@@ -148,7 +148,12 @@ where
 {
     let start = Instant::now();
     let mut attempt = 0;
-    let mut delay = policy.initial_delay_ms;
+    let mut delay = Duration::from_millis(policy.initial_delay_ms);
+    // The delay cap may be raised beyond the configured max if a server-provided
+    // throttle delay exceeds it, since retrying sooner than the server requested
+    // would defeat the purpose of backpressure signalling. The overall exporter
+    // timeout remains the final bound.
+    let mut delay_cap = Duration::from_millis(policy.max_delay_ms);
 
     loop {
         match operation().await {
@@ -178,9 +183,8 @@ where
                     }
                     RetryErrorType::Retryable if attempt < policy.max_retries => {
                         attempt += 1;
-                        let jitter = generate_jitter(policy.jitter_ms);
-                        let delay_ms = std::cmp::min(delay + jitter, policy.max_delay_ms);
-                        let sleep_duration = Duration::from_millis(delay_ms);
+                        let jitter = Duration::from_millis(generate_jitter(policy.jitter_ms));
+                        let sleep_duration = delay.saturating_add(jitter).min(delay_cap);
 
                         // If the backoff delay would consume all remaining budget, fail now
                         let remaining = deadline.saturating_sub(start.elapsed());
@@ -200,16 +204,25 @@ where
                             message = "OTLP export failed with retryable error - retrying"
                         );
                         sleep_for(sleep_duration).await;
-                        delay = std::cmp::min(delay * 2, policy.max_delay_ms);
+                        delay = delay.saturating_mul(2).min(delay_cap);
                     }
                     RetryErrorType::Throttled(server_delay) if attempt < policy.max_retries => {
                         attempt += 1;
-                        // Cap server-provided delay to prevent excessive blocking
-                        let capped_delay = server_delay.min(MAX_THROTTLE_DURATION);
+                        let capped_server_delay = server_delay.min(MAX_THROTTLE_DURATION);
+
+                        // RetryInfo is the base for subsequent exponential backoff. A later
+                        // RetryInfo may extend, but must not shorten, the current backoff.
+                        delay_cap = delay_cap.max(capped_server_delay);
+                        if !capped_server_delay.is_zero() {
+                            delay = delay.max(capped_server_delay);
+                        }
+
+                        let jitter = Duration::from_millis(generate_jitter(policy.jitter_ms));
+                        let sleep_duration = delay.saturating_add(jitter).min(delay_cap);
 
                         // If the throttle delay would consume all remaining budget, fail now
                         let remaining = deadline.saturating_sub(start.elapsed());
-                        if capped_delay >= remaining {
+                        if sleep_duration >= remaining {
                             otel_warn!(name: "Export.Failed.DeadlineExceeded",
                                 operation = operation_name,
                                 retries = attempt,
@@ -221,12 +234,12 @@ where
                         otel_info!(name: "Export.InProgress.Throttled",
                             operation = operation_name,
                             attempt = attempt,
-                            delay_ms = capped_delay.as_millis(),
-                            server_requested_ms = server_delay.as_millis(),
+                            delay_ms = sleep_duration.as_millis(),
+                            server_requested_ms = capped_server_delay.as_millis(),
                             message = "OTLP export throttled by OTLP endpoint - delaying and retrying"
                         );
-                        sleep_for(capped_delay).await;
-                        // Don't update exponential backoff delay since server provided specific timing
+                        sleep_for(sleep_duration).await;
+                        delay = delay.saturating_mul(2).min(delay_cap);
                     }
                     _ => {
                         // Max retries reached
@@ -387,7 +400,7 @@ mod tests {
     async fn test_retry_throttled_uses_server_delay() {
         let policy = RetryPolicy {
             max_retries: 2,
-            initial_delay_ms: 1000, // high default delay
+            initial_delay_ms: 10, // small default delay
             max_delay_ms: 5000,
             jitter_ms: 0,
         };
@@ -416,9 +429,130 @@ mod tests {
         let elapsed = start.elapsed();
         assert_eq!(result, Ok("success"));
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
-        // Should have waited ~50ms (the server delay), not 1000ms (the default)
+        // Should have waited ~50ms (the server delay raises it from the 10ms default)
         assert!(elapsed >= Duration::from_millis(50));
-        assert!(elapsed < Duration::from_millis(500));
+        assert!(elapsed < Duration::from_millis(200));
+    }
+
+    #[tokio::test]
+    async fn test_repeated_throttling_increases_server_delay() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 0,
+        };
+        let attempts = AtomicUsize::new(0);
+        let start = Instant::now();
+
+        let result = retry_with_backoff(
+            &policy,
+            Duration::from_secs(2),
+            |_: &usize| RetryErrorType::Throttled(Duration::from_millis(20)),
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err(attempt)
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+        assert!(start.elapsed() >= Duration::from_millis(55));
+    }
+
+    #[tokio::test]
+    async fn test_retryable_error_continues_from_server_delay() {
+        let policy = RetryPolicy {
+            max_retries: 2,
+            initial_delay_ms: 10,
+            max_delay_ms: 100,
+            jitter_ms: 0,
+        };
+        let attempts = AtomicUsize::new(0);
+        let start = Instant::now();
+
+        let result = retry_with_backoff(
+            &policy,
+            Duration::from_secs(2),
+            |attempt: &usize| {
+                if *attempt == 0 {
+                    RetryErrorType::Throttled(Duration::from_millis(20))
+                } else {
+                    RetryErrorType::Retryable
+                }
+            },
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 2 {
+                        Err(attempt)
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
+        // First: throttled 20ms, second: retryable 40ms (doubled from 20ms base)
+        assert!(start.elapsed() >= Duration::from_millis(55));
+    }
+
+    #[tokio::test]
+    async fn test_throttle_after_normal_backoff_does_not_reduce_delay() {
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 50,
+            max_delay_ms: 500,
+            jitter_ms: 0,
+        };
+        let attempts = AtomicUsize::new(0);
+        let start = Instant::now();
+
+        let result = retry_with_backoff(
+            &policy,
+            Duration::from_secs(5),
+            |attempt: &usize| {
+                if *attempt == 1 {
+                    // Server asks for 20ms, but backoff has already grown to 100ms
+                    RetryErrorType::Throttled(Duration::from_millis(20))
+                } else {
+                    RetryErrorType::Retryable
+                }
+            },
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 3 {
+                        Err(attempt)
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 4);
+        // Attempt 0 fails Retryable: sleep 50ms, delay -> 100ms
+        // Attempt 1 fails Throttled(20ms): delay = max(100ms, 20ms) = 100ms, sleep 100ms, delay -> 200ms
+        // Attempt 2 fails Retryable: sleep 200ms, delay -> 400ms
+        // Attempt 3 succeeds
+        // Total: 50 + 100 + 200 = 350ms
+        assert!(start.elapsed() >= Duration::from_millis(340));
     }
 
     #[tokio::test]
@@ -560,7 +694,7 @@ mod tests {
     fn test_retry_throttled_uses_server_delay_no_tokio() {
         let policy = RetryPolicy {
             max_retries: 2,
-            initial_delay_ms: 1000,
+            initial_delay_ms: 10,
             max_delay_ms: 5000,
             jitter_ms: 0,
         };
@@ -588,8 +722,8 @@ mod tests {
         let elapsed = start.elapsed();
         assert_eq!(result, Ok("success"));
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
-        // Should have waited ~50ms (the server delay), not 1000ms (the default)
+        // Should have waited ~50ms (the server delay raises it from the 10ms default)
         assert!(elapsed >= Duration::from_millis(50));
-        assert!(elapsed < Duration::from_millis(500));
+        assert!(elapsed < Duration::from_millis(200));
     }
 }
