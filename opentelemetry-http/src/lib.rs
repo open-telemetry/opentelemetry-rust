@@ -151,27 +151,35 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
-            let request = request.try_into()?;
-            let mut response = self.execute(request)?.error_for_status()?;
-            let capacity = response
-                .content_length()
-                .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
-            let status = response.status();
-            let headers = std::mem::take(response.headers_mut());
-            let mut body_bytes = Vec::with_capacity(capacity);
-            response
-                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
-                .read_to_end(&mut body_bytes)?;
-            if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                return Err(Box::new(ResponseBodyTooLarge));
-            }
-            let mut http_response = Response::builder()
-                .status(status)
-                .body(Bytes::from(body_bytes))?;
 
-            *http_response.headers_mut() = headers;
-            Ok(http_response)
+            let client = self.clone();
+            Ok(
+                tokio::task::spawn_blocking(move || -> Result<Response<Bytes>, HttpError> {
+                    let request = request.try_into()?;
+                    let mut response = client.execute(request)?.error_for_status()?;
+                    let capacity = response
+                        .content_length()
+                        .unwrap_or(0)
+                        .min(MAX_RESPONSE_BODY_BYTES as u64)
+                        as usize;
+                    let status = response.status();
+                    let headers = std::mem::take(response.headers_mut());
+                    let mut body_bytes = Vec::with_capacity(capacity);
+                    response
+                        .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                        .read_to_end(&mut body_bytes)?;
+                    if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                        return Err(Box::new(ResponseBodyTooLarge));
+                    }
+                    let mut http_response = Response::builder()
+                        .status(status)
+                        .body(Bytes::from(body_bytes))?;
+
+                    *http_response.headers_mut() = headers;
+                    Ok(http_response)
+                })
+                .await??,
+            )
         }
     }
 }
@@ -422,7 +430,10 @@ mod tests {
     }
 }
 
-#[cfg(all(test, any(feature = "reqwest", feature = "hyper")))]
+#[cfg(all(
+    test,
+    any(feature = "reqwest", feature = "reqwest-blocking", feature = "hyper")
+))]
 mod body_limit_tests {
     use super::MAX_RESPONSE_BODY_BYTES;
     use crate::HttpClient;
@@ -468,7 +479,10 @@ mod body_limit_tests {
             .uri(format!("http://{}/", addr))
             .body(Bytes::new())
             .unwrap();
-        assert!(client.send_bytes(request).await.is_err());
+        let error = client.send_bytes(request).await.unwrap_err();
+        assert!(error
+            .downcast_ref::<crate::ResponseBodyTooLarge>()
+            .is_some());
     }
 
     #[cfg(feature = "reqwest")]
@@ -483,5 +497,54 @@ mod body_limit_tests {
     async fn reqwest_body_exceeds_limit() {
         let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
         assert_exceeds_limit(&reqwest::Client::new(), addr).await;
+    }
+
+    #[cfg(feature = "reqwest-blocking")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reqwest_blocking_body_within_limit() {
+        let addr = start_server(100).await;
+
+        tokio::task::spawn_blocking(move || {
+            let client = reqwest::blocking::Client::new();
+
+            tokio::runtime::Handle::current().block_on(assert_within_limit(&client, addr));
+        })
+        .await
+        .unwrap();
+    }
+
+    #[cfg(feature = "reqwest-blocking")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reqwest_blocking_body_exceeds_limit() {
+        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+
+        tokio::task::spawn_blocking(move || {
+            let client = reqwest::blocking::Client::new();
+
+            tokio::runtime::Handle::current().block_on(assert_exceeds_limit(&client, addr));
+        })
+        .await
+        .unwrap();
+    }
+
+    #[cfg(feature = "hyper")]
+    #[tokio::test]
+    async fn hyper_body_within_limit() {
+        let addr = start_server(100).await;
+        let client = crate::hyper::HyperClient::with_default_connector(
+            std::time::Duration::from_secs(5),
+            None,
+        );
+        assert_within_limit(&client, addr).await;
+    }
+    #[cfg(feature = "hyper")]
+    #[tokio::test]
+    async fn hyper_body_exceeds_limit() {
+        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+        let client = crate::hyper::HyperClient::with_default_connector(
+            std::time::Duration::from_secs(5),
+            None,
+        );
+        assert_exceeds_limit(&client, addr).await;
     }
 }
