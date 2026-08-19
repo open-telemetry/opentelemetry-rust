@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
+  method. External implementations of `WithHttpConfig` must implement it.
+  OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
+  after compression; oversized requests are discarded without being sent or
+  retried.
 - Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
   and 504, as required by the OTLP specification. The exporter now also honors
   `Retry-After` on 503 responses. Other HTTP error responses, including 500,
