@@ -93,9 +93,22 @@ pub trait HttpClient: Debug + Send + Sync {
 #[cfg(any(feature = "reqwest", feature = "hyper"))]
 const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 
+#[derive(Debug)]
+pub struct ResponseBodyTooLarge;
+
+impl std::fmt::Display for ResponseBodyTooLarge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "response body exceeded maximum allowed 4 MiB limit")
+    }
+}
+
+impl std::error::Error for ResponseBodyTooLarge {}
+
 #[cfg(feature = "reqwest")]
 mod reqwest {
     use opentelemetry::otel_debug;
+
+    use crate::ResponseBodyTooLarge;
 
     use super::{
         async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
@@ -118,17 +131,15 @@ mod reqwest {
             let headers = std::mem::take(response.headers_mut());
             while let Some(chunk) = response.chunk().await? {
                 if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                    let mut http_response = Response::builder().status(status).body(Bytes::new())?;
-                    *http_response.headers_mut() = headers;
-                    return Ok(http_response);
+                    return Err(Box::new(ResponseBodyTooLarge));
                 }
                 body_bytes.extend_from_slice(&chunk);
             }
             let mut http_response = Response::builder()
                 .status(status)
                 .body(body_bytes.freeze())?;
-            *http_response.headers_mut() = headers;
 
+            *http_response.headers_mut() = headers;
             Ok(http_response)
         }
     }
@@ -153,15 +164,13 @@ mod reqwest {
                 .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
                 .read_to_end(&mut body_bytes)?;
             if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                let mut http_response = Response::builder().status(status).body(Bytes::new())?;
-                *http_response.headers_mut() = headers;
-                return Ok(http_response);
+                return Err(Box::new(ResponseBodyTooLarge));
             }
             let mut http_response = Response::builder()
                 .status(status)
-                .body(Bytes::from(body_bytes))?;
-            *http_response.headers_mut() = headers;
+                .body(body_bytes.freeze())?;
 
+            *http_response.headers_mut() = headers;
             Ok(http_response)
         }
     }
@@ -172,6 +181,7 @@ pub mod hyper {
     use super::{
         async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
     };
+    use crate::ResponseBodyTooLarge;
     use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
@@ -252,10 +262,7 @@ pub mod hyper {
                 let frame = frame?;
                 if let Ok(chunk) = frame.into_data() {
                     if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                        let mut http_response =
-                            Response::builder().status(status).body(Bytes::new())?;
-                        *http_response.headers_mut() = headers;
-                        return Ok(http_response);
+                        return Err(Box::new(ResponseBodyTooLarge));
                     }
                     body_bytes.extend_from_slice(&chunk);
                 }
@@ -264,8 +271,7 @@ pub mod hyper {
                 .status(status)
                 .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
-
-            Ok(http_response.error_for_status()?)
+            Ok(http_response)
         }
     }
 
@@ -462,8 +468,7 @@ mod body_limit_tests {
             .uri(format!("http://{}/", addr))
             .body(Bytes::new())
             .unwrap();
-        let result = client.send_bytes(request).await.unwrap();
-        assert_eq!(result.body().len(), 0);
+        assert!(client.send_bytes(request).await.is_err());
     }
 
     #[cfg(feature = "reqwest")]
