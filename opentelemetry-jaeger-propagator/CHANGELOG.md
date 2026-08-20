@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Cap the `tracestate` built by `Propagator::extract` at the 32 list-members the W3C
+  trace-context specification allows, following the limit `TraceState` now enforces in
+  the `opentelemetry` crate. A carrier holding more `uberctx-` entries than that no
+  longer produces an oversized `tracestate`.
+
 ## 0.32.0
 
 Released 2026-May-08
