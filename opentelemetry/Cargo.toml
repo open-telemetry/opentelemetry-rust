@@ -40,6 +40,7 @@ testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
 experimental_metrics_bound_instruments = ["metrics"]
+experimental_propagation_env_carrier = []
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
