@@ -390,6 +390,47 @@ mod tests {
     }
 
     #[test]
+    fn record_error_with_source_chain_emits_stacktrace() {
+        /// An error that wraps a `source`, so `record_error` produces an
+        /// `exception.stacktrace` attribute from the error chain.
+        #[derive(Debug)]
+        struct SourcedError {
+            message: &'static str,
+            source: std::io::Error,
+        }
+
+        impl std::fmt::Display for SourcedError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(self.message)
+            }
+        }
+
+        impl std::error::Error for SourcedError {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.source)
+            }
+        }
+
+        let mut span = create_span();
+        let err = SourcedError {
+            message: "outer error",
+            source: std::io::Error::other("inner error"),
+        };
+        span.record_error(&err);
+        span.with_data(|data| {
+            let event = data.events.iter().next().expect("no event");
+            assert_eq!(event.name, "exception");
+            assert_eq!(
+                event.attributes,
+                vec![
+                    KeyValue::new("exception.stacktrace", "outer error\ninner error"),
+                    KeyValue::new("exception.message", err.to_string()),
+                ]
+            );
+        });
+    }
+
+    #[test]
     fn set_attribute() {
         let mut span = create_span();
         let attributes = KeyValue::new("k", "v");

@@ -9,6 +9,12 @@
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- `opentelemetry::trace::Span::record_error` now sets the
+  [`exception.stacktrace`][exception.stacktrace] attribute to the messages of
+  the errors in the `std::error::Error::source` chain ([#3570][3570]).
+
+[3570]: https://github.com/open-telemetry/opentelemetry-rust/pull/3570
+[exception.stacktrace]: https://opentelemetry.io/docs/specs/semconv/registry/attributes/exception/#exception-stacktrace
 
 ## 0.32.0
 
