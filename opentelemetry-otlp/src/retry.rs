@@ -41,8 +41,8 @@ pub enum RetryErrorType {
     NonRetryable,
     /// Error is retryable with exponential backoff (e.g., server error, network timeout).
     Retryable,
-    /// Error indicates throttling - wait for the specified duration before retrying.
-    /// This overrides exponential backoff timing.
+    /// Error indicates throttling - wait for at least the specified duration before retrying.
+    /// The server delay seeds exponential backoff: subsequent retries grow from it.
     Throttled(Duration),
 }
 
@@ -106,6 +106,12 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 ///
 /// This function provides retry behavior by classifying errors and honoring server-provided
 /// throttling hints (e.g., HTTP Retry-After, gRPC RetryInfo).
+///
+/// When a throttle delay is received, it seeds the exponential backoff: the delay is set
+/// to `max(current_delay, server_delay)` and subsequent retries double from there. If the
+/// server delay exceeds the configured `max_delay_ms`, the backoff cap is raised to
+/// `MAX_THROTTLE_DURATION` (30 seconds) so that repeated failures produce increasing
+/// delays rather than getting stuck at the server value.
 ///
 /// Delays between retries adapt to the calling context: when running inside a Tokio
 /// runtime (gRPC/async HTTP exporters), `tokio::time::sleep` is used cooperatively;
@@ -212,7 +218,12 @@ where
 
                         // RetryInfo is the base for subsequent exponential backoff. A later
                         // RetryInfo may extend, but must not shorten, the current backoff.
-                        delay_cap = delay_cap.max(capped_server_delay);
+                        // When the server delay exceeds the configured max, allow backoff
+                        // to grow up to MAX_THROTTLE_DURATION so repeated failures
+                        // produce increasing delays rather than getting stuck.
+                        if capped_server_delay > delay_cap {
+                            delay_cap = MAX_THROTTLE_DURATION;
+                        }
                         if !capped_server_delay.is_zero() {
                             delay = delay.max(capped_server_delay);
                         }
@@ -396,11 +407,21 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 1);
     }
 
+    // -- Throttle/backoff interaction tests --
+    //
+    // These tests form a progression: server delay within max_delay_ms (the
+    // easy case where the configured cap doesn't constrain growth), then
+    // server delay exceeding max_delay_ms (the case where the cap must be
+    // lifted to MAX_THROTTLE_DURATION to allow continued growth).
+
     #[tokio::test]
-    async fn test_retry_throttled_uses_server_delay() {
+    async fn test_throttle_seeds_backoff_within_max() {
+        // Server delay (50ms) is below max_delay_ms (5000ms), so the
+        // configured cap never constrains growth. Verifies the basic
+        // mechanism: server delay raises the backoff base from initial.
         let policy = RetryPolicy {
             max_retries: 2,
-            initial_delay_ms: 10, // small default delay
+            initial_delay_ms: 10,
             max_delay_ms: 5000,
             jitter_ms: 0,
         };
@@ -429,13 +450,15 @@ mod tests {
         let elapsed = start.elapsed();
         assert_eq!(result, Ok("success"));
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
-        // Should have waited ~50ms (the server delay raises it from the 10ms default)
         assert!(elapsed >= Duration::from_millis(50));
         assert!(elapsed < Duration::from_millis(200));
     }
 
     #[tokio::test]
-    async fn test_repeated_throttling_increases_server_delay() {
+    async fn test_repeated_throttle_doubles_within_max() {
+        // Repeated throttles (20ms each) with max_delay_ms = 100ms. Server
+        // delay is within the cap, so doubling works without needing to lift
+        // the cap: 20ms -> 40ms. Total >= 55ms.
         let policy = RetryPolicy {
             max_retries: 2,
             initial_delay_ms: 10,
@@ -469,7 +492,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_retryable_error_continues_from_server_delay() {
+    async fn test_retryable_after_throttle_continues_backoff_within_max() {
+        // Throttle (20ms) then a retryable error, with max_delay_ms = 100ms.
+        // Server delay is within the cap, so backoff doubles normally:
+        // 20ms (throttled) -> 40ms (retryable, doubled from 20ms base).
         let policy = RetryPolicy {
             max_retries: 2,
             initial_delay_ms: 10,
@@ -507,6 +533,67 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 3);
         // First: throttled 20ms, second: retryable 40ms (doubled from 20ms base)
         assert!(start.elapsed() >= Duration::from_millis(55));
+    }
+
+    #[tokio::test]
+    async fn test_retryable_after_throttle_continues_backoff_exceeding_max() {
+        // Same shape as the test above, but the server delay (100ms) exceeds
+        // max_delay_ms (50ms). This is the critical case: the cap must be
+        // lifted to MAX_THROTTLE_DURATION so that doubling actually grows
+        // the delay instead of clamping it back to the server value.
+        let policy = RetryPolicy {
+            max_retries: 3,
+            initial_delay_ms: 10,
+            max_delay_ms: 50, // intentionally below server delay
+            jitter_ms: 0,
+        };
+        let attempts = AtomicUsize::new(0);
+        let start = Instant::now();
+
+        let result = retry_with_backoff(
+            &policy,
+            Duration::from_secs(10),
+            |attempt: &usize| {
+                if *attempt == 0 {
+                    // Server asks for 100ms, which exceeds max_delay_ms (50ms)
+                    RetryErrorType::Throttled(Duration::from_millis(100))
+                } else {
+                    RetryErrorType::Retryable
+                }
+            },
+            "test_operation",
+            || {
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt < 3 {
+                        Err(attempt)
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        assert_eq!(attempts.load(Ordering::SeqCst), 4);
+        // Attempt 0 fails Throttled(100ms): delay = max(10ms, 100ms) = 100ms,
+        //   sleep 100ms, delay -> 200ms (doubled, NOT capped back to 100ms)
+        // Attempt 1 fails Retryable: sleep 200ms, delay -> 400ms
+        // Attempt 2 fails Retryable: sleep 400ms, delay -> 800ms
+        // Attempt 3 succeeds
+        // Total: 100 + 200 + 400 = 700ms
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed >= Duration::from_millis(680),
+            "Expected >= 680ms (backoff should grow beyond server delay), got {:?}",
+            elapsed
+        );
+        assert!(
+            elapsed < Duration::from_millis(1500),
+            "Expected < 1500ms, got {:?}",
+            elapsed
+        );
     }
 
     #[tokio::test]
