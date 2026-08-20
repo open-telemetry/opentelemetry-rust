@@ -5,6 +5,7 @@ members = [
     "opentelemetry-*/examples/*",
     "opentelemetry-otlp/tests/*",
     "examples/*",
+    ".github/ci-apps/*",
     "stress",
 ]
 resolver = "2"
