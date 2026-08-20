@@ -13,6 +13,17 @@
   [#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608),
   [#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609),
   [#3611](https://github.com/open-telemetry/opentelemetry-rust/pull/3611))
+- Added exemplar collection for explicit-bucket histograms, behind the new
+  `spec_unstable_metrics_exemplars` feature. A measurement recorded inside a
+  sampled span is retained alongside the histogram data point together with its
+  trace id and span id, letting a backend link from a bucket to a representative
+  trace. Which measurements are eligible is controlled by the new
+  `ExemplarFilter` (`AlwaysOn`, `AlwaysOff`, `TraceBased`), set via
+  `SdkMeterProvider::builder().with_exemplar_filter(..)` and defaulting to
+  `TraceBased` as the specification requires. Sampling uses the spec's
+  `AlignedHistogramBucketExemplarReservoir`, keeping at most one exemplar per
+  bucket. With the feature disabled the measurement path is unchanged.
+  ([#3369](https://github.com/open-telemetry/opentelemetry-rust/issues/3369))
 - Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
   optional, enabling a minimal SDK build. With `default-features = false`, the
   SDK's only dependency is the `opentelemetry` API crate.
