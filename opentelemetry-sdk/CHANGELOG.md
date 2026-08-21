@@ -2,6 +2,26 @@
 
 ## vNext
 
+- Added an experimental global flight-recorder log processor, feature-gated
+  behind `experimental_logs_flight_recorder`. It retains a configurable number
+  of recent log records in a bounded ring buffer and exports the current
+  snapshot through a wrapped processor when its cloneable trigger is invoked.
+  By default, WARN and higher-severity records bypass the recorder and follow
+  the wrapped processor's normal export path. An operation-scoped variant uses
+  OpenTelemetry context propagation to isolate buffers for concurrent requests,
+  jobs, or other logical operations. Configurable per-record, per-buffer, and
+  aggregate scoped byte limits bound estimated retained memory in addition to
+  record-count limits. Scope admission returns explicit errors, and records
+  that cannot be buffered are dropped by default rather than unexpectedly
+  increasing export volume; an opt-in export overflow policy is available.
+  Trigger handles also provide a handoff-only operation when callers do not
+  need to wait for delegate flush completion. With
+  `experimental_metrics_bound_instruments`, SDK metrics report buffering,
+  eviction, overflow, replay, scope admission, discard, trigger, and handoff
+  activity. A `record_on_error` helper manages the common fallible-operation
+  workflow by discarding successful scopes and handing off failed ones.
+  Criterion benchmarks and concurrent emit/trigger/discard/shutdown stress
+  tests cover the recorder hot paths.
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and
