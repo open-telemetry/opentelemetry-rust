@@ -14,7 +14,7 @@ autobenches = false
 default = ["internal-logs"]
 hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 reqwest = ["dep:reqwest"]
-reqwest-blocking = ["dep:reqwest", "reqwest/blocking", "dep:tokio"]
+reqwest-blocking = ["dep:reqwest", "reqwest/blocking"]
 reqwest-rustls = ["dep:reqwest", "reqwest/rustls"]
 internal-logs = ["opentelemetry/internal-logs"]
 

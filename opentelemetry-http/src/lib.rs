@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 use std::fmt::Debug;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener};
+use std::thread::JoinHandle;
 
 #[doc(no_inline)]
 pub use bytes::Bytes;
@@ -119,7 +122,7 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestClient.Send");
             let request = request.try_into()?;
-            let mut response = self.execute(request).await?.error_for_status()?;
+            let mut response = self.execute(request).await?;
             let capacity = response
                 .content_length()
                 .unwrap_or(0)
@@ -151,35 +154,26 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
-
-            let client = self.clone();
-            Ok(
-                tokio::task::spawn_blocking(move || -> Result<Response<Bytes>, HttpError> {
-                    let request = request.try_into()?;
-                    let mut response = client.execute(request)?.error_for_status()?;
-                    let capacity = response
-                        .content_length()
-                        .unwrap_or(0)
-                        .min(MAX_RESPONSE_BODY_BYTES as u64)
-                        as usize;
-                    let status = response.status();
-                    let headers = std::mem::take(response.headers_mut());
-                    let mut body_bytes = Vec::with_capacity(capacity);
-                    response
-                        .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
-                        .read_to_end(&mut body_bytes)?;
-                    if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                        return Err(Box::new(ResponseBodyTooLarge));
-                    }
-                    let mut http_response = Response::builder()
-                        .status(status)
-                        .body(Bytes::from(body_bytes))?;
-
-                    *http_response.headers_mut() = headers;
-                    Ok(http_response)
-                })
-                .await??,
-            )
+            let request = request.try_into()?;
+            let mut response = self.execute(request)?;
+            let capacity = response
+                .content_length()
+                .unwrap_or(0)
+                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+            let status = response.status();
+            let headers = std::mem::take(response.headers_mut());
+            let mut body_bytes = Vec::with_capacity(capacity);
+            response
+                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                .read_to_end(&mut body_bytes)?;
+            if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
+                return Err(Box::new(ResponseBodyTooLarge));
+            }
+            let mut http_response = Response::builder()
+                .status(status)
+                .body(Bytes::from(body_bytes))?;
+            *http_response.headers_mut() = headers;
+            Ok(http_response)
         }
     }
 }
@@ -190,7 +184,6 @@ pub mod hyper {
         async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
     };
     use crate::ResponseBodyTooLarge;
-    use crate::ResponseExt;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
     use hyper::body::{Body as HttpBody, Frame};
@@ -431,6 +424,83 @@ mod tests {
 }
 
 #[cfg(all(
+    any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+    not(target_arch = "wasm32")
+))]
+fn spawn_error_response_server() -> (SocketAddr, JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = [0; 1024];
+        let _ = stream.read(&mut request).unwrap();
+        stream
+            .write_all(
+                b"HTTP/1.1 429 Too Many Requests\r\n\
+Retry-After: 7\r\n\
+Content-Length: 0\r\n\
+Connection: close\r\n\r\n",
+            )
+            .unwrap();
+    });
+    (address, server)
+}
+
+#[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+#[test]
+fn reqwest_blocking_preserves_error_response_status_and_headers() {
+    let (address, server) = spawn_error_response_server();
+    let client = ::reqwest::blocking::Client::new();
+    let request = Request::post(format!("http://{address}/v1/traces"))
+        .body(Bytes::new())
+        .unwrap();
+    let response = futures_executor::block_on(client.send_bytes(request)).unwrap();
+
+    server.join().unwrap();
+    assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers().get("retry-after").unwrap(), "7");
+}
+
+#[cfg(all(feature = "reqwest", not(target_arch = "wasm32")))]
+#[test]
+fn reqwest_async_preserves_error_response_status_and_headers() {
+    let (address, server) = spawn_error_response_server();
+    let client = ::reqwest::Client::new();
+    let request = Request::post(format!("http://{address}/v1/traces"))
+        .body(Bytes::new())
+        .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let response = runtime.block_on(client.send_bytes(request)).unwrap();
+
+    server.join().unwrap();
+    assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers().get("retry-after").unwrap(), "7");
+}
+
+#[cfg(all(feature = "hyper", not(target_arch = "wasm32")))]
+#[test]
+fn hyper_preserves_error_response_status_and_headers() {
+    let (address, server) = spawn_error_response_server();
+    let client =
+        crate::hyper::HyperClient::with_default_connector(std::time::Duration::from_secs(2), None);
+    let request = Request::post(format!("http://{address}/v1/traces"))
+        .body(Bytes::new())
+        .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let response = runtime.block_on(client.send_bytes(request)).unwrap();
+
+    server.join().unwrap();
+    assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers().get("retry-after").unwrap(), "7");
+}
+
+#[cfg(all(
     test,
     any(feature = "reqwest", feature = "reqwest-blocking", feature = "hyper")
 ))]
@@ -485,6 +555,32 @@ mod body_limit_tests {
             .is_some());
     }
 
+    fn start_blocking_server(body_size: usize) -> SocketAddr {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        std::thread::spawn(move || {
+            if let Ok((mut socket, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = socket.read(&mut buf);
+
+                let body = vec![b'a'; body_size];
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+
+                let _ = socket.write_all(response.as_bytes());
+                let _ = socket.write_all(&body);
+            }
+        });
+
+        addr
+    }
+
     #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn reqwest_body_within_limit() {
@@ -500,31 +596,22 @@ mod body_limit_tests {
     }
 
     #[cfg(feature = "reqwest-blocking")]
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn reqwest_blocking_body_within_limit() {
-        let addr = start_server(100).await;
+    #[test]
+    fn reqwest_blocking_body_within_limit() {
+        let addr = start_blocking_server(100);
 
-        tokio::task::spawn_blocking(move || {
-            let client = reqwest::blocking::Client::new();
-
-            tokio::runtime::Handle::current().block_on(assert_within_limit(&client, addr));
-        })
-        .await
-        .unwrap();
+        futures_executor::block_on(assert_within_limit(&reqwest::blocking::Client::new(), addr));
     }
 
     #[cfg(feature = "reqwest-blocking")]
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn reqwest_blocking_body_exceeds_limit() {
-        let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+    #[test]
+    fn reqwest_blocking_body_exceeds_limit() {
+        let addr = start_blocking_server(MAX_RESPONSE_BODY_BYTES + 1);
 
-        tokio::task::spawn_blocking(move || {
-            let client = reqwest::blocking::Client::new();
-
-            tokio::runtime::Handle::current().block_on(assert_exceeds_limit(&client, addr));
-        })
-        .await
-        .unwrap();
+        futures_executor::block_on(assert_exceeds_limit(
+            &reqwest::blocking::Client::new(),
+            addr,
+        ));
     }
 
     #[cfg(feature = "hyper")]
