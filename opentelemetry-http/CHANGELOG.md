@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
+
 - Return HTTP error responses from the built-in reqwest and hyper clients instead
   of converting 4xx and 5xx statuses into transport errors. This preserves the
   response status and headers for exporter retry classification.
