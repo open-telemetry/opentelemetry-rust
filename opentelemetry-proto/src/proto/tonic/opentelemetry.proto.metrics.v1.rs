@@ -390,6 +390,13 @@ pub mod number_data_point {
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "4")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
         AsInt(i64),
@@ -466,6 +473,13 @@ pub struct HistogramDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
     /// for each bucket.
@@ -502,6 +516,13 @@ pub struct HistogramDataPoint {
     /// If bucket_counts length is 0 then explicit_bounds length must also be 0,
     /// otherwise the data point is invalid.
     #[prost(double, repeated, tag = "7")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_vector_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_vector_f64_special"
+        )
+    )]
     pub explicit_bounds: ::prost::alloc::vec::Vec<f64>,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
@@ -513,9 +534,23 @@ pub struct HistogramDataPoint {
     pub flags: u32,
     /// min is the minimum value over (start_time, end_time\].
     #[prost(double, optional, tag = "11")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub min: ::core::option::Option<f64>,
     /// max is the maximum value over (start_time, end_time\].
     #[prost(double, optional, tag = "12")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub max: ::core::option::Option<f64>,
 }
 /// ExponentialHistogramDataPoint is a single data point in a timeseries that describes the
@@ -582,6 +617,13 @@ pub struct ExponentialHistogramDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
     #[prost(double, optional, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
     /// located at powers of the base, where:
@@ -633,9 +675,23 @@ pub struct ExponentialHistogramDataPoint {
     pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
     /// The minimum value over (start_time, end_time\].
     #[prost(double, optional, tag = "12")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub min: ::core::option::Option<f64>,
     /// The maximum value over (start_time, end_time\].
     #[prost(double, optional, tag = "13")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_option_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_option_f64_special"
+        )
+    )]
     pub max: ::core::option::Option<f64>,
     /// ZeroThreshold may be optionally set to convey the width of the zero
     /// region. Where the zero region is defined as the closed interval
@@ -644,6 +700,13 @@ pub struct ExponentialHistogramDataPoint {
     /// expressed using the standard exponential formula as well as values that
     /// have been rounded to zero.
     #[prost(double, tag = "14")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+        )
+    )]
     pub zero_threshold: f64,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
@@ -742,6 +805,13 @@ pub struct SummaryDataPoint {
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
     #[prost(double, tag = "5")]
+    #[cfg_attr(
+        feature = "with-serde",
+        serde(
+            serialize_with = "crate::proto::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+        )
+    )]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
@@ -806,9 +876,7 @@ pub struct Exemplar {
     /// recorded alongside the original measurement. Only key/value pairs that were
     /// filtered out by the aggregator should be included
     #[prost(message, repeated, tag = "7")]
-    pub filtered_attributes: ::prost::alloc::vec::Vec<
-        super::super::common::v1::KeyValue,
-    >,
+    pub filtered_attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
     /// time_unix_nano is the exact time when this exemplar was recorded
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
@@ -863,6 +931,13 @@ pub mod exemplar {
     #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(double, tag = "3")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_f64_special",
+                deserialize_with = "crate::proto::serializers::deserialize_f64_special"
+            )
+        )]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
         AsInt(i64),
