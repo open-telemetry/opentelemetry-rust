@@ -93,6 +93,7 @@ pub trait HttpClient: Debug + Send + Sync {
 #[cfg(any(feature = "reqwest", feature = "hyper"))]
 const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 
+/// Error returned when an HTTP response body exceeds the configured size limit.
 #[derive(Debug)]
 pub struct ResponseBodyTooLarge;
 
