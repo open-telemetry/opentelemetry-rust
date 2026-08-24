@@ -327,13 +327,13 @@ mod tests {
     ))]
     use std::io::{Read, Write};
 
-     #[cfg(all(
+    #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
         not(target_arch = "wasm32")
     ))]
     use std::net::{SocketAddr, TcpListener};
 
-     #[cfg(all(
+    #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
         not(target_arch = "wasm32")
     ))]
@@ -570,7 +570,7 @@ Connection: close\r\n\r\n",
                 .downcast_ref::<crate::ResponseBodyTooLarge>()
                 .is_some());
         }
-        
+
         #[cfg(feature = "reqwest-blocking")]
         fn start_blocking_server(body_size: usize) -> SocketAddr {
             use std::io::{Read, Write};
