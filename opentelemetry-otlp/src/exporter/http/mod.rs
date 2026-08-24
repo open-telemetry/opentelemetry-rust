@@ -28,6 +28,10 @@ use std::time::Duration;
 use crate::retry::{RetryErrorType, RetryPolicy};
 use crate::retry_classification::http::classify_http_error;
 
+// Recommended by the OTLP/HTTP specification:
+// https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
+const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 64 * 1024 * 1024;
+
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
 #[derive(Debug)]
@@ -121,6 +125,9 @@ pub(crate) struct HttpConfig {
 
     /// The retry policy to use for HTTP requests.
     retry_policy: Option<RetryPolicy>,
+
+    /// Maximum HTTP request body size, before and after compression.
+    max_request_body_size: Option<usize>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -292,7 +299,7 @@ impl HttpExporterBuilder {
             add_header_from_string(&input, &mut headers);
         }
 
-        Ok(OtlpHttpClient::new(
+        let mut client = OtlpHttpClient::new(
             http_client,
             endpoint,
             headers,
@@ -300,7 +307,11 @@ impl HttpExporterBuilder {
             timeout,
             compression,
             self.http_config.retry_policy.take(),
-        ))
+        );
+        if let Some(max_request_body_size) = self.http_config.max_request_body_size {
+            client.max_request_body_size = max_request_body_size;
+        }
+        Ok(client)
     }
 
     fn resolve_compression(
@@ -386,6 +397,7 @@ pub(crate) struct OtlpHttpClient {
     timeout: Duration,
     compression: Option<crate::Compression>,
     retry_policy: RetryPolicy,
+    max_request_body_size: usize,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -542,7 +554,9 @@ impl OtlpHttpClient {
     /// has been enabled. If the user has requested it but the feature has not been enabled,
     /// we should catch this at exporter build time and never get here.
     fn process_body(&self, body: Vec<u8>) -> Result<(Vec<u8>, Option<&'static str>), String> {
-        match self.compression {
+        self.validate_request_body_size(&body, "uncompressed")?;
+
+        let (processed_body, content_encoding) = match self.compression {
             #[cfg(feature = "gzip-http")]
             Some(crate::Compression::Gzip) => {
                 use flate2::{write::GzEncoder, Compression};
@@ -551,23 +565,47 @@ impl OtlpHttpClient {
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
                 encoder.write_all(&body).map_err(|e| e.to_string())?;
                 let compressed = encoder.finish().map_err(|e| e.to_string())?;
-                Ok((compressed, Some("gzip")))
+                (compressed, Some("gzip"))
             }
             #[cfg(not(feature = "gzip-http"))]
             Some(crate::Compression::Gzip) => {
-                Err("gzip compression requested but gzip-http feature not enabled".to_string())
+                return Err(
+                    "gzip compression requested but gzip-http feature not enabled".to_string(),
+                );
             }
             #[cfg(feature = "zstd-http")]
             Some(crate::Compression::Zstd) => {
                 let compressed = zstd::bulk::compress(&body, 0).map_err(|e| e.to_string())?;
-                Ok((compressed, Some("zstd")))
+                (compressed, Some("zstd"))
             }
             #[cfg(not(feature = "zstd-http"))]
             Some(crate::Compression::Zstd) => {
-                Err("zstd compression requested but zstd-http feature not enabled".to_string())
+                return Err(
+                    "zstd compression requested but zstd-http feature not enabled".to_string(),
+                );
             }
-            None => Ok((body, None)),
+            None => (body, None),
+        };
+
+        if content_encoding.is_some() {
+            self.validate_request_body_size(&processed_body, "compressed")?;
         }
+
+        Ok((processed_body, content_encoding))
+    }
+
+    fn validate_request_body_size(
+        &self,
+        body: &[u8],
+        representation: &'static str,
+    ) -> Result<(), String> {
+        if body.len() > self.max_request_body_size {
+            return Err(format!(
+                "OTLP HTTP {representation} request body is {} bytes, exceeding the configured limit of {} bytes; request will not be sent and telemetry data will be discarded; reduce the batch size, telemetry item size, or configure a larger limit",
+                body.len(), self.max_request_body_size
+            ));
+        }
+        Ok(())
     }
 
     #[allow(clippy::mutable_key_type)] // http headers are not mutated
@@ -588,6 +626,7 @@ impl OtlpHttpClient {
             timeout,
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
+            max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -605,7 +644,9 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => (json.into_bytes(), "application/json"),
-                Err(e) => return Err(e.to_string()),
+                Err(e) => {
+                    return Err(format!("failed to serialize traces to OTLP/HTTP JSON: {e}"));
+                }
             },
             #[cfg(feature = "http-proto")]
             Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
@@ -632,7 +673,9 @@ impl OtlpHttpClient {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => (json.into_bytes(), "application/json"),
-                Err(e) => return Err(e.to_string()),
+                Err(e) => {
+                    return Err(format!("failed to serialize logs to OTLP/HTTP JSON: {e}"));
+                }
             },
             #[cfg(feature = "http-proto")]
             Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
@@ -650,7 +693,7 @@ impl OtlpHttpClient {
     fn build_metrics_export_body(
         &self,
         metrics: &ResourceMetrics,
-    ) -> Option<(Vec<u8>, &'static str, Option<&'static str>)> {
+    ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
         use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 
         let req: ExportMetricsServiceRequest = metrics.into();
@@ -660,8 +703,9 @@ impl OtlpHttpClient {
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
                 Ok(json) => (json.into_bytes(), "application/json"),
                 Err(e) => {
-                    otel_debug!(name: "JsonSerializationFaied", error = e.to_string());
-                    return None;
+                    return Err(format!(
+                        "failed to serialize metrics to OTLP/HTTP JSON: {e}"
+                    ));
                 }
             },
             #[cfg(feature = "http-proto")]
@@ -672,15 +716,8 @@ impl OtlpHttpClient {
             }
         };
 
-        match self.process_body(body) {
-            Ok((processed_body, content_encoding)) => {
-                Some((processed_body, content_type, content_encoding))
-            }
-            Err(e) => {
-                otel_debug!(name: "CompressionFailed", error = e);
-                None
-            }
-        }
+        let (processed_body, content_encoding) = self.process_body(body)?;
+        Ok((processed_body, content_type, content_encoding))
     }
 }
 
@@ -776,6 +813,14 @@ pub trait WithHttpConfig {
 
     /// Set the retry policy for HTTP requests.
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
+
+    /// Set the maximum HTTP request body size in bytes.
+    ///
+    /// The limit is enforced both before and after compression. Requests that
+    /// exceed it are discarded without being sent or retried. Reduce the batch
+    /// size or telemetry item size if requests exceed the configured limit.
+    /// The default is 64 MiB.
+    fn with_max_request_body_size(self, max_size: usize) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -803,6 +848,11 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.http_client_config().retry_policy = Some(policy);
+        self
+    }
+
+    fn with_max_request_body_size(mut self, max_size: usize) -> Self {
+        self.http_client_config().max_request_body_size = Some(max_size);
         self
     }
 }
@@ -1050,8 +1100,8 @@ mod tests {
                 client: None,
                 headers: Some(initial_headers),
                 compression: None,
-
                 retry_policy: None,
+                max_request_body_size: None,
             },
             exporter_config: crate::exporter::ExportConfig::default(),
         };
@@ -1139,6 +1189,27 @@ mod tests {
             assert_eq!(decompressed, test_data);
             // Verify compression actually happened (compressed should be different)
             assert_ne!(compressed_body, test_data.to_vec());
+        }
+
+        #[cfg(all(feature = "http-proto", feature = "gzip-http"))]
+        #[test]
+        fn request_body_limit_applies_before_and_after_compression() {
+            let mut client = OtlpHttpClient::new(
+                std::sync::Arc::new(MockHttpClient),
+                "http://localhost:4318".parse().unwrap(),
+                std::collections::HashMap::new(),
+                crate::Protocol::HttpBinary,
+                std::time::Duration::from_secs(10),
+                Some(crate::Compression::Gzip),
+                None,
+            );
+            client.max_request_body_size = 1;
+
+            let uncompressed_error = client.process_body(vec![0; 2]).unwrap_err();
+            assert!(uncompressed_error.contains("uncompressed request body is 2 bytes"));
+
+            let compressed_error = client.process_body(vec![0]).unwrap_err();
+            assert!(compressed_error.contains("compressed request body is"));
         }
 
         #[cfg(all(feature = "http-proto", feature = "zstd-http"))]
@@ -1291,6 +1362,42 @@ mod tests {
                 compression,
                 None,
             )
+        }
+
+        #[cfg(feature = "http-proto")]
+        #[test]
+        fn request_body_at_configured_limit_is_accepted() {
+            let mut client = create_test_client(crate::Protocol::HttpBinary, None);
+            client.max_request_body_size = 4;
+
+            let (body, content_encoding) = client.process_body(vec![0; 4]).unwrap();
+
+            assert_eq!(body.len(), 4);
+            assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(feature = "http-proto")]
+        #[test]
+        fn request_body_over_configured_limit_is_rejected() {
+            let mut client = create_test_client(crate::Protocol::HttpBinary, None);
+            client.max_request_body_size = 4;
+
+            let error = client.process_body(vec![0; 5]).unwrap_err();
+
+            assert!(error.contains("uncompressed request body is 5 bytes"));
+            assert!(error.contains("configured limit of 4 bytes"));
+            assert!(error.contains("request will not be sent"));
+        }
+
+        #[cfg(feature = "http-proto")]
+        #[test]
+        fn default_request_body_limit_is_64_mib() {
+            let client = create_test_client(crate::Protocol::HttpBinary, None);
+
+            assert_eq!(
+                client.max_request_body_size,
+                super::super::DEFAULT_MAX_REQUEST_BODY_SIZE
+            );
         }
 
         fn create_test_span_data() -> opentelemetry_sdk::trace::SpanData {
@@ -1466,16 +1573,15 @@ mod tests {
             not(feature = "gzip-http")
         ))]
         #[test]
-        fn test_build_metrics_export_body_compression_error_returns_none() {
+        fn test_build_metrics_export_body_returns_compression_error() {
             use opentelemetry_sdk::metrics::data::ResourceMetrics;
 
             let client =
                 create_test_client(crate::Protocol::HttpBinary, Some(crate::Compression::Gzip));
             let metrics = ResourceMetrics::default();
 
-            // Should return None when compression fails (feature not enabled)
-            let result = client.build_metrics_export_body(&metrics);
-            assert!(result.is_none());
+            let error = client.build_metrics_export_body(&metrics).unwrap_err();
+            assert!(error.contains("gzip-http feature not enabled"));
         }
 
         #[test]
@@ -1526,6 +1632,16 @@ mod tests {
                 result,
                 Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
             ));
+        }
+
+        #[test]
+        fn test_with_max_request_body_size() {
+            use super::super::HttpExporterBuilder;
+            use crate::WithHttpConfig;
+
+            let builder = HttpExporterBuilder::default().with_max_request_body_size(1024);
+
+            assert_eq!(builder.http_config.max_request_body_size, Some(1024));
         }
 
         #[test]
@@ -1714,6 +1830,14 @@ mod tests {
             Ok((vec![1, 2, 3], "application/x-protobuf", None))
         }
 
+        fn build_processed_test_body(
+            client: &OtlpHttpClient,
+            _data: (),
+        ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
+            let (body, content_encoding) = client.process_body(vec![1, 2, 3])?;
+            Ok((body, "application/x-protobuf", content_encoding))
+        }
+
         fn make_client(mock: Arc<dyn HttpClient>, retry_policy: RetryPolicy) -> OtlpHttpClient {
             OtlpHttpClient::new(
                 mock,
@@ -1733,6 +1857,26 @@ mod tests {
                 max_delay_ms: 10,
                 jitter_ms: 0,
             }
+        }
+
+        #[test]
+        fn oversized_request_is_not_sent_or_retried() {
+            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
+                .status(200)
+                .body(Bytes::new())
+                .unwrap()]));
+            let mut client = make_client(mock.clone(), retry_policy());
+            client.max_request_body_size = 2;
+
+            let result = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_processed_test_body,
+                "test",
+            ));
+
+            let error = result.unwrap_err().to_string();
+            assert!(error.contains("request will not be sent"));
+            assert_eq!(mock.attempt_count(), 0);
         }
 
         #[test]

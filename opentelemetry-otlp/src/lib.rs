@@ -471,7 +471,8 @@
 //!
 //! Requires the `http-proto` (default) or `http-json` feature. The methods below come from:
 //! - [`WithExportConfig`]: `with_endpoint`, `with_timeout`, `with_protocol`
-//! - [`WithHttpConfig`]: `with_headers`, `with_compression`, `with_http_client`
+//! - [`WithHttpConfig`]: `with_headers`, `with_compression`, `with_http_client`,
+//!   `with_retry_policy`, `with_max_request_body_size`
 //!
 //! The examples here use [`SpanExporter`], but the same builder methods are
 //! available on [`MetricExporter`] and [`LogExporter`].
@@ -505,6 +506,9 @@
 //!     // Compression. Requires the `gzip-http` or `zstd-http` feature.
 //!     // Env var: OTEL_EXPORTER_OTLP_TRACES_COMPRESSION (or OTEL_EXPORTER_OTLP_COMPRESSION).
 //!     .with_compression(Compression::Gzip)
+//!     // Maximum serialized HTTP request size before and after compression.
+//!     // Defaults to the OTLP-recommended 64 MiB.
+//!     .with_max_request_body_size(64 * 1024 * 1024)
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }

@@ -2,6 +2,17 @@
 
 ## vNext
 
+- **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
+  method. External implementations of `WithHttpConfig` must implement it.
+  OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
+  after compression; oversized requests are discarded without being sent or
+  retried.
+- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
+  `Unavailable` responses without a positive delay continue to use exponential
+  backoff.
+- Continue exponential backoff from server-provided `RetryInfo` and `Retry-After`
+  delays when subsequent export attempts fail, rather than reusing or dropping
+  below the server-requested delay.
 - Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
   and 504, as required by the OTLP specification. The exporter now also honors
   `Retry-After` on 503 responses. Other HTTP error responses, including 500,

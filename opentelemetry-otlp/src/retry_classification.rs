@@ -135,12 +135,19 @@ pub mod grpc {
                 RetryErrorType::NonRetryable
             }
 
+            // UNAVAILABLE may include RetryInfo to signal an explicit throttle delay.
+            tonic::Code::Unavailable => match retry_delay.filter(|delay| !delay.is_zero()) {
+                Some(delay) => {
+                    RetryErrorType::Throttled(delay.min(std::time::Duration::from_secs(600)))
+                }
+                None => RetryErrorType::Retryable,
+            },
+
             // Retryable errors per OTLP specification
             tonic::Code::Cancelled
             | tonic::Code::DeadlineExceeded
             | tonic::Code::Aborted
             | tonic::Code::OutOfRange
-            | tonic::Code::Unavailable
             | tonic::Code::DataLoss => RetryErrorType::Retryable,
 
             // Non-retryable errors per OTLP specification
@@ -315,6 +322,75 @@ mod tests {
             let result = classify_tonic_status(&status);
             // Per OTLP spec: RESOURCE_EXHAUSTED without RetryInfo is non-retryable
             assert_eq!(result, RetryErrorType::NonRetryable);
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_retry_info() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_secs(45)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_secs(45))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_fractional_retry_info() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(500)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_millis(500))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_large_retry_info_capped() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_secs(900)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_secs(600))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_without_positive_retry_info() {
+            let without_retry_info =
+                tonic::Status::new(tonic::Code::Unavailable, "service unavailable");
+            assert_eq!(
+                classify_tonic_status(&without_retry_info),
+                RetryErrorType::Retryable
+            );
+
+            let error_details = ErrorDetails::with_retry_info(Some(std::time::Duration::ZERO));
+            let zero_retry_info = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+            assert_eq!(
+                classify_tonic_status(&zero_retry_info),
+                RetryErrorType::Retryable
+            );
         }
 
         #[test]
