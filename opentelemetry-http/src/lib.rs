@@ -320,8 +320,23 @@ impl<T> ResponseExt for Response<T> {
 mod tests {
     use super::*;
     use http::HeaderValue;
+
+    #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
     use std::io::{Read, Write};
+
+     #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
     use std::net::{SocketAddr, TcpListener};
+
+     #[cfg(all(
+        any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
+        not(target_arch = "wasm32")
+    ))]
     use std::thread::JoinHandle;
 
     #[test]
@@ -555,7 +570,8 @@ Connection: close\r\n\r\n",
                 .downcast_ref::<crate::ResponseBodyTooLarge>()
                 .is_some());
         }
-
+        
+        #[cfg(feature = "reqwest-blocking")]
         fn start_blocking_server(body_size: usize) -> SocketAddr {
             use std::io::{Read, Write};
             use std::net::TcpListener;
