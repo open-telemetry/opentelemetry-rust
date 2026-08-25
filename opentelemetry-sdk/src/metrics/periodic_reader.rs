@@ -21,9 +21,12 @@ use super::{
     Temporality,
 };
 
-const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
+/// Default delay interval between two consecutive exports for [PeriodicReader].
+pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60);
 
-const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
+/// Environment variable for configuring the delay interval (in milliseconds)
+/// between two consecutive exports for [PeriodicReader].
+pub const OTEL_METRIC_EXPORT_INTERVAL: &str = "OTEL_METRIC_EXPORT_INTERVAL";
 
 /// Configuration options for [PeriodicReader].
 #[derive(Debug)]
@@ -37,10 +40,10 @@ where
     E: PushMetricExporter,
 {
     fn new(exporter: E) -> Self {
-        let interval = env::var(METRIC_EXPORT_INTERVAL_NAME)
+        let interval = env::var(OTEL_METRIC_EXPORT_INTERVAL)
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
-            .unwrap_or(DEFAULT_INTERVAL);
+            .unwrap_or(OTEL_METRIC_EXPORT_INTERVAL_DEFAULT);
 
         PeriodicReaderBuilder { interval, exporter }
     }

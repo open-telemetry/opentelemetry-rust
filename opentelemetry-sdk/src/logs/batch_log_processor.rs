@@ -39,24 +39,29 @@ use std::{
     time::Instant,
 };
 
-/// Delay interval between two consecutive exports.
-pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
+/// Environment variable for configuring the delay interval (in milliseconds)
+/// between two consecutive exports for the [`BatchLogProcessor`].
+pub const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
-/// Maximum allowed time to export data.
+pub const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
+/// Environment variable for configuring the maximum allowed time to export
+/// data for the [`BatchLogProcessor`].
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
+pub const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
 #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-/// Maximum queue size.
-pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
+pub const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
+/// Environment variable for configuring the maximum queue size for the
+/// [`BatchLogProcessor`].
+pub const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
 /// Default maximum queue size.
-pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
-/// Maximum batch size, must be less than or equal to OTEL_BLRP_MAX_QUEUE_SIZE.
-pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
+pub const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+/// Environment variable for configuring the maximum batch size for the
+/// [`BatchLogProcessor`], must be less than or equal to
+/// `OTEL_BLRP_MAX_QUEUE_SIZE`.
+pub const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size.
-pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+pub const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
 /// Messages sent between application thread and batch log processor's work thread.
 #[allow(clippy::large_enum_variant)]

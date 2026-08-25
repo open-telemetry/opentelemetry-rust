@@ -51,25 +51,46 @@ use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Instant;
 
-/// Delay interval between two consecutive exports.
-pub(crate) const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
+/// Environment variable for configuring the delay interval (in milliseconds)
+/// between two consecutive exports for the [`BatchSpanProcessor`].
+pub const OTEL_BSP_SCHEDULE_DELAY: &str = "OTEL_BSP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-pub(crate) const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(5_000);
-/// Maximum queue size
-pub(crate) const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
+pub const OTEL_BSP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(5_000);
+/// Environment variable for configuring the maximum queue size for the
+/// [`BatchSpanProcessor`].
+pub const OTEL_BSP_MAX_QUEUE_SIZE: &str = "OTEL_BSP_MAX_QUEUE_SIZE";
 /// Default maximum queue size
-pub(crate) const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
-/// Maximum batch size, must be less than or equal to OTEL_BSP_MAX_QUEUE_SIZE
-pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
+pub const OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+/// Environment variable for configuring the maximum batch size for the
+/// [`BatchSpanProcessor`], must be less than or equal to
+/// `OTEL_BSP_MAX_QUEUE_SIZE`.
+pub const OTEL_BSP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BSP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size
-pub(crate) const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
-/// Maximum allowed time to export data.
-pub(crate) const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
+pub const OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+/// Environment variable for configuring the maximum allowed time to export
+/// data.
+///
+/// This value is honored by
+/// `span_processor_with_async_runtime::BatchSpanProcessor`. The thread-based
+/// [`BatchSpanProcessor`] ignores this setting.
+pub const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-pub(crate) const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
+///
+/// See [`OTEL_BSP_EXPORT_TIMEOUT`] for which processors honor this value.
+pub const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
+/// Environment variable for configuring the maximum number of concurrent
+/// exports.
+///
+/// This value is honored by
+/// `span_processor_with_async_runtime::BatchSpanProcessor`, where it limits the
+/// number of concurrent export tasks. The thread-based [`BatchSpanProcessor`]
+/// exports serially and ignores this setting.
+pub const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
-pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
+///
+/// See [`OTEL_BSP_MAX_CONCURRENT_EXPORTS`] for which processors honor this
+/// value.
+pub const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording
