@@ -534,13 +534,16 @@
 //! # #[cfg(all(feature = "trace", feature = "http-proto", feature = "reqwest-client"))]
 //! # {
 //! use opentelemetry_otlp::WithHttpConfig;
+//! use opentelemetry_http::ReqwestClient;
 //!
 //! // reqwest async client (requires the `reqwest-client` feature)
-//! let http_client = reqwest::Client::builder()
-//!     .timeout(std::time::Duration::from_secs(5))
-//!     // .danger_accept_invalid_certs(true) // for testing only
-//!     .build()
-//!     .expect("Failed to build reqwest client");
+//! let http_client = ReqwestClient::new(
+//!     reqwest::Client::builder()
+//!         .timeout(std::time::Duration::from_secs(5))
+//!         // .danger_accept_invalid_certs(true) // for testing only
+//!         .build()
+//!         .expect("Failed to build reqwest client"),
+//! );
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()

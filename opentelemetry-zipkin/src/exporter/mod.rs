@@ -46,19 +46,19 @@ impl Default for ZipkinExporterBuilder {
 
         ZipkinExporterBuilder {
             #[cfg(feature = "reqwest-blocking-client")]
-            client: Some(Arc::new(
+            client: Some(Arc::new(opentelemetry_http::ReqwestBlockingClient::new(
                 reqwest::blocking::Client::builder()
                     .timeout(timeout)
                     .build()
                     .unwrap_or_else(|_| reqwest::blocking::Client::new()),
-            )),
+            ))),
             #[cfg(all(not(feature = "reqwest-blocking-client"), feature = "reqwest-client"))]
-            client: Some(Arc::new(
+            client: Some(Arc::new(opentelemetry_http::ReqwestClient::new(
                 reqwest::Client::builder()
                     .timeout(timeout)
                     .build()
                     .unwrap_or_else(|_| reqwest::Client::new()),
-            )),
+            ))),
             #[cfg(all(
                 not(feature = "reqwest-client"),
                 not(feature = "reqwest-blocking-client")

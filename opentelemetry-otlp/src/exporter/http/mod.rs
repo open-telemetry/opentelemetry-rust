@@ -7,7 +7,9 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
+use opentelemetry_http::{
+    Bytes, HttpClient, ResponseBodyTooLarge, DEFAULT_MAX_RESPONSE_BODY_BYTES,
+};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -128,6 +130,9 @@ pub(crate) struct HttpConfig {
 
     /// Maximum HTTP request body size, before and after compression.
     max_request_body_size: Option<usize>,
+
+    /// Maximum HTTP response body size the client will accept.
+    max_response_body_size: Option<usize>,
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -239,21 +244,31 @@ impl HttpExporterBuilder {
         // 1. reqwest-client (async)
         // 2. hyper-client
         // 3. reqwest-blocking-client (default)
+        #[allow(unused_variables)]
+        let max_response_body_size = self
+            .http_config
+            .max_response_body_size
+            .unwrap_or(opentelemetry_http::DEFAULT_MAX_RESPONSE_BODY_BYTES);
+
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
+                use opentelemetry_http::ReqwestClient;
+                let inner = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .unwrap_or_default();
                 http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
+                    ReqwestClient::new(inner).with_max_response_body_size(max_response_body_size),
                 ) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
                 // TODO - support configuring custom connector and executor
-                http_client = Some(Arc::new(HyperClient::with_default_connector(timeout, None))
-                    as Arc<dyn HttpClient>);
+                http_client = Some(Arc::new(
+                    HyperClient::with_default_connector(timeout, None)
+                        .with_max_response_body_size(max_response_body_size),
+                ) as Arc<dyn HttpClient>);
             }
             #[cfg(all(
                 not(feature = "reqwest-client"),
@@ -261,16 +276,19 @@ impl HttpExporterBuilder {
                 feature = "reqwest-blocking-client"
             ))]
             {
+                use opentelemetry_http::ReqwestBlockingClient;
                 let timeout_clone = timeout;
+                let inner = std::thread::spawn(move || {
+                    reqwest::blocking::Client::builder()
+                        .timeout(timeout_clone)
+                        .build()
+                        .unwrap_or_else(|_| reqwest::blocking::Client::new())
+                })
+                .join()
+                .unwrap(); // TODO: Return ExporterBuildError::ThreadSpawnFailed
                 http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
-                        reqwest::blocking::Client::builder()
-                            .timeout(timeout_clone)
-                            .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
-                    })
-                    .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
+                    ReqwestBlockingClient::new(inner)
+                        .with_max_response_body_size(max_response_body_size),
                 ) as Arc<dyn HttpClient>);
             }
         }
@@ -310,6 +328,9 @@ impl HttpExporterBuilder {
         );
         if let Some(max_request_body_size) = self.http_config.max_request_body_size {
             client.max_request_body_size = max_request_body_size;
+        }
+        if let Some(max_response_body_size) = self.http_config.max_response_body_size {
+            client.max_response_body_size = max_response_body_size;
         }
         Ok(client)
     }
@@ -398,6 +419,7 @@ pub(crate) struct OtlpHttpClient {
     compression: Option<crate::Compression>,
     retry_policy: RetryPolicy,
     max_request_body_size: usize,
+    max_response_body_size: usize,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -627,6 +649,7 @@ impl OtlpHttpClient {
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
+            max_response_body_size: DEFAULT_MAX_RESPONSE_BODY_BYTES,
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -821,6 +844,12 @@ pub trait WithHttpConfig {
     /// size or telemetry item size if requests exceed the configured limit.
     /// The default is 64 MiB.
     fn with_max_request_body_size(self, max_size: usize) -> Self;
+
+    /// Set the maximum HTTP response body size in bytes that the client will accept.
+    ///
+    /// Responses exceeding this limit are treated as non-retryable errors.
+    /// The default is 4 MiB, as recommended by the OTLP specification.
+    fn with_max_response_body_size(self, max_size: usize) -> Self;
 }
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
@@ -853,6 +882,11 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
     fn with_max_request_body_size(mut self, max_size: usize) -> Self {
         self.http_client_config().max_request_body_size = Some(max_size);
+        self
+    }
+
+    fn with_max_response_body_size(mut self, max_size: usize) -> Self {
+        self.http_client_config().max_response_body_size = Some(max_size);
         self
     }
 }
@@ -1102,6 +1136,7 @@ mod tests {
                 compression: None,
                 retry_policy: None,
                 max_request_body_size: None,
+                max_response_body_size: None,
             },
             exporter_config: crate::exporter::ExportConfig::default(),
         };
@@ -1819,7 +1854,9 @@ mod tests {
                 _request: http::Request<Bytes>,
             ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
                 self.attempts.fetch_add(1, Ordering::SeqCst);
-                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge {
+                    limit: opentelemetry_http::DEFAULT_MAX_RESPONSE_BODY_BYTES,
+                }))
             }
         }
 
@@ -1936,7 +1973,7 @@ mod tests {
             assert_eq!(mock.attempt_count(), 1);
             assert!(error
                 .to_string()
-                .contains("response body exceeded maximum allowed 4 MiB limit"));
+                .contains("response body exceeded maximum allowed"));
         }
 
         #[test]

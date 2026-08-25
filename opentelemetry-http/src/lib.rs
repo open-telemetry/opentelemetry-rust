@@ -90,16 +90,24 @@ pub trait HttpClient: Debug + Send + Sync {
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
-#[cfg(any(feature = "reqwest", feature = "hyper"))]
-const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
+/// Default maximum response body size (4 MiB), as recommended by the
+/// [OTLP specification](https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-response).
+pub const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 /// Error returned when an HTTP response body exceeds the configured size limit.
 #[derive(Debug)]
-pub struct ResponseBodyTooLarge;
+pub struct ResponseBodyTooLarge {
+    /// The configured limit that was exceeded.
+    pub limit: usize,
+}
 
 impl std::fmt::Display for ResponseBodyTooLarge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "response body exceeded maximum allowed 4 MiB limit")
+        write!(
+            f,
+            "response body exceeded maximum allowed {} byte limit",
+            self.limit
+        )
     }
 }
 
@@ -112,60 +120,107 @@ mod reqwest {
     use crate::ResponseBodyTooLarge;
 
     use super::{
-        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+        async_trait, Bytes, HttpClient, HttpError, Request, Response,
+        DEFAULT_MAX_RESPONSE_BODY_BYTES,
     };
 
+    /// Async reqwest HTTP client with a configurable response body size limit.
+    #[derive(Debug, Clone)]
+    pub struct ReqwestClient {
+        inner: reqwest::Client,
+        max_response_body_size: usize,
+    }
+
+    impl ReqwestClient {
+        pub fn new(client: reqwest::Client) -> Self {
+            Self {
+                inner: client,
+                max_response_body_size: DEFAULT_MAX_RESPONSE_BODY_BYTES,
+            }
+        }
+
+        pub fn with_max_response_body_size(mut self, size: usize) -> Self {
+            self.max_response_body_size = size;
+            self
+        }
+    }
+
+    impl Default for ReqwestClient {
+        fn default() -> Self {
+            Self::new(reqwest::Client::new())
+        }
+    }
+
     #[async_trait]
-    impl HttpClient for reqwest::Client {
+    impl HttpClient for ReqwestClient {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestClient.Send");
+            let max_size = self.max_response_body_size;
             let request = request.try_into()?;
-            let mut response = self.execute(request).await?;
-            let capacity = response
-                .content_length()
-                .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+            let mut response = self.inner.execute(request).await?;
+            let capacity = response.content_length().unwrap_or(0).min(max_size as u64) as usize;
 
             let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
-
             let status = response.status();
             let headers = std::mem::take(response.headers_mut());
             while let Some(chunk) = response.chunk().await? {
-                if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                    return Err(Box::new(ResponseBodyTooLarge));
+                if body_bytes.len() + chunk.len() > max_size {
+                    return Err(Box::new(ResponseBodyTooLarge { limit: max_size }));
                 }
                 body_bytes.extend_from_slice(&chunk);
             }
             let mut http_response = Response::builder()
                 .status(status)
                 .body(body_bytes.freeze())?;
-
             *http_response.headers_mut() = headers;
             Ok(http_response)
+        }
+    }
+
+    /// Blocking reqwest HTTP client with a configurable response body size limit.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "reqwest-blocking")]
+    #[derive(Debug, Clone)]
+    pub struct ReqwestBlockingClient {
+        inner: reqwest::blocking::Client,
+        max_response_body_size: usize,
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "reqwest-blocking")]
+    impl ReqwestBlockingClient {
+        pub fn new(client: reqwest::blocking::Client) -> Self {
+            Self {
+                inner: client,
+                max_response_body_size: DEFAULT_MAX_RESPONSE_BODY_BYTES,
+            }
+        }
+
+        pub fn with_max_response_body_size(mut self, size: usize) -> Self {
+            self.max_response_body_size = size;
+            self
         }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "reqwest-blocking")]
     #[async_trait]
-    impl HttpClient for reqwest::blocking::Client {
+    impl HttpClient for ReqwestBlockingClient {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
+            let max_size = self.max_response_body_size;
             let request = request.try_into()?;
-            let mut response = self.execute(request)?;
-            let capacity = response
-                .content_length()
-                .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+            let mut response = self.inner.execute(request)?;
+            let capacity = response.content_length().unwrap_or(0).min(max_size as u64) as usize;
             let status = response.status();
             let headers = std::mem::take(response.headers_mut());
             let mut body_bytes = Vec::with_capacity(capacity);
             response
-                .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
+                .take(max_size as u64 + 1)
                 .read_to_end(&mut body_bytes)?;
-            if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                return Err(Box::new(ResponseBodyTooLarge));
+            if body_bytes.len() > max_size {
+                return Err(Box::new(ResponseBodyTooLarge { limit: max_size }));
             }
             let mut http_response = Response::builder()
                 .status(status)
@@ -176,10 +231,16 @@ mod reqwest {
     }
 }
 
+#[cfg(all(feature = "reqwest-blocking", not(target_arch = "wasm32")))]
+pub use reqwest::ReqwestBlockingClient;
+#[cfg(feature = "reqwest")]
+pub use reqwest::ReqwestClient;
+
 #[cfg(feature = "hyper")]
 pub mod hyper {
     use super::{
-        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+        async_trait, Bytes, HttpClient, HttpError, Request, Response,
+        DEFAULT_MAX_RESPONSE_BODY_BYTES,
     };
     use crate::ResponseBodyTooLarge;
     use http::HeaderValue;
@@ -204,6 +265,7 @@ pub mod hyper {
         inner: Client<C, Body>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
+        max_response_body_size: usize,
     }
 
     impl<C> HyperClient<C>
@@ -217,7 +279,14 @@ pub mod hyper {
                 inner,
                 timeout,
                 authorization,
+                max_response_body_size: DEFAULT_MAX_RESPONSE_BODY_BYTES,
             }
+        }
+
+        /// Set the maximum response body size in bytes.
+        pub fn with_max_response_body_size(mut self, size: usize) -> Self {
+            self.max_response_body_size = size;
+            self
         }
     }
 
@@ -239,6 +308,7 @@ pub mod hyper {
     {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "HyperClient.Send");
+            let max_size = self.max_response_body_size;
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Body(Full::from(body)));
             if let Some(ref authorization) = self.authorization {
@@ -252,7 +322,7 @@ pub mod hyper {
                 .size_hint()
                 .upper()
                 .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+                .min(max_size as u64) as usize;
             let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
             let status = response.status();
             let headers = std::mem::take(response.headers_mut());
@@ -260,8 +330,8 @@ pub mod hyper {
             while let Some(frame) = body.frame().await {
                 let frame = frame?;
                 if let Ok(chunk) = frame.into_data() {
-                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                        return Err(Box::new(ResponseBodyTooLarge));
+                    if body_bytes.len() + chunk.len() > max_size {
+                        return Err(Box::new(ResponseBodyTooLarge { limit: max_size }));
                     }
                     body_bytes.extend_from_slice(&chunk);
                 }
@@ -465,7 +535,7 @@ Connection: close\r\n\r\n",
     #[test]
     fn reqwest_blocking_preserves_error_response_status_and_headers() {
         let (address, server) = spawn_error_response_server();
-        let client = ::reqwest::blocking::Client::new();
+        let client = crate::ReqwestBlockingClient::new(::reqwest::blocking::Client::new());
         let request = Request::post(format!("http://{address}/v1/traces"))
             .body(Bytes::new())
             .unwrap();
@@ -480,7 +550,7 @@ Connection: close\r\n\r\n",
     #[test]
     fn reqwest_async_preserves_error_response_status_and_headers() {
         let (address, server) = spawn_error_response_server();
-        let client = ::reqwest::Client::new();
+        let client = crate::ReqwestClient::new(::reqwest::Client::new());
         let request = Request::post(format!("http://{address}/v1/traces"))
             .body(Bytes::new())
             .unwrap();
@@ -522,8 +592,8 @@ Connection: close\r\n\r\n",
         any(feature = "reqwest", feature = "reqwest-blocking", feature = "hyper")
     ))]
     mod body_limit_tests {
-        use super::MAX_RESPONSE_BODY_BYTES;
         use crate::HttpClient;
+        use crate::DEFAULT_MAX_RESPONSE_BODY_BYTES;
         use bytes::Bytes;
         use http::Request;
         use std::net::SocketAddr;
@@ -603,36 +673,32 @@ Connection: close\r\n\r\n",
         #[tokio::test]
         async fn reqwest_body_within_limit() {
             let addr = start_server(100).await;
-            assert_within_limit(&reqwest::Client::new(), addr).await;
+            let client = crate::ReqwestClient::new(reqwest::Client::new());
+            assert_within_limit(&client, addr).await;
         }
 
         #[cfg(feature = "reqwest")]
         #[tokio::test]
         async fn reqwest_body_exceeds_limit() {
-            let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
-            assert_exceeds_limit(&reqwest::Client::new(), addr).await;
+            let addr = start_server(DEFAULT_MAX_RESPONSE_BODY_BYTES + 1).await;
+            let client = crate::ReqwestClient::new(reqwest::Client::new());
+            assert_exceeds_limit(&client, addr).await;
         }
 
         #[cfg(feature = "reqwest-blocking")]
         #[test]
         fn reqwest_blocking_body_within_limit() {
             let addr = start_blocking_server(100);
-
-            futures_executor::block_on(assert_within_limit(
-                &reqwest::blocking::Client::new(),
-                addr,
-            ));
+            let client = crate::ReqwestBlockingClient::new(reqwest::blocking::Client::new());
+            futures_executor::block_on(assert_within_limit(&client, addr));
         }
 
         #[cfg(feature = "reqwest-blocking")]
         #[test]
         fn reqwest_blocking_body_exceeds_limit() {
-            let addr = start_blocking_server(MAX_RESPONSE_BODY_BYTES + 1);
-
-            futures_executor::block_on(assert_exceeds_limit(
-                &reqwest::blocking::Client::new(),
-                addr,
-            ));
+            let addr = start_blocking_server(DEFAULT_MAX_RESPONSE_BODY_BYTES + 1);
+            let client = crate::ReqwestBlockingClient::new(reqwest::blocking::Client::new());
+            futures_executor::block_on(assert_exceeds_limit(&client, addr));
         }
 
         #[cfg(feature = "hyper")]
@@ -648,7 +714,7 @@ Connection: close\r\n\r\n",
         #[cfg(feature = "hyper")]
         #[tokio::test]
         async fn hyper_body_exceeds_limit() {
-            let addr = start_server(MAX_RESPONSE_BODY_BYTES + 1).await;
+            let addr = start_server(DEFAULT_MAX_RESPONSE_BODY_BYTES + 1).await;
             let client = crate::hyper::HyperClient::with_default_connector(
                 std::time::Duration::from_secs(5),
                 None,
