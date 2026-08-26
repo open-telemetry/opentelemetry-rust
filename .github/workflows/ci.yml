@@ -18,10 +18,12 @@ jobs:
   test:
     strategy:
       matrix:
-        # test both stable and beta versions of Rust on ubuntu-latest
+        # `stable` means the version pinned in rust-toolchain.toml. The label is
+        # retained because branch rules may require the existing check names.
+        # Beta uses the moving beta channel and is non-blocking.
         os: [ubuntu-latest]
         rust: [stable, beta]
-        # test only stable version of Rust on Windows and MacOS
+        # Run stable (pinned per rust-toolchain.toml) on additional platforms.
         include:
           - rust: stable
             os: windows-latest
@@ -41,17 +43,24 @@ jobs:
       with:
         persist-credentials: false
         submodules: true
-    - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-      with:
-        toolchain: ${{ matrix.rust }}
-        components: rustfmt
-    - name: "Set rustup profile"
-      run: rustup set profile minimal
+    - name: Resolve stable Rust pinned by rust-toolchain.toml
+      if: ${{ matrix.rust == 'stable' }}
+      run: rustup show active-toolchain
+    - name: Install Rust beta
+      if: ${{ matrix.rust == 'beta' }}
+      run: rustup toolchain install beta --profile minimal --component rustfmt,clippy
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Test
       run: bash ./scripts/test.sh
+      env:
+        RUSTUP_TOOLCHAIN: ${{ matrix.rust == 'beta' && 'beta' || '' }}
+    - name: Lint with Rust beta
+      if: ${{ matrix.rust == 'beta' }}
+      run: cargo clippy --workspace --all-targets --all-features -- -Dwarnings
+      env:
+        RUSTUP_TOOLCHAIN: beta
   # Targeted Miri regression check for SDK default resource construction.
   # Broader Miri support and CI policy are tracked in #3554.
   miri:
@@ -85,11 +94,9 @@ jobs:
       with:
         persist-credentials: false
         submodules: true
-    - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
     - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+    - name: Resolve stable Rust pinned by rust-toolchain.toml
+      run: rustup show active-toolchain
       with:
           tool: cargo-hack
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -141,10 +148,9 @@ jobs:
         with:
           persist-credentials: false
           submodules: true
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: stable
       - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
         with:
           tool: cargo-msrv
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
@@ -197,10 +203,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: stable
-          components: rustfmt
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
             repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -223,10 +227,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: true
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: stable
-          components: rustfmt,llvm-tools-preview
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
+      - name: Install llvm-tools-preview for pinned stable Rust
+        run: rustup component add llvm-tools-preview
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -251,10 +255,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
-          components: rustfmt
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
