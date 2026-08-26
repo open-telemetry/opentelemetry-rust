@@ -7,7 +7,7 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::{Bytes, HttpClient};
+use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -35,16 +35,21 @@ const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 64 * 1024 * 1024;
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
 #[derive(Debug)]
-pub(crate) struct HttpExportError {
-    pub status_code: u16,
-    pub retry_after: Option<String>,
-    pub message: String,
+pub(crate) enum HttpExportError {
+    /// An error with an HTTP status code and optional Retry-After header
+    HttpStatus {
+        status_code: u16,
+        retry_after: Option<String>,
+        message: String,
+    },
+    /// An HTTP response body exceeded the client's configured limit
+    ResponseBodyTooLarge { message: String },
 }
 
 impl HttpExportError {
     /// Create a new HttpExportError without retry-after header
     pub(crate) fn new(status_code: u16, message: String) -> Self {
-        Self {
+        Self::HttpStatus {
             status_code,
             retry_after: None,
             message,
@@ -53,17 +58,29 @@ impl HttpExportError {
 
     /// Create a new HttpExportError with retry-after header
     pub(crate) fn with_retry_after(status_code: u16, retry_after: String, message: String) -> Self {
-        Self {
+        Self::HttpStatus {
             status_code,
             retry_after: Some(retry_after),
             message,
         }
     }
+
+    /// Create an error for an oversized HTTP response body
+    fn response_body_too_large(message: String) -> Self {
+        Self::ResponseBodyTooLarge { message }
+    }
 }
 
 /// Classify HTTP export errors for retry decisions
 pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
-    classify_http_error(error.status_code, error.retry_after.as_deref())
+    match error {
+        HttpExportError::HttpStatus {
+            status_code,
+            retry_after,
+            ..
+        } => classify_http_error(*status_code, retry_after.as_deref()),
+        HttpExportError::ResponseBodyTooLarge { .. } => RetryErrorType::NonRetryable,
+    }
 }
 
 /// Shared HTTP request data for retry attempts - optimizes Arc usage by bundling all data
@@ -425,7 +442,13 @@ impl OtlpHttpClient {
             },
         )
         .await
-        .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+        .map_err(|e| {
+            let message = match e {
+                HttpExportError::HttpStatus { message, .. }
+                | HttpExportError::ResponseBodyTooLarge { message } => message,
+            };
+            opentelemetry_sdk::error::OTelSdkError::InternalFailure(message)
+        })?;
 
         Ok(response_body)
     }
@@ -470,6 +493,16 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
+            if e.downcast_ref::<ResponseBodyTooLarge>().is_some() {
+                let message = e.to_string();
+                otel_debug!(
+                    name: "HttpClient.ResponseBodyTooLarge",
+                    url = request_uri.as_str(),
+                    error = message.as_str()
+                );
+                return HttpExportError::response_body_too_large(message);
+            }
+
             // Connection errors (e.g., "Connection refused", DNS failures) typically
             // indicate user-side misconfigurations and don't contain sensitive data.
             // We don't log at WARN here because SDK processors (BatchLogProcessor,
@@ -1768,6 +1801,28 @@ mod tests {
             }
         }
 
+        #[derive(Debug, Default)]
+        struct OversizedResponseMockClient {
+            attempts: AtomicUsize,
+        }
+
+        impl OversizedResponseMockClient {
+            fn attempt_count(&self) -> usize {
+                self.attempts.load(Ordering::SeqCst)
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl HttpClient for OversizedResponseMockClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                self.attempts.fetch_add(1, Ordering::SeqCst);
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+            }
+        }
+
         fn build_test_body(
             _client: &OtlpHttpClient,
             _data: (),
@@ -1864,6 +1919,24 @@ mod tests {
 
             assert!(result.is_err());
             assert_eq!(mock.attempt_count(), 1);
+        }
+
+        #[test]
+        fn does_not_retry_when_response_body_is_too_large() {
+            let mock = Arc::new(OversizedResponseMockClient::default());
+            let client = make_client(mock.clone(), retry_policy());
+
+            let error = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ))
+            .unwrap_err();
+
+            assert_eq!(mock.attempt_count(), 1);
+            assert!(error
+                .to_string()
+                .contains("response body exceeded maximum allowed 4 MiB limit"));
         }
 
         #[test]
