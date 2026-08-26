@@ -38,7 +38,7 @@ use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Seve
 use opentelemetry::time::now;
 use opentelemetry::InstrumentationScope;
 use opentelemetry_sdk::logs::{SdkLogRecord, SdkLoggerProvider};
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 #[cfg(feature = "gen-tonic-messages")]
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -55,12 +55,11 @@ use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "gen-tonic-messages")]
 use prost::Message;
 
-#[allow(clippy::vec_box)]
 fn create_log_batch(
     targets: &[&str],
     batch_size: usize,
     attribute_count: usize,
-) -> Vec<Box<(SdkLogRecord, InstrumentationScope)>> {
+) -> Vec<(SdkLogRecord, InstrumentationScope)> {
     // Single instrumentation scope (realistic for tracing-appender usage)
     let scope = InstrumentationScope::builder("opentelemetry-appender-tracing")
         .with_version("0.28.0")
@@ -77,7 +76,7 @@ fn create_log_batch(
     let logger = temp_provider.logger("benchmark");
 
     // Seeded RNG for reproducible but varied data
-    let mut rng = rand::rng();
+    let mut rng = StdRng::seed_from_u64(42);
 
     // Realistic log message templates
     let messages = [
@@ -137,7 +136,7 @@ fn create_log_batch(
             );
         }
 
-        log_data.push(Box::new((record, scope.clone())));
+        log_data.push((record, scope.clone()));
     }
 
     log_data
@@ -216,10 +215,18 @@ fn bench_log_conversion(c: &mut Criterion) {
 
     // Pre-create log batches for each test case (not measured in benchmarks)
     let log_tuples_4_attrs = create_log_batch(&target_refs, BATCH_SIZE, 4);
-    let log_batch_4_attrs = LogBatch::new_with_owned_data(&log_tuples_4_attrs);
+    let log_refs_4_attrs: Vec<_> = log_tuples_4_attrs
+        .iter()
+        .map(|(record, scope)| (record, scope))
+        .collect();
+    let log_batch_4_attrs = LogBatch::new(&log_refs_4_attrs);
 
     let log_tuples_10_attrs = create_log_batch(&target_refs, BATCH_SIZE, 10);
-    let log_batch_10_attrs = LogBatch::new_with_owned_data(&log_tuples_10_attrs);
+    let log_refs_10_attrs: Vec<_> = log_tuples_10_attrs
+        .iter()
+        .map(|(record, scope)| (record, scope))
+        .collect();
+    let log_batch_10_attrs = LogBatch::new(&log_refs_10_attrs);
 
     // Step 1: OTel struct to Protobuf struct (batch of 512 with 1 scope and 10 targets)
     let mut group = c.benchmark_group("log_batch_conversion");

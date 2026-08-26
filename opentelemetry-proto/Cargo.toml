@@ -24,12 +24,12 @@ bench = false
 [[bench]]
 name = "logs"
 harness = false
-required-features = ["logs"]
+required-features = ["logs", "gen-tonic-messages"]
 
 [[bench]]
 name = "metrics"
 harness = false
-required-features = ["metrics"]
+required-features = ["metrics", "gen-tonic-messages"]
 
 [[test]]
 name = "grpc_build"
@@ -81,7 +81,7 @@ serde_json = { workspace = true }
 criterion = { workspace = true }
 flate2 = "1.0"
 zstd = "0.13"
-rand = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }
 
 [lints]
 workspace = true

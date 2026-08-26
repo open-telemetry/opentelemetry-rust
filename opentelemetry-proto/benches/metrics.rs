@@ -34,7 +34,7 @@ use prost::Message;
 fn create_meter_provider_with_in_memory_exporter() -> (SdkMeterProvider, InMemoryMetricExporter) {
     let exporter = InMemoryMetricExporter::default();
     let reader = PeriodicReader::builder(exporter.clone())
-        .with_interval(Duration::from_millis(100))
+        .with_interval(Duration::from_secs(24 * 60 * 60))
         .build();
 
     let resource = Resource::builder()
@@ -81,7 +81,12 @@ fn create_test_metrics(data_points_per_metric: usize) -> ResourceMetrics {
     record_metrics_batch(&provider, data_points_per_metric);
     provider.force_flush().unwrap();
     let metrics_vec = collect_metrics(&exporter);
-    metrics_vec.into_iter().next().unwrap()
+    let metrics = metrics_vec
+        .into_iter()
+        .next()
+        .expect("force_flush should export the recorded metric");
+    provider.shutdown().unwrap();
+    metrics
 }
 
 #[cfg(feature = "gen-tonic-messages")]

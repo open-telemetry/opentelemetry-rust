@@ -75,9 +75,11 @@ use opentelemetry_sdk::logs::{
     BatchConfigBuilder, BatchLogProcessor, LogBatch, LogExporter, SdkLogRecord, SdkLoggerProvider,
 };
 use opentelemetry_sdk::Resource;
-use rand::Rng;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::time::Duration;
 use tokio::runtime::Runtime;
+
+const BENCHMARK_SCHEDULED_DELAY: Duration = Duration::from_secs(24 * 60 * 60);
 
 // Fake HTTP server that returns 200 OK immediately.
 // Binds to port 0 (OS-assigned) and returns the actual bound port.
@@ -175,12 +177,11 @@ fn create_log_exporter_with_zstd(endpoint: String) -> OtlpLogExporter {
         .expect("Failed to create log exporter with zstd compression")
 }
 
-#[allow(clippy::vec_box)]
 fn create_log_batch(
     targets: &[&str],
     batch_size: usize,
     attribute_count: usize,
-) -> Vec<Box<(SdkLogRecord, InstrumentationScope)>> {
+) -> Vec<(SdkLogRecord, InstrumentationScope)> {
     // Single instrumentation scope (realistic for tracing-appender usage)
     let scope = InstrumentationScope::builder("opentelemetry-appender-tracing")
         .with_version("0.28.0")
@@ -197,7 +198,7 @@ fn create_log_batch(
     let logger = temp_provider.logger("benchmark");
 
     // Seeded RNG for reproducible but varied data
-    let mut rng = rand::rng();
+    let mut rng = StdRng::seed_from_u64(42);
 
     let messages = [
         "HTTP request completed",
@@ -254,7 +255,7 @@ fn create_log_batch(
             );
         }
 
-        log_data.push(Box::new((record, scope.clone())));
+        log_data.push((record, scope.clone()));
     }
 
     log_data
@@ -266,9 +267,6 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
 
     // Start fake OTLP server
     let (_server_handle, port) = rt.block_on(start_fake_otlp_server());
-
-    // Give server time to start
-    std::thread::sleep(Duration::from_millis(100));
 
     let endpoint = format!("http://localhost:{}", port);
 
@@ -294,6 +292,14 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     // Pre-create log batches for each test case (not measured)
     let log_data_4_attrs = create_log_batch(&target_refs, 512, 4);
     let log_data_10_attrs = create_log_batch(&target_refs, 512, 10);
+    let log_refs_4_attrs: Vec<_> = log_data_4_attrs
+        .iter()
+        .map(|(record, scope)| (record, scope))
+        .collect();
+    let log_refs_10_attrs: Vec<_> = log_data_10_attrs
+        .iter()
+        .map(|(record, scope)| (record, scope))
+        .collect();
 
     let mut group = c.benchmark_group("otlp_log_export");
 
@@ -301,7 +307,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     group.bench_function("batch_512_with_4_attrs", |b| {
         b.iter(|| {
             // Create LogBatch from pre-created data
-            let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
+            let batch = LogBatch::new(black_box(&log_refs_4_attrs));
             // Measure only the export operation
             rt.block_on(async {
                 exporter.export(batch).await.unwrap();
@@ -313,7 +319,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
     group.bench_function("batch_512_with_10_attrs", |b| {
         b.iter(|| {
             // Create LogBatch from pre-created data
-            let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
+            let batch = LogBatch::new(black_box(&log_refs_10_attrs));
             // Measure only the export operation
             rt.block_on(async {
                 exporter.export(batch).await.unwrap();
@@ -334,7 +340,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
         // Benchmark: 512 logs with 4 attributes - WITH GZIP
         group.bench_function("batch_512_with_4_attrs_gzip", |b| {
             b.iter(|| {
-                let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
+                let batch = LogBatch::new(black_box(&log_refs_4_attrs));
                 rt.block_on(async {
                     exporter_gzip.export(batch).await.unwrap();
                 });
@@ -344,7 +350,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
         // Benchmark: 512 logs with 10 attributes - WITH GZIP
         group.bench_function("batch_512_with_10_attrs_gzip", |b| {
             b.iter(|| {
-                let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
+                let batch = LogBatch::new(black_box(&log_refs_10_attrs));
                 rt.block_on(async {
                     exporter_gzip.export(batch).await.unwrap();
                 });
@@ -365,7 +371,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
         // Benchmark: 512 logs with 4 attributes - WITH ZSTD
         group.bench_function("batch_512_with_4_attrs_zstd", |b| {
             b.iter(|| {
-                let batch = LogBatch::new_with_owned_data(black_box(&log_data_4_attrs));
+                let batch = LogBatch::new(black_box(&log_refs_4_attrs));
                 rt.block_on(async {
                     exporter_zstd.export(batch).await.unwrap();
                 });
@@ -375,7 +381,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
         // Benchmark: 512 logs with 10 attributes - WITH ZSTD
         group.bench_function("batch_512_with_10_attrs_zstd", |b| {
             b.iter(|| {
-                let batch = LogBatch::new_with_owned_data(black_box(&log_data_10_attrs));
+                let batch = LogBatch::new(black_box(&log_refs_10_attrs));
                 rt.block_on(async {
                     exporter_zstd.export(batch).await.unwrap();
                 });
@@ -392,7 +398,7 @@ fn bench_log_export_pipeline(c: &mut Criterion) {
         use opentelemetry_http::{Bytes, HttpClient};
 
         // Get the HTTP client from a temporary exporter
-        let http_client = reqwest::Client::new();
+        let http_client = reqwest::blocking::Client::new();
         let uri: Uri = format!("{}/v1/logs", endpoint).parse().unwrap();
 
         // Pre-create payload matching 512 logs with 4 attrs (~88KB uncompressed)
@@ -458,7 +464,6 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
 
     // Start fake OTLP server on an OS-assigned port to avoid conflicts
     let (_server_handle, port) = rt.block_on(start_fake_otlp_server());
-    std::thread::sleep(Duration::from_millis(100));
 
     let endpoint = format!("http://localhost:{}", port);
 
@@ -467,12 +472,12 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
 
     // Configure BatchLogProcessor:
     // - We emit 511 logs (below max_export_batch_size=512) so NO auto-export is triggered
-    // - High scheduled_delay prevents timer-based exports during benchmark run
+    // - A 24-hour scheduled delay prevents timer-based exports during the benchmark
     // - force_flush() is the ONLY thing that triggers export
     let processor = BatchLogProcessor::builder(exporter)
         .with_batch_config(
             BatchConfigBuilder::default()
-                .with_scheduled_delay(Duration::from_secs(30))
+                .with_scheduled_delay(BENCHMARK_SCHEDULED_DELAY)
                 .build(),
         )
         .build();
@@ -505,16 +510,19 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
     ];
 
     let mut group = c.benchmark_group("e2e_batch_processor");
+    let loggers: Vec<_> = TARGETS
+        .iter()
+        .map(|target| provider.logger(*target))
+        .collect();
 
     // Benchmark: emit 511 logs + force_flush (complete round-trip)
     // 511 is below max_export_batch_size (512), so force_flush is the only trigger
     group.bench_function("e2e_batch_511_with_4_attrs", |b| {
-        let mut rng = rand::rng();
+        let mut rng = StdRng::seed_from_u64(42);
         b.iter(|| {
             // Emit 511 logs across 10 targets (below batch threshold)
             for i in 0..511 {
-                let target = TARGETS[i % TARGETS.len()];
-                let logger = provider.logger(target);
+                let logger = &loggers[i % loggers.len()];
                 let mut record = logger.create_log_record();
 
                 record.set_observed_timestamp(now());
@@ -550,7 +558,7 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
         let processor_zstd = BatchLogProcessor::builder(exporter_zstd)
             .with_batch_config(
                 BatchConfigBuilder::default()
-                    .with_scheduled_delay(Duration::from_secs(30))
+                    .with_scheduled_delay(BENCHMARK_SCHEDULED_DELAY)
                     .build(),
             )
             .build();
@@ -569,13 +577,16 @@ fn bench_e2e_with_batch_processor(c: &mut Criterion) {
             .build();
 
         let mut group = c.benchmark_group("e2e_batch_processor_zstd");
+        let loggers: Vec<_> = TARGETS
+            .iter()
+            .map(|target| provider_zstd.logger(*target))
+            .collect();
 
         group.bench_function("e2e_batch_511_with_4_attrs_zstd", |b| {
-            let mut rng = rand::rng();
+            let mut rng = StdRng::seed_from_u64(42);
             b.iter(|| {
                 for i in 0..511 {
-                    let target = TARGETS[i % TARGETS.len()];
-                    let logger = provider_zstd.logger(target);
+                    let logger = &loggers[i % loggers.len()];
                     let mut record = logger.create_log_record();
 
                     record.set_observed_timestamp(now());
