@@ -7,6 +7,9 @@
   OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
   after compression; oversized requests are discarded without being sent or
   retried.
+- OTLP/HTTP response bodies are now limited to 4 MiB by default. Responses
+  exceeding this limit are classified as non-retryable errors (`ResponseBodyTooLarge`).
+  This prevents unbounded memory allocation from misconfigured or malicious servers.
 - Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
   `Unavailable` responses without a positive delay continue to use exponential
   backoff.

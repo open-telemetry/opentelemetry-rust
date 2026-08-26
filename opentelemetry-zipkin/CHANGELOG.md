@@ -2,6 +2,9 @@
 
 ## vNext
 
+- The default HTTP clients now enforce a 4 MiB response body size limit.
+  Responses exceeding this limit are rejected as errors.
+
 ## 0.32.0
 
 Released 2026-May-08

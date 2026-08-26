@@ -7,9 +7,7 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::{
-    Bytes, HttpClient, ResponseBodyTooLarge, DEFAULT_MAX_RESPONSE_BODY_BYTES,
-};
+use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -329,9 +327,6 @@ impl HttpExporterBuilder {
         if let Some(max_request_body_size) = self.http_config.max_request_body_size {
             client.max_request_body_size = max_request_body_size;
         }
-        if let Some(max_response_body_size) = self.http_config.max_response_body_size {
-            client.max_response_body_size = max_response_body_size;
-        }
         Ok(client)
     }
 
@@ -419,7 +414,6 @@ pub(crate) struct OtlpHttpClient {
     compression: Option<crate::Compression>,
     retry_policy: RetryPolicy,
     max_request_body_size: usize,
-    max_response_body_size: usize,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
@@ -649,7 +643,6 @@ impl OtlpHttpClient {
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
-            max_response_body_size: DEFAULT_MAX_RESPONSE_BODY_BYTES,
             resource: ResourceAttributesWithSchema::default(),
         }
     }
@@ -849,6 +842,11 @@ pub trait WithHttpConfig {
     ///
     /// Responses exceeding this limit are treated as non-retryable errors.
     /// The default is 4 MiB, as recommended by the OTLP specification.
+    ///
+    /// This only applies to the automatically created default HTTP client.
+    /// If you provide a custom client via [`with_http_client`](Self::with_http_client),
+    /// configure the response size limit on that client directly (e.g. using
+    /// [`ReqwestClient::with_max_response_body_size`](opentelemetry_http::ReqwestClient::with_max_response_body_size)).
     fn with_max_response_body_size(self, max_size: usize) -> Self;
 }
 
