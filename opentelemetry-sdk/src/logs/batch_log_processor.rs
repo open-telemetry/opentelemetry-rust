@@ -45,11 +45,15 @@ pub const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
 pub const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
 /// Environment variable for configuring the maximum allowed time to export
-/// data for the [`BatchLogProcessor`].
-#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+/// data.
+///
+/// This value is honored by
+/// `log_processor_with_async_runtime::BatchLogProcessor`. The thread-based
+/// [`BatchLogProcessor`] ignores this setting.
 pub const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
+///
+/// See [`OTEL_BLRP_EXPORT_TIMEOUT`] for which processors honor this value.
 pub const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
 /// Environment variable for configuring the maximum queue size for the
 /// [`BatchLogProcessor`].

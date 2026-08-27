@@ -51,6 +51,7 @@ fn bsp_constants_are_public_and_match_spec_defaults() {
 #[test]
 fn blrp_constants_are_public_and_match_spec_defaults() {
     use opentelemetry_sdk::logs::{
+        OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT,
         OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
         OTEL_BLRP_MAX_QUEUE_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY,
         OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
@@ -71,16 +72,6 @@ fn blrp_constants_are_public_and_match_spec_defaults() {
         "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"
     );
     assert_eq!(OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT, 512);
-}
-
-#[cfg(all(
-    feature = "logs",
-    feature = "experimental_logs_batch_log_processor_with_async_runtime"
-))]
-#[test]
-fn blrp_export_timeout_constants_are_public_and_match_spec_defaults() {
-    use opentelemetry_sdk::logs::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use std::time::Duration;
 
     assert_eq!(OTEL_BLRP_EXPORT_TIMEOUT, "OTEL_BLRP_EXPORT_TIMEOUT");
     assert_eq!(
