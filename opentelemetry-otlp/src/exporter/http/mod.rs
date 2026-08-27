@@ -733,6 +733,29 @@ fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, ExporterBuildEr
     })
 }
 
+fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
+    match env::var(variable) {
+        Ok(value) if value.is_empty() => Ok(None),
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
+            name: variable.to_string(),
+            reason: "environment variable value is not valid Unicode".to_string(),
+        }),
+    }
+}
+
+fn invalid_endpoint_env(
+    variable: &str,
+    value: &str,
+    error: ExporterBuildError,
+) -> ExporterBuildError {
+    ExporterBuildError::InvalidConfig {
+        name: variable.to_string(),
+        reason: format!("invalid endpoint '{value}': {error}"),
+    }
+}
+
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
 fn resolve_http_endpoint(
     signal_endpoint_var: &str,
@@ -746,18 +769,18 @@ fn resolve_http_endpoint(
             .map_err(|er: http::uri::InvalidUri| {
                 ExporterBuildError::InvalidUri(provider_endpoint.to_string(), er.to_string())
             })
-    } else if let Some(endpoint) = env::var(signal_endpoint_var)
-        .ok()
-        .and_then(|s| s.parse().ok())
-    {
+    } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
         // per signal env var is not modified
-        Ok(endpoint)
-    } else if let Some(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
-        .ok()
-        .and_then(|s| build_endpoint_uri(&s, signal_endpoint_path).ok())
-    {
+        endpoint
+            .parse()
+            .map_err(|er: http::uri::InvalidUri| {
+                ExporterBuildError::InvalidUri(endpoint.clone(), er.to_string())
+            })
+            .map_err(|error| invalid_endpoint_env(signal_endpoint_var, &endpoint, error))
+    } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
         // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT env var is set
-        Ok(endpoint)
+        build_endpoint_uri(&endpoint, signal_endpoint_path)
+            .map_err(|error| invalid_endpoint_env(OTEL_EXPORTER_OTLP_ENDPOINT, &endpoint, error))
     } else {
         build_endpoint_uri(
             OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
@@ -965,7 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_uri_in_signal_env_falls_back_to_generic_env() {
+    fn test_invalid_uri_in_signal_env_returns_error() {
         run_env_test(
             vec![
                 (
@@ -979,15 +1002,83 @@ mod tests {
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     None,
-                )
-                .unwrap();
-                assert_eq!(endpoint, "http://example.com/v1/traces");
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                ));
             },
         );
     }
 
     #[test]
-    fn test_all_invalid_urls_falls_back_to_error() {
+    fn test_invalid_uri_in_generic_env_returns_error() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_ENDPOINT, "-*/*-/*-//-/-/invalid-uri")],
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_ENDPOINT
+                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_endpoint_envs_are_treated_as_unset() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (OTEL_EXPORTER_OTLP_ENDPOINT, ""),
+            ],
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://localhost:4318/v1/traces");
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_endpoint_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            Some(OsStr::from_bytes(b"http://example.com/\x80")),
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("not valid Unicode")
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn test_invalid_programmatic_endpoint_returns_error() {
         run_env_test(vec![], || {
             let result = super::resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -995,7 +1086,6 @@ mod tests {
                 Some("-*/*-/*-//-/-/yet-another-invalid-uri"),
             );
             assert!(result.is_err());
-            // You may also want to assert on the specific error type if applicable
         });
     }
 
