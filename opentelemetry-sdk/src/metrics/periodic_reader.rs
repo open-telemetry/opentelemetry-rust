@@ -21,12 +21,12 @@ use super::{
     Temporality,
 };
 
-/// Default delay interval between two consecutive exports for [PeriodicReader].
-pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60);
-
 /// Environment variable for configuring the delay interval (in milliseconds)
 /// between two consecutive exports for [PeriodicReader].
 pub const OTEL_METRIC_EXPORT_INTERVAL: &str = "OTEL_METRIC_EXPORT_INTERVAL";
+
+/// Default delay interval between two consecutive exports for [PeriodicReader].
+pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60);
 
 /// Configuration options for [PeriodicReader].
 #[derive(Debug)]
