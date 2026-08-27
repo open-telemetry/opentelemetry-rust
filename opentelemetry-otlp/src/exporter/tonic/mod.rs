@@ -268,7 +268,7 @@ impl TonicExporterBuilder {
         let config = self.exporter_config;
 
         let endpoint_str = apply_insecure_scheme(
-            Self::resolve_endpoint(signal_endpoint_var, config.endpoint),
+            Self::resolve_endpoint(signal_endpoint_var, config.endpoint)?,
             super::resolve_insecure(signal_insecure_var),
         );
 
@@ -329,7 +329,10 @@ impl TonicExporterBuilder {
         Ok((channel, interceptor, compression, retry_policy, timeout))
     }
 
-    fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
+    fn resolve_endpoint(
+        signal_endpoint_var: &str,
+        provided_endpoint: Option<String>,
+    ) -> Result<String, ExporterBuildError> {
         // resolving endpoint string
         // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
         // the path of grpc calls are based on the protobuf service definition
@@ -338,13 +341,13 @@ impl TonicExporterBuilder {
         //
         // programmatic configuration overrides any value set via environment variables
         if let Some(endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(default_endpoint_var) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
-            endpoint
+            Ok(endpoint)
+        } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+            Ok(endpoint)
+        } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+            Ok(endpoint)
         } else {
-            OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
+            Ok(OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string())
         }
     }
 
@@ -552,6 +555,18 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
 /// path/query/fragment delimiter, so `unix:///tmp/x` is treated as schemed
 /// while `collector:4317/p://q` is not.
 ///
+fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
+    match env::var(variable) {
+        Ok(value) if value.is_empty() => Ok(None),
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
+            name: variable.to_string(),
+            reason: "environment variable value is not valid Unicode".to_string(),
+        }),
+    }
+}
+
 /// [OTLP exporter spec]: https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
 fn apply_insecure_scheme(endpoint: String, insecure: bool) -> String {
     let has_scheme = endpoint
@@ -1041,7 +1056,8 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     None,
-                );
+                )
+                .unwrap();
                 assert_eq!(url, "http://localhost:1234");
             },
         );
@@ -1058,7 +1074,8 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     Some("http://localhost:3456".to_string()),
-                );
+                )
+                .unwrap();
                 assert_eq!(url, "http://localhost:3456");
             },
         );
@@ -1068,7 +1085,8 @@ mod tests {
     fn test_use_default_when_others_missing_for_endpoint() {
         run_env_test(vec![], || {
             let url =
-                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None);
+                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None)
+                    .unwrap();
             assert_eq!(url, "http://localhost:4317");
         });
     }
@@ -1079,9 +1097,70 @@ mod tests {
             let url = TonicExporterBuilder::resolve_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 Some(String::new()),
-            );
+            )
+            .unwrap();
             assert_eq!(url, "http://localhost:4317");
         });
+    }
+
+    #[test]
+    fn test_empty_endpoint_envs_are_treated_as_unset() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, ""),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(url, "http://localhost:4317");
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_signal_env_falls_through_to_generic_env() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317"),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(url, "http://collector:4317");
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_endpoint_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            Some(OsStr::from_bytes(b"http://example.com/\x80")),
+            || {
+                let result = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                );
+                assert!(matches!(
+                    result,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("not valid Unicode")
+                ));
+            },
+        );
     }
 
     #[test]

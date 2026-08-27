@@ -5,6 +5,9 @@
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
+- Return an exporter build error for invalid OTLP/gRPC endpoint environment
+  variables instead of silently falling back to another endpoint or localhost.
+  Empty endpoint environment variables are now treated as unset.
 - **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
   method. External implementations of `WithHttpConfig` must implement it.
   OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
