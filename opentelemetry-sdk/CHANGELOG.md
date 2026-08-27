@@ -8,7 +8,7 @@
   (`opentelemetry_sdk::metrics`), so downstream configuration systems can read
   the SDK's spec-defined defaults programmatically instead of duplicating
   them. As part of this, `PeriodicReader`'s previously-private
-  `DEFAULT_INTERVAL`/`OTEL_METRIC_EXPORT_INTERVAL` name constants were renamed
+  `DEFAULT_INTERVAL`/`METRIC_EXPORT_INTERVAL_NAME` constants were renamed
   to `OTEL_METRIC_EXPORT_INTERVAL_DEFAULT`/`OTEL_METRIC_EXPORT_INTERVAL` to
   match the naming convention already used elsewhere.
   ([#3623](https://github.com/open-telemetry/opentelemetry-rust/issues/3623))
