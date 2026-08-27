@@ -750,9 +750,13 @@ fn invalid_endpoint_env(
     value: &str,
     error: ExporterBuildError,
 ) -> ExporterBuildError {
+    let reason = match error {
+        ExporterBuildError::InvalidUri(_, reason) => reason,
+        error => error.to_string(),
+    };
     ExporterBuildError::InvalidConfig {
         name: variable.to_string(),
-        reason: format!("invalid endpoint '{value}': {error}"),
+        reason: format!("invalid endpoint '{value}': {reason}"),
     }
 }
 
@@ -1008,6 +1012,7 @@ mod tests {
                     Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
                         if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
                             && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                            && !reason.contains("invalid URI")
                 ));
             },
         );
@@ -1028,6 +1033,7 @@ mod tests {
                     Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
                         if name == OTEL_EXPORTER_OTLP_ENDPOINT
                             && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                            && !reason.contains("invalid URI")
                 ));
             },
         );
