@@ -3,6 +3,7 @@
 ## vNext
 
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
+- **Performance**: `group_spans_by_resource_and_scope` no longer clones every `SpanData`. The batch is owned by the function, so spans are now moved into the proto conversion instead of being grouped by reference and cloned. This cuts the transform time of a 512-span batch roughly in half.
 
 ## 0.32.0
 
