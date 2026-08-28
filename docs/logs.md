@@ -22,6 +22,10 @@ change, not a code rewrite. For span guidance, see [traces.md](traces.md).
 [`opentelemetry-appender-tracing`]: ../opentelemetry-appender-tracing/README.md
 [`opentelemetry-appender-log`]: ../opentelemetry-appender-log/README.md
 
+When logs are exported through OTLP, exclude exporter transport diagnostics
+from the OpenTelemetry pipeline to avoid feedback loops. See
+[Preventing telemetry-induced telemetry with OTLP](telemetry-induced-telemetry.md).
+
 ## OpenTelemetry Log Bridge API
 
 Do **not** use the OpenTelemetry Log Bridge API (part of the `opentelemetry`
@@ -96,6 +100,8 @@ the *Span Events API* in favor of Events.
 ## See Also
 
 - [Main README](../README.md) — setup guidance for logging libraries and appenders
+- [Preventing telemetry-induced telemetry with
+  OTLP](telemetry-induced-telemetry.md)
 - [OpenTelemetry Logs
   Specification](https://opentelemetry.io/docs/specs/otel/logs/)
 - [`tracing` Documentation](https://docs.rs/tracing/)

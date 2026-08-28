@@ -5,6 +5,8 @@ Guidance documents for using OpenTelemetry in Rust applications.
 - [logs.md](logs.md) — Logs and Events
 - [traces.md](traces.md) — Distributed Traces
 - [metrics.md](metrics.md) — Metrics
+- [telemetry-induced-telemetry.md](telemetry-induced-telemetry.md) — Preventing
+  OTLP exporter feedback loops
 
 ## Why this guidance exists
 

@@ -360,10 +360,9 @@ This mechanism relies on proper in-process propagation of the `Context`.
 However, external libraries like `hyper` and `tonic`, which are used by
 OpenTelemetry in its OTLP Exporters, do not propagate OpenTelemetry's `Context`.
 As a result, the suppression mechanism does not work out-of-the-box to suppress
-logs originating from these libraries.
-
-// TODO: Document how OTLP can solve this issue without asking external
-crates to respect and propagate OTel Context.
+logs originating from these libraries. See
+[Preventing telemetry-induced telemetry with
+OTLP](../telemetry-induced-telemetry.md) for end-user mitigations.
 
 ## Summary
 
