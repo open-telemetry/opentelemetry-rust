@@ -78,19 +78,9 @@ pub const OTEL_BSP_EXPORT_TIMEOUT: &str = "OTEL_BSP_EXPORT_TIMEOUT";
 ///
 /// See [`OTEL_BSP_EXPORT_TIMEOUT`] for which processors honor this value.
 pub const OTEL_BSP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-/// Environment variable for configuring the maximum number of concurrent
-/// exports.
-///
-/// This value is honored by
-/// `span_processor_with_async_runtime::BatchSpanProcessor`, where it limits the
-/// number of concurrent export tasks. The thread-based [`BatchSpanProcessor`]
-/// exports serially and ignores this setting.
-pub const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
+pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS: &str = "OTEL_BSP_MAX_CONCURRENT_EXPORTS";
 /// Default max concurrent exports for BSP
-///
-/// See [`OTEL_BSP_MAX_CONCURRENT_EXPORTS`] for which processors honor this
-/// value.
-pub const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
+pub(crate) const OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT: usize = 1;
 
 /// `SpanProcessor` is an interface which allows hooks for span start and end
 /// method invocations. The span processors are invoked only when is_recording

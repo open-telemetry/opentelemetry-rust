@@ -12,8 +12,7 @@
 #[test]
 fn bsp_constants_are_public_and_match_spec_defaults() {
     use opentelemetry_sdk::trace::{
-        OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
-        OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+        OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
@@ -39,12 +38,6 @@ fn bsp_constants_are_public_and_match_spec_defaults() {
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
         Duration::from_millis(30_000)
     );
-
-    assert_eq!(
-        OTEL_BSP_MAX_CONCURRENT_EXPORTS,
-        "OTEL_BSP_MAX_CONCURRENT_EXPORTS"
-    );
-    assert_eq!(OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, 1);
 }
 
 #[cfg(feature = "logs")]
