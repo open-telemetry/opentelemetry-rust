@@ -486,10 +486,11 @@
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()
-//!     // Target base URL. Defaults to http://localhost:4318.
-//!     // The path /v1/traces (or /v1/metrics, /v1/logs) is appended automatically.
-//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or OTEL_EXPORTER_OTLP_ENDPOINT).
-//!     .with_endpoint("http://my-collector:4318")
+//!     // Target URL, used verbatim: include the signal path, e.g. /v1/traces.
+//!     // OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is also used verbatim.
+//!     // OTEL_EXPORTER_OTLP_ENDPOINT is a base URL and appends /v1/traces automatically.
+//!     // Defaults to http://localhost:4318/v1/traces.
+//!     .with_endpoint("http://my-collector:4318/v1/traces")
 //!     // Per-export timeout. Defaults to 10 s.
 //!     // Env var: OTEL_EXPORTER_OTLP_TRACES_TIMEOUT (or OTEL_EXPORTER_OTLP_TIMEOUT).
 //!     .with_timeout(Duration::from_secs(5))
