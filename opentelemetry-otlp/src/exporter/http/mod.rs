@@ -7,7 +7,7 @@ use crate::{
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
-use opentelemetry_http::{Bytes, HttpClient};
+use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
 use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
@@ -35,16 +35,21 @@ const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 64 * 1024 * 1024;
 // Shared HTTP retry functionality
 /// HTTP-specific error wrapper for retry classification
 #[derive(Debug)]
-pub(crate) struct HttpExportError {
-    pub status_code: u16,
-    pub retry_after: Option<String>,
-    pub message: String,
+pub(crate) enum HttpExportError {
+    /// An error with an HTTP status code and optional Retry-After header
+    HttpStatus {
+        status_code: u16,
+        retry_after: Option<String>,
+        message: String,
+    },
+    /// An HTTP response body exceeded the client's configured limit
+    ResponseBodyTooLarge { message: String },
 }
 
 impl HttpExportError {
     /// Create a new HttpExportError without retry-after header
     pub(crate) fn new(status_code: u16, message: String) -> Self {
-        Self {
+        Self::HttpStatus {
             status_code,
             retry_after: None,
             message,
@@ -53,17 +58,29 @@ impl HttpExportError {
 
     /// Create a new HttpExportError with retry-after header
     pub(crate) fn with_retry_after(status_code: u16, retry_after: String, message: String) -> Self {
-        Self {
+        Self::HttpStatus {
             status_code,
             retry_after: Some(retry_after),
             message,
         }
     }
+
+    /// Create an error for an oversized HTTP response body
+    fn response_body_too_large(message: String) -> Self {
+        Self::ResponseBodyTooLarge { message }
+    }
 }
 
 /// Classify HTTP export errors for retry decisions
 pub(crate) fn classify_http_export_error(error: &HttpExportError) -> RetryErrorType {
-    classify_http_error(error.status_code, error.retry_after.as_deref())
+    match error {
+        HttpExportError::HttpStatus {
+            status_code,
+            retry_after,
+            ..
+        } => classify_http_error(*status_code, retry_after.as_deref()),
+        HttpExportError::ResponseBodyTooLarge { .. } => RetryErrorType::NonRetryable,
+    }
 }
 
 /// Shared HTTP request data for retry attempts - optimizes Arc usage by bundling all data
@@ -425,7 +442,13 @@ impl OtlpHttpClient {
             },
         )
         .await
-        .map_err(|e| opentelemetry_sdk::error::OTelSdkError::InternalFailure(e.message))?;
+        .map_err(|e| {
+            let message = match e {
+                HttpExportError::HttpStatus { message, .. }
+                | HttpExportError::ResponseBodyTooLarge { message } => message,
+            };
+            opentelemetry_sdk::error::OTelSdkError::InternalFailure(message)
+        })?;
 
         Ok(response_body)
     }
@@ -470,6 +493,16 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
+            if e.downcast_ref::<ResponseBodyTooLarge>().is_some() {
+                let message = e.to_string();
+                otel_debug!(
+                    name: "HttpClient.ResponseBodyTooLarge",
+                    url = request_uri.as_str(),
+                    error = message.as_str()
+                );
+                return HttpExportError::response_body_too_large(message);
+            }
+
             // Connection errors (e.g., "Connection refused", DNS failures) typically
             // indicate user-side misconfigurations and don't contain sensitive data.
             // We don't log at WARN here because SDK processors (BatchLogProcessor,
@@ -700,6 +733,33 @@ fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, ExporterBuildEr
     })
 }
 
+fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
+    match env::var(variable) {
+        Ok(value) if value.is_empty() => Ok(None),
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
+            name: variable.to_string(),
+            reason: "environment variable value is not valid Unicode".to_string(),
+        }),
+    }
+}
+
+fn invalid_endpoint_env(
+    variable: &str,
+    value: &str,
+    error: ExporterBuildError,
+) -> ExporterBuildError {
+    let reason = match error {
+        ExporterBuildError::InvalidUri(_, reason) => reason,
+        error => error.to_string(),
+    };
+    ExporterBuildError::InvalidConfig {
+        name: variable.to_string(),
+        reason: format!("invalid endpoint '{value}': {reason}"),
+    }
+}
+
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
 fn resolve_http_endpoint(
     signal_endpoint_var: &str,
@@ -713,18 +773,18 @@ fn resolve_http_endpoint(
             .map_err(|er: http::uri::InvalidUri| {
                 ExporterBuildError::InvalidUri(provider_endpoint.to_string(), er.to_string())
             })
-    } else if let Some(endpoint) = env::var(signal_endpoint_var)
-        .ok()
-        .and_then(|s| s.parse().ok())
-    {
+    } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
         // per signal env var is not modified
-        Ok(endpoint)
-    } else if let Some(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT)
-        .ok()
-        .and_then(|s| build_endpoint_uri(&s, signal_endpoint_path).ok())
-    {
+        endpoint
+            .parse()
+            .map_err(|er: http::uri::InvalidUri| {
+                ExporterBuildError::InvalidUri(endpoint.clone(), er.to_string())
+            })
+            .map_err(|error| invalid_endpoint_env(signal_endpoint_var, &endpoint, error))
+    } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
         // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT env var is set
-        Ok(endpoint)
+        build_endpoint_uri(&endpoint, signal_endpoint_path)
+            .map_err(|error| invalid_endpoint_env(OTEL_EXPORTER_OTLP_ENDPOINT, &endpoint, error))
     } else {
         build_endpoint_uri(
             OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
@@ -932,7 +992,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_uri_in_signal_env_falls_back_to_generic_env() {
+    fn test_invalid_uri_in_signal_env_returns_error() {
         run_env_test(
             vec![
                 (
@@ -946,15 +1006,85 @@ mod tests {
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     "/v1/traces",
                     None,
-                )
-                .unwrap();
-                assert_eq!(endpoint, "http://example.com/v1/traces");
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                            && !reason.contains("invalid URI")
+                ));
             },
         );
     }
 
     #[test]
-    fn test_all_invalid_urls_falls_back_to_error() {
+    fn test_invalid_uri_in_generic_env_returns_error() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_ENDPOINT, "-*/*-/*-//-/-/invalid-uri")],
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_ENDPOINT
+                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
+                            && !reason.contains("invalid URI")
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_endpoint_envs_are_treated_as_unset() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (OTEL_EXPORTER_OTLP_ENDPOINT, ""),
+            ],
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                )
+                .unwrap();
+                assert_eq!(endpoint, "http://localhost:4318/v1/traces");
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_endpoint_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            Some(OsStr::from_bytes(b"http://example.com/\x80")),
+            || {
+                let endpoint = super::resolve_http_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    "/v1/traces",
+                    None,
+                );
+                assert!(matches!(
+                    endpoint,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("not valid Unicode")
+                ));
+            },
+        );
+    }
+
+    #[test]
+    fn test_invalid_programmatic_endpoint_returns_error() {
         run_env_test(vec![], || {
             let result = super::resolve_http_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -962,7 +1092,6 @@ mod tests {
                 Some("-*/*-/*-//-/-/yet-another-invalid-uri"),
             );
             assert!(result.is_err());
-            // You may also want to assert on the specific error type if applicable
         });
     }
 
@@ -1768,6 +1897,28 @@ mod tests {
             }
         }
 
+        #[derive(Debug, Default)]
+        struct OversizedResponseMockClient {
+            attempts: AtomicUsize,
+        }
+
+        impl OversizedResponseMockClient {
+            fn attempt_count(&self) -> usize {
+                self.attempts.load(Ordering::SeqCst)
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl HttpClient for OversizedResponseMockClient {
+            async fn send_bytes(
+                &self,
+                _request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                self.attempts.fetch_add(1, Ordering::SeqCst);
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+            }
+        }
+
         fn build_test_body(
             _client: &OtlpHttpClient,
             _data: (),
@@ -1864,6 +2015,24 @@ mod tests {
 
             assert!(result.is_err());
             assert_eq!(mock.attempt_count(), 1);
+        }
+
+        #[test]
+        fn does_not_retry_when_response_body_is_too_large() {
+            let mock = Arc::new(OversizedResponseMockClient::default());
+            let client = make_client(mock.clone(), retry_policy());
+
+            let error = futures_executor::block_on(client.export_http_with_retry(
+                (),
+                build_test_body,
+                "test",
+            ))
+            .unwrap_err();
+
+            assert_eq!(mock.attempt_count(), 1);
+            assert!(error
+                .to_string()
+                .contains("response body exceeded maximum allowed 4 MiB limit"));
         }
 
         #[test]

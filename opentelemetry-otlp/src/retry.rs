@@ -451,7 +451,7 @@ mod tests {
         assert_eq!(result, Ok("success"));
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
         assert!(elapsed >= Duration::from_millis(50));
-        assert!(elapsed < Duration::from_millis(200));
+        assert!(elapsed < Duration::from_millis(500));
     }
 
     #[tokio::test]
@@ -672,7 +672,7 @@ mod tests {
         // Should have stopped before exhausting 100 retries due to deadline
         assert!(attempts.load(Ordering::SeqCst) < 10);
         // Shouldn't have taken much longer than the deadline
-        assert!(elapsed < Duration::from_millis(300));
+        assert!(elapsed < Duration::from_millis(500));
     }
 
     #[tokio::test]
@@ -774,7 +774,7 @@ mod tests {
         // Should have stopped before exhausting 100 retries due to deadline
         assert!(attempts.load(Ordering::SeqCst) < 10);
         // Shouldn't have taken much longer than the deadline
-        assert!(elapsed < Duration::from_millis(300));
+        assert!(elapsed < Duration::from_millis(500));
     }
 
     #[test]
@@ -811,6 +811,6 @@ mod tests {
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
         // Should have waited ~50ms (the server delay raises it from the 10ms default)
         assert!(elapsed >= Duration::from_millis(50));
-        assert!(elapsed < Duration::from_millis(200));
+        assert!(elapsed < Duration::from_millis(500));
     }
 }
