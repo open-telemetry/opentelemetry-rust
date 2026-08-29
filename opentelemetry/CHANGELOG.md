@@ -1,9 +1,8 @@
 # Changelog
 
 ## vNext
-
-- `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
-  (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
+- **Added** `FutureContextExt`, `StreamContextExt`, and `SinkContextExt` traits, providing `with_context` / `with_current_context` for futures, streams, and sinks respectively (#3291).
+- **Breaking** Removed the blanket `impl<T> FutureExt for T` implementation, which exposed `with_context` on *every* type and could collide with similarly named methods from other crates (e.g. `anyhow::Context::with_context`). `FutureExt` is now `#[deprecated]` and has no implementation; migrate to the new traits above (`FutureContextExt` for futures). A type implementing more than one of `Future`/`Stream`/`Sink` must now disambiguate the call (e.g. `FutureContextExt::with_context(value, cx)`).
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
   corresponding `Gauge::bind()` / `UpDownCounter::bind()` methods), completing
   the experimental bound-instrument API across all sync instruments
