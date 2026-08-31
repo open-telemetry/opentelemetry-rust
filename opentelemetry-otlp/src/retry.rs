@@ -47,6 +47,10 @@ pub enum RetryErrorType {
 }
 
 /// Configuration for retry policy.
+///
+/// The default is [`RetryPolicy::recommended()`]. Use
+/// [`RetryPolicy::disabled()`] to perform a single export attempt without
+/// retrying.
 #[derive(Debug, Clone)]
 pub struct RetryPolicy {
     /// Maximum number of retry attempts.
@@ -308,6 +312,30 @@ mod tests {
         assert_eq!(policy.initial_delay_ms, 0);
         assert_eq!(policy.max_delay_ms, 0);
         assert_eq!(policy.jitter_ms, 0);
+    }
+
+    #[tokio::test]
+    async fn test_disabled_retry_policy_performs_single_attempt() {
+        for classification in [
+            RetryErrorType::Retryable,
+            RetryErrorType::Throttled(Duration::from_secs(5)),
+        ] {
+            let attempts = AtomicUsize::new(0);
+            let result = retry_with_backoff(
+                &RetryPolicy::disabled(),
+                Duration::from_secs(10),
+                |_| classification.clone(),
+                "test_operation",
+                || {
+                    attempts.fetch_add(1, Ordering::SeqCst);
+                    Box::pin(async { Err::<(), _>(()) })
+                },
+            )
+            .await;
+
+            assert_eq!(result, Err(()));
+            assert_eq!(attempts.load(Ordering::SeqCst), 1);
+        }
     }
 
     #[test]

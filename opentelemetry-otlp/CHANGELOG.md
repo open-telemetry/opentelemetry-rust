@@ -4,11 +4,10 @@
 
 ### Retry
 
-- Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. No feature
-  flag or builder opt-in is required. The default policy uses exponential
-  backoff and jitter with up to 3 retries (4 attempts total). Use
-  `.with_retry_policy(RetryPolicy::disabled())` to disable retries, or provide
-  a custom `RetryPolicy` to change the behavior.
+- Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
+  policy uses exponential backoff and jitter with up to 3 retries (4 attempts
+  total). Use `.with_retry_policy(RetryPolicy::disabled())` to disable retries,
+  or provide a custom `RetryPolicy` to change the behavior.
 - **Migration for users of the experimental retry features:** If your
   `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
   `http-json-with-retry`, remove those feature flags. No migration action is
