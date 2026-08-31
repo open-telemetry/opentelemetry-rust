@@ -2,6 +2,33 @@
 
 ## vNext
 
+### Retry
+
+- **Breaking:** Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC.
+  No feature flag or builder opt-in is required. The default policy uses
+  exponential backoff and jitter with up to 3 retries (4 attempts total). Use
+  `.with_retry_policy(RetryPolicy::disabled())` to disable retries, or provide
+  a custom `RetryPolicy` to change the behavior.
+- **Migration**: Remove the experimental retry feature flags
+  (`grpc-tonic-with-retry`, `http-proto-with-retry`,
+  `http-json-with-retry`) from `Cargo.toml`. Retry support is now always
+  included and works with both the default thread-based processors and the
+  experimental async-runtime processors.
+  [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
+
+#### Retry fixes
+
+The following fixes apply to retry behavior that was experimental before this
+release:
+
+- Retry only HTTP status codes 429, 502, 503, and 504, as required by the OTLP
+  specification. The exporter now also honors `Retry-After` on 503 responses.
+- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
+- Continue exponential backoff from server-provided `RetryInfo` and
+  `Retry-After` delays when subsequent export attempts fail.
+
+### Other changes
+
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
@@ -10,28 +37,6 @@
   OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
   after compression; oversized requests are discarded without being sent or
   retried.
-- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
-  `Unavailable` responses without a positive delay continue to use exponential
-  backoff.
-- Continue exponential backoff from server-provided `RetryInfo` and `Retry-After`
-  delays when subsequent export attempts fail, rather than reusing or dropping
-  below the server-requested delay.
-- Fix OTLP/HTTP retry classification to retry only status codes 429, 502, 503,
-  and 504, as required by the OTLP specification. The exporter now also honors
-  `Retry-After` on 503 responses. Other HTTP error responses, including 500,
-  are now treated as non-retryable.
-- **Breaking** Removed experimental retry feature flags (`grpc-tonic-with-retry`,
-  `http-proto-with-retry`, `http-json-with-retry`). Retry support is now always
-  included for both gRPC and HTTP exporters and works with all processor types,
-  including the default `BatchSpanProcessor`, `BatchLogProcessor`, and
-  `PeriodicReader` (which use a dedicated OS thread), as well as the experimental
-  async-runtime processors.
-  The default `RetryPolicy` follows the OTLP specification's retry requirement,
-  using exponential backoff with up to 3 retries (4 attempts total). Configure
-  `.with_retry_policy(...)` explicitly to customize the policy, or use
-  `.with_retry_policy(RetryPolicy::disabled())` to disable retries.
-  **Migration**: Remove the experimental retry feature flags from your `Cargo.toml`.
-  [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
   `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
   `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
