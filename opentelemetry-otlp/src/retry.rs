@@ -60,15 +60,9 @@ pub struct RetryPolicy {
 }
 
 impl Default for RetryPolicy {
-    /// Default retry policy performs no retries (single attempt only).
-    /// Use `RetryPolicy::recommended()` or configure explicitly to enable retry.
+    /// Returns the recommended OTLP retry policy.
     fn default() -> Self {
-        Self {
-            max_retries: 0,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        }
+        Self::recommended()
     }
 }
 
@@ -282,7 +276,7 @@ mod tests {
     #[test]
     fn test_default_retry_policy() {
         let policy = RetryPolicy::default();
-        assert_eq!(policy.max_retries, 0);
+        assert_eq!(policy.max_retries, 3);
         assert_eq!(policy.initial_delay_ms, 100);
         assert_eq!(policy.max_delay_ms, 1600);
         assert_eq!(policy.jitter_ms, 100);
