@@ -4,9 +4,9 @@
 
 ### Retry
 
-- **Breaking:** Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC.
-  No feature flag or builder opt-in is required. The default policy uses
-  exponential backoff and jitter with up to 3 retries (4 attempts total). Use
+- Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. No feature
+  flag or builder opt-in is required. The default policy uses exponential
+  backoff and jitter with up to 3 retries (4 attempts total). Use
   `.with_retry_policy(RetryPolicy::disabled())` to disable retries, or provide
   a custom `RetryPolicy` to change the behavior.
 - **Migration**: Remove the experimental retry feature flags
