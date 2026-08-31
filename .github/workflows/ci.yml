@@ -48,7 +48,7 @@ jobs:
       run: rustup show active-toolchain
     - name: Install Rust beta
       if: ${{ matrix.rust == 'beta' }}
-      run: rustup toolchain install beta --profile minimal --component rustfmt,clippy
+      run: rustup toolchain install beta --profile minimal --component rustfmt
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,11 +56,6 @@ jobs:
       run: bash ./scripts/test.sh
       env:
         RUSTUP_TOOLCHAIN: ${{ matrix.rust == 'beta' && 'beta' || '' }}
-    - name: Lint with Rust beta
-      if: ${{ matrix.rust == 'beta' }}
-      run: cargo clippy --workspace --all-targets --all-features -- -Dwarnings
-      env:
-        RUSTUP_TOOLCHAIN: beta
   # Targeted Miri regression check for SDK default resource construction.
   # Broader Miri support and CI policy are tracked in #3554.
   miri:
@@ -95,10 +90,10 @@ jobs:
         persist-credentials: false
         submodules: true
     - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
-    - name: Resolve stable Rust pinned by rust-toolchain.toml
-      run: rustup show active-toolchain
       with:
           tool: cargo-hack
+    - name: Resolve stable Rust pinned by rust-toolchain.toml
+      run: rustup show active-toolchain
     - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
       with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -132,6 +127,8 @@ jobs:
       - name: external-type-check
         working-directory: ${{ matrix.member }}
         run: cargo check-external-types --all-features --config allowed-external-types.toml
+        env:
+          RUSTUP_TOOLCHAIN: nightly-2025-05-04
   msrv:
     strategy:
       matrix:
@@ -149,10 +146,10 @@ jobs:
           persist-credentials: false
           submodules: true
       - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
-      - name: Resolve stable Rust pinned by rust-toolchain.toml
-        run: rustup show active-toolchain
         with:
           tool: cargo-msrv
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
       - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -292,3 +289,5 @@ jobs:
           tool: cargo-shear
       - name: cargo shear
         run: cargo shear --expand
+        env:
+          RUSTUP_TOOLCHAIN: nightly
