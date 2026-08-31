@@ -17,5 +17,17 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      codeql:
+        patterns:
+          - "github/codeql-action/*"
+      minor-and-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github/codeql-action/*"
+        update-types:
+          - "minor"
+          - "patch"
     cooldown:
       default-days: 7
