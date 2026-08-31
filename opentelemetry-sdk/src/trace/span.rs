@@ -1267,7 +1267,103 @@ mod tests {
         assert_eq!(finished.attributes(), &[]);
         assert_eq!(finished.events().len(), 0);
         assert_eq!(finished.links().len(), 0);
+        assert_eq!(finished.dropped_links_count(), 0);
         assert_eq!(finished.status(), &Status::Unset);
+        assert_eq!(
+            finished.parent_span_id(),
+            opentelemetry::trace::SpanId::INVALID
+        );
+        assert_eq!(finished.context(), &SpanContext::empty_context());
+    }
+
+    #[test]
+    fn test_readable_span_finished_reports_real_values_before_consume() {
+        use crate::trace::SpanData as ExportSpanData;
+
+        let span_context = SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::SAMPLED,
+            false,
+            Default::default(),
+        );
+        let scope = opentelemetry::InstrumentationScope::builder("my-scope").build();
+        let span_data = ExportSpanData {
+            span_context: span_context.clone(),
+            parent_span_id: SpanId::from(42),
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Server,
+            name: "test".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: vec![KeyValue::new("k", "v")],
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks {
+                links: vec![],
+                dropped_count: 3,
+            },
+            status: Status::Ok,
+            instrumentation_scope: scope.clone(),
+        };
+
+        let finished = FinishedSpan::new(span_data);
+
+        // Every ReadableSpan getter should reflect the real, un-consumed data,
+        // including the ones not already covered by other FinishedSpan tests.
+        assert_eq!(finished.context(), &span_context);
+        assert_eq!(finished.parent_span_id(), SpanId::from(42));
+        assert_eq!(finished.span_kind(), &SpanKind::Server);
+        assert_eq!(finished.links().len(), 0);
+        assert_eq!(finished.dropped_links_count(), 3);
+        assert_eq!(finished.status(), &Status::Ok);
+        assert_eq!(finished.instrumentation_scope(), &scope);
+        assert!(!finished.is_consumed());
+    }
+
+    #[test]
+    fn test_finished_span_consume_clone_then_move_return_equal_data() {
+        // With more than one processor, every processor but the last gets a
+        // clone from consume(); the last gets the real move. Both should
+        // carry identical data.
+        #[derive(Debug, Clone, Default)]
+        struct CapturingProcessor {
+            captured: std::sync::Arc<std::sync::Mutex<Option<crate::trace::SpanData>>>,
+        }
+        impl SpanProcessor for CapturingProcessor {
+            fn on_end(&self, span: &mut FinishedSpan) {
+                *self.captured.lock().unwrap() = span.consume();
+            }
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let first = CapturingProcessor::default();
+        let last = CapturingProcessor::default();
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(first.clone())
+            .with_span_processor(last.clone())
+            .build();
+        drop(make_test_span(&provider.tracer("test")));
+        provider.shutdown().unwrap();
+
+        let first_data = first.captured.lock().unwrap().take();
+        let last_data = last.captured.lock().unwrap().take();
+        assert!(
+            first_data.is_some(),
+            "cloned (non-last) processor should still get owned data"
+        );
+        assert!(last_data.is_some(), "last processor should get moved data");
+        assert_eq!(
+            first_data, last_data,
+            "clone and move should carry identical span data"
+        );
     }
 
     #[test]
