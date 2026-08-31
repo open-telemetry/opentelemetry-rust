@@ -71,7 +71,9 @@ impl RetryPolicy {
     pub fn disabled() -> Self {
         Self {
             max_retries: 0,
-            ..Self::recommended()
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
         }
     }
 
@@ -303,9 +305,9 @@ mod tests {
     fn test_disabled_retry_policy() {
         let policy = RetryPolicy::disabled();
         assert_eq!(policy.max_retries, 0);
-        assert_eq!(policy.initial_delay_ms, 100);
-        assert_eq!(policy.max_delay_ms, 1600);
-        assert_eq!(policy.jitter_ms, 100);
+        assert_eq!(policy.initial_delay_ms, 0);
+        assert_eq!(policy.max_delay_ms, 0);
+        assert_eq!(policy.jitter_ms, 0);
     }
 
     #[test]
