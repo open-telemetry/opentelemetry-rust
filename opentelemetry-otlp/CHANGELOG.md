@@ -12,9 +12,7 @@
 - **Migration for users of the experimental retry features:** If your
   `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
   `http-json-with-retry`, remove those feature flags. No migration action is
-  required for users who did not enable them. Retry support is now always
-  included and works with both the default thread-based processors and the
-  experimental async-runtime processors.
+  required for users who did not enable them.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
 
 #### Retry fixes
