@@ -1631,7 +1631,7 @@ mod tests {
         // Fill the queue to the export threshold; the worker drains all four
         // spans and blocks inside export().
         for _ in 0..4 {
-            processor.on_end(create_test_span("first_batch"));
+            processor.on_end(&mut FinishedSpan::new(create_test_span("first_batch")));
         }
         started_receiver
             .recv_timeout(Duration::from_secs(5))
@@ -1640,10 +1640,10 @@ mod tests {
         // While the worker is blocked, refill the queue and overflow it by
         // two spans, which must be dropped and their counts reverted.
         for _ in 0..4 {
-            processor.on_end(create_test_span("second_batch"));
+            processor.on_end(&mut FinishedSpan::new(create_test_span("second_batch")));
         }
         for _ in 0..2 {
-            processor.on_end(create_test_span("overflow"));
+            processor.on_end(&mut FinishedSpan::new(create_test_span("overflow")));
         }
 
         assert_eq!(processor.dropped_spans_count.load(Ordering::Relaxed), 2);
@@ -1717,7 +1717,8 @@ mod tests {
             for _ in 0..num_threads {
                 s.spawn(|| {
                     for _ in 0..total_spans_per_thread {
-                        processor.on_end(create_test_span("stress test span"));
+                        processor
+                            .on_end(&mut FinishedSpan::new(create_test_span("stress test span")));
                     }
                 });
             }
@@ -2105,7 +2106,7 @@ mod tests {
             let processor = BatchSpanProcessor::new(span_exporter, config);
 
             for _ in 0..10 {
-                processor.on_end(create_test_span("success"));
+                processor.on_end(&mut FinishedSpan::new(create_test_span("success")));
             }
 
             // Flush so the batch is submitted to the exporter, which is when the
@@ -2159,7 +2160,7 @@ mod tests {
             // Fill the queue to the export threshold; the worker drains all four
             // spans and blocks inside export().
             for _ in 0..4 {
-                processor.on_end(create_test_span("first_batch"));
+                processor.on_end(&mut FinishedSpan::new(create_test_span("first_batch")));
             }
             started_receiver
                 .recv_timeout(Duration::from_secs(5))
@@ -2168,10 +2169,10 @@ mod tests {
             // While the worker is blocked, refill the queue (4) and overflow it by
             // two spans, which must be dropped and counted as queue_full.
             for _ in 0..4 {
-                processor.on_end(create_test_span("second_batch"));
+                processor.on_end(&mut FinishedSpan::new(create_test_span("second_batch")));
             }
             for _ in 0..2 {
-                processor.on_end(create_test_span("overflow"));
+                processor.on_end(&mut FinishedSpan::new(create_test_span("overflow")));
             }
 
             // Release the in-flight export and the one triggered by force_flush.
@@ -2215,7 +2216,7 @@ mod tests {
             processor.shutdown().unwrap();
 
             for _ in 0..7 {
-                processor.on_end(create_test_span("after_shutdown"));
+                processor.on_end(&mut FinishedSpan::new(create_test_span("after_shutdown")));
             }
 
             meter_provider.force_flush().unwrap();
@@ -2250,7 +2251,7 @@ mod tests {
             let processor = SimpleSpanProcessor::new(span_exporter);
 
             for _ in 0..10 {
-                processor.on_end(new_test_export_span_data());
+                processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
             }
 
             meter_provider.force_flush().unwrap();
@@ -2290,7 +2291,7 @@ mod tests {
             processor.shutdown().unwrap();
 
             for _ in 0..7 {
-                processor.on_end(new_test_export_span_data());
+                processor.on_end(&mut FinishedSpan::new(new_test_export_span_data()));
             }
 
             meter_provider.force_flush().unwrap();
