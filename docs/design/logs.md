@@ -364,6 +364,9 @@ logs originating from these libraries. See
 [Preventing telemetry-induced telemetry with
 OTLP](../telemetry-induced-telemetry.md) for end-user mitigations.
 
+// TODO: Document how OTLP can solve this issue without asking external
+crates to respect and propagate OTel Context.
+
 ## Summary
 
 - OpenTelemetry Logs does not provide a user-facing logging API.

@@ -27,6 +27,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .build()?;
 
+    // Do not run application tasks on export_runtime: telemetry is suppressed
+    // on all of its worker and blocking threads.
     let logger_provider = {
         // BatchLogProcessor calls tokio::spawn during build(), so the exporter
         // and processor must be built while the export runtime is entered.
@@ -55,11 +57,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "application telemetry is exported normally"
     );
 
-    // Do not run application tasks on export_runtime: telemetry is suppressed
-    // on all of its worker and blocking threads.
+    // shutdown() blocks. When adapting this setup to #[tokio::main], call it
+    // through tokio::task::spawn_blocking.
     logger_provider.shutdown()?;
 
-    // This is also safe if this setup is adapted for use from #[tokio::main].
     export_runtime.shutdown_background();
     Ok(())
 }
