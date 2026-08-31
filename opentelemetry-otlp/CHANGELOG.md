@@ -9,9 +9,10 @@
   backoff and jitter with up to 3 retries (4 attempts total). Use
   `.with_retry_policy(RetryPolicy::disabled())` to disable retries, or provide
   a custom `RetryPolicy` to change the behavior.
-- **Migration**: Remove the experimental retry feature flags
-  (`grpc-tonic-with-retry`, `http-proto-with-retry`,
-  `http-json-with-retry`) from `Cargo.toml`. Retry support is now always
+- **Migration for users of the experimental retry features:** If your
+  `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
+  `http-json-with-retry`, remove those feature flags. No migration action is
+  required for users who did not enable them. Retry support is now always
   included and works with both the default thread-based processors and the
   experimental async-runtime processors.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
