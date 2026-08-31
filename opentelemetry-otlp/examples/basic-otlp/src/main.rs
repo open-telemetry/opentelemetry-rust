@@ -93,10 +93,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     //
     // The filter levels are set as follows:
     // - Allow `info` level and above by default.
-    // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`.
+    // - Completely restrict logs from `hyper`, `tonic`, `h2`, and `reqwest`
+    //   from the OpenTelemetry layer.
     //
-    // Note: This filtering will also drop logs from these components even when
-    // they are used outside of the OTLP Exporter.
+    // This filter does not affect the independent Fmt layer below, which can
+    // still be configured to display the same transport logs.
+    // OpenTelemetry will also drop logs from these components when they are
+    // used outside of the OTLP Exporter.
     let filter_otel = EnvFilter::new("info")
         .add_directive("hyper=off".parse().unwrap())
         .add_directive("tonic=off".parse().unwrap())

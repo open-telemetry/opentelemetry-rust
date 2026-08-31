@@ -22,9 +22,42 @@ change, not a code rewrite. For span guidance, see [traces.md](traces.md).
 [`opentelemetry-appender-tracing`]: ../opentelemetry-appender-tracing/README.md
 [`opentelemetry-appender-log`]: ../opentelemetry-appender-log/README.md
 
-When logs are exported through OTLP, exclude exporter transport diagnostics
-from the OpenTelemetry pipeline to avoid feedback loops. See
-[Preventing telemetry-induced telemetry with OTLP](telemetry-induced-telemetry.md).
+## Avoiding OTLP transport feedback
+
+OTLP exporters use libraries such as `reqwest`, `hyper`, `h2`, and `tonic`.
+When dependency logs at `DEBUG` or `TRACE` are sent through
+`OpenTelemetryTracingBridge`, an export can generate more logs and repeatedly
+trigger another export.
+
+Filter these transport targets only on the OpenTelemetry layer:
+
+```rust
+let otel_filter =
+    EnvFilter::new("info,reqwest=off,hyper=off,h2=off,tonic=off");
+let otel_layer =
+    OpenTelemetryTracingBridge::new(&logger_provider).with_filter(otel_filter);
+
+tracing_subscriber::registry()
+    .with(otel_layer)
+    .with(tracing_subscriber::fmt::layer())
+    .init();
+```
+
+This is not a global filter. It only prevents matching events from being
+exported through the OpenTelemetry layer. The same events remain available to
+`fmt` and every other subscriber layer according to each layer's own filter.
+This is sufficient for almost all applications, including troubleshooting
+transport problems through local output.
+
+A target filter is insufficient only when transport logs from normal
+application traffic must be exported to the OpenTelemetry backend while
+exporter-generated transport logs are excluded. That advanced case needs more
+selective isolation, such as running async exporter work on a dedicated
+suppressed runtime; see [issue #2877]. Applications using
+`OpenTelemetryLogBridge` directly must instead apply equivalent filtering before
+records reach that bridge.
+
+[issue #2877]: https://github.com/open-telemetry/opentelemetry-rust/issues/2877
 
 ## OpenTelemetry Log Bridge API
 
@@ -100,8 +133,6 @@ the *Span Events API* in favor of Events.
 ## See Also
 
 - [Main README](../README.md) — setup guidance for logging libraries and appenders
-- [Preventing telemetry-induced telemetry with
-  OTLP](telemetry-induced-telemetry.md)
 - [OpenTelemetry Logs
   Specification](https://opentelemetry.io/docs/specs/otel/logs/)
 - [`tracing` Documentation](https://docs.rs/tracing/)
