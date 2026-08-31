@@ -67,6 +67,14 @@ impl Default for RetryPolicy {
 }
 
 impl RetryPolicy {
+    /// Returns a retry policy that performs a single export attempt with no retries.
+    pub fn disabled() -> Self {
+        Self {
+            max_retries: 0,
+            ..Self::recommended()
+        }
+    }
+
     /// Recommended retry policy per the OTLP spec: 3 retries with exponential
     /// backoff (100ms initial, 1600ms max, 100ms jitter).
     pub fn recommended() -> Self {
@@ -286,6 +294,15 @@ mod tests {
     fn test_recommended_retry_policy() {
         let policy = RetryPolicy::recommended();
         assert_eq!(policy.max_retries, 3);
+        assert_eq!(policy.initial_delay_ms, 100);
+        assert_eq!(policy.max_delay_ms, 1600);
+        assert_eq!(policy.jitter_ms, 100);
+    }
+
+    #[test]
+    fn test_disabled_retry_policy() {
+        let policy = RetryPolicy::disabled();
+        assert_eq!(policy.max_retries, 0);
         assert_eq!(policy.initial_delay_ms, 100);
         assert_eq!(policy.max_delay_ms, 1600);
         assert_eq!(policy.jitter_ms, 100);

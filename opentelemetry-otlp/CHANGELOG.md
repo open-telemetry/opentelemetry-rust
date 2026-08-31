@@ -28,8 +28,8 @@
   async-runtime processors.
   The default `RetryPolicy` follows the OTLP specification's retry requirement,
   using exponential backoff with up to 3 retries (4 attempts total). Configure
-  `.with_retry_policy(...)` explicitly to customize the policy or disable
-  retries.
+  `.with_retry_policy(...)` explicitly to customize the policy, or use
+  `.with_retry_policy(RetryPolicy::disabled())` to disable retries.
   **Migration**: Remove the experimental retry feature flags from your `Cargo.toml`.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
