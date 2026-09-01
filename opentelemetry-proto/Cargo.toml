@@ -32,11 +32,23 @@ path = "tests/json_serde.rs"
 
 [features]
 default = ["full"]
-full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
+full = [
+    "gen-tonic",
+    "trace",
+    "logs",
+    "metrics",
+    "zpages",
+    "with-serde",
+    "internal-logs",
+    "file-descriptors",
+]
 
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic", "tonic-prost", "tonic/channel"]
 gen-tonic-messages = ["prost"]
+
+# generate and export proto file descriptors
+file-descriptors = []
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]
@@ -58,7 +70,10 @@ prost = { workspace = true, optional = true }
 opentelemetry = { workspace = true, default-features = false }
 opentelemetry_sdk = { workspace = true, default-features = false }
 schemars = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features = ["serde_derive", "std"] }
+serde = { workspace = true, optional = true, features = [
+    "serde_derive",
+    "std",
+] }
 const-hex = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 
