@@ -658,12 +658,15 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub mod retry_classification;
+#[cfg(all(
+    any(feature = "trace", feature = "metrics", feature = "logs"),
+    any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")
+))]
+mod retry_classification;
 
 /// Retry logic for exporting telemetry data.
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub mod retry;
+mod retry;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExporterBuildError;

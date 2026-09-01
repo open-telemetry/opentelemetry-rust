@@ -27,6 +27,8 @@ release:
 
 ### Other changes
 
+- **Breaking** Make retry implementation details crate-private. `RetryPolicy`
+  remains available from the crate root as the supported retry configuration API.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
