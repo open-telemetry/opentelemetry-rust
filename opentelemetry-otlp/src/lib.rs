@@ -658,15 +658,28 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(all(
-    any(feature = "trace", feature = "metrics", feature = "logs"),
-    any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json")
+#[cfg(any(
+    feature = "http-proto",
+    feature = "http-json",
+    all(
+        feature = "grpc-tonic",
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    )
 ))]
 mod retry_classification;
 
-/// Retry logic for exporting telemetry data.
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+#[cfg(any(
+    feature = "http-proto",
+    feature = "http-json",
+    all(
+        feature = "grpc-tonic",
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    )
+))]
 mod retry;
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+mod retry_policy;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExporterBuildError;
@@ -712,7 +725,7 @@ pub use crate::exporter::{
 };
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub use retry::RetryPolicy;
+pub use retry_policy::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]

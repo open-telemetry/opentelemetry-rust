@@ -15,7 +15,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 
 use super::BoxInterceptor;
 
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 
 pub(crate) struct TonicTracesClient {
     inner: Mutex<Option<ClientInner>>,

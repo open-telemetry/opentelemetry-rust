@@ -1,22 +1,10 @@
-//! This module provides functionality for retrying operations with exponential backoff and jitter.
-//!
-//! The `RetryPolicy` struct defines the configuration for the retry behavior, including the maximum
-//! number of retries, initial delay, maximum delay, and jitter.
-//!
-//! The `retry_with_backoff` function retries the given operation according to the
-//! specified retry policy, using exponential backoff and jitter to determine the delay between
-//! retries. The function uses error classification to determine retry behavior and can honor
-//! server-provided throttling hints.
+//! Internal retry execution with exponential backoff, jitter, and throttling hints.
 
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+use crate::retry_policy::RetryPolicy;
 use opentelemetry::{otel_debug, otel_info, otel_warn};
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 use std::collections::hash_map::DefaultHasher;
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 use std::future::Future;
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 use std::hash::Hasher;
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 use std::time::{Duration, Instant, SystemTime};
 
 /// Sleeps for the given duration.
@@ -28,7 +16,6 @@ use std::time::{Duration, Instant, SystemTime};
 /// Note: `tokio` is not a default feature, so default builds
 /// (`reqwest-blocking-client`) always use `std::thread::sleep`. It is pulled in
 /// by `grpc-tonic`, `reqwest-client`, and `hyper-client`.
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 async fn sleep_for(duration: Duration) {
     #[cfg(feature = "tokio")]
     {
@@ -42,7 +29,6 @@ async fn sleep_for(duration: Duration) {
 
 /// Classification of errors for retry purposes.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 pub(crate) enum RetryErrorType {
     /// Error is not retryable (e.g., authentication failure, bad request).
     NonRetryable,
@@ -53,61 +39,12 @@ pub(crate) enum RetryErrorType {
     Throttled(Duration),
 }
 
-/// Configuration for retry policy.
-///
-/// The default is [`RetryPolicy::recommended()`]. Use
-/// [`RetryPolicy::disabled()`] to perform a single export attempt without
-/// retrying.
-#[derive(Debug, Clone)]
-pub struct RetryPolicy {
-    /// Maximum number of retry attempts.
-    pub max_retries: usize,
-    /// Initial delay in milliseconds before the first retry.
-    pub initial_delay_ms: u64,
-    /// Maximum delay in milliseconds between retries.
-    pub max_delay_ms: u64,
-    /// Maximum jitter in milliseconds to add to the delay.
-    pub jitter_ms: u64,
-}
-
-impl Default for RetryPolicy {
-    /// Returns the recommended OTLP retry policy.
-    fn default() -> Self {
-        Self::recommended()
-    }
-}
-
-impl RetryPolicy {
-    /// Returns a retry policy that performs a single export attempt with no retries.
-    pub fn disabled() -> Self {
-        Self {
-            max_retries: 0,
-            initial_delay_ms: 0,
-            max_delay_ms: 0,
-            jitter_ms: 0,
-        }
-    }
-
-    /// Recommended retry policy per the OTLP spec: 3 retries with exponential
-    /// backoff (100ms initial, 1600ms max, 100ms jitter).
-    pub fn recommended() -> Self {
-        Self {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        }
-    }
-}
-
 /// Maximum duration a server-provided throttle delay (Retry-After / RetryInfo) is allowed
 /// to block the export thread. Any server-provided delay exceeding this cap is truncated.
 /// This prevents a misbehaving server from stalling the export pipeline indefinitely.
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 const MAX_THROTTLE_DURATION: Duration = Duration::from_secs(30);
 
 // Generates a random jitter value up to max_jitter
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 fn generate_jitter(max_jitter: u64) -> u64 {
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -156,7 +93,6 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 ///
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 pub(crate) async fn retry_with_backoff<F, Fut, T, E, C>(
     policy: &RetryPolicy,
     deadline: Duration,
@@ -285,7 +221,7 @@ where
     }
 }
 
-#[cfg(all(test, any(feature = "trace", feature = "metrics", feature = "logs")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};

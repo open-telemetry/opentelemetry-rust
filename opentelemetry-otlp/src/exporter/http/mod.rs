@@ -25,8 +25,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::retry::{RetryErrorType, RetryPolicy};
+use crate::retry::RetryErrorType;
 use crate::retry_classification::http::classify_http_error;
+use crate::RetryPolicy;
 
 // Recommended by the OTLP/HTTP specification:
 // https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
@@ -1743,7 +1744,7 @@ mod tests {
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
             use crate::WithHttpConfig;
 
             let custom_policy = RetryPolicy {
@@ -1778,7 +1779,7 @@ mod tests {
         #[cfg(feature = "http-proto")]
         #[test]
         fn test_custom_retry_policy_used() {
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
 
             let custom_policy = RetryPolicy {
                 max_retries: 7,
@@ -1810,7 +1811,7 @@ mod tests {
     #[cfg(feature = "http-proto")]
     mod retry_integration_tests {
         use super::super::OtlpHttpClient;
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
         use std::sync::atomic::{AtomicUsize, Ordering};

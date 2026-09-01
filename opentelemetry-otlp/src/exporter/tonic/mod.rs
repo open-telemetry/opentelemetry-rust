@@ -26,7 +26,7 @@ use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_O
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -1086,7 +1086,7 @@ mod tests {
 
     #[test]
     fn test_with_retry_policy() {
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use crate::WithTonicConfig;
 
         let custom_policy = RetryPolicy {
