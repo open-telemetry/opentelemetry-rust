@@ -39,4 +39,4 @@ pub mod transform;
 
 /// Contains the bytes of the file descriptors generated for the proto files.
 #[cfg(feature = "file-descriptors")]
-pub static DESCRIPTORS: &'static [u8] = include_bytes!("proto/tonic/descriptors.bin");
+pub static DESCRIPTORS: &[u8] = include_bytes!("proto/tonic/descriptors.bin");
