@@ -79,12 +79,11 @@ impl Signal {
 }
 
 fn retry_policy() -> RetryPolicy {
-    RetryPolicy {
-        max_retries: 3,
-        initial_delay_ms: 10,
-        max_delay_ms: 10,
-        jitter_ms: 0,
-    }
+    RetryPolicy::default()
+        .with_max_retries(3)
+        .with_initial_delay(Duration::from_millis(10))
+        .with_max_delay(Duration::from_millis(10))
+        .with_max_jitter(Duration::ZERO)
 }
 
 fn assert_otlp_requests(signal: Signal, requests: &[CapturedHttpRequest], expected_count: usize) {

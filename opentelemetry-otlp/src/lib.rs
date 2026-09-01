@@ -453,15 +453,17 @@
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
 //! use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
+//! use std::time::Duration;
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_tonic()
-//!     .with_retry_policy(RetryPolicy {
-//!         max_retries: 5,        // number of attempts after the first failure
-//!         initial_delay_ms: 500, // delay before the first retry
-//!         max_delay_ms: 30_000,  // cap on the delay between retries
-//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
-//!     })
+//!     .with_retry_policy(
+//!         RetryPolicy::default()
+//!             .with_max_retries(5)
+//!             .with_initial_delay(Duration::from_millis(500))
+//!             .with_max_delay(Duration::from_secs(30))
+//!             .with_max_jitter(Duration::from_millis(100)),
+//!     )
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -560,15 +562,17 @@
 //! # #[cfg(all(feature = "trace", feature = "http-proto"))]
 //! # {
 //! use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
+//! use std::time::Duration;
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()
-//!     .with_retry_policy(RetryPolicy {
-//!         max_retries: 5,        // number of attempts after the first failure
-//!         initial_delay_ms: 500, // delay before the first retry
-//!         max_delay_ms: 30_000,  // cap on the delay between retries
-//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
-//!     })
+//!     .with_retry_policy(
+//!         RetryPolicy::default()
+//!             .with_max_retries(5)
+//!             .with_initial_delay(Duration::from_millis(500))
+//!             .with_max_delay(Duration::from_secs(30))
+//!             .with_max_jitter(Duration::from_millis(100)),
+//!     )
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -678,6 +682,8 @@ mod retry_classification;
 ))]
 mod retry;
 
+// RetryPolicy configures transport builders even when no signal is enabled, so
+// it is available under a broader feature gate than the execution modules above.
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod retry_policy;
 
