@@ -817,9 +817,26 @@ mod tests {
     }
 
     #[test]
-    fn allows_to_get_span_context_after_end() {
-        let mut span = create_span();
+    fn span_context_is_cleared_after_end() {
+        // `end_and_export` moves the `SpanContext` out of the `Span` rather than
+        // cloning it, to avoid cloning the `TraceState`. As a result the span's
+        // own context is empty once it has ended. This test uses a real
+        // tracer-created span so it observes an actually-populated context
+        // beforehand; `create_span()` starts from `empty_context()` and so would
+        // pass regardless of what `end()` does.
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(NoopSpanExporter::new())
+            .build();
+        let tracer = provider.tracer("test");
+        let mut span = tracer.start("test_span");
+
+        assert!(
+            span.span_context().is_valid(),
+            "span context should be valid before end"
+        );
+
         span.end();
+
         assert_eq!(span.span_context(), &SpanContext::empty_context());
     }
 
