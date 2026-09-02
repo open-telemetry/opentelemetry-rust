@@ -1768,8 +1768,8 @@ mod tests {
         fn test_default_retry_policy_when_none_configured() {
             let client = create_test_client(crate::Protocol::HttpBinary, None);
 
-            // Verify default values are used (default = no retry)
-            assert_eq!(client.retry_policy.max_retries, 0);
+            // Verify the recommended default values are used.
+            assert_eq!(client.retry_policy.max_retries, 3);
             assert_eq!(client.retry_policy.initial_delay_ms, 100);
             assert_eq!(client.retry_policy.max_delay_ms, 1600);
             assert_eq!(client.retry_policy.jitter_ms, 100);

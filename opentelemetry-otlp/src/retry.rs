@@ -47,6 +47,10 @@ pub enum RetryErrorType {
 }
 
 /// Configuration for retry policy.
+///
+/// The default is [`RetryPolicy::recommended()`]. Use
+/// [`RetryPolicy::disabled()`] to perform a single export attempt without
+/// retrying.
 #[derive(Debug, Clone)]
 pub struct RetryPolicy {
     /// Maximum number of retry attempts.
@@ -60,19 +64,23 @@ pub struct RetryPolicy {
 }
 
 impl Default for RetryPolicy {
-    /// Default retry policy performs no retries (single attempt only).
-    /// Use `RetryPolicy::recommended()` or configure explicitly to enable retry.
+    /// Returns the recommended OTLP retry policy.
     fn default() -> Self {
-        Self {
-            max_retries: 0,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        }
+        Self::recommended()
     }
 }
 
 impl RetryPolicy {
+    /// Returns a retry policy that performs a single export attempt with no retries.
+    pub fn disabled() -> Self {
+        Self {
+            max_retries: 0,
+            initial_delay_ms: 0,
+            max_delay_ms: 0,
+            jitter_ms: 0,
+        }
+    }
+
     /// Recommended retry policy per the OTLP spec: 3 retries with exponential
     /// backoff (100ms initial, 1600ms max, 100ms jitter).
     pub fn recommended() -> Self {
@@ -282,7 +290,7 @@ mod tests {
     #[test]
     fn test_default_retry_policy() {
         let policy = RetryPolicy::default();
-        assert_eq!(policy.max_retries, 0);
+        assert_eq!(policy.max_retries, 3);
         assert_eq!(policy.initial_delay_ms, 100);
         assert_eq!(policy.max_delay_ms, 1600);
         assert_eq!(policy.jitter_ms, 100);
@@ -295,6 +303,39 @@ mod tests {
         assert_eq!(policy.initial_delay_ms, 100);
         assert_eq!(policy.max_delay_ms, 1600);
         assert_eq!(policy.jitter_ms, 100);
+    }
+
+    #[test]
+    fn test_disabled_retry_policy() {
+        let policy = RetryPolicy::disabled();
+        assert_eq!(policy.max_retries, 0);
+        assert_eq!(policy.initial_delay_ms, 0);
+        assert_eq!(policy.max_delay_ms, 0);
+        assert_eq!(policy.jitter_ms, 0);
+    }
+
+    #[tokio::test]
+    async fn test_disabled_retry_policy_performs_single_attempt() {
+        for classification in [
+            RetryErrorType::Retryable,
+            RetryErrorType::Throttled(Duration::from_secs(5)),
+        ] {
+            let attempts = AtomicUsize::new(0);
+            let result = retry_with_backoff(
+                &RetryPolicy::disabled(),
+                Duration::from_secs(10),
+                |_| classification.clone(),
+                "test_operation",
+                || {
+                    attempts.fetch_add(1, Ordering::SeqCst);
+                    Box::pin(async { Err::<(), _>(()) })
+                },
+            )
+            .await;
+
+            assert_eq!(result, Err(()));
+            assert_eq!(attempts.load(Ordering::SeqCst), 1);
+        }
     }
 
     #[test]

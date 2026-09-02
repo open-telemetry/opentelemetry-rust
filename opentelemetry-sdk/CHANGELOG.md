@@ -2,6 +2,16 @@
 
 ## vNext
 
+- Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
+  default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
+  `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
+  (`opentelemetry_sdk::metrics`), so downstream configuration systems can read
+  the SDK's spec-defined defaults programmatically instead of duplicating
+  them. As part of this, `PeriodicReader`'s previously-private
+  `DEFAULT_INTERVAL`/`METRIC_EXPORT_INTERVAL_NAME` constants were renamed
+  to `OTEL_METRIC_EXPORT_INTERVAL_DEFAULT`/`OTEL_METRIC_EXPORT_INTERVAL` to
+  match the naming convention already used elsewhere.
+  ([#3623](https://github.com/open-telemetry/opentelemetry-rust/issues/3623))
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and
