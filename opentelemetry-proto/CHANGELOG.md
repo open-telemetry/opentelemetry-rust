@@ -3,6 +3,7 @@
 ## vNext
 
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
+- **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
 
 ## 0.32.0
 
