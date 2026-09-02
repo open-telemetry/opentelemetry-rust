@@ -56,6 +56,11 @@ struct BoundSumHandle<T: Number> {
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
+        // Mirror unbound Sum::call: ignore NaN and infinity so the cumulative
+        // total can't be permanently corrupted (`x + NaN == NaN`).
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.tracker.aggregator.update(measurement);
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
@@ -180,6 +185,12 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: `F64AtomicTracker::add`'s CAS loop computes
+        // `current + NaN == NaN`, which would permanently poison the cumulative
+        // total for the rest of the process's lifetime.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -211,5 +222,34 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            false,
+            2000,
+        );
+        Measure::call(&sum, 1.0, &[]);
+        Measure::call(&sum, f64::NAN, &[]);
+        Measure::call(&sum, f64::INFINITY, &[]);
+        Measure::call(&sum, f64::NEG_INFINITY, &[]);
+        Measure::call(&sum, 2.0, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 3.0);
+        assert!(!dp.data_points[0].value.is_nan());
     }
 }

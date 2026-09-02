@@ -27,6 +27,11 @@ struct BoundLastValueHandle<T: Number> {
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundLastValueHandle<T> {
     fn call(&self, measurement: T) {
+        // Mirror unbound LastValue::call: ignore NaN and infinity so a bad
+        // measurement can't be exported before the next valid one overwrites it.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.tracker.aggregator.update(measurement);
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
@@ -168,6 +173,12 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: `Assign::update` overwrites unconditionally,
+        // so a bad value would still be exported once before the next valid
+        // measurement replaces it.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -197,6 +208,30 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod nan_guard_tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let last_value =
+            LastValue::<f64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 2000);
+        Measure::call(&last_value, 1.0, &[]);
+        Measure::call(&last_value, f64::NAN, &[]);
+        Measure::call(&last_value, f64::INFINITY, &[]);
+        Measure::call(&last_value, f64::NEG_INFINITY, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&last_value, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Gauge(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
     }
 }
 
