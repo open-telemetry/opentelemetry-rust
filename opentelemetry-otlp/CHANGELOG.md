@@ -27,8 +27,6 @@ release:
 
 ### Other changes
 
-- **Breaking** Make retry implementation details crate-private. `RetryPolicy`
-  remains available from the crate root as the supported retry configuration API.
 - **Breaking** Make the `retry` and `retry_classification` modules crate-private,
   removing their retry engine, error type, and protocol classifiers from the
   public API. `RetryPolicy` remains available from the crate root with private
