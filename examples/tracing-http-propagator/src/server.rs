@@ -112,7 +112,7 @@ async fn router(
 }
 
 #[derive(Debug, Default)]
-/// A custom span processor that counts concurrent requests for each route (indentified by the http.route
+/// A custom span processor that counts concurrent requests for each route (identified by the http.route
 /// attribute) and adds that information to the span attributes.
 struct RouteConcurrencyCounterSpanProcessor(Mutex<HashMap<opentelemetry::Key, usize>>);
 
