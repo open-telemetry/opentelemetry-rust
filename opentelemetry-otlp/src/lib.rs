@@ -299,12 +299,10 @@
 //!   `rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())`, then pass it
 //!   via `with_http_client()`.
 //!
-//! The following feature flags enable experimental retry support:
-//!
-//! * `experimental-grpc-retry`: Enable automatic retry with exponential backoff for gRPC exports.
-//!   Requires a Tokio runtime (`rt-tokio` SDK feature is enabled transitively).
-//! * `experimental-http-retry`: Enable automatic retry with exponential backoff for HTTP exports.
-//!   Requires a Tokio runtime (`rt-tokio` SDK feature is enabled transitively).
+//! Retry with exponential backoff is always enabled for both gRPC and HTTP exports.
+//! Failed exports are automatically retried according to the configured retry policy,
+//! with proper classification of retryable vs non-retryable errors and support for
+//! server-provided throttling hints (HTTP Retry-After, gRPC RetryInfo).
 //!
 //! # Full Configuration Reference
 //!
@@ -448,11 +446,11 @@
 //!
 //! ### gRPC retry policy
 //!
-//! Requires the `experimental-grpc-retry` feature. When enabled, failed exports are retried
-//! with exponential backoff and jitter. Without this feature, failed exports are not retried.
+//! Failed exports are retried with exponential backoff and jitter. The retry policy
+//! can be customized:
 //!
 //! ```no_run
-//! # #[cfg(all(feature = "trace", feature = "experimental-grpc-retry"))]
+//! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
 //! use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
 //!
@@ -473,7 +471,8 @@
 //!
 //! Requires the `http-proto` (default) or `http-json` feature. The methods below come from:
 //! - [`WithExportConfig`]: `with_endpoint`, `with_timeout`, `with_protocol`
-//! - [`WithHttpConfig`]: `with_headers`, `with_compression`, `with_http_client`
+//! - [`WithHttpConfig`]: `with_headers`, `with_compression`, `with_http_client`,
+//!   `with_retry_policy`, `with_max_request_body_size`
 //!
 //! The examples here use [`SpanExporter`], but the same builder methods are
 //! available on [`MetricExporter`] and [`LogExporter`].
@@ -487,10 +486,11 @@
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()
-//!     // Target base URL. Defaults to http://localhost:4318.
-//!     // The path /v1/traces (or /v1/metrics, /v1/logs) is appended automatically.
-//!     // Env var: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or OTEL_EXPORTER_OTLP_ENDPOINT).
-//!     .with_endpoint("http://my-collector:4318")
+//!     // Target URL, used verbatim: include the signal path, e.g. /v1/traces.
+//!     // OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is also used verbatim.
+//!     // OTEL_EXPORTER_OTLP_ENDPOINT is a base URL and appends /v1/traces automatically.
+//!     // Defaults to http://localhost:4318/v1/traces.
+//!     .with_endpoint("http://my-collector:4318/v1/traces")
 //!     // Per-export timeout. Defaults to 10 s.
 //!     // Env var: OTEL_EXPORTER_OTLP_TRACES_TIMEOUT (or OTEL_EXPORTER_OTLP_TIMEOUT).
 //!     .with_timeout(Duration::from_secs(5))
@@ -507,6 +507,9 @@
 //!     // Compression. Requires the `gzip-http` or `zstd-http` feature.
 //!     // Env var: OTEL_EXPORTER_OTLP_TRACES_COMPRESSION (or OTEL_EXPORTER_OTLP_COMPRESSION).
 //!     .with_compression(Compression::Gzip)
+//!     // Maximum serialized HTTP request size before and after compression.
+//!     // Defaults to the OTLP-recommended 64 MiB.
+//!     .with_max_request_body_size(64 * 1024 * 1024)
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -550,11 +553,11 @@
 //!
 //! ### HTTP retry policy
 //!
-//! Requires the `experimental-http-retry` feature. When enabled, failed exports are retried
-//! with exponential backoff and jitter. Without this feature, failed exports are not retried.
+//! Failed exports are retried with exponential backoff and jitter. The retry policy
+//! can be customized:
 //!
 //! ```no_run
-//! # #[cfg(all(feature = "trace", feature = "experimental-http-retry"))]
+//! # #[cfg(all(feature = "trace", feature = "http-proto"))]
 //! # {
 //! use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
 //!
@@ -655,11 +658,11 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 pub mod retry_classification;
 
 /// Retry logic for exporting telemetry data.
-#[cfg(any(feature = "grpc-tonic", feature = "experimental-http-retry"))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 pub mod retry;
 
 pub use crate::exporter::Compression;
@@ -705,10 +708,7 @@ pub use crate::exporter::{
     OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT,
 };
 
-#[cfg(any(
-    feature = "experimental-http-retry",
-    feature = "experimental-grpc-retry"
-))]
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 pub use retry::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.

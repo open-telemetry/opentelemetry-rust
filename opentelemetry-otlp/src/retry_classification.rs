@@ -13,7 +13,6 @@ use tonic;
 use tonic_types::StatusExt;
 
 /// HTTP-specific error classification with Retry-After header support.
-#[cfg(feature = "experimental-http-retry")]
 pub mod http {
     use super::*;
     use std::time::Duration;
@@ -32,22 +31,21 @@ pub mod http {
         retry_after_header: Option<&str>,
     ) -> RetryErrorType {
         match status_code {
-            // 429 Too Many Requests - check for Retry-After
-            429 => {
+            // OTLP/HTTP throttling responses may provide an explicit retry delay.
+            429 | 503 => {
                 if let Some(retry_after) = retry_after_header {
                     if let Some(duration) = parse_retry_after(retry_after) {
                         return RetryErrorType::Throttled(duration);
                     }
                 }
-                // Fallback to retryable if no valid Retry-After
                 RetryErrorType::Retryable
             }
-            // 5xx Server errors - retryable
-            500..=599 => RetryErrorType::Retryable,
-            // 4xx Client errors (except 429) - not retryable
-            400..=499 => RetryErrorType::NonRetryable,
-            // Other codes - retryable (network issues, etc.)
-            _ => RetryErrorType::Retryable,
+            // Other retryable response codes defined by OTLP/HTTP.
+            502 | 504 => RetryErrorType::Retryable,
+            // The HTTP exporter uses status 0 for failures without a response.
+            0 => RetryErrorType::Retryable,
+            // All other HTTP response status codes must not be retried.
+            _ => RetryErrorType::NonRetryable,
         }
     }
 
@@ -66,7 +64,8 @@ pub mod http {
             return Some(Duration::from_secs(capped_seconds));
         }
 
-        // Try parsing as HTTP date
+        // Try parsing as HTTP date (requires httpdate crate)
+        #[cfg(feature = "httpdate")]
         if let Ok(delay_seconds) = parse_http_date_to_delay(retry_after) {
             // Cap at 10 minutes. TODO - what's sensible here?
             let capped_seconds = delay_seconds.min(600);
@@ -77,6 +76,7 @@ pub mod http {
     }
 
     /// Parses HTTP date format and returns delay in seconds from now.
+    #[cfg(feature = "httpdate")]
     fn parse_http_date_to_delay(date_str: &str) -> Result<u64, ()> {
         use std::time::SystemTime;
 
@@ -100,12 +100,11 @@ pub mod grpc {
     #[cfg(feature = "grpc-tonic")]
     pub fn classify_tonic_status(status: &tonic::Status) -> RetryErrorType {
         // Use tonic-types to extract RetryInfo - this is the proper way!
-        let retry_info_seconds = status
+        let retry_delay = status
             .get_details_retry_info()
-            .and_then(|retry_info| retry_info.retry_delay)
-            .map(|duration| duration.as_secs());
+            .and_then(|retry_info| retry_info.retry_delay);
 
-        classify_grpc_error(status.code(), retry_info_seconds)
+        classify_grpc_error(status.code(), retry_delay)
     }
 
     /// Classifies gRPC errors based on status code and metadata.
@@ -116,32 +115,39 @@ pub mod grpc {
     ///
     /// # Arguments
     /// * `grpc_code` - gRPC status code as tonic::Code enum
-    /// * `retry_info_seconds` - Parsed retry delay from RetryInfo metadata, if present
+    /// * `retry_delay` - Parsed retry delay from RetryInfo metadata, if present
     fn classify_grpc_error(
         grpc_code: tonic::Code,
-        retry_info_seconds: Option<u64>,
+        retry_delay: Option<std::time::Duration>,
     ) -> RetryErrorType {
         match grpc_code {
             // RESOURCE_EXHAUSTED: Special case per OTLP spec
             // Retryable only if server provides RetryInfo indicating recovery is possible
             tonic::Code::ResourceExhausted => {
-                if let Some(seconds) = retry_info_seconds {
+                if let Some(delay) = retry_delay {
                     // Server signals recovery is possible - use throttled retry
-                    let capped_seconds = seconds.min(600); // Cap at 10 minutes. TODO - what's sensible here?
-                    return RetryErrorType::Throttled(std::time::Duration::from_secs(
-                        capped_seconds,
-                    ));
+                    // Cap at 10 minutes. TODO - what's sensible here?
+                    return RetryErrorType::Throttled(
+                        delay.min(std::time::Duration::from_secs(600)),
+                    );
                 }
                 // No RetryInfo - treat as non-retryable per OTLP spec
                 RetryErrorType::NonRetryable
             }
+
+            // UNAVAILABLE may include RetryInfo to signal an explicit throttle delay.
+            tonic::Code::Unavailable => match retry_delay.filter(|delay| !delay.is_zero()) {
+                Some(delay) => {
+                    RetryErrorType::Throttled(delay.min(std::time::Duration::from_secs(600)))
+                }
+                None => RetryErrorType::Retryable,
+            },
 
             // Retryable errors per OTLP specification
             tonic::Code::Cancelled
             | tonic::Code::DeadlineExceeded
             | tonic::Code::Aborted
             | tonic::Code::OutOfRange
-            | tonic::Code::Unavailable
             | tonic::Code::DataLoss => RetryErrorType::Retryable,
 
             // Non-retryable errors per OTLP specification
@@ -164,97 +170,110 @@ pub mod grpc {
 #[cfg(test)]
 mod tests {
     // Tests for HTTP error classification
-    #[cfg(feature = "experimental-http-retry")]
+
     mod http_tests {
         use crate::retry::RetryErrorType;
         use crate::retry_classification::http::*;
         use std::time::Duration;
 
         #[test]
-        fn test_http_429_with_retry_after_seconds() {
-            let result = classify_http_error(429, Some("30"));
-            assert_eq!(result, RetryErrorType::Throttled(Duration::from_secs(30)));
+        fn test_http_throttling_responses_with_retry_after_seconds() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("30"));
+                assert_eq!(result, RetryErrorType::Throttled(Duration::from_secs(30)));
+            }
         }
 
         #[test]
-        fn test_http_429_with_large_retry_after_capped() {
-            let result = classify_http_error(429, Some("900")); // 15 minutes
-            assert_eq!(
-                result,
-                RetryErrorType::Throttled(std::time::Duration::from_secs(600))
-            ); // Capped at 10 minutes
+        fn test_http_throttling_responses_with_large_retry_after_capped() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("900")); // 15 minutes
+                assert_eq!(
+                    result,
+                    RetryErrorType::Throttled(std::time::Duration::from_secs(600))
+                ); // Capped at 10 minutes
+            }
         }
 
         #[test]
-        fn test_http_429_with_invalid_retry_after() {
-            let result = classify_http_error(429, Some("invalid"));
-            assert_eq!(result, RetryErrorType::Retryable); // Fallback
+        fn test_http_throttling_responses_with_invalid_retry_after() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("invalid"));
+                assert_eq!(result, RetryErrorType::Retryable); // Fallback
+            }
         }
 
         #[test]
-        fn test_http_429_without_retry_after() {
-            let result = classify_http_error(429, None);
-            assert_eq!(result, RetryErrorType::Retryable); // Fallback
+        fn test_http_throttling_responses_without_retry_after() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, None);
+                assert_eq!(result, RetryErrorType::Retryable); // Fallback
+            }
         }
 
         #[test]
-        fn test_http_5xx_errors() {
-            assert_eq!(classify_http_error(500, None), RetryErrorType::Retryable);
+        fn test_http_retryable_response_codes() {
             assert_eq!(classify_http_error(502, None), RetryErrorType::Retryable);
             assert_eq!(classify_http_error(503, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(599, None), RetryErrorType::Retryable);
+            assert_eq!(classify_http_error(504, None), RetryErrorType::Retryable);
         }
 
         #[test]
-        fn test_http_4xx_errors() {
-            assert_eq!(classify_http_error(400, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(401, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(403, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(404, None), RetryErrorType::NonRetryable);
-            assert_eq!(classify_http_error(499, None), RetryErrorType::NonRetryable);
+        fn test_http_non_retryable_response_codes() {
+            for status_code in [400, 401, 403, 404, 408, 499, 500, 501, 505, 599] {
+                assert_eq!(
+                    classify_http_error(status_code, None),
+                    RetryErrorType::NonRetryable
+                );
+            }
         }
 
         #[test]
-        fn test_http_other_errors() {
-            assert_eq!(classify_http_error(100, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(200, None), RetryErrorType::Retryable);
-            assert_eq!(classify_http_error(300, None), RetryErrorType::Retryable);
+        fn test_http_network_error_is_retryable() {
+            assert_eq!(classify_http_error(0, None), RetryErrorType::Retryable);
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
-        fn test_http_429_with_retry_after_valid_date() {
+        #[cfg(feature = "httpdate")]
+        fn test_http_throttling_responses_with_retry_after_valid_date() {
             use std::time::SystemTime;
 
             // Create a time 30 seconds in the future
             let future_time = SystemTime::now() + Duration::from_secs(30);
             let date_str = httpdate::fmt_http_date(future_time);
-            let result = classify_http_error(429, Some(&date_str));
-            match result {
-                RetryErrorType::Throttled(duration) => {
-                    let secs = duration.as_secs();
-                    assert!(
-                        (29..=30).contains(&secs),
-                        "Expected ~30 seconds, got {}",
-                        secs
-                    );
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some(&date_str));
+                match result {
+                    RetryErrorType::Throttled(duration) => {
+                        let secs = duration.as_secs();
+                        assert!(
+                            (29..=30).contains(&secs),
+                            "Expected ~30 seconds, got {}",
+                            secs
+                        );
+                    }
+                    _ => panic!("Expected Throttled, got {:?}", result),
                 }
-                _ => panic!("Expected Throttled, got {:?}", result),
             }
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
-        fn test_http_429_with_retry_after_invalid_date() {
-            let result = classify_http_error(429, Some("Not a valid date"));
-            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+        #[cfg(feature = "httpdate")]
+        fn test_http_throttling_responses_with_retry_after_invalid_date() {
+            for status_code in [429, 503] {
+                let result = classify_http_error(status_code, Some("Not a valid date"));
+                assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+            }
         }
 
         #[test]
-        #[cfg(feature = "experimental-http-retry")]
-        fn test_http_429_with_retry_after_malformed_date() {
-            let result = classify_http_error(429, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
-            assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+        #[cfg(feature = "httpdate")]
+        fn test_http_throttling_responses_with_retry_after_malformed_date() {
+            for status_code in [429, 503] {
+                let result =
+                    classify_http_error(status_code, Some("Sun, 99 Nov 9999 99:99:99 GMT"));
+                assert_eq!(result, RetryErrorType::Retryable); // Falls back to retryable
+            }
         }
     }
 
@@ -303,6 +322,75 @@ mod tests {
             let result = classify_tonic_status(&status);
             // Per OTLP spec: RESOURCE_EXHAUSTED without RetryInfo is non-retryable
             assert_eq!(result, RetryErrorType::NonRetryable);
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_retry_info() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_secs(45)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_secs(45))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_fractional_retry_info() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(500)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_millis(500))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_with_large_retry_info_capped() {
+            let error_details =
+                ErrorDetails::with_retry_info(Some(std::time::Duration::from_secs(900)));
+            let status = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+
+            assert_eq!(
+                classify_tonic_status(&status),
+                RetryErrorType::Throttled(std::time::Duration::from_secs(600))
+            );
+        }
+
+        #[test]
+        fn test_grpc_unavailable_without_positive_retry_info() {
+            let without_retry_info =
+                tonic::Status::new(tonic::Code::Unavailable, "service unavailable");
+            assert_eq!(
+                classify_tonic_status(&without_retry_info),
+                RetryErrorType::Retryable
+            );
+
+            let error_details = ErrorDetails::with_retry_info(Some(std::time::Duration::ZERO));
+            let zero_retry_info = tonic::Status::with_error_details(
+                tonic::Code::Unavailable,
+                "service unavailable",
+                error_details,
+            );
+            assert_eq!(
+                classify_tonic_status(&zero_retry_info),
+                RetryErrorType::Retryable
+            );
         }
 
         #[test]
@@ -436,18 +524,18 @@ mod tests {
             fn test_classify_status_with_fractional_retry_info() {
                 // Create a tonic::Status with fractional seconds RetryInfo
                 let error_details =
-                    ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(5500))); // 5.5 seconds
+                    ErrorDetails::with_retry_info(Some(std::time::Duration::from_millis(500)));
                 let status = tonic::Status::with_error_details(
                     tonic::Code::ResourceExhausted,
                     "rate limited",
                     error_details,
                 );
 
-                // Should use exact duration (5.5s = 5s)
+                // Fractional seconds are preserved.
                 let result = classify_tonic_status(&status);
                 assert_eq!(
                     result,
-                    RetryErrorType::Throttled(std::time::Duration::from_secs(5))
+                    RetryErrorType::Throttled(std::time::Duration::from_millis(500))
                 );
             }
 

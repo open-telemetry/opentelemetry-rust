@@ -2,6 +2,39 @@
 
 ## vNext
 
+### Retry
+
+- Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
+  policy uses exponential backoff and jitter with up to 3 retries (4 attempts
+  total). Use `.with_retry_policy(RetryPolicy::disabled())` to disable retries,
+  or provide a custom `RetryPolicy` to change the behavior.
+- **Migration for users of the experimental retry features:** If your
+  `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
+  `http-json-with-retry`, remove those feature flags. No migration action is
+  required for users who did not enable them.
+  [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
+
+#### Retry fixes
+
+The following fixes apply to retry behavior that was experimental before this
+release:
+
+- Retry only HTTP status codes 429, 502, 503, and 504, as required by the OTLP
+  specification. The exporter now also honors `Retry-After` on 503 responses.
+- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
+- Continue exponential backoff from server-provided `RetryInfo` and
+  `Retry-After` delays when subsequent export attempts fail.
+
+### Other changes
+
+- Return an exporter build error for invalid OTLP/HTTP endpoint environment
+  variables instead of silently falling back to another endpoint or localhost.
+  Empty endpoint environment variables are now treated as unset.
+- **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
+  method. External implementations of `WithHttpConfig` must implement it.
+  OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
+  after compression; oversized requests are discarded without being sent or
+  retried.
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
   `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
   `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.

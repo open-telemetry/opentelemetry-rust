@@ -22,17 +22,11 @@ use crate::exporter::Compression;
 use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
 
 #[cfg(all(
-    feature = "experimental-grpc-retry",
+    feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-#[cfg(feature = "grpc-tonic")]
 use crate::retry::RetryPolicy;
-#[cfg(all(
-    feature = "experimental-grpc-retry",
-    any(feature = "trace", feature = "metrics", feature = "logs")
-))]
-use opentelemetry_sdk::runtime::Runtime;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -69,7 +63,6 @@ pub(crate) struct TonicConfig {
     pub(crate) channel: Option<tonic::transport::Channel>,
     pub(crate) interceptor: Option<BoxInterceptor>,
     /// The retry policy to use for gRPC requests.
-    #[cfg(feature = "experimental-grpc-retry")]
     pub(crate) retry_policy: Option<RetryPolicy>,
 }
 
@@ -168,7 +161,6 @@ impl Default for TonicExporterBuilder {
                 compression: None,
                 channel: Option::default(),
                 interceptor: Option::default(),
-                #[cfg(feature = "experimental-grpc-retry")]
                 retry_policy: None,
             },
             exporter_config: ExportConfig {
@@ -181,7 +173,7 @@ impl Default for TonicExporterBuilder {
 
 impl TonicExporterBuilder {
     // This is for clippy to work with only the grpc-tonic feature enabled
-    #[allow(unused)]
+    #[allow(unused, clippy::type_complexity)]
     fn build_channel(
         self,
         signal_endpoint_var: &str,
@@ -196,6 +188,7 @@ impl TonicExporterBuilder {
             BoxInterceptor,
             Option<CompressionEncoding>,
             Option<RetryPolicy>,
+            std::time::Duration,
         ),
         ExporterBuildError,
     > {
@@ -262,20 +255,14 @@ impl TonicExporterBuilder {
         };
 
         // Get retry policy before consuming self
-        #[cfg(feature = "experimental-grpc-retry")]
         let retry_policy = self.tonic_config.retry_policy.clone();
+
+        // Resolve timeout early so it's available for both custom-channel and built-channel paths
+        let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
         // If a custom channel was provided, use that channel instead of creating one
         if let Some(channel) = self.tonic_config.channel {
-            return Ok((
-                channel,
-                interceptor,
-                compression,
-                #[cfg(feature = "experimental-grpc-retry")]
-                retry_policy,
-                #[cfg(not(feature = "experimental-grpc-retry"))]
-                None,
-            ));
+            return Ok((channel, interceptor, compression, retry_policy, timeout));
         }
 
         let config = self.exporter_config;
@@ -312,8 +299,6 @@ impl TonicExporterBuilder {
                 ),
             });
         }
-        let timeout = resolve_timeout(signal_timeout_var, config.timeout.as_ref());
-
         #[cfg(any(
             feature = "tls",
             feature = "tls-ring",
@@ -341,15 +326,7 @@ impl TonicExporterBuilder {
         let channel = endpoint.timeout(timeout).connect_lazy();
 
         otel_debug!(name: "TonicChannelBuilt", endpoint = endpoint_clone, timeout_in_millisecs = timeout.as_millis(), compression = format!("{:?}", compression), headers = format!("{:?}", headers_for_logging));
-        Ok((
-            channel,
-            interceptor,
-            compression,
-            #[cfg(feature = "experimental-grpc-retry")]
-            retry_policy,
-            #[cfg(not(feature = "experimental-grpc-retry"))]
-            None,
-        ))
+        Ok((channel, interceptor, compression, retry_policy, timeout))
     }
 
     fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
@@ -387,7 +364,7 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "LogsTonicChannelBuilding");
 
-        let (channel, interceptor, compression, retry_policy) = self.build_channel(
+        let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_COMPRESSION,
@@ -396,7 +373,7 @@ impl TonicExporterBuilder {
             crate::logs::OTEL_EXPORTER_OTLP_LOGS_INSECURE,
         )?;
 
-        let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy);
+        let client = TonicLogsClient::new(channel, interceptor, compression, retry_policy, timeout);
 
         Ok(crate::logs::LogExporter::from_tonic(client))
     }
@@ -412,7 +389,7 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "MetricsTonicChannelBuilding");
 
-        let (channel, interceptor, compression, retry_policy) = self.build_channel(
+        let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_TIMEOUT,
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_COMPRESSION,
@@ -421,7 +398,8 @@ impl TonicExporterBuilder {
             crate::metric::OTEL_EXPORTER_OTLP_METRICS_INSECURE,
         )?;
 
-        let client = TonicMetricsClient::new(channel, interceptor, compression, retry_policy);
+        let client =
+            TonicMetricsClient::new(channel, interceptor, compression, retry_policy, timeout);
 
         Ok(MetricExporter::from_tonic(client, temporality))
     }
@@ -433,7 +411,7 @@ impl TonicExporterBuilder {
 
         otel_debug!(name: "TracesTonicChannelBuilding");
 
-        let (channel, interceptor, compression, retry_policy) = self.build_channel(
+        let (channel, interceptor, compression, retry_policy, timeout) = self.build_channel(
             crate::span::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_TIMEOUT,
             crate::span::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
@@ -442,53 +420,34 @@ impl TonicExporterBuilder {
             crate::span::OTEL_EXPORTER_OTLP_TRACES_INSECURE,
         )?;
 
-        let client = TonicTracesClient::new(channel, interceptor, compression, retry_policy);
+        let client =
+            TonicTracesClient::new(channel, interceptor, compression, retry_policy, timeout);
 
         Ok(crate::SpanExporter::from_tonic(client))
     }
 }
 
-/// Wrapper for retry functionality in tonic exporters.
-/// Provides a unified call path that either uses retry_with_backoff when experimental-grpc-retry
-/// feature is enabled, or executes the operation once when it's not.
+/// Retries a tonic export operation with exponential backoff.
+///
+/// Delays between retries adapt to the calling context: cooperative
+/// `tokio::time::sleep` inside a Tokio runtime, or `std::thread::sleep`
+/// on bare OS threads.
 #[cfg(all(
     feature = "grpc-tonic",
-    feature = "experimental-grpc-retry",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
-async fn tonic_retry_with_backoff<R, F, Fut, T>(
-    runtime: R,
-    policy: RetryPolicy,
+async fn tonic_retry_with_backoff<F, Fut, T>(
+    policy: &RetryPolicy,
+    timeout: std::time::Duration,
     classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
     operation_name: &'static str,
     operation: F,
 ) -> Result<T, tonic::Status>
 where
-    R: Runtime,
     F: Fn() -> Fut,
     Fut: Future<Output = Result<T, tonic::Status>>,
 {
-    retry_with_backoff(runtime, policy, classify_fn, operation_name, operation).await
-}
-
-/// Provides a unified call path when experimental-grpc-retry is not enabled - just executes the operation once.
-#[cfg(all(
-    feature = "grpc-tonic",
-    not(feature = "experimental-grpc-retry"),
-    any(feature = "trace", feature = "metrics", feature = "logs")
-))]
-async fn tonic_retry_with_backoff<F, Fut, T>(
-    _runtime: (),
-    _policy: RetryPolicy,
-    _classify_fn: fn(&tonic::Status) -> crate::retry::RetryErrorType,
-    _operation_name: &'static str,
-    operation: F,
-) -> Result<T, tonic::Status>
-where
-    F: Fn() -> Fut,
-    Fut: Future<Output = Result<T, tonic::Status>>,
-{
-    operation().await
+    retry_with_backoff(policy, timeout, classify_fn, operation_name, operation).await
 }
 
 #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
@@ -784,7 +743,6 @@ pub trait WithTonicConfig {
         I: tonic::service::Interceptor + Clone + Send + Sync + 'static;
 
     /// Set the retry policy for gRPC requests.
-    #[cfg(feature = "experimental-grpc-retry")]
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
 
@@ -833,7 +791,6 @@ impl<B: HasTonicConfig> WithTonicConfig for B {
         self
     }
 
-    #[cfg(feature = "experimental-grpc-retry")]
     fn with_retry_policy(mut self, policy: RetryPolicy) -> Self {
         self.tonic_config().retry_policy = Some(policy);
         self
@@ -1127,7 +1084,6 @@ mod tests {
         });
     }
 
-    #[cfg(feature = "experimental-grpc-retry")]
     #[test]
     fn test_with_retry_policy() {
         use crate::retry::RetryPolicy;
@@ -1150,7 +1106,6 @@ mod tests {
         assert_eq!(retry_policy.jitter_ms, 50);
     }
 
-    #[cfg(feature = "experimental-grpc-retry")]
     #[test]
     fn test_default_retry_policy_when_none_configured() {
         // This test requires us to create a tonic client, but we can't easily do that without

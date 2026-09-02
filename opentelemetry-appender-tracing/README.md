@@ -18,7 +18,7 @@ traces.
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
 
-## OpenTelemetry Overview
+## Overview
 
 OpenTelemetry is an Observability framework and toolkit designed to create and
 manage telemetry data such as traces, metrics, and logs. OpenTelemetry is
@@ -35,6 +35,23 @@ of telemetry is intentionally left to other tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+### What does this crate contain?
+
+This crate provides a [Log Appender](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/glossary.md#log-appender--bridge)
+that forwards `tracing` events to the OpenTelemetry Logs pipeline. Use this
+crate when your application uses the [`tracing`](https://docs.rs/tracing/) crate
+for structured logging and you want those events to flow through an
+OpenTelemetry exporter.
+
+This is different from
+[tracing-opentelemetry](https://github.com/tokio-rs/tracing-opentelemetry),
+which bridges `tracing` spans and events into OpenTelemetry *traces* rather
+than logs.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-appender-tracing).
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-appender-tracing/CHANGELOG.md).
@@ -42,7 +59,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions
