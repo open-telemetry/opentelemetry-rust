@@ -226,10 +226,11 @@ impl Span {
             data.end_time = opentelemetry::time::now();
         }
 
-        // Move span_context out of the span. After data.take() above, the span
-        // is effectively dead (all further operations no-op), so replacing the
-        // context with an empty one avoids cloning the TraceState.
-        let span_context = std::mem::replace(&mut self.span_context, SpanContext::empty_context());
+        // The span context is cloned rather than moved out of the span: the API
+        // spec requires `Span::span_context()` to keep returning a valid context
+        // after the span has ended.
+        // https://opentelemetry.io/docs/specs/otel/trace/api/#get-context
+        let span_context = self.span_context.clone();
 
         let mut finished_span =
             FinishedSpan::new(build_export_data(data, span_context, &self.tracer));
@@ -817,27 +818,31 @@ mod tests {
     }
 
     #[test]
-    fn span_context_is_cleared_after_end() {
-        // `end_and_export` moves the `SpanContext` out of the `Span` rather than
-        // cloning it, to avoid cloning the `TraceState`. As a result the span's
-        // own context is empty once it has ended. This test uses a real
-        // tracer-created span so it observes an actually-populated context
-        // beforehand; `create_span()` starts from `empty_context()` and so would
-        // pass regardless of what `end()` does.
+    fn allows_to_get_span_context_after_end() {
+        // The API spec requires `span_context()` to keep returning a valid
+        // context after the span has ended, so `end_and_export` must clone the
+        // context rather than move it out.
+        // https://opentelemetry.io/docs/specs/otel/trace/api/#get-context
+        //
+        // Uses a real tracer-created span rather than `create_span()`, which
+        // starts from `empty_context()` and would therefore pass regardless of
+        // what `end()` does to the context.
         let provider = crate::trace::SdkTracerProvider::builder()
             .with_simple_exporter(NoopSpanExporter::new())
             .build();
         let tracer = provider.tracer("test");
         let mut span = tracer.start("test_span");
 
-        assert!(
-            span.span_context().is_valid(),
-            "span context should be valid before end"
-        );
+        let before = span.span_context().clone();
+        assert!(before.is_valid(), "span context should be valid before end");
 
         span.end();
 
-        assert_eq!(span.span_context(), &SpanContext::empty_context());
+        assert_eq!(
+            span.span_context(),
+            &before,
+            "span context must remain valid and unchanged after end"
+        );
     }
 
     #[test]

@@ -55,11 +55,6 @@
   Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
   [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
   [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
-- **Breaking** `Span::span_context()` now returns an empty `SpanContext` once the span has
-  ended. Ending a span moves its `SpanContext` into the exported `SpanData` instead of
-  cloning it, which avoids cloning the `TraceState` on every span end. Code that reads a
-  span's trace or span id after calling `end()` (for example to correlate logs) must read
-  it before ending the span, or read it from the `SpanData` in a `SpanProcessor`.
 - Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
   instead of silently overwriting with the current time.
 
