@@ -4,7 +4,7 @@ use std::time::Duration;
 ///
 /// The default is [`RetryPolicy::recommended()`]. Use
 /// [`RetryPolicy::disabled()`] to perform a single export attempt without
-/// retrying.
+/// retrying, or customize the recommended behavior with the `with_*` methods.
 #[derive(Debug, Clone)]
 pub struct RetryPolicy {
     pub(crate) max_retries: usize,
@@ -31,8 +31,8 @@ impl RetryPolicy {
         }
     }
 
-    /// Recommended retry policy per the OTLP spec: 3 retries with exponential
-    /// backoff (100ms initial, 1600ms max, 100ms jitter).
+    /// Returns the recommended policy: 3 retries with exponential backoff
+    /// (100ms initial, 1600ms maximum, and up to 100ms jitter).
     pub fn recommended() -> Self {
         Self {
             max_retries: 3,
@@ -55,6 +55,8 @@ impl RetryPolicy {
     }
 
     /// Sets the maximum delay between retry attempts.
+    ///
+    /// A server-provided throttling delay may raise this limit.
     pub fn with_max_delay(mut self, max_delay: Duration) -> Self {
         self.max_delay = max_delay;
         self
