@@ -21,10 +21,9 @@ jobs:
         with:
           persist-credentials: false
           submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
-        with:
-          toolchain: stable
-          components: rustfmt
+      - name: Resolve stable Rust pinned by rust-toolchain.toml
+        run: rustup show active-toolchain
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
+        with:
+          rust-toolchain: manual
