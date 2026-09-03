@@ -453,15 +453,17 @@
 //! # #[cfg(all(feature = "trace", feature = "grpc-tonic"))]
 //! # {
 //! use opentelemetry_otlp::{WithTonicConfig, RetryPolicy};
+//! use std::time::Duration;
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_tonic()
-//!     .with_retry_policy(RetryPolicy {
-//!         max_retries: 5,        // number of attempts after the first failure
-//!         initial_delay_ms: 500, // delay before the first retry
-//!         max_delay_ms: 30_000,  // cap on the delay between retries
-//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
-//!     })
+//!     .with_retry_policy(
+//!         RetryPolicy::default()
+//!             .with_max_retries(5)
+//!             .with_initial_delay(Duration::from_millis(500))
+//!             .with_max_delay(Duration::from_secs(30))
+//!             .with_max_jitter(Duration::from_millis(100)),
+//!     )
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -560,15 +562,17 @@
 //! # #[cfg(all(feature = "trace", feature = "http-proto"))]
 //! # {
 //! use opentelemetry_otlp::{WithHttpConfig, RetryPolicy};
+//! use std::time::Duration;
 //!
 //! let exporter = opentelemetry_otlp::SpanExporter::builder()
 //!     .with_http()
-//!     .with_retry_policy(RetryPolicy {
-//!         max_retries: 5,        // number of attempts after the first failure
-//!         initial_delay_ms: 500, // delay before the first retry
-//!         max_delay_ms: 30_000,  // cap on the delay between retries
-//!         jitter_ms: 100,        // upper bound for random jitter added by the exporter
-//!     })
+//!     .with_retry_policy(
+//!         RetryPolicy::default()
+//!             .with_max_retries(5)
+//!             .with_initial_delay(Duration::from_millis(500))
+//!             .with_max_delay(Duration::from_secs(30))
+//!             .with_max_jitter(Duration::from_millis(100)),
+//!     )
 //!     .build()
 //!     .expect("Failed to build SpanExporter");
 //! # }
@@ -658,12 +662,30 @@ mod metric;
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
 
-#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub mod retry_classification;
+#[cfg(any(
+    feature = "http-proto",
+    feature = "http-json",
+    all(
+        feature = "grpc-tonic",
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    )
+))]
+mod retry_classification;
 
-/// Retry logic for exporting telemetry data.
+#[cfg(any(
+    feature = "http-proto",
+    feature = "http-json",
+    all(
+        feature = "grpc-tonic",
+        any(feature = "trace", feature = "metrics", feature = "logs")
+    )
+))]
+mod retry;
+
+// RetryPolicy configures transport builders even when no signal is enabled, so
+// it is available under a broader feature gate than the execution modules above.
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub mod retry;
+mod retry_policy;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExporterBuildError;
@@ -709,7 +731,7 @@ pub use crate::exporter::{
 };
 
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-pub use retry::RetryPolicy;
+pub use retry_policy::RetryPolicy;
 
 /// Type to indicate the builder does not have a client set.
 #[derive(Debug, Default, Clone)]

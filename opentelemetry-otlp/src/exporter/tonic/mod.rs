@@ -26,7 +26,7 @@ use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_O
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -1086,24 +1086,32 @@ mod tests {
 
     #[test]
     fn test_with_retry_policy() {
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use crate::WithTonicConfig;
 
-        let custom_policy = RetryPolicy {
-            max_retries: 5,
-            initial_delay_ms: 200,
-            max_delay_ms: 3200,
-            jitter_ms: 50,
-        };
+        let custom_policy = RetryPolicy::default()
+            .with_max_retries(5)
+            .with_initial_delay(std::time::Duration::from_millis(200))
+            .with_max_delay(std::time::Duration::from_millis(3200))
+            .with_max_jitter(std::time::Duration::from_millis(50));
 
         let builder = TonicExporterBuilder::default().with_retry_policy(custom_policy);
 
         // Verify the retry policy was set
         let retry_policy = builder.tonic_config.retry_policy.as_ref().unwrap();
         assert_eq!(retry_policy.max_retries, 5);
-        assert_eq!(retry_policy.initial_delay_ms, 200);
-        assert_eq!(retry_policy.max_delay_ms, 3200);
-        assert_eq!(retry_policy.jitter_ms, 50);
+        assert_eq!(
+            retry_policy.initial_delay,
+            std::time::Duration::from_millis(200)
+        );
+        assert_eq!(
+            retry_policy.max_delay,
+            std::time::Duration::from_millis(3200)
+        );
+        assert_eq!(
+            retry_policy.max_jitter,
+            std::time::Duration::from_millis(50)
+        );
     }
 
     #[test]

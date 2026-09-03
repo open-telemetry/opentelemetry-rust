@@ -7,13 +7,11 @@
 use crate::retry::RetryErrorType;
 
 #[cfg(feature = "grpc-tonic")]
-use tonic;
-
-#[cfg(feature = "grpc-tonic")]
 use tonic_types::StatusExt;
 
 /// HTTP-specific error classification with Retry-After header support.
-pub mod http {
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
+pub(crate) mod http {
     use super::*;
     use std::time::Duration;
 
@@ -26,7 +24,7 @@ pub mod http {
     /// # Retry-After Header Formats
     /// * Seconds: "120"
     /// * HTTP Date: "Fri, 31 Dec 1999 23:59:59 GMT"
-    pub fn classify_http_error(
+    pub(crate) fn classify_http_error(
         status_code: u16,
         retry_after_header: Option<&str>,
     ) -> RetryErrorType {
@@ -93,12 +91,12 @@ pub mod http {
 
 /// gRPC-specific error classification with RetryInfo support.
 #[cfg(feature = "grpc-tonic")]
-pub mod grpc {
+pub(crate) mod grpc {
     use super::*;
 
     /// Classifies a tonic::Status error
     #[cfg(feature = "grpc-tonic")]
-    pub fn classify_tonic_status(status: &tonic::Status) -> RetryErrorType {
+    pub(crate) fn classify_tonic_status(status: &tonic::Status) -> RetryErrorType {
         // Use tonic-types to extract RetryInfo - this is the proper way!
         let retry_delay = status
             .get_details_retry_info()
@@ -171,6 +169,7 @@ pub mod grpc {
 mod tests {
     // Tests for HTTP error classification
 
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
     mod http_tests {
         use crate::retry::RetryErrorType;
         use crate::retry_classification::http::*;

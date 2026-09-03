@@ -13,6 +13,13 @@
   `http-json-with-retry`, remove those feature flags. No migration action is
   required for users who did not enable them.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
+- **Breaking** Make the `retry` and `retry_classification` modules crate-private,
+  removing their retry engine, error type, and protocol classifiers from the
+  public API. `RetryPolicy` remains available from the crate root with private
+  fields and fluent configuration methods. Replace imports from
+  `opentelemetry_otlp::retry` with `opentelemetry_otlp::RetryPolicy`, and replace
+  struct literals with its `with_*` methods.
+  [#3672](https://github.com/open-telemetry/opentelemetry-rust/pull/3672)
 
 #### Retry fixes
 

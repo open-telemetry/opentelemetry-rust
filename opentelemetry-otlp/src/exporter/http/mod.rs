@@ -25,8 +25,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::retry::{RetryErrorType, RetryPolicy};
+use crate::retry::RetryErrorType;
 use crate::retry_classification::http::classify_http_error;
+use crate::RetryPolicy;
 
 // Recommended by the OTLP/HTTP specification:
 // https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
@@ -1428,6 +1429,7 @@ mod tests {
         use super::super::OtlpHttpClient;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
+        use std::time::Duration;
 
         #[derive(Debug)]
         struct MockHttpClient;
@@ -1743,24 +1745,23 @@ mod tests {
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
             use crate::WithHttpConfig;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 5,
-                initial_delay_ms: 200,
-                max_delay_ms: 3200,
-                jitter_ms: 50,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(5)
+                .with_initial_delay(Duration::from_millis(200))
+                .with_max_delay(Duration::from_millis(3200))
+                .with_max_jitter(Duration::from_millis(50));
 
             let builder = HttpExporterBuilder::default().with_retry_policy(custom_policy);
 
             // Verify the retry policy was set
             let retry_policy = builder.http_config.retry_policy.as_ref().unwrap();
             assert_eq!(retry_policy.max_retries, 5);
-            assert_eq!(retry_policy.initial_delay_ms, 200);
-            assert_eq!(retry_policy.max_delay_ms, 3200);
-            assert_eq!(retry_policy.jitter_ms, 50);
+            assert_eq!(retry_policy.initial_delay, Duration::from_millis(200));
+            assert_eq!(retry_policy.max_delay, Duration::from_millis(3200));
+            assert_eq!(retry_policy.max_jitter, Duration::from_millis(50));
         }
 
         #[cfg(feature = "http-proto")]
@@ -1770,22 +1771,24 @@ mod tests {
 
             // Verify the recommended default values are used.
             assert_eq!(client.retry_policy.max_retries, 3);
-            assert_eq!(client.retry_policy.initial_delay_ms, 100);
-            assert_eq!(client.retry_policy.max_delay_ms, 1600);
-            assert_eq!(client.retry_policy.jitter_ms, 100);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(100)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(1600));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(100));
         }
 
         #[cfg(feature = "http-proto")]
         #[test]
         fn test_custom_retry_policy_used() {
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 7,
-                initial_delay_ms: 500,
-                max_delay_ms: 5000,
-                jitter_ms: 200,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(7)
+                .with_initial_delay(Duration::from_millis(500))
+                .with_max_delay(Duration::from_millis(5000))
+                .with_max_jitter(Duration::from_millis(200));
 
             let client = OtlpHttpClient::new(
                 std::sync::Arc::new(MockHttpClient),
@@ -1799,9 +1802,12 @@ mod tests {
 
             // Verify custom values are used
             assert_eq!(client.retry_policy.max_retries, 7);
-            assert_eq!(client.retry_policy.initial_delay_ms, 500);
-            assert_eq!(client.retry_policy.max_delay_ms, 5000);
-            assert_eq!(client.retry_policy.jitter_ms, 200);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(500)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(5000));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(200));
         }
     }
 
@@ -1810,11 +1816,12 @@ mod tests {
     #[cfg(feature = "http-proto")]
     mod retry_integration_tests {
         use super::super::OtlpHttpClient;
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::time::Duration;
 
         /// Mock HTTP client that returns a sequence of responses controlled by an attempt counter.
         #[derive(Debug)]
@@ -1947,12 +1954,11 @@ mod tests {
         }
 
         fn retry_policy() -> RetryPolicy {
-            RetryPolicy {
-                max_retries: 3,
-                initial_delay_ms: 1,
-                max_delay_ms: 10,
-                jitter_ms: 0,
-            }
+            RetryPolicy::default()
+                .with_max_retries(3)
+                .with_initial_delay(Duration::from_millis(1))
+                .with_max_delay(Duration::from_millis(10))
+                .with_max_jitter(Duration::ZERO)
         }
 
         #[test]
