@@ -829,7 +829,9 @@ impl HasHttpConfig for HttpExporterBuilder {
 ///     .with_headers(std::collections::HashMap::new());
 /// # }
 /// ```
-pub trait WithHttpConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
     fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
 
@@ -850,6 +852,8 @@ pub trait WithHttpConfig {
     /// The default is 64 MiB.
     fn with_max_request_body_size(self, max_size: usize) -> Self;
 }
+
+impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
     fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {

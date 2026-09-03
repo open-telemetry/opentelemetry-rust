@@ -34,14 +34,16 @@ release:
 
 ### Other changes
 
+- **Breaking** Seal `WithExportConfig`, `WithHttpConfig`, and
+  `WithTonicConfig`. These traits remain public for calling configuration
+  methods on OTLP builders, but can no longer be implemented for external
+  types.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
-- **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
-  method. External implementations of `WithHttpConfig` must implement it.
-  OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
-  after compression; oversized requests are discarded without being sent or
-  retried.
+- Add `WithHttpConfig::with_max_request_body_size`. OTLP/HTTP request bodies
+  are now limited to 64 MiB by default, before and after compression; oversized
+  requests are discarded without being sent or retried.
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
   `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
   `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
