@@ -19,12 +19,17 @@ use std::fmt;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::marker::PhantomData;
 use std::sync::Arc;
+#[cfg(feature = "experimental_context_observer")]
+use std::sync::OnceLock;
 
 #[cfg(feature = "futures")]
 mod future_ext;
 
 #[cfg(feature = "futures")]
 pub use future_ext::{FutureExt, WithContext};
+
+#[cfg(feature = "experimental_context_observer")]
+pub use context_observer::*;
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
@@ -98,6 +103,17 @@ pub struct Context {
     pub(crate) span: Option<Arc<SynchronizedSpan>>,
     entries: Option<Arc<EntryMap>>,
     suppress_telemetry: bool,
+    /// A context's observer view of this [Context].
+    ///
+    /// The main application for observers is to share information from the current context with
+    /// external readers (e.g. a full host eBPF profiler). In that case, the observer will attach
+    /// and detach some data on context events using its own mechanism. The shared data has no
+    /// reason to match our internal representation ([Context]).
+    ///
+    /// [observer_view] makes it possible to store the observer's view of the context alongside a
+    /// [Context] value, such that it can be attached and detached on context events.
+    #[cfg(feature = "experimental_context_observer")]
+    observer_view: Option<Arc<dyn ObserverContextView>>,
 }
 
 type EntryMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdHasher>>;
@@ -259,12 +275,16 @@ impl Context {
             entries.insert(TypeId::of::<T>(), Arc::new(value));
             Some(Arc::new(entries))
         };
+
         Context {
             entries,
             #[cfg(feature = "trace")]
             span: self.span.clone(),
             suppress_telemetry: self.suppress_telemetry,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_view: None,
         }
+        .with_observer_view()
     }
 
     /// Replaces the current context on this thread with this context.
@@ -363,7 +383,10 @@ impl Context {
             #[cfg(feature = "trace")]
             span: self.span.clone(),
             suppress_telemetry: true,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_view: None,
         }
+        .with_observer_view()
     }
 
     /// Enters a scope where telemetry is suppressed.
@@ -426,12 +449,41 @@ impl Context {
         Self::map_current(|cx| cx.is_telemetry_suppressed())
     }
 
+    // Initialize `self.observer_view` for a newly created context using the current context
+    // observer, if set.
+    #[cfg(feature = "experimental_context_observer")]
+    fn with_observer_view(mut self) -> Self {
+        if let Some(observer) = GlobalContextObserver::get() {
+            self.observer_view = observer.make_view(&self);
+        }
+
+        self
+    }
+
+    // No-op when the experimental_context_observer feature is not enabled.
+    #[cfg(not(feature = "experimental_context_observer"))]
+    const fn with_observer_view(self) -> Self {
+        self
+    }
+
+    /// Returns the observer's view of this context, if any.
+    #[cfg(feature = "experimental_context_observer")]
+    #[inline]
+    pub fn observer_view(&self) -> &Option<Arc<dyn ObserverContextView>> {
+        &self.observer_view
+    }
+
     #[cfg(feature = "trace")]
     pub(crate) fn current_with_synchronized_span(value: SynchronizedSpan) -> Self {
-        Self::map_current(|cx| Context {
-            span: Some(Arc::new(value)),
-            entries: cx.entries.clone(),
-            suppress_telemetry: cx.suppress_telemetry,
+        Self::map_current(|cx| {
+            Context {
+                span: Some(Arc::new(value)),
+                entries: cx.entries.clone(),
+                suppress_telemetry: cx.suppress_telemetry,
+                #[cfg(feature = "experimental_context_observer")]
+                observer_view: None,
+            }
+            .with_observer_view()
         })
     }
 
@@ -441,7 +493,10 @@ impl Context {
             span: Some(Arc::new(value)),
             entries: self.entries.clone(),
             suppress_telemetry: self.suppress_telemetry,
+            #[cfg(feature = "experimental_context_observer")]
+            observer_view: None,
         }
+        .with_observer_view()
     }
 }
 
@@ -557,6 +612,11 @@ impl ContextStack {
         // top of the [`ContextStack`] as the `current_cx`.
         let next_id = self.stack.len() + 1;
         if next_id < ContextStack::MAX_POS.into() {
+            #[cfg(feature = "experimental_context_observer")]
+            if let Some(observer) = GlobalContextObserver::get() {
+                observer.on_context_enter(&self.current_cx, &cx);
+            }
+
             let current_cx = std::mem::replace(&mut self.current_cx, cx);
             self.stack.push(Some(current_cx));
             next_id as u16
@@ -602,6 +662,11 @@ impl ContextStack {
             // empty context is always at the bottom of the stack if the
             // [`ContextStack`] is not empty.
             if let Some(Some(next_cx)) = self.stack.pop() {
+                #[cfg(feature = "experimental_context_observer")]
+                if let Some(observer) = GlobalContextObserver::get() {
+                    observer.on_context_exit(&self.current_cx, &next_cx);
+                }
+
                 // Extract and return only the span to avoid cloning the entire Context
                 #[cfg(feature = "trace")]
                 {
@@ -651,6 +716,151 @@ impl Default for ContextStack {
             stack: Vec::with_capacity(ContextStack::INITIAL_CAPACITY),
             _marker: PhantomData,
         }
+    }
+}
+
+#[cfg(feature = "experimental_context_observer")]
+mod context_observer {
+    use super::*;
+
+    /// An observer trait for monitoring context transitions.
+    ///
+    /// Implementors of this trait can observe when a context is entered or exited, allowing for
+    /// custom logic to be executed during context switches.
+    ///
+    /// An observer-specific view can be attached to a [`Context`] via
+    /// [`Context::observer_view`]. A view is usually a different representation of the context
+    /// to be published through an alternative channel, but in essence it is arbitrary data computed
+    /// from the context.
+    ///
+    /// # Refcell already borrowed panic
+    ///
+    /// [crate::context] maintains thread-local, internal state in a `RefCell`. This implementation
+    /// detail leaks when the `experimental_context_observer` feature is enabled:
+    /// [Self::on_context_enter] and [Self::on_context_exit] are called from a point where the cell
+    /// is currently borrowed. If a [ContextObserver] implementation calls back into a
+    /// cell-borrowing function from the Context API, typically `Context::current()`, this will
+    /// result in a `Refcell already borrowed` panic.
+    ///
+    /// As general hygiene, with respect to the [Context] API, it is strongly advised to only use
+    /// simple getters and setters on the `from` and `to` context objects provided to the observer.
+    /// Do not call `Context::current()`, nor try to manually attach or detach context objects from
+    /// an observer.
+    ///
+    /// If you get Refcell-related panics within the [crate::context] module, this is the most
+    /// likely cause.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[cfg(feature = "experimental_context_observer")]
+    /// # {
+    /// use opentelemetry::Context;
+    /// use opentelemetry::context::{ContextObserver, ObserverContextView};
+    /// use std::any::Any;
+    /// use std::sync::Arc;
+    ///
+    /// // An observer's own view of the context, carrying arbitrary data.
+    /// struct MyView {
+    ///     correlation_id: u64,
+    /// }
+    ///
+    /// impl ObserverContextView for MyView {
+    ///     fn as_any(&self) -> &dyn Any {
+    ///         self
+    ///     }
+    /// }
+    ///
+    /// struct Observer;
+    ///
+    /// # fn do_something(view: &MyView) { }
+    ///
+    /// impl ContextObserver for Observer {
+    ///     fn on_context_enter(&self, from: &Context, to: &Context) {
+    ///         let view = to.observer_view().unwrap();
+    ///         do_something(view.as_any().downcast_ref::<MyView>().unwrap());
+    ///     }
+    ///
+    ///     fn on_context_exit(&self, from: &Context, to: &Context) {
+    ///         let view = to
+    ///             .observer_view()
+    ///             .unwrap()
+    ///             .as_any()
+    ///             .downcast_ref::<MyView>()
+    ///             .unwrap();
+    ///         assert_eq!(view.correlation_id, 42);
+    ///     }
+    ///
+    ///     fn make_view(&self, ctx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+    ///         Some(Arc::new(MyView { correlation_id: 42 }))
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    pub trait ContextObserver {
+        /// Called when a context is entered, allowing observers to react to the transition
+        /// from one context (`from`) to another (`to`).
+        fn on_context_enter(&self, from: &Context, to: &Context);
+
+        /// Called when a context is exited, allowing observers to react to the transition
+        /// from one context (`from`) to another (`to`).
+        fn on_context_exit(&self, from: &Context, to: &Context);
+
+        /// Derive a fresh view for a newly created context. The provided `ctx` has an unitialized
+        /// view sets to `None`.
+        ///
+        /// The default implementation returns `None` for observers that don't use the view.
+        fn make_view(&self, _ctx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+            None
+        }
+    }
+
+    static GLOBAL_CONTEXT_OBSERVER: OnceLock<Arc<dyn ContextObserver + Send + Sync>> =
+        OnceLock::new();
+
+    /// A global observer for context transitions.
+    ///
+    /// This struct provides static methods to set and get a global context observer.
+    #[derive(Debug)]
+    pub struct GlobalContextObserver;
+
+    impl GlobalContextObserver {
+        /// Sets the global context observer, logging a warning if it was already set.
+        pub fn set(observer: Arc<dyn ContextObserver + Send + Sync>) {
+            if GLOBAL_CONTEXT_OBSERVER.set(observer).is_err() {
+                otel_warn!(
+                    name: "GlobalContextObserver.SetFailed",
+                    message = "Global context observer was already set. Ignoring new observer."
+                );
+            }
+        }
+
+        /// Returns the global context observer.
+        pub(super) fn get<'a>() -> Option<&'a Arc<dyn ContextObserver + Send + Sync>> {
+            GLOBAL_CONTEXT_OBSERVER.get()
+        }
+    }
+
+    /// A context's observer view of a [Context]. This is an arbitrary data structure. See
+    /// [ContextObserver]'s documentation for examples.
+    #[cfg(feature = "experimental_context_observer")]
+    pub trait ObserverContextView: Any + Send + Sync {
+        /// Returns this view as a `&dyn Any`, enabling downcasting back to the concrete type.
+        ///
+        /// This method is required because this crate's MSRV is below the Rust version (1.86) that
+        /// stabilized trait upcasting. Without it, callers below 1.86 couldn't upcast `&dyn
+        /// ObserverContextView` to `&dyn Any` to perform the downcast themselves.
+        ///
+        /// This is a work-around for the absence of trait upcasting before Rust 1.86.
+        ///
+        /// Implementors should simply return `self`:
+        ///
+        /// ```ignore
+        /// fn as_any(&self) -> &dyn std::any::Any {
+        ///     self
+        /// }
+        /// ```
+        fn as_any(&self) -> &dyn Any;
     }
 }
 
@@ -1187,5 +1397,238 @@ mod tests {
 
         // Current should still be not suppressed
         assert!(!Context::is_current_telemetry_suppressed());
+    }
+}
+
+#[cfg(all(test, feature = "experimental_context_observer"))]
+mod observer_tests {
+    use super::*;
+    use std::cell::{Cell, RefCell};
+    use std::sync::Arc;
+
+    #[derive(Debug, PartialEq)]
+    struct V(u64);
+
+    #[derive(Debug, PartialEq, Clone)]
+    enum Event {
+        Enter { from: Option<u64>, to: Option<u64> },
+        Exit { from: Option<u64>, to: Option<u64> },
+    }
+
+    thread_local! {
+        static EVENTS: RefCell<Vec<Event>> = const { RefCell::new(Vec::new()) };
+    }
+
+    fn value_of(cx: &Context) -> Option<u64> {
+        cx.get::<V>().map(|v| v.0)
+    }
+
+    // When enabled, on each transition it records the event into a thread-local buffer, and on
+    // enter it also installs an observer view on the entered context and bumps the thread-local
+    // `VIEWS_CREATED` counter. See `observer_installs_and_reuses_view`.
+    //
+    // The observer is a process-global singleton, so its callbacks fire for context activity on
+    // *every* thread across the whole test binary once installed. To keep that cheap and isolated,
+    // all of its work is gated behind the per-thread `ENABLE_TEST_OBSERVER` switch: threads that
+    // didn't opt in (via `setup()`) get an inert observer.
+    struct RecordingObserver;
+
+    impl ContextObserver for RecordingObserver {
+        fn on_context_enter(&self, from: &Context, to: &Context) {
+            if !ENABLE_TEST_OBSERVER.with(Cell::get) {
+                return;
+            }
+
+            EVENTS.with(|e| {
+                e.borrow_mut().push(Event::Enter {
+                    from: value_of(from),
+                    to: value_of(to),
+                })
+            });
+        }
+
+        fn on_context_exit(&self, from: &Context, to: &Context) {
+            if !ENABLE_TEST_OBSERVER.with(Cell::get) {
+                return;
+            }
+
+            EVENTS.with(|e| {
+                e.borrow_mut().push(Event::Exit {
+                    from: value_of(from),
+                    to: value_of(to),
+                })
+            });
+        }
+
+        // On context enter, install the observer's view if this context doesn't have one yet, or reuse
+        // the existing one otherwise. The view is the context's `V` value (or 0 for a value-less
+        // context).
+        fn make_view(&self, cx: &Context) -> Option<Arc<dyn ObserverContextView>> {
+            let correlation_id = value_of(cx).unwrap_or(0);
+            VIEWS_CREATED.with(|c| c.set(c.get() + 1));
+            Some(Arc::new(MyView { correlation_id }))
+        }
+    }
+
+    thread_local! {
+        // Master switch for the observer per thread. Enabled for the duration of a test that cares,
+        // and left false everywhere else, so we don't slow down tests unrelated to the observer.
+        // See `setup`.
+        static ENABLE_TEST_OBSERVER: Cell<bool> = const { Cell::new(false) };
+        // Counts how many distinct views the observer created on the current thread.
+        static VIEWS_CREATED: Cell<u64> = const { Cell::new(0) };
+    }
+
+    // Recovers the correlation id stored in a context's observer view, if any.
+    fn view_id(cx: &Context) -> Option<u64> {
+        cx.observer_view()
+            .as_ref()
+            .and_then(|v| v.as_any().downcast_ref::<MyView>())
+            .map(|v| v.correlation_id)
+    }
+
+    // Holds the base context guard and disables the observer on this thread when dropped. The
+    // struct's own `Drop` runs before its fields, so the flag is cleared before the base context is
+    // popped, which is thus not observed (symmetrically to `setup`, which installs the base context
+    // before registering/enabling the observer).
+    struct ObserverTestGuard {
+        _cx: ContextGuard,
+    }
+
+    impl Drop for ObserverTestGuard {
+        fn drop(&mut self) {
+            ENABLE_TEST_OBSERVER.with(|e| e.set(false));
+        }
+    }
+
+    // Enables the observer on this thread, establishes a clean base context, and clears any
+    // previously recorded events, so the assertions below only see transitions this test
+    // triggers. Dropping the returned guard disables the observer again.
+    fn setup_observer() -> ObserverTestGuard {
+        // Idempotent across tests: only the first call installs the observer, but every test
+        // uses the same `RecordingObserver`, so a lost race is harmless.
+        GlobalContextObserver::set(Arc::new(RecordingObserver));
+        ENABLE_TEST_OBSERVER.with(|e| e.set(true));
+        let guard = Context::new().attach();
+        EVENTS.with(|e| e.borrow_mut().clear());
+        ObserverTestGuard { _cx: guard }
+    }
+
+    #[test]
+    fn global_observer_records_enter_and_exit() {
+        let _clean = setup_observer();
+
+        {
+            let _g = Context::current().with_value(V(1)).attach();
+            // Entering fires immediately: from the clean base (no value) to `V(1)`.
+            EVENTS.with(|e| {
+                assert_eq!(
+                    *e.borrow(),
+                    vec![Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    }]
+                )
+            });
+        }
+
+        // Dropping the (context) guard restores the base and fires the matching exit event.
+        EVENTS.with(|e| {
+            assert_eq!(
+                *e.borrow(),
+                vec![
+                    Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    },
+                    Event::Exit {
+                        from: Some(1),
+                        to: None
+                    }
+                ]
+            )
+        });
+    }
+
+    #[test]
+    fn global_observer_records_nested_transitions() {
+        let _clean = setup_observer();
+
+        let g1 = Context::current().with_value(V(1)).attach();
+        let g2 = Context::current().with_value(V(2)).attach();
+        drop(g2);
+        drop(g1);
+
+        EVENTS.with(|e| {
+            assert_eq!(
+                *e.borrow(),
+                vec![
+                    Event::Enter {
+                        from: None,
+                        to: Some(1)
+                    },
+                    Event::Enter {
+                        from: Some(1),
+                        to: Some(2)
+                    },
+                    Event::Exit {
+                        from: Some(2),
+                        to: Some(1)
+                    },
+                    Event::Exit {
+                        from: Some(1),
+                        to: None
+                    },
+                ]
+            )
+        });
+    }
+
+    // An observer view carrying arbitrary data, unrelated to the internal `Context`
+    // representation.
+    struct MyView {
+        correlation_id: u64,
+    }
+
+    impl ObserverContextView for MyView {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+    }
+
+    // A realistic use of the observer view: the global observer installs its own view on each
+    // context the first time that context is entered, and reuses it on re-entry. The
+    // thread-local counter checks that exactly one view is created per distinct context.
+    #[test]
+    fn observer_installs_and_reuses_view() {
+        let _clean = setup_observer();
+
+        // Reset the counter for the work below.
+        VIEWS_CREATED.with(|c| c.set(0));
+
+        // Entering two distinct contexts installs a fresh view for each, derived from its value.
+        let g1 = Context::current().with_value(V(1)).attach();
+        assert_eq!(view_id(&Context::current()), Some(1));
+
+        let g2 = Context::current().with_value(V(2)).attach();
+        assert_eq!(view_id(&Context::current()), Some(2));
+
+        assert_eq!(VIEWS_CREATED.with(Cell::get), 2);
+
+        // Re-entering an already-observed context must reuse its view, not create a new one.
+        // `Context::current()` clones the current context, carrying along its already-set view.
+        let observed = Context::current();
+        let g3 = observed.attach();
+
+        assert_eq!(view_id(&Context::current()), Some(2));
+        assert_eq!(
+            VIEWS_CREATED.with(Cell::get),
+            2,
+            "re-entering an observed context must not create a new view"
+        );
+
+        drop(g3);
+        drop(g2);
+        drop(g1);
     }
 }

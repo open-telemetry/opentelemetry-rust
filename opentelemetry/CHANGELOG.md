@@ -2,6 +2,15 @@
 
 ## vNext
 
+- **Added** experimental support for a global context event observer. A
+  `ContextObserver` can be registered via `GlobalContextObserver::set` to be
+  notified of context transitions through the `on_context_enter` and
+  `on_context_exit` callbacks. This feature is primarily intended to publish a
+  different view of the current context (the `ObserverContextView`) through
+  alternative channels that let external readers (e.g. an eBPF profiler) track
+  the current context. See the associated
+  [OTEP](https://github.com/open-telemetry/opentelemetry-specification/pull/4947).
+  Gated behind the `experimental_context_observer` feature flag.
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
