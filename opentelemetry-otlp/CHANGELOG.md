@@ -27,6 +27,9 @@ release:
 
 ### Other changes
 
+- **Breaking** Remove the obsolete, doc-hidden `NoExporterConfig` placeholder
+  left over from the removed pipeline API. No replacement is needed when using
+  the current signal exporter builders.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.

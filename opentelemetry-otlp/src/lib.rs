@@ -850,11 +850,6 @@ impl Protocol {
     }
 }
 
-#[derive(Debug, Default)]
-#[doc(hidden)]
-/// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
-pub struct NoExporterConfig(());
-
 /// Re-exported types from the `tonic` crate.
 #[cfg(feature = "grpc-tonic")]
 pub mod tonic_types {
