@@ -3,6 +3,7 @@ use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use opentelemetry::{otel_debug, otel_warn, InstrumentationScope, KeyValue};
@@ -95,6 +96,11 @@ impl Pipeline {
     /// Shut down pipeline
     fn shutdown(&self) -> OTelSdkResult {
         self.reader.shutdown()
+    }
+
+    /// Shut down pipeline with timeout
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        self.reader.shutdown_with_timeout(timeout)
     }
 }
 
@@ -700,6 +706,24 @@ impl Pipelines {
             Ok(())
         } else {
             Err(OTelSdkError::InternalFailure(format!("{errs:?}")))
+        }
+    }
+
+    /// Shut down all pipelines
+    pub(crate) fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+        let mut errs = vec![];
+        for pipeline in &self.0 {
+            if let Err(err) = pipeline.shutdown_with_timeout(timeout) {
+                errs.push(err);
+            }
+        }
+
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(crate::error::OTelSdkError::InternalFailure(format!(
+                "{errs:?}"
+            )))
         }
     }
 
