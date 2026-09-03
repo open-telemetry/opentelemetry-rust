@@ -24,7 +24,8 @@ use std::sync::Arc;
 mod future_ext;
 
 #[cfg(feature = "futures")]
-pub use future_ext::{FutureExt, WithContext};
+#[allow(deprecated)]
+pub use future_ext::{FutureContextExt, FutureExt, SinkContextExt, StreamContextExt, WithContext};
 
 thread_local! {
     static CURRENT_CONTEXT: RefCell<ContextStack> = RefCell::new(ContextStack::default());
