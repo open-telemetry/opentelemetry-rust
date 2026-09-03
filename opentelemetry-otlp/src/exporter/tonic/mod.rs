@@ -124,7 +124,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct TonicExporterBuilder {
+pub(crate) struct TonicExporterBuilder {
     pub(crate) tonic_config: TonicConfig,
     pub(crate) exporter_config: ExportConfig,
 }
@@ -803,7 +803,9 @@ mod tests {
     use crate::exporter::tonic::WithTonicConfig;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::{TonicExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+
+    use super::TonicExporterBuilder;
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};

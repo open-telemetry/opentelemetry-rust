@@ -415,7 +415,7 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn test_default_http_endpoint() {
-        let exporter_builder = crate::HttpExporterBuilder::default();
+        let exporter_builder = crate::exporter::http::HttpExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
@@ -463,7 +463,7 @@ mod tests {
     #[cfg(feature = "grpc-tonic")]
     #[test]
     fn test_default_tonic_endpoint() {
-        let exporter_builder = crate::TonicExporterBuilder::default();
+        let exporter_builder = crate::exporter::tonic::TonicExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }

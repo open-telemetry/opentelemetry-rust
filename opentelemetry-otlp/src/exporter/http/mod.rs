@@ -159,7 +159,7 @@ pub(crate) struct HttpConfig {
 /// ```
 ///
 #[derive(Debug)]
-pub struct HttpExporterBuilder {
+pub(crate) struct HttpExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) http_config: HttpConfig,
 }
@@ -324,7 +324,7 @@ impl HttpExporterBuilder {
 
     /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
-    pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
+    pub(crate) fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
@@ -345,7 +345,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
+    pub(crate) fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
@@ -366,7 +366,7 @@ impl HttpExporterBuilder {
 
     /// Create a metrics exporter with the current configuration
     #[cfg(feature = "metrics")]
-    pub fn build_metrics_exporter(
+    pub(crate) fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
@@ -890,11 +890,11 @@ mod tests {
     use crate::exporter::http::HttpConfig;
     use crate::exporter::tests::run_env_test;
     use crate::{
-        HttpExporterBuilder, WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+        WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     };
 
-    use super::{build_endpoint_uri, resolve_http_endpoint};
+    use super::{build_endpoint_uri, resolve_http_endpoint, HttpExporterBuilder};
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
