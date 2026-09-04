@@ -326,7 +326,7 @@
 //!
 //! Requires the `grpc-tonic` feature. The methods below come from two traits:
 //! - [`WithExportConfig`]: `with_endpoint`, `with_timeout` (shared with HTTP)
-//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`
+//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`, `with_retry_policy`
 //!
 //! The examples here use [`SpanExporter`], but the same builder methods are
 //! available on [`MetricExporter`] and [`LogExporter`].
