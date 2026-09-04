@@ -34,6 +34,19 @@ release:
 
 ### Other changes
 
+- **Breaking** Mark `Protocol` and `Compression` as non-exhaustive so new OTLP
+  protocols, encodings, and compression algorithms can be added without
+  breaking downstream users. External exhaustive matches must add a wildcard
+  arm. Constructing existing variants and passing them to exporter builders is
+  unchanged.
+  ```rust
+  let protocol_name = match protocol {
+      Protocol::Grpc => "grpc",
+      Protocol::HttpBinary => "http/protobuf",
+      Protocol::HttpJson => "http/json",
+      _ => "unknown", // Required because Protocol is non-exhaustive.
+  };
+  ```
 - **Breaking** Make `Protocol::from_env()` crate-private. Exporter builders
   already resolve `OTEL_EXPORTER_OTLP_PROTOCOL` when built; applications that
   need to inspect the raw environment setting should read the variable
