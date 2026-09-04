@@ -34,6 +34,10 @@ release:
 
 ### Other changes
 
+- **Breaking** Make `Protocol::from_env()` crate-private. Exporter builders
+  already resolve `OTEL_EXPORTER_OTLP_PROTOCOL` when built; applications that
+  need to inspect the raw environment setting should read the variable
+  directly.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
