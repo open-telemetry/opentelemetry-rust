@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Breaking:** Remove `opentelemetry_http::hyper::Body`, which is no longer used
+  by any public constructor. Use `http_body_util::Full<Bytes>` for custom Hyper
+  client request bodies.
 - Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
 
 - Return HTTP error responses from the built-in reqwest and hyper clients instead

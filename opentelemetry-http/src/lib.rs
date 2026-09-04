@@ -184,15 +184,13 @@ pub mod hyper {
     use crate::ResponseBodyTooLarge;
     use http::HeaderValue;
     use http_body_util::{BodyExt, Full};
-    use hyper::body::{Body as HttpBody, Frame};
+    use hyper::body::Body as _;
     use hyper_util::client::legacy::{
         connect::{Connect, HttpConnector},
         Client,
     };
     use opentelemetry::otel_debug;
     use std::fmt::Debug;
-    use std::pin::Pin;
-    use std::task::{self, Poll};
     use std::time::Duration;
     use tokio::time;
 
@@ -201,7 +199,7 @@ pub mod hyper {
     where
         C: Connect + Clone + Send + Sync + 'static,
     {
-        inner: Client<C, Body>,
+        inner: Client<C, Full<Bytes>>,
         timeout: Duration,
         authorization: Option<HeaderValue>,
     }
@@ -240,7 +238,7 @@ pub mod hyper {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "HyperClient.Send");
             let (parts, body) = request.into_parts();
-            let mut request = Request::from_parts(parts, Body(Full::from(body)));
+            let mut request = Request::from_parts(parts, Full::from(body));
             if let Some(ref authorization) = self.authorization {
                 request
                     .headers_mut()
@@ -271,32 +269,6 @@ pub mod hyper {
                 .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
             Ok(http_response)
-        }
-    }
-
-    pub struct Body(Full<Bytes>);
-
-    impl HttpBody for Body {
-        type Data = Bytes;
-        type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-
-        #[inline]
-        fn poll_frame(
-            self: Pin<&mut Self>,
-            cx: &mut task::Context<'_>,
-        ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-            let inner_body = unsafe { self.map_unchecked_mut(|b| &mut b.0) };
-            inner_body.poll_frame(cx).map_err(Into::into)
-        }
-
-        #[inline]
-        fn is_end_stream(&self) -> bool {
-            self.0.is_end_stream()
-        }
-
-        #[inline]
-        fn size_hint(&self) -> hyper::body::SizeHint {
-            self.0.size_hint()
         }
     }
 }
