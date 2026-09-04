@@ -7,8 +7,6 @@ use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
@@ -151,7 +149,6 @@ pub enum ExporterBuildError {
 }
 
 /// The compression algorithm to use when sending data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
     /// Compresses data using gzip.

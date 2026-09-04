@@ -40,7 +40,6 @@ tokio = { workspace = true, features = ["sync", "rt", "time"], optional = true }
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 httpdate = { version = "1.0.3", optional = true }
-serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
@@ -64,9 +63,6 @@ trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/
 metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
-
-# add ons
-serialize = ["serde", "serde_json"]
 
 default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
