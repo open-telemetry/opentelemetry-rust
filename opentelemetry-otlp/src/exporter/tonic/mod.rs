@@ -628,7 +628,9 @@ impl HasTonicConfig for TonicExporterBuilder {
 ///     .with_compression(opentelemetry_otlp::Compression::Gzip);
 /// # }
 /// ```
-pub trait WithTonicConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     /// Set the TLS settings for the collector endpoint.
     #[cfg(any(
         feature = "tls",
@@ -745,6 +747,8 @@ pub trait WithTonicConfig {
     /// Set the retry policy for gRPC requests.
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
+
+impl<B: HasTonicConfig> super::sealed::WithTonicConfig for B {}
 
 impl<B: HasTonicConfig> WithTonicConfig for B {
     #[cfg(any(

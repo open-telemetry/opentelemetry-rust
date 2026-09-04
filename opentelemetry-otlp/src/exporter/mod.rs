@@ -60,6 +60,16 @@ pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
 
+mod sealed {
+    pub trait WithExportConfig {}
+
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub trait WithHttpConfig {}
+
+    #[cfg(feature = "grpc-tonic")]
+    pub trait WithTonicConfig {}
+}
+
 /// Configuration for the OTLP exporter.
 #[derive(Debug, Default)]
 pub(crate) struct ExportConfig {
@@ -285,7 +295,9 @@ impl HasExportConfig for HttpExporterBuilder {
 ///     .with_endpoint("http://localhost:7201");
 /// # }
 /// ```
-pub trait WithExportConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithExportConfig: sealed::WithExportConfig {
     /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
@@ -303,6 +315,8 @@ pub trait WithExportConfig {
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
 }
+
+impl<B: HasExportConfig> sealed::WithExportConfig for B {}
 
 impl<B: HasExportConfig> WithExportConfig for B {
     fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
