@@ -90,64 +90,65 @@ pub(crate) struct ExportConfig {
 pub(crate) fn resolve_protocol(
     signal_protocol_var: &str,
     provided_protocol: Option<Protocol>,
-) -> Protocol {
+) -> Result<Protocol, ExporterBuildError> {
     if let Some(protocol) = provided_protocol {
-        return protocol;
+        return Ok(protocol);
     }
-    if let Some(protocol) = Protocol::parse_from_env_var(signal_protocol_var) {
-        return protocol;
+    if let Some(protocol) = Protocol::parse_from_env_var(signal_protocol_var)? {
+        return Ok(protocol);
     }
-    if let Some(protocol) = Protocol::from_env() {
-        return protocol;
+    if let Some(protocol) = Protocol::parse_from_env_var(OTEL_EXPORTER_OTLP_PROTOCOL)? {
+        return Ok(protocol);
     }
-    Protocol::feature_default()
+    Ok(Protocol::feature_default())
 }
 
 #[derive(Error, Debug)]
 /// Errors that can occur while building an exporter.
-// TODO: Refine and polish this.
-// Non-exhaustive to allow for future expansion without breaking changes.
-// This could be refined after polishing and finalizing the errors.
-#[non_exhaustive]
 pub enum ExporterBuildError {
-    /// Spawning a new thread failed.
-    #[error("Spawning a new thread failed. Unable to create Reqwest-Blocking client.")]
-    ThreadSpawnFailed,
-
-    /// Feature required to use the specified compression algorithm.
-    #[cfg(any(not(feature = "gzip-tonic"), not(feature = "zstd-tonic")))]
-    #[error("feature '{0}' is required to use the compression algorithm '{1}'")]
-    FeatureRequiredForCompressionAlgorithm(&'static str, Compression),
-
-    /// No Http client specified.
-    #[error("no http client specified")]
-    NoHttpClient,
-
-    /// Unsupported compression algorithm.
-    #[error("unsupported compression algorithm '{0}'")]
-    UnsupportedCompressionAlgorithm(String),
-
-    /// Invalid URI.
-    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
-    #[error("invalid URI {0}. Reason {1}")]
-    InvalidUri(String, String),
-
-    /// Invalid configuration.
-    #[error("{name}: {reason}")]
-    InvalidConfig {
-        /// The configuration name.
-        name: String,
-        /// The reason the configuration is invalid.
-        reason: String,
-    },
+    /// Exporter configuration is invalid and should be corrected by the user.
+    ///
+    /// The error message identifies the invalid setting and is intended for
+    /// diagnostics. It should not be used for programmatic decisions.
+    #[error("invalid exporter configuration: {0}")]
+    InvalidConfiguration(String),
 
     /// Failed due to an internal error.
+    ///
     /// The error message is intended for logging purposes only and should not
     /// be used to make programmatic decisions. It is implementation-specific
     /// and subject to change without notice. Consumers of this error should not
     /// rely on its content beyond logging.
-    #[error("Reason: {0}")]
+    #[error("exporter initialization failed: {0}")]
     InternalFailure(String),
+}
+
+impl ExporterBuildError {
+    #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+    pub(crate) fn invalid_configuration(
+        name: &str,
+        reason: impl std::fmt::Display,
+    ) -> ExporterBuildError {
+        ExporterBuildError::InvalidConfiguration(format!("{name}: {reason}"))
+    }
+
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub(crate) fn internal_failure(reason: impl std::fmt::Display) -> ExporterBuildError {
+        ExporterBuildError::InternalFailure(reason.to_string())
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+pub(crate) fn read_env_var(name: &str) -> Result<Option<String>, ExporterBuildError> {
+    match std::env::var(name) {
+        Ok(value) if value.is_empty() => Ok(None),
+        Ok(value) => Ok(Some(value)),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(std::env::VarError::NotUnicode(_)) => Err(ExporterBuildError::invalid_configuration(
+            name,
+            "environment variable value is not valid Unicode",
+        )),
+    }
 }
 
 /// The compression algorithm to use when sending data.
@@ -169,16 +170,22 @@ impl Display for Compression {
     }
 }
 
+/// Error returned when parsing a [`Compression`] value.
+#[derive(Error, Debug, Eq, PartialEq)]
+pub enum ParseCompressionError {
+    /// The compression algorithm is not supported.
+    #[error("unsupported compression algorithm '{0}'")]
+    Unsupported(String),
+}
+
 impl FromStr for Compression {
-    type Err = ExporterBuildError;
+    type Err = ParseCompressionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gzip" => Ok(Compression::Gzip),
             "zstd" => Ok(Compression::Zstd),
-            _ => Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                s.to_string(),
-            )),
+            _ => Err(ParseCompressionError::Unsupported(s.to_string())),
         }
     }
 }
@@ -195,10 +202,18 @@ fn resolve_compression_from_env(
 ) -> Result<Option<Compression>, ExporterBuildError> {
     if let Some(compression) = config_compression {
         Ok(Some(compression))
-    } else if let Ok(compression) = std::env::var(signal_env_var) {
-        Ok(Some(compression.parse::<Compression>()?))
-    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-        Ok(Some(compression.parse::<Compression>()?))
+    } else if let Some(compression) = read_env_var(signal_env_var)? {
+        compression
+            .parse::<Compression>()
+            .map(Some)
+            .map_err(|error| ExporterBuildError::invalid_configuration(signal_env_var, error))
+    } else if let Some(compression) = read_env_var(OTEL_EXPORTER_OTLP_COMPRESSION)? {
+        compression
+            .parse::<Compression>()
+            .map(Some)
+            .map_err(|error| {
+                ExporterBuildError::invalid_configuration(OTEL_EXPORTER_OTLP_COMPRESSION, error)
+            })
     } else {
         Ok(None)
     }
@@ -397,6 +412,11 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod tests {
+    use super::{
+        resolve_compression_from_env, Compression, ExporterBuildError, ParseCompressionError,
+        OTEL_EXPORTER_OTLP_COMPRESSION,
+    };
+
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
@@ -435,13 +455,14 @@ mod tests {
         assert!(
             matches!(
                 exporter_result,
-                Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+                Err(crate::exporter::ExporterBuildError::InvalidConfiguration(ref message))
+                    if message.contains("endpoint")
             ),
-            "Expected InvalidUri error, but got {exporter_result:?}"
+            "expected InvalidConfiguration error, but got {exporter_result:?}"
         );
     }
 
-    #[cfg(feature = "grpc-tonic")]
+    #[cfg(all(feature = "grpc-tonic", feature = "logs"))]
     #[tokio::test]
     async fn export_builder_error_invalid_grpc_endpoint() {
         use crate::{LogExporter, WithExportConfig};
@@ -456,8 +477,42 @@ mod tests {
 
         assert!(matches!(
             exporter_result,
-            Err(crate::exporter::ExporterBuildError::InvalidUri(_, _))
+            Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                if message.contains("endpoint")
         ));
+    }
+
+    #[test]
+    fn exporter_build_error_categories_are_exhaustive() {
+        fn category(error: ExporterBuildError) -> &'static str {
+            match error {
+                ExporterBuildError::InvalidConfiguration(_) => "configuration",
+                ExporterBuildError::InternalFailure(_) => "internal",
+            }
+        }
+
+        assert_eq!(
+            category(ExporterBuildError::InvalidConfiguration(
+                "endpoint: invalid URI".to_string()
+            )),
+            "configuration"
+        );
+        assert_eq!(
+            category(ExporterBuildError::InternalFailure(
+                "thread panicked".to_string()
+            )),
+            "internal"
+        );
+    }
+
+    #[test]
+    fn compression_parse_error_identifies_unsupported_value() {
+        assert_eq!("gzip".parse::<Compression>(), Ok(Compression::Gzip));
+        assert_eq!("zstd".parse::<Compression>(), Ok(Compression::Zstd));
+        assert_eq!(
+            "br".parse::<Compression>(),
+            Err(ParseCompressionError::Unsupported("br".to_string()))
+        );
     }
 
     #[cfg(feature = "grpc-tonic")]
@@ -664,13 +719,16 @@ mod tests {
 
         // Test with custom env var name
         temp_env::with_var_unset("MY_CUSTOM_PROTOCOL_VAR", || {
-            assert_eq!(Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"), None);
+            assert_eq!(
+                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR").unwrap(),
+                None
+            );
         });
 
         #[cfg(feature = "http-proto")]
         run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "http/protobuf")], || {
             assert_eq!(
-                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"),
+                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR").unwrap(),
                 Some(Protocol::HttpBinary)
             );
         });
@@ -678,14 +736,56 @@ mod tests {
         #[cfg(feature = "grpc-tonic")]
         run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "grpc")], || {
             assert_eq!(
-                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"),
+                Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR").unwrap(),
                 Some(Protocol::Grpc)
             );
         });
 
-        // Invalid value returns None
         run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "invalid")], || {
-            assert_eq!(Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR"), None);
+            let error = Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR").unwrap_err();
+            assert!(matches!(
+                error,
+                ExporterBuildError::InvalidConfiguration(message)
+                    if message.contains("MY_CUSTOM_PROTOCOL_VAR")
+                        && message.contains("unsupported protocol 'invalid'")
+            ));
+        });
+    }
+
+    #[test]
+    fn test_invalid_signal_protocol_does_not_fall_back_to_generic() {
+        run_env_test(
+            vec![
+                (crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, "invalid"),
+                (crate::OTEL_EXPORTER_OTLP_PROTOCOL, "invalid-generic"),
+            ],
+            || {
+                let error =
+                    super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None)
+                        .unwrap_err();
+                assert!(matches!(
+                    error,
+                    ExporterBuildError::InvalidConfiguration(message)
+                        if message.contains(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL)
+                            && message.contains("unsupported protocol 'invalid'")
+                ));
+            },
+        );
+    }
+
+    #[cfg(not(feature = "grpc-tonic"))]
+    #[test]
+    fn test_protocol_requires_enabled_feature() {
+        use crate::Protocol;
+
+        run_env_test(vec![("MY_CUSTOM_PROTOCOL_VAR", "grpc")], || {
+            let error = Protocol::parse_from_env_var("MY_CUSTOM_PROTOCOL_VAR").unwrap_err();
+            assert!(matches!(
+                error,
+                ExporterBuildError::InvalidConfiguration(message)
+                    if message.contains("MY_CUSTOM_PROTOCOL_VAR")
+                        && message.contains("grpc-tonic")
+            ));
         });
     }
 
@@ -701,7 +801,8 @@ mod tests {
             ],
             || {
                 let protocol =
-                    super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+                    super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None)
+                        .unwrap();
                 assert_eq!(protocol, Protocol::HttpBinary);
             },
         );
@@ -736,7 +837,8 @@ mod tests {
                 let protocol = super::resolve_protocol(
                     crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
                     Some(Protocol::HttpBinary),
-                );
+                )
+                .unwrap();
                 assert_eq!(protocol, Protocol::HttpBinary);
             },
         );
@@ -763,7 +865,8 @@ mod tests {
         use crate::Protocol;
 
         run_env_test(vec![(crate::OTEL_EXPORTER_OTLP_PROTOCOL, "grpc")], || {
-            let protocol = super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+            let protocol =
+                super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None).unwrap();
             assert_eq!(protocol, Protocol::Grpc);
         });
     }
@@ -773,9 +876,48 @@ mod tests {
         use crate::Protocol;
 
         run_env_test(vec![], || {
-            let protocol = super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+            let protocol =
+                super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None).unwrap();
             assert_eq!(protocol, Protocol::feature_default());
         });
+    }
+
+    #[test]
+    fn test_empty_compression_env_falls_back_to_generic() {
+        run_env_test(
+            vec![
+                ("MY_CUSTOM_COMPRESSION_VAR", ""),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR").unwrap(),
+                    Some(Compression::Gzip)
+                );
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_compression_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            "MY_CUSTOM_COMPRESSION_VAR",
+            Some(OsStr::from_bytes(b"\x80")),
+            || {
+                let error =
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR").unwrap_err();
+                assert!(matches!(
+                    error,
+                    ExporterBuildError::InvalidConfiguration(message)
+                        if message.contains("MY_CUSTOM_COMPRESSION_VAR")
+                            && message.contains("not valid Unicode")
+                ));
+            },
+        );
     }
 
     #[cfg(all(feature = "grpc-tonic", feature = "trace"))]

@@ -84,7 +84,7 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
         // NOTE: The transport-specific builder will call resolve_protocol again
         // internally (for HTTP sub-protocol selection or tonic validation), but
         // that's harmless — the result is the same.
-        let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
+        let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None)?;
         match protocol {
             #[cfg(feature = "grpc-tonic")]
             crate::Protocol::Grpc => self.with_tonic().build(),

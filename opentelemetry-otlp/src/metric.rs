@@ -79,7 +79,8 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
         // NOTE: The transport-specific builder will call resolve_protocol again
         // internally (for HTTP sub-protocol selection or tonic validation), but
         // that's harmless — the result is the same.
-        let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, None);
+        let protocol =
+            crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, None)?;
         match protocol {
             #[cfg(feature = "grpc-tonic")]
             crate::Protocol::Grpc => self.with_tonic().build(),
@@ -131,12 +132,12 @@ fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, Exp
         return Ok(temporality);
     }
     if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE) {
-        return val
-            .parse::<Temporality>()
-            .map_err(|_| ExporterBuildError::InvalidConfig {
-                name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE.to_string(),
-                reason: format!("Invalid value '{val}'. Expected: cumulative, delta, or lowmemory"),
-            });
+        return val.parse::<Temporality>().map_err(|_| {
+            ExporterBuildError::invalid_configuration(
+                OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+                format!("invalid value '{val}'; expected cumulative, delta, or lowmemory"),
+            )
+        });
     }
     Ok(Temporality::default())
 }
