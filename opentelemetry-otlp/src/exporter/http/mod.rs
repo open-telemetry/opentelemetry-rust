@@ -1,5 +1,5 @@
 use super::{
-    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, read_env_var, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{
@@ -186,7 +186,7 @@ impl HttpExporterBuilder {
         signal_compression_var: &str,
         signal_protocol_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
-        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol)?;
 
         // Validate protocol is compatible with HTTP transport
         #[cfg(feature = "grpc-tonic")]
@@ -243,12 +243,15 @@ impl HttpExporterBuilder {
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the reqwest HTTP client: {error}"
+                        ))
+                    })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
@@ -268,7 +271,6 @@ impl HttpExporterBuilder {
                         reqwest::blocking::Client::builder()
                             .timeout(timeout_clone)
                             .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
                     })
                     .map_err(|error| {
                         ExporterBuildError::internal_failure(format!(
@@ -280,6 +282,11 @@ impl HttpExporterBuilder {
                         ExporterBuildError::internal_failure(
                             "thread creating the blocking HTTP client panicked",
                         )
+                    })?
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the blocking reqwest HTTP client: {error}"
+                        ))
                     })?;
                 http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
@@ -746,18 +753,6 @@ fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, http::uri::Inva
     endpoint.parse()
 }
 
-fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
-    match env::var(variable) {
-        Ok(value) if value.is_empty() => Ok(None),
-        Ok(value) => Ok(Some(value)),
-        Err(env::VarError::NotPresent) => Ok(None),
-        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::invalid_configuration(
-            variable,
-            "environment variable value is not valid Unicode",
-        )),
-    }
-}
-
 fn invalid_endpoint_env(
     variable: &str,
     value: &str,
@@ -783,12 +778,12 @@ fn resolve_http_endpoint(
                 format!("invalid endpoint '{provider_endpoint}': {error}"),
             )
         })
-    } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+    } else if let Some(endpoint) = read_env_var(signal_endpoint_var)? {
         // per signal env var is not modified
         endpoint
             .parse()
             .map_err(|error| invalid_endpoint_env(signal_endpoint_var, &endpoint, error))
-    } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+    } else if let Some(endpoint) = read_env_var(OTEL_EXPORTER_OTLP_ENDPOINT)? {
         // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT env var is set
         build_endpoint_uri(&endpoint, signal_endpoint_path)
             .map_err(|error| invalid_endpoint_env(OTEL_EXPORTER_OTLP_ENDPOINT, &endpoint, error))
