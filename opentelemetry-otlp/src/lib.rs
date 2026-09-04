@@ -786,7 +786,7 @@ impl Protocol {
     /// - The environment variable is not set
     /// - The value doesn't match a known protocol
     /// - The specified protocol's feature is not enabled
-    pub fn from_env() -> Option<Self> {
+    pub(crate) fn from_env() -> Option<Self> {
         Self::parse_from_env_var(OTEL_EXPORTER_OTLP_PROTOCOL)
     }
 
