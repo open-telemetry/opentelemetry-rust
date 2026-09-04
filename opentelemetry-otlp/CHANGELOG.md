@@ -51,6 +51,11 @@ release:
   already resolve `OTEL_EXPORTER_OTLP_PROTOCOL` when built; applications that
   need to inspect the raw environment setting should read the variable
   directly.
+- **Breaking** Remove `OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT`, which always held
+  the HTTP default (`http://localhost:4318`) despite gRPC using
+  `http://localhost:4317`. Omit `.with_endpoint(...)` to let the selected
+  transport use its correct default, or provide the appropriate URL explicitly.
+  [#3690](https://github.com/open-telemetry/opentelemetry-rust/issues/3690)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.

@@ -14,12 +14,12 @@ use std::str::FromStr;
 use std::time::Duration;
 use thiserror::Error;
 
-/// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
-/// Learn about the relationship between this constant and metrics/spans/logs at
-/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
+/// Target to which the exporter sends signals.
+///
+/// When unset, the exporter uses the transport-specific default: `http://localhost:4317`
+/// for gRPC or `http://localhost:4318` for HTTP. Learn more about endpoint handling at
+/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#configuration-options>.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
-/// Default target to which the exporter is going to send signals.
-pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
 /// Key-value pairs to be used as headers associated with gRPC or HTTP requests
 /// Example: `k1=v1,k2=v2`
 /// Note: as of now, this is only supported for HTTP requests.
@@ -53,6 +53,7 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(1
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 #[cfg(feature = "grpc-tonic")]
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
