@@ -52,6 +52,15 @@ release:
   Endpoints with an explicit scheme (e.g., `http://`, `https://`, `unix://`) are unaffected.
   [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
   [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
+- **Breaking** Removed the `serialize` feature flag. This feature gated
+  `Serialize`/`Deserialize` derives on `Protocol` and `Compression`, but the
+  derived representations were incorrect (Rust variant names instead of spec
+  values) and the feature had no known consumers. The equivalent feature was
+  removed from the core `opentelemetry` crate in 2022.
+  **Migration**: Remove `serialize` from your feature list. If you need serde
+  support for these types, implement it in your own code using the existing
+  `Display`/`FromStr` impls.
+  [#3708](https://github.com/open-telemetry/opentelemetry-rust/pull/3708)
 - **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
   removed from `reqwest` in v0.13.0, making this feature broken for anyone resolving `reqwest >= 0.13.0`.
   **Migration**: Use `reqwest-rustls` instead (now correctly uses `reqwest/rustls` with platform native
