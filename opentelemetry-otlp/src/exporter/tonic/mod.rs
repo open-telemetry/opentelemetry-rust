@@ -72,16 +72,16 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
             #[cfg(feature = "gzip-tonic")]
             Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
             #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "gzip-tonic",
-                Compression::Gzip,
+            Compression::Gzip => Err(ExporterBuildError::invalid_configuration(
+                "compression",
+                "feature 'gzip-tonic' is required to use the compression algorithm 'gzip'",
             )),
             #[cfg(feature = "zstd-tonic")]
             Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
             #[cfg(not(feature = "zstd-tonic"))]
-            Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "zstd-tonic",
-                Compression::Zstd,
+            Compression::Zstd => Err(ExporterBuildError::invalid_configuration(
+                "compression",
+                "feature 'zstd-tonic' is required to use the compression algorithm 'zstd'",
             )),
         }
     }
@@ -211,12 +211,10 @@ impl TonicExporterBuilder {
             let is_http_protocol =
                 is_http_protocol || matches!(protocol, crate::Protocol::HttpJson);
             if is_http_protocol {
-                return Err(ExporterBuildError::InvalidConfig {
-                    name: "protocol".to_string(),
-                    reason:
-                        "HTTP protocol is not compatible with gRPC transport. Use `.with_http()` instead."
-                            .to_string(),
-                });
+                return Err(ExporterBuildError::invalid_configuration(
+                    "protocol",
+                    "HTTP protocol is not compatible with gRPC transport; use `.with_http()` instead",
+                ));
             }
         }
 
@@ -272,8 +270,12 @@ impl TonicExporterBuilder {
         // Used for logging the endpoint
         let endpoint_clone = endpoint_str.clone();
 
-        let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str)
-            .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
+        let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str).map_err(|error| {
+            ExporterBuildError::invalid_configuration(
+                "endpoint",
+                format!("invalid endpoint '{endpoint_clone}': {error}"),
+            )
+        })?;
 
         let is_https = endpoint
             .uri()
@@ -286,14 +288,14 @@ impl TonicExporterBuilder {
             feature = "tls-provider-agnostic"
         )))]
         if is_https {
-            return Err(ExporterBuildError::InvalidConfig {
-                name: "endpoint".to_string(),
-                reason: format!(
+            return Err(ExporterBuildError::invalid_configuration(
+                "endpoint",
+                format!(
                     "endpoint '{}' uses HTTPS but no TLS feature is enabled; \
                      enable one of the `tls-ring`, `tls-aws-lc`, or `tls-provider-agnostic` features on `opentelemetry-otlp`",
                     endpoint_clone
                 ),
-            });
+            ));
         }
         #[cfg(any(
             feature = "tls-ring",
@@ -303,10 +305,10 @@ impl TonicExporterBuilder {
         let channel = match self.tonic_config.tls_config {
             Some(tls_config) => endpoint
                 .tls_config(tls_config)
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                .map_err(|error| ExporterBuildError::invalid_configuration("tls_config", error))?,
             None if is_https => endpoint
                 .tls_config(ClientTlsConfig::new())
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                .map_err(|error| ExporterBuildError::invalid_configuration("tls", error))?,
             None => endpoint,
         }
         .timeout(timeout)
@@ -1226,8 +1228,8 @@ mod tests {
                 assert!(result.is_err());
                 let err = result.unwrap_err();
                 assert!(
-                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
-                    "expected InvalidConfig error for schemeless+secure without TLS, got: {err:?}"
+                    matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+                    "expected InvalidConfiguration error for schemeless+secure without TLS, got: {err:?}"
                 );
             });
         });
@@ -1295,7 +1297,7 @@ mod tests {
                 assert!(result.is_err());
                 let err = result.unwrap_err();
                 assert!(
-                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
+                    matches!(err, ExporterBuildError::InvalidConfiguration(_)),
                     "schemeless endpoint should default to https:// and fail without TLS, got: {err:?}"
                 );
             },
@@ -1346,8 +1348,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(err, ExporterBuildError::InvalidConfig { .. }),
-            "expected InvalidConfig error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
@@ -1410,11 +1412,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(
-                err,
-                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
-            ),
-            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
@@ -1456,11 +1455,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(
-                err,
-                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
-            ),
-            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
