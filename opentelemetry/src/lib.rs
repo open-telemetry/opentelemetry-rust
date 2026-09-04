@@ -113,6 +113,8 @@
 //!
 //! ## Example Usage
 //! ```
+//! # #[cfg(feature = "metrics")]
+//! # {
 //! use opentelemetry::{global, KeyValue};
 //!
 //! // Get a meter from a provider.
@@ -136,6 +138,7 @@
 //!     )
 //! })
 //! .build();
+//! # }
 //! ```
 //!
 //! See the [`metrics`] module docs for more information on creating and
