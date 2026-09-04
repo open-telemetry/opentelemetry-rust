@@ -717,8 +717,12 @@ pub use crate::logs::{
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
+use crate::exporter::http::HttpExporterBuilder;
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub use crate::exporter::http::WithHttpConfig;
 
+#[cfg(feature = "grpc-tonic")]
+use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::WithTonicConfig;
 
@@ -737,27 +741,17 @@ pub use retry_policy::RetryPolicy;
 #[derive(Debug, Default, Clone)]
 pub struct NoExporterBuilderSet;
 
-/// Type to hold the [TonicExporterBuilder] and indicate it has been set.
-///
-/// Allowing access to [TonicExporterBuilder] specific configuration methods.
+/// Type indicating that the tonic transport has been selected.
 #[cfg(feature = "grpc-tonic")]
 // This is for clippy to work with only the grpc-tonic feature enabled
 #[allow(unused)]
 #[derive(Debug, Default)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
-/// Type to hold the [HttpExporterBuilder] and indicate it has been set.
-///
-/// Allowing access to [HttpExporterBuilder] specific configuration methods.
+/// Type indicating that the HTTP transport has been selected.
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 #[derive(Debug, Default)]
 pub struct HttpExporterBuilderSet(HttpExporterBuilder);
-
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
-pub use crate::exporter::http::HttpExporterBuilder;
-
-#[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::TonicExporterBuilder;
 
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};

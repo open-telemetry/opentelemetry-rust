@@ -34,6 +34,18 @@ release:
 
 ### Other changes
 
+- **Breaking** Remove the public `HttpExporterBuilder` and
+  `TonicExporterBuilder` transport-first APIs. Configure transports through the
+  signal builders instead:
+  - Replace `HttpExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_http()`, then replace
+    `.build_span_exporter()` or `.build_log_exporter()` with `.build()`.
+  - Replace `.build_metrics_exporter(temporality)` with
+    `.with_temporality(temporality).build()`.
+  - Replace `TonicExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_tonic()`.
+  Transport-specific configuration methods remain available after
+  `.with_http()` or `.with_tonic()`.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
