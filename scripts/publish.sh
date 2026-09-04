@@ -3,7 +3,6 @@
 packages=(
     "opentelemetry"
     "opentelemetry-http"
-    "opentelemetry-jaeger-propagator"
     "opentelemetry-sdk"
     "opentelemetry-semantic-conventions"
     "opentelemetry-proto"
