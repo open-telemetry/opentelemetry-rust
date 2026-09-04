@@ -34,6 +34,19 @@ release:
 
 ### Other changes
 
+- **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
+  `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
+  the transport-selected exporter builders (e.g.
+  `SpanExporterBuilder<TonicExporterBuilderSet>`). Use the intended builder
+  flow instead:
+  ```rust
+  // Before (no longer compiles):
+  let exporter = SpanExporterBuilder::<TonicExporterBuilderSet>::default().build()?;
+
+  // After (use the builder entry point):
+  let exporter = SpanExporter::builder().with_tonic().build()?;
+  ```
+  Also removed the unused `#[doc(hidden)]` `NoExporterConfig` type.
 - **Breaking** Mark `Protocol` and `Compression` as non-exhaustive so new OTLP
   protocols, encodings, and compression algorithms can be added without
   breaking downstream users. External exhaustive matches must add a wildcard
