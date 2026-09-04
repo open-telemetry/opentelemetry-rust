@@ -152,6 +152,7 @@ pub enum ExporterBuildError {
 
 /// The compression algorithm to use when sending data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
     /// Compresses data using gzip.
