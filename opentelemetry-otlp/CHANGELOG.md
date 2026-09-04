@@ -34,6 +34,8 @@ release:
 
 ### Other changes
 
+- **Breaking** Removed the deprecated `tls` feature alias. Replace `tls` with
+  `tls-ring`, or select `tls-aws-lc` or `tls-provider-agnostic` explicitly.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
