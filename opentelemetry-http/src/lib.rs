@@ -301,8 +301,15 @@ pub mod hyper {
     }
 }
 
+mod private {
+    pub trait Sealed {}
+    impl<T> Sealed for http::Response<T> {}
+}
+
 /// Methods to make working with responses from the [`HttpClient`] trait easier.
-pub trait ResponseExt: Sized {
+///
+/// This trait is sealed and cannot be implemented outside of this crate.
+pub trait ResponseExt: private::Sealed + Sized {
     /// Turn a response into an error if the HTTP status does not indicate success (200 - 299).
     fn error_for_status(self) -> Result<Self, HttpError>;
 }
