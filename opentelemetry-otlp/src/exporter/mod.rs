@@ -290,13 +290,20 @@ pub trait WithExportConfig {
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
-    /// Set the protocol to use when communicating with the collector.
+    /// Set the transport protocol to use when communicating with the collector.
     ///
-    /// Note that protocols that are not supported by exporters will be ignored. The exporter
-    /// will use default protocol in this case.
+    /// This is mainly useful on the HTTP transport to choose between
+    /// [`Protocol::HttpBinary`] (protobuf, the default) and
+    /// [`Protocol::HttpJson`]. Setting a protocol that conflicts with the
+    /// chosen transport (e.g. [`Protocol::Grpc`] on an HTTP builder) will
+    /// cause `build()` to return an error.
     ///
-    /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
+    /// When no transport has been selected yet (i.e. calling
+    /// [`SpanExporter::builder().build()`](crate::SpanExporter::builder)
+    /// directly), the protocol also determines which transport is used.
+    ///
+    /// Note: Programmatically setting this will override any value set via the
+    /// `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
     ///
