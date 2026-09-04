@@ -786,67 +786,77 @@ impl Protocol {
     /// - The value doesn't match a known protocol
     /// - The specified protocol's feature is not enabled
     pub fn from_env() -> Option<Self> {
-        Self::parse_from_env_var(OTEL_EXPORTER_OTLP_PROTOCOL)
+        match Self::parse_from_env_var(OTEL_EXPORTER_OTLP_PROTOCOL) {
+            Ok(protocol) => protocol,
+            Err(error) => {
+                opentelemetry::otel_warn!(
+                    name: "Protocol.InvalidConfiguration",
+                    error = error.to_string()
+                );
+                None
+            }
+        }
     }
 
     /// Attempts to parse a protocol from the given environment variable.
-    ///
-    /// Returns `None` if:
-    /// - The environment variable is not set
-    /// - The value doesn't match a known protocol
-    /// - The specified protocol's feature is not enabled
-    pub(crate) fn parse_from_env_var(env_var: &str) -> Option<Self> {
+    pub(crate) fn parse_from_env_var(
+        env_var: &str,
+    ) -> Result<Option<Self>, crate::ExporterBuildError> {
         use crate::exporter::{
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         };
 
-        let protocol = std::env::var(env_var).ok()?;
+        let Some(protocol) = crate::exporter::read_env_var(env_var)? else {
+            return Ok(None);
+        };
 
         match protocol.as_str() {
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
                 #[cfg(feature = "grpc-tonic")]
                 {
-                    Some(Protocol::Grpc)
+                    Ok(Some(Protocol::Grpc))
                 }
                 #[cfg(not(feature = "grpc-tonic"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'grpc-tonic' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC)
-                    );
-                    None
+                    Err(crate::ExporterBuildError::invalid_configuration(
+                        env_var,
+                        "feature 'grpc-tonic' is required to use protocol 'grpc'",
+                    ))
                 }
             }
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => {
                 #[cfg(feature = "http-proto")]
                 {
-                    Some(Protocol::HttpBinary)
+                    Ok(Some(Protocol::HttpBinary))
                 }
                 #[cfg(not(feature = "http-proto"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'http-proto' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF)
-                    );
-                    None
+                    Err(crate::ExporterBuildError::invalid_configuration(
+                        env_var,
+                        "feature 'http-proto' is required to use protocol 'http/protobuf'",
+                    ))
                 }
             }
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => {
                 #[cfg(feature = "http-json")]
                 {
-                    Some(Protocol::HttpJson)
+                    Ok(Some(Protocol::HttpJson))
                 }
                 #[cfg(not(feature = "http-json"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'http-json' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON)
-                    );
-                    None
+                    Err(crate::ExporterBuildError::invalid_configuration(
+                        env_var,
+                        "feature 'http-json' is required to use protocol 'http/json'",
+                    ))
                 }
             }
-            _ => None,
+            _ => Err(crate::ExporterBuildError::invalid_configuration(
+                env_var,
+                format!(
+                    "unsupported protocol '{protocol}'; expected 'grpc', 'http/protobuf', or 'http/json'"
+                ),
+            )),
         }
     }
 

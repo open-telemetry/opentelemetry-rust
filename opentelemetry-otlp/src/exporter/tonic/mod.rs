@@ -204,7 +204,7 @@ impl TonicExporterBuilder {
         #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
         {
             let protocol =
-                super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
+                super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol)?;
 
             let is_http_protocol = false;
             #[cfg(feature = "http-proto")]
@@ -313,7 +313,15 @@ impl TonicExporterBuilder {
                 .map_err(|error| ExporterBuildError::invalid_configuration("tls_config", error))?,
             None if is_https => endpoint
                 .tls_config(ClientTlsConfig::new())
-                .map_err(|error| ExporterBuildError::invalid_configuration("tls", error))?,
+                .map_err(|error| {
+                    ExporterBuildError::invalid_configuration(
+                        "endpoint",
+                        format!(
+                            "failed to configure default TLS for HTTPS endpoint '{endpoint_clone}': {error}; \
+                             ensure an appropriate TLS provider feature is enabled"
+                        ),
+                    )
+                })?,
             None => endpoint,
         }
         .timeout(timeout)
@@ -1155,6 +1163,13 @@ mod tests {
                     matches!(err, ExporterBuildError::InvalidConfiguration(_)),
                     "expected InvalidConfiguration error for schemeless+secure without TLS, got: {err:?}"
                 );
+                let message = err.to_string();
+                assert!(
+                    message.contains("collector.example.com:4317")
+                        && message.contains("HTTPS")
+                        && message.contains("TLS"),
+                    "error should identify the endpoint and TLS requirement, got: {message}"
+                );
             });
         });
     }
@@ -1225,6 +1240,13 @@ mod tests {
                 assert!(
                     matches!(err, ExporterBuildError::InvalidConfiguration(_)),
                     "schemeless endpoint should default to https:// and fail without TLS, got: {err:?}"
+                );
+                let message = err.to_string();
+                assert!(
+                    message.contains("collector.example.com:4317")
+                        && message.contains("HTTPS")
+                        && message.contains("TLS"),
+                    "error should identify the endpoint and TLS requirement, got: {message}"
                 );
             },
         );
