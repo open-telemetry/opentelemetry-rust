@@ -34,6 +34,14 @@ release:
 
 ### Other changes
 
+- **Breaking:** Simplified `ExporterBuildError` to the exhaustive
+  `InvalidConfiguration(String)` and `InternalFailure(String)` variants.
+  Configuration errors such as invalid endpoints, missing HTTP clients,
+  unsupported compression, and missing compression features now use
+  `InvalidConfiguration`. Match one of these categories instead of the
+  previous implementation-specific variants. `Compression::from_str` now
+  returns `ParseCompressionError`.
+  [#3691](https://github.com/open-telemetry/opentelemetry-rust/issues/3691)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.

@@ -131,12 +131,12 @@ fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, Exp
         return Ok(temporality);
     }
     if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE) {
-        return val
-            .parse::<Temporality>()
-            .map_err(|_| ExporterBuildError::InvalidConfig {
-                name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE.to_string(),
-                reason: format!("Invalid value '{val}'. Expected: cumulative, delta, or lowmemory"),
-            });
+        return val.parse::<Temporality>().map_err(|_| {
+            ExporterBuildError::invalid_configuration(
+                OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+                format!("invalid value '{val}'; expected cumulative, delta, or lowmemory"),
+            )
+        });
     }
     Ok(Temporality::default())
 }
