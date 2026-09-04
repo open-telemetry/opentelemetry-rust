@@ -89,9 +89,7 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
             crate::Protocol::HttpJson => self.with_http().build(),
         }
     }
-}
 
-impl<C> MetricExporterBuilder<C> {
     /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> MetricExporterBuilder<TonicExporterBuilderSet> {
@@ -109,7 +107,9 @@ impl<C> MetricExporterBuilder<C> {
             temporality: self.temporality,
         }
     }
+}
 
+impl<C> MetricExporterBuilder<C> {
     /// Set the temporality for the metrics.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.

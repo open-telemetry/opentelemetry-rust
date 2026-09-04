@@ -34,6 +34,10 @@ release:
 
 ### Other changes
 
+- **Breaking** Restrict `MetricExporterBuilder::with_http()` and `with_tonic()`
+  to builders where no transport has been selected, matching the span and log
+  exporter builders. Select a transport once; `with_temporality()` remains
+  available before or after transport selection.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
