@@ -9,7 +9,6 @@ use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
 #[cfg(any(
-    feature = "tls",
     feature = "tls-ring",
     feature = "tls-aws-lc",
     feature = "tls-provider-agnostic"
@@ -52,7 +51,6 @@ pub(crate) struct TonicConfig {
     pub(crate) metadata: Option<MetadataMap>,
     /// TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -152,7 +150,6 @@ impl Default for TonicExporterBuilder {
                         .expect("Invalid tonic headers"),
                 )),
                 #[cfg(any(
-                    feature = "tls",
                     feature = "tls-ring",
                     feature = "tls-aws-lc",
                     feature = "tls-provider-agnostic"
@@ -284,7 +281,6 @@ impl TonicExporterBuilder {
             .is_some_and(|s| *s == http::uri::Scheme::HTTPS);
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -300,7 +296,6 @@ impl TonicExporterBuilder {
             });
         }
         #[cfg(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -318,7 +313,6 @@ impl TonicExporterBuilder {
         .connect_lazy();
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -631,7 +625,6 @@ impl HasTonicConfig for TonicExporterBuilder {
 pub trait WithTonicConfig {
     /// Set the TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -748,7 +741,6 @@ pub trait WithTonicConfig {
 
 impl<B: HasTonicConfig> WithTonicConfig for B {
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -1126,7 +1118,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1161,7 +1152,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1194,7 +1184,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1255,7 +1244,6 @@ mod tests {
 
     #[test]
     #[cfg(not(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -1285,7 +1273,6 @@ mod tests {
 
     #[tokio::test]
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"

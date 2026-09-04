@@ -78,7 +78,6 @@ zstd-tonic = ["tonic/zstd"]
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc or tls-provider-agnostic
 tls-ring = ["tonic/tls-ring"]
 tls-aws-lc = ["tonic/tls-aws-lc"]
 # Provider-agnostic TLS: enables TLS code paths without bundling a specific 

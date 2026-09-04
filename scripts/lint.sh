@@ -24,7 +24,7 @@ if rustup component add clippy && \
   cargo_feature opentelemetry "trace,metrics,logs,testing"
 
   cargo_feature opentelemetry-otlp "default"
-  cargo_feature opentelemetry-otlp "default,tls"
+  cargo_feature opentelemetry-otlp "default,tls-ring"
   cargo_feature opentelemetry-otlp "default,tls-roots"
   cargo_feature opentelemetry-otlp "http-proto"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-blocking-client"
