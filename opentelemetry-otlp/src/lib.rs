@@ -743,14 +743,14 @@ pub struct NoExporterBuilderSet;
 #[cfg(feature = "grpc-tonic")]
 // This is for clippy to work with only the grpc-tonic feature enabled
 #[allow(unused)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
 /// Type to hold the [HttpExporterBuilder] and indicate it has been set.
 ///
 /// Allowing access to [HttpExporterBuilder] specific configuration methods.
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct HttpExporterBuilderSet(HttpExporterBuilder);
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -872,10 +872,6 @@ impl Protocol {
     }
 }
 
-#[derive(Debug, Default)]
-#[doc(hidden)]
-/// Placeholder type when no exporter pipeline has been configured in telemetry pipeline.
-pub struct NoExporterConfig(());
 
 /// Re-exported types from the `tonic` crate.
 #[cfg(feature = "grpc-tonic")]
