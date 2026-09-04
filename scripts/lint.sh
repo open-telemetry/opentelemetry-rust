@@ -32,8 +32,6 @@ if rustup component add clippy && \
   cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
   cargo_feature opentelemetry-otlp "metrics"
 
-  cargo_feature opentelemetry-jaeger-propagator "default"
-
   cargo_feature opentelemetry-proto "default"
   cargo_feature opentelemetry-proto "full"
   cargo_feature opentelemetry-proto "gen-tonic,trace"
