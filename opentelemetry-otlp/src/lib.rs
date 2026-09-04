@@ -743,14 +743,14 @@ pub struct NoExporterBuilderSet;
 #[cfg(feature = "grpc-tonic")]
 // This is for clippy to work with only the grpc-tonic feature enabled
 #[allow(unused)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
 /// Type to hold the [HttpExporterBuilder] and indicate it has been set.
 ///
 /// Allowing access to [HttpExporterBuilder] specific configuration methods.
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct HttpExporterBuilderSet(HttpExporterBuilder);
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
@@ -768,12 +768,15 @@ use serde::{Deserialize, Serialize};
 pub enum Protocol {
     /// GRPC protocol
     #[cfg(feature = "grpc-tonic")]
+    #[cfg_attr(feature = "serialize", serde(rename = "grpc"))]
     Grpc,
     /// HTTP protocol with binary protobuf
     #[cfg(feature = "http-proto")]
+    #[cfg_attr(feature = "serialize", serde(rename = "http/protobuf"))]
     HttpBinary,
     /// HTTP protocol with JSON payload
     #[cfg(feature = "http-json")]
+    #[cfg_attr(feature = "serialize", serde(rename = "http/json"))]
     HttpJson,
 }
 

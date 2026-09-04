@@ -152,6 +152,7 @@ pub enum ExporterBuildError {
 
 /// The compression algorithm to use when sending data.
 #[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serialize", serde(rename_all = "lowercase"))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
     /// Compresses data using gzip.
@@ -825,5 +826,68 @@ mod tests {
                 assert!(!insecure);
             },
         );
+    }
+
+    #[cfg(feature = "serialize")]
+    mod serde_tests {
+        use super::super::Compression;
+        use crate::Protocol;
+
+        #[test]
+        fn compression_serializes_to_spec_values() {
+            assert_eq!(
+                serde_json::to_string(&Compression::Gzip).unwrap(),
+                r#""gzip""#
+            );
+            assert_eq!(
+                serde_json::to_string(&Compression::Zstd).unwrap(),
+                r#""zstd""#
+            );
+        }
+
+        #[test]
+        fn compression_deserializes_from_spec_values() {
+            assert_eq!(
+                serde_json::from_str::<Compression>(r#""gzip""#).unwrap(),
+                Compression::Gzip
+            );
+            assert_eq!(
+                serde_json::from_str::<Compression>(r#""zstd""#).unwrap(),
+                Compression::Zstd
+            );
+        }
+
+        #[cfg(feature = "grpc-tonic")]
+        #[test]
+        fn protocol_grpc_roundtrips_with_spec_value() {
+            let json = serde_json::to_string(&Protocol::Grpc).unwrap();
+            assert_eq!(json, r#""grpc""#);
+            assert_eq!(
+                serde_json::from_str::<Protocol>(&json).unwrap(),
+                Protocol::Grpc
+            );
+        }
+
+        #[cfg(feature = "http-proto")]
+        #[test]
+        fn protocol_http_binary_roundtrips_with_spec_value() {
+            let json = serde_json::to_string(&Protocol::HttpBinary).unwrap();
+            assert_eq!(json, r#""http/protobuf""#);
+            assert_eq!(
+                serde_json::from_str::<Protocol>(&json).unwrap(),
+                Protocol::HttpBinary
+            );
+        }
+
+        #[cfg(feature = "http-json")]
+        #[test]
+        fn protocol_http_json_roundtrips_with_spec_value() {
+            let json = serde_json::to_string(&Protocol::HttpJson).unwrap();
+            assert_eq!(json, r#""http/json""#);
+            assert_eq!(
+                serde_json::from_str::<Protocol>(&json).unwrap(),
+                Protocol::HttpJson
+            );
+        }
     }
 }
