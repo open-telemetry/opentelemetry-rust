@@ -22,6 +22,11 @@ name = "smoke"
 path = "tests/smoke.rs"
 required-features = ["integration-testing"]
 
+[[bench]]
+name = "logs_export"
+harness = false
+required-features = ["logs", "http-proto", "reqwest-blocking-client"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
@@ -57,6 +62,11 @@ futures-util = { workspace = true }
 temp-env = { workspace = true }
 tonic = { workspace = true, features = ["router", "server"] }
 async-trait = { workspace = true }
+criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
+rand = { workspace = true, features = ["std_rng"] }
+hyper = { workspace = true, features = ["server", "http1"] }
+hyper-util = { workspace = true, features = ["tokio", "http1"] }
+http-body-util = { workspace = true }
 
 [features]
 # telemetry pillars and functions
