@@ -30,6 +30,12 @@ struct BoundPrecomputedSumHandle<T: Number> {
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundPrecomputedSumHandle<T> {
     fn call(&self, measurement: T) {
+        // Mirror unbound PrecomputedSum::call: ignore NaN and infinity so a bad
+        // value can't get cached in `reported` and poison the delta computed
+        // against the next valid measurement.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.tracker.aggregator.update(measurement);
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
@@ -171,6 +177,12 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: a cached NaN in `reported` poisons the delta
+        // computed against the *next* valid measurement too
+        // (`valid_val - NaN == NaN`), so a single bad value corrupts two cycles.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -200,6 +212,34 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod nan_guard_tests {
+    use super::*;
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+        );
+        Measure::call(&pre_sum, 1.0, &[]);
+        Measure::call(&pre_sum, f64::NAN, &[]);
+        Measure::call(&pre_sum, f64::INFINITY, &[]);
+        Measure::call(&pre_sum, f64::NEG_INFINITY, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
     }
 }
 

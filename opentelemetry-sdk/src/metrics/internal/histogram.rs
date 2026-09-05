@@ -86,6 +86,11 @@ struct BoundHistogramHandle<T: Number> {
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
         let f = measurement.into_float();
+        // Mirror unbound Histogram::call: ignore NaN and infinity so `sum` and
+        // bucket counts can't be permanently corrupted.
+        if !f.is_finite() {
+            return;
+        }
         let index = self.bounds.partition_point(|&x| x < f);
         self.tracker.aggregator.update((measurement, index));
         self.tracker.has_been_updated.store(true, Ordering::Release);
@@ -255,6 +260,12 @@ where
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         let f = measurement.into_float();
+        // Ignore NaN and infinity: `x < NaN` is always false, so NaN would land
+        // in bucket 0 and, via `Buckets::total += value`, permanently corrupt
+        // `sum` since `x + NaN == NaN` for any `x`.
+        if !f.is_finite() {
+            return;
+        }
         // This search will return an index in the range `[0, bounds.len()]`, where
         // it will return `bounds.len()` if value is greater than the last element
         // of `bounds`. This aligns with the buckets in that the length of buckets
@@ -328,5 +339,32 @@ mod tests {
         assert_eq!(dp.data_points[0].bucket_counts[1], 2); // 2, 3
         assert_eq!(dp.data_points[0].bucket_counts[2], 3); // 4, 5, 6
         assert_eq!(dp.data_points[0].bucket_counts[3], 4); // 7, 8, 9, 10
+    }
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let hist = Histogram::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            vec![1.0, 3.0, 6.0],
+            true,
+            true,
+            2000,
+        );
+        Measure::call(&hist, 1.0, &[]);
+        Measure::call(&hist, f64::NAN, &[]);
+        Measure::call(&hist, f64::INFINITY, &[]);
+        Measure::call(&hist, f64::NEG_INFINITY, &[]);
+        Measure::call(&hist, 2.0, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&hist, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Histogram(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].count, 2);
+        assert_eq!(dp.data_points[0].sum, 3.0);
+        assert!(!dp.data_points[0].sum.is_nan());
     }
 }
