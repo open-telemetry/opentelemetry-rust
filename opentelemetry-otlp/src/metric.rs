@@ -290,10 +290,16 @@ mod build_tests {
     // tonic transport needs an active reactor to construct its channel.
     #[tokio::test]
     async fn build_with_default_transport() {
-        // Verify that `MetricExporter::builder().build()` succeeds
-        // when at least one transport feature is enabled.
-        let result = MetricExporter::builder().build();
-        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+        // Unset the temporality env var so parallel tests (e.g.
+        // invalid_env_var_returns_error) that set it to invalid values
+        // don't cause this build to fail.
+        temp_env::with_var_unset(
+            super::OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+            || {
+                let result = MetricExporter::builder().build();
+                assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+            },
+        );
     }
 }
 
