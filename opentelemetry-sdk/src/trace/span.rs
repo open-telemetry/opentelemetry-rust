@@ -552,9 +552,11 @@ pub trait ReadableSpan {
 
     /// Returns the end time of the span.
     ///
-    /// Returns `None` if
-    /// * the span is not recording.
-    /// * the span has not been ended.
+    /// Returns `None` if the span is not recording, or if the span data has been consumed.
+    ///
+    /// Note: On an active [`Span`] (e.g. inside `on_start`), this returns the timestamp
+    /// initialized at span creation (equal to [`start_time`](ReadableSpan::start_time)).
+    /// On a [`FinishedSpan`] (inside `on_end`), this returns the final end timestamp.
     fn end_time(&self) -> Option<SystemTime>;
 
     /// Returns the attributes of the span.
