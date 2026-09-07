@@ -114,6 +114,13 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// The last processor receives the data via move (zero-copy); earlier processors
     /// receive a clone.
     ///
+    /// # Tip: Processor Registration Order
+    ///
+    /// When configuring multiple span processors, register read-only processors
+    /// (such as loggers or metrics counters) *before* exporting processors (such
+    /// as [`BatchSpanProcessor`]). This ensures the exporting processor is last
+    /// in the chain and receives the span data via zero-copy move rather than clone.
+    ///
     /// # Example
     ///
     /// ```rust,ignore
