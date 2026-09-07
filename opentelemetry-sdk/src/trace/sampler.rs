@@ -193,7 +193,7 @@ impl Sampler {
     }
 
     /// Create a [`ParentBasedSampler`] with `root` as the sampler used for spans with
-    /// no parent.
+    /// no parent or an invalid parent.
     ///
     /// `Sampler::ParentBased` only lets you configure that one root case; the other 4
     /// branches defined by the [ParentBased sampler spec] (remote/local parent,
@@ -202,24 +202,18 @@ impl Sampler {
     ///
     /// [ParentBased sampler spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#parentbased
     pub fn parent_based(root: impl Into<Box<dyn ShouldSample>>) -> ParentBasedSampler {
-        ParentBasedSampler {
-            root: root.into(),
-            remote_parent_sampled: None,
-            remote_parent_not_sampled: None,
-            local_parent_sampled: None,
-            local_parent_not_sampled: None,
-        }
+        ParentBasedSampler::new(root)
     }
 }
 
 /// A [`ShouldSample`] sampler that lets each of the 5 branches defined by the
 /// [ParentBased sampler spec] be configured independently: the root sampler (no
-/// parent), and a sampler for each combination of remote/local parent and
+/// parent or an invalid parent), and a sampler for each combination of remote/local parent and
 /// sampled/not-sampled. Any branch left unset falls back to the spec default
 /// (`Sampler::AlwaysOn` for the two `*_sampled` branches, `Sampler::AlwaysOff` for
 /// the two `*_not_sampled` branches).
 ///
-/// Build one with [`Sampler::parent_based`].
+/// Build one with [`ParentBasedSampler::new`] or [`Sampler::parent_based`].
 ///
 /// [ParentBased sampler spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#parentbased
 #[derive(Clone, Debug)]
@@ -232,6 +226,25 @@ pub struct ParentBasedSampler {
 }
 
 impl ParentBasedSampler {
+    /// Create a new [`ParentBasedSampler`] with `root` as the sampler used for spans with
+    /// no parent or an invalid parent.
+    ///
+    /// The other 4 branches default to the [ParentBased sampler spec] values:
+    /// - `remote_parent_sampled`: [`Sampler::AlwaysOn`]
+    /// - `remote_parent_not_sampled`: [`Sampler::AlwaysOff`]
+    /// - `local_parent_sampled`: [`Sampler::AlwaysOn`]
+    /// - `local_parent_not_sampled`: [`Sampler::AlwaysOff`]
+    ///
+    /// Each of these branches can be configured using their respective `with_*` methods.
+    pub fn new(root: impl Into<Box<dyn ShouldSample>>) -> Self {
+        Self {
+            root: root.into(),
+            remote_parent_sampled: None,
+            remote_parent_not_sampled: None,
+            local_parent_sampled: None,
+            local_parent_not_sampled: None,
+        }
+    }
     /// Sampler used when the parent's `SpanContext` is remote and sampled.
     /// Defaults to `Sampler::AlwaysOn`.
     pub fn with_remote_parent_sampled(mut self, sampler: impl Into<Box<dyn ShouldSample>>) -> Self {
@@ -327,7 +340,10 @@ impl ShouldSample for Sampler {
             Sampler::AlwaysOn => SamplingDecision::RecordAndSample,
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
-            // The parent decision if sampled; otherwise the decision of delegate_sampler
+            // The parent decision if sampled; otherwise the decision of delegate_sampler.
+            // Note: checks `has_active_span()` for backwards compatibility with existing behavior
+            // (e.g. active spans with empty/dropped contexts are treated as unsampled parents).
+            // For full spec compliance where invalid parents fall back to root, use `ParentBasedSampler`.
             Sampler::ParentBased(delegate_sampler) => parent_context
                 .filter(|cx| cx.has_active_span())
                 .map_or_else(
@@ -732,6 +748,24 @@ mod tests {
             decision,
             SamplingDecision::RecordAndSample,
             "context without active span must fall back to the root sampler (AlwaysOn)"
+        );
+    }
+
+    #[test]
+    fn parent_based_sampler_new() {
+        let sampler = ParentBasedSampler::new(Sampler::AlwaysOn);
+        assert_eq!(
+            sampler
+                .should_sample(
+                    None,
+                    TraceId::from(1),
+                    "root",
+                    &SpanKind::Internal,
+                    &[],
+                    &[]
+                )
+                .decision,
+            SamplingDecision::RecordAndSample
         );
     }
 }
