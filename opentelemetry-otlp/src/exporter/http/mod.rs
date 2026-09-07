@@ -8,11 +8,6 @@ use crate::{
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
-use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
-#[cfg(feature = "logs")]
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
-#[cfg(feature = "trace")]
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -399,9 +394,9 @@ pub(crate) struct OtlpHttpClient {
     compression: Option<crate::Compression>,
     retry_policy: RetryPolicy,
     max_request_body_size: usize,
-    #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    #[allow(dead_code)]
+    resource: opentelemetry_sdk::Resource,
 }
 
 impl OtlpHttpClient {
@@ -628,7 +623,7 @@ impl OtlpHttpClient {
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
-            resource: ResourceAttributesWithSchema::default(),
+            resource: opentelemetry_sdk::Resource::builder_empty().build(),
         }
     }
 
@@ -637,20 +632,30 @@ impl OtlpHttpClient {
         &self,
         spans: Vec<SpanData>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-        let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
-
-        let req = ExportTraceServiceRequest { resource_spans };
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
-            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => (json.into_bytes(), "application/json"),
-                Err(e) => {
-                    return Err(format!("failed to serialize traces to OTLP/HTTP JSON: {e}"));
+            Protocol::HttpJson => {
+                use opentelemetry_proto::json::collector::trace::v1::ExportTraceServiceRequest;
+                let resource = (&self.resource).into();
+                let req = ExportTraceServiceRequest {
+                    resource_spans: opentelemetry_proto::transform::trace::json::group_spans_by_resource_and_scope(spans, &resource),
+                };
+                match serde_json::to_string_pretty(&req) {
+                    Ok(json) => (json.into_bytes(), "application/json"),
+                    Err(e) => {
+                        return Err(format!("failed to serialize traces to OTLP/HTTP JSON: {e}"));
+                    }
                 }
-            },
+            }
             #[cfg(feature = "http-proto")]
-            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpBinary => {
+                use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+                let resource = (&self.resource).into();
+                let req = ExportTraceServiceRequest {
+                    resource_spans: opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource),
+                };
+                (req.encode_to_vec(), "application/x-protobuf")
+            }
             #[cfg(feature = "grpc-tonic")]
             Protocol::Grpc => {
                 unreachable!("HTTP client should not receive Grpc protocol")
@@ -666,20 +671,33 @@ impl OtlpHttpClient {
         &self,
         logs: LogBatch<'_>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-        let resource_logs = group_logs_by_resource_and_scope(&logs, &self.resource);
-        let req = ExportLogsServiceRequest { resource_logs };
-
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
-            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => (json.into_bytes(), "application/json"),
-                Err(e) => {
-                    return Err(format!("failed to serialize logs to OTLP/HTTP JSON: {e}"));
+            Protocol::HttpJson => {
+                use opentelemetry_proto::json::collector::logs::v1::ExportLogsServiceRequest;
+                let resource = (&self.resource).into();
+                let req = ExportLogsServiceRequest {
+                    resource_logs:
+                        opentelemetry_proto::transform::logs::json::group_logs_by_resource_and_scope(
+                            &logs, &resource,
+                        ),
+                };
+                match serde_json::to_string_pretty(&req) {
+                    Ok(json) => (json.into_bytes(), "application/json"),
+                    Err(e) => {
+                        return Err(format!("failed to serialize logs to OTLP/HTTP JSON: {e}"));
+                    }
                 }
-            },
+            }
             #[cfg(feature = "http-proto")]
-            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpBinary => {
+                use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+                let resource = (&self.resource).into();
+                let req = ExportLogsServiceRequest {
+                    resource_logs: opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope(&logs, &resource),
+                };
+                (req.encode_to_vec(), "application/x-protobuf")
+            }
             #[cfg(feature = "grpc-tonic")]
             Protocol::Grpc => {
                 unreachable!("HTTP client should not receive Grpc protocol")
@@ -695,22 +713,27 @@ impl OtlpHttpClient {
         &self,
         metrics: &ResourceMetrics,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
-
-        let req: ExportMetricsServiceRequest = metrics.into();
-
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
-            Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
-                Ok(json) => (json.into_bytes(), "application/json"),
-                Err(e) => {
-                    return Err(format!(
-                        "failed to serialize metrics to OTLP/HTTP JSON: {e}"
-                    ));
+            Protocol::HttpJson => {
+                use opentelemetry_proto::json::collector::metrics::v1::ExportMetricsServiceRequest;
+                match serde_json::to_string_pretty(&ExportMetricsServiceRequest::from(metrics)) {
+                    Ok(json) => (json.into_bytes(), "application/json"),
+                    Err(e) => {
+                        return Err(format!(
+                            "failed to serialize metrics to OTLP/HTTP JSON: {e}"
+                        ));
+                    }
                 }
-            },
+            }
             #[cfg(feature = "http-proto")]
-            Protocol::HttpBinary => (req.encode_to_vec(), "application/x-protobuf"),
+            Protocol::HttpBinary => {
+                use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
+                (
+                    ExportMetricsServiceRequest::from(metrics).encode_to_vec(),
+                    "application/x-protobuf",
+                )
+            }
             #[cfg(feature = "grpc-tonic")]
             Protocol::Grpc => {
                 unreachable!("HTTP client should not receive Grpc protocol")

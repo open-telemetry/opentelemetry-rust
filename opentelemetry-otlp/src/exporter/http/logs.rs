@@ -34,44 +34,52 @@ impl LogExporter for OtlpHttpClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = resource.into();
+        self.resource = resource.clone();
     }
 }
 
 /// Handles partial success returned by OTLP endpoints. We log the rejected log records,
 /// as well as the error message returned.
 fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
-    use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceResponse;
-
-    let response: ExportLogsServiceResponse = match protocol {
+    let partial_success = match protocol {
         #[cfg(feature = "http-json")]
-        Protocol::HttpJson => match serde_json::from_slice(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpJson => {
+            use opentelemetry_proto::json::collector::logs::v1::ExportLogsServiceResponse;
+            match serde_json::from_slice::<ExportLogsServiceResponse>(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_log_records, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "http-proto")]
-        Protocol::HttpBinary => match Message::decode(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpBinary => {
+            use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceResponse;
+            match ExportLogsServiceResponse::decode(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_log_records, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpLogsClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "grpc-tonic")]
         Protocol::Grpc => {
             unreachable!("HTTP client should not receive Grpc protocol")
         }
     };
 
-    if let Some(partial_success) = response.partial_success {
-        if partial_success.rejected_log_records > 0 || !partial_success.error_message.is_empty() {
+    if let Some((rejected_log_records, error_message)) = partial_success {
+        if rejected_log_records > 0 || !error_message.is_empty() {
             otel_warn!(
                 name: "HttpLogsClient.PartialSuccess",
-                rejected_log_records = partial_success.rejected_log_records,
-                error_message = partial_success.error_message.as_str(),
+                rejected_log_records = rejected_log_records,
+                error_message = error_message.as_str(),
             );
         }
     }
