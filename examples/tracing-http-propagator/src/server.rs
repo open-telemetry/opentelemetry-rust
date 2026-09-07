@@ -111,10 +111,21 @@ async fn router(
     response
 }
 
+/// Returns the `http.route` value for server spans, `None` otherwise.
+fn route_of(span: &impl ReadableSpan) -> Option<String> {
+    if !matches!(span.span_kind(), SpanKind::Server) {
+        return None;
+    }
+    span.attributes()
+        .iter()
+        .find(|kv| kv.key.as_str() == "http.route")
+        .map(|kv| kv.value.to_string())
+}
+
 #[derive(Debug, Default)]
 /// A custom span processor that counts concurrent requests for each route (identified by the http.route
 /// attribute) and adds that information to the span attributes.
-struct RouteConcurrencyCounterSpanProcessor(Mutex<HashMap<opentelemetry::Key, usize>>);
+struct RouteConcurrencyCounterSpanProcessor(Mutex<HashMap<String, usize>>);
 
 impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
     fn force_flush(&self) -> OTelSdkResult {
@@ -126,20 +137,13 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
     }
 
     fn on_start(&self, span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {
-        if !matches!(span.span_kind(), SpanKind::Server) {
-            return;
-        }
-        let Some(route) = span
-            .attributes()
-            .iter()
-            .find(|kv| kv.key.as_str() == "http.route")
-        else {
+        let Some(route) = route_of(span) else {
             return;
         };
         let Ok(mut counts) = self.0.lock() else {
             return;
         };
-        let count = counts.entry(route.key.clone()).or_default();
+        let count = counts.entry(route).or_default();
         *count += 1;
         span.set_attribute(KeyValue::new(
             "http.route.concurrent_requests",
@@ -148,25 +152,18 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
     }
 
     fn on_end(&self, span: &mut FinishedSpan) {
-        if !matches!(span.span_kind(), SpanKind::Server) {
-            return;
-        }
-        let Some(route) = span
-            .attributes()
-            .iter()
-            .find(|kv| kv.key.as_str() == "http.route")
-        else {
+        let Some(route) = route_of(span) else {
             return;
         };
         let Ok(mut counts) = self.0.lock() else {
             return;
         };
-        let Some(count) = counts.get_mut(&route.key) else {
+        let Some(count) = counts.get_mut(&route) else {
             return;
         };
         *count -= 1;
         if *count == 0 {
-            counts.remove(&route.key);
+            counts.remove(&route);
         }
     }
 }
