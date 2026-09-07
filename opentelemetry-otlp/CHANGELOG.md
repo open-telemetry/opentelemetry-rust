@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Exporter builder usage and environment configuration are unchanged.
   **Breaking for callers parsing compression strings:** `Compression::from_str`
   (including `.parse::<Compression>()`) now returns the opaque `ParseConfigError`
@@ -35,8 +39,8 @@
   total). Use `.with_retry_policy(RetryPolicy::disabled())` to disable retries,
   or provide a custom `RetryPolicy` to change the behavior.
 - **Migration for users of the experimental retry features:** If your
-  `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
-  `http-json-with-retry`, remove those feature flags. No migration action is
+  `Cargo.toml` enables `experimental-grpc-retry` or
+  `experimental-http-retry`, remove those feature flags. No migration action is
   required for users who did not enable them.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
 - **Breaking** Make the `retry` and `retry_classification` modules crate-private,
