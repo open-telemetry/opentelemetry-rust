@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-07
+
 ## 0.32.0
 
 Released 2026-May-08

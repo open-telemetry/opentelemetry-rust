@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-07
+
 - Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
   specification allows. `from_str`, `from_key_value` and `insert` now keep at most
   32, dropping members from the end of the list as the specification prescribes, so

@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-07
+
 ### Retry
 
 - Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
