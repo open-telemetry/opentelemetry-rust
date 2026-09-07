@@ -281,7 +281,7 @@ impl ShouldSample for ParentBasedSampler {
             sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links)
         };
 
-        match parent_context.filter(|cx| cx.has_active_span()) {
+        match parent_context.filter(|cx| cx.span().span_context().is_valid()) {
             None => delegate(self.root.as_ref()),
             Some(cx) => {
                 let span = cx.span();
@@ -686,5 +686,52 @@ mod tests {
                 "remote={is_remote}, sampled={sampled} should honor the overridden branch"
             );
         }
+    }
+
+    #[test]
+    fn parent_based_sampler_invalid_parent_falls_back_to_root() {
+        // Root is AlwaysOn, while local_parent_not_sampled defaults to AlwaysOff.
+        let sampler = Sampler::parent_based(Sampler::AlwaysOn);
+
+        // 1. Context with an active span whose span context is invalid (zeros).
+        let cx_invalid = Context::current_with_span(TestSpan(SpanContext::empty_context()));
+        assert!(cx_invalid.has_active_span());
+        assert!(!cx_invalid.span().span_context().is_valid());
+
+        let decision = sampler
+            .should_sample(
+                Some(&cx_invalid),
+                TraceId::from(1),
+                "s",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            )
+            .decision;
+        assert_eq!(
+            decision,
+            SamplingDecision::RecordAndSample,
+            "invalid parent span must fall back to the root sampler (AlwaysOn)"
+        );
+
+        // 2. Context with no active span at all.
+        let cx_empty = Context::new();
+        assert!(!cx_empty.has_active_span());
+
+        let decision = sampler
+            .should_sample(
+                Some(&cx_empty),
+                TraceId::from(1),
+                "s",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            )
+            .decision;
+        assert_eq!(
+            decision,
+            SamplingDecision::RecordAndSample,
+            "context without active span must fall back to the root sampler (AlwaysOn)"
+        );
     }
 }
