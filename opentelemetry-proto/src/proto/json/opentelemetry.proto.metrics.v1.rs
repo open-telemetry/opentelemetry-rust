@@ -27,65 +27,55 @@
 ///
 /// When new fields are added into this message, the OTLP request MUST be updated
 /// as well.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct MetricsData {
     /// An array of ResourceMetrics.
     /// For data coming from a single resource this array will typically contain
     /// one element. Intermediary nodes that receive data from multiple origins
     /// typically batch the data before forwarding further and in that case this
     /// array will contain multiple elements.
-    #[prost(message, repeated, tag = "1")]
-    pub resource_metrics: ::prost::alloc::vec::Vec<ResourceMetrics>,
+    pub resource_metrics: ::std::vec::Vec<ResourceMetrics>,
 }
 /// A collection of ScopeMetrics from a Resource.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct ResourceMetrics {
     /// The resource for the metrics in this message.
     /// If this field is not set then no resource info is known.
-    #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<super::super::resource::v1::Resource>,
     /// A list of metrics that originate from a resource.
-    #[prost(message, repeated, tag = "2")]
-    pub scope_metrics: ::prost::alloc::vec::Vec<ScopeMetrics>,
+    pub scope_metrics: ::std::vec::Vec<ScopeMetrics>,
     /// The Schema URL, if known. This is the identifier of the Schema that the resource data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "resource" field. It does not apply
     /// to the data in the "scope_metrics" field which have their own schema_url field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    pub schema_url: ::std::string::String,
 }
 /// A collection of Metrics produced by an Scope.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct ScopeMetrics {
     /// The instrumentation scope information for the metrics in this message.
     /// Semantically when InstrumentationScope isn't set, it is equivalent with
     /// an empty instrumentation scope name (unknown).
-    #[prost(message, optional, tag = "1")]
     pub scope: ::core::option::Option<super::super::common::v1::InstrumentationScope>,
     /// A list of metrics that originate from an instrumentation library.
-    #[prost(message, repeated, tag = "2")]
-    pub metrics: ::prost::alloc::vec::Vec<Metric>,
+    pub metrics: ::std::vec::Vec<Metric>,
     /// The Schema URL, if known. This is the identifier of the Schema that the metric data
     /// is recorded in. Notably, the last part of the URL path is the version number of the
     /// schema: http\[s\]://server\[:port\]/path/<version>. To learn more about Schema URL see
     /// <https://opentelemetry.io/docs/specs/otel/schemas/#schema-url>
     /// This schema_url applies to the data in the "scope" field and all metrics in the
     /// "metrics" field.
-    #[prost(string, tag = "3")]
-    pub schema_url: ::prost::alloc::string::String,
+    pub schema_url: ::std::string::String,
 }
 /// Defines a Metric which has one or more timeseries.  The following is a
 /// brief summary of the Metric data model.  For more details, see:
@@ -175,22 +165,18 @@ pub struct ScopeMetrics {
 /// to support correct rate calculation.  Although it may be omitted
 /// when the start time is truly unknown, setting StartTimeUnixNano is
 /// strongly encouraged.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Metric {
     /// The name of the metric.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
+    pub name: ::std::string::String,
     /// A description of the metric, which can be used in documentation.
-    #[prost(string, tag = "2")]
-    pub description: ::prost::alloc::string::String,
+    pub description: ::std::string::String,
     /// The unit in which the metric value is reported. Follows the format
     /// described by <https://unitsofmeasure.org/ucum.html.>
-    #[prost(string, tag = "3")]
-    pub unit: ::prost::alloc::string::String,
+    pub unit: ::std::string::String,
     /// Additional metadata attributes that describe the metric. \[Optional\].
     /// Attributes are non-identifying.
     /// Consumers SHOULD NOT need to be aware of these attributes.
@@ -199,13 +185,11 @@ pub struct Metric {
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "12")]
-    pub metadata: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub metadata: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// Data determines the aggregation type (if any) of the metric, what is the
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
-    #[prost(oneof = "metric::Data", tags = "5, 7, 9, 10, 11")]
-    #[cfg_attr(feature = "with-serde", serde(flatten))]
+    #[serde(flatten)]
     pub data: ::core::option::Option<metric::Data>,
 }
 /// Nested message and enum types in `Metric`.
@@ -213,20 +197,14 @@ pub mod metric {
     /// Data determines the aggregation type (if any) of the metric, what is the
     /// reported value type for the data points, as well as the relatationship to
     /// the time interval over which they are reported.
-    #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[derive(Clone, PartialEq, Debug)]
     pub enum Data {
-        #[prost(message, tag = "5")]
         Gauge(super::Gauge),
-        #[prost(message, tag = "7")]
         Sum(super::Sum),
-        #[prost(message, tag = "9")]
         Histogram(super::Histogram),
-        #[prost(message, tag = "10")]
         ExponentialHistogram(super::ExponentialHistogram),
-        #[prost(message, tag = "11")]
         Summary(super::Summary),
     }
 }
@@ -239,69 +217,57 @@ pub mod metric {
 /// aggregation, regardless of aggregation temporalities. Therefore,
 /// AggregationTemporality is not included. Consequently, this also means
 /// "StartTimeUnixNano" is ignored for all data points.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Gauge {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
-    #[prost(message, repeated, tag = "1")]
-    pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
+    pub data_points: ::std::vec::Vec<NumberDataPoint>,
 }
 /// Sum represents the type of a scalar metric that is calculated as a sum of all
 /// reported measurements over a time interval.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Sum {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
-    #[prost(message, repeated, tag = "1")]
-    pub data_points: ::prost::alloc::vec::Vec<NumberDataPoint>,
+    pub data_points: ::std::vec::Vec<NumberDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
     /// Represents whether the sum is monotonic.
-    #[prost(bool, tag = "3")]
     pub is_monotonic: bool,
 }
 /// Histogram represents the type of a metric that is calculated by aggregating
 /// as a Histogram of all reported measurements over a time interval.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Histogram {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
-    #[prost(message, repeated, tag = "1")]
-    pub data_points: ::prost::alloc::vec::Vec<HistogramDataPoint>,
+    pub data_points: ::std::vec::Vec<HistogramDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
 }
 /// ExponentialHistogram represents the type of a metric that is calculated by aggregating
 /// as a ExponentialHistogram of all reported double measurements over a time interval.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct ExponentialHistogram {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
-    #[prost(message, repeated, tag = "1")]
-    pub data_points: ::prost::alloc::vec::Vec<ExponentialHistogramDataPoint>,
+    pub data_points: ::std::vec::Vec<ExponentialHistogramDataPoint>,
     /// aggregation_temporality describes if the aggregator reports delta changes
     /// since last report time, or cumulative changes since a fixed start time.
-    #[prost(enumeration = "AggregationTemporality", tag = "2")]
     pub aggregation_temporality: i32,
 }
 /// Summary metric data are used to convey quantile summaries,
@@ -313,85 +279,67 @@ pub struct ExponentialHistogram {
 /// Summary metrics do not have an aggregation temporality field. This is
 /// because the count and sum fields of a SummaryDataPoint are assumed to be
 /// cumulative values.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Summary {
     /// The time series data points.
     /// Note: Multiple time series may be included (same timestamp, different attributes).
-    #[prost(message, repeated, tag = "1")]
-    pub data_points: ::prost::alloc::vec::Vec<SummaryDataPoint>,
+    pub data_points: ::std::vec::Vec<SummaryDataPoint>,
 }
 /// NumberDataPoint is a single data point in a timeseries that describes the
 /// time-varying scalar value of a metric.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct NumberDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "7")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "3")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub time_unix_nano: u64,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag = "5")]
-    pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
+    pub exemplars: ::std::vec::Vec<Exemplar>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag = "8")]
     pub flags: u32,
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
-    #[prost(oneof = "number_data_point::Value", tags = "4, 6")]
-    #[cfg_attr(feature = "with-serde", serde(flatten))]
+    #[serde(flatten)]
     pub value: ::core::option::Option<number_data_point::Value>,
 }
 /// Nested message and enum types in `NumberDataPoint`.
 pub mod number_data_point {
     /// The value itself.  A point is considered invalid when one of the recognized
     /// value fields is not present inside this oneof.
-    #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     pub enum Value {
-        #[prost(double, tag = "4")]
         AsDouble(f64),
-        #[prost(sfixed64, tag = "6")]
         AsInt(i64),
     }
 }
@@ -405,56 +353,42 @@ pub mod number_data_point {
 /// If the histogram does not contain the distribution of values, then both
 /// "explicit_bounds" and "bucket_counts" must be omitted and only "count" and
 /// "sum" are known.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct HistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "9")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "3")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative. This
     /// value must be equal to the sum of the "count" fields in buckets if a
     /// histogram is provided.
-    #[prost(fixed64, tag = "4")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
@@ -465,7 +399,6 @@ pub struct HistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
-    #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// bucket_counts is an optional field contains the count values of histogram
     /// for each bucket.
@@ -476,15 +409,11 @@ pub struct HistogramDataPoint {
     /// the number of elements in explicit_bounds array. The exception to this rule
     /// is when the length of bucket_counts is 0, then the length of explicit_bounds
     /// must also be 0.
-    #[prost(fixed64, repeated, tag = "6")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_vec_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_vec_string_to_vec_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_vec_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_vec_string_to_vec_u64"
     )]
-    pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
+    pub bucket_counts: ::std::vec::Vec<u64>,
     /// explicit_bounds specifies buckets with explicitly defined bounds for values.
     ///
     /// The boundaries for bucket at index i are:
@@ -501,76 +430,57 @@ pub struct HistogramDataPoint {
     ///
     /// If bucket_counts length is 0 then explicit_bounds length must also be 0,
     /// otherwise the data point is invalid.
-    #[prost(double, repeated, tag = "7")]
-    pub explicit_bounds: ::prost::alloc::vec::Vec<f64>,
+    pub explicit_bounds: ::std::vec::Vec<f64>,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag = "8")]
-    pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
+    pub exemplars: ::std::vec::Vec<Exemplar>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag = "10")]
     pub flags: u32,
     /// min is the minimum value over (start_time, end_time\].
-    #[prost(double, optional, tag = "11")]
     pub min: ::core::option::Option<f64>,
     /// max is the maximum value over (start_time, end_time\].
-    #[prost(double, optional, tag = "12")]
     pub max: ::core::option::Option<f64>,
 }
 /// ExponentialHistogramDataPoint is a single data point in a timeseries that describes the
 /// time-varying values of a ExponentialHistogram of double values. A ExponentialHistogram contains
 /// summary statistics for a population of values, it may optionally contain the
 /// distribution of those values across a set of buckets.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct ExponentialHistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "1")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "3")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub time_unix_nano: u64,
     /// The number of values in the population. Must be
     /// non-negative. This value must be equal to the sum of the "bucket_counts"
     /// values in the positive and negative Buckets plus the "zero_count" field.
-    #[prost(fixed64, tag = "4")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub count: u64,
     /// The sum of the values in the population. If count is zero then this field
@@ -581,7 +491,6 @@ pub struct ExponentialHistogramDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#histogram>
-    #[prost(double, optional, tag = "5")]
     pub sum: ::core::option::Option<f64>,
     /// scale describes the resolution of the histogram.  Boundaries are
     /// located at powers of the base, where:
@@ -598,7 +507,6 @@ pub struct ExponentialHistogramDataPoint {
     ///
     /// scale is not restricted by the protocol, as the permissible
     /// values depend on the range of the data.
-    #[prost(sint32, tag = "6")]
     pub scale: i32,
     /// The count of values that are either exactly zero or
     /// within the region considered zero by the instrumentation at the
@@ -608,34 +516,24 @@ pub struct ExponentialHistogramDataPoint {
     ///
     /// Implementations MAY consider the zero bucket to have probability
     /// mass equal to (zero_count / count).
-    #[prost(fixed64, tag = "7")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub zero_count: u64,
     /// positive carries the positive range of exponential bucket counts.
-    #[prost(message, optional, tag = "8")]
     pub positive: ::core::option::Option<exponential_histogram_data_point::Buckets>,
     /// negative carries the negative range of exponential bucket counts.
-    #[prost(message, optional, tag = "9")]
     pub negative: ::core::option::Option<exponential_histogram_data_point::Buckets>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag = "10")]
     pub flags: u32,
     /// (Optional) List of exemplars collected from
     /// measurements that were used to form the data point
-    #[prost(message, repeated, tag = "11")]
-    pub exemplars: ::prost::alloc::vec::Vec<Exemplar>,
+    pub exemplars: ::std::vec::Vec<Exemplar>,
     /// The minimum value over (start_time, end_time\].
-    #[prost(double, optional, tag = "12")]
     pub min: ::core::option::Option<f64>,
     /// The maximum value over (start_time, end_time\].
-    #[prost(double, optional, tag = "13")]
     pub max: ::core::option::Option<f64>,
     /// ZeroThreshold may be optionally set to convey the width of the zero
     /// region. Where the zero region is defined as the closed interval
@@ -643,22 +541,19 @@ pub struct ExponentialHistogramDataPoint {
     /// When ZeroThreshold is 0, zero count bucket stores values that cannot be
     /// expressed using the standard exponential formula as well as values that
     /// have been rounded to zero.
-    #[prost(double, tag = "14")]
     pub zero_threshold: f64,
 }
 /// Nested message and enum types in `ExponentialHistogramDataPoint`.
 pub mod exponential_histogram_data_point {
     /// Buckets are a set of bucket counts, encoded in a contiguous array
     /// of counts.
-    #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
     pub struct Buckets {
         /// The bucket index of the first entry in the bucket_counts array.
         ///
         /// Note: This uses a varint encoding as a simple form of compression.
-        #[prost(sint32, tag = "1")]
         pub offset: i32,
         /// An array of count values, where bucket_counts\[i\] carries
         /// the count of the bucket at index (offset+i). bucket_counts\[i\] is the count
@@ -669,68 +564,50 @@ pub mod exponential_histogram_data_point {
         /// fixed64.  This field is expected to have many buckets,
         /// especially zeros, so uint64 has been selected to ensure
         /// varint encoding.
-        #[prost(uint64, repeated, tag = "2")]
-        #[cfg_attr(
-            feature = "with-serde",
-            serde(
-                serialize_with = "crate::proto::tonic::serializers::serialize_vec_u64_to_string",
-                deserialize_with = "crate::proto::tonic::serializers::deserialize_vec_string_to_vec_u64"
-            )
+        #[serde(
+            serialize_with = "crate::proto::json::serializers::serialize_vec_u64_to_string",
+            deserialize_with = "crate::proto::json::serializers::deserialize_vec_string_to_vec_u64"
         )]
-        pub bucket_counts: ::prost::alloc::vec::Vec<u64>,
+        pub bucket_counts: ::std::vec::Vec<u64>,
     }
 }
 /// SummaryDataPoint is a single data point in a timeseries that describes the
 /// time-varying values of a Summary metric. The count and sum fields represent
 /// cumulative values.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "with-serde", serde(default))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(default)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct SummaryDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
     /// where this point belongs. The list may be empty (may contain 0 elements).
     /// Attribute keys MUST be unique (it is not allowed to have more than one
     /// attribute with the same key).
     /// The behavior of software that receives duplicated keys can be unpredictable.
-    #[prost(message, repeated, tag = "7")]
-    pub attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub attributes: ::std::vec::Vec<super::super::common::v1::KeyValue>,
     /// StartTimeUnixNano is optional but strongly encouraged, see the
     /// the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub start_time_unix_nano: u64,
     /// TimeUnixNano is required, see the detailed comments above Metric.
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "3")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub time_unix_nano: u64,
     /// count is the number of values in the population. Must be non-negative.
-    #[prost(fixed64, tag = "4")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub count: u64,
     /// sum of the values in the population. If count is zero then this field
@@ -741,15 +618,12 @@ pub struct SummaryDataPoint {
     /// Negative events *can* be recorded, but sum should not be filled out when
     /// doing so.  This is specifically to enforce compatibility w/ OpenMetrics,
     /// see: <https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#summary>
-    #[prost(double, tag = "5")]
     pub sum: f64,
     /// (Optional) list of values at different quantiles of the distribution calculated
     /// from the current snapshot. The quantiles must be strictly increasing.
-    #[prost(message, repeated, tag = "6")]
-    pub quantile_values: ::prost::alloc::vec::Vec<summary_data_point::ValueAtQuantile>,
+    pub quantile_values: ::std::vec::Vec<summary_data_point::ValueAtQuantile>,
     /// Flags that apply to this specific data point.  See DataPointFlags
     /// for the available flags and their meaning.
-    #[prost(uint32, tag = "8")]
     pub flags: u32,
 }
 /// Nested message and enum types in `SummaryDataPoint`.
@@ -763,32 +637,23 @@ pub mod summary_data_point {
     ///
     /// See the following issue for more context:
     /// <https://github.com/open-telemetry/opentelemetry-proto/issues/125>
-    #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[derive(Clone, Copy, PartialEq, Debug, Default)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
         /// \[0.0, 1.0\].
-        #[prost(double, tag = "1")]
-        #[cfg_attr(
-            feature = "with-serde",
-            serde(
-                serialize_with = "crate::proto::tonic::serializers::serialize_f64_special",
-                deserialize_with = "crate::proto::tonic::serializers::deserialize_f64_special"
-            )
+        #[serde(
+            serialize_with = "crate::proto::json::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::json::serializers::deserialize_f64_special"
         )]
         pub quantile: f64,
         /// The value at the given quantile of a distribution.
         ///
         /// Quantile values must NOT be negative.
-        #[prost(double, tag = "2")]
-        #[cfg_attr(
-            feature = "with-serde",
-            serde(
-                serialize_with = "crate::proto::tonic::serializers::serialize_f64_special",
-                deserialize_with = "crate::proto::tonic::serializers::deserialize_f64_special"
-            )
+        #[serde(
+            serialize_with = "crate::proto::json::serializers::serialize_f64_special",
+            deserialize_with = "crate::proto::json::serializers::deserialize_f64_special"
         )]
         pub value: f64,
     }
@@ -797,59 +662,44 @@ pub mod summary_data_point {
 /// Exemplars also hold information about the environment when the measurement
 /// was recorded, for example the span and trace ID of the active span when the
 /// exemplar was recorded.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but
     /// recorded alongside the original measurement. Only key/value pairs that were
     /// filtered out by the aggregator should be included
-    #[prost(message, repeated, tag = "7")]
-    pub filtered_attributes: ::prost::alloc::vec::Vec<
+    pub filtered_attributes: ::std::vec::Vec<
         super::super::common::v1::KeyValue,
     >,
     /// time_unix_nano is the exact time when this exemplar was recorded
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
     /// 1970.
-    #[prost(fixed64, tag = "2")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_u64_to_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_string_to_u64"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_u64_to_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_string_to_u64"
     )]
     pub time_unix_nano: u64,
     /// (Optional) Span ID of the exemplar trace.
     /// span_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
-    #[prost(bytes = "vec", tag = "4")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_to_hex_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_from_hex_string"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_to_hex_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_from_hex_string"
     )]
-    pub span_id: ::prost::alloc::vec::Vec<u8>,
+    pub span_id: ::std::vec::Vec<u8>,
     /// (Optional) Trace ID of the exemplar trace.
     /// trace_id may be missing if the measurement is not recorded inside a trace
     /// or if the trace is not sampled.
-    #[prost(bytes = "vec", tag = "5")]
-    #[cfg_attr(
-        feature = "with-serde",
-        serde(
-            serialize_with = "crate::proto::tonic::serializers::serialize_to_hex_string",
-            deserialize_with = "crate::proto::tonic::serializers::deserialize_from_hex_string"
-        )
+    #[serde(
+        serialize_with = "crate::proto::json::serializers::serialize_to_hex_string",
+        deserialize_with = "crate::proto::json::serializers::deserialize_from_hex_string"
     )]
-    pub trace_id: ::prost::alloc::vec::Vec<u8>,
+    pub trace_id: ::std::vec::Vec<u8>,
     /// The value of the measurement that was recorded. An exemplar is
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
-    #[prost(oneof = "exemplar::Value", tags = "3, 6")]
     pub value: ::core::option::Option<exemplar::Value>,
 }
 /// Nested message and enum types in `Exemplar`.
@@ -857,24 +707,20 @@ pub mod exemplar {
     /// The value of the measurement that was recorded. An exemplar is
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
-    #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-    #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     pub enum Value {
-        #[prost(double, tag = "3")]
         AsDouble(f64),
-        #[prost(sfixed64, tag = "6")]
         AsInt(i64),
     }
 }
 /// AggregationTemporality defines how a metric aggregator reports aggregated
 /// values. It describes how those values relate to the time interval over
 /// which they are aggregated.
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(i32)]
 pub enum AggregationTemporality {
     /// UNSPECIFIED is the default AggregationTemporality, it MUST not be used.
@@ -969,10 +815,9 @@ impl AggregationTemporality {
 /// a data point, for example, use an expression like:
 ///
 /// (point.flags & DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK) == DATA_POINT_FLAGS_NO_RECORDED_VALUE_MASK
-#[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(i32)]
 pub enum DataPointFlags {
     /// The zero value for the enum. Should not be used for comparisons.

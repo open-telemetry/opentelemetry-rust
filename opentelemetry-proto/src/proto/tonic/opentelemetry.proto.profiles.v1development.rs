@@ -207,8 +207,8 @@ pub struct Profile {
     #[cfg_attr(
         feature = "with-serde",
         serde(
-            serialize_with = "crate::proto::serializers::serialize_to_hex_string",
-            deserialize_with = "crate::proto::serializers::deserialize_from_hex_string"
+            serialize_with = "crate::proto::tonic::serializers::serialize_to_hex_string",
+            deserialize_with = "crate::proto::tonic::serializers::deserialize_from_hex_string"
         )
     )]
     pub profile_id: ::prost::alloc::vec::Vec<u8>,
@@ -329,8 +329,8 @@ pub struct Sample {
     #[cfg_attr(
         feature = "with-serde",
         serde(
-            serialize_with = "crate::proto::serializers::serialize_vec_u64_to_string",
-            deserialize_with = "crate::proto::serializers::deserialize_vec_string_to_vec_u64"
+            serialize_with = "crate::proto::tonic::serializers::serialize_vec_u64_to_string",
+            deserialize_with = "crate::proto::tonic::serializers::deserialize_vec_string_to_vec_u64"
         )
     )]
     pub timestamps_unix_nano: ::prost::alloc::vec::Vec<u64>,

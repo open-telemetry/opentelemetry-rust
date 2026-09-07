@@ -19,6 +19,7 @@
 //! ## Creates used to generate files
 //! - `gen-tonic-messages`: generate OTLP message types using [prost](https://github.com/tokio-rs/prost).
 //! - `gen-tonic`: add tonic gRPC client/server transport support on top of `gen-tonic-messages`.
+//! - `gen-json`: generate serde-only OTLP message types for OTLP/JSON, without `prost`.
 //!
 //! ## Misc
 //! - `full`: enabled all features above.
@@ -34,5 +35,8 @@ mod proto;
 
 #[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
+
+#[cfg(feature = "gen-json")]
+pub use proto::json;
 
 pub mod transform;

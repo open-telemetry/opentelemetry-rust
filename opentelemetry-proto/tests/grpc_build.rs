@@ -3,7 +3,8 @@ use std::path::Path;
 use tempfile::TempDir;
 
 const TONIC_OUT_DIR: &str = "src/proto/tonic";
-const TONIC_PROTO_FILES: &[&str] = &[
+const JSON_OUT_DIR: &str = "src/proto/json";
+const PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/common/v1/common.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto",
@@ -12,11 +13,13 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+];
+const TONIC_ONLY_PROTO_FILES: &[&str] = &[
     "src/proto/opentelemetry-proto/opentelemetry/proto/profiles/v1development/profiles.proto",
     "src/proto/opentelemetry-proto/opentelemetry/proto/collector/profiles/v1development/profiles_service.proto",
     "src/proto/tracez.proto",
 ];
-const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
+const INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
 
 #[test]
 fn build_tonic() {
@@ -25,7 +28,7 @@ fn build_tonic() {
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
     // build the generated files into OUT_DIR for now so we don't have to touch the src unless we have to
-    let mut builder = tonic_prost_build::configure()
+    let builder = tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .server_mod_attribute(".", "#[cfg(feature = \"gen-tonic\")]")
@@ -33,15 +36,82 @@ fn build_tonic() {
         .type_attribute(
             ".",
             "#[cfg_attr(feature = \"with-schemars\", derive(schemars::JsonSchema))]",
-        )
-        .type_attribute(
-            ".",
-            "#[cfg_attr(feature = \"with-serde\", derive(serde::Serialize, serde::Deserialize))]",
-        )
-        .type_attribute(
-            ".",
-            "#[cfg_attr(feature = \"with-serde\", serde(rename_all = \"camelCase\"))]",
         );
+    configure(builder, "crate::proto::tonic::serializers", |attr| {
+        format!("#[cfg_attr(feature = \"with-serde\", {attr})]")
+    })
+    .out_dir(out_dir.path())
+    .compile_protos(&[PROTO_FILES, TONIC_ONLY_PROTO_FILES].concat(), INCLUDES)
+    .expect("cannot compile protobuf using tonic");
+
+    let after_build = build_content_map(out_dir.path(), true);
+    ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
+}
+
+#[test]
+fn build_json() {
+    let before_build = build_content_map(JSON_OUT_DIR, true);
+
+    let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
+
+    let builder = tonic_prost_build::configure()
+        .build_server(false)
+        .build_client(false);
+    configure(builder, "crate::proto::json::serializers", |attr| {
+        format!("#[{attr}]")
+    })
+    .out_dir(out_dir.path())
+    .compile_protos(PROTO_FILES, INCLUDES)
+    .expect("cannot compile protobuf for json");
+
+    for entry in std::fs::read_dir(out_dir.path())
+        .expect("cannot open dictionary of generated files")
+        .flatten()
+    {
+        let content = std::fs::read_to_string(entry.path()).expect("cannot read generated file");
+        let content = strip_prost(&content);
+        assert!(!content.contains("::prost"), "{}", entry.path().display());
+        std::fs::write(entry.path(), content).expect("cannot write generated file");
+    }
+
+    let after_build = build_content_map(out_dir.path(), true);
+    ensure_files_are_same(before_build, after_build, JSON_OUT_DIR);
+}
+
+/// The JSON types are the prost-build output with prost removed: `prost::Message`
+/// only contributed `Debug` and `Default`, and `prost::alloc` is `std`.
+fn strip_prost(generated: &str) -> String {
+    generated
+        .lines()
+        .filter(|line| {
+            let item = line.trim_start();
+            !item.starts_with("#[prost(") && item != "::prost::Enumeration"
+        })
+        .flat_map(|line| [line, "\n"])
+        .collect::<String>()
+        .replace(", ::prost::Message)]", ", Debug, Default)]")
+        .replace(", ::prost::Oneof)]", ", Debug)]")
+        .replace(", ::prost::Enumeration)]", ")]")
+        .replace("::prost::alloc::", "::std::")
+}
+
+/// Serde attributes shared by both generated trees. `serde` wraps each attribute body so the
+/// tonic tree can gate it on `with-serde`; `serializers` is the module holding the custom
+/// (de)serializers of that tree.
+fn configure(
+    builder: tonic_prost_build::Builder,
+    serializers: &str,
+    serde: impl Fn(&str) -> String,
+) -> tonic_prost_build::Builder {
+    let with = |ser: &str, de: &str| {
+        serde(&format!(
+            "serde(serialize_with = \"{serializers}::{ser}\", deserialize_with = \"{serializers}::{de}\")"
+        ))
+    };
+
+    let mut builder = builder
+        .type_attribute(".", serde("derive(serde::Serialize, serde::Deserialize)"))
+        .type_attribute(".", serde("serde(rename_all = \"camelCase\")"));
 
     // Optional numeric, string and array fields need to default to their default value otherwise
     // JSON files without those field cannot deserialize
@@ -71,10 +141,7 @@ fn build_tonic() {
         "metrics.v1.SummaryDataPoint",
         "profiles.v1development.Function",
     ] {
-        builder = builder.type_attribute(
-            path,
-            "#[cfg_attr(feature = \"with-serde\", serde(default))]",
-        )
+        builder = builder.type_attribute(path, serde("serde(default)"))
     }
 
     // special serializer and deserializer for traceId and spanId
@@ -93,8 +160,10 @@ fn build_tonic() {
         "metrics.v1.Exemplar.trace_id",
         "profiles.v1development.Profile.profile_id",
     ] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_to_hex_string\", deserialize_with = \"crate::proto::serializers::deserialize_from_hex_string\"))]")
+        builder = builder.field_attribute(
+            path,
+            with("serialize_to_hex_string", "deserialize_from_hex_string"),
+        )
     }
 
     // key_strindex is a profiling-only reference field added to common.v1.KeyValue.
@@ -102,7 +171,9 @@ fn build_tonic() {
     // and omitting it from output when it is zero.
     builder = builder.field_attribute(
         "common.v1.KeyValue.key_strindex",
-        "#[cfg_attr(feature = \"with-serde\", serde(default, skip_serializing_if = \"crate::proto::serializers::is_default\"))]",
+        serde(&format!(
+            "serde(default, skip_serializing_if = \"{serializers}::is_default\")"
+        )),
     );
 
     // special serializer and deserializer for timestamp
@@ -127,24 +198,6 @@ fn build_tonic() {
         "metrics.v1.SummaryDataPoint.start_time_unix_nano",
         "metrics.v1.SummaryDataPoint.time_unix_nano",
         "metrics.v1.Exemplar.time_unix_nano",
-    ] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
-    }
-    for path in ["profiles.v1development.Profile.time_nanos"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
-    }
-    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
-    }
-
-    // special serializer and deserializer for metrics count
-    // OTLP/JSON format may use string for count
-    // the proto file uses u64 for count
-    // Thus, special serializer and deserializer are needed
-    for path in [
         // metrics count and bucket fields
         "metrics.v1.HistogramDataPoint.count",
         "metrics.v1.ExponentialHistogramDataPoint.count",
@@ -153,22 +206,25 @@ fn build_tonic() {
     ] {
         builder = builder.field_attribute(
             path,
-            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]",
-        );
+            with("serialize_u64_to_string", "deserialize_string_to_u64"),
+        )
     }
-
-    // special serializer and deserializer for metrics bucket counts
-    // OTLP/JSON format may use string for bucket counts
-    // the proto file uses u64 for bucket counts
-    // Thus, special serializer and deserializer are needed
+    builder = builder.field_attribute(
+        "profiles.v1development.Profile.time_nanos",
+        with("serialize_i64_to_string", "deserialize_string_to_i64"),
+    );
     for path in [
+        "profiles.v1development.Sample.timestamps_unix_nano",
         "metrics.v1.HistogramDataPoint.bucket_counts",
         "metrics.v1.ExponentialHistogramDataPoint.Buckets.bucket_counts",
     ] {
         builder = builder.field_attribute(
             path,
-            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
-        );
+            with(
+                "serialize_vec_u64_to_string",
+                "deserialize_vec_string_to_vec_u64",
+            ),
+        )
     }
 
     // Special handling for floating-point fields that might contain NaN, Infinity, or -Infinity
@@ -180,28 +236,25 @@ fn build_tonic() {
     ] {
         builder = builder.field_attribute(
             path,
-            "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_f64_special\", deserialize_with = \"crate::proto::serializers::deserialize_f64_special\"))]",
+            with("serialize_f64_special", "deserialize_f64_special"),
         );
     }
 
     // special serializer and deserializer for value
     // The Value::value field must be hidden
-    builder = builder
-        .field_attribute("common.v1.AnyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
+    builder = builder.field_attribute(
+        "common.v1.AnyValue.value",
+        serde(&format!(
+            "serde(flatten, serialize_with = \"{serializers}::serialize_to_value\", deserialize_with = \"{serializers}::deserialize_from_value\")"
+        )),
+    );
 
     // flatten
     for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
-        builder =
-            builder.field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten))]");
+        builder = builder.field_attribute(path, serde("serde(flatten)"));
     }
 
     builder
-        .out_dir(out_dir.path())
-        .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
-        .expect("cannot compile protobuf using tonic");
-
-    let after_build = build_content_map(out_dir.path(), true);
-    ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
 
 fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashMap<String, String> {
