@@ -267,8 +267,6 @@
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
-//! The following feature flags generate additional code and types:
-//!
 //! The following feature flags offer additional configurations on gRPC:
 //!
 //! For users using `tonic` as grpc layer:
