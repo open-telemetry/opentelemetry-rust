@@ -165,4 +165,6 @@ pub mod json {
         #[path = "opentelemetry.proto.trace.v1.rs"]
         pub mod v1;
     }
+
+    pub use crate::transform::common::json::Attributes;
 }

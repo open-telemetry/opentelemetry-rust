@@ -7,7 +7,7 @@ mod tonic {
         trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };
-    use crate::transform::common::{to_nanos, tonic::Attributes};
+    use crate::transform::common::tonic::{to_nanos, Attributes};
 
     impl From<SpanData> for LatencyData {
         fn from(span_data: SpanData) -> Self {
