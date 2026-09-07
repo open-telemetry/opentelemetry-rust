@@ -221,6 +221,11 @@ impl Span {
             return;
         }
 
+        let span_processors = provider.span_processors();
+        if span_processors.is_empty() {
+            return;
+        }
+
         // Set end time to now if not explicitly set via end_with_timestamp
         if !data.end_time_set {
             data.end_time = opentelemetry::time::now();
@@ -235,7 +240,6 @@ impl Span {
         let mut finished_span =
             FinishedSpan::new(build_export_data(data, span_context, &self.tracer));
 
-        let span_processors = provider.span_processors();
         for (i, processor) in span_processors.iter().enumerate() {
             finished_span.reset(i == span_processors.len() - 1);
             processor.on_end(&mut finished_span);
@@ -807,6 +811,17 @@ mod tests {
     fn end() {
         let mut span = create_span();
         span.end();
+    }
+
+    #[test]
+    fn end_with_no_processors() {
+        let provider = crate::trace::SdkTracerProvider::builder().build();
+        let tracer = provider.tracer("test");
+        let mut span = tracer.start("test_span");
+        let before = span.span_context().clone();
+        span.end();
+        assert_eq!(span.span_context(), &before);
+        assert!(!span.is_recording());
     }
 
     #[test]
