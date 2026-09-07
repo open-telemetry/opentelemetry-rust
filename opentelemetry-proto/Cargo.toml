@@ -27,7 +27,7 @@ path = "tests/grpc_build.rs"
 
 [[test]]
 name = "json_serde"
-path = "tests/json_serde.rs"
+path = "tests/json_serde/main.rs"
 
 
 [features]
