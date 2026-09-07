@@ -672,6 +672,69 @@ mod json_serde {
             }
         }
 
+        #[test]
+        fn deserialize_null_values_as_unset() {
+            for field in [
+                "stringValue",
+                "boolValue",
+                "intValue",
+                "doubleValue",
+                "arrayValue",
+                "kvlistValue",
+                "bytesValue",
+            ] {
+                let json = format!(r#"{{"{field}":null}}"#);
+                let actual: AnyValue =
+                    serde_json::from_str(&json).expect("null AnyValue field must deserialize");
+                assert_eq!(actual.value, None, "field: {field}");
+            }
+        }
+
+        #[test]
+        fn deserialize_null_field_preserves_non_null_value() {
+            for field in [
+                "stringValue",
+                "boolValue",
+                "intValue",
+                "doubleValue",
+                "arrayValue",
+                "kvlistValue",
+                "bytesValue",
+            ] {
+                let (non_null_field, expected) = if field == "stringValue" {
+                    (r#""intValue":"42""#, Value::IntValue(42))
+                } else {
+                    (r#""stringValue":"kept""#, Value::StringValue("kept".into()))
+                };
+                for json in [
+                    format!(r#"{{"{field}":null,{non_null_field}}}"#),
+                    format!(r#"{{{non_null_field},"{field}":null}}"#),
+                ] {
+                    let actual: AnyValue = serde_json::from_str(&json).unwrap();
+                    assert_eq!(actual.value.as_ref(), Some(&expected), "input: {json}");
+                }
+            }
+        }
+
+        #[test]
+        fn deserialize_malformed_non_null_values_fails() {
+            for json in [
+                r#"{"stringValue":42}"#,
+                r#"{"boolValue":"true"}"#,
+                r#"{"intValue":"not-an-integer"}"#,
+                r#"{"intValue":"9223372036854775808"}"#,
+                r#"{"doubleValue":true}"#,
+                r#"{"arrayValue":42}"#,
+                r#"{"kvlistValue":42}"#,
+                r#"{"bytesValue":"!"}"#,
+            ] {
+                assert!(
+                    serde_json::from_str::<AnyValue>(json).is_err(),
+                    "input: {json}"
+                );
+            }
+        }
+
         #[cfg(feature = "trace")]
         #[test]
         fn deserialize_empty_span_attribute() {

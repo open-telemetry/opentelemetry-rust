@@ -13,6 +13,13 @@
   `http-json-with-retry`, remove those feature flags. No migration action is
   required for users who did not enable them.
   [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
+- **Breaking** Make the `retry` and `retry_classification` modules crate-private,
+  removing their retry engine, error type, and protocol classifiers from the
+  public API. `RetryPolicy` remains available from the crate root with private
+  fields and fluent configuration methods. Replace imports from
+  `opentelemetry_otlp::retry` with `opentelemetry_otlp::RetryPolicy`, and replace
+  struct literals with its `with_*` methods.
+  [#3672](https://github.com/open-telemetry/opentelemetry-rust/pull/3672)
 
 #### Retry fixes
 
@@ -27,7 +34,27 @@ release:
 
 ### Other changes
 
+- **Breaking** Mark `Protocol` and `Compression` as non-exhaustive so new OTLP
+  protocols, encodings, and compression algorithms can be added without
+  breaking downstream users. External exhaustive matches must add a wildcard
+  arm. Constructing existing variants and passing them to exporter builders is
+  unchanged.
+  ```rust
+  let protocol_name = match protocol {
+      Protocol::Grpc => "grpc",
+      Protocol::HttpBinary => "http/protobuf",
+      Protocol::HttpJson => "http/json",
+      _ => "unknown", // Required because Protocol is non-exhaustive.
+  };
+  ```
+- **Breaking** Make `Protocol::from_env()` crate-private. Exporter builders
+  already resolve `OTEL_EXPORTER_OTLP_PROTOCOL` when built; applications that
+  need to inspect the raw environment setting should read the variable
+  directly.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
+  variables instead of silently falling back to another endpoint or localhost.
+  Empty endpoint environment variables are now treated as unset.
+- Return an exporter build error for invalid OTLP/gRPC endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
 - **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`

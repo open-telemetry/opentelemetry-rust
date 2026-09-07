@@ -70,17 +70,6 @@ pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// users to bring their choice of HTTP client.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
-    /// Send the specified HTTP request with `Vec<u8>` payload
-    ///
-    /// Returns the HTTP response including the status code and body.
-    ///
-    /// Returns an error if it can't connect to the server or the request could not be completed,
-    /// e.g. because of a timeout, infinite redirects, or a loss of connection.
-    #[deprecated(note = "Use `send_bytes` with `Bytes` payload instead.")]
-    async fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Bytes>, HttpError> {
-        self.send_bytes(request.map(Into::into)).await
-    }
-
     /// Send the specified HTTP request with `Bytes` payload.
     ///
     /// Returns the HTTP response including the status code and body.
