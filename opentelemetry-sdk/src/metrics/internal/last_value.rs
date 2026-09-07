@@ -305,4 +305,26 @@ mod tests {
             "bound_count should drop to 0 after handle drops"
         );
     }
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let last_value =
+            LastValue::<f64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 2000);
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&last_value, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+
+        let (count, dp) = ComputeAggregation::call(&last_value, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Gauge(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
+    }
 }

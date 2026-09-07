@@ -241,6 +241,59 @@ mod nan_guard_tests {
         assert_eq!(count, 1);
         assert_eq!(dp.data_points[0].value, 1.0);
     }
+
+    #[test]
+    fn nan_in_delta_temporality_leaves_baseline_cleared() {
+        // Under Delta temporality, dropping a NaN measurement leaves `value_map`
+        // unobserved for that collection cycle. When `drain_and_reset` runs,
+        // `new_reported` does not include the attribute set, which clears the
+        // baseline in `reported`. Consequently, a subsequent valid observation
+        // calculates delta against 0 rather than the previous valid value (100),
+        // re-counting the earlier observation.
+        //
+        // This mirrors the behavior of missing/skipped observations in async instruments
+        // today. Baseline recovery across unobserved cycles without unbounded memory
+        // growth (stale-attribute eviction) is tracked separately.
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+        );
+
+        // 1. Initial valid measurement: 100.0
+        Measure::call(&pre_sum, 100.0, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 100.0);
+
+        // 2. Bad measurement: NaN (dropped by the guard)
+        Measure::call(&pre_sum, f64::NAN, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        // Since NaN was ignored, no points were updated; collection returns count 0
+        assert_eq!(count, 0);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert!(dp.data_points.is_empty());
+
+        // 3. Next valid measurement: 110.0
+        Measure::call(&pre_sum, 110.0, &[]);
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        // Document current behavior: baseline was cleared when cycle 2 had no observation,
+        // so delta is 110.0 - 0.0 = 110.0 rather than 110.0 - 100.0 = 10.0.
+        assert_eq!(dp.data_points[0].value, 110.0);
+    }
 }
 
 #[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
@@ -310,5 +363,31 @@ mod tests {
             .next()
             .expect("entry should still exist post-drop");
         assert_eq!(entry.bound_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            true,
+            2000,
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&pre_sum, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+
+        let (count, dp) = ComputeAggregation::call(&pre_sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 1.0);
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
     }
 }

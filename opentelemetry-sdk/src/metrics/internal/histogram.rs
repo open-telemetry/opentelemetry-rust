@@ -368,3 +368,39 @@ mod tests {
         assert!(!dp.data_points[0].sum.is_nan());
     }
 }
+
+#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+mod bound_tests {
+    use super::*;
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let hist = Histogram::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            vec![1.0, 3.0, 6.0],
+            true,
+            true,
+            2000,
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&hist, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+        bound.call(2.0);
+
+        let (count, dp) = ComputeAggregation::call(&hist, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Histogram(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].count, 2);
+        assert_eq!(dp.data_points[0].sum, 3.0);
+        assert!(!dp.data_points[0].sum.is_nan());
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
+    }
+}
