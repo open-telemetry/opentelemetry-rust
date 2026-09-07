@@ -220,7 +220,8 @@ impl Span {
         if provider.is_shutdown() {
             return;
         }
-
+        // Short-circuit before cloning span context or building export data
+        // if no processors are registered.
         let span_processors = provider.span_processors();
         if span_processors.is_empty() {
             return;
