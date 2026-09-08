@@ -12,10 +12,6 @@ allowed_external_types = [
     "opentelemetry_sdk::metrics::Temporality",
     "opentelemetry_sdk::trace::export::SpanExporter",
 
-    # serde (serde_core re-export used since serde 1.0.222+)
-    "serde_core::de::Deserialize",
-    "serde_core::ser::Serialize",
-
     # tonic (pre-1.0 crate)
     "tonic::metadata::map::MetadataMap",
     "tonic::service::interceptor::Interceptor",

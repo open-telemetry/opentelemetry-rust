@@ -267,9 +267,6 @@
 //! * `metrics`: Includes the metrics exporters.
 //! * `logs`: Includes the logs exporters.
 //!
-//! The following feature flags generate additional code and types:
-//! * `serialize`: Enables serialization support for type defined in this crate via `serde`.
-//!
 //! The following feature flags offer additional configurations on gRPC:
 //!
 //! For users using `tonic` as grpc layer:
@@ -759,11 +756,7 @@ pub use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::TonicExporterBuilder;
 
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
-
 /// The communication protocol to use when exporting data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Protocol {
