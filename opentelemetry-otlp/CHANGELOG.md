@@ -34,6 +34,7 @@ release:
 
 ### Other changes
 
+- `http-json` no longer depends on `prost` and no longer enables `opentelemetry-proto/gen-tonic-messages` or `opentelemetry-proto/with-serde`; OTLP/JSON payloads are built from `opentelemetry_proto::json`. [#3419](https://github.com/open-telemetry/opentelemetry-rust/issues/3419)
 - **Breaking** Mark `Protocol` and `Compression` as non-exhaustive so new OTLP
   protocols, encodings, and compression algorithms can be added without
   breaking downstream users. External exhaustive matches must add a wildcard

@@ -30,6 +30,7 @@ if rustup component add clippy && \
   cargo_feature opentelemetry-otlp "http-proto, reqwest-blocking-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-client"
   cargo_feature opentelemetry-otlp "http-proto, reqwest-rustls"
+  cargo_feature opentelemetry-otlp "http-json"
   cargo_feature opentelemetry-otlp "metrics"
 
   cargo_feature opentelemetry-jaeger-propagator "default"
@@ -45,5 +46,8 @@ if rustup component add clippy && \
   cargo_feature opentelemetry-proto "gen-tonic,logs"
   cargo_feature opentelemetry-proto "gen-tonic,logs,with-serde"
   cargo_feature opentelemetry-proto "gen-tonic,logs,with-schemars,with-serde"
+  cargo_feature opentelemetry-proto "gen-json,trace"
+  cargo_feature opentelemetry-proto "gen-json,metrics"
+  cargo_feature opentelemetry-proto "gen-json,logs"
 
 fi

@@ -27,7 +27,7 @@ path = "tests/grpc_build.rs"
 
 [[test]]
 name = "json_serde"
-path = "tests/json_serde.rs"
+path = "tests/json_serde/main.rs"
 
 
 [features]
@@ -37,6 +37,7 @@ full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "intern
 # crates used to generate rs files
 gen-tonic = ["gen-tonic-messages", "tonic", "tonic-prost", "tonic/channel"]
 gen-tonic-messages = ["prost"]
+gen-json = ["serde", "const-hex", "base64"]
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]

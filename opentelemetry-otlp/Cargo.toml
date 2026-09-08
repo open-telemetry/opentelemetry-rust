@@ -91,7 +91,7 @@ tls-webpki-roots = ["tonic/tls-webpki-roots"]
 # http binary
 http-proto = ["prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "http", "httpdate", "trace", "metrics"]
 
-http-json = ["serde_json", "prost", "opentelemetry-http", "opentelemetry-proto/gen-tonic-messages", "opentelemetry-proto/with-serde", "http", "httpdate", "trace", "metrics"]
+http-json = ["serde_json", "opentelemetry-http", "opentelemetry-proto/gen-json", "http", "httpdate", "trace", "metrics"]
 
 #
 # HTTP clients

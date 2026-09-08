@@ -1,25 +1,25 @@
-#[cfg(all(feature = "with-serde", feature = "gen-tonic-messages"))]
+use super::proto;
+
 mod json_serde {
+    use super::proto;
     #[cfg(feature = "logs")]
-    use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+    use proto::collector::logs::v1::ExportLogsServiceRequest;
     #[cfg(feature = "metrics")]
-    use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
+    use proto::collector::metrics::v1::ExportMetricsServiceRequest;
     #[cfg(feature = "trace")]
-    use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-    use opentelemetry_proto::tonic::common::v1::any_value::Value;
-    use opentelemetry_proto::tonic::common::v1::{
-        AnyValue, ArrayValue, InstrumentationScope, KeyValue, KeyValueList,
-    };
+    use proto::collector::trace::v1::ExportTraceServiceRequest;
+    use proto::common::v1::any_value::Value;
+    use proto::common::v1::{AnyValue, ArrayValue, InstrumentationScope, KeyValue, KeyValueList};
     #[cfg(feature = "logs")]
-    use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
+    use proto::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
     #[cfg(feature = "metrics")]
-    use opentelemetry_proto::tonic::metrics::v1::{
+    use proto::metrics::v1::{
         metric::Data, number_data_point::Value as MetricValue, Gauge, Histogram,
         HistogramDataPoint, Metric, NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
     };
-    use opentelemetry_proto::tonic::resource::v1::Resource;
+    use proto::resource::v1::Resource;
     #[cfg(feature = "trace")]
-    use opentelemetry_proto::tonic::trace::v1::{
+    use proto::trace::v1::{
         span::{Event, Link},
         ResourceSpans, ScopeSpans, Span, Status,
     };
@@ -1694,9 +1694,9 @@ mod json_serde {
     #[cfg(feature = "metrics")]
     mod metrics_with_nan {
         use super::*;
-        use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
-        use opentelemetry_proto::tonic::metrics::v1::Summary;
-        use opentelemetry_proto::tonic::metrics::v1::SummaryDataPoint;
+        use proto::metrics::v1::summary_data_point::ValueAtQuantile;
+        use proto::metrics::v1::Summary;
+        use proto::metrics::v1::SummaryDataPoint;
 
         fn value_with_nan() -> ExportMetricsServiceRequest {
             ExportMetricsServiceRequest {
@@ -1717,30 +1717,26 @@ mod json_serde {
                             description: String::from("A sample metric with NaN values"),
                             unit: String::from("1"),
                             metadata: vec![],
-                            data: Some(
-                                opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(
-                                    Summary {
-                                        data_points: vec![SummaryDataPoint {
-                                            attributes: vec![],
-                                            start_time_unix_nano: 0,
-                                            time_unix_nano: 0,
-                                            count: 100,
-                                            sum: 500.0,
-                                            quantile_values: vec![
-                                                ValueAtQuantile {
-                                                    quantile: 0.5,
-                                                    value: f64::NAN,
-                                                },
-                                                ValueAtQuantile {
-                                                    quantile: 0.9,
-                                                    value: f64::NAN,
-                                                },
-                                            ],
-                                            flags: 0,
-                                        }],
-                                    },
-                                ),
-                            ),
+                            data: Some(proto::metrics::v1::metric::Data::Summary(Summary {
+                                data_points: vec![SummaryDataPoint {
+                                    attributes: vec![],
+                                    start_time_unix_nano: 0,
+                                    time_unix_nano: 0,
+                                    count: 100,
+                                    sum: 500.0,
+                                    quantile_values: vec![
+                                        ValueAtQuantile {
+                                            quantile: 0.5,
+                                            value: f64::NAN,
+                                        },
+                                        ValueAtQuantile {
+                                            quantile: 0.9,
+                                            value: f64::NAN,
+                                        },
+                                    ],
+                                    flags: 0,
+                                }],
+                            })),
                         }],
                         schema_url: String::new(),
                     }],
@@ -1853,9 +1849,7 @@ mod json_serde {
             assert_eq!(metric.description, "A sample metric with NaN values");
             assert_eq!(metric.unit, "1");
 
-            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
-                &metric.data
-            {
+            if let Some(proto::metrics::v1::metric::Data::Summary(summary)) = &metric.data {
                 assert_eq!(summary.data_points.len(), 1);
 
                 let data_point = &summary.data_points[0];
@@ -2000,9 +1994,7 @@ mod json_serde {
             let result: ExportMetricsServiceRequest =
                 serde_json::from_str(json).expect("quoted f64 numbers must deserialize");
             let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
-            if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
-                &dp.data
-            {
+            if let Some(proto::metrics::v1::metric::Data::Summary(summary)) = &dp.data {
                 let qv = &summary.data_points[0].quantile_values[0];
                 // assert!((qv.quantile - 0.5).abs() < f64::EPSILON);
                 // assert!((qv.value - 99.0).abs() < f64::EPSILON);

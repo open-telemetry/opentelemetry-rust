@@ -35,37 +35,45 @@ impl MetricsClient for OtlpHttpClient {
 /// Handles partial success returned by OTLP endpoints. We log the rejected data points,
 /// as well as the error message returned.
 fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
-    use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceResponse;
-
-    let response: ExportMetricsServiceResponse = match protocol {
+    let partial_success = match protocol {
         #[cfg(feature = "http-json")]
-        Protocol::HttpJson => match serde_json::from_slice(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpMetricsClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpJson => {
+            use opentelemetry_proto::json::collector::metrics::v1::ExportMetricsServiceResponse;
+            match serde_json::from_slice::<ExportMetricsServiceResponse>(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_data_points, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpMetricsClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "http-proto")]
-        Protocol::HttpBinary => match Message::decode(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpMetricsClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpBinary => {
+            use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceResponse;
+            match ExportMetricsServiceResponse::decode(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_data_points, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpMetricsClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "grpc-tonic")]
         Protocol::Grpc => {
             unreachable!("HTTP client should not receive Grpc protocol")
         }
     };
 
-    if let Some(partial_success) = response.partial_success {
-        if partial_success.rejected_data_points > 0 || !partial_success.error_message.is_empty() {
+    if let Some((rejected_data_points, error_message)) = partial_success {
+        if rejected_data_points > 0 || !error_message.is_empty() {
             otel_warn!(
                 name: "HttpMetricsClient.PartialSuccess",
-                rejected_data_points = partial_success.rejected_data_points,
-                error_message = partial_success.error_message.as_str(),
+                rejected_data_points = rejected_data_points,
+                error_message = error_message.as_str(),
             );
         }
     }

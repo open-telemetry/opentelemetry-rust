@@ -35,44 +35,52 @@ impl SpanExporter for OtlpHttpClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = resource.into();
+        self.resource = resource.clone();
     }
 }
 
 /// Handles partial success returned by OTLP endpoints. We log the rejected spans,
 /// as well as the error message returned.
 fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
-    use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceResponse;
-
-    let response: ExportTraceServiceResponse = match protocol {
+    let partial_success = match protocol {
         #[cfg(feature = "http-json")]
-        Protocol::HttpJson => match serde_json::from_slice(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpJson => {
+            use opentelemetry_proto::json::collector::trace::v1::ExportTraceServiceResponse;
+            match serde_json::from_slice::<ExportTraceServiceResponse>(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_spans, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "http-proto")]
-        Protocol::HttpBinary => match Message::decode(response_body) {
-            Ok(r) => r,
-            Err(e) => {
-                otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
-                return;
+        Protocol::HttpBinary => {
+            use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceResponse;
+            match ExportTraceServiceResponse::decode(response_body) {
+                Ok(r) => r
+                    .partial_success
+                    .map(|p| (p.rejected_spans, p.error_message)),
+                Err(e) => {
+                    otel_debug!(name: "HttpTraceClient.ResponseParseError", error = e.to_string());
+                    return;
+                }
             }
-        },
+        }
         #[cfg(feature = "grpc-tonic")]
         Protocol::Grpc => {
             unreachable!("HTTP client should not receive Grpc protocol")
         }
     };
 
-    if let Some(partial_success) = response.partial_success {
-        if partial_success.rejected_spans > 0 || !partial_success.error_message.is_empty() {
+    if let Some((rejected_spans, error_message)) = partial_success {
+        if rejected_spans > 0 || !error_message.is_empty() {
             otel_warn!(
                 name: "HttpTraceClient.PartialSuccess",
-                rejected_spans = partial_success.rejected_spans,
-                error_message = partial_success.error_message.as_str(),
+                rejected_spans = rejected_spans,
+                error_message = error_message.as_str(),
             );
         }
     }

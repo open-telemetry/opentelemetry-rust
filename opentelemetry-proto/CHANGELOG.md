@@ -4,6 +4,7 @@
 
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
+- **Feature**: Add the `gen-json` feature, generating `opentelemetry_proto::json`: the OTLP messages with serde support and no `prost` dependency, plus the matching `transform::*::json` conversions. [#3419](https://github.com/open-telemetry/opentelemetry-rust/issues/3419)
 
 ## 0.32.0
 
