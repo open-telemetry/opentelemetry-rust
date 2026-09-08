@@ -80,6 +80,10 @@ release:
   OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
   after compression; oversized requests are discarded without being sent or
   retried.
+- **Breaking** Seal `WithExportConfig`, `WithHttpConfig`, and
+  `WithTonicConfig`. These traits remain public for calling configuration
+  methods on OTLP builders, but can no longer be implemented for external
+  types.
 - Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
   `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
   `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
