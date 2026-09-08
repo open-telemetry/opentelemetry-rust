@@ -2,6 +2,12 @@
 
 ## vNext
 
+- **Breaking** Sealed the `ResponseExt` trait so it can no longer be implemented by
+  downstream crates. The trait provides a blanket implementation for all
+  `http::Response<T>` types, so calling code is unaffected -- only
+  `impl ResponseExt for MyType` will stop compiling. If you have a custom
+  implementation, remove it and rely on the blanket impl instead.
+
 - **Breaking** Removed the deprecated `HttpClient::send` method, which accepted
   `Request<Vec<u8>>`. Implement and call `HttpClient::send_bytes` instead,
   converting existing requests with `request.map(Bytes::from)` when needed.
