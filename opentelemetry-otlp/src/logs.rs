@@ -40,7 +40,6 @@ pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSE
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,
-    endpoint: Option<String>,
 }
 
 impl LogExporterBuilder<NoExporterBuilderSet> {
@@ -54,7 +53,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_tonic(self) -> LogExporterBuilder<TonicExporterBuilderSet> {
         LogExporterBuilder {
             client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 
@@ -63,7 +61,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_http(self) -> LogExporterBuilder<HttpExporterBuilderSet> {
         LogExporterBuilder {
             client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 

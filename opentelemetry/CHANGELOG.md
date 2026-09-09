@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
+  specification allows. `from_str`, `from_key_value` and `insert` now keep at most
+  32, dropping members from the end of the list as the specification prescribes, so
+  neither a parsed nor a locally built `tracestate` can exceed the limit.
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the

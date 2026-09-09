@@ -23,6 +23,7 @@ opentelemetry-otlp = { path = "../../../opentelemetry-otlp", default-features = 
 
 [dev-dependencies]
 ctor = { workspace = true }
+prost = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 
 [target.'cfg(unix)'.dev-dependencies]
@@ -30,7 +31,17 @@ opentelemetry-appender-tracing = { path = "../../../opentelemetry-appender-traci
 
 [features]
 hyper-client = ["opentelemetry-otlp/hyper-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
-reqwest-client = ["opentelemetry-otlp/reqwest-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
+reqwest-client = [
+    "opentelemetry-otlp/reqwest-client",
+    "opentelemetry-otlp/http-proto",
+    "opentelemetry-otlp/trace",
+    "opentelemetry-otlp/logs",
+    "opentelemetry-otlp/metrics",
+    "opentelemetry_sdk/experimental_logs_batch_log_processor_with_async_runtime",
+    "opentelemetry_sdk/experimental_metrics_periodicreader_with_async_runtime",
+    "opentelemetry_sdk/experimental_trace_batch_span_processor_with_async_runtime",
+    "internal-logs",
+]
 reqwest-blocking-client = ["opentelemetry-otlp/reqwest-blocking-client", "opentelemetry-otlp/http-proto", "opentelemetry-otlp/trace","opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 tonic-client = ["opentelemetry-otlp/grpc-tonic", "opentelemetry-otlp/trace", "opentelemetry-otlp/logs", "opentelemetry-otlp/metrics", "internal-logs"]
 internal-logs = ["opentelemetry-otlp/internal-logs"]

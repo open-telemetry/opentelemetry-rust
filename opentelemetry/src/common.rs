@@ -632,7 +632,6 @@ mod tests {
 
     use rand::random;
     use std::collections::hash_map::DefaultHasher;
-    use std::f64;
 
     #[test]
     fn kv_float_equality() {
