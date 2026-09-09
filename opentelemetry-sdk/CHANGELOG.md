@@ -2,6 +2,12 @@
 
 ## vNext
 
+- `IdGenerator` gained a defaulted `is_random()` method (default `false`);
+  `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
+  configured generator reports random trace IDs, child spans inherit it from their
+  parent, and spans with a `Drop` sampling decision preserve inherited trace flags other
+  than `SAMPLED`. `TraceContextPropagator` now propagates the `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
