@@ -58,6 +58,33 @@ log guidance.
    express these concepts, but these are a workaround, not the recommended
    path for edge spans.
 
+## Filtering spans
+
+Prefer a sampler when the filtering decision can use information available at
+span creation, including initial attributes. A sampler that returns `Drop`
+avoids recording and processing that span. Use a custom [`SpanProcessor`] when
+the decision requires the finished `SpanData` or other processor state, such as
+an attribute added during the span's lifetime, its final status, or runtime
+configuration.
+
+For end-of-span filtering, wrap the processor that exports or batches spans.
+Evaluate the filtering condition in `on_end` and call the wrapped processor
+only when the span should be kept. Register only the wrapper with
+`SdkTracerProvider`. Registering the filter and exporter-backed processor
+separately does not form a pipeline; every registered processor receives the
+span independently.
+
+The [`SpanProcessor::on_end` example] uses an attribute value as its filtering
+condition. A processor could instead use the span name, status, duration,
+instrumentation scope, external configuration, or any other available
+information. The example also demonstrates forwarding processor lifecycle
+methods and composing the filter with another processor.
+
+Filtering individual finished spans can produce a partial trace. For example,
+an exported child can refer to a parent span that the processor discarded. Use
+parent-aware head sampling or Collector tail sampling when the decision should
+apply consistently to an entire trace.
+
 ## See Also
 
 - [OpenTelemetry Traces Specification](https://opentelemetry.io/docs/specs/otel/trace/)
@@ -82,6 +109,8 @@ to the depth in [metrics.md](metrics.md):
 
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
+[`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
+[`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
 [`opentelemetry-instrumentation-tower`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-tower
 [`opentelemetry-instrumentation-actix-web`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-actix-web

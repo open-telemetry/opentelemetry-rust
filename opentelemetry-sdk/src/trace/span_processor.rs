@@ -126,6 +126,62 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// }
     /// ```
     ///
+    /// # Filtering completed spans
+    ///
+    /// A filtering processor can wrap another processor and delegate only the
+    /// spans that satisfy its condition. This example uses an attribute, but the
+    /// condition can use any information in [`SpanData`] or other processor state.
+    ///
+    /// ```rust
+    /// use opentelemetry::{Context, Value};
+    /// use opentelemetry_sdk::{
+    ///     error::OTelSdkResult,
+    ///     trace::{Span, SpanData, SpanProcessor},
+    ///     Resource,
+    /// };
+    /// use std::time::Duration;
+    ///
+    /// #[derive(Debug)]
+    /// struct FilteringSpanProcessor<P> {
+    ///     next: P,
+    /// }
+    ///
+    /// impl<P> FilteringSpanProcessor<P> {
+    ///     fn new(next: P) -> Self {
+    ///         Self { next }
+    ///     }
+    /// }
+    ///
+    /// impl<P: SpanProcessor> SpanProcessor for FilteringSpanProcessor<P> {
+    ///     fn on_start(&self, span: &mut Span, cx: &Context) {
+    ///         self.next.on_start(span, cx);
+    ///     }
+    ///
+    ///     fn on_end(&self, span: SpanData) {
+    ///         let should_drop = span.attributes.iter().any(|attribute| {
+    ///             attribute.key.as_str() == "example.drop"
+    ///                 && attribute.value == Value::Bool(true)
+    ///         });
+    ///
+    ///         if !should_drop {
+    ///             self.next.on_end(span);
+    ///         }
+    ///     }
+    ///
+    ///     fn force_flush(&self) -> OTelSdkResult {
+    ///         self.next.force_flush()
+    ///     }
+    ///
+    ///     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+    ///         self.next.shutdown_with_timeout(timeout)
+    ///     }
+    ///
+    ///     fn set_resource(&mut self, resource: &Resource) {
+    ///         self.next.set_resource(resource);
+    ///     }
+    /// }
+    /// ```
+    ///
     /// [`on_start`]: SpanProcessor::on_start
     /// [`Context::current()`]: opentelemetry::Context::current
     ///
