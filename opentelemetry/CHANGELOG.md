@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
+  `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
   specification allows. `from_str`, `from_key_value` and `insert` now keep at most
   32, dropping members from the end of the list as the specification prescribes, so
