@@ -31,7 +31,7 @@ const B3_SPAN_ID_HEADER: &str = "x-b3-spanid";
 const B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 const B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 
-const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x02);
+const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x80);
 const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
 
 static B3_SINGLE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [B3_SINGLE_HEADER.to_owned()]);
@@ -307,6 +307,7 @@ impl TextMapPropagator for Propagator {
 mod tests {
     use super::*;
     use opentelemetry::testing::trace::TestSpan;
+    use opentelemetry_sdk::propagation::TraceContextPropagator;
     use std::collections::HashMap;
 
     const TRACE_ID_STR: &str = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -401,6 +402,8 @@ mod tests {
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::RANDOM, true, TraceState::default())),
             ("1", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
             ("0", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::default(), true, TraceState::default())),
         ]
@@ -415,6 +418,8 @@ mod tests {
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())),
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::RANDOM, true, TraceState::default())),
             (None, None, Some("0"), None, SpanContext::empty_context()),
             (None, None, Some("1"), None, SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default()))
         ]
@@ -678,6 +683,65 @@ mod tests {
                 B3_SAMPLED_HEADER,
                 B3_DEBUG_FLAG_HEADER
             ]
+        );
+    }
+
+    #[test]
+    fn w3c_random_flag_injects_sampled_state_via_b3() {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "traceparent".to_string(),
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03".to_string(),
+        );
+        let cx = TraceContextPropagator::new().extract(&headers);
+
+        let mut single = HashMap::new();
+        Propagator::with_encoding(B3Encoding::SingleHeader).inject_context(&cx, &mut single);
+        assert_eq!(
+            single.get(B3_SINGLE_HEADER),
+            Some(&"4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1".to_owned())
+        );
+
+        let mut multi = HashMap::new();
+        Propagator::with_encoding(B3Encoding::MultipleHeader).inject_context(&cx, &mut multi);
+        assert_eq!(multi.get(B3_SAMPLED_HEADER), Some(&"1".to_owned()));
+        assert_eq!(multi.get(B3_DEBUG_FLAG_HEADER), None);
+    }
+
+    #[test]
+    fn b3_private_flags_stay_off_traceparent() {
+        let w3c = TraceContextPropagator::new();
+
+        // Deferred sampling has no sampling state on the wire.
+        let mut deferred = HashMap::new();
+        deferred.insert(
+            B3_SINGLE_HEADER.to_string(),
+            "4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7".to_string(),
+        );
+        let cx = Propagator::with_encoding(B3Encoding::SingleHeader).extract(&deferred);
+        assert_eq!(cx.span().span_context().trace_flags(), TRACE_FLAG_DEFERRED);
+        let mut out = HashMap::new();
+        w3c.inject_context(&cx, &mut out);
+        assert_eq!(
+            out.get("traceparent"),
+            Some(&"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00".to_owned())
+        );
+
+        // Debug sampling is indicated by x-b3-flags set to 1.
+        let mut debug = HashMap::new();
+        debug.insert(B3_TRACE_ID_HEADER.to_string(), TRACE_ID_STR.to_string());
+        debug.insert(B3_SPAN_ID_HEADER.to_string(), SPAN_ID_STR.to_string());
+        debug.insert(B3_DEBUG_FLAG_HEADER.to_string(), "1".to_string());
+        let cx = Propagator::with_encoding(B3Encoding::MultipleHeader).extract(&debug);
+        assert_eq!(
+            cx.span().span_context().trace_flags(),
+            TRACE_FLAG_DEBUG | TraceFlags::SAMPLED
+        );
+        let mut out = HashMap::new();
+        w3c.inject_context(&cx, &mut out);
+        assert_eq!(
+            out.get("traceparent"),
+            Some(&"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_owned())
         );
     }
 }
