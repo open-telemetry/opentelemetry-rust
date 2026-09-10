@@ -709,6 +709,47 @@ mod tests {
     }
 
     #[test]
+    fn locally_dropped_child_of_deferred_parent_injects_sampled_zero() {
+        use opentelemetry::trace::{Span, Tracer, TracerProvider};
+        use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
+
+        let mut incoming = HashMap::new();
+        incoming.insert(
+            B3_SINGLE_HEADER.to_string(),
+            "4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7".to_string(),
+        );
+        let parent_cx = Propagator::with_encoding(B3Encoding::SingleHeader).extract(&incoming);
+        assert_eq!(
+            parent_cx.span().span_context().trace_flags(),
+            TRACE_FLAG_DEFERRED
+        );
+
+        let provider = SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let child = provider
+            .tracer("test")
+            .start_with_context("child", &parent_cx);
+        assert!(!child.is_recording());
+        let span_id = child.span_context().span_id().to_string();
+        let child_cx = Context::current_with_span(child);
+
+        // The SDK made a local decision, so B3 must send an explicit `0`
+        // rather than deferring again.
+        let mut single = HashMap::new();
+        Propagator::with_encoding(B3Encoding::SingleHeader).inject_context(&child_cx, &mut single);
+        assert_eq!(
+            single.get(B3_SINGLE_HEADER),
+            Some(&format!("{TRACE_ID_STR}-{span_id}-0"))
+        );
+
+        let mut multi = HashMap::new();
+        Propagator::with_encoding(B3Encoding::MultipleHeader).inject_context(&child_cx, &mut multi);
+        assert_eq!(multi.get(B3_SAMPLED_HEADER), Some(&"0".to_owned()));
+        assert_eq!(multi.get(B3_DEBUG_FLAG_HEADER), None);
+    }
+
+    #[test]
     fn b3_private_flags_stay_off_traceparent() {
         let w3c = TraceContextPropagator::new();
 

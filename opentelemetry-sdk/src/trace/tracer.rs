@@ -252,10 +252,11 @@ impl opentelemetry::trace::Tracer for SdkTracer {
                 )
             }
             SamplingDecision::Drop => {
+                // Keep RANDOM, but clear private flags after a local drop.
                 let span_context = SpanContext::new(
                     trace_id,
                     span_id,
-                    trace_flags.with_sampled(false),
+                    trace_flags & TraceFlags::RANDOM,
                     false,
                     trace_state,
                 );
@@ -779,5 +780,23 @@ mod tests {
             Extractor::get(&injector, "traceparent"),
             Some(expected.as_str())
         );
+    }
+
+    #[test]
+    fn dropped_child_keeps_only_random_flag() {
+        // Propagators may stash private bits (e.g. B3's deferred marker) in the
+        // parent's flags; a local `Drop` decision must not carry them forward.
+        let private_bit = TraceFlags::new(0x80);
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        let child =
+            tracer.start_with_context("child", &remote_parent(TraceFlags::RANDOM | private_bit));
+        assert_eq!(child.span_context().trace_flags(), TraceFlags::RANDOM);
+
+        let child = tracer.start_with_context("child", &remote_parent(private_bit));
+        assert_eq!(child.span_context().trace_flags(), TraceFlags::default());
     }
 }
