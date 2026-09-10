@@ -17,10 +17,11 @@ const TONIC_PROTO_FILES: &[&str] = &[
     "src/proto/tracez.proto",
 ];
 const TONIC_INCLUDES: &[&str] = &["src/proto/opentelemetry-proto", "src/proto"];
+const PROTO_DESCRIPTOR_FILE_NAME: &str = "descriptors.bin";
 
 #[test]
 fn build_tonic() {
-    let before_build = build_content_map(TONIC_OUT_DIR, true);
+    let before_build = build_content_map(TONIC_OUT_DIR);
 
     let out_dir = TempDir::new().expect("failed to create temp dir to store the generated files");
 
@@ -196,15 +197,16 @@ fn build_tonic() {
     }
 
     builder
+        .file_descriptor_set_path(out_dir.path().join(PROTO_DESCRIPTOR_FILE_NAME))
         .out_dir(out_dir.path())
         .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
 
-    let after_build = build_content_map(out_dir.path(), true);
+    let after_build = build_content_map(out_dir.path());
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
 }
 
-fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashMap<String, String> {
+fn build_content_map(path: impl AsRef<Path>) -> HashMap<String, Vec<u8>> {
     std::fs::read_dir(path)
         .expect("cannot open dictionary of generated files")
         .flatten()
@@ -214,12 +216,14 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
                 .file_name()
                 .expect("file name should always exist for generated files");
 
-            let mut file_contents = std::fs::read_to_string(path.clone())
-                .expect("cannot read from existing generated file");
+            let file_contents = if path.extension().is_some_and(|suffix| suffix == "bin") {
+                std::fs::read(path.clone()).expect("cannot read from existing generated file")
+            } else {
+                let file_contents = std::fs::read_to_string(path.clone())
+                    .expect("cannot read from existing generated file");
 
-            if normalize_line_feed {
-                file_contents = get_platform_specific_string(file_contents);
-            }
+                get_platform_specific_string(file_contents)
+            };
 
             (file_name.to_string_lossy().to_string(), file_contents)
         })
@@ -227,16 +231,16 @@ fn build_content_map(path: impl AsRef<Path>, normalize_line_feed: bool) -> HashM
 }
 
 ///  Returns a String which uses the platform specific new line feed character.
-fn get_platform_specific_string(input: String) -> String {
+fn get_platform_specific_string(input: String) -> Vec<u8> {
     if cfg!(windows) && !input.ends_with("\r\n") && input.ends_with('\n') {
-        return input.replace('\n', "\r\n");
+        return input.replace('\n', "\r\n").into();
     }
-    input
+    input.into()
 }
 
 fn ensure_files_are_same(
-    before_build: HashMap<String, String>,
-    after_build: HashMap<String, String>,
+    before_build: HashMap<String, Vec<u8>>,
+    after_build: HashMap<String, Vec<u8>>,
     target_dir: &'static str,
 ) {
     if after_build == before_build {
