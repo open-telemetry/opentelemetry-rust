@@ -10,6 +10,11 @@
   override the root case; the other 4 were fixed to the spec defaults. Unset
   branches keep those same defaults, so this is purely additive.
   ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. one extracted
+  from an unparsable `traceparent` header). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
