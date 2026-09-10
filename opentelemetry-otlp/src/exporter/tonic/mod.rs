@@ -201,7 +201,7 @@ impl TonicExporterBuilder {
         #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
         {
             let protocol =
-                super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol)?;
+                super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
 
             let is_http_protocol = false;
             #[cfg(feature = "http-proto")]
@@ -273,7 +273,10 @@ impl TonicExporterBuilder {
         let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str).map_err(|error| {
             ExporterBuildError::invalid_configuration(
                 "endpoint",
-                format!("invalid endpoint '{endpoint_clone}': {error}"),
+                format!(
+                    "invalid endpoint '{endpoint_clone}': {}",
+                    render_source_chain(&error)
+                ),
             )
         })?;
 
@@ -303,17 +306,22 @@ impl TonicExporterBuilder {
             feature = "tls-provider-agnostic"
         ))]
         let channel = match self.tonic_config.tls_config {
-            Some(tls_config) => endpoint
-                .tls_config(tls_config)
-                .map_err(|error| ExporterBuildError::invalid_configuration("tls_config", error))?,
+            Some(tls_config) => endpoint.tls_config(tls_config).map_err(|error| {
+                ExporterBuildError::invalid_configuration(
+                    "tls_config",
+                    render_source_chain(&error),
+                )
+            })?,
             None if is_https => endpoint
                 .tls_config(ClientTlsConfig::new())
                 .map_err(|error| {
                     ExporterBuildError::invalid_configuration(
                         "endpoint",
                         format!(
-                            "failed to configure default TLS for HTTPS endpoint '{endpoint_clone}': {error}; \
+                            "failed to configure default TLS for HTTPS endpoint '{endpoint_clone}': {}; \
                              ensure an appropriate TLS provider feature is enabled"
+                            ,
+                            render_source_chain(&error)
                         ),
                     )
                 })?,
@@ -359,7 +367,36 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
+        super::resolve_compression_from_env(
+            self.tonic_config.compression,
+            env_override,
+            |compression| match compression {
+                Compression::Gzip => {
+                    #[cfg(feature = "gzip-tonic")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "gzip-tonic"))]
+                    {
+                        Err(
+                            "feature 'gzip-tonic' is required to use the compression algorithm 'gzip'",
+                        )
+                    }
+                }
+                Compression::Zstd => {
+                    #[cfg(feature = "zstd-tonic")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "zstd-tonic"))]
+                    {
+                        Err(
+                            "feature 'zstd-tonic' is required to use the compression algorithm 'zstd'",
+                        )
+                    }
+                }
+            },
+        )?
             .map(|c| c.try_into())
             .transpose()
     }
@@ -534,7 +571,6 @@ pub(crate) use handle_tonic_export_error;
 
 /// Render an `std::error::Error` and its `source()` chain into a single
 /// colon-separated string (e.g. `"transport error: invalid URL, scheme is missing"`).
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> String {
     use std::fmt::Write;
     let mut out = err.to_string();
@@ -547,15 +583,7 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
 }
 
 fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
-    match env::var(variable) {
-        Ok(value) if value.is_empty() => Ok(None),
-        Ok(value) => Ok(Some(value)),
-        Err(env::VarError::NotPresent) => Ok(None),
-        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
-            name: variable.to_string(),
-            reason: "environment variable value is not valid Unicode".to_string(),
-        }),
-    }
+    super::read_env_var(variable)
 }
 
 /// Apply the OTLP `INSECURE` rule to a (possibly schemeless) gRPC endpoint.
@@ -1163,9 +1191,9 @@ mod tests {
                 );
                 assert!(matches!(
                     result,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                            && reason.contains("not valid Unicode")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.contains("not valid Unicode")
                 ));
             },
         );

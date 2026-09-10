@@ -91,11 +91,40 @@ release:
   `InvalidConfiguration(String)` and `InternalFailure(String)` variants.
   The enum is no longer marked `#[non_exhaustive]`.
   Configuration errors such as invalid endpoints, missing HTTP clients,
-  unsupported compression, and missing compression features now use
-  `InvalidConfiguration`. Invalid protocol environment variables now return
-  `InvalidConfiguration` instead of falling back to another protocol. Match
-  one of these categories instead of the previous implementation-specific
-  variants. `Compression::from_str` now returns `ParseCompressionError`.
+  transport/protocol mismatches, and missing compression features now use
+  `InvalidConfiguration`. Replace implementation-specific, non-exhaustive
+  matches such as:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidUri(_, _)
+      | ExporterBuildError::InvalidConfig { .. }
+      | ExporterBuildError::NoHttpClient => {
+          eprintln!("fix the exporter configuration");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+      _ => {}
+  }
+  ```
+  with an exhaustive match over the two stable categories:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidConfiguration(message) => {
+          eprintln!("fix the exporter configuration: {message}");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+  }
+  ```
+  `Compression::from_str` now returns `ParseCompressionError`. Protocol,
+  compression, and metrics temporality environment values are interpreted
+  case-insensitively; invalid or unavailable enum values are logged and
+  ignored, allowing resolution to continue with the next configured value or
+  default. Failures while constructing a default reqwest client now return
+  `InternalFailure` instead of silently falling back to a differently
+  configured client.
   [#3691](https://github.com/open-telemetry/opentelemetry-rust/issues/3691)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.

@@ -186,7 +186,7 @@ impl HttpExporterBuilder {
         signal_compression_var: &str,
         signal_protocol_var: &str,
     ) -> Result<OtlpHttpClient, ExporterBuildError> {
-        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol)?;
+        let protocol = super::resolve_protocol(signal_protocol_var, self.exporter_config.protocol);
 
         // Validate protocol is compatible with HTTP transport
         #[cfg(feature = "grpc-tonic")]
@@ -204,30 +204,6 @@ impl HttpExporterBuilder {
         )?;
 
         let compression = self.resolve_compression(signal_compression_var)?;
-
-        // Validate compression is supported at build time
-        if let Some(compression_alg) = &compression {
-            match compression_alg {
-                crate::Compression::Gzip => {
-                    #[cfg(not(feature = "gzip-http"))]
-                    {
-                        return Err(ExporterBuildError::invalid_configuration(
-                            "compression",
-                            "feature 'gzip-http' is required to use the compression algorithm 'gzip'",
-                        ));
-                    }
-                }
-                crate::Compression::Zstd => {
-                    #[cfg(not(feature = "zstd-http"))]
-                    {
-                        return Err(ExporterBuildError::invalid_configuration(
-                            "compression",
-                            "feature 'zstd-http' is required to use the compression algorithm 'zstd'",
-                        ));
-                    }
-                }
-            }
-        }
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
@@ -340,7 +316,36 @@ impl HttpExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
-        super::resolve_compression_from_env(self.http_config.compression, env_override)
+        super::resolve_compression_from_env(
+            self.http_config.compression,
+            env_override,
+            |compression| match compression {
+                crate::Compression::Gzip => {
+                    #[cfg(feature = "gzip-http")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "gzip-http"))]
+                    {
+                        Err(
+                            "feature 'gzip-http' is required to use the compression algorithm 'gzip'",
+                        )
+                    }
+                }
+                crate::Compression::Zstd => {
+                    #[cfg(feature = "zstd-http")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "zstd-http"))]
+                    {
+                        Err(
+                            "feature 'zstd-http' is required to use the compression algorithm 'zstd'",
+                        )
+                    }
+                }
+            },
+        )
     }
 
     /// Create a span exporter with the current configuration
@@ -1703,7 +1708,10 @@ mod tests {
                     let result = builder
                         .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
                         .unwrap();
+                    #[cfg(feature = "gzip-http")]
                     assert_eq!(result, Some(crate::Compression::Gzip));
+                    #[cfg(not(feature = "gzip-http"))]
+                    assert_eq!(result, None);
                 },
             );
         }

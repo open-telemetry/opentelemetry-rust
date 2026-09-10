@@ -223,7 +223,7 @@
 //! | `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol. Valid values: `grpc`, `http/protobuf`, `http/json`. Requires the corresponding crate feature. | Feature-dependent |
 //! | `OTEL_EXPORTER_OTLP_TIMEOUT` | Maximum wait time (in milliseconds) for the backend to process each batch. | `10000` |
 //! | `OTEL_EXPORTER_OTLP_HEADERS` | Key-value pairs for request headers. Format: `key1=value1,key2=value2`. Values are URL-decoded. | (none) |
-//! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`. | (none) |
+//! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`, `none`. | `none` |
 //! | `OTEL_EXPORTER_OTLP_INSECURE` | Whether to disable TLS for gRPC connections. Only applies to gRPC; HTTP security is determined by URL scheme. Valid values: `true`, `false` (case-insensitive). | `false` |
 //!
 //! ## Traces
@@ -777,64 +777,65 @@ impl Protocol {
     }
 
     /// Attempts to parse a protocol from the given environment variable.
-    pub(crate) fn parse_from_env_var(
-        env_var: &str,
-    ) -> Result<Option<Self>, crate::ExporterBuildError> {
+    pub(crate) fn parse_from_env_var(env_var: &str) -> Option<Self> {
         use crate::exporter::{
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         };
 
-        let Some(protocol) = crate::exporter::read_env_var(env_var)? else {
-            return Ok(None);
-        };
+        let protocol = crate::exporter::read_enum_env_var(env_var)?;
+        let normalized = protocol.to_ascii_lowercase();
 
-        match protocol.as_str() {
+        match normalized.as_str() {
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
                 #[cfg(feature = "grpc-tonic")]
                 {
-                    Ok(Some(Protocol::Grpc))
+                    Some(Protocol::Grpc)
                 }
                 #[cfg(not(feature = "grpc-tonic"))]
                 {
-                    Err(crate::ExporterBuildError::invalid_configuration(
+                    crate::exporter::warn_missing_protocol_feature(
                         env_var,
-                        "feature 'grpc-tonic' is required to use protocol 'grpc'",
-                    ))
+                        &protocol,
+                        "grpc-tonic",
+                    );
+                    None
                 }
             }
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF => {
                 #[cfg(feature = "http-proto")]
                 {
-                    Ok(Some(Protocol::HttpBinary))
+                    Some(Protocol::HttpBinary)
                 }
                 #[cfg(not(feature = "http-proto"))]
                 {
-                    Err(crate::ExporterBuildError::invalid_configuration(
+                    crate::exporter::warn_missing_protocol_feature(
                         env_var,
-                        "feature 'http-proto' is required to use protocol 'http/protobuf'",
-                    ))
+                        &protocol,
+                        "http-proto",
+                    );
+                    None
                 }
             }
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON => {
                 #[cfg(feature = "http-json")]
                 {
-                    Ok(Some(Protocol::HttpJson))
+                    Some(Protocol::HttpJson)
                 }
                 #[cfg(not(feature = "http-json"))]
                 {
-                    Err(crate::ExporterBuildError::invalid_configuration(
-                        env_var,
-                        "feature 'http-json' is required to use protocol 'http/json'",
-                    ))
+                    crate::exporter::warn_missing_protocol_feature(env_var, &protocol, "http-json");
+                    None
                 }
             }
-            _ => Err(crate::ExporterBuildError::invalid_configuration(
-                env_var,
-                format!(
-                    "unsupported protocol '{protocol}'; expected 'grpc', 'http/protobuf', or 'http/json'"
-                ),
-            )),
+            _ => {
+                crate::exporter::warn_ignored_enum_env_var(
+                    env_var,
+                    &protocol,
+                    "expected 'grpc', 'http/protobuf', or 'http/json'",
+                );
+                None
+            }
         }
     }
 
