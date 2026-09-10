@@ -1,0 +1,20 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+# This is used with cargo-check-external-types to reduce the surface area of downstream crates from
+# the public API. Ideally this can have as few exceptions as possible.
+allowed_external_types = [
+    # Public HTTP client contract and propagation adapters.
+    "bytes::bytes::Bytes",
+    "http::header::map::HeaderMap",
+    "http::header::value::HeaderValue",
+    "http::request::Request",
+    "http::response::Response",
+
+    # HyperClient's public default connector and generic connector bound.
+    "hyper_util::client::legacy::connect::http::HttpConnector",
+    "hyper_util::client::legacy::connect::sealed::Connect",
+
+    # Traits implemented by the public propagation adapters.
+    "opentelemetry::propagation::Extractor",
+    "opentelemetry::propagation::Injector",
+]
