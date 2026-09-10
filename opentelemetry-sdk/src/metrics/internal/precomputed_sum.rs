@@ -14,7 +14,10 @@ use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap}
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    sync::Mutex,
+};
 
 /// Pre-bound precomputed-sum handle. Writes go directly to a fixed
 /// `TrackerEntry`. PrecomputedSum is used by asynchronous instruments
@@ -30,6 +33,9 @@ struct BoundPrecomputedSumHandle<T: Number> {
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundPrecomputedSumHandle<T> {
     fn call(&self, measurement: T) {
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.tracker.aggregator.update(measurement);
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
@@ -42,6 +48,12 @@ impl<T: Number> Drop for BoundPrecomputedSumHandle<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct BaselineEntry<T> {
+    last_value: T,
+    missed_count: u32,
+}
+
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
 pub(crate) struct PrecomputedSum<T: Number> {
     value_map: ValueMap<Assign<T>>,
@@ -49,7 +61,7 @@ pub(crate) struct PrecomputedSum<T: Number> {
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
-    reported: Mutex<HashMap<Vec<KeyValue>, T>>,
+    reported: Mutex<HashMap<Vec<KeyValue>, BaselineEntry<T>>>,
 }
 
 impl<T: Number> PrecomputedSum<T> {
@@ -100,7 +112,10 @@ impl<T: Number> PrecomputedSum<T> {
             Ok(r) => r,
             Err(_) => return (0, None),
         };
-        let mut new_reported = HashMap::with_capacity(reported.len());
+
+        for entry in reported.values_mut() {
+            entry.missed_count += 1;
+        }
 
         self.value_map
             .drain_and_reset(&mut s_data.data_points, |attributes, aggr| {
@@ -108,8 +123,22 @@ impl<T: Number> PrecomputedSum<T> {
                 // Canonicalize before caching in `reported`; otherwise the same
                 // attributes in a different order are cached as a distinct key.
                 let lookup_attributes = sort_and_dedup(&attributes);
-                let delta = value - *reported.get(&lookup_attributes).unwrap_or(&T::default());
-                new_reported.insert(lookup_attributes, value);
+                let delta = match reported.entry(lookup_attributes) {
+                    Entry::Occupied(mut entry) => {
+                        let baseline = entry.get_mut();
+                        let delta = value - baseline.last_value;
+                        baseline.last_value = value;
+                        baseline.missed_count = 0;
+                        delta
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(BaselineEntry {
+                            last_value: value,
+                            missed_count: 0,
+                        });
+                        value - T::default()
+                    }
+                };
                 SumDataPoint {
                     attributes,
                     value: delta,
@@ -117,7 +146,9 @@ impl<T: Number> PrecomputedSum<T> {
                 }
             });
 
-        *reported = new_reported;
+        // Retain an attribute-set baseline through exactly one missed collection.
+        // Evict after two consecutive missed collections to bound memory.
+        reported.retain(|_, entry| entry.missed_count < 2);
         drop(reported); // drop before values guard is dropped
 
         (s_data.data_points.len(), new_agg.map(Into::into))
@@ -171,6 +202,9 @@ where
     T: Number,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -203,12 +237,90 @@ where
     }
 }
 
-#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metrics::data::{AggregatedMetrics, MetricData, Sum};
+    use crate::metrics::data::MetricData;
+
+    #[test]
+    fn delta_rejects_nan_and_retains_baseline() {
+        let pre_sum = PrecomputedSum::<f64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            false,
+            100,
+        );
+        let attrs = [KeyValue::new("k", "v")];
+
+        // Cycle 1: observe 100.0 -> export 100.0
+        Measure::call(&pre_sum, 100.0, &attrs);
+        let (count, data) = pre_sum.delta(None);
+        assert_eq!(count, 1);
+        let MetricData::Sum(sum) = data.unwrap() else {
+            panic!("expected Sum");
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 100.0);
+
+        // Cycle 2: observe NaN (rejected) -> export no points
+        Measure::call(&pre_sum, f64::NAN, &attrs);
+        let (count, _data) = pre_sum.delta(None);
+        assert_eq!(count, 0);
+
+        // Cycle 3: observe 110.0 -> export 10.0 (110.0 - 100.0)
+        Measure::call(&pre_sum, 110.0, &attrs);
+        let (count, data) = pre_sum.delta(None);
+        assert_eq!(count, 1);
+        let MetricData::Sum(sum) = data.unwrap() else {
+            panic!("expected Sum");
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 10.0);
+    }
+
+    #[test]
+    fn delta_evicts_baseline_after_two_consecutive_missed_collections() {
+        let pre_sum = PrecomputedSum::<u64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            false,
+            100,
+        );
+        let attrs = [KeyValue::new("k", "v")];
+
+        // Cycle 1: observe 100 -> export 100
+        Measure::call(&pre_sum, 100, &attrs);
+        let (count, data) = pre_sum.delta(None);
+        assert_eq!(count, 1);
+        let MetricData::Sum(sum) = data.unwrap() else {
+            panic!("expected Sum");
+        };
+        assert_eq!(sum.data_points[0].value, 100);
+
+        // Cycle 2: empty collection cycle 1 (missed 1) -> exports nothing
+        let (count, _) = pre_sum.delta(None);
+        assert_eq!(count, 0);
+
+        // Cycle 3: empty collection cycle 2 (missed 2 -> evicted) -> exports nothing
+        let (count, _) = pre_sum.delta(None);
+        assert_eq!(count, 0);
+
+        // Cycle 4: observe 110 -> starts fresh baseline from 0, exports 110
+        Measure::call(&pre_sum, 110, &attrs);
+        let (count, data) = pre_sum.delta(None);
+        assert_eq!(count, 1);
+        let MetricData::Sum(sum) = data.unwrap() else {
+            panic!("expected Sum");
+        };
+        assert_eq!(sum.data_points[0].value, 110);
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    use crate::metrics::data::{AggregatedMetrics, Sum};
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     use std::sync::atomic::Ordering;
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn extract_sum(agg: AggregatedMetrics) -> Sum<u64> {
         match agg {
             AggregatedMetrics::U64(MetricData::Sum(s)) => s,
@@ -221,6 +333,7 @@ mod tests {
     /// trait is uniform across all aggregators (and future Observable bind()
     /// extensions are mechanical). This test exercises the impl directly so the
     /// otherwise-unreachable code path stays honest.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     fn bind_writes_through_bound_handle() {
         let pre_sum = PrecomputedSum::<u64>::new(
@@ -242,6 +355,7 @@ mod tests {
         assert_eq!(sum.data_points[0].attributes, attrs.to_vec());
     }
 
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     fn bound_handle_drop_decrements_bound_count() {
         let pre_sum = PrecomputedSum::<u64>::new(
