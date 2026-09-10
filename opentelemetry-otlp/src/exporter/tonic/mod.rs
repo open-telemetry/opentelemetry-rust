@@ -441,10 +441,34 @@ async fn tonic_retry_with_backoff<F, Fut, T>(
     operation: F,
 ) -> Result<T, tonic::Status>
 where
-    F: Fn() -> Fut,
+    F: Fn(std::time::Duration) -> Fut,
     Fut: Future<Output = Result<T, tonic::Status>>,
 {
-    retry_with_backoff(policy, timeout, classify_fn, operation_name, operation).await
+    retry_with_backoff(
+        policy,
+        timeout,
+        classify_fn,
+        operation_name,
+        || tonic::Status::deadline_exceeded("OTLP export deadline exceeded"),
+        operation,
+    )
+    .await
+}
+
+#[cfg(all(
+    feature = "grpc-tonic",
+    any(feature = "trace", feature = "metrics", feature = "logs")
+))]
+async fn tonic_request_with_timeout<F, T>(
+    timeout: std::time::Duration,
+    request: F,
+) -> Result<T, tonic::Status>
+where
+    F: Future<Output = Result<T, tonic::Status>>,
+{
+    tokio::time::timeout(timeout, request)
+        .await
+        .map_err(|_| tonic::Status::deadline_exceeded("OTLP export deadline exceeded"))?
 }
 
 #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
@@ -684,8 +708,8 @@ pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     /// this will override tls config and should only be used
     /// when working with non-HTTP transports.
     ///
-    /// Users MUST make sure the timeout is
-    /// the same as the channel's timeout.
+    /// The exporter applies its remaining timeout to each complete RPC. A
+    /// shorter timeout configured on the channel may end an attempt earlier.
     fn with_channel(self, channel: tonic::transport::Channel) -> Self;
 
     /// Use a custom `interceptor` to modify each outbound request.
@@ -820,6 +844,20 @@ mod tests {
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
+
+    #[tokio::test]
+    #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+    async fn tonic_response_body_stall_is_bounded_by_timeout() {
+        let result =
+            super::tonic_request_with_timeout(std::time::Duration::from_millis(10), async {
+                // The generated tonic client future remains pending while it
+                // decodes the response body and trailers.
+                std::future::pending::<Result<(), tonic::Status>>().await
+            })
+            .await;
+
+        assert_eq!(result.unwrap_err().code(), tonic::Code::DeadlineExceeded);
+    }
 
     // Scheme-resolution unit tests. These are intentionally free of env vars, a
     // tokio runtime, and TLS features so they run under every feature

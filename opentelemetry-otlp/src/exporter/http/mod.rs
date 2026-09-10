@@ -422,24 +422,39 @@ impl OtlpHttpClient {
     {
         use crate::retry::retry_with_backoff;
 
+        let export_start = std::time::Instant::now();
         // Build request body once before retry loop
         let (body, content_type, content_encoding) = build_body_fn(self, data)
             .map_err(opentelemetry_sdk::error::OTelSdkError::InternalFailure)?;
+        let retry_budget = self.timeout.saturating_sub(export_start.elapsed());
+        if retry_budget.is_zero() {
+            return Err(opentelemetry_sdk::error::OTelSdkError::InternalFailure(
+                "OTLP export deadline exceeded".to_string(),
+            ));
+        }
 
         let retry_data = Arc::new(HttpRetryData {
             body,
             headers: self.headers.clone(),
             endpoint: self.collector_endpoint.to_string(),
         });
+        let retry_data = &retry_data;
 
         let response_body = retry_with_backoff(
             &self.retry_policy,
-            self.timeout,
+            retry_budget,
             classify_http_export_error,
             operation_name,
-            || async {
-                self.export_http_once(&retry_data, content_type, content_encoding, operation_name)
-                    .await
+            || HttpExportError::new(0, "OTLP export deadline exceeded".to_string()),
+            |remaining| async move {
+                self.export_http_once(
+                    retry_data,
+                    content_type,
+                    content_encoding,
+                    operation_name,
+                    remaining,
+                )
+                .await
             },
         )
         .await
@@ -461,7 +476,9 @@ impl OtlpHttpClient {
         content_type: &'static str,
         content_encoding: Option<&'static str>,
         _operation_name: &'static str,
+        remaining: Duration,
     ) -> Result<Bytes, HttpExportError> {
+        let attempt_start = std::time::Instant::now();
         // Get client
         let client = self
             .client
@@ -484,6 +501,16 @@ impl OtlpHttpClient {
         let mut request = request_builder
             .body(retry_data.body.clone().into())
             .map_err(|e| HttpExportError::new(400, format!("Failed to build HTTP request: {e}")))?;
+        let request_timeout = remaining.saturating_sub(attempt_start.elapsed());
+        if request_timeout.is_zero() {
+            return Err(HttpExportError::new(
+                0,
+                "OTLP export deadline exceeded".to_string(),
+            ));
+        }
+        request
+            .extensions_mut()
+            .insert(opentelemetry_http::HttpClientTimeout::new(request_timeout));
 
         for (k, v) in retry_data.headers.iter() {
             request.headers_mut().insert(k.clone(), v.clone());
@@ -832,7 +859,10 @@ impl HasHttpConfig for HttpExporterBuilder {
 ///
 /// This trait is sealed and cannot be implemented for types outside this crate.
 pub trait WithHttpConfig: super::sealed::WithHttpConfig {
-    /// Assign client implementation
+    /// Assign a client implementation.
+    ///
+    /// The client must honor [`opentelemetry_http::HttpClientTimeout`] request
+    /// extensions for the exporter timeout to be a hard upper bound.
     fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
 
     /// Set additional headers to send to the collector.
@@ -1877,6 +1907,36 @@ mod tests {
             fail_count: usize,
         }
 
+        #[derive(Debug, Default)]
+        struct BudgetRecordingMockClient {
+            attempts: AtomicUsize,
+            budgets: std::sync::Mutex<Vec<Duration>>,
+        }
+
+        #[async_trait::async_trait]
+        impl HttpClient for BudgetRecordingMockClient {
+            async fn send_bytes(
+                &self,
+                request: http::Request<Bytes>,
+            ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
+                let budget = request
+                    .extensions()
+                    .get::<opentelemetry_http::HttpClientTimeout>()
+                    .expect("exporter must provide a per-attempt timeout")
+                    .duration();
+                self.budgets.lock().unwrap().push(budget);
+
+                if self.attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                    Err("connection refused".into())
+                } else {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .body(Bytes::new())
+                        .unwrap())
+                }
+            }
+        }
+
         impl NetworkFailureMockClient {
             fn new(fail_count: usize) -> Self {
                 Self {
@@ -1983,6 +2043,19 @@ mod tests {
             let error = result.unwrap_err().to_string();
             assert!(error.contains("request will not be sent"));
             assert_eq!(mock.attempt_count(), 0);
+        }
+
+        #[test]
+        fn retries_receive_decreasing_request_timeouts() {
+            let mock = Arc::new(BudgetRecordingMockClient::default());
+            let client = make_client(mock.clone(), retry_policy());
+
+            futures_executor::block_on(client.export_http_with_retry((), build_test_body, "test"))
+                .unwrap();
+
+            let budgets = mock.budgets.lock().unwrap();
+            assert_eq!(budgets.len(), 2);
+            assert!(budgets[1] < budgets[0]);
         }
 
         #[test]

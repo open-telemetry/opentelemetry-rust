@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::fmt::Debug;
+use std::time::Duration;
 
 #[doc(no_inline)]
 pub use bytes::Bytes;
@@ -62,6 +63,25 @@ impl Extractor for HeaderExtractor<'_> {
 
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+/// A per-request timeout that an [`HttpClient`] implementation should honor.
+///
+/// Exporters insert this value into [`Request::extensions`] to communicate the
+/// maximum time available for the request. Clients may impose a shorter limit.
+#[derive(Clone, Copy, Debug)]
+pub struct HttpClientTimeout(Duration);
+
+impl HttpClientTimeout {
+    /// Creates a per-request HTTP client timeout.
+    pub fn new(timeout: Duration) -> Self {
+        Self(timeout)
+    }
+
+    /// Returns the requested timeout.
+    pub fn duration(self) -> Duration {
+        self.0
+    }
+}
+
 /// A minimal interface necessary for sending requests over HTTP.
 /// Used primarily for exporting telemetry over HTTP. Also used for fetching
 /// sampling strategies for JaegerRemoteSampler
@@ -76,6 +96,9 @@ pub trait HttpClient: Debug + Send + Sync {
     ///
     /// Returns an error if it can't connect to the server or the request could not be completed,
     /// e.g. because of a timeout, infinite redirects, or a loss of connection.
+    ///
+    /// Implementations should honor [`HttpClientTimeout`] in the request's
+    /// extensions and apply it to the complete response body.
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
@@ -101,14 +124,19 @@ mod reqwest {
     use crate::ResponseBodyTooLarge;
 
     use super::{
-        async_trait, Bytes, HttpClient, HttpError, Request, Response, MAX_RESPONSE_BODY_BYTES,
+        async_trait, Bytes, HttpClient, HttpClientTimeout, HttpError, Request, Response,
+        MAX_RESPONSE_BODY_BYTES,
     };
 
     #[async_trait]
     impl HttpClient for reqwest::Client {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "ReqwestClient.Send");
-            let request = request.try_into()?;
+            let timeout = request.extensions().get::<HttpClientTimeout>().copied();
+            let mut request: reqwest::Request = request.try_into()?;
+            if let Some(timeout) = timeout {
+                *request.timeout_mut() = Some(timeout.duration());
+            }
             let mut response = self.execute(request).await?;
             let capacity = response
                 .content_length()
@@ -141,7 +169,11 @@ mod reqwest {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             use std::io::Read;
             otel_debug!(name: "ReqwestBlockingClient.Send");
-            let request = request.try_into()?;
+            let timeout = request.extensions().get::<HttpClientTimeout>().copied();
+            let mut request: reqwest::blocking::Request = request.try_into()?;
+            if let Some(timeout) = timeout {
+                *request.timeout_mut() = Some(timeout.duration());
+            }
             let mut response = self.execute(request)?;
             let capacity = response
                 .content_length()
@@ -226,6 +258,12 @@ pub mod hyper {
     {
         async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError> {
             otel_debug!(name: "HyperClient.Send");
+            let request_timeout = request
+                .extensions()
+                .get::<super::HttpClientTimeout>()
+                .map(|timeout| timeout.duration())
+                .unwrap_or(self.timeout)
+                .min(self.timeout);
             let (parts, body) = request.into_parts();
             let mut request = Request::from_parts(parts, Full::from(body));
             if let Some(ref authorization) = self.authorization {
@@ -233,7 +271,7 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            time::timeout(self.timeout, async {
+            time::timeout(request_timeout, async {
                 let mut response = self.inner.request(request).await?;
                 let capacity = response
                     .body()
@@ -521,7 +559,7 @@ Connection: close\r\n\r\n",
             addr
         }
 
-        #[cfg(feature = "hyper")]
+        #[cfg(any(feature = "hyper", feature = "reqwest"))]
         async fn start_stalled_body_server() -> SocketAddr {
             let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let addr = listener.local_addr().unwrap();
@@ -538,6 +576,38 @@ Connection: close\r\n\r\n",
                 }
             });
             addr
+        }
+
+        #[cfg(feature = "reqwest-blocking")]
+        fn start_blocking_stalled_body_server() -> SocketAddr {
+            use std::io::{Read, Write};
+            use std::net::TcpListener;
+
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = listener.local_addr().unwrap();
+            std::thread::spawn(move || {
+                if let Ok((mut socket, _)) = listener.accept() {
+                    let mut buf = [0u8; 1024];
+                    let _ = socket.read(&mut buf);
+                    let _ = socket.write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\n",
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            });
+            addr
+        }
+
+        fn request_with_timeout(addr: SocketAddr) -> Request<Bytes> {
+            let mut request = Request::post(format!("http://{addr}/"))
+                .body(Bytes::new())
+                .unwrap();
+            request
+                .extensions_mut()
+                .insert(crate::HttpClientTimeout::new(
+                    std::time::Duration::from_millis(25),
+                ));
+            request
         }
 
         async fn assert_within_limit(client: &dyn HttpClient, addr: SocketAddr) {
@@ -669,6 +739,58 @@ Connection: close\r\n\r\n",
             assert!(error
                 .downcast_ref::<tokio::time::error::Elapsed>()
                 .is_some());
+        }
+
+        #[cfg(feature = "reqwest")]
+        #[tokio::test]
+        async fn reqwest_honors_per_request_timeout_during_response_body() {
+            let addr = start_stalled_body_server().await;
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(1))
+                .build()
+                .unwrap();
+
+            tokio::time::timeout(
+                std::time::Duration::from_millis(200),
+                client.send_bytes(request_with_timeout(addr)),
+            )
+            .await
+            .expect("per-request timeout must bound reqwest response collection")
+            .expect_err("stalled response body must time out");
+        }
+
+        #[cfg(feature = "reqwest-blocking")]
+        #[test]
+        fn reqwest_blocking_honors_per_request_timeout_during_response_body() {
+            let addr = start_blocking_stalled_body_server();
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(1))
+                .build()
+                .unwrap();
+            let start = std::time::Instant::now();
+
+            futures_executor::block_on(client.send_bytes(request_with_timeout(addr)))
+                .expect_err("stalled response body must time out");
+
+            assert!(start.elapsed() < std::time::Duration::from_millis(200));
+        }
+
+        #[cfg(feature = "hyper")]
+        #[tokio::test]
+        async fn hyper_honors_per_request_timeout_during_response_body() {
+            let addr = start_stalled_body_server().await;
+            let client = crate::hyper::HyperClient::with_default_connector(
+                std::time::Duration::from_secs(1),
+                None,
+            );
+
+            tokio::time::timeout(
+                std::time::Duration::from_millis(200),
+                client.send_bytes(request_with_timeout(addr)),
+            )
+            .await
+            .expect("per-request timeout must bound Hyper response collection")
+            .expect_err("stalled response body must time out");
         }
     }
 }
