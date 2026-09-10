@@ -190,11 +190,8 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         let trace_flags;
         let mut psc = &SpanContext::empty_context();
 
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
-        } else {
-            None
-        };
+        // Invalid parents must start a new trace.
+        let parent_span = Some(parent_cx.span()).filter(|span| span.span_context().is_valid());
 
         // Inherit flags with the trace ID, or derive them from its generator.
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
@@ -780,6 +777,38 @@ mod tests {
             Extractor::get(&injector, "traceparent"),
             Some(expected.as_str())
         );
+    }
+
+    #[test]
+    fn invalid_parent_starts_new_trace_with_generator_random_flag() {
+        // Neither the invalid trace ID nor the parent's flags should be inherited.
+        let invalid_parent = Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(7),
+            TraceFlags::SAMPLED | TraceFlags::new(0x80),
+            true,
+            TraceState::default(),
+        )));
+
+        for random in [false, true] {
+            let tracer_provider = crate::trace::SdkTracerProvider::builder()
+                .with_id_generator(TestIdGenerator { random })
+                .build();
+            let tracer = tracer_provider.tracer("test");
+            let span = tracer.start_with_context("child", &invalid_parent);
+            let sc = span.span_context();
+            assert!(sc.is_valid());
+            assert_eq!(sc.trace_id(), TraceId::from(1));
+            assert_eq!(
+                span.exported_data().unwrap().parent_span_id,
+                SpanId::INVALID
+            );
+            assert_eq!(
+                sc.trace_flags(),
+                TraceFlags::SAMPLED.with_random(random),
+                "random = {random}"
+            );
+        }
     }
 
     #[test]
