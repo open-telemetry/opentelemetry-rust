@@ -76,6 +76,9 @@ pub trait HttpClient: Debug + Send + Sync {
     ///
     /// Returns an error if it can't connect to the server or the request could not be completed,
     /// e.g. because of a timeout, infinite redirects, or a loss of connection.
+    ///
+    /// Implementations must ensure their [`Debug`] output does not expose
+    /// authentication headers or other credentials.
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
@@ -183,7 +186,7 @@ pub mod hyper {
     use std::time::Duration;
     use tokio::time;
 
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct HyperClient<C = HttpConnector>
     where
         C: Connect + Clone + Send + Sync + 'static,
@@ -200,6 +203,10 @@ pub mod hyper {
         pub fn new(connector: C, timeout: Duration, authorization: Option<HeaderValue>) -> Self {
             // TODO - support custom executor
             let inner = Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
+            let authorization = authorization.map(|mut value| {
+                value.set_sensitive(true);
+                value
+            });
             Self {
                 inner,
                 timeout,
@@ -258,6 +265,44 @@ pub mod hyper {
                 .body(body_bytes.freeze())?;
             *http_response.headers_mut() = headers;
             Ok(http_response)
+        }
+    }
+
+    impl<C> Debug for HyperClient<C>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter
+                .debug_struct("HyperClient")
+                .field("inner", &self.inner)
+                .field("timeout", &self.timeout)
+                .field(
+                    "authorization",
+                    &self.authorization.as_ref().map(|_| "[REDACTED]"),
+                )
+                .finish()
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn debug_redacts_authorization() {
+            const SECRET: &str = "sentinel-hyper-secret";
+            let client = HyperClient::with_default_connector(
+                Duration::from_secs(1),
+                Some(HeaderValue::from_static(SECRET)),
+            );
+
+            let authorization = client.authorization.as_ref().unwrap();
+            assert_eq!(authorization.to_str().unwrap(), SECRET);
+            assert!(authorization.is_sensitive());
+            let debug = format!("{client:?}");
+            assert!(!debug.contains(SECRET));
+            assert!(debug.contains("[REDACTED]"));
         }
     }
 }

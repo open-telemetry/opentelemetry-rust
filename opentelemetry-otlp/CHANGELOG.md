@@ -34,6 +34,12 @@ release:
 
 ### Other changes
 
+- Redact configured HTTP headers and gRPC metadata from exporter `Debug` output,
+  together with TLS, client, channel, and interceptor configuration that may
+  contain sensitive values. HTTP header and gRPC metadata values are also marked
+  sensitive before requests are sent. Collector endpoint values remain visible
+  in `Debug` output and internal diagnostics.
+
 - **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
   `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
   the transport-selected exporter builders (e.g.

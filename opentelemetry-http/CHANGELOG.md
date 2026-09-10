@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Redact `HyperClient` authorization values from `Debug` output and mark them
+  sensitive in HTTP headers.
+
 - **Breaking** Sealed the `ResponseExt` trait so it can no longer be implemented by
   downstream crates. The trait provides a blanket implementation for all
   `http::Response<T>` types, so calling code is unaffected -- only
