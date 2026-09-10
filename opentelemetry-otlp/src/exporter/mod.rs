@@ -295,8 +295,6 @@ pub trait WithExportConfig {
     ///
     /// This is mainly useful on the HTTP transport to choose between
     /// [`Protocol::HttpBinary`] (protobuf) and [`Protocol::HttpJson`].
-    /// Which of these is the default depends on which cargo features are
-    /// enabled (priority: `http-json` > `http-proto` > `grpc-tonic`).
     /// Setting a protocol that conflicts with the chosen transport
     /// (e.g. [`Protocol::Grpc`] on an HTTP builder) will cause `build()`
     /// to return an error.
