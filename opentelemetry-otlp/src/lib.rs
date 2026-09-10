@@ -278,7 +278,6 @@
 //! * `tls-provider-agnostic`: Provider-agnostic TLS — enables TLS code paths without bundling a specific
 //!   crypto provider. Use this when you install a `CryptoProvider` globally
 //!   (e.g., via `rustls-openssl` for FIPS/OpenSSL environments).
-//! * `tls` (deprecated): Use `tls-ring` or `tls-aws-lc` instead.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate (use with `tls-ring` or `tls-aws-lc`).
 //! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate (use with `tls-ring` or `tls-aws-lc`).
 //!
@@ -323,7 +322,7 @@
 //!
 //! Requires the `grpc-tonic` feature. The methods below come from two traits:
 //! - [`WithExportConfig`]: `with_endpoint`, `with_timeout` (shared with HTTP)
-//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`
+//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`, `with_retry_policy`
 //!
 //! The examples here use [`SpanExporter`], but the same builder methods are
 //! available on [`MetricExporter`] and [`LogExporter`].
@@ -714,8 +713,12 @@ pub use crate::logs::{
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
+use crate::exporter::http::HttpExporterBuilder;
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub use crate::exporter::http::WithHttpConfig;
 
+#[cfg(feature = "grpc-tonic")]
+use crate::exporter::tonic::TonicExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 pub use crate::exporter::tonic::WithTonicConfig;
 
@@ -734,27 +737,17 @@ pub use retry_policy::RetryPolicy;
 #[derive(Debug, Default, Clone)]
 pub struct NoExporterBuilderSet;
 
-/// Type to hold the [TonicExporterBuilder] and indicate it has been set.
-///
-/// Allowing access to [TonicExporterBuilder] specific configuration methods.
+/// Type indicating that the tonic transport has been selected.
 #[cfg(feature = "grpc-tonic")]
 // This is for clippy to work with only the grpc-tonic feature enabled
 #[allow(unused)]
 #[derive(Debug)]
 pub struct TonicExporterBuilderSet(TonicExporterBuilder);
 
-/// Type to hold the [HttpExporterBuilder] and indicate it has been set.
-///
-/// Allowing access to [HttpExporterBuilder] specific configuration methods.
+/// Type indicating that the HTTP transport has been selected.
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 #[derive(Debug)]
 pub struct HttpExporterBuilderSet(HttpExporterBuilder);
-
-#[cfg(any(feature = "http-proto", feature = "http-json"))]
-pub use crate::exporter::http::HttpExporterBuilder;
-
-#[cfg(feature = "grpc-tonic")]
-pub use crate::exporter::tonic::TonicExporterBuilder;
 
 /// The communication protocol to use when exporting data.
 #[non_exhaustive]
@@ -877,7 +870,6 @@ pub mod tonic_types {
 
     /// Re-exported types from `tonic::transport`.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"

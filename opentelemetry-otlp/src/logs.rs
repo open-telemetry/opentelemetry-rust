@@ -11,10 +11,16 @@ use std::time;
 use crate::{exporter::HasExportConfig, ExporterBuildError, NoExporterBuilderSet};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet};
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::{exporter::http::HasHttpConfig, HttpExporterBuilder, HttpExporterBuilderSet};
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
