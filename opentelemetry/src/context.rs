@@ -590,6 +590,8 @@ impl ContextStack {
             );
             #[cfg(feature = "trace")]
             return None;
+            #[cfg(not(feature = "trace"))]
+            return;
         }
         let len: u16 = self.stack.len() as u16;
         // Are we at the top of the [`ContextStack`]?
@@ -615,6 +617,8 @@ impl ContextStack {
             }
             #[cfg(feature = "trace")]
             return None;
+            #[cfg(not(feature = "trace"))]
+            return;
         } else {
             // This is an out of order pop.
             if pos >= len {
@@ -627,6 +631,8 @@ impl ContextStack {
                 );
                 #[cfg(feature = "trace")]
                 return None;
+                #[cfg(not(feature = "trace"))]
+                return;
             }
             // Clear out the entry at the given id and extract its span
             #[cfg(feature = "trace")]
@@ -657,7 +663,9 @@ impl Default for ContextStack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "futures")]
     use std::time::Duration;
+    #[cfg(feature = "futures")]
     use tokio::time::sleep;
 
     #[derive(Debug, PartialEq)]
@@ -918,6 +926,7 @@ mod tests {
     /// Tests that:
     /// 1. Parent context values are properly propagated to async operations
     /// 2. Values added during async operations do not affect parent context
+    #[cfg(feature = "futures")]
     #[tokio::test]
     async fn test_async_context_propagation() {
         // A nested async operation we'll use to test propagation
@@ -1003,6 +1012,7 @@ mod tests {
     /// Tests that unnatural parent->child relationships in nested async
     /// operations behave properly.
     ///
+    #[cfg(feature = "futures")]
     #[tokio::test]
     async fn test_out_of_order_context_detachment_futures() {
         // This function returns a future, but doesn't await it
@@ -1141,6 +1151,7 @@ mod tests {
         assert!(!Context::is_current_telemetry_suppressed());
     }
 
+    #[cfg(feature = "futures")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_async_suppression() {
         async fn nested_operation() {

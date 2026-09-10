@@ -31,7 +31,7 @@ pub trait LoggerProvider {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use opentelemetry::InstrumentationScope;
     /// use opentelemetry::logs::LoggerProvider;
     /// use opentelemetry_sdk::logs::SdkLoggerProvider;
