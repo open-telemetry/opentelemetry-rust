@@ -12,12 +12,14 @@ use std::{
 };
 use std::{
     sync::atomic::{AtomicUsize, Ordering},
+    sync::Mutex,
     time::Duration,
 };
 
 use super::{BatchConfig, LogProcessor};
 #[cfg(feature = "experimental_async_runtime")]
 use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
+use crate::util::{join_timeout_error_to_otel_error, join_with_timeout, WorkerState};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, Either},
@@ -33,7 +35,8 @@ enum BatchMessage {
     /// pre configured interval or a call to `force_push` function.
     Flush(Option<oneshot::Sender<OTelSdkResult>>),
     /// Shut down the worker thread, push all logs in buffer to the backend.
-    Shutdown(oneshot::Sender<OTelSdkResult>),
+    /// The result is returned through the worker's join handle.
+    Shutdown,
     /// Set the resource for the exporter.
     SetResource(Arc<Resource>),
 }
@@ -42,6 +45,9 @@ enum BatchMessage {
 /// them at a pre-configured interval.
 pub struct BatchLogProcessor<R: RuntimeChannel> {
     message_sender: R::Sender<BatchMessage>,
+
+    /// Handle to the background worker task. Used to join on shutdown.
+    worker_handle: Mutex<WorkerState<R::SpawnHandle<OTelSdkResult>>>,
 
     // Track dropped logs - we'll log this at shutdown
     dropped_logs_count: AtomicUsize,
@@ -87,7 +93,7 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
             .and_then(std::convert::identity)
     }
 
-    fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         let dropped_logs = self.dropped_logs_count.load(Ordering::Relaxed);
         let max_queue_size = self.max_queue_size;
         if dropped_logs > 0 {
@@ -98,14 +104,48 @@ impl<R: RuntimeChannel> LogProcessor for BatchLogProcessor<R> {
                 message = "Logs were dropped due to a queue being full or other error. The count represents the total count of log records dropped in the lifetime of this BatchLogProcessor. Consider increasing the queue size and/or decrease delay between intervals."
             );
         }
-        let (res_sender, res_receiver) = oneshot::channel();
+
+        // Hold the lock for the whole shutdown: only the caller that finds
+        // `Running` sends the shutdown message and joins the worker. Any
+        // concurrent caller blocks here and then reads back the cached
+        // `Complete` result below, instead of racing to return `Ok(())`
+        // before the worker has actually finished.
+        let mut guard = self
+            .worker_handle
+            .lock()
+            .map_err(|e| OTelSdkError::InternalFailure(format!("Lock poisoned: {e}")))?;
+
+        if let WorkerState::Complete(cached) = &*guard {
+            return match cached {
+                Ok(()) => Ok(()),
+                Err(msg) => Err(OTelSdkError::InternalFailure(msg.clone())),
+            };
+        }
+
         self.message_sender
-            .try_send(BatchMessage::Shutdown(res_sender))
+            .try_send(BatchMessage::Shutdown)
             .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))?;
 
-        futures_executor::block_on(res_receiver)
-            .map_err(|err| OTelSdkError::InternalFailure(format!("{err:?}")))
-            .and_then(std::convert::identity)
+        let handle = match std::mem::replace(&mut *guard, WorkerState::Complete(Ok(()))) {
+            WorkerState::Running(h) => h,
+            WorkerState::Complete(_) => unreachable!("checked above"),
+        };
+
+        let result = match join_with_timeout(handle, timeout) {
+            Ok(result) => result,
+            Err(err) => Err(join_timeout_error_to_otel_error(
+                err,
+                "batch log processor",
+                timeout,
+            )),
+        };
+
+        *guard = WorkerState::Complete(match &result {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        });
+
+        result
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -124,9 +164,10 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
         let (message_sender, message_receiver) =
             runtime.batch_message_channel(config.max_queue_size);
         let inner_runtime = runtime.clone();
+        let max_queue_size = config.max_queue_size;
 
         // Spawn worker process via user-defined spawn function.
-        runtime.spawn(async move {
+        let worker_handle = runtime.spawn(async move {
             // Timer will take a reference to the current runtime, so its important we do this within the
             // runtime.spawn()
             let ticker = to_interval_stream(inner_runtime.clone(), config.scheduled_delay)
@@ -179,7 +220,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         }
                     }
                     // Stream has terminated or processor is shutdown, return to finish execution.
-                    BatchMessage::Shutdown(ch) => {
+                    BatchMessage::Shutdown => {
                         let result = export_with_timeout(
                             config.max_export_timeout,
                             &mut exporter,
@@ -189,14 +230,7 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                         .await;
 
                         let _ = exporter.shutdown(); //TODO - handle error
-
-                        if let Err(send_error) = ch.send(result) {
-                            otel_debug!(
-                                name: "BatchLogProcessor.Shutdown.SendResultError",
-                                error = format!("{:?}", send_error),
-                            );
-                        }
-                        break;
+                        return result;
                     }
                     // propagate the resource
                     BatchMessage::SetResource(resource) => {
@@ -204,12 +238,15 @@ impl<R: RuntimeChannel> BatchLogProcessor<R> {
                     }
                 }
             }
+            Ok(()) // Channel closed without explicit shutdown
         });
+
         // Return batch processor with link to worker
         BatchLogProcessor {
             message_sender,
+            worker_handle: Mutex::new(WorkerState::Running(worker_handle)),
             dropped_logs_count: AtomicUsize::new(0),
-            max_queue_size: config.max_queue_size,
+            max_queue_size,
         }
     }
 
@@ -282,7 +319,7 @@ where
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::batch_log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
@@ -527,6 +564,70 @@ mod tests {
         let _ = provider.shutdown();
     }
 
+    // `worker_threads = 2` pins this to a multi-worker runtime so the batch
+    // processor's spawn always takes the `Joinable::TokioTask` path (see
+    // runtime.rs's `starvation_prone` check) rather than the dedicated-thread
+    // fallback, which would otherwise depend on the host's CPU count.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_returns_final_export_error() {
+        // If the worker's final export on shutdown fails, shutdown() must
+        // propagate that error rather than swallowing it.
+        use crate::logs::{LogBatch, LogExporter};
+
+        #[derive(Debug)]
+        struct FailingExporter;
+        impl LogExporter for FailingExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Err(OTelSdkError::InternalFailure("export failed".into()))
+            }
+        }
+
+        let processor =
+            BatchLogProcessor::new(FailingExporter, BatchConfig::default(), runtime::Tokio);
+        let scope = opentelemetry::InstrumentationScope::builder("test").build();
+        processor.emit(&mut SdkLogRecord::new(), &scope);
+
+        match processor.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("export failed"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure, got {other:?}"),
+        }
+    }
+
+    // See comment on `shutdown_returns_final_export_error` above for why
+    // `worker_threads` is pinned here.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_surfaces_worker_panic() {
+        // If the worker panics during the final export on shutdown, shutdown()
+        // must surface the original panic message rather than a generic error.
+        use crate::logs::{LogBatch, LogExporter};
+
+        #[derive(Debug)]
+        struct PanickingExporter;
+        impl LogExporter for PanickingExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                panic!("export blew up");
+            }
+        }
+
+        let processor =
+            BatchLogProcessor::new(PanickingExporter, BatchConfig::default(), runtime::Tokio);
+        let scope = opentelemetry::InstrumentationScope::builder("test").build();
+        processor.emit(&mut SdkLogRecord::new(), &scope);
+
+        match processor.shutdown() {
+            Err(OTelSdkError::InternalFailure(msg)) => {
+                assert!(
+                    msg.contains("panicked during shutdown"),
+                    "unexpected message: {msg}"
+                );
+                assert!(msg.contains("export blew up"), "unexpected message: {msg}");
+            }
+            other => panic!("expected InternalFailure with panic message, got {other:?}"),
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_shutdown() {
         // assert we will receive an error
@@ -551,40 +652,17 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
-        processor.shutdown().unwrap();
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-    async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
-    ) {
-        let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
-
-        //
-        // deadlock happens in shutdown with tokio current_thread runtime
-        //
         processor.shutdown().unwrap();
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
         processor.shutdown().unwrap();
     }
 
@@ -831,11 +909,8 @@ mod tests {
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread()
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
     }
@@ -852,12 +927,31 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
-        let processor = BatchLogProcessor::new(
-            exporter.clone(),
-            BatchConfig::default(),
-            runtime::TokioCurrentThread,
-        );
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
 
         processor.shutdown().unwrap();
+    }
+
+    /// Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/2802
+    ///
+    /// A multi_thread runtime with a single worker is just as starvation-prone
+    /// as the current_thread flavor: tokio defaults to one worker per CPU, so
+    /// any single-vCPU host (e.g. a 1-CPU container) gets exactly this
+    /// configuration. Blocking that lone worker on shutdown must not deadlock.
+    ///
+    /// Shutdown is performed inside a spawned task so it runs *on* the single
+    /// worker thread — the test body itself runs on the `block_on` caller
+    /// thread and would not exhibit the starvation.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn shutdown_does_not_deadlock_on_single_worker_multi_thread_tokio_runtime() {
+        let exporter = InMemoryLogExporterBuilder::default().build();
+        let processor =
+            BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
+        tokio::spawn(async move {
+            processor.shutdown().expect("shutdown should succeed");
+        })
+        .await
+        .expect("shutdown task should complete without deadlocking");
     }
 }
