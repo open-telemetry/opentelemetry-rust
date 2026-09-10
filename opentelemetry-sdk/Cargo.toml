@@ -129,6 +129,11 @@ name = "bound_instruments"
 harness = false
 required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]
 
+[[bench]]
+name = "sdk_disabled"
+harness = false
+required-features = ["trace", "logs", "metrics"]
+
 [lib]
 bench = false
 
