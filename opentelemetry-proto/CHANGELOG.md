@@ -5,6 +5,10 @@
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
 - **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
+- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
+  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
+  propagator's deferred marker are no longer exported
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 
 ## 0.32.0
 
