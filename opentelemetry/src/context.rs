@@ -777,13 +777,14 @@ mod context_observer {
     ///
     /// impl ContextObserver for Observer {
     ///     fn on_context_enter(&self, from: &Context, to: &Context) {
-    ///         let view = to.observer_view().unwrap();
+    ///         let view = to.observer_view().as_ref().unwrap();
     ///         do_something(view.as_any().downcast_ref::<MyView>().unwrap());
     ///     }
     ///
     ///     fn on_context_exit(&self, from: &Context, to: &Context) {
     ///         let view = to
     ///             .observer_view()
+    ///             .as_ref()
     ///             .unwrap()
     ///             .as_any()
     ///             .downcast_ref::<MyView>()
