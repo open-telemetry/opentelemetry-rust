@@ -129,6 +129,11 @@ name = "bound_instruments"
 harness = false
 required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]
 
+[[bench]]
+name = "span_processor_api"
+harness = false
+required-features = ["testing"]
+
 [lib]
 bench = false
 
