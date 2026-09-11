@@ -44,6 +44,11 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
+  with delta temporality losing their baseline after a single missed collection
+  cycle or rejected non-finite measurement, retaining the baseline through one
+  missed cycle and evicting after two consecutive missed cycles.
+  ([#3714](https://github.com/open-telemetry/opentelemetry-rust/issues/3714))
 
 ## 0.32.1
 
