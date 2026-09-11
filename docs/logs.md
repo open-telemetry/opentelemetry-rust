@@ -67,8 +67,9 @@ for the decision:
 - **Logging library:** Use this layer when the condition is available at the
   callsite, such as severity, target or module, event name, or other logging
   metadata. Filtering here also avoids SDK record creation and bridge
-  conversion. `tracing-subscriber` provides level and target filters,
-  `EnvFilter`, custom predicates, and per-layer [filtering capabilities].
+  conversion. If you use `tracing` as the logging library,
+  `tracing-subscriber` provides level and target filters, `EnvFilter`, custom
+  predicates, and per-layer [filtering capabilities].
 - **SDK processor:** Use a custom [`LogProcessor`] when the condition requires
   `SdkLogRecord`, instrumentation scope, or application-local state; when one
   policy must cover multiple logging libraries or instrumentation sources; or
