@@ -96,6 +96,8 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
+                #[cfg(feature = "experimental_metrics_opt_in")]
+                builder.opt_in,
             )
             .map(|i| Counter::new(Arc::new(i)))
         {
@@ -138,6 +140,8 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            builder.opt_in,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -197,6 +201,8 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            builder.opt_in,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -256,6 +262,8 @@ impl SdkMeter {
             builder.description,
             builder.unit,
             None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            builder.opt_in,
         ) {
             Ok(ms) => {
                 if ms.is_empty() {
@@ -317,6 +325,8 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
+                #[cfg(feature = "experimental_metrics_opt_in")]
+                builder.opt_in,
             )
             .map(|i| UpDownCounter::new(Arc::new(i)))
         {
@@ -361,6 +371,8 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 None,
+                #[cfg(feature = "experimental_metrics_opt_in")]
+                builder.opt_in,
             )
             .map(|i| Gauge::new(Arc::new(i)))
         {
@@ -420,6 +432,8 @@ impl SdkMeter {
                 builder.description,
                 builder.unit,
                 builder.boundaries,
+                #[cfg(feature = "experimental_metrics_opt_in")]
+                builder.opt_in,
             )
             .map(|i| Histogram::new(Arc::new(i)))
         {
@@ -652,8 +666,17 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
+        #[cfg(feature = "experimental_metrics_opt_in")] opt_in: bool,
     ) -> MetricResult<ResolvedMeasures<T>> {
-        let aggregators = self.measures(kind, name, description, unit, boundaries)?;
+        let aggregators = self.measures(
+            kind,
+            name,
+            description,
+            unit,
+            boundaries,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            opt_in,
+        )?;
         Ok(ResolvedMeasures {
             measures: aggregators,
         })
@@ -666,6 +689,7 @@ where
         description: Option<Cow<'static, str>>,
         unit: Option<Cow<'static, str>>,
         boundaries: Option<Vec<f64>>,
+        #[cfg(feature = "experimental_metrics_opt_in")] opt_in: bool,
     ) -> MetricResult<Vec<Arc<dyn internal::Measure<T>>>> {
         let inst = Instrument {
             name,
@@ -673,6 +697,8 @@ where
             unit: unit.unwrap_or_default(),
             kind,
             scope: self.meter.scope.clone(),
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            opt_in,
         };
 
         self.resolve.measures(inst, boundaries)

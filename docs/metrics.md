@@ -10,6 +10,7 @@ Status: **Work-In-Progress**
 * [Metrics API](#metrics-api)
   * [Meter](#meter)
   * [Instruments](#instruments)
+  * [Opt-In Instruments](#opt-in-instruments)
   * [Reporting measurements - use array slices for
     attributes](#reporting-measurements---use-array-slices-for-attributes)
   * [Reporting measurements via synchronous
@@ -126,6 +127,53 @@ path. Instead, the cloned instance should be stored and reused.
 > invalid names. Refer to the [OpenTelemetry
   Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#instrument-name-syntax)
   for the valid syntax.
+
+### Opt-In Instruments
+
+This is an experimental prototype of
+[specification PR #4809](https://github.com/open-telemetry/opentelemetry-specification/pull/4809).
+Enable `experimental_metrics_opt_in` on `opentelemetry` for the advisory API and
+on `opentelemetry_sdk` for SDK support. The SDK feature also enables the API
+feature. Neither is enabled by default.
+
+Instrumentation authors can mark expensive, high-cardinality, or specialized
+instruments as disabled by default with `with_opt_in()`. Application owners can
+enable selected instruments with a matching SDK View:
+
+```rust
+use opentelemetry::metrics::MeterProvider as _;
+use opentelemetry_sdk::metrics::{Instrument, SdkMeterProvider, Stream};
+
+let provider = SdkMeterProvider::builder()
+  .with_view(|instrument: &Instrument| {
+    (instrument.name() == "runtime.scheduler.queue.depth").then(|| {
+      Stream::builder().with_enabled(true).build().unwrap()
+    })
+  })
+  .build();
+let meter = provider.meter("runtime");
+let queue_depth = meter
+  .u64_gauge("runtime.scheduler.queue.depth")
+  .with_opt_in()
+  .build();
+
+queue_depth.record(12, &[]);
+```
+
+An opt-in instrument produces no metric data unless a matching View sets
+`with_enabled(true)`. Other stream settings, including an aggregation, do not
+enable it. Conversely, `with_enabled(false)` drops that View's stream for any
+matching instrument, including non-opt-in instruments, regardless of aggregation.
+`with_enabled(true)` does not override `Aggregation::Drop`. Other matching Views
+can still produce streams; disabling one stream is not an instrument-wide veto.
+The enabled state is resolved
+when the instrument is built; Views cannot be changed after the provider is
+built.
+
+Call `add()` and `record()` normally, without an enabled check. The SDK drops
+measurements for disabled instruments and does not invoke callbacks for disabled
+observable instruments. An `Enabled` query, where supported, is only an optional
+optimization to avoid expensive measurement preparation, not a required guard.
 
 :stop_sign: You should avoid changing the order of attributes while reporting
 measurements.

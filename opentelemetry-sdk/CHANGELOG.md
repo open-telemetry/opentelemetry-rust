@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Added prototype support for opt-in metric instruments and the
+  `Stream::builder().with_enabled(bool)` View setting proposed in OpenTelemetry
+  Specification PR #4809. Opt-in instruments are dropped by default and can be
+  enabled only by a matching View with `enabled` set to `true`. Requires the
+  `experimental_metrics_opt_in` feature, which also enables the API feature.
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`

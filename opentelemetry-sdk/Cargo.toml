@@ -60,6 +60,7 @@ experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimenta
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
 experimental_metrics_disable_name_validation = ["metrics"]
 experimental_metrics_bound_instruments = ["metrics", "opentelemetry/experimental_metrics_bound_instruments"]
+experimental_metrics_opt_in = ["metrics", "opentelemetry/experimental_metrics_opt_in"]
 bench_profiling = []
 
 [[bench]]

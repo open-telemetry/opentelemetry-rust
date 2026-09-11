@@ -40,6 +40,7 @@ testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
 experimental_metrics_bound_instruments = ["metrics"]
+experimental_metrics_opt_in = ["metrics"]
 experimental_context_observer = []
 
 [dev-dependencies]

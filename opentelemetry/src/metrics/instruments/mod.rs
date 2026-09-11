@@ -72,6 +72,10 @@ pub struct HistogramBuilder<'a, T> {
     /// Bucket boundaries for the histogram.
     pub boundaries: Option<Vec<f64>>,
 
+    /// Whether the instrument is disabled unless explicitly enabled by a view.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub opt_in: bool,
+
     // boundaries: Vec<T>,
     _marker: marker::PhantomData<T>,
 }
@@ -85,6 +89,8 @@ impl<'a, T> HistogramBuilder<'a, T> {
             description: None,
             unit: None,
             boundaries: None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            opt_in: false,
             _marker: marker::PhantomData,
         }
     }
@@ -104,6 +110,16 @@ impl<'a, T> HistogramBuilder<'a, T> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
+        self
+    }
+
+    /// Marks this instrument as opt-in.
+    ///
+    /// Opt-in instruments are disabled unless a matching SDK view explicitly
+    /// enables them.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub fn with_opt_in(mut self) -> Self {
+        self.opt_in = true;
         self
     }
 
@@ -174,6 +190,10 @@ pub struct InstrumentBuilder<'a, T> {
     /// Unit of the instrument.
     pub unit: Option<Cow<'static, str>>,
 
+    /// Whether the instrument is disabled unless explicitly enabled by a view.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub opt_in: bool,
+
     _marker: marker::PhantomData<T>,
 }
 
@@ -185,6 +205,8 @@ impl<'a, T> InstrumentBuilder<'a, T> {
             name,
             description: None,
             unit: None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            opt_in: false,
             _marker: marker::PhantomData,
         }
     }
@@ -204,6 +226,16 @@ impl<'a, T> InstrumentBuilder<'a, T> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
+        self
+    }
+
+    /// Marks this instrument as opt-in.
+    ///
+    /// Opt-in instruments are disabled unless a matching SDK view explicitly
+    /// enables them.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub fn with_opt_in(mut self) -> Self {
+        self.opt_in = true;
         self
     }
 }
@@ -231,7 +263,10 @@ build_instrument!(f64_up_down_counter, UpDownCounter<f64>);
 
 impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InstrumentBuilder")
+        let mut debug = f.debug_struct("InstrumentBuilder");
+        #[cfg(feature = "experimental_metrics_opt_in")]
+        debug.field("opt_in", &self.opt_in);
+        debug
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
@@ -242,7 +277,10 @@ impl<T> fmt::Debug for InstrumentBuilder<'_, T> {
 
 impl<T> fmt::Debug for HistogramBuilder<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("HistogramBuilder")
+        let mut debug = f.debug_struct("HistogramBuilder");
+        #[cfg(feature = "experimental_metrics_opt_in")]
+        debug.field("opt_in", &self.opt_in);
+        debug
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
@@ -280,6 +318,10 @@ pub struct AsyncInstrumentBuilder<'a, I, M> {
     /// Unit of the instrument.
     pub unit: Option<Cow<'static, str>>,
 
+    /// Whether the instrument is disabled unless explicitly enabled by a view.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub opt_in: bool,
+
     /// Callbacks to be called for this instrument.
     pub callbacks: Vec<Callback<M>>,
 
@@ -294,6 +336,8 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
             name,
             description: None,
             unit: None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            opt_in: false,
             _inst: marker::PhantomData,
             callbacks: Vec::new(),
         }
@@ -314,6 +358,16 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
     /// - No longer than 63 characters
     pub fn with_unit<S: Into<Cow<'static, str>>>(mut self, unit: S) -> Self {
         self.unit = Some(unit.into());
+        self
+    }
+
+    /// Marks this instrument as opt-in.
+    ///
+    /// Opt-in instruments are disabled unless a matching SDK view explicitly
+    /// enables them.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub fn with_opt_in(mut self) -> Self {
+        self.opt_in = true;
         self
     }
 
@@ -361,7 +415,10 @@ where
     I: AsyncInstrument<M>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InstrumentBuilder")
+        let mut debug = f.debug_struct("InstrumentBuilder");
+        #[cfg(feature = "experimental_metrics_opt_in")]
+        debug.field("opt_in", &self.opt_in);
+        debug
             .field("name", &self.name)
             .field("description", &self.description)
             .field("unit", &self.unit)
