@@ -278,7 +278,6 @@
 //! * `tls-provider-agnostic`: Provider-agnostic TLS — enables TLS code paths without bundling a specific
 //!   crypto provider. Use this when you install a `CryptoProvider` globally
 //!   (e.g., via `rustls-openssl` for FIPS/OpenSSL environments).
-//! * `tls` (deprecated): Use `tls-ring` or `tls-aws-lc` instead.
 //! * `tls-roots`: Adds system trust roots to rustls-based gRPC clients using the rustls-native-certs crate (use with `tls-ring` or `tls-aws-lc`).
 //! * `tls-webpki-roots`: Embeds Mozilla's trust roots to rustls-based gRPC clients using the webpki-roots crate (use with `tls-ring` or `tls-aws-lc`).
 //!
@@ -323,7 +322,7 @@
 //!
 //! Requires the `grpc-tonic` feature. The methods below come from two traits:
 //! - [`WithExportConfig`]: `with_endpoint`, `with_timeout` (shared with HTTP)
-//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`
+//! - [`WithTonicConfig`]: `with_metadata`, `with_compression`, `with_tls_config`, `with_channel`, `with_interceptor`, `with_retry_policy`
 //!
 //! The examples here use [`SpanExporter`], but the same builder methods are
 //! available on [`MetricExporter`] and [`LogExporter`].
@@ -871,7 +870,6 @@ pub mod tonic_types {
 
     /// Re-exported types from `tonic::transport`.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
