@@ -128,9 +128,21 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// # Filtering completed spans
     ///
+    /// **Warning:** Filtering individual spans can produce incomplete or broken
+    /// traces, such as an exported child whose parent was discarded. This does
+    /// not coordinate filtering across spans or services. For coordinated
+    /// decisions based on completed spans, prefer [tail-based sampling] in the
+    /// OpenTelemetry Collector or another telemetry pipeline. All spans in a
+    /// trace must reach the same tail-sampling instance; it cannot recover spans
+    /// already discarded by SDK sampling or filtering.
+    ///
+    /// [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
+    ///
     /// A filtering processor can wrap another processor and delegate only the
     /// spans that satisfy its condition. This example uses an attribute, but the
     /// condition can use any information in [`SpanData`] or other processor state.
+    /// Register only the wrapper with [`SdkTracerProvider`](crate::trace::SdkTracerProvider), since separately
+    /// registered processors receive spans independently.
     ///
     /// ```rust
     /// use opentelemetry::{Context, Value};

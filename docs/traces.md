@@ -60,6 +60,17 @@ log guidance.
 
 ## Filtering spans
 
+> **Warning:** Filtering individual spans can produce incomplete or broken
+> traces. For example, an exported child span may refer to a parent span that
+> was discarded. A processor's decision does not coordinate with other spans
+> in the trace, including spans in other services.
+>
+> For coordinated decisions based on completed spans, prefer [tail-based
+> sampling] in the OpenTelemetry Collector or another telemetry pipeline.
+> Route all spans belonging to a trace to the same tail-sampling instance so
+> it can make a common keep/drop decision. Tail sampling cannot recover spans
+> already discarded by SDK sampling or filtering.
+
 Prefer a sampler when the filtering decision can use information available at
 span creation, including initial attributes. A sampler that returns `Drop`
 avoids recording and processing that span. Use a custom [`SpanProcessor`] when
@@ -79,11 +90,6 @@ condition. A processor could instead use the span name, status, duration,
 instrumentation scope, external configuration, or any other available
 information. The example also demonstrates forwarding processor lifecycle
 methods and composing the filter with another processor.
-
-Filtering individual finished spans can produce a partial trace. For example,
-an exported child can refer to a parent span that the processor discarded. Use
-parent-aware head sampling or Collector tail sampling when the decision should
-apply consistently to an entire trace.
 
 ## See Also
 
@@ -110,6 +116,7 @@ to the depth in [metrics.md](metrics.md):
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
+[tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
 [`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
 [`opentelemetry-instrumentation-tower`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-tower
