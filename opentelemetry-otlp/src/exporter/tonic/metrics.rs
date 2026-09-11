@@ -66,7 +66,8 @@ impl MetricsClient for TonicMetricsClient {
             self.timeout,
             crate::retry_classification::grpc::classify_tonic_status,
             "TonicMetricsClient.Export",
-            || async {
+            |remaining| async move {
+                let attempt_start = std::time::Instant::now();
                 // Execute the export operation
                 let (mut client, metadata, extensions) = self
                     .inner
@@ -90,12 +91,20 @@ impl MetricsClient for TonicMetricsClient {
 
                 otel_debug!(name: "TonicMetricsClient.ExportStarted");
 
-                client
-                    .export(Request::from_parts(
-                        metadata,
-                        extensions,
-                        ExportMetricsServiceRequest::from(metrics),
-                    ))
+                let mut request = Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportMetricsServiceRequest::from(metrics),
+                );
+                let request_timeout = remaining.saturating_sub(attempt_start.elapsed());
+                if request_timeout.is_zero() {
+                    return Err(tonic::Status::deadline_exceeded(
+                        "OTLP export deadline exceeded",
+                    ));
+                }
+                request.set_timeout(request_timeout);
+
+                super::tonic_request_with_timeout(request_timeout, client.export(request))
                     .await
                     .map(|response| {
                         otel_debug!(name: "TonicMetricsClient.ExportSucceeded");

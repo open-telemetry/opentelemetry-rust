@@ -69,15 +69,16 @@ impl TonicTracesClient {
 impl SpanExporter for TonicTracesClient {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
         let batch = Arc::new(batch);
+        let batch = &batch;
 
         match super::tonic_retry_with_backoff(
             &self.retry_policy,
             self.timeout,
             crate::retry_classification::grpc::classify_tonic_status,
             "TonicTracesClient.Export",
-            || async {
-                let batch_clone = Arc::clone(&batch);
-
+            |remaining| async move {
+                let attempt_start = std::time::Instant::now();
+                let batch_clone = Arc::clone(batch);
                 // Execute the export operation
                 let (mut client, metadata, extensions) = self
                     .inner
@@ -104,12 +105,20 @@ impl SpanExporter for TonicTracesClient {
 
                 otel_debug!(name: "TonicTracesClient.ExportStarted");
 
-                client
-                    .export(Request::from_parts(
-                        metadata,
-                        extensions,
-                        ExportTraceServiceRequest { resource_spans },
-                    ))
+                let mut request = Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportTraceServiceRequest { resource_spans },
+                );
+                let request_timeout = remaining.saturating_sub(attempt_start.elapsed());
+                if request_timeout.is_zero() {
+                    return Err(tonic::Status::deadline_exceeded(
+                        "OTLP export deadline exceeded",
+                    ));
+                }
+                request.set_timeout(request_timeout);
+
+                super::tonic_request_with_timeout(request_timeout, client.export(request))
                     .await
                     .map(|response| {
                         otel_debug!(name: "TonicTracesClient.ExportSucceeded");

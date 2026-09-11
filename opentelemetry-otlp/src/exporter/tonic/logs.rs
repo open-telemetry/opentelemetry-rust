@@ -67,15 +67,16 @@ impl TonicLogsClient {
 impl LogExporter for TonicLogsClient {
     async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
         let batch = Arc::new(batch);
+        let batch = &batch;
 
         match super::tonic_retry_with_backoff(
             &self.retry_policy,
             self.timeout,
             crate::retry_classification::grpc::classify_tonic_status,
             "TonicLogsClient.Export",
-            || async {
-                let batch_clone = Arc::clone(&batch);
-
+            |remaining| async move {
+                let attempt_start = std::time::Instant::now();
+                let batch_clone = Arc::clone(batch);
                 // Execute the export operation
                 let (mut client, metadata, extensions) = self
                     .inner
@@ -101,12 +102,20 @@ impl LogExporter for TonicLogsClient {
 
                 otel_debug!(name: "TonicLogsClient.ExportStarted");
 
-                client
-                    .export(Request::from_parts(
-                        metadata,
-                        extensions,
-                        ExportLogsServiceRequest { resource_logs },
-                    ))
+                let mut request = Request::from_parts(
+                    metadata,
+                    extensions,
+                    ExportLogsServiceRequest { resource_logs },
+                );
+                let request_timeout = remaining.saturating_sub(attempt_start.elapsed());
+                if request_timeout.is_zero() {
+                    return Err(tonic::Status::deadline_exceeded(
+                        "OTLP export deadline exceeded",
+                    ));
+                }
+                request.set_timeout(request_timeout);
+
+                super::tonic_request_with_timeout(request_timeout, client.export(request))
                     .await
                     .map(|response| {
                         otel_debug!(name: "TonicLogsClient.ExportSucceeded");

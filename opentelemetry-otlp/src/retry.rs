@@ -78,14 +78,9 @@ fn generate_jitter(max_jitter: Duration) -> Duration {
 /// on a bare OS thread (the SDK's default batch processors), `std::thread::sleep`
 /// is used instead.
 ///
-/// A time budget (deadline) bounds the total retry duration. If the budget is exhausted,
-/// the function returns the last error without further retries.
-///
-/// **Note:** The deadline governs whether to start another retry and caps inter-retry
-/// sleep durations, but it does not cancel an in-flight export operation. On dedicated
-/// threads (the SDK's default batch processors), individual export calls do not have a
-/// timeout today, so a single slow export can exceed the deadline. This is an existing
-/// limitation.
+/// A time budget (deadline) bounds the complete operation, including attempts and
+/// backoff. Each attempt receives the remaining budget so the transport can apply
+/// it to the request. A result that arrives after the deadline is rejected.
 ///
 /// # Arguments
 ///
@@ -93,24 +88,27 @@ fn generate_jitter(max_jitter: Duration) -> Duration {
 /// * `deadline` - Maximum total time allowed for all retry attempts combined.
 /// * `error_classifier` - Function to classify errors for retry decisions.
 /// * `operation_name` - The name of the operation being retried.
-/// * `operation` - The operation to be retried.
+/// * `deadline_error` - Creates the error returned when the deadline expires.
+/// * `operation` - The operation to be retried, passed its remaining time budget.
 ///
 /// # Returns
 ///
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
-pub(crate) async fn retry_with_backoff<F, Fut, T, E, C>(
+pub(crate) async fn retry_with_backoff<F, Fut, T, E, C, D>(
     policy: &RetryPolicy,
     deadline: Duration,
     error_classifier: C,
     operation_name: &str,
+    deadline_error: D,
     mut operation: F,
 ) -> Result<T, E>
 where
-    F: FnMut() -> Fut,
+    F: FnMut(Duration) -> Fut,
     E: std::fmt::Debug,
     Fut: Future<Output = Result<T, E>>,
     C: Fn(&E) -> RetryErrorType,
+    D: Fn() -> E,
 {
     let start = Instant::now();
     let mut attempt = 0;
@@ -122,8 +120,23 @@ where
     let mut delay_cap = policy.max_delay;
 
     loop {
-        match operation().await {
-            Ok(result) => return Ok(result),
+        let remaining = deadline.saturating_sub(start.elapsed());
+        if remaining.is_zero() {
+            return Err(deadline_error());
+        }
+
+        match operation(remaining).await {
+            Ok(result) => {
+                if start.elapsed() >= deadline {
+                    otel_warn!(name: "Export.Failed.DeadlineExceeded",
+                        operation = operation_name,
+                        retries = attempt,
+                        message = "OTLP export completed after its deadline - telemetry data will be lost"
+                    );
+                    return Err(deadline_error());
+                }
+                return Ok(result);
+            }
             Err(err) => {
                 // Check time budget before deciding to retry
                 let elapsed = start.elapsed();
@@ -134,7 +147,7 @@ where
                         elapsed_ms = elapsed.as_millis(),
                         message = "OTLP export deadline exceeded - telemetry data will be lost"
                     );
-                    return Err(err);
+                    return Err(deadline_error());
                 }
 
                 let error_type = error_classifier(&err);
@@ -296,7 +309,8 @@ mod tests {
                 Duration::from_secs(10),
                 |_| classification.clone(),
                 "test_operation",
-                || {
+                Default::default,
+                |_| {
                     attempts.fetch_add(1, Ordering::SeqCst);
                     Box::pin(async { Err::<(), _>(()) })
                 },
@@ -329,11 +343,64 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::Retryable,
             "test_operation",
-            || Box::pin(async { Ok::<_, ()>("success") }),
+            Default::default,
+            |_| Box::pin(async { Ok::<_, ()>("success") }),
         )
         .await;
 
         assert_eq!(result, Ok("success"));
+    }
+
+    #[test]
+    fn test_success_after_deadline_is_rejected_without_tokio() {
+        let deadline = Duration::from_millis(20);
+        let result = futures_executor::block_on(retry_with_backoff(
+            &RetryPolicy::disabled(),
+            deadline,
+            |_: &&str| RetryErrorType::NonRetryable,
+            "test_operation",
+            || "deadline",
+            |remaining| {
+                Box::pin(async move {
+                    std::thread::sleep(remaining.saturating_add(Duration::from_millis(10)));
+                    Ok::<_, &str>("late success")
+                })
+            },
+        ));
+
+        assert_eq!(result, Err("deadline"));
+    }
+
+    #[tokio::test]
+    async fn test_each_attempt_receives_remaining_budget() {
+        let policy = policy(1, 20, 20, 0);
+        let attempts = AtomicUsize::new(0);
+        let budgets = std::sync::Mutex::new(Vec::new());
+
+        let result = retry_with_backoff(
+            &policy,
+            Duration::from_secs(1),
+            |_: &()| RetryErrorType::Retryable,
+            "test_operation",
+            Default::default,
+            |remaining| {
+                budgets.lock().unwrap().push(remaining);
+                let attempt = attempts.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async move {
+                    if attempt == 0 {
+                        Err(())
+                    } else {
+                        Ok("success")
+                    }
+                })
+            },
+        )
+        .await;
+
+        assert_eq!(result, Ok("success"));
+        let budgets = budgets.lock().unwrap();
+        assert_eq!(budgets.len(), 2);
+        assert!(budgets[1] < budgets[0]);
     }
 
     #[tokio::test]
@@ -347,7 +414,8 @@ mod tests {
             deadline,
             |_: &&str| RetryErrorType::Retryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 2 {
@@ -375,7 +443,8 @@ mod tests {
             deadline,
             |_: &&str| RetryErrorType::Retryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async { Err::<(), _>("error") })
             },
@@ -397,7 +466,8 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::NonRetryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async { Err::<(), _>(()) })
             },
@@ -430,7 +500,8 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::Throttled(Duration::from_millis(50)),
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 1 {
@@ -464,7 +535,8 @@ mod tests {
             Duration::from_secs(2),
             |_: &usize| RetryErrorType::Throttled(Duration::from_millis(20)),
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 2 {
@@ -502,7 +574,8 @@ mod tests {
                 }
             },
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 2 {
@@ -543,7 +616,8 @@ mod tests {
                 }
             },
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 3 {
@@ -595,7 +669,8 @@ mod tests {
                 }
             },
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 3 {
@@ -631,7 +706,8 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::Retryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async { Err::<(), _>(()) })
             },
@@ -660,7 +736,8 @@ mod tests {
             short_deadline,
             |_: &()| RetryErrorType::Throttled(Duration::from_secs(120)),
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async { Err::<(), _>(()) })
             },
@@ -688,7 +765,8 @@ mod tests {
             deadline,
             |_: &&str| RetryErrorType::Retryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 2 {
@@ -719,7 +797,8 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::Retryable,
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async { Err::<(), _>(()) })
             },
@@ -745,7 +824,8 @@ mod tests {
             deadline,
             |_: &()| RetryErrorType::Throttled(Duration::from_millis(50)),
             "test_operation",
-            || {
+            Default::default,
+            |_| {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
                 Box::pin(async move {
                     if attempt < 1 {

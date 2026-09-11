@@ -34,6 +34,10 @@ release:
 
 ### Other changes
 
+- Enforce the configured exporter timeout across the complete batch export,
+  including all attempts, backoff, HTTP response bodies, and gRPC response
+  decoding and trailers. Each retry now receives only the remaining timeout.
+
 - **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
   `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
   the transport-selected exporter builders (e.g.

@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Apply `HyperClient`'s configured timeout to the complete response body, not
+  only request dispatch and response headers.
+- Add `HttpClientTimeout`, a request extension that lets exporters communicate
+  a shorter per-request timeout to HTTP clients. The built-in clients honor it
+  through complete response-body collection.
+
 - **Breaking** Sealed the `ResponseExt` trait so it can no longer be implemented by
   downstream crates. The trait provides a blanket implementation for all
   `http::Response<T>` types, so calling code is unaffected -- only
