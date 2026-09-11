@@ -262,17 +262,17 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        let endpoint_str = apply_insecure_scheme(
-            Self::resolve_endpoint(signal_endpoint_var, config.endpoint)?,
-            super::resolve_insecure(signal_insecure_var),
-        );
+        let (endpoint_str, endpoint_source) =
+            Self::resolve_endpoint(signal_endpoint_var, config.endpoint)?;
+        let endpoint_str =
+            apply_insecure_scheme(endpoint_str, super::resolve_insecure(signal_insecure_var));
 
         // Used for logging the endpoint
         let endpoint_clone = endpoint_str.clone();
 
         let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str).map_err(|error| {
             ExporterBuildError::invalid_configuration(
-                "endpoint",
+                endpoint_source,
                 format!(
                     "invalid endpoint '{endpoint_clone}': {}",
                     render_source_chain(&error)
@@ -292,7 +292,7 @@ impl TonicExporterBuilder {
         )))]
         if is_https {
             return Err(ExporterBuildError::invalid_configuration(
-                "endpoint",
+                endpoint_source,
                 format!(
                     "endpoint '{}' uses HTTPS but no TLS feature is enabled; \
                      enable one of the `tls-ring`, `tls-aws-lc`, or `tls-provider-agnostic` features on `opentelemetry-otlp`",
@@ -316,7 +316,7 @@ impl TonicExporterBuilder {
                 .tls_config(ClientTlsConfig::new())
                 .map_err(|error| {
                     ExporterBuildError::invalid_configuration(
-                        "endpoint",
+                        endpoint_source,
                         format!(
                             "failed to configure default TLS for HTTPS endpoint '{endpoint_clone}': {}; \
                              ensure an appropriate TLS provider feature is enabled"
@@ -344,7 +344,7 @@ impl TonicExporterBuilder {
     fn resolve_endpoint(
         signal_endpoint_var: &str,
         provided_endpoint: Option<String>,
-    ) -> Result<String, ExporterBuildError> {
+    ) -> Result<(String, &str), ExporterBuildError> {
         // resolving endpoint string
         // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
         // the path of grpc calls are based on the protobuf service definition
@@ -353,13 +353,16 @@ impl TonicExporterBuilder {
         //
         // programmatic configuration overrides any value set via environment variables
         if let Some(endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-            Ok(endpoint)
+            Ok((endpoint, "endpoint"))
         } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
-            Ok(endpoint)
+            Ok((endpoint, signal_endpoint_var))
         } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
-            Ok(endpoint)
+            Ok((endpoint, OTEL_EXPORTER_OTLP_ENDPOINT))
         } else {
-            Ok(OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string())
+            Ok((
+                OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string(),
+                "endpoint",
+            ))
         }
     }
 
@@ -1094,7 +1097,13 @@ mod tests {
                     None,
                 )
                 .unwrap();
-                assert_eq!(url, "http://localhost:1234");
+                assert_eq!(
+                    url,
+                    (
+                        "http://localhost:1234".to_string(),
+                        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                    )
+                );
             },
         );
     }
@@ -1112,7 +1121,7 @@ mod tests {
                     Some("http://localhost:3456".to_string()),
                 )
                 .unwrap();
-                assert_eq!(url, "http://localhost:3456");
+                assert_eq!(url, ("http://localhost:3456".to_string(), "endpoint"));
             },
         );
     }
@@ -1123,7 +1132,7 @@ mod tests {
             let url =
                 TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None)
                     .unwrap();
-            assert_eq!(url, "http://localhost:4317");
+            assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
         });
     }
 
@@ -1135,7 +1144,7 @@ mod tests {
                 Some(String::new()),
             )
             .unwrap();
-            assert_eq!(url, "http://localhost:4317");
+            assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
         });
     }
 
@@ -1152,7 +1161,7 @@ mod tests {
                     None,
                 )
                 .unwrap();
-                assert_eq!(url, "http://localhost:4317");
+                assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
             },
         );
     }
@@ -1170,7 +1179,13 @@ mod tests {
                     None,
                 )
                 .unwrap();
-                assert_eq!(url, "http://collector:4317");
+                assert_eq!(
+                    url,
+                    (
+                        "http://collector:4317".to_string(),
+                        super::OTEL_EXPORTER_OTLP_ENDPOINT
+                    )
+                );
             },
         );
     }
@@ -1197,6 +1212,81 @@ mod tests {
                 ));
             },
         );
+    }
+
+    #[cfg(feature = "trace")]
+    #[test]
+    fn invalid_endpoint_error_identifies_environment_source() {
+        use crate::{ExporterBuildError, Protocol, SpanExporter, WithExportConfig};
+
+        for (signal_endpoint, expected_source) in [
+            (Some("http://[invalid"), OTEL_EXPORTER_OTLP_TRACES_ENDPOINT),
+            (None, super::OTEL_EXPORTER_OTLP_ENDPOINT),
+        ] {
+            temp_env::with_vars(
+                [
+                    (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, signal_endpoint),
+                    (super::OTEL_EXPORTER_OTLP_ENDPOINT, Some("http://[invalid")),
+                ],
+                || {
+                    let error = SpanExporter::builder()
+                        .with_tonic()
+                        .with_protocol(Protocol::Grpc)
+                        .build()
+                        .unwrap_err();
+                    assert!(
+                        matches!(error, ExporterBuildError::InvalidConfiguration(ref message)
+                            if message.starts_with(&format!("{expected_source}:"))
+                                && message.contains("invalid endpoint")),
+                        "expected endpoint source {expected_source}, got {error}"
+                    );
+                },
+            );
+        }
+    }
+
+    #[cfg(all(
+        feature = "trace",
+        not(any(
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))
+    ))]
+    #[test]
+    fn missing_tls_error_identifies_environment_source() {
+        use crate::{ExporterBuildError, Protocol, SpanExporter, WithExportConfig};
+
+        for (signal_endpoint, expected_source) in [
+            (
+                Some("https://collector.example.com:4317"),
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            ),
+            (None, super::OTEL_EXPORTER_OTLP_ENDPOINT),
+        ] {
+            temp_env::with_vars(
+                [
+                    (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, signal_endpoint),
+                    (
+                        super::OTEL_EXPORTER_OTLP_ENDPOINT,
+                        Some("https://collector.example.com:4317"),
+                    ),
+                ],
+                || {
+                    let error = SpanExporter::builder()
+                        .with_tonic()
+                        .with_protocol(Protocol::Grpc)
+                        .build()
+                        .unwrap_err();
+                    assert!(
+                        matches!(error, ExporterBuildError::InvalidConfiguration(ref message)
+                            if message.starts_with(&format!("{expected_source}:"))
+                                && message.contains("no TLS feature")),
+                        "expected endpoint source {expected_source}, got {error}"
+                    );
+                },
+            );
+        }
     }
 
     #[test]

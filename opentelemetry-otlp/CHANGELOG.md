@@ -125,6 +125,8 @@ release:
   default. Failures while constructing a default reqwest client now return
   `InternalFailure` instead of silently falling back to a differently
   configured client.
+  Tonic endpoint errors identify the originating environment variable when
+  validating the URI or reporting endpoint-related TLS setup failures.
   [#3691](https://github.com/open-telemetry/opentelemetry-rust/issues/3691)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
