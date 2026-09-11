@@ -349,7 +349,36 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
+        super::resolve_compression_from_env(
+            self.tonic_config.compression,
+            env_override,
+            |compression| match compression {
+                Compression::Gzip => {
+                    #[cfg(feature = "gzip-tonic")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "gzip-tonic"))]
+                    {
+                        Err(
+                            "feature 'gzip-tonic' is required to use the compression algorithm 'gzip'",
+                        )
+                    }
+                }
+                Compression::Zstd => {
+                    #[cfg(feature = "zstd-tonic")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "zstd-tonic"))]
+                    {
+                        Err(
+                            "feature 'zstd-tonic' is required to use the compression algorithm 'zstd'",
+                        )
+                    }
+                }
+            },
+        )?
             .map(|c| c.try_into())
             .transpose()
     }

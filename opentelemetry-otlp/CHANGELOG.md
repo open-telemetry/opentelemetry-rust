@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Interpret protocol, compression, and metrics temporality environment values
+  case-insensitively. Treat empty values as unset, and warn and ignore invalid,
+  non-Unicode, or feature-unavailable enum values so resolution can continue
+  to the next environment variable or default. Compression `none` explicitly
+  disables compression, including when a generic compression value is set.
+  Programmatic configuration remains strict.
+
 ### Retry
 
 - Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default

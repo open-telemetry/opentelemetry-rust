@@ -159,6 +159,52 @@ pub enum ExporterBuildError {
     InternalFailure(String),
 }
 
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+pub(crate) fn read_enum_env_var(name: &str) -> Option<String> {
+    match std::env::var(name) {
+        Ok(value) if value.is_empty() => None,
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            warn_ignored_enum_env_var(name, "<non-Unicode>", "value is not valid Unicode");
+            None
+        }
+    }
+}
+
+#[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
+pub(crate) fn warn_ignored_enum_env_var(
+    environment_variable: &str,
+    value: &str,
+    reason: impl std::fmt::Display,
+) {
+    let reason = reason.to_string();
+    let message = format!("Ignoring value '{value}' for {environment_variable}: {reason}");
+    opentelemetry::otel_warn!(
+        name: "Exporter.Config.InvalidEnvironmentVariable",
+        message = message.as_str(),
+        environment_variable = environment_variable,
+        value = value,
+        reason = reason.as_str()
+    );
+}
+
+#[cfg(all(
+    any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"),
+    not(all(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))
+))]
+pub(crate) fn warn_missing_protocol_feature(
+    environment_variable: &str,
+    value: &str,
+    feature: &str,
+) {
+    warn_ignored_enum_env_var(
+        environment_variable,
+        value,
+        format!("feature '{feature}' is not enabled"),
+    );
+}
+
 /// The compression algorithm to use when sending data.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -198,18 +244,61 @@ impl FromStr for Compression {
 /// 3. Generic OTEL_EXPORTER_OTLP_COMPRESSION
 /// 4. None (default)
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-fn resolve_compression_from_env(
+fn resolve_compression_from_env<F>(
     config_compression: Option<Compression>,
     signal_env_var: &str,
-) -> Result<Option<Compression>, ExporterBuildError> {
+    validate_compression: F,
+) -> Result<Option<Compression>, ExporterBuildError>
+where
+    F: Fn(Compression) -> Result<(), &'static str>,
+{
     if let Some(compression) = config_compression {
-        Ok(Some(compression))
-    } else if let Ok(compression) = std::env::var(signal_env_var) {
-        Ok(Some(compression.parse::<Compression>()?))
-    } else if let Ok(compression) = std::env::var(OTEL_EXPORTER_OTLP_COMPRESSION) {
-        Ok(Some(compression.parse::<Compression>()?))
-    } else {
-        Ok(None)
+        return Ok(Some(compression));
+    }
+
+    match parse_compression_env_var(signal_env_var, &validate_compression) {
+        CompressionEnvValue::Enabled(compression) => Ok(Some(compression)),
+        CompressionEnvValue::Disabled => Ok(None),
+        CompressionEnvValue::UnsetOrIgnored => {
+            match parse_compression_env_var(OTEL_EXPORTER_OTLP_COMPRESSION, &validate_compression) {
+                CompressionEnvValue::Enabled(compression) => Ok(Some(compression)),
+                CompressionEnvValue::Disabled | CompressionEnvValue::UnsetOrIgnored => Ok(None),
+            }
+        }
+    }
+}
+
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+enum CompressionEnvValue {
+    UnsetOrIgnored,
+    Disabled,
+    Enabled(Compression),
+}
+
+#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
+fn parse_compression_env_var<F>(name: &str, validate_compression: &F) -> CompressionEnvValue
+where
+    F: Fn(Compression) -> Result<(), &'static str>,
+{
+    let Some(value) = read_enum_env_var(name) else {
+        return CompressionEnvValue::UnsetOrIgnored;
+    };
+    if value.eq_ignore_ascii_case("none") {
+        return CompressionEnvValue::Disabled;
+    }
+
+    match value.to_ascii_lowercase().parse::<Compression>() {
+        Ok(compression) => match validate_compression(compression) {
+            Ok(()) => CompressionEnvValue::Enabled(compression),
+            Err(reason) => {
+                warn_ignored_enum_env_var(name, &value, reason);
+                CompressionEnvValue::UnsetOrIgnored
+            }
+        },
+        Err(error) => {
+            warn_ignored_enum_env_var(name, &value, error);
+            CompressionEnvValue::UnsetOrIgnored
+        }
     }
 }
 
@@ -420,6 +509,8 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 #[cfg(test)]
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod tests {
+    use super::{resolve_compression_from_env, Compression, OTEL_EXPORTER_OTLP_COMPRESSION};
+
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
     where
         F: FnOnce(),
@@ -799,6 +890,105 @@ mod tests {
             let protocol = super::resolve_protocol(crate::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
             assert_eq!(protocol, Protocol::feature_default());
         });
+    }
+
+    #[test]
+    fn test_empty_compression_env_falls_back_to_generic() {
+        run_env_test(
+            vec![
+                ("MY_CUSTOM_COMPRESSION_VAR", ""),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
+                        .unwrap(),
+                    Some(Compression::Gzip)
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn test_invalid_compression_env_falls_back_to_generic_case_insensitively() {
+        run_env_test(
+            vec![
+                ("MY_CUSTOM_COMPRESSION_VAR", "invalid"),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, "GZIP"),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
+                        .unwrap(),
+                    Some(Compression::Gzip)
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn test_unavailable_compression_env_falls_back_to_generic() {
+        run_env_test(
+            vec![
+                ("MY_CUSTOM_COMPRESSION_VAR", "gzip"),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, "zstd"),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(
+                        None,
+                        "MY_CUSTOM_COMPRESSION_VAR",
+                        |compression| match compression {
+                            Compression::Gzip => Err("gzip is unavailable"),
+                            Compression::Zstd => Ok(()),
+                        }
+                    )
+                    .unwrap(),
+                    Some(Compression::Zstd)
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn test_none_compression_env_prevents_generic_fallback() {
+        run_env_test(
+            vec![
+                ("MY_CUSTOM_COMPRESSION_VAR", "NoNe"),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
+                        .unwrap(),
+                    None
+                );
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_compression_env_falls_back_to_generic() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_vars(
+            [
+                (
+                    "MY_CUSTOM_COMPRESSION_VAR",
+                    Some(OsStr::from_bytes(b"\x80")),
+                ),
+                (OTEL_EXPORTER_OTLP_COMPRESSION, Some(OsStr::new("zstd"))),
+            ],
+            || {
+                assert_eq!(
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
+                        .unwrap(),
+                    Some(Compression::Zstd)
+                );
+            },
+        );
     }
 
     #[cfg(all(feature = "grpc-tonic", feature = "trace"))]

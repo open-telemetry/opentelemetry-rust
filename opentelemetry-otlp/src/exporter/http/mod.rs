@@ -319,7 +319,36 @@ impl HttpExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
-        super::resolve_compression_from_env(self.http_config.compression, env_override)
+        super::resolve_compression_from_env(
+            self.http_config.compression,
+            env_override,
+            |compression| match compression {
+                crate::Compression::Gzip => {
+                    #[cfg(feature = "gzip-http")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "gzip-http"))]
+                    {
+                        Err(
+                            "feature 'gzip-http' is required to use the compression algorithm 'gzip'",
+                        )
+                    }
+                }
+                crate::Compression::Zstd => {
+                    #[cfg(feature = "zstd-http")]
+                    {
+                        Ok(())
+                    }
+                    #[cfg(not(feature = "zstd-http"))]
+                    {
+                        Err(
+                            "feature 'zstd-http' is required to use the compression algorithm 'zstd'",
+                        )
+                    }
+                }
+            },
+        )
     }
 
     /// Create a span exporter with the current configuration
@@ -1699,7 +1728,10 @@ mod tests {
                     let result = builder
                         .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
                         .unwrap();
+                    #[cfg(feature = "gzip-http")]
                     assert_eq!(result, Some(crate::Compression::Gzip));
+                    #[cfg(not(feature = "gzip-http"))]
+                    assert_eq!(result, None);
                 },
             );
         }
