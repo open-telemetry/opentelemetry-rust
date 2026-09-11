@@ -315,31 +315,34 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
-            let capacity = response
-                .body()
-                .size_hint()
-                .upper()
-                .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
-            let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
-            let status = response.status();
-            let headers = std::mem::take(response.headers_mut());
-            let mut body = response.into_body();
-            while let Some(frame) = body.frame().await {
-                let frame = frame?;
-                if let Ok(chunk) = frame.into_data() {
-                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                        return Err(Box::new(ResponseBodyTooLarge));
+            time::timeout(self.timeout, async {
+                let mut response = self.inner.request(request).await?;
+                let capacity = response
+                    .body()
+                    .size_hint()
+                    .upper()
+                    .unwrap_or(0)
+                    .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+                let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
+                let status = response.status();
+                let headers = std::mem::take(response.headers_mut());
+                let mut body = response.into_body();
+                while let Some(frame) = body.frame().await {
+                    let frame = frame?;
+                    if let Ok(chunk) = frame.into_data() {
+                        if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                            return Err(Box::new(ResponseBodyTooLarge) as HttpError);
+                        }
+                        body_bytes.extend_from_slice(&chunk);
                     }
-                    body_bytes.extend_from_slice(&chunk);
                 }
-            }
-            let mut http_response = Response::builder()
-                .status(status)
-                .body(body_bytes.freeze())?;
-            *http_response.headers_mut() = headers;
-            Ok(http_response)
+                let mut http_response = Response::builder()
+                    .status(status)
+                    .body(body_bytes.freeze())?;
+                *http_response.headers_mut() = headers;
+                Ok(http_response)
+            })
+            .await?
         }
     }
 }
@@ -600,6 +603,25 @@ Connection: close\r\n\r\n",
             addr
         }
 
+        #[cfg(feature = "hyper")]
+        async fn start_stalled_body_server() -> SocketAddr {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    let mut buf = [0u8; 1024];
+                    let _ = socket.read(&mut buf).await;
+                    let _ = socket
+                        .write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\n",
+                        )
+                        .await;
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+            });
+            addr
+        }
+
         async fn assert_within_limit(client: &dyn HttpClient, addr: SocketAddr) {
             let request = Request::builder()
                 .method("POST")
@@ -704,6 +726,31 @@ Connection: close\r\n\r\n",
                 None,
             );
             assert_exceeds_limit(&client, addr).await;
+        }
+
+        #[cfg(feature = "hyper")]
+        #[tokio::test]
+        async fn hyper_timeout_covers_response_body() {
+            let addr = start_stalled_body_server().await;
+            let client = crate::hyper::HyperClient::with_default_connector(
+                std::time::Duration::from_millis(25),
+                None,
+            );
+            let request = Request::post(format!("http://{addr}/"))
+                .body(Bytes::new())
+                .unwrap();
+
+            let error = tokio::time::timeout(
+                std::time::Duration::from_millis(200),
+                client.send_bytes(request),
+            )
+            .await
+            .expect("HyperClient must enforce its configured timeout")
+            .expect_err("stalled response body must time out");
+
+            assert!(error
+                .downcast_ref::<tokio::time::error::Elapsed>()
+                .is_some());
         }
     }
 }
