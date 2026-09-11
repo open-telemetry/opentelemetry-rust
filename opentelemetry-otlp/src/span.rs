@@ -81,17 +81,16 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
-        // NOTE: The transport-specific builder will call resolve_protocol again
-        // internally (for HTTP sub-protocol selection or tonic validation), but
-        // that's harmless — the result is the same.
+        use crate::WithExportConfig;
+
         let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
         match protocol {
             #[cfg(feature = "grpc-tonic")]
-            crate::Protocol::Grpc => self.with_tonic().build(),
+            crate::Protocol::Grpc => self.with_tonic().with_protocol(protocol).build(),
             #[cfg(feature = "http-proto")]
-            crate::Protocol::HttpBinary => self.with_http().build(),
+            crate::Protocol::HttpBinary => self.with_http().with_protocol(protocol).build(),
             #[cfg(feature = "http-json")]
-            crate::Protocol::HttpJson => self.with_http().build(),
+            crate::Protocol::HttpJson => self.with_http().with_protocol(protocol).build(),
         }
     }
 }
@@ -280,6 +279,78 @@ mod tests {
                 },
             );
         });
+    }
+
+    /// Invalid enum values are warned about and ignored, so resolution
+    /// continues to the next source in the precedence chain.
+    #[cfg(all(feature = "grpc-tonic", feature = "http-proto"))]
+    #[test]
+    fn build_auto_select_ignores_invalid_protocol_env_values() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let _guard = rt.enter();
+        for (signal, generic, expect_grpc) in [
+            ("not-a-protocol", "GRPC", true),
+            ("HTTP/PROTOBUF", "grpc", false),
+            ("not-a-protocol", "also-not-a-protocol", false),
+        ] {
+            temp_env::with_vars(
+                [
+                    (super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, Some(signal)),
+                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some(generic)),
+                ],
+                || {
+                    let exporter = SpanExporter::builder().build().unwrap();
+                    assert_eq!(
+                        matches!(exporter.client, super::SupportedTransportClient::Tonic(_)),
+                        expect_grpc,
+                        "signal={signal}, generic={generic}"
+                    );
+                },
+            );
+        }
+    }
+
+    #[cfg(all(feature = "http-proto", not(feature = "grpc-tonic")))]
+    #[test]
+    fn build_auto_select_ignores_protocol_with_disabled_feature() {
+        temp_env::with_vars(
+            [
+                (super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None::<&str>),
+                (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some("grpc")),
+            ],
+            || {
+                let exporter = SpanExporter::builder().build().unwrap();
+                assert!(matches!(
+                    exporter.client,
+                    super::SupportedTransportClient::Http(_)
+                ));
+            },
+        );
+    }
+
+    #[cfg(all(
+        any(feature = "http-proto", feature = "http-json"),
+        feature = "gzip-http"
+    ))]
+    #[test]
+    fn build_http_succeeds_with_invalid_compression_env_value() {
+        temp_env::with_vars(
+            [
+                (
+                    super::OTEL_EXPORTER_OTLP_TRACES_COMPRESSION,
+                    Some("not-compression"),
+                ),
+                (crate::OTEL_EXPORTER_OTLP_COMPRESSION, Some("GZIP")),
+            ],
+            || {
+                let result = SpanExporter::builder().with_http().build();
+                assert!(
+                    result.is_ok(),
+                    "invalid signal compression should fall back to generic: {:?}",
+                    result.err()
+                );
+            },
+        );
     }
 
     /// Verifies that explicitly selecting tonic transport with an HTTP protocol
