@@ -60,6 +60,11 @@ log guidance.
 
 ## Filtering spans
 
+Processor filtering is one option for controlling which spans are exported.
+The choice between SDK sampling, processor filtering, and decisions in a
+Collector or telemetry pipeline depends on the information needed, the costs
+you want to avoid, and whether the decision must apply to an entire trace.
+
 > **Warning:** Filtering individual spans can produce incomplete or broken
 > traces. For example, an exported child span may refer to a parent span that
 > was discarded. A processor's decision does not coordinate with other spans
@@ -71,14 +76,18 @@ log guidance.
 > it can make a common keep/drop decision. Tail sampling cannot recover spans
 > already discarded by SDK sampling or filtering.
 
-Prefer a sampler when the filtering decision can use information available at
-span creation, including initial attributes. A sampler that returns `Drop`
-avoids recording and processing that span. Use a custom [`SpanProcessor`] when
-the decision requires the finished `SpanData` or other processor state, such as
-an attribute added during the span's lifetime, its final status, or runtime
-configuration.
+SDK sampling can use information available at span creation, including initial
+attributes. A sampler that returns `Drop` avoids recording and processing that
+span, but cannot use its final status or attributes added later. A custom
+[`SpanProcessor`] can use the finished `SpanData` or application-local state
+and avoid downstream batching and export costs, but recording costs have
+already been incurred. Filtering or sampling in a Collector or telemetry
+pipeline can centralize policy across services, but still incurs SDK processing
+and transport costs to that point. Tail sampling also needs resources to
+buffer spans while awaiting a decision.
 
-For end-of-span filtering, wrap the processor that exports or batches spans.
+If you have a reason to filter finished spans in an SDK processor and accept
+the trace-completeness tradeoff, wrap the processor that exports or batches spans.
 Evaluate the filtering condition in `on_end` and call the wrapped processor
 only when the span should be kept. Register only the wrapper with
 `SdkTracerProvider`. Registering the filter and exporter-backed processor

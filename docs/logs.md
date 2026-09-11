@@ -61,10 +61,26 @@ records reach that bridge.
 
 ## Filtering log records
 
-Use logging-framework filters when possible: they reject events before an
-OpenTelemetry log record is created. A custom [`LogProcessor`] is useful when
-the decision requires the completed `SdkLogRecord`, its instrumentation scope,
-runtime configuration, or other processor state.
+Filtering in a processor is one option. The appropriate place depends on what
+information the decision needs and where you want to manage the policy:
+
+- **Logging library:** Filtering before the OpenTelemetry bridge avoids creating
+  and processing rejected log records. `tracing` offers flexible
+  [filtering capabilities] through `tracing-subscriber`, including level and
+  target filters, `EnvFilter`, custom predicates, and per-layer filters. These
+  filters use information available to the logging library, before SDK
+  processing or downstream enrichment.
+- **SDK processor:** A custom [`LogProcessor`] can inspect the `SdkLogRecord`,
+  instrumentation scope, or application-local state and reject records before
+  batching and export. Record creation and any earlier processing have already
+  occurred, and the processor implementation is maintained in the application.
+- **Collector or telemetry pipeline:** Filtering downstream can centralize
+  policy across applications and use data added by pipeline processors. It
+  still incurs the application-side work and transport cost of sending records
+  to that point in the pipeline.
+
+If you have a reason to filter in an SDK processor, the following approach
+shows how to compose it with other processors.
 
 A filtering processor should wrap the processor that exports or batches
 records. In its `emit` method, evaluate the filtering condition and call the
@@ -85,6 +101,7 @@ severity, target, and event name. Conditions that require any other record data
 must be evaluated in `emit`.
 
 [`LogProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/trait.LogProcessor.html
+[filtering capabilities]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/index.html
 [logs-advanced example]: ../examples/logs-advanced/
 
 ## OpenTelemetry Log Bridge API

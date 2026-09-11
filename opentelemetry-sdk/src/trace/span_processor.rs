@@ -138,8 +138,9 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
     ///
-    /// A filtering processor can wrap another processor and delegate only the
-    /// spans that satisfy its condition. This example uses an attribute, but the
+    /// If SDK processor filtering fits your requirements and you accept this
+    /// tradeoff, wrap another processor and delegate only the spans that satisfy
+    /// your condition. This example uses an attribute, but the
     /// condition can use any information in [`SpanData`] or other processor state.
     /// Register only the wrapper with [`SdkTracerProvider`](crate::trace::SdkTracerProvider), since separately
     /// registered processors receive spans independently.
