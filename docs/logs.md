@@ -59,6 +59,51 @@ records reach that bridge.
 
 [issue #2877]: https://github.com/open-telemetry/opentelemetry-rust/issues/2877
 
+## Filtering log records
+
+Filtering in a processor is one option. The appropriate place depends on what
+information the decision needs and where you want to manage the policy:
+
+- **Logging library:** Filtering before the OpenTelemetry bridge avoids creating
+  and processing rejected log records. `tracing` offers flexible
+  [filtering capabilities] through `tracing-subscriber`, including level and
+  target filters, `EnvFilter`, custom predicates, and per-layer filters. These
+  filters use information available to the logging library, before SDK
+  processing or downstream enrichment.
+- **SDK processor:** A custom [`LogProcessor`] can inspect the `SdkLogRecord`,
+  instrumentation scope, or application-local state and reject records before
+  batching and export. Record creation and any earlier processing have already
+  occurred, and the processor implementation is maintained in the application.
+- **Collector or telemetry pipeline:** Filtering downstream can centralize
+  policy across applications and use data added by pipeline processors. It
+  still incurs the application-side work and transport cost of sending records
+  to that point in the pipeline.
+
+If you have a reason to filter in an SDK processor, the following approach
+shows how to compose it with other processors.
+
+A filtering processor should wrap the processor that exports or batches
+records. In its `emit` method, evaluate the filtering condition and call the
+wrapped processor only when the record should be kept. Register only the
+wrapper with `SdkLoggerProvider`. Registering both processors separately does
+not form a pipeline; each registered processor receives the record
+independently.
+
+The runnable [logs-advanced example] uses an attribute value as its filtering
+condition. A processor could instead filter by severity, event name, scope,
+body, external configuration, or any other information available to it. The
+example also demonstrates forwarding processor lifecycle methods and composing
+the filter with `SimpleLogProcessor`; a production application can wrap
+`BatchLogProcessor` in the same way.
+
+`LogProcessor::event_enabled` can reject records earlier, but it receives only
+severity, target, and event name. Conditions that require any other record data
+must be evaluated in `emit`.
+
+[`LogProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/trait.LogProcessor.html
+[filtering capabilities]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/index.html
+[logs-advanced example]: ../examples/logs-advanced/
+
 ## OpenTelemetry Log Bridge API
 
 Do **not** use the OpenTelemetry Log Bridge API (part of the `opentelemetry`
