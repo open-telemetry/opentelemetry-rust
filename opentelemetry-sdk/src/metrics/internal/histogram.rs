@@ -12,7 +12,10 @@ use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+use super::{
+    Aggregator, AlignedHistogramBucketReservoir, ComputeAggregation, ExemplarOffer,
+    ExemplarSampler, Measure, Number, ValueMap,
+};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 
@@ -21,11 +24,19 @@ where
     T: Number,
 {
     type InitConfig = usize;
-    /// Value and bucket index
-    type PreComputedValue = (T, usize);
+    /// Value, bucket index, and — when the measurement is exemplar-eligible —
+    /// the sampled trace context captured for it.
+    type PreComputedValue = (T, usize, Option<Box<ExemplarOffer>>);
 
-    fn update(&self, (value, index): (T, usize)) {
+    fn update(&self, (value, index, exemplar): (T, usize, Option<Box<ExemplarOffer>>)) {
         let mut buckets = self.lock().unwrap_or_else(|err| err.into_inner());
+
+        if let Some(offer) = exemplar {
+            // Free of extra synchronization: this aggregator already holds the
+            // lock for the counter update, and the bucket index the aligned
+            // reservoir keys on was resolved during precomputation.
+            buckets.exemplars.offer(value, index, *offer);
+        }
 
         buckets.total += value;
         buckets.count += 1;
@@ -51,13 +62,13 @@ where
     }
 }
 
-#[derive(Default)]
 struct Buckets<T> {
     counts: Vec<u64>,
     count: u64,
     total: T,
     min: T,
     max: T,
+    exemplars: AlignedHistogramBucketReservoir<T>,
 }
 
 impl<T: Number> Buckets<T> {
@@ -65,9 +76,14 @@ impl<T: Number> Buckets<T> {
     fn new(n: usize) -> Buckets<T> {
         Buckets {
             counts: vec![0; n],
+            count: 0,
+            total: T::default(),
             min: T::max(),
             max: T::min(),
-            ..Default::default()
+            // An empty-boundary histogram deliberately exports no bucket
+            // counts, but every measurement still belongs to the single
+            // conceptual bucket at index zero.
+            exemplars: AlignedHistogramBucketReservoir::new(n.max(1)),
         }
     }
 }
@@ -80,6 +96,7 @@ impl<T: Number> Buckets<T> {
 struct BoundHistogramHandle<T: Number> {
     tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
     bounds: Vec<f64>,
+    exemplars: ExemplarSampler,
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -87,7 +104,9 @@ impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
         let f = measurement.into_float();
         let index = self.bounds.partition_point(|&x| x < f);
-        self.tracker.aggregator.update((measurement, index));
+        self.tracker
+            .aggregator
+            .update((measurement, index, self.exemplars.offer()));
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
 }
@@ -109,6 +128,7 @@ pub(crate) struct Histogram<T: Number> {
     bounds: Vec<f64>,
     record_min_max: bool,
     record_sum: bool,
+    exemplars: ExemplarSampler,
 }
 
 impl<T: Number> Histogram<T> {
@@ -119,6 +139,7 @@ impl<T: Number> Histogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        exemplars: ExemplarSampler,
     ) -> Self {
         let buckets_count = if bounds.is_empty() {
             0
@@ -134,6 +155,7 @@ impl<T: Number> Histogram<T> {
             bounds,
             record_min_max,
             record_sum,
+            exemplars,
         }
     }
 
@@ -166,7 +188,7 @@ impl<T: Number> Histogram<T> {
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
                 let reset = aggr.clone_and_reset(&buckets_count);
-                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
+                let mut b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -187,7 +209,7 @@ impl<T: Number> Histogram<T> {
                     } else {
                         None
                     },
-                    exemplars: vec![],
+                    exemplars: b.exemplars.take(),
                 }
             });
 
@@ -220,7 +242,7 @@ impl<T: Number> Histogram<T> {
 
         self.value_map
             .collect_readonly(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.lock().unwrap_or_else(|err| err.into_inner());
+                let mut b = aggr.lock().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -241,7 +263,10 @@ impl<T: Number> Histogram<T> {
                     } else {
                         None
                     },
-                    exemplars: vec![],
+                    // Drained even in cumulative temporality: an exemplar
+                    // describes the interval it was sampled in, so holding it
+                    // across cycles would keep re-exporting a stale trace id.
+                    exemplars: b.exemplars.take(),
                 }
             });
 
@@ -262,8 +287,17 @@ where
         // `(bounds[bounds.len()-1], +∞)`.
         let index = self.bounds.partition_point(|&x| x < f);
 
+        // Resolved before the attribute filter runs so that `AlwaysOff` (and
+        // any build without the exemplar feature) returns `None` here and the
+        // rest of this path is unchanged.
+        let mut exemplar = self.exemplars.offer();
+
         self.filter.apply(attrs, |filtered| {
-            self.value_map.measure((measurement, index), filtered);
+            if let Some(offer) = exemplar.as_mut() {
+                offer.set_filtered_attributes(attrs, filtered);
+            }
+            self.value_map
+                .measure((measurement, index, exemplar.take()), filtered);
         })
     }
 
@@ -277,6 +311,7 @@ where
             Some(tracker) => Box::new(BoundHistogramHandle {
                 tracker,
                 bounds: self.bounds.clone(),
+                exemplars: self.exemplars,
             }),
             // Trackers RwLock is poisoned — return a noop handle so writes
             // silently drop, mirroring `measure()`'s own poison handling.
@@ -312,6 +347,7 @@ mod tests {
             false,
             false,
             2000,
+            ExemplarSampler::default(),
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
@@ -328,5 +364,222 @@ mod tests {
         assert_eq!(dp.data_points[0].bucket_counts[1], 2); // 2, 3
         assert_eq!(dp.data_points[0].bucket_counts[2], 3); // 4, 5, 6
         assert_eq!(dp.data_points[0].bucket_counts[3], 4); // 7, 8, 9, 10
+    }
+}
+
+#[cfg(all(test, feature = "spec_unstable_metrics_exemplars"))]
+mod exemplar_tests {
+    use std::sync::Arc;
+
+    use opentelemetry::trace::{SpanContext, TraceContextExt, TraceState};
+    use opentelemetry::{Context, ContextGuard, SpanId, TraceFlags, TraceId};
+
+    use super::*;
+    use crate::metrics::data::Exemplar;
+    use crate::metrics::ExemplarFilter;
+
+    const TRACE_ID: u128 = 0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10;
+    const SPAN_ID: u64 = 0x1112_1314_1516_1718;
+
+    fn hist_with_bounds(filter: ExemplarFilter, bounds: Vec<f64>) -> Histogram<i64> {
+        Histogram::<i64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            bounds,
+            false,
+            false,
+            2000,
+            ExemplarSampler::new(filter),
+        )
+    }
+
+    fn hist(filter: ExemplarFilter) -> Histogram<i64> {
+        hist_with_bounds(filter, vec![1.0, 3.0, 6.0])
+    }
+
+    /// Attaches a span context to the current thread for the guard's lifetime.
+    fn active_span(flags: TraceFlags) -> ContextGuard {
+        let span_cx = SpanContext::new(
+            TraceId::from(TRACE_ID),
+            SpanId::from(SPAN_ID),
+            flags,
+            false,
+            TraceState::default(),
+        );
+        Context::current()
+            .with_remote_span_context(span_cx)
+            .attach()
+    }
+
+    fn collect_data_points(hist: &Histogram<i64>) -> Vec<HistogramDataPoint<i64>> {
+        let (_, dp) = ComputeAggregation::call(hist, None);
+        let Some(AggregatedMetrics::I64(MetricData::Histogram(h))) = dp else {
+            unreachable!()
+        };
+        h.data_points
+    }
+
+    fn collect(hist: &Histogram<i64>) -> Vec<Exemplar<i64>> {
+        collect_data_points(hist)
+            .into_iter()
+            .flat_map(|dp| dp.exemplars)
+            .collect()
+    }
+
+    #[test]
+    fn always_off_collects_nothing_even_inside_a_sampled_span() {
+        let hist = hist(ExemplarFilter::AlwaysOff);
+        let _guard = active_span(TraceFlags::SAMPLED);
+        Measure::call(&hist, 2, &[]);
+
+        assert!(collect(&hist).is_empty());
+    }
+
+    #[test]
+    fn always_on_collects_outside_any_span() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        Measure::call(&hist, 2, &[]);
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].value, 2);
+        // No span was active, so the ids stay zeroed rather than the
+        // measurement being dropped.
+        assert_eq!(exemplars[0].trace_id, [0; 16]);
+        assert_eq!(exemplars[0].span_id, [0; 8]);
+    }
+
+    #[test]
+    fn exemplar_retains_attributes_filtered_out_of_the_metric_stream() {
+        let hist = Histogram::<i64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(Some(Arc::new(|kv: &KeyValue| {
+                kv.key.as_str() == "retained"
+            }))),
+            vec![1.0, 3.0, 6.0],
+            false,
+            false,
+            2000,
+            ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+        );
+        let retained = KeyValue::new("retained", "metric");
+        let filtered = KeyValue::new("filtered", "exemplar");
+
+        Measure::call(&hist, 2, &[retained.clone(), filtered.clone()]);
+
+        let data_points = collect_data_points(&hist);
+        assert_eq!(data_points.len(), 1);
+        assert_eq!(
+            data_points[0].attributes().cloned().collect::<Vec<_>>(),
+            vec![retained]
+        );
+        let exemplars = &data_points[0].exemplars;
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(
+            exemplars[0]
+                .filtered_attributes()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![filtered]
+        );
+    }
+
+    #[test]
+    fn always_on_captures_ids_of_an_active_unsampled_span() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        {
+            let _guard = active_span(TraceFlags::default());
+            Measure::call(&hist, 2, &[]);
+        }
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].trace_id, TraceId::from(TRACE_ID).to_bytes());
+        assert_eq!(exemplars[0].span_id, SpanId::from(SPAN_ID).to_bytes());
+    }
+
+    #[test]
+    fn empty_boundaries_still_retain_an_exemplar() {
+        let hist = hist_with_bounds(ExemplarFilter::AlwaysOn, vec![]);
+        Measure::call(&hist, 2, &[]);
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].value, 2);
+    }
+
+    #[test]
+    fn trace_based_captures_ids_of_the_active_sampled_span() {
+        let hist = hist(ExemplarFilter::TraceBased);
+        {
+            let _guard = active_span(TraceFlags::SAMPLED);
+            Measure::call(&hist, 2, &[]);
+        }
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].value, 2);
+        assert_eq!(exemplars[0].trace_id, TraceId::from(TRACE_ID).to_bytes());
+        assert_eq!(exemplars[0].span_id, SpanId::from(SPAN_ID).to_bytes());
+    }
+
+    #[test]
+    fn trace_based_ignores_unsampled_spans_and_no_span_at_all() {
+        let hist = hist(ExemplarFilter::TraceBased);
+        {
+            let _guard = active_span(TraceFlags::default());
+            Measure::call(&hist, 2, &[]);
+        }
+        Measure::call(&hist, 4, &[]);
+
+        assert!(collect(&hist).is_empty());
+    }
+
+    #[test]
+    fn at_most_one_exemplar_is_kept_per_bucket() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        // Bounds are [1, 3, 6], so four buckets; record ten values spread
+        // across all of them.
+        for v in 1..11 {
+            Measure::call(&hist, v, &[]);
+        }
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 4, "one exemplar per non-empty bucket");
+
+        let bounds = [1.0, 3.0, 6.0];
+        let mut buckets: Vec<usize> = exemplars
+            .iter()
+            .map(|e| bounds.partition_point(|&b| b < e.value as f64))
+            .collect();
+        buckets.sort_unstable();
+        assert_eq!(buckets, vec![0, 1, 2, 3], "each bucket represented once");
+    }
+
+    #[test]
+    fn exemplars_do_not_leak_across_collection_cycles() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        Measure::call(&hist, 2, &[]);
+        assert_eq!(collect(&hist).len(), 1);
+
+        // Nothing recorded in this cycle, so the drained reservoir must not
+        // re-export the previous cycle's exemplar.
+        assert!(collect(&hist).is_empty());
+    }
+
+    #[test]
+    fn cumulative_temporality_also_drains_each_cycle() {
+        let hist = Histogram::<i64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            vec![1.0, 3.0, 6.0],
+            false,
+            false,
+            2000,
+            ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+        );
+        Measure::call(&hist, 2, &[]);
+        assert_eq!(collect(&hist).len(), 1);
+        assert!(collect(&hist).is_empty());
     }
 }

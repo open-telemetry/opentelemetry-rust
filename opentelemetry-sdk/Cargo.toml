@@ -55,6 +55,7 @@ rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experiment
 internal-logs = ["opentelemetry/internal-logs"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
+spec_unstable_metrics_exemplars = ["metrics", "opentelemetry/trace", "rand"]
 experimental_metrics_custom_reader = ["metrics"]
 experimental_logs_batch_log_processor_with_async_runtime = ["logs", "experimental_async_runtime"]
 experimental_trace_batch_span_processor_with_async_runtime = ["tokio/sync", "trace", "experimental_async_runtime"]
