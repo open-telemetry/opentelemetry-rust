@@ -5,13 +5,13 @@ use std::ops::{BitAnd, BitOr, Not};
 
 /// Flags that can be set on a `SpanContext`.
 ///
-/// The current version of the specification only supports a single flag
-/// [`TraceFlags::SAMPLED`].
+/// The current version of the specification supports
+/// [`TraceFlags::SAMPLED`] and [`TraceFlags::RANDOM`].
 ///
 /// See the W3C TraceContext specification's [trace-flags] section for more
 /// details.
 ///
-/// [trace-flags]: https://www.w3.org/TR/trace-context/#trace-flags
+/// [trace-flags]: https://www.w3.org/TR/trace-context-2/#trace-flags
 #[derive(Clone, Debug, Default, PartialEq, Eq, Copy, Hash)]
 pub struct TraceFlags(u8);
 
@@ -32,6 +32,15 @@ impl TraceFlags {
     /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context/#sampled-flag
     pub const SAMPLED: TraceFlags = TraceFlags(0x01);
 
+    /// Trace flags with the `random-trace-id` flag set to `1`.
+    ///
+    /// Asserts that at least the right-most 7 bytes of the trace ID were generated
+    /// randomly or pseudo-randomly with uniform distribution. See the
+    /// `random-trace-id` section of the [W3C TraceContext specification] for details.
+    ///
+    /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context-2/#random-trace-id-flag
+    pub const RANDOM: TraceFlags = TraceFlags(0x02);
+
     /// Construct new trace flags
     pub const fn new(flags: u8) -> Self {
         TraceFlags(flags)
@@ -48,6 +57,20 @@ impl TraceFlags {
             *self | TraceFlags::SAMPLED
         } else {
             *self & !TraceFlags::SAMPLED
+        }
+    }
+
+    /// Returns `true` if the `random-trace-id` flag is set
+    pub fn is_random(&self) -> bool {
+        (*self & TraceFlags::RANDOM) == TraceFlags::RANDOM
+    }
+
+    /// Returns copy of the current flags with the `random-trace-id` flag set.
+    pub fn with_random(&self, random: bool) -> Self {
+        if random {
+            *self | TraceFlags::RANDOM
+        } else {
+            *self & !TraceFlags::RANDOM
         }
     }
 
@@ -253,5 +276,54 @@ mod tests {
             assert_eq!(test_case.0, SpanId::from_hex(test_case.1).unwrap());
             assert_eq!(test_case.0, SpanId::from_bytes(test_case.2));
         }
+    }
+
+    #[test]
+    fn trace_flags_constants() {
+        assert_eq!(TraceFlags::NOT_SAMPLED.to_u8(), 0x00);
+        assert_eq!(TraceFlags::SAMPLED.to_u8(), 0x01);
+        assert_eq!(TraceFlags::RANDOM.to_u8(), 0x02);
+    }
+
+    #[test]
+    fn trace_flags_is_random() {
+        for (bits, expected) in [
+            (0x00, false),
+            (0x01, false),
+            (0x02, true),
+            (0x03, true),
+            (0xfd, false),
+            (0xff, true),
+        ] {
+            assert_eq!(
+                TraceFlags::new(bits).is_random(),
+                expected,
+                "flags {bits:#04x}"
+            );
+        }
+    }
+
+    #[test]
+    fn trace_flags_random_and_sampled_are_independent() {
+        let both = TraceFlags::SAMPLED.with_random(true);
+        assert!(both.is_sampled() && both.is_random());
+        assert_eq!(both, TraceFlags::RANDOM.with_sampled(true));
+        assert_eq!(both.with_random(false), TraceFlags::SAMPLED);
+        assert_eq!(both.with_sampled(false), TraceFlags::RANDOM);
+    }
+
+    #[test]
+    fn trace_flags_with_random_preserves_unknown_bits() {
+        assert_eq!(TraceFlags::new(0xf0).with_random(true).to_u8(), 0xf2);
+        assert_eq!(TraceFlags::new(0xf2).with_random(false).to_u8(), 0xf0);
+    }
+
+    #[test]
+    fn trace_flags_hex_formatting() {
+        assert_eq!(format!("{:02x}", TraceFlags::RANDOM), "02");
+        assert_eq!(
+            format!("{:02x}", TraceFlags::SAMPLED | TraceFlags::RANDOM),
+            "03"
+        );
     }
 }
