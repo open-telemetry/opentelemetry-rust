@@ -61,33 +61,61 @@ records reach that bridge.
 
 ## Filtering log records
 
-Filtering in a processor is one option. The appropriate place depends on what
-information the decision needs and where you want to manage the policy:
+As a general rule, filter at the earliest layer that has both the information
+and policy control needed for the decision:
 
-- **Logging library:** Filtering before the OpenTelemetry bridge avoids creating
-  and processing rejected log records. `tracing` offers flexible
+- **Logging library:** Use this layer when the condition is available at the
+  callsite, such as severity, target or module, event name, or other logging
+  metadata. Filtering before the OpenTelemetry bridge avoids creating an SDK
+  log record and performing bridge conversion, SDK processing, batching,
+  serialization, and transport for rejected events. `tracing` offers flexible
   [filtering capabilities] through `tracing-subscriber`, including level and
-  target filters, `EnvFilter`, custom predicates, and per-layer filters. These
-  filters use information available to the logging library, before SDK
-  processing or downstream enrichment.
-- **SDK processor:** A custom [`LogProcessor`] can inspect the `SdkLogRecord`,
-  instrumentation scope, or application-local state and reject records before
-  batching and export. Record creation and any earlier processing have already
-  occurred, and the processor implementation is maintained in the application.
-- **Collector or telemetry pipeline:** Filtering downstream can centralize
-  policy across applications and use data added by pipeline processors. It
-  still incurs the application-side work and transport cost of sending records
-  to that point in the pipeline.
+  target filters, `EnvFilter`, custom predicates, and per-layer filters.
+- **SDK processor:** Use a custom [`LogProcessor`] when the condition requires
+  the normalized `SdkLogRecord`, instrumentation scope, or application-local
+  state; when one OpenTelemetry-level policy must cover multiple logging
+  libraries, bridges, or third-party instrumentation; or when export
+  destinations require different rules. Record creation and bridge conversion
+  have already occurred, but rejected records can still be kept out of batching
+  and export. The processor implementation is maintained in the application.
+- **Collector or telemetry pipeline:** Use this layer when policy must be
+  managed centrally across services, changed without redeploying applications,
+  or evaluated using information added by pipeline processors, such as
+  Kubernetes metadata. This still incurs the application-side work and
+  transport cost of sending records to that point in the pipeline.
+
+Filter sensitive data before the process, host, or other trust boundary that it
+must not cross. Filtering downstream cannot undo exposure across that boundary.
 
 If you have a reason to filter in an SDK processor, the following approach
 shows how to compose it with other processors.
 
-A filtering processor should wrap the processor that exports or batches
-records. In its `emit` method, evaluate the filtering condition and call the
-wrapped processor only when the record should be kept. Register only the
-wrapper with `SdkLoggerProvider`. Registering both processors separately does
-not form a pipeline; each registered processor receives the record
-independently.
+`SdkLoggerProvider` delivers records independently to every processor registered
+with it. Therefore, a filtering processor must wrap the processor that exports
+or batches records:
+
+```text
+SdkLoggerProvider
+└── FilteringLogProcessor
+    └── BatchLogProcessor
+        └── Exporter
+```
+
+In its `emit` method, the filter evaluates the condition and calls the wrapped
+processor only when the record should be kept. Register only the wrapper for
+that export branch. Registering the processors as siblings does not form a
+pipeline, regardless of registration order:
+
+```text
+SdkLoggerProvider
+├── FilteringLogProcessor
+└── BatchLogProcessor
+    └── Exporter
+```
+
+In the sibling configuration, both processors receive the record. A filter
+controls only the processor it wraps, so wrap each export branch that requires
+filtering.
 
 The runnable [logs-advanced example] uses an attribute value as its filtering
 condition. A processor could instead filter by severity, event name, scope,
