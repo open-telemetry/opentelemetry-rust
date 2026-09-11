@@ -40,11 +40,11 @@ documentation.
 | Propagators                 | Beta               |
 | Logs-API*                   | Stable             |
 | Logs-SDK                    | Stable             |
-| Logs-OTLP Exporter          | RC                 |
+| Logs-OTLP Exporter          | Stable             |
 | Logs-Appender-Tracing       | Stable             |
 | Metrics-API                 | Stable             |
 | Metrics-SDK                 | Stable             |
-| Metrics-OTLP Exporter       | RC                 |
+| Metrics-OTLP Exporter       | Stable             |
 | Metrics-Prometheus Exporter | Beta               |
 | Traces-API                  | Beta               |
 | Traces-SDK                  | Beta               |

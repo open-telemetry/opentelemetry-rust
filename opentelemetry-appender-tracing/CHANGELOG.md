@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-07
+
 - Add custom instrumentation scope attributes support via
   `OpenTelemetryTracingBridge::builder_with_scope_attributes(..)`.
   [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)
