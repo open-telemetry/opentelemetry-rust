@@ -63,6 +63,18 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         }
     };
 
+    // for example 4
+    // Instrumentation authors can mark costly or high-cardinality metrics as
+    // opt-in. A matching view must explicitly enable them.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    let enable_opt_in_metrics = |i: &Instrument| {
+        if i.name() == "my_opt_in_counter" {
+            Stream::builder().with_enabled(true).build().ok()
+        } else {
+            None
+        }
+    };
+
     // Build exporter using Delta Temporality.
     let exporter = opentelemetry_stdout::MetricExporterBuilder::default()
         .with_temporality(Temporality::Delta)
@@ -72,13 +84,15 @@ fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {
         .with_service_name("metrics-advanced-example")
         .build();
 
-    let provider = SdkMeterProvider::builder()
+    let provider_builder = SdkMeterProvider::builder()
         .with_periodic_exporter(exporter)
         .with_resource(resource)
         .with_view(my_view_rename_and_unit)
         .with_view(my_view_change_cardinality)
-        .with_view(my_view_change_aggregation)
-        .build();
+        .with_view(my_view_change_aggregation);
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    let provider_builder = provider_builder.with_view(enable_opt_in_metrics);
+    let provider = provider_builder.build();
     global::set_meter_provider(provider.clone());
     provider
 }
@@ -159,6 +173,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     // next record is commented/uncommented, then exponential histogram will
     // have a different scale.
     histogram3.record(0.4, &[KeyValue::new("mykey1", "v1")]);
+
+    // Example 4 - Enable an opt-in metric using a View.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    {
+        let opt_in_counter = meter
+            .u64_counter("my_opt_in_counter")
+            .with_description("An instrument that is disabled by default")
+            .with_opt_in()
+            .build();
+        opt_in_counter.add(1, &[]);
+    }
 
     // Metrics are exported by default every 60 seconds when using stdout exporter,
     // however shutting down the MeterProvider here instantly flushes

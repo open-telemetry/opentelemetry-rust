@@ -1841,6 +1841,132 @@ mod tests {
         assert_eq!(dp.max(), Some(15.0));
     }
 
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn opt_in_counter_is_disabled_by_default() {
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
+
+        let counter = meter_provider
+            .meter("test")
+            .u64_counter("opt_in_counter")
+            .with_opt_in()
+            .build();
+
+        counter.add(1, &[]);
+        meter_provider.force_flush().unwrap();
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
+    }
+
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn aggregation_only_view_does_not_enable_opt_in_counter() {
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(|instrument: &Instrument| {
+                (instrument.name() == "opt_in_counter").then(|| {
+                    Stream::builder()
+                        .with_aggregation(Aggregation::Sum)
+                        .build()
+                        .unwrap()
+                })
+            })
+            .build();
+
+        let counter = meter_provider
+            .meter("test")
+            .u64_counter("opt_in_counter")
+            .with_opt_in()
+            .build();
+
+        counter.add(1, &[]);
+        meter_provider.force_flush().unwrap();
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
+    }
+
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn enabled_view_activates_opt_in_counter() {
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(|instrument: &Instrument| {
+                (instrument.name() == "opt_in_counter")
+                    .then(|| Stream::builder().with_enabled(true).build().unwrap())
+            })
+            .build();
+
+        let counter = meter_provider
+            .meter("test")
+            .u64_counter("opt_in_counter")
+            .with_opt_in()
+            .build();
+
+        counter.add(1, &[]);
+        meter_provider.force_flush().unwrap();
+        let resource_metrics = exporter.get_finished_metrics().unwrap();
+        assert_eq!(resource_metrics[0].scope_metrics[0].metrics.len(), 1);
+        assert_eq!(
+            resource_metrics[0].scope_metrics[0].metrics[0].name,
+            "opt_in_counter"
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn disabled_view_overrides_non_drop_aggregation() {
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .with_view(|instrument: &Instrument| {
+                (instrument.name() == "disabled_counter").then(|| {
+                    Stream::builder()
+                        .with_enabled(false)
+                        .with_aggregation(Aggregation::Sum)
+                        .build()
+                        .unwrap()
+                })
+            })
+            .build();
+
+        let counter = meter_provider
+            .meter("test")
+            .u64_counter("disabled_counter")
+            .build();
+
+        counter.add(1, &[]);
+        meter_provider.force_flush().unwrap();
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
+    }
+
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn disabled_opt_in_observable_does_not_invoke_callback() {
+        let exporter = InMemoryMetricExporter::default();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_periodic_exporter(exporter.clone())
+            .build();
+        let callback_invoked = Arc::new(AtomicBool::new(false));
+        let callback_state = Arc::clone(&callback_invoked);
+
+        let _counter = meter_provider
+            .meter("test")
+            .u64_observable_counter("opt_in_observable_counter")
+            .with_opt_in()
+            .with_callback(move |observer| {
+                callback_state.store(true, Ordering::SeqCst);
+                observer.observe(1, &[]);
+            })
+            .build();
+
+        meter_provider.force_flush().unwrap();
+        assert!(!callback_invoked.load(Ordering::SeqCst));
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn counter_with_drop_aggregation_is_dropped() {
         // Run this test with stdout enabled to see output.

@@ -269,6 +269,11 @@ where
             };
             matched = true;
 
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            if stream.enabled == Some(false) || (inst.opt_in && stream.enabled != Some(true)) {
+                continue;
+            }
+
             if stream.name.is_none() {
                 stream.name = Some(inst.name.clone());
             }
@@ -325,6 +330,11 @@ where
         }
 
         // Apply implicit default view if no explicit matched, or if all views failed.
+        #[cfg(feature = "experimental_metrics_opt_in")]
+        if inst.opt_in {
+            return Ok(measures);
+        }
+
         let mut stream = Stream {
             name: Some(inst.name),
             description: Some(inst.description),
@@ -332,6 +342,8 @@ where
             aggregation: None,
             allowed_attribute_keys: None,
             cardinality_limit: None,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            enabled: None,
         };
 
         // Override default histogram boundaries if provided.

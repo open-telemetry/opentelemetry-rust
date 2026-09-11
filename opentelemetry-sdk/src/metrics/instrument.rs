@@ -106,6 +106,9 @@ pub struct Instrument {
     pub(crate) unit: Cow<'static, str>,
     /// The instrumentation that created the instrument.
     pub(crate) scope: InstrumentationScope,
+    /// Whether the instrument is disabled unless explicitly enabled by a view.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub(crate) opt_in: bool,
 }
 
 impl Instrument {
@@ -127,6 +130,12 @@ impl Instrument {
     /// Instrument scope.
     pub fn scope(&self) -> &InstrumentationScope {
         &self.scope
+    }
+
+    /// Whether this instrument is disabled unless explicitly enabled by a view.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub fn is_opt_in(&self) -> bool {
+        self.opt_in
     }
 }
 
@@ -153,6 +162,8 @@ pub struct StreamBuilder {
     aggregation: Option<Aggregation>,
     allowed_attribute_keys: Option<Arc<HashSet<Key>>>,
     cardinality_limit: Option<usize>,
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    enabled: Option<bool>,
 }
 
 impl StreamBuilder {
@@ -203,6 +214,18 @@ impl StreamBuilder {
     /// Set the stream cardinality limit. If this is not set, the default limit of 2000 will be used.
     pub fn with_cardinality_limit(mut self, limit: usize) -> Self {
         self.cardinality_limit = Some(limit);
+        self
+    }
+
+    /// Sets whether this view's stream is enabled for matching instruments.
+    ///
+    /// If unset, opt-in instruments are dropped. Setting this to `true` enables
+    /// them, unless the aggregation is [`Aggregation::Drop`]. Setting this to
+    /// `false` drops this stream for any instrument, regardless of aggregation.
+    /// Other matching views may still produce streams for the same instrument.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = Some(enabled);
         self
     }
 
@@ -277,6 +300,8 @@ impl StreamBuilder {
             aggregation: self.aggregation,
             allowed_attribute_keys: self.allowed_attribute_keys,
             cardinality_limit: self.cardinality_limit,
+            #[cfg(feature = "experimental_metrics_opt_in")]
+            enabled: self.enabled,
         })
     }
 }
@@ -324,6 +349,10 @@ pub struct Stream {
 
     /// Cardinality limit for the stream.
     pub(crate) cardinality_limit: Option<usize>,
+
+    /// Whether matching instruments are explicitly enabled or disabled.
+    #[cfg(feature = "experimental_metrics_opt_in")]
+    pub(crate) enabled: Option<bool>,
 }
 
 impl Stream {
