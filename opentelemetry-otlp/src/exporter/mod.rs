@@ -244,62 +244,31 @@ impl FromStr for Compression {
 /// 3. Generic OTEL_EXPORTER_OTLP_COMPRESSION
 /// 4. None (default)
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-fn resolve_compression_from_env<F>(
+fn resolve_compression_from_env<T>(
     config_compression: Option<Compression>,
     signal_env_var: &str,
-    validate_compression: F,
-) -> Result<Option<Compression>, ExporterBuildError>
-where
-    F: Fn(Compression) -> Result<(), &'static str>,
-{
+    convert: impl Fn(Compression) -> Result<T, ExporterBuildError>,
+) -> Result<Option<T>, ExporterBuildError> {
     if let Some(compression) = config_compression {
-        return Ok(Some(compression));
+        return convert(compression).map(Some);
     }
-
-    match parse_compression_env_var(signal_env_var, &validate_compression) {
-        CompressionEnvValue::Enabled(compression) => Ok(Some(compression)),
-        CompressionEnvValue::Disabled => Ok(None),
-        CompressionEnvValue::UnsetOrIgnored => {
-            match parse_compression_env_var(OTEL_EXPORTER_OTLP_COMPRESSION, &validate_compression) {
-                CompressionEnvValue::Enabled(compression) => Ok(Some(compression)),
-                CompressionEnvValue::Disabled | CompressionEnvValue::UnsetOrIgnored => Ok(None),
-            }
+    for name in [signal_env_var, OTEL_EXPORTER_OTLP_COMPRESSION] {
+        let Some(value) = read_enum_env_var(name) else {
+            continue;
+        };
+        if value.eq_ignore_ascii_case("none") {
+            return Ok(None);
+        }
+        match value
+            .to_ascii_lowercase()
+            .parse::<Compression>()
+            .and_then(&convert)
+        {
+            Ok(compression) => return Ok(Some(compression)),
+            Err(error) => warn_ignored_enum_env_var(name, &value, error),
         }
     }
-}
-
-#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-enum CompressionEnvValue {
-    UnsetOrIgnored,
-    Disabled,
-    Enabled(Compression),
-}
-
-#[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-fn parse_compression_env_var<F>(name: &str, validate_compression: &F) -> CompressionEnvValue
-where
-    F: Fn(Compression) -> Result<(), &'static str>,
-{
-    let Some(value) = read_enum_env_var(name) else {
-        return CompressionEnvValue::UnsetOrIgnored;
-    };
-    if value.eq_ignore_ascii_case("none") {
-        return CompressionEnvValue::Disabled;
-    }
-
-    match value.to_ascii_lowercase().parse::<Compression>() {
-        Ok(compression) => match validate_compression(compression) {
-            Ok(()) => CompressionEnvValue::Enabled(compression),
-            Err(reason) => {
-                warn_ignored_enum_env_var(name, &value, reason);
-                CompressionEnvValue::UnsetOrIgnored
-            }
-        },
-        Err(error) => {
-            warn_ignored_enum_env_var(name, &value, error);
-            CompressionEnvValue::UnsetOrIgnored
-        }
-    }
+    Ok(None)
 }
 
 /// Resolve whether the connection should be insecure (no TLS).
@@ -893,76 +862,57 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_compression_env_falls_back_to_generic() {
-        run_env_test(
-            vec![
-                ("MY_CUSTOM_COMPRESSION_VAR", ""),
-                (OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
-            ],
-            || {
-                assert_eq!(
-                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
-                        .unwrap(),
-                    Some(Compression::Gzip)
-                );
-            },
-        );
+    fn compression_env_precedence() {
+        for (signal, generic, expected) in [
+            ("", "gzip", Some(Compression::Gzip)),
+            ("invalid", "GZIP", Some(Compression::Gzip)),
+            ("ZSTD", "gzip", Some(Compression::Zstd)),
+            ("NoNe", "gzip", None),
+            ("invalid", "none", None),
+            ("invalid", "invalid", None),
+        ] {
+            run_env_test(
+                vec![
+                    ("MY_CUSTOM_COMPRESSION_VAR", signal),
+                    (OTEL_EXPORTER_OTLP_COMPRESSION, generic),
+                ],
+                || {
+                    assert_eq!(
+                        resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", Ok)
+                            .unwrap(),
+                        expected,
+                        "signal={signal}, generic={generic}"
+                    )
+                },
+            );
+        }
     }
 
     #[test]
-    fn test_invalid_compression_env_falls_back_to_generic_case_insensitively() {
-        run_env_test(
-            vec![
-                ("MY_CUSTOM_COMPRESSION_VAR", "invalid"),
-                (OTEL_EXPORTER_OTLP_COMPRESSION, "GZIP"),
-            ],
-            || {
-                assert_eq!(
-                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
-                        .unwrap(),
-                    Some(Compression::Gzip)
-                );
-            },
-        );
-    }
-
-    #[test]
-    fn test_unavailable_compression_env_falls_back_to_generic() {
+    fn unavailable_compression_env_falls_back_but_programmatic_config_errors() {
         run_env_test(
             vec![
                 ("MY_CUSTOM_COMPRESSION_VAR", "gzip"),
                 (OTEL_EXPORTER_OTLP_COMPRESSION, "zstd"),
             ],
             || {
+                let convert = |compression| match compression {
+                    Compression::Gzip => Err(
+                        super::ExporterBuildError::UnsupportedCompressionAlgorithm("gzip".into()),
+                    ),
+                    Compression::Zstd => Ok(compression),
+                };
                 assert_eq!(
-                    resolve_compression_from_env(
-                        None,
-                        "MY_CUSTOM_COMPRESSION_VAR",
-                        |compression| match compression {
-                            Compression::Gzip => Err("gzip is unavailable"),
-                            Compression::Zstd => Ok(()),
-                        }
-                    )
-                    .unwrap(),
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", convert)
+                        .unwrap(),
                     Some(Compression::Zstd)
                 );
-            },
-        );
-    }
-
-    #[test]
-    fn test_none_compression_env_prevents_generic_fallback() {
-        run_env_test(
-            vec![
-                ("MY_CUSTOM_COMPRESSION_VAR", "NoNe"),
-                (OTEL_EXPORTER_OTLP_COMPRESSION, "gzip"),
-            ],
-            || {
-                assert_eq!(
-                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
-                        .unwrap(),
-                    None
-                );
+                assert!(resolve_compression_from_env(
+                    Some(Compression::Gzip),
+                    "MY_CUSTOM_COMPRESSION_VAR",
+                    convert
+                )
+                .is_err());
             },
         );
     }
@@ -983,8 +933,7 @@ mod tests {
             ],
             || {
                 assert_eq!(
-                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", |_| Ok(()))
-                        .unwrap(),
+                    resolve_compression_from_env(None, "MY_CUSTOM_COMPRESSION_VAR", Ok).unwrap(),
                     Some(Compression::Zstd)
                 );
             },

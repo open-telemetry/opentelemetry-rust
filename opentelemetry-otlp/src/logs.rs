@@ -82,26 +82,16 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
+        use crate::WithExportConfig;
+
         let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, None);
         match protocol {
             #[cfg(feature = "grpc-tonic")]
-            crate::Protocol::Grpc => {
-                let mut builder = self.with_tonic();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::Grpc => self.with_tonic().with_protocol(protocol).build(),
             #[cfg(feature = "http-proto")]
-            crate::Protocol::HttpBinary => {
-                let mut builder = self.with_http();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::HttpBinary => self.with_http().with_protocol(protocol).build(),
             #[cfg(feature = "http-json")]
-            crate::Protocol::HttpJson => {
-                let mut builder = self.with_http();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::HttpJson => self.with_http().with_protocol(protocol).build(),
         }
     }
 }

@@ -81,26 +81,16 @@ impl SpanExporterBuilder<NoExporterBuilderSet> {
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<SpanExporter, ExporterBuildError> {
+        use crate::WithExportConfig;
+
         let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, None);
         match protocol {
             #[cfg(feature = "grpc-tonic")]
-            crate::Protocol::Grpc => {
-                let mut builder = self.with_tonic();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::Grpc => self.with_tonic().with_protocol(protocol).build(),
             #[cfg(feature = "http-proto")]
-            crate::Protocol::HttpBinary => {
-                let mut builder = self.with_http();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::HttpBinary => self.with_http().with_protocol(protocol).build(),
             #[cfg(feature = "http-json")]
-            crate::Protocol::HttpJson => {
-                let mut builder = self.with_http();
-                builder.client.0.exporter_config.protocol = Some(protocol);
-                builder.build()
-            }
+            crate::Protocol::HttpJson => self.with_http().with_protocol(protocol).build(),
         }
     }
 }
@@ -297,61 +287,27 @@ mod tests {
     #[test]
     fn build_auto_select_ignores_invalid_protocol_env_values() {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
+        let _guard = rt.enter();
+        for (signal, generic, expect_grpc) in [
+            ("not-a-protocol", "GRPC", true),
+            ("HTTP/PROTOBUF", "grpc", false),
+            ("not-a-protocol", "also-not-a-protocol", false),
+        ] {
             temp_env::with_vars(
                 [
-                    (
-                        super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
-                        Some("not-a-protocol"),
-                    ),
-                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some("GRPC")),
+                    (super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, Some(signal)),
+                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some(generic)),
                 ],
                 || {
                     let exporter = SpanExporter::builder().build().unwrap();
-                    assert!(matches!(
-                        exporter.client,
-                        super::SupportedTransportClient::Tonic(_)
-                    ));
+                    assert_eq!(
+                        matches!(exporter.client, super::SupportedTransportClient::Tonic(_)),
+                        expect_grpc,
+                        "signal={signal}, generic={generic}"
+                    );
                 },
             );
-
-            temp_env::with_vars(
-                [
-                    (
-                        super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
-                        Some("HTTP/PROTOBUF"),
-                    ),
-                    (crate::OTEL_EXPORTER_OTLP_PROTOCOL, Some("grpc")),
-                ],
-                || {
-                    let exporter = SpanExporter::builder().build().unwrap();
-                    assert!(matches!(
-                        exporter.client,
-                        super::SupportedTransportClient::Http(_)
-                    ));
-                },
-            );
-
-            temp_env::with_vars(
-                [
-                    (
-                        super::OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
-                        Some("not-a-protocol"),
-                    ),
-                    (
-                        crate::OTEL_EXPORTER_OTLP_PROTOCOL,
-                        Some("also-not-a-protocol"),
-                    ),
-                ],
-                || {
-                    let exporter = SpanExporter::builder().build().unwrap();
-                    assert!(matches!(
-                        exporter.client,
-                        super::SupportedTransportClient::Http(_)
-                    ));
-                },
-            );
-        });
+        }
     }
 
     #[cfg(all(feature = "http-proto", not(feature = "grpc-tonic")))]
