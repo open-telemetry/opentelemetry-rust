@@ -8,12 +8,13 @@ mod sum;
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -51,6 +52,16 @@ pub(crate) trait Aggregator {
 
     /// Return current value and reset this instance
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
+
+    /// Read values from self and accumulate into `target`. Self is not modified.
+    fn merge_to(&self, target: &Self);
+
+    /// Whether this aggregator's semantics require all updates for a given
+    /// attribute-set to hit the same tracker instance (e.g. last-value / gauge).
+    /// When true, ValueMap will use a single shard.
+    fn is_order_dependent() -> bool {
+        false
+    }
 }
 
 /// Wraps an aggregator with status tracking for delta collection and bound instruments.
@@ -81,24 +92,66 @@ impl<A: Aggregator> TrackerEntry<A> {
 /// Map from attribute sets to their aggregator tracker entries.
 type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
 
-/// The storage for sums.
+static THREAD_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+static NUM_SHARDS: OnceLock<usize> = OnceLock::new();
+
+/// Number of shards = min(num_cpu, 64);
+#[inline(always)]
+fn num_shards() -> usize {
+    *NUM_SHARDS.get_or_init(|| {
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4)
+            .min(64)
+    })
+}
+
+/// Each thread is assigned a unique shard index. It's saved in a thread-local data,
+/// so subsequent call is just a memory reference.
+fn shard_index() -> usize {
+    thread_local! {
+        static THREAD_SHARD_ID: usize = THREAD_ID_COUNTER.fetch_add(1, Ordering::Relaxed) % num_shards();
+    }
+    THREAD_SHARD_ID.with(|id| *id)
+}
+
+/// Tracks the unique attribute-sets across all shards for exact cardinality enforcement.
+/// Protected by a Mutex, so two threads inserting the same new
+/// attribute-set into different shards only count it once.
+struct CardinalityGuard {
+    count: usize,
+    known_attrs: HashSet<Vec<KeyValue>>,
+}
+
+/// The storage for metric aggregations, sharded to reduce lock contention.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
 /// updates to the underlying value trackers should be performed.
+/// The internal HashMap is partitioned into `num_shards` independent shards,
+/// each protected by its own `RwLock`. Threads select a shard by thread ID,
+/// so concurrent measurements rarely contend on the same lock.
 pub(crate) struct ValueMap<A>
 where
     A: Aggregator,
 {
-    /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<TrackerMap<A>>,
+    /// Partition the trackers into many shards.
+    /// Different threads will write to different shards to minimize locking contention.
+    shards: Vec<RwLock<TrackerMap<A>>>,
+    /// Number of shards actually in use.
+    /// It equals 1 for order-dependent aggregators (e.g. Assign/gauge), otherwise `num_shards()`.
+    num_shards: usize,
 
-    /// Number of different attribute set stored in the `trackers` map.
-    count: AtomicUsize,
     /// Tracker for values with no attributes attached.
     no_attribute_tracker: Arc<TrackerEntry<A>>,
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
+    cardinality: Mutex<CardinalityGuard>,
+    /// Approximate count of unique attribute-sets, used only as a capacity hint by
+    /// `prepare_data`. Updated alongside `CardinalityGuard::count` but read without
+    /// the Mutex.
+    count: AtomicUsize,
 }
 
 impl<A> ValueMap<A>
@@ -110,18 +163,25 @@ where
     }
 
     fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
+        let n = if A::is_order_dependent() {
+            1
+        } else {
+            num_shards()
+        };
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
+            shards: (0..n)
+                .map(|_| RwLock::new(HashMap::with_capacity(1 + cardinality_limit)))
+                .collect(),
+            num_shards: n,
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
+            cardinality: Mutex::new(CardinalityGuard {
+                count: 0,
+                known_attrs: HashSet::new(),
+            }),
         }
-    }
-
-    /// Checks whether aggregator has hit cardinality limit for metric streams
-    fn is_under_cardinality_limit(&self) -> bool {
-        self.count.load(Ordering::SeqCst) < self.cardinality_limit
     }
 
     fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
@@ -133,7 +193,9 @@ where
             return;
         }
 
-        let Ok(trackers) = self.trackers.read() else {
+        let shard = &self.shards[shard_index() % self.num_shards];
+
+        let Ok(trackers) = shard.read() else {
             return;
         };
 
@@ -155,7 +217,7 @@ where
         // Give up the read lock before acquiring the write lock.
         drop(trackers);
 
-        let Ok(mut trackers) = self.trackers.write() else {
+        let Ok(mut trackers) = shard.write() else {
             return;
         };
 
@@ -164,29 +226,45 @@ where
         if let Some(tracker) = trackers.get(attributes) {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+            return;
+        }
+        if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
-        } else if self.is_under_cardinality_limit() {
+            return;
+        }
+
+        // Truly new in this shard. Take the Mutex for global cardinality check.
+        let mut guard = self.cardinality.lock().unwrap_or_else(|e| e.into_inner());
+        let is_known = guard.known_attrs.contains(&sorted_attrs);
+        if is_known || guard.count < self.cardinality_limit {
+            if !is_known {
+                guard.known_attrs.insert(sorted_attrs.clone());
+                guard.count += 1;
+                self.count.store(guard.count, Ordering::Relaxed);
+            }
+            drop(guard);
+
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
-
-            // Insert tracker with the attributes in the provided and sorted orders
             trackers.insert(attributes.to_vec(), new_tracker.clone());
             trackers.insert(sorted_attrs, new_tracker);
-
-            self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
-            overflow_value.aggregator.update(value);
-            overflow_value
-                .has_been_updated
-                .store(true, Ordering::Release);
         } else {
-            let new_tracker = TrackerEntry::<A>::new(&self.config);
-            new_tracker.aggregator.update(value);
-            new_tracker.has_been_updated.store(true, Ordering::Release);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            drop(guard);
+
+            // It's a new attribute set, and we have hit cardinality limit. Treat it as overflow.
+            if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+                overflow_value.aggregator.update(value);
+                overflow_value
+                    .has_been_updated
+                    .store(true, Ordering::Release);
+            } else {
+                let new_tracker = TrackerEntry::<A>::new(&self.config);
+                new_tracker.aggregator.update(value);
+                new_tracker.has_been_updated.store(true, Ordering::Release);
+                trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            }
         }
     }
 
@@ -217,14 +295,19 @@ where
         self.bind_attrs(attributes, sorted_attrs)
     }
 
+    /// Bound instruments always use shard 0 so the bound tracker has a stable home
+    /// regardless of which thread calls bind(). Unbound measure() calls may create
+    /// duplicate entries in other shards; they are merged during collection.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     fn bind_attrs(
         &self,
         original: &[KeyValue],
         sorted_attrs: Vec<KeyValue>,
     ) -> Option<Arc<TrackerEntry<A>>> {
+        let shard = &self.shards[0];
+
         // Fast path: read lock lookup using the canonical (sorted) key.
-        if let Ok(trackers) = self.trackers.read() {
+        if let Ok(trackers) = shard.read() {
             if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
                 tracker.bound_count.fetch_add(1, Ordering::Relaxed);
                 return Some(Arc::clone(tracker));
@@ -232,7 +315,7 @@ where
         }
 
         // Slow path: write lock, insert if missing.
-        let Ok(mut trackers) = self.trackers.write() else {
+        let Ok(mut trackers) = shard.write() else {
             // Lock poisoned — caller will produce a noop bound handle.
             return None;
         };
@@ -243,7 +326,16 @@ where
             return Some(Arc::clone(tracker));
         }
 
-        if self.is_under_cardinality_limit() {
+        let mut guard = self.cardinality.lock().unwrap_or_else(|e| e.into_inner());
+        let is_known = guard.known_attrs.contains(&sorted_attrs);
+        if is_known || guard.count < self.cardinality_limit {
+            if !is_known {
+                guard.known_attrs.insert(sorted_attrs.clone());
+                guard.count += 1;
+                self.count.store(guard.count, Ordering::Relaxed);
+            }
+            drop(guard);
+
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
             // Insert with both the original and sorted orderings so subsequent
@@ -253,9 +345,9 @@ where
                 trackers.insert(original.to_vec(), new_tracker.clone());
             }
             trackers.insert(sorted_attrs, new_tracker.clone());
-            self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
         } else {
+            drop(guard);
             // Over cardinality limit — bind directly to the overflow tracker so
             // the bound handle keeps its perf contract (no per-call lookup) and
             // its writes land predictably in the overflow bucket. This matches
@@ -287,7 +379,7 @@ where
     where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
-        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        prepare_data(dest, self.count.load(Ordering::Relaxed));
         if self
             .no_attribute_tracker
             .has_been_updated
@@ -296,15 +388,35 @@ where
             dest.push(map_fn(vec![], &self.no_attribute_tracker.aggregator));
         }
 
-        let Ok(trackers) = self.trackers.read() else {
-            return;
-        };
+        // Build a merged map of sorted_attrs -> temporary A across all shards.
+        let mut merged: HashMap<Vec<KeyValue>, A> = HashMap::new();
 
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in trackers.iter() {
-            if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+        for shard in &self.shards {
+            let Ok(trackers) = shard.read() else {
+                continue;
+            };
+
+            let mut seen = HashSet::new();
+            for (attrs, tracker) in trackers.iter() {
+                if !seen.insert(Arc::as_ptr(tracker)) {
+                    continue; // skip duplicated attribute-sets within shard
+                }
+                let sorted = sort_and_dedup(attrs);
+                match merged.entry(sorted) {
+                    Entry::Vacant(e) => {
+                        let temp = A::create(&self.config);
+                        tracker.aggregator.merge_to(&temp);
+                        e.insert(temp);
+                    }
+                    Entry::Occupied(e) => {
+                        tracker.aggregator.merge_to(e.get());
+                    }
+                }
             }
+        }
+
+        for (attrs, tracker) in &merged {
+            dest.push(map_fn(attrs.clone(), tracker));
         }
     }
 
@@ -319,7 +431,7 @@ where
     where
         MapFn: FnMut(Vec<KeyValue>, &A) -> Res,
     {
-        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        prepare_data(dest, self.count.load(Ordering::Relaxed));
         if self
             .no_attribute_tracker
             .has_been_updated
@@ -329,46 +441,71 @@ where
         }
 
         let overflow_attrs = stream_overflow_attributes();
-        let mut stale_entries: Vec<Arc<TrackerEntry<A>>> = Vec::new();
+        let mut merged: HashMap<Vec<KeyValue>, A> = HashMap::new();
 
-        {
-            let Ok(trackers) = self.trackers.read() else {
-                return;
-            };
-
+        for shard in &self.shards {
             let mut seen = HashSet::new();
+            let mut stale_pointers: HashSet<*const TrackerEntry<A>> = HashSet::new();
+            // Take a write lock so that no concurrent measure() can update a
+            // tracker between the has_been_updated swap and clone_and_reset().
+            let Ok(mut trackers) = shard.write() else {
+                continue;
+            };
             for (attrs, tracker) in trackers.iter() {
-                if seen.insert(Arc::as_ptr(tracker)) {
-                    if tracker.has_been_updated.swap(false, Ordering::Acquire) {
-                        dest.push(map_fn(attrs.clone(), &tracker.aggregator));
-                    } else if attrs.as_slice() != overflow_attrs.as_slice()
-                        && tracker.bound_count.load(Ordering::Relaxed) == 0
-                    {
-                        // Stale and not bound — candidate for eviction
-                        stale_entries.push(Arc::clone(tracker));
+                if !seen.insert(Arc::as_ptr(tracker)) {
+                    continue; // skip duplicated attribute-sets within a shard.
+                }
+                if tracker.has_been_updated.swap(false, Ordering::Acquire) {
+                    let sorted = sort_and_dedup(attrs);
+                    let cloned = tracker.aggregator.clone_and_reset(&self.config);
+                    match merged.entry(sorted) {
+                        Entry::Vacant(e) => {
+                            e.insert(cloned);
+                        }
+                        Entry::Occupied(e) => {
+                            cloned.merge_to(e.get());
+                        }
+                    }
+                } else if attrs.as_slice() != overflow_attrs.as_slice()
+                    && tracker.bound_count.load(Ordering::Relaxed) == 0
+                {
+                    stale_pointers.insert(Arc::as_ptr(tracker));
+                }
+            }
+            if !stale_pointers.is_empty() {
+                trackers.retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
+            }
+        }
+
+        // Rebuild cardinality from the actual shards contents with this locking sequence:
+        //   - read lock on all shards, then,
+        //   - mutex on cardinality
+        // This prevents concurrent inserts (which runs a shard write lock + cardinality mutex) from being forgotten.
+        // Without this, attr-sets inserted between per-shard scans would be lost from known_attrs.
+        // Fast-path measure() (updating existing entries) only needs a read shard lock and isn't blocked.
+        {
+            let shard_read_guards: Vec<_> =
+                self.shards.iter().filter_map(|s| s.read().ok()).collect();
+            let mut guard = self.cardinality.lock().unwrap_or_else(|e| e.into_inner());
+            guard.known_attrs.clear();
+            let mut seen = HashSet::new();
+            for shard_guard in &shard_read_guards {
+                for (attrs, tracker) in shard_guard.iter() {
+                    if !seen.insert(Arc::as_ptr(tracker)) {
+                        continue;
+                    }
+                    let sorted = sort_and_dedup(attrs);
+                    if sorted.as_slice() != overflow_attrs.as_slice() {
+                        guard.known_attrs.insert(sorted);
                     }
                 }
             }
-            // Read lock released here
+            guard.count = guard.known_attrs.len();
+            self.count.store(guard.count, Ordering::Relaxed);
         }
 
-        if !stale_entries.is_empty() {
-            if let Ok(mut trackers) = self.trackers.write() {
-                // Re-check under write lock to avoid TOCTOU race: a measure() or bind() call
-                // between dropping the read lock and acquiring the write lock could have
-                // updated an entry or bound a handle to one we marked as stale.
-                stale_entries.retain(|entry| {
-                    !entry.has_been_updated.load(Ordering::Acquire)
-                        && entry.bound_count.load(Ordering::Acquire) == 0
-                });
-
-                if !stale_entries.is_empty() {
-                    let stale_pointers: HashSet<*const TrackerEntry<A>> =
-                        stale_entries.iter().map(Arc::as_ptr).collect();
-                    trackers.retain(|_, tracker| !stale_pointers.contains(&Arc::as_ptr(tracker)));
-                    self.count.fetch_sub(stale_entries.len(), Ordering::SeqCst);
-                }
-            }
+        for (attrs, tracker) in &merged {
+            dest.push(map_fn(attrs.clone(), tracker));
         }
     }
 
@@ -379,7 +516,7 @@ where
     where
         MapFn: FnMut(Vec<KeyValue>, A) -> Res,
     {
-        prepare_data(dest, self.count.load(Ordering::SeqCst));
+        prepare_data(dest, self.count.load(Ordering::Relaxed));
         if self
             .no_attribute_tracker
             .has_been_updated
@@ -393,24 +530,42 @@ where
             ));
         }
 
-        let old_trackers = {
-            let Ok(mut trackers) = self.trackers.write() else {
-                otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
-                return;
-            };
-            self.count.store(0, Ordering::SeqCst);
-            std::mem::take(&mut *trackers)
-            // Write lock released here
-        };
+        let mut guard = self.cardinality.lock().unwrap_or_else(|e| e.into_inner());
+        guard.known_attrs.clear();
+        guard.count = 0;
+        drop(guard);
+        self.count.store(0, Ordering::Relaxed);
+        let mut merged: HashMap<Vec<KeyValue>, A> = HashMap::new();
 
-        let mut seen = HashSet::new();
-        for (attrs, tracker) in old_trackers {
-            if seen.insert(Arc::as_ptr(&tracker)) {
-                dest.push(map_fn(
-                    attrs,
-                    tracker.aggregator.clone_and_reset(&self.config),
-                ));
+        for shard in &self.shards {
+            let taken = {
+                let Ok(mut shard_guard) = shard.write() else {
+                    otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap shard lock poisoned");
+                    continue;
+                };
+                std::mem::take(&mut *shard_guard)
+                // Write lock released here
+            };
+            let mut seen = HashSet::new();
+            for (attrs, tracker) in taken {
+                if !seen.insert(Arc::as_ptr(&tracker)) {
+                    continue; // skip duplicated attribute-sets within a shard.
+                }
+                // Use sorted order so the same attribute-sets from different shards can be merged.
+                let sorted = sort_and_dedup(&attrs);
+                let cloned = tracker.aggregator.clone_and_reset(&self.config);
+                match merged.entry(sorted) {
+                    Entry::Vacant(e) => {
+                        e.insert(cloned);
+                    }
+                    Entry::Occupied(e) => {
+                        cloned.merge_to(e.get());
+                    }
+                }
             }
+        }
+        for (attrs, tracker) in merged {
+            dest.push(map_fn(attrs, tracker));
         }
     }
 }
@@ -837,6 +992,16 @@ mod tests {
         // keys so no zombie entries remain in the map.
         let value_map = ValueMap::<Assign<i64>>::new((), 10);
 
+        // This function sums HashMap entries across all shards. measure() will update exactly one
+        // shard (determined by the current thread).
+        let total_shard_entries = |value_map: &ValueMap<Assign<i64>>| -> usize {
+            value_map
+                .shards
+                .iter()
+                .map(|shard| shard.read().unwrap().len())
+                .sum()
+        };
+
         // Insert with attributes deliberately in non-sorted order.
         // measure() inserts two keys:
         //   - unsorted: [("b", ...), ("a", ...)]
@@ -844,16 +1009,12 @@ mod tests {
         // both pointing to the same Arc<TrackerEntry>.
         let attrs = vec![KeyValue::new("b", 1_i64), KeyValue::new("a", 2_i64)];
         value_map.measure(1_i64, attrs.as_slice());
-
-        {
-            let trackers = value_map.trackers.read().unwrap();
-            assert_eq!(
-                trackers.len(),
-                2,
-                "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
-            );
-        }
-        assert_eq!(value_map.count.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            total_shard_entries(&value_map),
+            2,
+            "should have 2 HashMap keys (unsorted + sorted) for one logical attr-set"
+        );
+        assert_eq!(value_map.cardinality.lock().unwrap().count, 1);
 
         // First collect: entry was updated, so it is exported and has_been_updated is reset.
         let mut dest: Vec<Vec<KeyValue>> = Vec::new();
@@ -865,23 +1026,89 @@ mod tests {
         dest.clear();
         value_map.collect_and_reset(&mut dest, |attrs, _| attrs);
         assert_eq!(dest.len(), 0, "stale entry should not be exported");
-
-        {
-            let trackers = value_map.trackers.read().unwrap();
-            assert_eq!(
-                trackers.len(),
-                0,
-                "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
-            );
-        }
         assert_eq!(
-            value_map.count.load(Ordering::SeqCst),
+            total_shard_entries(&value_map),
+            0,
+            "both HashMap keys (unsorted + sorted) must be evicted for the stale entry"
+        );
+        assert_eq!(
+            value_map.cardinality.lock().unwrap().count,
             0,
             "count should reach 0 after eviction"
         );
     }
 
-    /// When the trackers `RwLock` is poisoned, `bind()` cannot safely insert or
+    #[test]
+    fn assign_uses_single_shard() {
+        let value_map = ValueMap::<Assign<i64>>::new((), 10);
+        assert_eq!(
+            value_map.num_shards, 1,
+            "Assign (order-dependent) should use a single shard"
+        );
+    }
+
+    #[test]
+    fn gauge_last_value_across_threads() {
+        // Verifies that gauge (Assign) preserves last-value semantics when
+        // 10 threads update the same attribute set sequentially.
+        // Thread i waits for threads 0..i-1 to finish before writing,
+        // so thread 9 writes last. The collected value must be thread 9's.
+        use std::sync::{Arc, Barrier};
+
+        const NUM_THREADS: usize = 10;
+        let value_map = Arc::new(ValueMap::<Assign<i64>>::new((), 100));
+        let attrs = vec![KeyValue::new("key", "value")];
+
+        // Chain of barriers: barrier[i] synchronizes thread i and thread i+1.
+        // Thread i writes its value, then waits on barrier[i].
+        // Thread i+1 waits on barrier[i] before writing, ensuring strict ordering.
+        let barriers: Vec<Arc<Barrier>> = (0..NUM_THREADS - 1)
+            .map(|_| Arc::new(Barrier::new(2)))
+            .collect();
+
+        let handles: Vec<_> = (0..NUM_THREADS)
+            .map(|i| {
+                let vm = Arc::clone(&value_map);
+                let attrs = attrs.clone();
+                let prev = if i > 0 {
+                    Some(Arc::clone(&barriers[i - 1]))
+                } else {
+                    None
+                };
+                let next = if i < NUM_THREADS - 1 {
+                    Some(Arc::clone(&barriers[i]))
+                } else {
+                    None
+                };
+                std::thread::spawn(move || {
+                    // Wait for the previous thread to finish its write.
+                    if let Some(b) = prev {
+                        b.wait();
+                    }
+                    vm.measure(i as i64, &attrs);
+                    // Signal the next thread that my write is done.
+                    if let Some(b) = next {
+                        b.wait();
+                    }
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let mut dest: Vec<(Vec<KeyValue>, i64)> = Vec::new();
+        value_map.collect_readonly(&mut dest, |attrs, aggr| (attrs, aggr.value.get_value()));
+        assert_eq!(dest.len(), 1);
+        assert_eq!(
+            dest[0].1,
+            (NUM_THREADS - 1) as i64,
+            "should report the value from the last thread"
+        );
+    }
+
+    /// When a shard's `RwLock` is poisoned, `bind()` cannot safely insert or
     /// look up entries, so it returns `None` and the caller (Sum/Histogram/etc.)
     /// hands back a `NoopBoundMeasure`. This is a defensive branch that fires
     /// on degenerate states (a thread panicked while holding the write lock)
@@ -889,18 +1116,18 @@ mod tests {
     /// explicitly so the branch keeps coverage.
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
-    fn bind_returns_none_when_trackers_lock_is_poisoned() {
+    fn bind_returns_none_when_shard_lock_is_poisoned() {
         let value_map = ValueMap::<Assign<i64>>::new((), 100);
 
-        // Poison the trackers RwLock by panicking inside a write guard.
+        // Poison shard 0's RwLock by panicking inside a write guard.
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _guard = value_map.trackers.write().unwrap();
+            let _guard = value_map.shards[0].write().unwrap();
             panic!("intentional poison");
         }));
 
         assert!(
-            value_map.trackers.is_poisoned(),
-            "trackers lock must be poisoned for this test to be meaningful"
+            value_map.shards[0].is_poisoned(),
+            "shard 0 lock must be poisoned for this test to be meaningful"
         );
 
         // Empty attrs use the no_attribute_tracker fast path and never touch
@@ -910,9 +1137,7 @@ mod tests {
             "bind(&[]) must succeed even with poisoned lock; uses no_attribute_tracker"
         );
 
-        // Non-empty attrs go through bind_attrs which needs the trackers lock.
-        // The read-lock try succeeds (only writes poison, but read on poisoned
-        // can also fail) — fall through to write lock which fails poisoned.
+        // Non-empty attrs go through bind_attrs which needs shard 0's lock.
         let result = value_map.bind(&[KeyValue::new("k", 1_i64)]);
         assert!(
             result.is_none(),
