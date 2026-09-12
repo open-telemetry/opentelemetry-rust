@@ -58,6 +58,48 @@ log guidance.
    express these concepts, but these are a workaround, not the recommended
    path for edge spans.
 
+## Filtering spans
+
+Processor filtering is one option for controlling which spans are exported.
+The choice between SDK sampling, processor filtering, and decisions in a
+Collector or telemetry pipeline depends on the information needed, the costs
+you want to avoid, and whether the decision must apply to an entire trace.
+
+> **Warning:** Filtering individual spans can produce incomplete or broken
+> traces. For example, an exported child span may refer to a parent span that
+> was discarded. A processor's decision does not coordinate with other spans
+> in the trace, including spans in other services.
+>
+> For coordinated decisions based on completed spans, prefer [tail-based
+> sampling] in the OpenTelemetry Collector or another telemetry pipeline.
+> Route all spans belonging to a trace to the same tail-sampling instance so
+> it can make a common keep/drop decision. Tail sampling cannot recover spans
+> already discarded by SDK sampling or filtering.
+
+SDK sampling can use information available at span creation, including initial
+attributes. A sampler that returns `Drop` avoids recording and processing that
+span, but cannot use its final status or attributes added later. A custom
+[`SpanProcessor`] can use the finished `SpanData` or application-local state
+and avoid downstream batching and export costs, but recording costs have
+already been incurred. Filtering or sampling in a Collector or telemetry
+pipeline can centralize policy across services, but still incurs SDK processing
+and transport costs to that point. Tail sampling also needs resources to
+buffer spans while awaiting a decision.
+
+If you have a reason to filter finished spans in an SDK processor and accept
+the trace-completeness tradeoff, wrap the processor that exports or batches spans.
+Evaluate the filtering condition in `on_end` and call the wrapped processor
+only when the span should be kept. Register only the wrapper with
+`SdkTracerProvider`. Registering the filter and exporter-backed processor
+separately does not form a pipeline; every registered processor receives the
+span independently.
+
+The [`SpanProcessor::on_end` example] uses an attribute value as its filtering
+condition. A processor could instead use the span name, status, duration,
+instrumentation scope, external configuration, or any other available
+information. The example also demonstrates forwarding processor lifecycle
+methods and composing the filter with another processor.
+
 ## See Also
 
 - [OpenTelemetry Traces Specification](https://opentelemetry.io/docs/specs/otel/trace/)
@@ -82,6 +124,9 @@ to the depth in [metrics.md](metrics.md):
 
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
+[`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
+[tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
+[`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
 [`opentelemetry-instrumentation-tower`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-tower
 [`opentelemetry-instrumentation-actix-web`]: https://github.com/open-telemetry/opentelemetry-rust-contrib/tree/main/opentelemetry-instrumentation-actix-web

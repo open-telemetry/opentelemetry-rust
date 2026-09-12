@@ -961,6 +961,7 @@ mod tests {
         let binary_value = metadata.get_bin("authorization-bin").unwrap();
         assert_eq!(binary_value.to_bytes().unwrap().as_ref(), SECRET.as_bytes());
         assert!(binary_value.is_sensitive());
+        assert!(!format!("{metadata:?}").contains(SECRET));
 
         let debug = format!("{builder:?}");
         assert!(!debug.contains(SECRET));

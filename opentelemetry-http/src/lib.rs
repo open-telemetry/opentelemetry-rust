@@ -1,3 +1,66 @@
+//! HTTP types and client adapters shared by OpenTelemetry components.
+//!
+//! [`HeaderInjector`] and [`HeaderExtractor`] adapt an [`http::HeaderMap`] to
+//! OpenTelemetry's text-map propagation interfaces. [`HttpClient`] is the
+//! transport abstraction used by exporters and other components that issue
+//! HTTP requests.
+//!
+//! # HTTP clients
+//!
+//! This crate does not enable a concrete HTTP client by default. Select one of
+//! these features when an OpenTelemetry component does not provide one:
+//!
+//! - `reqwest` implements [`HttpClient`] for the asynchronous
+//!   `reqwest::Client`.
+//! - `reqwest-blocking` additionally implements [`HttpClient`] for
+//!   `reqwest::blocking::Client`.
+//! - `reqwest-rustls` enables reqwest with its Rustls TLS backend.
+//! - `hyper` provides `hyper::HyperClient`, including support for custom
+//!   connectors.
+//!
+//! The reqwest implementations use the timeout configured on the supplied
+//! reqwest client. `hyper::HyperClient` requires a Tokio runtime and uses
+//! `hyper_util::rt::TokioExecutor` internally.
+//!
+//! # Implementing a client
+//!
+//! A custom client controls connection management, redirects, and timeouts.
+//! `send_bytes` returns HTTP responses regardless of their status code;
+//! transport failures and timeouts are returned as errors. Use
+//! [`ResponseExt::error_for_status`] when non-success status codes should be
+//! converted into errors.
+//!
+//! ```
+//! use async_trait::async_trait;
+//! use opentelemetry_http::{Bytes, HttpClient, HttpError, Request, Response};
+//!
+//! #[derive(Debug)]
+//! struct ExampleClient;
+//!
+//! #[async_trait]
+//! impl HttpClient for ExampleClient {
+//!     async fn send_bytes(
+//!         &self,
+//!         request: Request<Bytes>,
+//!     ) -> Result<Response<Bytes>, HttpError> {
+//!         // A real implementation would send the request and enforce its
+//!         // configured timeout while collecting the complete response body.
+//!         Ok(Response::new(request.into_body()))
+//!     }
+//! }
+//!
+//! let request = Request::post("http://collector.example/v1/traces")
+//!     .body(Bytes::from_static(b"encoded telemetry"))?;
+//! let response = futures_executor::block_on(ExampleClient.send_bytes(request))?;
+//! assert_eq!(response.body(), &Bytes::from_static(b"encoded telemetry"));
+//! # Ok::<(), HttpError>(())
+//! ```
+//!
+//! # Response size limit
+//!
+//! The built-in reqwest and Hyper implementations collect response bodies into
+//! memory and reject bodies larger than 4 MiB with [`ResponseBodyTooLarge`].
+
 use async_trait::async_trait;
 use std::fmt::Debug;
 
@@ -60,25 +123,29 @@ impl Extractor for HeaderExtractor<'_> {
     }
 }
 
+/// Error returned when an HTTP request cannot be completed.
 pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-/// A minimal interface necessary for sending requests over HTTP.
-/// Used primarily for exporting telemetry over HTTP. Also used for fetching
-/// sampling strategies for JaegerRemoteSampler
+/// A minimal interface for sending byte-oriented HTTP requests.
 ///
-/// Users sometime choose HTTP clients that relay on a certain async runtime. This trait allows
-/// users to bring their choice of HTTP client.
+/// This is primarily used for exporting telemetry and for fetching remote
+/// sampling strategies. Implementations are responsible for enforcing any
+/// required request timeout, including while reading the response body.
+///
+/// HTTP clients may depend on a particular async runtime. This trait allows
+/// users to supply an implementation suitable for their runtime.
+///
+/// Implementations must ensure their [`Debug`] output does not expose
+/// credentials or other sensitive configuration.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send the specified HTTP request with `Bytes` payload.
     ///
-    /// Returns the HTTP response including the status code and body.
+    /// Returns the complete HTTP response, including non-success status codes.
     ///
-    /// Returns an error if it can't connect to the server or the request could not be completed,
-    /// e.g. because of a timeout, infinite redirects, or a loss of connection.
-    ///
-    /// Implementations must ensure their [`Debug`] output does not expose
-    /// authentication headers or other credentials.
+    /// Returns an error if the request cannot be completed, for example because
+    /// of a connection failure, timeout, redirect failure, or response body
+    /// larger than 4 MiB in a built-in client.
     async fn send_bytes(&self, request: Request<Bytes>) -> Result<Response<Bytes>, HttpError>;
 }
 
@@ -186,6 +253,11 @@ pub mod hyper {
     use std::time::Duration;
     use tokio::time;
 
+    /// An [`HttpClient`] backed by Hyper.
+    ///
+    /// This client requires a Tokio runtime and uses
+    /// [`hyper_util::rt::TokioExecutor`] to drive connections. Responses larger
+    /// than 4 MiB are rejected with [`ResponseBodyTooLarge`].
     #[derive(Clone)]
     pub struct HyperClient<C = HttpConnector>
     where
@@ -200,6 +272,12 @@ pub mod hyper {
     where
         C: Connect + Clone + Send + Sync + 'static,
     {
+        /// Creates a client with a custom Hyper connector.
+        ///
+        /// The connector must satisfy Hyper's [`Connect`] bounds. `timeout`
+        /// configures the request deadline. When `authorization` is provided,
+        /// its value replaces any `Authorization` header already present on
+        /// each request.
         pub fn new(connector: C, timeout: Duration, authorization: Option<HeaderValue>) -> Self {
             // TODO - support custom executor
             let inner = Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
@@ -216,7 +294,11 @@ pub mod hyper {
     }
 
     impl HyperClient<HttpConnector> {
-        /// Creates a new `HyperClient` with a default `HttpConnector`.
+        /// Creates a client with Hyper's default [`HttpConnector`].
+        ///
+        /// `timeout` configures the request deadline. When `authorization` is
+        /// provided, its value replaces any `Authorization` header already
+        /// present on each request.
         pub fn with_default_connector(
             timeout: Duration,
             authorization: Option<HeaderValue>,
@@ -240,31 +322,34 @@ pub mod hyper {
                     .headers_mut()
                     .insert(http::header::AUTHORIZATION, authorization.clone());
             }
-            let mut response = time::timeout(self.timeout, self.inner.request(request)).await??;
-            let capacity = response
-                .body()
-                .size_hint()
-                .upper()
-                .unwrap_or(0)
-                .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
-            let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
-            let status = response.status();
-            let headers = std::mem::take(response.headers_mut());
-            let mut body = response.into_body();
-            while let Some(frame) = body.frame().await {
-                let frame = frame?;
-                if let Ok(chunk) = frame.into_data() {
-                    if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                        return Err(Box::new(ResponseBodyTooLarge));
+            time::timeout(self.timeout, async {
+                let mut response = self.inner.request(request).await?;
+                let capacity = response
+                    .body()
+                    .size_hint()
+                    .upper()
+                    .unwrap_or(0)
+                    .min(MAX_RESPONSE_BODY_BYTES as u64) as usize;
+                let mut body_bytes = bytes::BytesMut::with_capacity(capacity);
+                let status = response.status();
+                let headers = std::mem::take(response.headers_mut());
+                let mut body = response.into_body();
+                while let Some(frame) = body.frame().await {
+                    let frame = frame?;
+                    if let Ok(chunk) = frame.into_data() {
+                        if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
+                            return Err(Box::new(ResponseBodyTooLarge) as HttpError);
+                        }
+                        body_bytes.extend_from_slice(&chunk);
                     }
-                    body_bytes.extend_from_slice(&chunk);
                 }
-            }
-            let mut http_response = Response::builder()
-                .status(status)
-                .body(body_bytes.freeze())?;
-            *http_response.headers_mut() = headers;
-            Ok(http_response)
+                let mut http_response = Response::builder()
+                    .status(status)
+                    .body(body_bytes.freeze())?;
+                *http_response.headers_mut() = headers;
+                Ok(http_response)
+            })
+            .await?
         }
     }
 
@@ -563,6 +648,25 @@ Connection: close\r\n\r\n",
             addr
         }
 
+        #[cfg(feature = "hyper")]
+        async fn start_stalled_body_server() -> SocketAddr {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    let mut buf = [0u8; 1024];
+                    let _ = socket.read(&mut buf).await;
+                    let _ = socket
+                        .write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\n",
+                        )
+                        .await;
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+            });
+            addr
+        }
+
         async fn assert_within_limit(client: &dyn HttpClient, addr: SocketAddr) {
             let request = Request::builder()
                 .method("POST")
@@ -667,6 +771,31 @@ Connection: close\r\n\r\n",
                 None,
             );
             assert_exceeds_limit(&client, addr).await;
+        }
+
+        #[cfg(feature = "hyper")]
+        #[tokio::test]
+        async fn hyper_timeout_covers_response_body() {
+            let addr = start_stalled_body_server().await;
+            let client = crate::hyper::HyperClient::with_default_connector(
+                std::time::Duration::from_millis(25),
+                None,
+            );
+            let request = Request::post(format!("http://{addr}/"))
+                .body(Bytes::new())
+                .unwrap();
+
+            let error = tokio::time::timeout(
+                std::time::Duration::from_millis(200),
+                client.send_bytes(request),
+            )
+            .await
+            .expect("HyperClient must enforce its configured timeout")
+            .expect_err("stalled response body must time out");
+
+            assert!(error
+                .downcast_ref::<tokio::time::error::Elapsed>()
+                .is_some());
         }
     }
 }

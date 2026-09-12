@@ -965,7 +965,10 @@ mod tests {
                 "authorization".to_string(),
                 SECRET.to_string(),
             )]));
-        assert!(!format!("{builder:?}").contains(SECRET));
+        let debug = format!("{builder:?}");
+        assert!(!debug.contains(SECRET));
+        assert!(debug.contains("client_configured"));
+        assert!(debug.contains("header_count"));
 
         let mut headers = std::collections::HashMap::from([(
             http::HeaderName::from_static("authorization"),
@@ -977,6 +980,7 @@ mod tests {
             http::HeaderValue::from_static(SECRET)
         );
         assert!(headers.values().all(http::HeaderValue::is_sensitive));
+        assert!(!format!("{headers:?}").contains(SECRET));
 
         #[cfg(feature = "http-proto")]
         let protocol = crate::Protocol::HttpBinary;
@@ -992,7 +996,9 @@ mod tests {
             None,
         );
         let exporter = crate::SpanExporter::from_http(client);
-        assert!(!format!("{exporter:?}").contains(SECRET));
+        let debug = format!("{exporter:?}");
+        assert!(!debug.contains(SECRET));
+        assert!(debug.contains("collector_endpoint"));
     }
 
     #[test]
