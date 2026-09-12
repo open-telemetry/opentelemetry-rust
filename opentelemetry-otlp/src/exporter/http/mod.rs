@@ -21,6 +21,7 @@ use opentelemetry_sdk::trace::SpanData;
 use prost::Message;
 use std::collections::HashMap;
 use std::env;
+use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -113,7 +114,7 @@ mod trace;
 use opentelemetry_http::hyper::HyperClient;
 
 /// Configuration of the http transport
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct HttpConfig {
     /// Select the HTTP client
     client: Option<Arc<dyn HttpClient>>,
@@ -129,6 +130,19 @@ pub(crate) struct HttpConfig {
 
     /// Maximum HTTP request body size, before and after compression.
     max_request_body_size: Option<usize>,
+}
+
+impl Debug for HttpConfig {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HttpConfig")
+            .field("client_configured", &self.client.is_some())
+            .field("header_count", &self.headers.as_ref().map(HashMap::len))
+            .field("compression", &self.compression)
+            .field("retry_policy", &self.retry_policy)
+            .field("max_request_body_size", &self.max_request_body_size)
+            .finish()
+    }
 }
 
 /// Configuration for the OTLP HTTP exporter.
@@ -299,6 +313,7 @@ impl HttpExporterBuilder {
         {
             add_header_from_string(&input, &mut headers);
         }
+        mark_header_values_sensitive(&mut headers);
 
         let mut client = OtlpHttpClient::new(
             http_client,
@@ -389,7 +404,6 @@ impl HttpExporterBuilder {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct OtlpHttpClient {
     client: Mutex<Option<Arc<dyn HttpClient>>>,
     collector_endpoint: Uri,
@@ -402,6 +416,21 @@ pub(crate) struct OtlpHttpClient {
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
     resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+}
+
+impl Debug for OtlpHttpClient {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OtlpHttpClient")
+            .field("collector_endpoint", &self.collector_endpoint)
+            .field("header_count", &self.headers.len())
+            .field("protocol", &self.protocol)
+            .field("timeout", &self.timeout)
+            .field("compression", &self.compression)
+            .field("retry_policy", &self.retry_policy)
+            .field("max_request_body_size", &self.max_request_body_size)
+            .finish_non_exhaustive()
+    }
 }
 
 impl OtlpHttpClient {
@@ -804,6 +833,12 @@ fn add_header_from_string(input: &str, headers: &mut HashMap<HeaderName, HeaderV
     }));
 }
 
+fn mark_header_values_sensitive(headers: &mut HashMap<HeaderName, HeaderValue>) {
+    for value in headers.values_mut() {
+        value.set_sensitive(true);
+    }
+}
+
 /// Expose interface for modifying builder config.
 pub(crate) trait HasHttpConfig {
     /// Return a mutable reference to the config within the exporter builders.
@@ -891,7 +926,7 @@ impl<B: HasHttpConfig> WithHttpConfig for B {
 
 #[cfg(test)]
 mod tests {
-    use crate::exporter::http::HttpConfig;
+    use crate::exporter::http::{HttpConfig, OtlpHttpClient};
     use crate::exporter::tests::run_env_test;
     use crate::{
         WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
@@ -899,6 +934,72 @@ mod tests {
     };
 
     use super::{build_endpoint_uri, resolve_http_endpoint, HttpExporterBuilder};
+
+    const SECRET: &str = "sentinel-http-secret";
+
+    struct CredentialDebugClient;
+
+    impl std::fmt::Debug for CredentialDebugClient {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str(SECRET)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl opentelemetry_http::HttpClient for CredentialDebugClient {
+        async fn send_bytes(
+            &self,
+            _request: http::Request<opentelemetry_http::Bytes>,
+        ) -> Result<http::Response<opentelemetry_http::Bytes>, opentelemetry_http::HttpError>
+        {
+            unreachable!()
+        }
+    }
+
+    #[test]
+    fn debug_redacts_http_credentials() {
+        let builder = crate::SpanExporter::builder()
+            .with_http()
+            .with_http_client(CredentialDebugClient)
+            .with_headers(std::collections::HashMap::from([(
+                "authorization".to_string(),
+                SECRET.to_string(),
+            )]));
+        let debug = format!("{builder:?}");
+        assert!(!debug.contains(SECRET));
+        assert!(debug.contains("client_configured"));
+        assert!(debug.contains("header_count"));
+
+        let mut headers = std::collections::HashMap::from([(
+            http::HeaderName::from_static("authorization"),
+            http::HeaderValue::from_static(SECRET),
+        )]);
+        super::mark_header_values_sensitive(&mut headers);
+        assert_eq!(
+            headers.get(&http::header::AUTHORIZATION).unwrap(),
+            http::HeaderValue::from_static(SECRET)
+        );
+        assert!(headers.values().all(http::HeaderValue::is_sensitive));
+        assert!(!format!("{headers:?}").contains(SECRET));
+
+        #[cfg(feature = "http-proto")]
+        let protocol = crate::Protocol::HttpBinary;
+        #[cfg(all(not(feature = "http-proto"), feature = "http-json"))]
+        let protocol = crate::Protocol::HttpJson;
+        let client = OtlpHttpClient::new(
+            std::sync::Arc::new(CredentialDebugClient),
+            "http://localhost:4318/v1/traces".parse().unwrap(),
+            headers,
+            protocol,
+            std::time::Duration::from_secs(10),
+            None,
+            None,
+        );
+        let exporter = crate::SpanExporter::from_http(client);
+        let debug = format!("{exporter:?}");
+        assert!(!debug.contains(SECRET));
+        assert!(debug.contains("collector_endpoint"));
+    }
 
     #[test]
     fn test_append_signal_path_to_generic_env() {

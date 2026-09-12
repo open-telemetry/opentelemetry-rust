@@ -5,7 +5,7 @@ use std::str::FromStr;
 use http::{HeaderMap, HeaderName, HeaderValue};
 use opentelemetry::otel_debug;
 use tonic::codec::CompressionEncoding;
-use tonic::metadata::{KeyAndValueRef, MetadataMap};
+use tonic::metadata::{KeyAndMutValueRef, KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
 #[cfg(any(
@@ -44,7 +44,7 @@ pub(crate) mod trace;
 /// Configuration for [tonic]
 ///
 /// [tonic]: https://github.com/hyperium/tonic
-#[derive(Debug, Default)]
+#[derive(Default)]
 #[non_exhaustive]
 pub(crate) struct TonicConfig {
     /// Custom metadata entries to send to the collector.
@@ -62,6 +62,28 @@ pub(crate) struct TonicConfig {
     pub(crate) interceptor: Option<BoxInterceptor>,
     /// The retry policy to use for gRPC requests.
     pub(crate) retry_policy: Option<RetryPolicy>,
+}
+
+impl Debug for TonicConfig {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut debug = formatter.debug_struct("TonicConfig");
+        debug.field(
+            "metadata_count",
+            &self.metadata.as_ref().map(MetadataMap::len),
+        );
+        #[cfg(any(
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))]
+        debug.field("tls_configured", &self.tls_config.is_some());
+        debug
+            .field("compression", &self.compression)
+            .field("channel_configured", &self.channel.is_some())
+            .field("interceptor_configured", &self.interceptor.is_some())
+            .field("retry_policy", &self.retry_policy)
+            .finish()
+    }
 }
 
 impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
@@ -224,10 +246,11 @@ impl TonicExporterBuilder {
 
         let (headers_from_env, headers_for_logging) = parse_headers_from_env(signal_headers_var);
 
-        let metadata = merge_metadata_with_headers_from_env(
+        let mut metadata = merge_metadata_with_headers_from_env(
             self.tonic_config.metadata.unwrap_or_default(),
             headers_from_env,
         );
+        mark_metadata_values_sensitive(&mut metadata);
 
         let add_metadata = move |mut req: tonic::Request<()>| {
             for key_and_value in metadata.iter() {
@@ -590,6 +613,15 @@ fn merge_metadata_with_headers_from_env(
     }
 }
 
+fn mark_metadata_values_sensitive(metadata: &mut MetadataMap) {
+    for entry in metadata.iter_mut() {
+        match entry {
+            KeyAndMutValueRef::Ascii(_, value) => value.set_sensitive(true),
+            KeyAndMutValueRef::Binary(_, value) => value.set_sensitive(true),
+        }
+    }
+}
+
 fn parse_headers_from_env(signal_headers_var: &str) -> (HeaderMap, Vec<String>) {
     let mut headers = Vec::new();
 
@@ -780,7 +812,9 @@ impl<B: HasTonicConfig> WithTonicConfig for B {
             .into_headers();
         existing_headers.extend(metadata.into_headers());
 
-        self.tonic_config().metadata = Some(MetadataMap::from_headers(existing_headers));
+        let mut metadata = MetadataMap::from_headers(existing_headers);
+        mark_metadata_values_sensitive(&mut metadata);
+        self.tonic_config().metadata = Some(metadata);
         self
     }
 
@@ -907,6 +941,38 @@ mod tests {
                 .unwrap()
                 .len()
         );
+    }
+
+    #[test]
+    fn debug_redacts_metadata_values() {
+        const SECRET: &str = "sentinel-tonic-secret";
+        let mut metadata = MetadataMap::new();
+        metadata.insert("authorization", MetadataValue::from_static(SECRET));
+        metadata.insert_bin(
+            "authorization-bin",
+            MetadataValue::from_bytes(SECRET.as_bytes()),
+        );
+
+        let builder = TonicExporterBuilder::default().with_metadata(metadata);
+        let metadata = builder.tonic_config.metadata.as_ref().unwrap();
+        let value = metadata.get("authorization").unwrap();
+        assert_eq!(value.to_str().unwrap(), SECRET);
+        assert!(value.is_sensitive());
+        let binary_value = metadata.get_bin("authorization-bin").unwrap();
+        assert_eq!(binary_value.to_bytes().unwrap().as_ref(), SECRET.as_bytes());
+        assert!(binary_value.is_sensitive());
+        assert!(!format!("{metadata:?}").contains(SECRET));
+
+        let debug = format!("{builder:?}");
+        assert!(!debug.contains(SECRET));
+        assert!(debug.contains("metadata_count"));
+
+        let mut metadata = MetadataMap::new();
+        metadata.insert("authorization", MetadataValue::from_static(SECRET));
+        let public_builder = crate::SpanExporter::builder()
+            .with_tonic()
+            .with_metadata(metadata);
+        assert!(!format!("{public_builder:?}").contains(SECRET));
     }
 
     #[test]
