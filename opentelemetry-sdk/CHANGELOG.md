@@ -4,7 +4,8 @@
 
 - **Breaking** `SpanProcessor::on_end` now accepts `&SpanData`. Processors that
   retain spans after `on_end` returns must clone them. This avoids cloning
-  completed spans when multiple processors are registered.
+  completed spans when multiple processors are registered and aligns span
+  processor ownership with the borrowed `LogProcessor::emit` convention.
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
