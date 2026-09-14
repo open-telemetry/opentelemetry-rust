@@ -373,6 +373,18 @@ pub struct FinishedSpan {
 
 impl FinishedSpan {
     /// Creates a new `FinishedSpan` with the given span data.
+    #[cfg(any(feature = "testing", test))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
+    pub fn new(span_data: crate::trace::SpanData) -> Self {
+        FinishedSpan {
+            span: Some(span_data),
+            is_last_processor: true,
+            is_consumed: false,
+        }
+    }
+
+    /// Creates a new `FinishedSpan` with the given span data.
+    #[cfg(not(any(feature = "testing", test)))]
     pub(crate) fn new(span_data: crate::trace::SpanData) -> Self {
         FinishedSpan {
             span: Some(span_data),

@@ -168,7 +168,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// use opentelemetry::{Context, Value};
     /// use opentelemetry_sdk::{
     ///     error::OTelSdkResult,
-    ///     trace::{Span, SpanData, SpanProcessor},
+    ///     trace::{FinishedSpan, ReadableSpan, Span, SpanProcessor},
     ///     Resource,
     /// };
     /// use std::time::Duration;
@@ -189,8 +189,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///         self.next.on_start(span, cx);
     ///     }
     ///
-    ///     fn on_end(&self, span: SpanData) {
-    ///         let should_drop = span.attributes.iter().any(|attribute| {
+    ///     fn on_end(&self, span: &mut FinishedSpan) {
+    ///         let should_drop = span.attributes().iter().any(|attribute| {
     ///             attribute.key.as_str() == "example.drop"
     ///                 && attribute.value == Value::Bool(true)
     ///         });
