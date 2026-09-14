@@ -34,6 +34,11 @@ release:
 
 ### Other changes
 
+- Return an exporter build error when construction of a built-in reqwest HTTP
+  client fails instead of silently falling back to a client without the
+  exporter-configured timeout. Failure to spawn the blocking client's setup
+  thread, or a panic in that thread, is also returned instead of panicking.
+
 - **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
   `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
   the transport-selected exporter builders (e.g.
@@ -69,6 +74,24 @@ release:
   `http://localhost:4317`. Omit `.with_endpoint(...)` to let the selected
   transport use its correct default, or provide the appropriate URL explicitly.
   [#3690](https://github.com/open-telemetry/opentelemetry-rust/issues/3690)
+- **Breaking** Restrict `MetricExporterBuilder::with_http()` and `with_tonic()`
+  to builders where no transport has been selected, matching the span and log
+  exporter builders. Select a transport once; `with_temporality()` remains
+  available before or after transport selection.
+- **Breaking** Remove the public `HttpExporterBuilder` and
+  `TonicExporterBuilder` transport-first APIs. Configure transports through the
+  signal builders instead:
+  - Replace `HttpExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_http()`, then replace
+    `.build_span_exporter()` or `.build_log_exporter()` with `.build()`.
+  - Replace `.build_metrics_exporter(temporality)` with
+    `.with_temporality(temporality).build()`.
+  - Replace `TonicExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_tonic()`.
+  Transport-specific configuration methods remain available after
+  `.with_http()` or `.with_tonic()`.
+- **Breaking** Removed the deprecated `tls` feature alias. Replace `tls` with
+  `tls-ring`, or select `tls-aws-lc` or `tls-provider-agnostic` explicitly.
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
