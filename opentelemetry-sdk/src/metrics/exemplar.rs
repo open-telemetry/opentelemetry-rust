@@ -19,11 +19,12 @@
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ExemplarFilter {
-    /// Every measurement is eligible to become an exemplar.
+    /// Every measurement is eligible to become an exemplar, whether or not it
+    /// was recorded inside a span, and whether or not that span was sampled.
     ///
-    /// Measurements recorded outside an active span still produce an exemplar,
-    /// with an all-zero trace id and span id. An active span's ids are retained
-    /// regardless of its sampling decision.
+    /// The exemplar carries the trace id and span id of the active span, even
+    /// when that span was not sampled. A measurement recorded outside any span
+    /// gets an all-zero trace id and span id.
     AlwaysOn,
 
     /// No measurement is eligible. Exemplar collection is effectively disabled
