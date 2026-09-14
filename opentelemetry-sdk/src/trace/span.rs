@@ -391,6 +391,14 @@ impl FinishedSpan {
         self.is_consumed
     }
 
+    fn span_data(&self) -> Option<&crate::trace::SpanData> {
+        if self.is_consumed {
+            None
+        } else {
+            self.span.as_ref()
+        }
+    }
+
     /// Takes ownership of the span data in the `FinishedSpan`.
     ///
     /// The last processor in the chain receives the data via move (zero-copy);
@@ -414,83 +422,83 @@ impl FinishedSpan {
 
 impl ReadableSpan for FinishedSpan {
     fn context(&self) -> &SpanContext {
-        match self.span {
-            Some(ref data) => &data.span_context,
+        match self.span_data() {
+            Some(data) => &data.span_context,
             None => &SpanContext::NONE,
         }
     }
 
     fn parent_span_id(&self) -> SpanId {
-        match self.span {
-            Some(ref data) => data.parent_span_id,
+        match self.span_data() {
+            Some(data) => data.parent_span_id,
             None => SpanId::INVALID,
         }
     }
 
     fn span_kind(&self) -> &SpanKind {
-        match self.span {
-            Some(ref data) => &data.span_kind,
+        match self.span_data() {
+            Some(data) => &data.span_kind,
             None => &SpanKind::Internal,
         }
     }
 
     fn name(&self) -> Option<&str> {
-        self.span.as_ref().map(|s| s.name.as_ref())
+        self.span_data().map(|s| s.name.as_ref())
     }
 
     fn start_time(&self) -> Option<SystemTime> {
-        self.span.as_ref().map(|s| s.start_time)
+        self.span_data().map(|s| s.start_time)
     }
 
     fn end_time(&self) -> Option<SystemTime> {
-        self.span.as_ref().map(|s| s.end_time)
+        self.span_data().map(|s| s.end_time)
     }
 
     fn attributes(&self) -> &[KeyValue] {
-        match self.span {
-            Some(ref data) => data.attributes.as_slice(),
+        match self.span_data() {
+            Some(data) => data.attributes.as_slice(),
             None => &[],
         }
     }
 
     fn dropped_attributes_count(&self) -> u32 {
-        match self.span {
-            Some(ref data) => data.dropped_attributes_count,
+        match self.span_data() {
+            Some(data) => data.dropped_attributes_count,
             None => 0,
         }
     }
 
     fn events(&self) -> &[Event] {
-        match self.span {
-            Some(ref data) => data.events.events.as_slice(),
+        match self.span_data() {
+            Some(data) => data.events.events.as_slice(),
             None => &[],
         }
     }
 
     fn dropped_events_count(&self) -> u32 {
-        match self.span {
-            Some(ref data) => data.events.dropped_count,
+        match self.span_data() {
+            Some(data) => data.events.dropped_count,
             None => 0,
         }
     }
 
     fn links(&self) -> &[Link] {
-        match self.span {
-            Some(ref data) => data.links.links.as_slice(),
+        match self.span_data() {
+            Some(data) => data.links.links.as_slice(),
             None => &[],
         }
     }
 
     fn dropped_links_count(&self) -> u32 {
-        match self.span {
-            Some(ref data) => data.links.dropped_count,
+        match self.span_data() {
+            Some(data) => data.links.dropped_count,
             None => 0,
         }
     }
 
     fn status(&self) -> &Status {
-        match self.span {
-            Some(ref data) => &data.status,
+        match self.span_data() {
+            Some(data) => &data.status,
             None => &Status::Unset,
         }
     }
@@ -499,8 +507,8 @@ impl ReadableSpan for FinishedSpan {
         // TODO Replace with LazyLock once it is stable
         static DEFAULT_SCOPE: std::sync::OnceLock<opentelemetry::InstrumentationScope> =
             std::sync::OnceLock::new();
-        match self.span {
-            Some(ref data) => &data.instrumentation_scope,
+        match self.span_data() {
+            Some(data) => &data.instrumentation_scope,
             None => DEFAULT_SCOPE.get_or_init(opentelemetry::InstrumentationScope::default),
         }
     }
@@ -509,12 +517,8 @@ impl ReadableSpan for FinishedSpan {
 impl std::fmt::Debug for FinishedSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut fmt = f.debug_struct("FinishedSpan");
-        if let Some(ref s) = self.span {
-            if !self.is_consumed {
-                fmt.field("span", s);
-            } else {
-                fmt.field("consumed", &true);
-            }
+        if let Some(s) = self.span_data() {
+            fmt.field("span", s);
         } else {
             fmt.field("consumed", &true);
         }
@@ -1404,6 +1408,141 @@ mod tests {
             first_data, last_data,
             "clone and move should carry identical span data"
         );
+    }
+
+    #[test]
+    fn test_finished_span_consume_after_reset_false_returns_defaults_and_reset_restores() {
+        use crate::trace::SpanData as ExportSpanData;
+
+        let span_context = SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::SAMPLED,
+            false,
+            Default::default(),
+        );
+        let scope = opentelemetry::InstrumentationScope::builder("my-scope").build();
+        let span_data = ExportSpanData {
+            span_context: span_context.clone(),
+            parent_span_id: SpanId::from(42),
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Client,
+            name: "test".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: vec![KeyValue::new("k", "v")],
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Ok,
+            instrumentation_scope: scope.clone(),
+        };
+
+        let mut finished = FinishedSpan::new(span_data);
+
+        // Simulate a non-last processor in the chain
+        finished.reset(false);
+        assert!(!finished.is_consumed());
+        assert_eq!(finished.name(), Some("test"));
+        assert_eq!(finished.span_kind(), &SpanKind::Client);
+        assert_eq!(finished.context(), &span_context);
+        assert_eq!(finished.instrumentation_scope(), &scope);
+
+        // Non-last processor consumes (clones data)
+        let first_consumed = finished.consume();
+        assert!(first_consumed.is_some());
+        assert!(finished.is_consumed());
+
+        // After consume on non-last processor, ReadableSpan must return defaults
+        assert_eq!(finished.name(), None);
+        assert_eq!(finished.span_kind(), &SpanKind::Internal);
+        assert_eq!(finished.attributes(), &[]);
+        assert_eq!(finished.events().len(), 0);
+        assert_eq!(finished.links().len(), 0);
+        assert_eq!(finished.dropped_links_count(), 0);
+        assert_eq!(finished.status(), &Status::Unset);
+        assert_eq!(finished.parent_span_id(), SpanId::INVALID);
+        assert_eq!(finished.context(), &SpanContext::empty_context());
+        assert_eq!(finished.start_time(), None);
+        assert_eq!(finished.end_time(), None);
+        assert_eq!(finished.dropped_attributes_count(), 0);
+        assert_eq!(finished.dropped_events_count(), 0);
+        assert_eq!(
+            finished.instrumentation_scope(),
+            &opentelemetry::InstrumentationScope::default()
+        );
+
+        // Calling reset for the next processor restores access to span data
+        finished.reset(true);
+        assert!(!finished.is_consumed());
+        assert_eq!(finished.name(), Some("test"));
+        assert_eq!(finished.span_kind(), &SpanKind::Client);
+        assert_eq!(finished.context(), &span_context);
+        assert_eq!(finished.instrumentation_scope(), &scope);
+
+        // Last processor consumes (moves data)
+        let last_consumed = finished.consume();
+        assert!(last_consumed.is_some());
+        assert!(finished.is_consumed());
+        assert_eq!(first_consumed, last_consumed);
+
+        // After consume on last processor, ReadableSpan also returns defaults
+        assert_eq!(finished.name(), None);
+        assert_eq!(finished.span_kind(), &SpanKind::Internal);
+        assert_eq!(finished.attributes(), &[]);
+        assert_eq!(finished.context(), &SpanContext::empty_context());
+        assert_eq!(
+            finished.instrumentation_scope(),
+            &opentelemetry::InstrumentationScope::default()
+        );
+    }
+
+    #[test]
+    fn test_multiprocessor_readable_span_post_consume_defaults_and_reset() {
+        // In a pipeline with multiple processors, every processor should see
+        // real data before consume(), defaults after consume(), and the subsequent
+        // processor should have full access restored via reset().
+        #[derive(Debug, Clone, Default)]
+        struct InspectingProcessor {
+            name_before: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+            name_after: std::sync::Arc<std::sync::Mutex<Option<Option<String>>>>,
+        }
+        impl SpanProcessor for InspectingProcessor {
+            fn on_end(&self, span: &mut FinishedSpan) {
+                *self.name_before.lock().unwrap() = span.name().map(String::from);
+                let _ = span.consume();
+                *self.name_after.lock().unwrap() = Some(span.name().map(String::from));
+            }
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+            fn force_flush(&self) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let first = InspectingProcessor::default();
+        let second = InspectingProcessor::default();
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(first.clone())
+            .with_span_processor(second.clone())
+            .build();
+        drop(provider.tracer("test").start("my_test_span"));
+        provider.shutdown().unwrap();
+
+        assert_eq!(
+            *first.name_before.lock().unwrap(),
+            Some("my_test_span".into())
+        );
+        assert_eq!(*first.name_after.lock().unwrap(), Some(None));
+
+        assert_eq!(
+            *second.name_before.lock().unwrap(),
+            Some("my_test_span".into())
+        );
+        assert_eq!(*second.name_after.lock().unwrap(), Some(None));
     }
 
     #[test]
