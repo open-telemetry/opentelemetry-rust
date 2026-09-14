@@ -47,8 +47,43 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
     meter.u64_histogram(name).build()
 }
 
+/// Records into a histogram whose meter provider uses `filter`, with no span
+/// active — the shape of the hot path for a service that has exemplars enabled
+/// but is recording outside a sampled request.
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+fn histogram_record_with_exemplar_filter(c: &mut Criterion) {
+    use opentelemetry_sdk::metrics::ExemplarFilter;
+
+    for (label, filter) in [
+        ("AlwaysOff", ExemplarFilter::AlwaysOff),
+        ("TraceBased", ExemplarFilter::TraceBased),
+        ("AlwaysOn", ExemplarFilter::AlwaysOn),
+    ] {
+        let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+            .with_reader(ManualReader::builder().build())
+            .with_exemplar_filter(filter)
+            .build();
+        let histogram = meter_provider
+            .meter("benchmarks")
+            .u64_histogram("histogram_exemplar")
+            .build();
+
+        c.bench_function(&format!("Histogram_Record_Exemplar_{label}"), |b| {
+            b.iter(|| {
+                histogram.record(
+                    CURRENT_RNG.with(|rng| rng.borrow_mut().random_range(0..1000)),
+                    &[KeyValue::new("attribute1", ATTRIBUTE_VALUES[0])],
+                );
+            });
+        });
+    }
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     histogram_record(c);
+
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    histogram_record_with_exemplar_filter(c);
 
     let attribute_values: [String; 10] = (1..=10)
         .map(|i| format!("value{i}"))
