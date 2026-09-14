@@ -61,40 +61,61 @@ records reach that bridge.
 
 ## Filtering log records
 
-Filtering in a processor is one option. The appropriate place depends on what
-information the decision needs and where you want to manage the policy:
+Filter at the earliest layer that has the information and policy control needed
+for the decision:
 
-- **Logging library:** Filtering before the OpenTelemetry bridge avoids creating
-  and processing rejected log records. `tracing` offers flexible
-  [filtering capabilities] through `tracing-subscriber`, including level and
-  target filters, `EnvFilter`, custom predicates, and per-layer filters. These
-  filters use information available to the logging library, before SDK
-  processing or downstream enrichment.
-- **SDK processor:** A custom [`LogProcessor`] can inspect the `SdkLogRecord`,
-  instrumentation scope, or application-local state and reject records before
-  batching and export. Record creation and any earlier processing have already
-  occurred, and the processor implementation is maintained in the application.
-- **Collector or telemetry pipeline:** Filtering downstream can centralize
-  policy across applications and use data added by pipeline processors. It
-  still incurs the application-side work and transport cost of sending records
-  to that point in the pipeline.
+- **Logging library:** Use this layer when the condition is available at the
+  callsite, such as severity, target or module, event name, or other logging
+  metadata. Filtering here also avoids SDK record creation and bridge
+  conversion. If you use `tracing` as the logging library,
+  `tracing-subscriber` provides level and target filters, `EnvFilter`, custom
+  predicates, and per-layer [filtering capabilities].
+- **SDK processor:** Use a custom [`LogProcessor`] when the condition requires
+  `SdkLogRecord`, instrumentation scope, or application-local state; when one
+  policy must cover multiple logging libraries or instrumentation sources; or
+  when export destinations require different rules. Record creation and bridge
+  conversion have already occurred, but the processor can reject records before
+  batching and export.
+- **Collector or telemetry pipeline:** Use this layer when policy must be
+  managed centrally across services, changed without redeploying applications,
+  or evaluated using information added by pipeline processors, such as
+  Kubernetes metadata. Application-side processing and transport to the
+  pipeline have already occurred.
 
-If you have a reason to filter in an SDK processor, the following approach
-shows how to compose it with other processors.
+Both logging-library and SDK-processor filtering can keep rejected events out
+of batching, serialization, and transport.
 
-A filtering processor should wrap the processor that exports or batches
-records. In its `emit` method, evaluate the filtering condition and call the
-wrapped processor only when the record should be kept. Register only the
-wrapper with `SdkLoggerProvider`. Registering both processors separately does
-not form a pipeline; each registered processor receives the record
-independently.
+Filter sensitive data before the process, host, or other trust boundary that it
+must not cross. Filtering downstream cannot undo exposure across that boundary.
 
-The runnable [logs-advanced example] uses an attribute value as its filtering
-condition. A processor could instead filter by severity, event name, scope,
-body, external configuration, or any other information available to it. The
-example also demonstrates forwarding processor lifecycle methods and composing
-the filter with `SimpleLogProcessor`; a production application can wrap
-`BatchLogProcessor` in the same way.
+`SdkLoggerProvider` delivers records independently to every processor registered
+with it. To filter an export branch, wrap its exporting or batching processor:
+
+```text
+SdkLoggerProvider
+└── FilteringLogProcessor
+    └── BatchLogProcessor
+        └── Exporter
+```
+
+Registering the processors as siblings does not form a pipeline, regardless of
+registration order:
+
+```text
+SdkLoggerProvider
+├── FilteringLogProcessor
+└── BatchLogProcessor
+    └── Exporter
+```
+
+Both siblings receive every record. In the wrapped configuration, the filter's
+`emit` calls the wrapped processor only for records it keeps. The filter controls
+only that branch; wrap every export branch that requires filtering.
+
+The runnable [logs-advanced example] filters on an attribute, but a processor
+can use severity, event name, scope, body, external configuration, or other
+available information. It also forwards processor lifecycle methods and wraps
+`SimpleLogProcessor`; `BatchLogProcessor` can be wrapped in the same way.
 
 `LogProcessor::event_enabled` can reject records earlier, but it receives only
 severity, target, and event name. Conditions that require any other record data
