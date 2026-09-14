@@ -87,6 +87,47 @@ release:
   `.with_http()` or `.with_tonic()`.
 - **Breaking** Removed the deprecated `tls` feature alias. Replace `tls` with
   `tls-ring`, or select `tls-aws-lc` or `tls-provider-agnostic` explicitly.
+- **Breaking:** Simplified `ExporterBuildError` to the exhaustive
+  `InvalidConfiguration(String)` and `InternalFailure(String)` variants.
+  The enum is no longer marked `#[non_exhaustive]`.
+  Configuration errors such as invalid endpoints, missing HTTP clients,
+  transport/protocol mismatches, and missing compression features now use
+  `InvalidConfiguration`. Replace implementation-specific, non-exhaustive
+  matches such as:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidUri(_, _)
+      | ExporterBuildError::InvalidConfig { .. }
+      | ExporterBuildError::NoHttpClient => {
+          eprintln!("fix the exporter configuration");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+      _ => {}
+  }
+  ```
+  with an exhaustive match over the two stable categories:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidConfiguration(message) => {
+          eprintln!("fix the exporter configuration: {message}");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+  }
+  ```
+  `Compression::from_str` now returns `ParseCompressionError`. Protocol,
+  compression, and metrics temporality environment values are interpreted
+  case-insensitively; invalid or unavailable enum values are logged and
+  ignored, allowing resolution to continue with the next configured value or
+  default. Failures while constructing a default reqwest client now return
+  `InternalFailure` instead of silently falling back to a differently
+  configured client.
+  Tonic endpoint errors identify the originating environment variable when
+  validating the URI or reporting endpoint-related TLS setup failures.
+  [#3691](https://github.com/open-telemetry/opentelemetry-rust/issues/3691)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.

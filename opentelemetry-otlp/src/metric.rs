@@ -76,17 +76,26 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
-        // NOTE: The transport-specific builder will call resolve_protocol again
-        // internally (for HTTP sub-protocol selection or tonic validation), but
-        // that's harmless — the result is the same.
         let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, None);
         match protocol {
             #[cfg(feature = "grpc-tonic")]
-            crate::Protocol::Grpc => self.with_tonic().build(),
+            crate::Protocol::Grpc => {
+                let mut builder = self.with_tonic();
+                builder.client.0.exporter_config.protocol = Some(protocol);
+                builder.build()
+            }
             #[cfg(feature = "http-proto")]
-            crate::Protocol::HttpBinary => self.with_http().build(),
+            crate::Protocol::HttpBinary => {
+                let mut builder = self.with_http();
+                builder.client.0.exporter_config.protocol = Some(protocol);
+                builder.build()
+            }
             #[cfg(feature = "http-json")]
-            crate::Protocol::HttpJson => self.with_http().build(),
+            crate::Protocol::HttpJson => {
+                let mut builder = self.with_http();
+                builder.client.0.exporter_config.protocol = Some(protocol);
+                builder.build()
+            }
         }
     }
 
@@ -126,26 +135,32 @@ impl<C> MetricExporterBuilder<C> {
 /// 2. OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE environment variable
 /// 3. Default (Cumulative)
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
-fn resolve_temporality(provided: Option<Temporality>) -> Result<Temporality, ExporterBuildError> {
+fn resolve_temporality(provided: Option<Temporality>) -> Temporality {
     if let Some(temporality) = provided {
-        return Ok(temporality);
+        return temporality;
     }
-    if let Ok(val) = std::env::var(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE) {
-        return val
-            .parse::<Temporality>()
-            .map_err(|_| ExporterBuildError::InvalidConfig {
-                name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE.to_string(),
-                reason: format!("Invalid value '{val}'. Expected: cumulative, delta, or lowmemory"),
-            });
+
+    if let Some(value) =
+        crate::exporter::read_enum_env_var(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE)
+    {
+        return value.parse::<Temporality>().unwrap_or_else(|_| {
+            crate::exporter::warn_ignored_enum_env_var(
+                OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+                &value,
+                "expected 'cumulative', 'delta', or 'lowmemory'",
+            );
+            Temporality::default()
+        });
     }
-    Ok(Temporality::default())
+
+    Temporality::default()
 }
 
 #[cfg(feature = "grpc-tonic")]
 impl MetricExporterBuilder<TonicExporterBuilderSet> {
     /// Build the [MetricExporter] with the gRPC Tonic transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
-        let temporality = resolve_temporality(self.temporality)?;
+        let temporality = resolve_temporality(self.temporality);
         let exporter = self.client.0.build_metrics_exporter(temporality)?;
         opentelemetry::otel_debug!(name: "MetricExporterBuilt");
         Ok(exporter)
@@ -156,7 +171,7 @@ impl MetricExporterBuilder<TonicExporterBuilderSet> {
 impl MetricExporterBuilder<HttpExporterBuilderSet> {
     /// Build the [MetricExporter] with the HTTP transport.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
-        let temporality = resolve_temporality(self.temporality)?;
+        let temporality = resolve_temporality(self.temporality);
         let exporter = self.client.0.build_metrics_exporter(temporality)?;
         Ok(exporter)
     }
@@ -330,7 +345,7 @@ mod tests {
                 "cumulative",
             )],
             || {
-                let result = resolve_temporality(Some(Temporality::Delta)).unwrap();
+                let result = resolve_temporality(Some(Temporality::Delta));
                 assert_eq!(result, Temporality::Delta);
             },
         );
@@ -341,7 +356,7 @@ mod tests {
         run_env_test(
             vec![(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "delta")],
             || {
-                let result = resolve_temporality(None).unwrap();
+                let result = resolve_temporality(None);
                 assert_eq!(result, Temporality::Delta);
             },
         );
@@ -355,7 +370,7 @@ mod tests {
                 "lowmemory",
             )],
             || {
-                let result = resolve_temporality(None).unwrap();
+                let result = resolve_temporality(None);
                 assert_eq!(result, Temporality::LowMemory);
             },
         );
@@ -366,19 +381,30 @@ mod tests {
         run_env_test(
             vec![(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "Delta")],
             || {
-                let result = resolve_temporality(None).unwrap();
+                let result = resolve_temporality(None);
                 assert_eq!(result, Temporality::Delta);
             },
         );
     }
 
     #[test]
-    fn invalid_env_var_returns_error() {
+    fn invalid_env_var_uses_default() {
         run_env_test(
             vec![(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "invalid")],
             || {
                 let result = resolve_temporality(None);
-                assert!(result.is_err());
+                assert_eq!(result, Temporality::Cumulative);
+            },
+        );
+    }
+
+    #[test]
+    fn empty_env_var_uses_default() {
+        run_env_test(
+            vec![(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, "")],
+            || {
+                let result = resolve_temporality(None);
+                assert_eq!(result, Temporality::Cumulative);
             },
         );
     }
@@ -386,7 +412,7 @@ mod tests {
     #[test]
     fn test_use_default_when_nothing_set() {
         temp_env::with_var_unset(OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, || {
-            let result = resolve_temporality(None).unwrap();
+            let result = resolve_temporality(None);
             assert_eq!(result, Temporality::Cumulative);
         });
     }
