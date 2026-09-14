@@ -18,6 +18,7 @@ pub mod tonic {
     use crate::transform::common::{
         to_nanos,
         tonic::{Attributes, ResourceAttributesWithSchema},
+        w3c_trace_flags,
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
@@ -56,7 +57,7 @@ pub mod tonic {
                 dropped_attributes_count: link.dropped_attributes_count,
                 flags: super::build_span_flags(
                     link.span_context.is_remote(),
-                    link.span_context.trace_flags().to_u8() as u32,
+                    w3c_trace_flags(link.span_context.trace_flags()),
                 ),
             }
         }
@@ -77,7 +78,7 @@ pub mod tonic {
                 },
                 flags: super::build_span_flags(
                     source_span.parent_span_is_remote,
-                    source_span.span_context.trace_flags().to_u8() as u32,
+                    w3c_trace_flags(source_span.span_context.trace_flags()),
                 ),
                 name: source_span.name.into_owned(),
                 kind: span_kind as i32,
@@ -139,7 +140,7 @@ pub mod tonic {
                         },
                         flags: super::build_span_flags(
                             source_span.parent_span_is_remote,
-                            source_span.span_context.trace_flags().to_u8() as u32,
+                            w3c_trace_flags(source_span.span_context.trace_flags()),
                         ),
                         name: source_span.name.into_owned(),
                         kind: span_kind as i32,
@@ -253,30 +254,65 @@ mod span_flags_tests {
 
     #[test]
     fn test_span_transformation_with_flags() {
-        let span_data = SpanData {
-            span_context: SpanContext::new(
-                TraceId::from(789),
-                SpanId::from(101112),
-                TraceFlags::default(),
-                false,
-                TraceState::default(),
-            ),
-            parent_span_id: SpanId::from(456),
-            parent_span_is_remote: false,
-            span_kind: opentelemetry::trace::SpanKind::Internal,
-            name: Cow::Borrowed("test_span"),
-            start_time: std::time::SystemTime::now(),
-            end_time: std::time::SystemTime::now(),
-            attributes: vec![],
-            dropped_attributes_count: 0,
-            events: opentelemetry_sdk::trace::SpanEvents::default(),
-            links: opentelemetry_sdk::trace::SpanLinks::default(),
-            status: opentelemetry::trace::Status::Unset,
-            instrumentation_scope: InstrumentationScope::builder("test").build(),
-        };
+        use crate::proto::tonic::trace::v1::ResourceSpans;
 
-        let otlp_span: Span = span_data.into();
-        assert_eq!(otlp_span.flags, SpanFlags::ContextHasIsRemoteMask as u32); // 0x100
+        for (flags, expected) in [
+            (TraceFlags::default(), 0x100),
+            (TraceFlags::new(0x80) | TraceFlags::RANDOM, 0x102),
+        ] {
+            let span_data = SpanData {
+                span_context: SpanContext::new(
+                    TraceId::from(789),
+                    SpanId::from(101112),
+                    flags,
+                    false,
+                    TraceState::default(),
+                ),
+                parent_span_id: SpanId::from(456),
+                parent_span_is_remote: false,
+                span_kind: opentelemetry::trace::SpanKind::Internal,
+                name: Cow::Borrowed("test_span"),
+                start_time: std::time::SystemTime::now(),
+                end_time: std::time::SystemTime::now(),
+                attributes: vec![],
+                dropped_attributes_count: 0,
+                events: opentelemetry_sdk::trace::SpanEvents::default(),
+                links: opentelemetry_sdk::trace::SpanLinks::default(),
+                status: opentelemetry::trace::Status::Unset,
+                instrumentation_scope: InstrumentationScope::builder("test").build(),
+            };
+            let otlp_span: Span = span_data.clone().into();
+            assert_eq!(otlp_span.flags, expected);
+
+            let resource_spans = ResourceSpans::new(span_data, &Default::default());
+            assert_eq!(resource_spans.scope_spans[0].spans[0].flags, expected);
+        }
+    }
+
+    #[test]
+    fn test_link_flags_drop_propagator_private_bits() {
+        use crate::proto::tonic::trace::v1::span;
+        use opentelemetry::trace::Link;
+
+        for (flags, remote, expected) in [
+            (TraceFlags::new(0x80), false, 0x100),
+            (TraceFlags::new(0x80) | TraceFlags::SAMPLED, true, 0x301),
+            (TraceFlags::SAMPLED | TraceFlags::RANDOM, false, 0x103),
+        ] {
+            let link = Link::new(
+                SpanContext::new(
+                    TraceId::from(1),
+                    SpanId::from(2),
+                    flags,
+                    remote,
+                    TraceState::default(),
+                ),
+                vec![],
+                0,
+            );
+            let otlp_link: span::Link = link.into();
+            assert_eq!(otlp_link.flags, expected, "flags {:#04x}", flags.to_u8());
+        }
     }
 
     #[test]

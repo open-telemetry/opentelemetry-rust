@@ -9,7 +9,7 @@ pub mod tonic {
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
         },
-        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema},
+        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema, w3c_trace_flags},
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
     use opentelemetry_sdk::logs::LogBatch;
@@ -112,11 +112,8 @@ pub mod tonic {
                 body: log_record.body().cloned().map(Into::into),
                 dropped_attributes_count: 0,
                 flags: trace_context
-                    .map(|ctx| {
-                        ctx.trace_flags
-                            .map(|flags| flags.to_u8() as u32)
-                            .unwrap_or_default()
-                    })
+                    .and_then(|ctx| ctx.trace_flags)
+                    .map(w3c_trace_flags)
                     .unwrap_or_default(),
                 span_id: trace_context
                     .map(|ctx| ctx.span_id.to_bytes().to_vec())
@@ -317,6 +314,28 @@ mod tests {
 
         assert_eq!(scope_logs_1.log_records.len(), 1);
         assert_eq!(scope_logs_2.log_records.len(), 1);
+    }
+
+    #[test]
+    fn log_record_flags_only_carry_w3c_trace_flags() {
+        use crate::tonic::logs::v1::LogRecord;
+        use opentelemetry::trace::{SpanId, TraceFlags, TraceId};
+
+        // 0x80 is B3's private "deferred" marker; OTLP must only see W3C bits.
+        for (flags, expected) in [
+            (TraceFlags::new(0x80), 0x00),
+            (TraceFlags::new(0x80) | TraceFlags::RANDOM, 0x02),
+            (TraceFlags::new(0x80) | TraceFlags::SAMPLED, 0x01),
+            (TraceFlags::SAMPLED | TraceFlags::RANDOM, 0x03),
+        ] {
+            let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+            record.set_trace_context(TraceId::from(1), SpanId::from(2), Some(flags));
+
+            let otlp: LogRecord = (&record).into();
+            assert_eq!(otlp.flags, expected, "flags {:#04x}", flags.to_u8());
+            assert_eq!(otlp.trace_id, TraceId::from(1).to_bytes().to_vec());
+            assert_eq!(otlp.span_id, SpanId::from(2).to_bytes().to_vec());
+        }
     }
 
     #[test]

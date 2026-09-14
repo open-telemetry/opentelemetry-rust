@@ -44,6 +44,9 @@ fn trace_context_header_fields() -> &'static [String; 2] {
 ///
 /// `tracestate: vendorname1=opaqueValue1,vendorname2=opaqueValue2`
 ///
+/// The `trace-flags` field carries the `sampled` and `random-trace-id` flags;
+/// all other bits are zeroed on extract and inject as the specification requires.
+///
 /// See the [w3c trace-context docs] for more details.
 ///
 /// [w3c trace-context docs]: https://w3c.github.io/trace-context/
@@ -99,9 +102,10 @@ impl TraceContextPropagator {
         let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
 
         // Build trace flags clearing all flags other than the trace-context
-        // supported sampling bit. Unknown flags are accepted but zeroed out,
-        // as required by https://www.w3.org/TR/trace-context/#other-flags
-        let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
+        // defined sampled and random-trace-id bits. Unknown flags are accepted
+        // but zeroed out, as required by
+        // https://www.w3.org/TR/trace-context-2/#other-flags
+        let trace_flags = TraceFlags::new(opts) & (TraceFlags::SAMPLED | TraceFlags::RANDOM);
 
         let trace_state = match extractor.get(TRACESTATE_HEADER) {
             Some(trace_state_str) => {
@@ -134,7 +138,7 @@ impl TextMapPropagator for TraceContextPropagator {
                 SUPPORTED_VERSION,
                 span_context.trace_id(),
                 span_context.span_id(),
-                span_context.trace_flags() & TraceFlags::SAMPLED
+                span_context.trace_flags() & (TraceFlags::SAMPLED | TraceFlags::RANDOM)
             );
             injector.set(TRACEPARENT_HEADER, header_value);
             injector.set(TRACESTATE_HEADER, span_context.trace_state().header());
@@ -167,7 +171,10 @@ mod tests {
         vec![
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-02", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-07", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-fe", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
@@ -204,7 +211,11 @@ mod tests {
         vec![
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0xff), true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-02", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-03", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0xff), true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-02", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0x06), true, TraceState::from_str("foo=bar").unwrap())),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-02", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::new(0x82), true, TraceState::from_str("foo=bar").unwrap())),
             ("", "", SpanContext::empty_context()),
         ]
     }
@@ -296,5 +307,25 @@ mod tests {
         Context::map_current(|cx| propagator.inject_context(cx, &mut injector));
 
         assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
+    }
+
+    #[test]
+    fn round_trip_random_flag() {
+        let propagator = TraceContextPropagator::new();
+
+        for flags in ["00", "01", "02", "03"] {
+            let header = format!("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-{flags}");
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), header.clone());
+
+            let cx = propagator.extract(&extractor);
+
+            let mut injector = HashMap::new();
+            propagator.inject_context(&cx, &mut injector);
+            assert_eq!(
+                Extractor::get(&injector, TRACEPARENT_HEADER),
+                Some(header.as_str())
+            );
+        }
     }
 }

@@ -14,6 +14,47 @@ pub(crate) fn to_nanos(time: SystemTime) -> u64 {
         .as_nanos() as u64
 }
 
+/// Keeps W3C trace flags for OTLP, excluding propagator-private bits.
+#[cfg(all(
+    feature = "gen-tonic-messages",
+    any(feature = "trace", feature = "logs")
+))]
+pub(crate) fn w3c_trace_flags(flags: opentelemetry::TraceFlags) -> u32 {
+    use opentelemetry::TraceFlags;
+    (flags & (TraceFlags::SAMPLED | TraceFlags::RANDOM)).to_u8() as u32
+}
+
+#[cfg(all(
+    test,
+    feature = "gen-tonic-messages",
+    any(feature = "trace", feature = "logs")
+))]
+mod w3c_trace_flags_tests {
+    use super::w3c_trace_flags;
+    use opentelemetry::TraceFlags;
+
+    #[test]
+    fn keeps_only_w3c_trace_flags() {
+        // B3 uses 0x80 for deferred sampling and 0x04 for debug.
+        for (flags, expected) in [
+            (0x00, 0x00),
+            (0x01, 0x01),
+            (0x02, 0x02),
+            (0x03, 0x03),
+            (0x80, 0x00),
+            (0x84, 0x00),
+            (0x83, 0x03),
+            (0xff, 0x03),
+        ] {
+            assert_eq!(
+                w3c_trace_flags(TraceFlags::new(flags)),
+                expected,
+                "flags {flags:#04x}"
+            );
+        }
+    }
+}
+
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::common::v1::{
