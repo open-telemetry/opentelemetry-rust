@@ -149,27 +149,6 @@ fn criterion_benchmark(c: &mut Criterion) {
             }
         },
     );
-
-    let provider = sdktrace::SdkTracerProvider::builder()
-        .with_sampler(sdktrace::Sampler::AlwaysOn)
-        .with_simple_exporter(VoidExporter)
-        .with_simple_exporter(VoidExporter)
-        .build();
-    let tracer = provider.tracer("multiple-processors");
-
-    c.bench_function("span-creation-simple/two-processors", |b| {
-        b.iter(|| {
-            let mut span = tracer.start("span-name");
-            if span.is_recording() {
-                span.set_attribute(KeyValue::new("key1", false));
-                span.set_attribute(KeyValue::new("key2", "hello"));
-                span.set_attribute(KeyValue::new("key3", 123.456));
-                span.set_attribute(KeyValue::new("key4", "world"));
-                span.set_attribute(KeyValue::new("key5", 123));
-            }
-            span.end();
-        });
-    });
 }
 
 #[derive(Debug)]

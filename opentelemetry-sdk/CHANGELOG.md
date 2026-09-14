@@ -2,12 +2,11 @@
 
 ## vNext
 
-- **Breaking** `SpanProcessor::on_end` now accepts `&SpanData`, and
-  `SpanExporter::export` now accepts a borrowed `SpanBatch<'_>`. Processors and
-  exporters that retain spans after these calls return must clone them. This
-  avoids cloning completed spans when multiple processors are registered,
-  allows `BatchSpanProcessor` to reuse its export buffer, and avoids allocating
-  a one-element vector in `SimpleSpanProcessor`.
+- **Breaking** `SpanExporter::export` now accepts a borrowed `SpanBatch<'_>`
+  instead of `Vec<SpanData>`. Exporters that retain spans after the export
+  future completes must clone them. This allows `BatchSpanProcessor` to reuse
+  its export buffer and avoids allocating a one-element vector in
+  `SimpleSpanProcessor`.
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
