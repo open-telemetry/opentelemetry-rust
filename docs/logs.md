@@ -22,6 +22,109 @@ change, not a code rewrite. For span guidance, see [traces.md](traces.md).
 [`opentelemetry-appender-tracing`]: ../opentelemetry-appender-tracing/README.md
 [`opentelemetry-appender-log`]: ../opentelemetry-appender-log/README.md
 
+## Avoiding OTLP transport feedback
+
+OTLP exporters use libraries such as `reqwest`, `hyper`, `h2`, and `tonic`.
+When dependency logs at `DEBUG` or `TRACE` are sent through
+`OpenTelemetryTracingBridge`, an export can generate more logs and repeatedly
+trigger another export.
+
+Filter these transport targets only on the OpenTelemetry layer:
+
+```rust
+let otel_filter =
+    EnvFilter::new("info,reqwest=off,hyper=off,h2=off,tonic=off");
+let otel_layer =
+    OpenTelemetryTracingBridge::new(&logger_provider).with_filter(otel_filter);
+
+tracing_subscriber::registry()
+    .with(otel_layer)
+    .with(tracing_subscriber::fmt::layer())
+    .init();
+```
+
+This is not a global filter. It only prevents matching events from being
+exported through the OpenTelemetry layer. The same events remain available to
+`fmt` and every other subscriber layer according to each layer's own filter.
+This is sufficient for almost all applications, including troubleshooting
+transport problems through local output.
+
+A target filter is insufficient only when transport logs from normal
+application traffic must be exported to the OpenTelemetry backend while
+exporter-generated transport logs are excluded. That advanced case needs more
+selective isolation, such as running async exporter work on a dedicated
+suppressed runtime; see [issue #2877]. Applications using
+`OpenTelemetryLogBridge` directly must instead apply equivalent filtering before
+records reach that bridge.
+
+[issue #2877]: https://github.com/open-telemetry/opentelemetry-rust/issues/2877
+
+## Filtering log records
+
+Filter at the earliest layer that has the information and policy control needed
+for the decision:
+
+- **Logging library:** Use this layer when the condition is available at the
+  callsite, such as severity, target or module, event name, or other logging
+  metadata. Filtering here also avoids SDK record creation and bridge
+  conversion. If you use `tracing` as the logging library,
+  `tracing-subscriber` provides level and target filters, `EnvFilter`, custom
+  predicates, and per-layer [filtering capabilities].
+- **SDK processor:** Use a custom [`LogProcessor`] when the condition requires
+  `SdkLogRecord`, instrumentation scope, or application-local state; when one
+  policy must cover multiple logging libraries or instrumentation sources; or
+  when export destinations require different rules. Record creation and bridge
+  conversion have already occurred, but the processor can reject records before
+  batching and export.
+- **Collector or telemetry pipeline:** Use this layer when policy must be
+  managed centrally across services, changed without redeploying applications,
+  or evaluated using information added by pipeline processors, such as
+  Kubernetes metadata. Application-side processing and transport to the
+  pipeline have already occurred.
+
+Both logging-library and SDK-processor filtering can keep rejected events out
+of batching, serialization, and transport.
+
+Filter sensitive data before the process, host, or other trust boundary that it
+must not cross. Filtering downstream cannot undo exposure across that boundary.
+
+`SdkLoggerProvider` delivers records independently to every processor registered
+with it. To filter an export branch, wrap its exporting or batching processor:
+
+```text
+SdkLoggerProvider
+└── FilteringLogProcessor
+    └── BatchLogProcessor
+        └── Exporter
+```
+
+Registering the processors as siblings does not form a pipeline, regardless of
+registration order:
+
+```text
+SdkLoggerProvider
+├── FilteringLogProcessor
+└── BatchLogProcessor
+    └── Exporter
+```
+
+Both siblings receive every record. In the wrapped configuration, the filter's
+`emit` calls the wrapped processor only for records it keeps. The filter controls
+only that branch; wrap every export branch that requires filtering.
+
+The runnable [logs-advanced example] filters on an attribute, but a processor
+can use severity, event name, scope, body, external configuration, or other
+available information. It also forwards processor lifecycle methods and wraps
+`SimpleLogProcessor`; `BatchLogProcessor` can be wrapped in the same way.
+
+`LogProcessor::event_enabled` can reject records earlier, but it receives only
+severity, target, and event name. Conditions that require any other record data
+must be evaluated in `emit`.
+
+[`LogProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/logs/trait.LogProcessor.html
+[filtering capabilities]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/index.html
+[logs-advanced example]: ../examples/logs-advanced/
+
 ## OpenTelemetry Log Bridge API
 
 Do **not** use the OpenTelemetry Log Bridge API (part of the `opentelemetry`

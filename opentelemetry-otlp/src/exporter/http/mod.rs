@@ -25,8 +25,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::retry::{RetryErrorType, RetryPolicy};
+use crate::retry::RetryErrorType;
 use crate::retry_classification::http::classify_http_error;
+use crate::RetryPolicy;
 
 // Recommended by the OTLP/HTTP specification:
 // https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
@@ -158,7 +159,7 @@ pub(crate) struct HttpConfig {
 /// ```
 ///
 #[derive(Debug)]
-pub struct HttpExporterBuilder {
+pub(crate) struct HttpExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) http_config: HttpConfig,
 }
@@ -242,12 +243,15 @@ impl HttpExporterBuilder {
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .map_err(|error| {
+                        ExporterBuildError::InternalFailure(format!(
+                            "Failed to build reqwest HTTP client: {error}"
+                        ))
+                    })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
@@ -262,16 +266,25 @@ impl HttpExporterBuilder {
             ))]
             {
                 let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
+                let client = std::thread::Builder::new()
+                    .spawn(move || {
                         reqwest::blocking::Client::builder()
                             .timeout(timeout_clone)
                             .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
                     })
+                    .map_err(|_| ExporterBuildError::ThreadSpawnFailed)?
                     .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+                    .map_err(|_| {
+                        ExporterBuildError::InternalFailure(
+                            "HTTP client construction thread panicked".to_string(),
+                        )
+                    })?;
+                let client = client.map_err(|error| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to build blocking reqwest HTTP client: {error}"
+                    ))
+                })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
         }
 
@@ -323,7 +336,7 @@ impl HttpExporterBuilder {
 
     /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
-    pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
+    pub(crate) fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
@@ -344,7 +357,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
+    pub(crate) fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
@@ -365,7 +378,7 @@ impl HttpExporterBuilder {
 
     /// Create a metrics exporter with the current configuration
     #[cfg(feature = "metrics")]
-    pub fn build_metrics_exporter(
+    pub(crate) fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
@@ -828,7 +841,9 @@ impl HasHttpConfig for HttpExporterBuilder {
 ///     .with_headers(std::collections::HashMap::new());
 /// # }
 /// ```
-pub trait WithHttpConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
     fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
 
@@ -849,6 +864,8 @@ pub trait WithHttpConfig {
     /// The default is 64 MiB.
     fn with_max_request_body_size(self, max_size: usize) -> Self;
 }
+
+impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
     fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
@@ -889,11 +906,11 @@ mod tests {
     use crate::exporter::http::HttpConfig;
     use crate::exporter::tests::run_env_test;
     use crate::{
-        HttpExporterBuilder, WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+        WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     };
 
-    use super::{build_endpoint_uri, resolve_http_endpoint};
+    use super::{build_endpoint_uri, resolve_http_endpoint, HttpExporterBuilder};
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
@@ -1428,6 +1445,7 @@ mod tests {
         use super::super::OtlpHttpClient;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
+        use std::time::Duration;
 
         #[derive(Debug)]
         struct MockHttpClient;
@@ -1743,24 +1761,23 @@ mod tests {
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
             use crate::WithHttpConfig;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 5,
-                initial_delay_ms: 200,
-                max_delay_ms: 3200,
-                jitter_ms: 50,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(5)
+                .with_initial_delay(Duration::from_millis(200))
+                .with_max_delay(Duration::from_millis(3200))
+                .with_max_jitter(Duration::from_millis(50));
 
             let builder = HttpExporterBuilder::default().with_retry_policy(custom_policy);
 
             // Verify the retry policy was set
             let retry_policy = builder.http_config.retry_policy.as_ref().unwrap();
             assert_eq!(retry_policy.max_retries, 5);
-            assert_eq!(retry_policy.initial_delay_ms, 200);
-            assert_eq!(retry_policy.max_delay_ms, 3200);
-            assert_eq!(retry_policy.jitter_ms, 50);
+            assert_eq!(retry_policy.initial_delay, Duration::from_millis(200));
+            assert_eq!(retry_policy.max_delay, Duration::from_millis(3200));
+            assert_eq!(retry_policy.max_jitter, Duration::from_millis(50));
         }
 
         #[cfg(feature = "http-proto")]
@@ -1768,24 +1785,26 @@ mod tests {
         fn test_default_retry_policy_when_none_configured() {
             let client = create_test_client(crate::Protocol::HttpBinary, None);
 
-            // Verify default values are used (default = no retry)
-            assert_eq!(client.retry_policy.max_retries, 0);
-            assert_eq!(client.retry_policy.initial_delay_ms, 100);
-            assert_eq!(client.retry_policy.max_delay_ms, 1600);
-            assert_eq!(client.retry_policy.jitter_ms, 100);
+            // Verify the recommended default values are used.
+            assert_eq!(client.retry_policy.max_retries, 3);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(100)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(1600));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(100));
         }
 
         #[cfg(feature = "http-proto")]
         #[test]
         fn test_custom_retry_policy_used() {
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 7,
-                initial_delay_ms: 500,
-                max_delay_ms: 5000,
-                jitter_ms: 200,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(7)
+                .with_initial_delay(Duration::from_millis(500))
+                .with_max_delay(Duration::from_millis(5000))
+                .with_max_jitter(Duration::from_millis(200));
 
             let client = OtlpHttpClient::new(
                 std::sync::Arc::new(MockHttpClient),
@@ -1799,9 +1818,12 @@ mod tests {
 
             // Verify custom values are used
             assert_eq!(client.retry_policy.max_retries, 7);
-            assert_eq!(client.retry_policy.initial_delay_ms, 500);
-            assert_eq!(client.retry_policy.max_delay_ms, 5000);
-            assert_eq!(client.retry_policy.jitter_ms, 200);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(500)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(5000));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(200));
         }
     }
 
@@ -1810,11 +1832,12 @@ mod tests {
     #[cfg(feature = "http-proto")]
     mod retry_integration_tests {
         use super::super::OtlpHttpClient;
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::time::Duration;
 
         /// Mock HTTP client that returns a sequence of responses controlled by an attempt counter.
         #[derive(Debug)]
@@ -1947,12 +1970,11 @@ mod tests {
         }
 
         fn retry_policy() -> RetryPolicy {
-            RetryPolicy {
-                max_retries: 3,
-                initial_delay_ms: 1,
-                max_delay_ms: 10,
-                jitter_ms: 0,
-            }
+            RetryPolicy::default()
+                .with_max_retries(3)
+                .with_initial_delay(Duration::from_millis(1))
+                .with_max_delay(Duration::from_millis(10))
+                .with_max_jitter(Duration::ZERO)
         }
 
         #[test]

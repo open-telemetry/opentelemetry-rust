@@ -40,7 +40,6 @@ tokio = { workspace = true, features = ["sync", "rt", "time"], optional = true }
 reqwest = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 httpdate = { version = "1.0.3", optional = true }
-serde = { workspace = true, features = ["derive"], optional = true }
 thiserror = { workspace = true }
 serde_json = { workspace = true, optional = true }
 
@@ -65,9 +64,6 @@ metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-
 logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
 internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
 
-# add ons
-serialize = ["serde", "serde_json"]
-
 default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
 # grpc using tonic
@@ -78,7 +74,6 @@ zstd-tonic = ["tonic/zstd"]
 # http compression
 gzip-http = ["flate2"]
 zstd-http = ["zstd"]
-tls = ["tls-ring"] # Deprecated: use tls-ring or tls-aws-lc or tls-provider-agnostic
 tls-ring = ["tonic/tls-ring"]
 tls-aws-lc = ["tonic/tls-aws-lc"]
 # Provider-agnostic TLS: enables TLS code paths without bundling a specific 

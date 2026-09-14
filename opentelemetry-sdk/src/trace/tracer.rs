@@ -213,7 +213,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             builder.links.as_deref().unwrap_or(&[]),
         );
 
-        let trace_flags = parent_cx.span().span_context().trace_flags();
+        let trace_flags = psc.trace_flags();
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
         // Build optional inner context, `None` if not recording.

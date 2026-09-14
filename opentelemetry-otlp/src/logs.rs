@@ -11,10 +11,16 @@ use std::time;
 use crate::{exporter::HasExportConfig, ExporterBuildError, NoExporterBuilderSet};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet};
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::{exporter::http::HasHttpConfig, HttpExporterBuilder, HttpExporterBuilderSet};
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -40,7 +46,6 @@ pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSE
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,
-    endpoint: Option<String>,
 }
 
 impl LogExporterBuilder<NoExporterBuilderSet> {
@@ -54,7 +59,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_tonic(self) -> LogExporterBuilder<TonicExporterBuilderSet> {
         LogExporterBuilder {
             client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 
@@ -63,7 +67,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_http(self) -> LogExporterBuilder<HttpExporterBuilderSet> {
         LogExporterBuilder {
             client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 

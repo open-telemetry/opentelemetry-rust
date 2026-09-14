@@ -9,7 +9,6 @@ use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
 #[cfg(any(
-    feature = "tls",
     feature = "tls-ring",
     feature = "tls-aws-lc",
     feature = "tls-provider-agnostic"
@@ -26,7 +25,7 @@ use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_O
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -52,7 +51,6 @@ pub(crate) struct TonicConfig {
     pub(crate) metadata: Option<MetadataMap>,
     /// TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -124,7 +122,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct TonicExporterBuilder {
+pub(crate) struct TonicExporterBuilder {
     pub(crate) tonic_config: TonicConfig,
     pub(crate) exporter_config: ExportConfig,
 }
@@ -152,7 +150,6 @@ impl Default for TonicExporterBuilder {
                         .expect("Invalid tonic headers"),
                 )),
                 #[cfg(any(
-                    feature = "tls",
                     feature = "tls-ring",
                     feature = "tls-aws-lc",
                     feature = "tls-provider-agnostic"
@@ -268,7 +265,7 @@ impl TonicExporterBuilder {
         let config = self.exporter_config;
 
         let endpoint_str = apply_insecure_scheme(
-            Self::resolve_endpoint(signal_endpoint_var, config.endpoint),
+            Self::resolve_endpoint(signal_endpoint_var, config.endpoint)?,
             super::resolve_insecure(signal_insecure_var),
         );
 
@@ -284,7 +281,6 @@ impl TonicExporterBuilder {
             .is_some_and(|s| *s == http::uri::Scheme::HTTPS);
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -300,7 +296,6 @@ impl TonicExporterBuilder {
             });
         }
         #[cfg(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -318,7 +313,6 @@ impl TonicExporterBuilder {
         .connect_lazy();
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -329,7 +323,10 @@ impl TonicExporterBuilder {
         Ok((channel, interceptor, compression, retry_policy, timeout))
     }
 
-    fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
+    fn resolve_endpoint(
+        signal_endpoint_var: &str,
+        provided_endpoint: Option<String>,
+    ) -> Result<String, ExporterBuildError> {
         // resolving endpoint string
         // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
         // the path of grpc calls are based on the protobuf service definition
@@ -338,13 +335,13 @@ impl TonicExporterBuilder {
         //
         // programmatic configuration overrides any value set via environment variables
         if let Some(endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(default_endpoint_var) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
-            endpoint
+            Ok(endpoint)
+        } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+            Ok(endpoint)
+        } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+            Ok(endpoint)
         } else {
-            OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
+            Ok(OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string())
         }
     }
 
@@ -539,6 +536,18 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
     out
 }
 
+fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
+    match env::var(variable) {
+        Ok(value) if value.is_empty() => Ok(None),
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
+            name: variable.to_string(),
+            reason: "environment variable value is not valid Unicode".to_string(),
+        }),
+    }
+}
+
 /// Apply the OTLP `INSECURE` rule to a (possibly schemeless) gRPC endpoint.
 ///
 /// Per the [OTLP exporter spec], `INSECURE` only governs endpoints that have no
@@ -628,10 +637,11 @@ impl HasTonicConfig for TonicExporterBuilder {
 ///     .with_compression(opentelemetry_otlp::Compression::Gzip);
 /// # }
 /// ```
-pub trait WithTonicConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     /// Set the TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -746,9 +756,10 @@ pub trait WithTonicConfig {
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
 
+impl<B: HasTonicConfig> super::sealed::WithTonicConfig for B {}
+
 impl<B: HasTonicConfig> WithTonicConfig for B {
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -803,7 +814,9 @@ mod tests {
     use crate::exporter::tonic::WithTonicConfig;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::{TonicExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+
+    use super::TonicExporterBuilder;
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
@@ -1041,7 +1054,8 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     None,
-                );
+                )
+                .unwrap();
                 assert_eq!(url, "http://localhost:1234");
             },
         );
@@ -1058,7 +1072,8 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     Some("http://localhost:3456".to_string()),
-                );
+                )
+                .unwrap();
                 assert_eq!(url, "http://localhost:3456");
             },
         );
@@ -1068,7 +1083,8 @@ mod tests {
     fn test_use_default_when_others_missing_for_endpoint() {
         run_env_test(vec![], || {
             let url =
-                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None);
+                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None)
+                    .unwrap();
             assert_eq!(url, "http://localhost:4317");
         });
     }
@@ -1079,31 +1095,100 @@ mod tests {
             let url = TonicExporterBuilder::resolve_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 Some(String::new()),
-            );
+            )
+            .unwrap();
             assert_eq!(url, "http://localhost:4317");
         });
     }
 
     #[test]
+    fn test_empty_endpoint_envs_are_treated_as_unset() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, ""),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(url, "http://localhost:4317");
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_signal_env_falls_through_to_generic_env() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317"),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(url, "http://collector:4317");
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_endpoint_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            Some(OsStr::from_bytes(b"http://example.com/\x80")),
+            || {
+                let result = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                );
+                assert!(matches!(
+                    result,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
+                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                            && reason.contains("not valid Unicode")
+                ));
+            },
+        );
+    }
+
+    #[test]
     fn test_with_retry_policy() {
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use crate::WithTonicConfig;
 
-        let custom_policy = RetryPolicy {
-            max_retries: 5,
-            initial_delay_ms: 200,
-            max_delay_ms: 3200,
-            jitter_ms: 50,
-        };
+        let custom_policy = RetryPolicy::default()
+            .with_max_retries(5)
+            .with_initial_delay(std::time::Duration::from_millis(200))
+            .with_max_delay(std::time::Duration::from_millis(3200))
+            .with_max_jitter(std::time::Duration::from_millis(50));
 
         let builder = TonicExporterBuilder::default().with_retry_policy(custom_policy);
 
         // Verify the retry policy was set
         let retry_policy = builder.tonic_config.retry_policy.as_ref().unwrap();
         assert_eq!(retry_policy.max_retries, 5);
-        assert_eq!(retry_policy.initial_delay_ms, 200);
-        assert_eq!(retry_policy.max_delay_ms, 3200);
-        assert_eq!(retry_policy.jitter_ms, 50);
+        assert_eq!(
+            retry_policy.initial_delay,
+            std::time::Duration::from_millis(200)
+        );
+        assert_eq!(
+            retry_policy.max_delay,
+            std::time::Duration::from_millis(3200)
+        );
+        assert_eq!(
+            retry_policy.max_jitter,
+            std::time::Duration::from_millis(50)
+        );
     }
 
     #[test]
@@ -1118,7 +1203,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1153,7 +1237,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1186,7 +1269,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1247,7 +1329,6 @@ mod tests {
 
     #[test]
     #[cfg(not(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -1277,7 +1358,6 @@ mod tests {
 
     #[tokio::test]
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"

@@ -7,19 +7,17 @@ use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
 use crate::Protocol;
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
 use thiserror::Error;
 
-/// Target to which the exporter is going to send signals, defaults to https://localhost:4317.
-/// Learn about the relationship between this constant and metrics/spans/logs at
-/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp>
+/// Target to which the exporter sends signals.
+///
+/// When unset, the exporter uses the transport-specific default: `http://localhost:4317`
+/// for gRPC or `http://localhost:4318` for HTTP. Learn more about endpoint handling at
+/// <https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#configuration-options>.
 pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = "OTEL_EXPORTER_OTLP_ENDPOINT";
-/// Default target to which the exporter is going to send signals.
-pub const OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT: &str = OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT;
 /// Key-value pairs to be used as headers associated with gRPC or HTTP requests
 /// Example: `k1=v1,k2=v2`
 /// Note: as of now, this is only supported for HTTP requests.
@@ -53,12 +51,23 @@ pub const OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT: Duration = Duration::from_millis(1
 // Endpoints per protocol https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 #[cfg(feature = "grpc-tonic")]
 const OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT: &str = "http://localhost:4317";
+#[cfg(any(feature = "http-proto", feature = "http-json"))]
 const OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT: &str = "http://localhost:4318";
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 pub(crate) mod http;
 #[cfg(feature = "grpc-tonic")]
 pub(crate) mod tonic;
+
+mod sealed {
+    pub trait WithExportConfig {}
+
+    #[cfg(any(feature = "http-proto", feature = "http-json"))]
+    pub trait WithHttpConfig {}
+
+    #[cfg(feature = "grpc-tonic")]
+    pub trait WithTonicConfig {}
+}
 
 /// Configuration for the OTLP exporter.
 #[derive(Debug, Default)]
@@ -151,7 +160,7 @@ pub enum ExporterBuildError {
 }
 
 /// The compression algorithm to use when sending data.
-#[cfg_attr(feature = "serialize", derive(Deserialize, Serialize))]
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Compression {
     /// Compresses data using gzip.
@@ -285,24 +294,38 @@ impl HasExportConfig for HttpExporterBuilder {
 ///     .with_endpoint("http://localhost:7201");
 /// # }
 /// ```
-pub trait WithExportConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithExportConfig: sealed::WithExportConfig {
     /// Set the address of the OTLP collector. If not set or set to empty string, the default address is used.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_endpoint<T: Into<String>>(self, endpoint: T) -> Self;
-    /// Set the protocol to use when communicating with the collector.
+    /// Set the transport protocol to use when communicating with the collector.
     ///
-    /// Note that protocols that are not supported by exporters will be ignored. The exporter
-    /// will use default protocol in this case.
+    /// This is mainly useful on the HTTP transport to choose between
+    /// [`Protocol::HttpBinary`] (protobuf) and [`Protocol::HttpJson`].
+    /// Setting a protocol that conflicts with the chosen transport
+    /// (e.g. [`Protocol::Grpc`] on an HTTP builder) will cause `build()`
+    /// to return an error.
     ///
-    /// ## Note
-    /// All exporters in this crate only support one protocol, thus choosing the protocol is a no-op at the moment.
+    /// Note that `with_protocol()` is only available after a transport has
+    /// been selected via `.with_http()` or `.with_tonic()`. If you call
+    /// `.builder().build()` directly without selecting a transport, the
+    /// transport is chosen automatically from the
+    /// `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable and enabled
+    /// cargo features - `with_protocol()` is not involved in that path.
+    ///
+    /// Note: Programmatically setting this will override any value set via the
+    /// `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable.
     fn with_protocol(self, protocol: Protocol) -> Self;
     /// Set the timeout to the collector.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
     fn with_timeout(self, timeout: Duration) -> Self;
 }
+
+impl<B: HasExportConfig> sealed::WithExportConfig for B {}
 
 impl<B: HasExportConfig> WithExportConfig for B {
     fn with_endpoint<T: Into<String>>(mut self, endpoint: T) -> Self {
@@ -415,7 +438,7 @@ mod tests {
     #[cfg(any(feature = "http-proto", feature = "http-json"))]
     #[test]
     fn test_default_http_endpoint() {
-        let exporter_builder = crate::HttpExporterBuilder::default();
+        let exporter_builder = crate::exporter::http::HttpExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
@@ -463,7 +486,7 @@ mod tests {
     #[cfg(feature = "grpc-tonic")]
     #[test]
     fn test_default_tonic_endpoint() {
-        let exporter_builder = crate::TonicExporterBuilder::default();
+        let exporter_builder = crate::exporter::tonic::TonicExporterBuilder::default();
 
         assert_eq!(exporter_builder.exporter_config.endpoint, None);
     }
