@@ -134,6 +134,9 @@ pub type HttpError = Box<dyn std::error::Error + Send + Sync + 'static>;
 ///
 /// HTTP clients may depend on a particular async runtime. This trait allows
 /// users to supply an implementation suitable for their runtime.
+///
+/// Implementations must ensure their [`Debug`] output does not expose
+/// credentials or other sensitive configuration.
 #[async_trait]
 pub trait HttpClient: Debug + Send + Sync {
     /// Send the specified HTTP request with `Bytes` payload.
@@ -255,7 +258,7 @@ pub mod hyper {
     /// This client requires a Tokio runtime and uses
     /// [`hyper_util::rt::TokioExecutor`] to drive connections. Responses larger
     /// than 4 MiB are rejected with [`ResponseBodyTooLarge`].
-    #[derive(Debug, Clone)]
+    #[derive(Clone)]
     pub struct HyperClient<C = HttpConnector>
     where
         C: Connect + Clone + Send + Sync + 'static,
@@ -278,6 +281,10 @@ pub mod hyper {
         pub fn new(connector: C, timeout: Duration, authorization: Option<HeaderValue>) -> Self {
             // TODO - support custom executor
             let inner = Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
+            let authorization = authorization.map(|mut value| {
+                value.set_sensitive(true);
+                value
+            });
             Self {
                 inner,
                 timeout,
@@ -343,6 +350,44 @@ pub mod hyper {
                 Ok(http_response)
             })
             .await?
+        }
+    }
+
+    impl<C> Debug for HyperClient<C>
+    where
+        C: Connect + Clone + Send + Sync + 'static,
+    {
+        fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter
+                .debug_struct("HyperClient")
+                .field("inner", &self.inner)
+                .field("timeout", &self.timeout)
+                .field(
+                    "authorization",
+                    &self.authorization.as_ref().map(|_| "[REDACTED]"),
+                )
+                .finish()
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn debug_redacts_authorization() {
+            const SECRET: &str = "sentinel-hyper-secret";
+            let client = HyperClient::with_default_connector(
+                Duration::from_secs(1),
+                Some(HeaderValue::from_static(SECRET)),
+            );
+
+            let authorization = client.authorization.as_ref().unwrap();
+            assert_eq!(authorization.to_str().unwrap(), SECRET);
+            assert!(authorization.is_sensitive());
+            let debug = format!("{client:?}");
+            assert!(!debug.contains(SECRET));
+            assert!(debug.contains("[REDACTED]"));
         }
     }
 }

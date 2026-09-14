@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Redact `HyperClient` authorization values from `Debug` output and mark them
+  sensitive in HTTP headers.
 - Apply `HyperClient`'s configured timeout to the complete response body, not
   only request dispatch and response headers.
 
