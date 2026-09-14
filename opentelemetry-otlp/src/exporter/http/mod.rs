@@ -205,30 +205,6 @@ impl HttpExporterBuilder {
 
         let compression = self.resolve_compression(signal_compression_var)?;
 
-        // Validate compression is supported at build time
-        if let Some(compression_alg) = &compression {
-            match compression_alg {
-                crate::Compression::Gzip => {
-                    #[cfg(not(feature = "gzip-http"))]
-                    {
-                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                            "gzip compression requested but gzip-http feature not enabled"
-                                .to_string(),
-                        ));
-                    }
-                }
-                crate::Compression::Zstd => {
-                    #[cfg(not(feature = "zstd-http"))]
-                    {
-                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                            "zstd compression requested but zstd-http feature not enabled"
-                                .to_string(),
-                        ));
-                    }
-                }
-            }
-        }
-
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
         #[allow(unused_mut)] // TODO - clippy thinks mut is not needed, but it is
@@ -319,7 +295,23 @@ impl HttpExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
-        super::resolve_compression_from_env(self.http_config.compression, env_override)
+        super::resolve_compression_from_env(
+            self.http_config.compression,
+            env_override,
+            |compression| match compression {
+                crate::Compression::Gzip if !cfg!(feature = "gzip-http") => {
+                    Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                        "gzip compression requested but gzip-http feature not enabled".into(),
+                    ))
+                }
+                crate::Compression::Zstd if !cfg!(feature = "zstd-http") => {
+                    Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
+                        "zstd compression requested but zstd-http feature not enabled".into(),
+                    ))
+                }
+                _ => Ok(compression),
+            },
+        )
     }
 
     /// Create a span exporter with the current configuration
@@ -1699,7 +1691,10 @@ mod tests {
                     let result = builder
                         .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
                         .unwrap();
+                    #[cfg(feature = "gzip-http")]
                     assert_eq!(result, Some(crate::Compression::Gzip));
+                    #[cfg(not(feature = "gzip-http"))]
+                    assert_eq!(result, None);
                 },
             );
         }
