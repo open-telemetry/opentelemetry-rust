@@ -84,6 +84,20 @@ GitHub pull requests (PRs).
 git clone --recurse-submodule https://github.com/open-telemetry/opentelemetry-rust
 ```
 
+### Rust toolchain
+
+The repository pins the Rust version used for local development and required CI
+in [`rust-toolchain.toml`](rust-toolchain.toml). This keeps local checks and CI
+on the same compiler and prevents a new Rust release from breaking unrelated
+pull requests.
+
+Run `cargo` from within the repository so `rustup` applies the pinned toolchain.
+The non-blocking beta CI lane explicitly overrides the pin to provide early
+warning of upcoming compiler changes.
+
+Dependabot checks monthly for a new Rust release. Update pull requests should
+include any lint or compile fixes required by the new compiler.
+
 Enter the newly created directory and add your fork as a new remote:
 
 ```sh

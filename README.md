@@ -183,7 +183,6 @@ you're more than welcome to participate!
 ### Maintainers
 
 * [Cijo Thomas](https://github.com/cijothomas), Microsoft
-* [Harold Dost](https://github.com/hdost)
 * [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
 * [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
@@ -201,6 +200,7 @@ For more information about the approver role, see the [community repository](htt
 
 * [Anton Grübel](https://github.com/gruebel), Approver
 * [Dirkjan Ochtman](https://github.com/djc), Maintainer
+* [Harold Dost](https://github.com/hdost), Maintainer
 * [Isobel Redelmeier](https://github.com/iredelmeier), Maintainer
 * [Jan Kühle](https://github.com/frigus02), Approver
 * [Julian Tescher](https://github.com/jtescher), Maintainer

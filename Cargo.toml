@@ -65,7 +65,6 @@ opentelemetry_sdk = { path = "opentelemetry-sdk", version = "0.32", default-feat
 opentelemetry-appender-log = { path = "opentelemetry-appender-log", version = "0.32", default-features = false }
 opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", version = "0.32", default-features = false }
 opentelemetry-http = { path = "opentelemetry-http", version = "0.32", default-features = false }
-opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", version = "0.32", default-features = false }
 opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.32", default-features = false }
 opentelemetry-proto = { path = "opentelemetry-proto", version = "0.32", default-features = false }
 opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.32", default-features = false }
@@ -100,5 +99,4 @@ all = { level = "warn", priority = 1 }
 ignored = [
     # workspace crates
     "opentelemetry-appender-log",
-    "opentelemetry-jaeger-propagator",
 ]

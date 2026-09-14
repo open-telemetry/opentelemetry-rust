@@ -95,9 +95,7 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
             crate::Protocol::HttpJson => self.with_http().build(),
         }
     }
-}
 
-impl<C> MetricExporterBuilder<C> {
     /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> MetricExporterBuilder<TonicExporterBuilderSet> {
@@ -117,7 +115,9 @@ impl<C> MetricExporterBuilder<C> {
             histogram_aggregation: self.histogram_aggregation,
         }
     }
+}
 
+impl<C> MetricExporterBuilder<C> {
     /// Set the temporality for the metrics.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
@@ -358,10 +358,16 @@ mod build_tests {
     // tonic transport needs an active reactor to construct its channel.
     #[tokio::test]
     async fn build_with_default_transport() {
-        // Verify that `MetricExporter::builder().build()` succeeds
-        // when at least one transport feature is enabled.
-        let result = MetricExporter::builder().build();
-        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+        // Unset the temporality env var so parallel tests (e.g.
+        // invalid_env_var_returns_error) that set it to invalid values
+        // don't cause this build to fail.
+        temp_env::with_var_unset(
+            super::OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+            || {
+                let result = MetricExporter::builder().build();
+                assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+            },
+        );
     }
 }
 
