@@ -193,7 +193,6 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         // Invalid parents must start a new trace.
         let parent_span = Some(parent_cx.span()).filter(|span| span.span_context().is_valid());
 
-        // Inherit flags with the trace ID, or derive them from its generator.
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
             trace_id = sc.trace_id();
             trace_flags = sc.trace_flags();
@@ -781,7 +780,6 @@ mod tests {
 
     #[test]
     fn invalid_parent_starts_new_trace_with_generator_random_flag() {
-        // Neither the invalid trace ID nor the parent's flags should be inherited.
         let invalid_parent = Context::current_with_span(TestSpan(SpanContext::new(
             TraceId::INVALID,
             SpanId::from(7),

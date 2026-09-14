@@ -104,7 +104,7 @@ jobs:
   external-types:
     strategy:
       matrix:
-        member: [opentelemetry, opentelemetry-sdk, opentelemetry-otlp, opentelemetry-zipkin]
+        member: [opentelemetry, opentelemetry-sdk, opentelemetry-http, opentelemetry-otlp, opentelemetry-zipkin]
     runs-on: ubuntu-latest # TODO: Check if this could be covered for Windows. The step used currently fails on Windows.
     steps:
       - name: Harden the runner (Audit all outbound calls)
