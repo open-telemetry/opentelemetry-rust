@@ -243,12 +243,15 @@ impl HttpExporterBuilder {
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .map_err(|error| {
+                        ExporterBuildError::InternalFailure(format!(
+                            "Failed to build reqwest HTTP client: {error}"
+                        ))
+                    })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
@@ -263,16 +266,25 @@ impl HttpExporterBuilder {
             ))]
             {
                 let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
+                let client = std::thread::Builder::new()
+                    .spawn(move || {
                         reqwest::blocking::Client::builder()
                             .timeout(timeout_clone)
                             .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
                     })
+                    .map_err(|_| ExporterBuildError::ThreadSpawnFailed)?
                     .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+                    .map_err(|_| {
+                        ExporterBuildError::InternalFailure(
+                            "HTTP client construction thread panicked".to_string(),
+                        )
+                    })?;
+                let client = client.map_err(|error| {
+                    ExporterBuildError::InternalFailure(format!(
+                        "Failed to build blocking reqwest HTTP client: {error}"
+                    ))
+                })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
         }
 
