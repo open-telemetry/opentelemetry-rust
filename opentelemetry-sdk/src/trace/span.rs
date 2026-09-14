@@ -373,7 +373,7 @@ pub struct FinishedSpan {
 
 impl FinishedSpan {
     /// Creates a new `FinishedSpan` with the given span data.
-    pub fn new(span_data: crate::trace::SpanData) -> Self {
+    pub(crate) fn new(span_data: crate::trace::SpanData) -> Self {
         FinishedSpan {
             span: Some(span_data),
             is_last_processor: true,
