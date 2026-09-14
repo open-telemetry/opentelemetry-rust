@@ -153,7 +153,7 @@ mod tests {
             }
         }
 
-        fn on_end(&self, span: SpanData) {
+        fn on_end(&self, span: &SpanData) {
             // Fixed: Context::current() no longer panics from Drop
             // See https://github.com/open-telemetry/opentelemetry-rust/issues/2871
             Context::current();

@@ -27,7 +27,7 @@ use opentelemetry::{
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
-    trace::{self as sdktrace, SpanData, SpanExporter},
+    trace::{self as sdktrace, SpanData, SpanExporter, SpanProcessor},
 };
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
@@ -149,6 +149,27 @@ fn criterion_benchmark(c: &mut Criterion) {
             }
         },
     );
+
+    let provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOn)
+        .with_span_processor(VoidProcessor)
+        .with_span_processor(VoidProcessor)
+        .build();
+    let tracer = provider.tracer("multiple-processors");
+
+    c.bench_function("span-creation-simple/two-processors", |b| {
+        b.iter(|| {
+            let mut span = tracer.start("span-name");
+            if span.is_recording() {
+                span.set_attribute(KeyValue::new("key1", false));
+                span.set_attribute(KeyValue::new("key2", "hello"));
+                span.set_attribute(KeyValue::new("key3", 123.456));
+                span.set_attribute(KeyValue::new("key4", "world"));
+                span.set_attribute(KeyValue::new("key5", 123));
+            }
+            span.end();
+        });
+    });
 }
 
 #[derive(Debug)]
@@ -156,6 +177,23 @@ struct VoidExporter;
 
 impl SpanExporter for VoidExporter {
     async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct VoidProcessor;
+
+impl SpanProcessor for VoidProcessor {
+    fn on_start(&self, _span: &mut sdktrace::Span, _cx: &Context) {}
+
+    fn on_end(&self, _span: &SpanData) {}
+
+    fn force_flush(&self) -> OTelSdkResult {
+        Ok(())
+    }
+
+    fn shutdown_with_timeout(&self, _timeout: std::time::Duration) -> OTelSdkResult {
         Ok(())
     }
 }
