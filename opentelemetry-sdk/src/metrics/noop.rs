@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
     metrics::{InstrumentProvider, SyncInstrument},
     KeyValue,
@@ -33,6 +35,23 @@ impl NoopSyncInstrument {
 
 impl<T> SyncInstrument<T> for NoopSyncInstrument {
     fn measure(&self, _value: T, _attributes: &[KeyValue]) {
+        // Ignored
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
+        Box::new(NoopBoundSyncInstrument { _private: () })
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct NoopBoundSyncInstrument {
+    _private: (),
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T> BoundSyncInstrument<T> for NoopBoundSyncInstrument {
+    fn measure(&self, _measurement: T) {
         // Ignored
     }
 }

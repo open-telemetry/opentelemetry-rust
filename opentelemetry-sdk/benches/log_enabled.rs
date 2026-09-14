@@ -5,16 +5,12 @@
     Total Number of Cores:   14 (10 performance and 4 efficiency)
     | Test                                        | Average time|
     |---------------------------------------------|-------------|
-    | exporter_disabled_concurrent_processor      |  2.5 ns     |
     | exporter_disabled_simple_processor          |  5.3 ns     |
 */
-
-// cargo bench --bench log_enabled --features="experimental_logs_concurrent_log_processor"
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::logs::{Logger, LoggerProvider};
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::logs::concurrent_log_processor::SimpleConcurrentLogProcessor;
 use opentelemetry_sdk::logs::{
     LogBatch, LogExporter, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
 };
@@ -63,8 +59,6 @@ where
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let processor = SimpleConcurrentLogProcessor::new(NoopExporter);
-    benchmark_exporter_enabled_false(c, "exporter_disabled_concurrent_processor", processor);
     let simple = SimpleLogProcessor::new(NoopExporter);
     benchmark_exporter_enabled_false(c, "exporter_disabled_simple_processor", simple);
 }

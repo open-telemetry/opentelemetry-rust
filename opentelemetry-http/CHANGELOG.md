@@ -2,6 +2,43 @@
 
 ## vNext
 
+- Apply `HyperClient`'s configured timeout to the complete response body, not
+  only request dispatch and response headers.
+
+- **Breaking** Sealed the `ResponseExt` trait so it can no longer be implemented by
+  downstream crates. The trait provides a blanket implementation for all
+  `http::Response<T>` types, so calling code is unaffected -- only
+  `impl ResponseExt for MyType` will stop compiling. If you have a custom
+  implementation, remove it and rely on the blanket impl instead.
+
+- **Breaking** Removed the deprecated `HttpClient::send` method, which accepted
+  `Request<Vec<u8>>`. Implement and call `HttpClient::send_bytes` instead,
+  converting existing requests with `request.map(Bytes::from)` when needed.
+
+- **Breaking:** Remove `opentelemetry_http::hyper::Body`, which is no longer used
+  by any public constructor. Use `http_body_util::Full<Bytes>` for custom Hyper
+  client request bodies.
+- Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
+
+- **Breaking** Built-in reqwest and hyper clients now return HTTP 4xx and 5xx
+  responses as `Ok(Response<Bytes>)` instead of `Err(HttpError)`. Here, `Ok`
+  means that the transport completed the request and received an HTTP response;
+  it does not imply a successful HTTP status. This preserves the response status
+  and headers for exporter retry classification. Transport failures and timeouts
+  continue to return `Err`.
+  If your code relied on `send_bytes` returning `Err` for non-success statuses,
+  call `ResponseExt::error_for_status()` on the response instead.
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0. Use `reqwest-rustls` instead, which now correctly enables
+  `reqwest/rustls` (platform native trust roots). To use Mozilla's embedded CA bundle, construct a
+  custom `reqwest::Client` with a `rustls::ClientConfig` containing
+  `rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned())`, then supply it
+  to the exporter with `with_http_client()`.
+
+## 0.32.0
+
+Released 2026-May-08
+
 - `reqwest`'s crypto backend has changed from `ring` to `aws-lc-sys`.
 
 ## 0.31.0

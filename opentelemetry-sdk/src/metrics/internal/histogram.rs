@@ -1,5 +1,9 @@
 use std::mem::replace;
 use std::ops::DerefMut;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::metrics::data::{self, MetricData};
@@ -7,12 +11,10 @@ use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
 use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
-use super::aggregate::AggregateTimeInitiator;
-use super::aggregate::AttributeSetFilter;
-use super::ComputeAggregation;
-use super::Measure;
-use super::ValueMap;
-use super::{Aggregator, Number};
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -67,6 +69,33 @@ impl<T: Number> Buckets<T> {
             max: T::min(),
             ..Default::default()
         }
+    }
+}
+
+/// Pre-bound histogram handle: writes go directly to a fixed `TrackerEntry`
+/// without per-call attribute lookup. The `tracker` is either a dedicated entry
+/// for the bound attribute set, or — if bind() hit the cardinality limit — the
+/// shared overflow tracker.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+struct BoundHistogramHandle<T: Number> {
+    tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
+    bounds: Vec<f64>,
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
+    fn call(&self, measurement: T) {
+        let f = measurement.into_float();
+        let index = self.bounds.partition_point(|&x| x < f);
+        self.tracker.aggregator.update((measurement, index));
+        self.tracker.has_been_updated.store(true, Ordering::Release);
+    }
+}
+
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+impl<T: Number> Drop for BoundHistogramHandle<T> {
+    fn drop(&mut self) {
+        self.tracker.bound_count.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -133,9 +162,11 @@ impl<T: Number> Histogram<T> {
         h.start_time = time.start;
         h.time = time.current;
 
+        let buckets_count = *self.value_map.config();
         self.value_map
             .collect_and_reset(&mut h.data_points, |attributes, aggr| {
-                let b = aggr.into_inner().unwrap_or_else(|err| err.into_inner());
+                let reset = aggr.clone_and_reset(&buckets_count);
+                let b = reset.into_inner().unwrap_or_else(|err| err.into_inner());
                 HistogramDataPoint {
                     attributes,
                     count: b.count,
@@ -234,6 +265,23 @@ where
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure((measurement, index), filtered);
         })
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, attrs: &[KeyValue]) -> Box<dyn BoundMeasure<T>> {
+        let mut bound_attrs = Vec::new();
+        self.filter.apply(attrs, |filtered| {
+            bound_attrs = filtered.to_vec();
+        });
+        match self.value_map.bind(&bound_attrs) {
+            Some(tracker) => Box::new(BoundHistogramHandle {
+                tracker,
+                bounds: self.bounds.clone(),
+            }),
+            // Trackers RwLock is poisoned — return a noop handle so writes
+            // silently drop, mirroring `measure()`'s own poison handling.
+            None => Box::new(NoopBoundMeasure::new()),
+        }
     }
 }
 

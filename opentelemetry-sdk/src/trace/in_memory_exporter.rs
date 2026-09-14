@@ -1,7 +1,6 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::{SpanData, SpanExporter};
-use crate::InMemoryExporterError;
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use std::time::Duration;
 
@@ -118,7 +117,7 @@ impl InMemorySpanExporter {
     ///
     /// # Errors
     ///
-    /// Returns a `TraceError` if the internal lock cannot be acquired.
+    /// Returns an `OTelSdkError`.
     ///
     /// # Example
     ///
@@ -128,12 +127,12 @@ impl InMemorySpanExporter {
     /// let exporter = InMemorySpanExporter::default();
     /// let finished_spans = exporter.get_finished_spans().unwrap();
     /// ```
-    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, InMemoryExporterError> {
+    pub fn get_finished_spans(&self) -> Result<Vec<SpanData>, OTelSdkError> {
         let spans = self
             .spans
             .lock()
             .map(|spans_guard| spans_guard.iter().cloned().collect())
-            .map_err(InMemoryExporterError::from)?;
+            .map_err(OTelSdkError::from)?;
         Ok(spans)
     }
 

@@ -4,6 +4,11 @@
     Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
     RAM: 64.0 GB
     ~11.5 M/sec
+
+    OS: macOS 26.4.1
+    Hardware: Apple M4 Pro, 14 cores (10 performance + 4 efficiency)
+    RAM: 24.0 GB
+    ~1.6 M /sec
 */
 
 use lazy_static::lazy_static;

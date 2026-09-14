@@ -25,6 +25,9 @@ use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
 use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use opentelemetry::KeyValue;
+
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{cmp::min, env, sync::Mutex};
 use std::{
@@ -36,24 +39,33 @@ use std::{
     time::Instant,
 };
 
-/// Delay interval between two consecutive exports.
-pub(crate) const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
+/// Environment variable for configuring the delay interval (in milliseconds)
+/// between two consecutive exports for the [`BatchLogProcessor`].
+pub const OTEL_BLRP_SCHEDULE_DELAY: &str = "OTEL_BLRP_SCHEDULE_DELAY";
 /// Default delay interval between two consecutive exports.
-pub(crate) const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
-/// Maximum allowed time to export data.
-#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
+pub const OTEL_BLRP_SCHEDULE_DELAY_DEFAULT: Duration = Duration::from_millis(1_000);
+/// Environment variable for configuring the maximum allowed time to export
+/// data.
+///
+/// This value is honored by
+/// `log_processor_with_async_runtime::BatchLogProcessor`. The thread-based
+/// [`BatchLogProcessor`] ignores this setting.
+pub const OTEL_BLRP_EXPORT_TIMEOUT: &str = "OTEL_BLRP_EXPORT_TIMEOUT";
 /// Default maximum allowed time to export data.
-#[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
-pub(crate) const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
-/// Maximum queue size.
-pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
+///
+/// See [`OTEL_BLRP_EXPORT_TIMEOUT`] for which processors honor this value.
+pub const OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT: Duration = Duration::from_millis(30_000);
+/// Environment variable for configuring the maximum queue size for the
+/// [`BatchLogProcessor`].
+pub const OTEL_BLRP_MAX_QUEUE_SIZE: &str = "OTEL_BLRP_MAX_QUEUE_SIZE";
 /// Default maximum queue size.
-pub(crate) const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
-/// Maximum batch size, must be less than or equal to OTEL_BLRP_MAX_QUEUE_SIZE.
-pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
+pub const OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT: usize = 2_048;
+/// Environment variable for configuring the maximum batch size for the
+/// [`BatchLogProcessor`], must be less than or equal to
+/// `OTEL_BLRP_MAX_QUEUE_SIZE`.
+pub const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE: &str = "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE";
 /// Default maximum batch size.
-pub(crate) const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
+pub const OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT: usize = 512;
 
 /// Messages sent between application thread and batch log processor's work thread.
 #[allow(clippy::large_enum_variant)]
@@ -87,7 +99,12 @@ type LogsData = Box<(SdkLogRecord, InstrumentationScope)>;
 /// - `grpc-tonic`: Requires `LoggerProvider` to be created within a tokio runtime.
 /// - `reqwest-blocking-client`: Works with a regular `main` or `tokio::main`.
 ///
-/// In other words, other clients like `reqwest` and `hyper` are not supported.
+/// In other words, async HTTP clients like `reqwest-client` and `hyper-client`
+/// are not supported by this default processor. The OTLP HTTP exporter chooses
+/// its default HTTP client from enabled crate features and cannot tell which
+/// processor will drive it. If your dependency graph enables async HTTP client
+/// features, either pass an explicit blocking client for this processor or use
+/// the experimental async-runtime batch log processor.
 ///
 /// `BatchLogProcessor` buffers logs in memory and exports them in batches. An
 /// export is triggered when `max_export_batch_size` is reached or every
@@ -142,6 +159,15 @@ pub struct BatchLogProcessor {
 
     // Track the maximum queue size that was configured for this processor
     max_queue_size: usize,
+
+    // Self-diagnostics: otel.sdk.processor.log.processed counter.
+    // Gated behind experimental_metrics_bound_instruments so the hot-path
+    // `add` is a single atomic increment (~1.8 ns) with no per-call
+    // attribute resolution.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_queue_full: opentelemetry::metrics::BoundCounter<u64>,
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    processed_after_shutdown: opentelemetry::metrics::BoundCounter<u64>,
 }
 
 impl Debug for BatchLogProcessor {
@@ -154,6 +180,11 @@ impl Debug for BatchLogProcessor {
 
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
+        // Count the log record before enqueueing it so that a concurrent
+        // force_flush()/shutdown() drain never observes an
+        // enqueued-but-uncounted record and misses it (issue #3453). If the
+        // send fails, the increment is reverted in the error arms below.
+        let previous_batch_size = self.current_batch_size.fetch_add(1, Ordering::AcqRel);
         let result = self
             .logs_sender
             .try_send(Box::new((record.clone(), instrumentation.clone())));
@@ -162,11 +193,12 @@ impl LogProcessor for BatchLogProcessor {
         match result {
             Ok(_) => {
                 // Successfully sent the log record to the data channel.
-                // Increment the current batch size and check if it has reached
-                // the max export batch size.
-                if self.current_batch_size.fetch_add(1, Ordering::Relaxed) + 1
-                    >= self.max_export_batch_size
-                {
+                // `processed` success is counted when the batch is submitted to
+                // the exporter (in the worker thread), not here at enqueue.
+                //
+                // Check if the current batch size has reached the max export
+                // batch size.
+                if previous_batch_size + 1 >= self.max_export_batch_size {
                     // Check if the a control message for exporting logs is
                     // already sent to the worker thread. If not, send a control
                     // message to export logs. `export_log_message_sent` is set
@@ -202,6 +234,12 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Full(_)) => {
+                // The record never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
+                // Record queue-full drop in self-diagnostics
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_queue_full.add(1);
+
                 // Increment dropped logs count. The first time we have to drop
                 // a log, emit a warning.
                 if self.dropped_logs_count.fetch_add(1, Ordering::Relaxed) == 0 {
@@ -210,6 +248,12 @@ impl LogProcessor for BatchLogProcessor {
                 }
             }
             Err(mpsc::TrySendError::Disconnected(_)) => {
+                // The record never entered the channel; revert the increment.
+                self.current_batch_size.fetch_sub(1, Ordering::AcqRel);
+                // Record after-shutdown drop in self-diagnostics
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_after_shutdown.add(1);
+
                 // The following `otel_warn!` may cause an infinite feedback loop of
                 // 'telemetry-induced-telemetry', potentially causing a stack overflow
                 let _guard = Context::enter_telemetry_suppressed_scope();
@@ -287,6 +331,13 @@ impl LogProcessor for BatchLogProcessor {
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
+                            // TODO: When shutdown times out, log records still
+                            // in the queue or mid-export are silently lost. The
+                            // background thread is not joined and may continue
+                            // running. Consider: (1) recording the lost count
+                            // in the self-diagnostics counter, (2) joining the
+                            // thread with a best-effort wait, or (3) signalling
+                            // the thread to abort the current export.
                             otel_error!(
                                 name: "BatchLogProcessor.Shutdown.Timeout",
                                 message = "BatchLogProcessor shutdown timing out."
@@ -343,6 +394,78 @@ impl BatchLogProcessor {
         let current_batch_size = Arc::new(AtomicUsize::new(0));
         let current_batch_size_for_thread = current_batch_size.clone();
 
+        // Self-diagnostics: create the otel.sdk.processor.log.processed counter.
+        // Created before the worker thread is spawned so the success counter can
+        // be moved into the worker and incremented when a batch is exported.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        let (processed_success, processed_queue_full, processed_after_shutdown) = {
+            static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let component_name = format!("batching_log_processor/{instance_id}");
+
+            let meter = opentelemetry::global::meter("otel.sdk");
+            let counter = meter
+                .u64_counter("otel.sdk.processor.log.processed")
+                .with_description(
+                    "The number of log records for which the processing has finished, \
+                     either successful or failed.",
+                )
+                .with_unit("{log_record}")
+                .build();
+
+            // Self-diagnostics: otel.sdk.processor.log.queue.capacity. A weak
+            // reference ensures a dropped processor stops reporting, since
+            // observable callbacks live for the meter provider's lifetime and
+            // cannot be individually unregistered.
+            let capacity_attrs = [
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let capacity_state = Arc::downgrade(&current_batch_size);
+            let capacity_value = i64::try_from(max_queue_size).unwrap_or(i64::MAX);
+            let _ = meter
+                .i64_observable_up_down_counter("otel.sdk.processor.log.queue.capacity")
+                .with_description(
+                    "The maximum number of log records the queue of a given instance of \
+                     an SDK log processor can hold.",
+                )
+                .with_unit("{log_record}")
+                .with_callback(move |observer| {
+                    // The capacity value is constant; this is only a liveness
+                    // guard so a dropped processor stops emitting this
+                    // otherwise-unregisterable callback. `strong_count()` is
+                    // sufficient since the callback never reads the state.
+                    if capacity_state.strong_count() > 0 {
+                        observer.observe(capacity_value, &capacity_attrs);
+                    }
+                })
+                .build();
+
+            // Attribute values follow the OTel semantic conventions for SDK metrics:
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/otel/sdk-metrics.md#metric-otelsdkprocessorlogprocessed
+            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/otel.md#otel-component-attributes
+            let success_attrs = [
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let queue_full_attrs = [
+                KeyValue::new("error.type", "queue_full"),
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name.clone()),
+            ];
+            let after_shutdown_attrs = [
+                KeyValue::new("error.type", "already_shutdown"),
+                KeyValue::new("otel.component.type", "batching_log_processor"),
+                KeyValue::new("otel.component.name", component_name),
+            ];
+
+            (
+                counter.bind(&success_attrs),
+                counter.bind(&queue_full_attrs),
+                counter.bind(&after_shutdown_attrs),
+            )
+        };
+
         let handle = thread::Builder::new()
             .name("OpenTelemetry.Logs.BatchProcessor".to_string())
             .spawn(move || {
@@ -357,40 +480,58 @@ impl BatchLogProcessor {
                 let mut logs = Vec::with_capacity(config.max_export_batch_size);
                 let current_batch_size = current_batch_size_for_thread;
 
+                // Counts records for the otel.sdk.processor.log.processed
+                // metric; a no-op when the self-diagnostics feature is disabled.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                let record_processed_success = move |count: u64| processed_success.add(count);
+                #[cfg(not(feature = "experimental_metrics_bound_instruments"))]
+                let record_processed_success = |_count: u64| {};
+
                 // This method gets up to `max_export_batch_size` amount of logs from the channel and exports them.
                 // It returns the result of the export operation.
                 // It expects the logs vec to be empty when it's called.
                 #[inline]
-                fn get_logs_and_export<E>(
+                fn get_logs_and_export<E, F>(
                     logs_receiver: &mpsc::Receiver<LogsData>,
                     exporter: &E,
                     logs: &mut Vec<LogsData>,
                     last_export_time: &mut Instant,
                     current_batch_size: &AtomicUsize,
                     max_export_size: usize,
+                    record_processed_success: &F,
                 ) -> OTelSdkResult
                 where
                     E: LogExporter + Send + Sync + 'static,
+                    F: Fn(u64),
                 {
-                    let target = current_batch_size.load(Ordering::Relaxed); // `target` is used to determine the stopping criteria for exporting logs.
+                    let target = current_batch_size.load(Ordering::Acquire); // `target` is used to determine the stopping criteria for exporting logs.
                     let mut result = OTelSdkResult::Ok(());
                     let mut total_exported_logs: usize = 0;
 
                     while target > 0 && total_exported_logs < target {
-                        // Get upto `max_export_batch_size` amount of logs log records from the channel and push them to the logs vec
+                        let batch_limit = max_export_size.min(target - total_exported_logs);
+
+                        // Get up to the remaining target batch size from the channel and push them to the logs vec
                         while let Ok(log) = logs_receiver.try_recv() {
                             logs.push(log);
-                            if logs.len() == max_export_size {
+                            if logs.len() == batch_limit {
                                 break;
                             }
                         }
 
                         let count_of_logs = logs.len(); // Count of logs that will be exported
+                        if count_of_logs == 0 {
+                            break;
+                        }
                         total_exported_logs += count_of_logs;
+
+                        // Count the batch as processed before invoking the
+                        // exporter, regardless of the export outcome.
+                        record_processed_success(count_of_logs as u64);
 
                         result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
 
-                        current_batch_size.fetch_sub(count_of_logs, Ordering::Relaxed);
+                        current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
                     result
                 }
@@ -417,6 +558,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &record_processed_success,
                             );
                         }
                         Ok(BatchMessage::ForceFlush(sender)) => {
@@ -428,6 +570,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &record_processed_success,
                             );
                             let _ = sender.send(result);
                         }
@@ -440,6 +583,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &record_processed_success,
                             );
                             let _ = exporter.shutdown();
                             let _ = sender.send(result);
@@ -468,6 +612,7 @@ impl BatchLogProcessor {
                                 &mut last_export_time,
                                 &current_batch_size,
                                 max_export_batch_size,
+                                &record_processed_success,
                             );
                         }
                         Err(RecvTimeoutError::Disconnected) => {
@@ -498,6 +643,10 @@ impl BatchLogProcessor {
             export_log_message_sent: Arc::new(AtomicBool::new(false)),
             current_batch_size,
             max_export_batch_size,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_queue_full,
+            #[cfg(feature = "experimental_metrics_bound_instruments")]
+            processed_after_shutdown,
         }
     }
 
@@ -757,6 +906,7 @@ mod tests {
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::mpsc;
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
@@ -1028,6 +1178,90 @@ mod tests {
         processor.shutdown().unwrap();
     }
 
+    #[derive(Debug)]
+    struct BlockingExporter {
+        exported_count: Arc<AtomicUsize>,
+        export_started: mpsc::SyncSender<()>,
+        release: Arc<Mutex<mpsc::Receiver<()>>>,
+    }
+
+    impl LogExporter for BlockingExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            let _ = self.export_started.try_send(());
+            // Block until the test releases the export.
+            let _ = self.release.lock().unwrap().recv();
+            self.exported_count.fetch_add(batch.len(), Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_batch_log_processor_emit_reverts_count_when_queue_full() {
+        let (started_sender, started_receiver) = mpsc::sync_channel(8);
+        let (release_sender, release_receiver) = mpsc::sync_channel(8);
+        let exported_count = Arc::new(AtomicUsize::new(0));
+        let exporter = BlockingExporter {
+            exported_count: exported_count.clone(),
+            export_started: started_sender,
+            release: Arc::new(Mutex::new(release_receiver)),
+        };
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(4)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(exporter, config);
+        let instrumentation = InstrumentationScope::default();
+        let emit = || {
+            let mut record = SdkLogRecord::new();
+            record.set_body("test log".into());
+            processor.emit(&mut record, &instrumentation);
+        };
+
+        // Fill the queue to the export threshold; the worker drains all four
+        // records and blocks inside export().
+        for _ in 0..4 {
+            emit();
+        }
+        started_receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("worker should start exporting the first batch");
+
+        // While the worker is blocked, refill the queue and overflow it by
+        // two records, which must be dropped and their counts reverted.
+        for _ in 0..6 {
+            emit();
+        }
+
+        assert_eq!(processor.dropped_logs_count.load(Ordering::Relaxed), 2);
+        // 4 records in-flight in the blocked export (not yet subtracted)
+        // plus 4 records queued. Without the queue-full revert this would
+        // read 10.
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            8,
+            "dropped logs must not remain counted as pending"
+        );
+
+        // Release the in-flight export and the one triggered by force_flush.
+        release_sender.send(()).unwrap();
+        release_sender.send(()).unwrap();
+        let flush_result = processor.force_flush();
+        assert!(flush_result.is_ok(), "force flush failed unexpectedly");
+
+        assert_eq!(
+            exported_count.load(Ordering::SeqCst),
+            8,
+            "all logs that entered the queue must be exported"
+        );
+        assert_eq!(
+            processor.current_batch_size.load(Ordering::Relaxed),
+            0,
+            "counter should settle to zero; a leftover value indicates the \
+             queue-full path did not revert its increment"
+        );
+    }
+
     /// A slow exporter that counts the number of logs received.
     /// Used for stress testing the BatchLogProcessor.
     #[derive(Debug, Clone)]
@@ -1111,5 +1345,310 @@ mod tests {
             "Expected some logs to be dropped under stress, but none were. \
              Consider reducing queue size or increasing thread count/log volume."
         );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    mod self_obs {
+        use super::*;
+
+        /// Verifies that `otel.sdk.processor.log.processed` counter records
+        /// successful log processing when `experimental_metrics_bound_instruments`
+        /// is enabled and a real MeterProvider is set as global before creating
+        /// the processor.
+        ///
+        /// This test is `#[ignore]`d because it calls
+        /// `global::set_meter_provider()` which mutates process-wide state.
+        /// CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_success() {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            // Setup a real MeterProvider and set it as global BEFORE creating the
+            // BatchLogProcessor, so the processor picks up a real meter.
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporter::default();
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(256)
+                .with_max_export_batch_size(64)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(log_exporter, config);
+
+            // Emit 10 logs
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..10 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            }
+
+            // Flush so the batch is submitted to the exporter, which is when the
+            // counter is incremented.
+            processor.force_flush().unwrap();
+
+            // Force a metrics collection
+            meter_provider.force_flush().unwrap();
+
+            // Find the otel.sdk.processor.log.processed metric and sum all data points
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            let mut found = false;
+            let mut total_value: u64 = 0;
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == "otel.sdk.processor.log.processed" {
+                            found = true;
+                            if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    total_value += dp.value();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            assert!(found, "otel.sdk.processor.log.processed metric not found");
+            assert_eq!(
+                total_value, 10,
+                "Expected 10 processed logs, got {total_value}"
+            );
+
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Verifies `otel.sdk.processor.log.queue.capacity` through a real
+        /// `SdkLoggerProvider` + `BatchLogProcessor`. The metric reports the
+        /// configured max queue size with the component identity attributes and
+        /// stops reporting after the provider (and processor) is dropped.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_queue_capacity() {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporter::default();
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(256)
+                .build();
+            let processor = BatchLogProcessor::new(log_exporter, config);
+            let provider = SdkLoggerProvider::builder()
+                .with_log_processor(processor)
+                .build();
+
+            // Force a metrics collection so the observable callbacks run. This does
+            // NOT drain the log queue (that only happens on the provider/processor).
+            meter_provider.force_flush().unwrap();
+
+            let read = |name: &str| -> Option<i64> {
+                let metrics = metric_exporter.get_finished_metrics().unwrap();
+                for rm in &metrics {
+                    for sm in &rm.scope_metrics {
+                        for metric in &sm.metrics {
+                            if metric.name == name {
+                                if let AggregatedMetrics::I64(MetricData::Sum(sum)) = &metric.data {
+                                    for dp in sum.data_points() {
+                                        let has_component = dp.attributes().any(|kv| {
+                                            kv.key.as_str() == "otel.component.type"
+                                                && kv.value.as_str() == "batching_log_processor"
+                                        });
+                                        if has_component {
+                                            return Some(dp.value());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                None
+            };
+
+            assert_eq!(
+                read("otel.sdk.processor.log.queue.capacity"),
+                Some(256),
+                "queue.capacity should equal the configured max_queue_size"
+            );
+
+            // Dropping the provider shuts down and drops the processor, releasing the
+            // Arc<AtomicUsize> the callback holds a Weak to. A subsequent collection
+            // must therefore omit the metric because the Weak upgrade fails.
+            metric_exporter.reset();
+            provider.shutdown().unwrap();
+            drop(provider);
+            meter_provider.force_flush().unwrap();
+
+            assert_eq!(
+                read("otel.sdk.processor.log.queue.capacity"),
+                None,
+                "queue.capacity must stop being reported after the processor is dropped"
+            );
+
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Sums the values of `otel.sdk.processor.log.processed` data points whose
+        /// `error.type` attribute equals `error_type`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        fn sum_processed_log_records_with_error_type(
+            metric_exporter: &crate::metrics::InMemoryMetricExporter,
+            error_type: &str,
+        ) -> u64 {
+            use crate::metrics::data::{AggregatedMetrics, MetricData};
+
+            let metrics = metric_exporter.get_finished_metrics().unwrap();
+            let mut total: u64 = 0;
+            for rm in &metrics {
+                for sm in &rm.scope_metrics {
+                    for metric in &sm.metrics {
+                        if metric.name == "otel.sdk.processor.log.processed" {
+                            if let AggregatedMetrics::U64(MetricData::Sum(sum)) = &metric.data {
+                                for dp in sum.data_points() {
+                                    let matches = dp.attributes().any(|kv| {
+                                        kv.key.as_str() == "error.type"
+                                            && kv.value.as_str() == error_type
+                                    });
+                                    if matches {
+                                        total += dp.value();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            total
+        }
+
+        /// Verifies that `otel.sdk.processor.log.processed` records queue-full drops
+        /// with `error.type = queue_full` when records overflow the queue while the
+        /// worker is blocked exporting.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_queue_full_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let (started_sender, started_receiver) = mpsc::sync_channel(8);
+            let (release_sender, release_receiver) = mpsc::sync_channel(8);
+            let exported_count = Arc::new(AtomicUsize::new(0));
+            let exporter = BlockingExporter {
+                exported_count: exported_count.clone(),
+                export_started: started_sender,
+                release: Arc::new(Mutex::new(release_receiver)),
+            };
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(4)
+                .with_max_export_batch_size(4)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(exporter, config);
+            let instrumentation = InstrumentationScope::default();
+            let emit = || {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            };
+
+            // Fill the queue to the export threshold; the worker drains all four
+            // records and blocks inside export().
+            for _ in 0..4 {
+                emit();
+            }
+            started_receiver
+                .recv_timeout(Duration::from_secs(5))
+                .expect("worker should start exporting the first batch");
+
+            // While the worker is blocked, refill the queue (4) and overflow it by
+            // two records, which must be dropped and counted as queue_full.
+            for _ in 0..6 {
+                emit();
+            }
+
+            // Release the in-flight export and the one triggered by force_flush.
+            release_sender.send(()).unwrap();
+            release_sender.send(()).unwrap();
+            processor.force_flush().unwrap();
+
+            meter_provider.force_flush().unwrap();
+
+            let queue_full =
+                sum_processed_log_records_with_error_type(&metric_exporter, "queue_full");
+            assert_eq!(
+                queue_full, 2,
+                "expected 2 queue_full drops, got {queue_full}"
+            );
+
+            processor.shutdown().unwrap();
+            meter_provider.shutdown().unwrap();
+        }
+
+        /// Verifies that `otel.sdk.processor.log.processed` records post-shutdown
+        /// emits with `error.type = already_shutdown`.
+        ///
+        /// `#[ignore]`d because it mutates process-wide state via
+        /// `global::set_meter_provider()`. CI runs it in isolation via `test.sh`.
+        #[cfg(feature = "experimental_metrics_bound_instruments")]
+        #[test]
+        #[ignore]
+        fn self_diagnostics_counter_records_already_shutdown_drops() {
+            use crate::metrics::{InMemoryMetricExporter, SdkMeterProvider};
+
+            let metric_exporter = InMemoryMetricExporter::default();
+            let meter_provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(metric_exporter.clone())
+                .build();
+            opentelemetry::global::set_meter_provider(meter_provider.clone());
+
+            let log_exporter = InMemoryLogExporter::default();
+            let processor = BatchLogProcessor::new(log_exporter, BatchConfig::default());
+
+            // Shut the processor down so the worker thread (the only receiver)
+            // disconnects; subsequent emits hit the already_shutdown branch.
+            processor.shutdown().unwrap();
+
+            let instrumentation = InstrumentationScope::default();
+            for _ in 0..7 {
+                let mut record = SdkLogRecord::new();
+                processor.emit(&mut record, &instrumentation);
+            }
+
+            meter_provider.force_flush().unwrap();
+
+            let already_shutdown =
+                sum_processed_log_records_with_error_type(&metric_exporter, "already_shutdown");
+            assert_eq!(
+                already_shutdown, 7,
+                "expected 7 already_shutdown drops, got {already_shutdown}"
+            );
+
+            meter_provider.shutdown().unwrap();
+        }
     }
 }

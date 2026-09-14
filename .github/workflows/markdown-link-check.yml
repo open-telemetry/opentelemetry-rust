@@ -17,14 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install markdown-link-check
-        run: npm install -g "git://github.com/tcort/markdown-link-check.git#ef7e09486e579ba7479700b386e7ca90f34cbd0a" # v3.13.7
+        # Already pinned to an exact commit; the audit flags the install form,
+        # and the package's own dependencies remain unpinned.
+        run: npm install -g "git://github.com/tcort/markdown-link-check.git#ef7e09486e579ba7479700b386e7ca90f34cbd0a" # zizmor: ignore[adhoc-packages] v3.13.7
 
       - name: Run markdown-link-check
         run: |

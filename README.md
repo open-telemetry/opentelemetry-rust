@@ -9,6 +9,7 @@ The Rust [OpenTelemetry](https://opentelemetry.io/) implementation.
 [![GitHub Actions CI](https://github.com/open-telemetry/opentelemetry-rust/workflows/CI/badge.svg)](https://github.com/open-telemetry/opentelemetry-rust/actions?query=workflow%3ACI+branch%3Amain)
 [![Documentation](https://docs.rs/opentelemetry/badge.svg)](https://docs.rs/opentelemetry)
 [![codecov](https://codecov.io/gh/open-telemetry/opentelemetry-rust/branch/main/graph/badge.svg)](https://codecov.io/gh/open-telemetry/opentelemetry-rust)
+[![Benchmarks](https://img.shields.io/badge/benchmarks-dashboard-blue)](https://open-telemetry.github.io/opentelemetry-rust/dev/bench/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-telemetry/opentelemetry-rust/badge)](https://scorecard.dev/viewer/?uri=github.com/open-telemetry/opentelemetry-rust)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10394/badge)](https://www.bestpractices.dev/projects/10394)
 [![Slack](https://img.shields.io/badge/slack-@cncf/otel/rust-brightgreen.svg?logo=slack)](https://cloud-native.slack.com/archives/C03GDP0H023)
@@ -32,21 +33,22 @@ The table below summarizes the overall status of each component. Some components
 include unstable features, which are documented in their respective crate
 documentation.
 
-| Signal/Component      | Overall Status     |
-| --------------------  | ------------------ |
-| Context               | Beta               |
-| Baggage               | RC                 |
-| Propagators           | Beta               |
-| Logs-API              | Stable*            |
-| Logs-SDK              | Stable             |
-| Logs-OTLP Exporter    | RC                 |
-| Logs-Appender-Tracing | Stable             |
-| Metrics-API           | Stable             |
-| Metrics-SDK           | Stable             |
-| Metrics-OTLP Exporter | RC                 |
-| Traces-API            | Beta               |
-| Traces-SDK            | Beta               |
-| Traces-OTLP Exporter  | Beta               |
+| Signal/Component            | Overall Status     |
+| --------------------------- | ------------------ |
+| Context                     | Beta               |
+| Baggage                     | RC                 |
+| Propagators                 | Beta               |
+| Logs-API*                   | Stable             |
+| Logs-SDK                    | Stable             |
+| Logs-OTLP Exporter          | RC                 |
+| Logs-Appender-Tracing       | Stable             |
+| Metrics-API                 | Stable             |
+| Metrics-SDK                 | Stable             |
+| Metrics-OTLP Exporter       | RC                 |
+| Metrics-Prometheus Exporter | Beta               |
+| Traces-API                  | Beta               |
+| Traces-SDK                  | Beta               |
+| Traces-OTLP Exporter        | Beta               |
 
 *OpenTelemetry Rust is not introducing a new end user callable Logging API.
 Instead, it provides [Logs Bridge
@@ -72,10 +74,12 @@ Project versioning information and stability guarantees can be found
 
 ## Getting Started
 
-If you are new to OpenTelemetry, start with the [Stdout
-Example](./opentelemetry-stdout/examples/basic.rs). This example demonstrates
-how to use OpenTelemetry for logs, metrics, and traces, and display
-telemetry data on your console.
+If you are new to OpenTelemetry, start with the getting started examples for
+[logs](./examples/logs-basic/README.md),
+[metrics](./examples/metrics-basic/README.md) or
+[traces](./examples/tracing-grpc/README.md). This example demonstrates how to
+use OpenTelemetry for logs, metrics, and traces, and display telemetry data on
+your console.
 
 For those using OTLP, the recommended OpenTelemetry Exporter for production
 scenarios, refer to the [OTLP Example -
@@ -114,15 +118,10 @@ The following crates are maintained in this repo:
 * [`opentelemetry-appender-tracing`] This crate provides logging appender to
   route logs emitted using the [tracing](https://crates.io/crates/tracing) crate
   to opentelemetry.  
-* [`opentelemetry-jaeger-propagator`] provides context propagation using [jaeger
-  propagation
-  format](https://www.jaegertracing.io/docs/1.18/client-libraries/#propagation-format).
 * [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
   metrics to [`Prometheus`].
 * [`opentelemetry-semantic-conventions`] provides standard names and semantic
   otel conventions.
-* [`opentelemetry-zipkin`] provides a pipeline and exporter for sending traces
-  to [`Zipkin`].
 
 In addition, there are several other useful crates in the [OTel Rust Contrib
 repo](https://github.com/open-telemetry/opentelemetry-rust-contrib). A lot of
@@ -137,11 +136,8 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
 [`opentelemetry-stdout`]: https://crates.io/crates/opentelemetry-stdout
-[`opentelemetry-jaeger-propagator`]: https://crates.io/crates/opentelemetry-jaeger-propagator
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 [`Prometheus`]: https://prometheus.io
-[`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
-[`Zipkin`]: https://zipkin.io
 [`opentelemetry-semantic-conventions`]: https://crates.io/crates/opentelemetry-semantic-conventions
 [`http`]: https://crates.io/crates/http
 
@@ -172,8 +168,10 @@ meeting for this group.
 
 Meeting notes are available as a public [Google
 doc](https://docs.google.com/document/d/12upOzNk8c3SFTjsL6IRohCWMgzLKoknSCOOdMakbWo4/edit).
-If you have trouble accessing the doc, please get in touch on
-[Slack](https://cloud-native.slack.com/archives/C03GDP0H023).
+If you have trouble accessing the doc, please get in touch on the
+[#otel-rust](https://cloud-native.slack.com/archives/C03GDP0H023)
+channel on CNCF Slack. If you are new to the CNCF Slack community,
+you can [create an account](https://slack.cncf.io/).
 
 The meeting is open for all to join. We invite everyone to join our meeting,
 regardless of your experience level. Whether you're a seasoned OpenTelemetry
@@ -185,7 +183,6 @@ you're more than welcome to participate!
 ### Maintainers
 
 * [Cijo Thomas](https://github.com/cijothomas), Microsoft
-* [Harold Dost](https://github.com/hdost)
 * [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
 * [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
@@ -194,20 +191,21 @@ For more information about the maintainer role, see the [community repository](h
 
 ### Approvers
 
-* [Anton Grübel](https://github.com/gruebel), Baz
 * [Björn Antonsson](https://github.com/bantonsson), Datadog
 * [Scott Gerring](https://github.com/scottgerring), Datadog
-* [Shaun Cox](https://github.com/shaun-cox), Microsoft
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 
+* [Anton Grübel](https://github.com/gruebel), Approver
 * [Dirkjan Ochtman](https://github.com/djc), Maintainer
+* [Harold Dost](https://github.com/hdost), Maintainer
 * [Isobel Redelmeier](https://github.com/iredelmeier), Maintainer
 * [Jan Kühle](https://github.com/frigus02), Approver
 * [Julian Tescher](https://github.com/jtescher), Maintainer
 * [Mike Goldsmith](https://github.com/MikeGoldsmith), Approver
+* [Shaun Cox](https://github.com/shaun-cox), Approver
 
 For more information about the emeritus role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#emeritus-maintainerapprovertriager).
 

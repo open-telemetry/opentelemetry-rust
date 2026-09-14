@@ -7,7 +7,6 @@
 //!   current operation execution.
 //! * The [`SdkTracerProvider`] struct which configures and produces [`SdkTracer`]s.
 mod config;
-mod error;
 mod events;
 mod export;
 mod id_generator;
@@ -23,7 +22,6 @@ pub mod span_processor_with_async_runtime;
 mod tracer;
 
 pub use config::Config;
-pub use error::{TraceError, TraceResult};
 pub use events::SpanEvents;
 pub use export::{SpanData, SpanExporter};
 
@@ -43,7 +41,10 @@ pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
-    SimpleSpanProcessor, SpanProcessor,
+    SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
+    OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+    OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY,
+    OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
 };
 
 pub use tracer::SdkTracer;
@@ -67,7 +68,7 @@ mod tests {
     };
     use opentelemetry::{
         baggage::BaggageExt,
-        trace::{SpanKind, Status, TraceContextExt, TraceState},
+        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
     };
     use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
     use opentelemetry::{
@@ -78,6 +79,20 @@ mod tests {
         Context, KeyValue,
     };
     use std::time::Duration;
+
+    // Regression test for https://github.com/open-telemetry/opentelemetry-rust/issues/3510
+    #[test]
+    fn nested_span_in_get_active_span_with_simple_processor() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let provider = SdkTracerProvider::builder()
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        get_active_span(|_span| {
+            let _nested = tracer.span_builder("nested").start(&tracer);
+        });
+    }
 
     #[test]
     fn span_modification_via_context() {

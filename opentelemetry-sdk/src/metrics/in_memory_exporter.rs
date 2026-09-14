@@ -4,7 +4,6 @@ use crate::metrics::data::{
 };
 use crate::metrics::exporter::PushMetricExporter;
 use crate::metrics::Temporality;
-use crate::InMemoryExporterError;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -136,7 +135,7 @@ impl InMemoryMetricExporter {
     ///
     /// # Errors
     ///
-    /// Returns a `MetricError` if the internal lock cannot be acquired.
+    /// Returns an `OTelSdkError`.
     ///
     /// # Example
     ///
@@ -146,12 +145,12 @@ impl InMemoryMetricExporter {
     /// let exporter = InMemoryMetricExporter::default();
     /// let finished_metrics = exporter.get_finished_metrics().unwrap();
     /// ```
-    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>, InMemoryExporterError> {
+    pub fn get_finished_metrics(&self) -> Result<Vec<ResourceMetrics>, OTelSdkError> {
         let metrics = self
             .metrics
             .lock()
             .map(|metrics_guard| metrics_guard.iter().map(Self::clone_metrics).collect())
-            .map_err(InMemoryExporterError::from)?;
+            .map_err(OTelSdkError::from)?;
         Ok(metrics)
     }
 

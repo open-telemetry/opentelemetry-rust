@@ -156,11 +156,7 @@
     unused
 )]
 #![allow(clippy::needless_doctest_main)]
-#![cfg_attr(
-    docsrs,
-    feature(doc_cfg, doc_auto_cfg),
-    deny(rustdoc::broken_intra_doc_links)
-)]
+#![cfg_attr(docsrs, feature(doc_cfg), deny(rustdoc::broken_intra_doc_links))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo.svg"
 )]
@@ -196,24 +192,3 @@ pub use resource::Resource;
 
 pub mod error;
 pub use error::ExportError;
-
-#[cfg(any(feature = "testing", test))]
-#[derive(thiserror::Error, Debug)]
-/// Errors that can occur during when returning telemetry from InMemoryLogExporter
-pub enum InMemoryExporterError {
-    /// Operation failed due to an internal error.
-    ///
-    /// The error message is intended for logging purposes only and should not
-    /// be used to make programmatic decisions. It is implementation-specific
-    /// and subject to change without notice. Consumers of this error should not
-    /// rely on its content beyond logging.
-    #[error("Unable to obtain telemetry. Reason: {0}")]
-    InternalFailure(String),
-}
-
-#[cfg(any(feature = "testing", test))]
-impl<T> From<std::sync::PoisonError<T>> for InMemoryExporterError {
-    fn from(err: std::sync::PoisonError<T>) -> Self {
-        InMemoryExporterError::InternalFailure(format!("Mutex poison error: {err}"))
-    }
-}

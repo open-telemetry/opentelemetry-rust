@@ -2,8 +2,17 @@
 
 ## vNext
 
+- **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
+- **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
+- **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
+
+## 0.32.0
+
+Released 2026-May-08
+
 - Update proto definitions to v1.10.0.
 - Updated `schemars` dependency to version 1.0.0.
+- **Bug fix**: `InstrumentationScope` version and attributes are now preserved when logs have a target set. Previously, setting a log target would discard the scope's version and attributes. ([#3276](https://github.com/open-telemetry/opentelemetry-rust/issues/3276))
 
 ## 0.31.0
 

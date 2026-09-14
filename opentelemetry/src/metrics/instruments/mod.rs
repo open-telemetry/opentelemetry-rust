@@ -28,6 +28,30 @@ pub trait AsyncInstrument<T>: Send + Sync {
 pub trait SyncInstrument<T>: Send + Sync {
     /// Records a measurement synchronously.
     fn measure(&self, measurement: T, attributes: &[KeyValue]);
+
+    /// Binds this instrument to a fixed set of attributes, returning a handle
+    /// that records measurements without per-call attribute lookup.
+    ///
+    /// The default implementation returns a no-op handle so that custom
+    /// `SyncInstrument` impls that have not opted into bound instruments
+    /// degrade gracefully rather than panicking on the user's hot path.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    fn bind(&self, _attributes: &[KeyValue]) -> Box<dyn BoundSyncInstrument<T> + Send + Sync> {
+        crate::otel_debug!(
+            name: "SyncInstrument.BindNotImplemented",
+            message = "bind() called on a SyncInstrument implementation that does not override the default; measurements through the returned handle will be dropped"
+        );
+        Box::new(crate::metrics::noop::NoopBoundSyncInstrument::new())
+    }
+}
+
+/// A pre-bound synchronous instrument that records measurements without attributes.
+/// Created by calling `bind()` on a `Counter`, `UpDownCounter`, `Histogram`,
+/// or `Gauge` with a fixed attribute set.
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+pub trait BoundSyncInstrument<T>: Send + Sync {
+    /// Records a measurement. The attributes were fixed at bind time.
+    fn measure(&self, measurement: T);
 }
 
 /// Configuration for building a Histogram.
@@ -225,7 +249,7 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
             .field("boundaries", &self.boundaries)
             .field(
                 "kind",
-                &format!("Histogram<{}>", &std::any::type_name::<T>()),
+                &format!("Histogram<{}>", std::any::type_name::<T>()),
             )
             .finish()
     }

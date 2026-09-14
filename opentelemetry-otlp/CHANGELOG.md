@@ -2,6 +2,153 @@
 
 ## vNext
 
+### Retry
+
+- Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
+  policy uses exponential backoff and jitter with up to 3 retries (4 attempts
+  total). Use `.with_retry_policy(RetryPolicy::disabled())` to disable retries,
+  or provide a custom `RetryPolicy` to change the behavior.
+- **Migration for users of the experimental retry features:** If your
+  `Cargo.toml` enables `grpc-tonic-with-retry`, `http-proto-with-retry`, or
+  `http-json-with-retry`, remove those feature flags. No migration action is
+  required for users who did not enable them.
+  [#3621](https://github.com/open-telemetry/opentelemetry-rust/pull/3621)
+- **Breaking** Make the `retry` and `retry_classification` modules crate-private,
+  removing their retry engine, error type, and protocol classifiers from the
+  public API. `RetryPolicy` remains available from the crate root with private
+  fields and fluent configuration methods. Replace imports from
+  `opentelemetry_otlp::retry` with `opentelemetry_otlp::RetryPolicy`, and replace
+  struct literals with its `with_*` methods.
+  [#3672](https://github.com/open-telemetry/opentelemetry-rust/pull/3672)
+
+#### Retry fixes
+
+The following fixes apply to retry behavior that was experimental before this
+release:
+
+- Retry only HTTP status codes 429, 502, 503, and 504, as required by the OTLP
+  specification. The exporter now also honors `Retry-After` on 503 responses.
+- Honor positive gRPC `RetryInfo` delays returned with `Unavailable` responses.
+- Continue exponential backoff from server-provided `RetryInfo` and
+  `Retry-After` delays when subsequent export attempts fail.
+
+### Other changes
+
+- Return an exporter build error when construction of a built-in reqwest HTTP
+  client fails instead of silently falling back to a client without the
+  exporter-configured timeout. Failure to spawn the blocking client's setup
+  thread, or a panic in that thread, is also returned instead of panicking.
+
+- **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
+  `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
+  the transport-selected exporter builders (e.g.
+  `SpanExporterBuilder<TonicExporterBuilderSet>`). Use the intended builder
+  flow instead:
+  ```rust
+  // Before (no longer compiles):
+  let exporter = SpanExporterBuilder::<TonicExporterBuilderSet>::default().build()?;
+
+  // After (use the builder entry point):
+  let exporter = SpanExporter::builder().with_tonic().build()?;
+  ```
+  Also removed the unused `#[doc(hidden)]` `NoExporterConfig` type.
+- **Breaking** Mark `Protocol` and `Compression` as non-exhaustive so new OTLP
+  protocols, encodings, and compression algorithms can be added without
+  breaking downstream users. External exhaustive matches must add a wildcard
+  arm. Constructing existing variants and passing them to exporter builders is
+  unchanged.
+  ```rust
+  let protocol_name = match protocol {
+      Protocol::Grpc => "grpc",
+      Protocol::HttpBinary => "http/protobuf",
+      Protocol::HttpJson => "http/json",
+      _ => "unknown", // Required because Protocol is non-exhaustive.
+  };
+  ```
+- **Breaking** Make `Protocol::from_env()` crate-private. Exporter builders
+  already resolve `OTEL_EXPORTER_OTLP_PROTOCOL` when built; applications that
+  need to inspect the raw environment setting should read the variable
+  directly.
+- **Breaking** Remove `OTEL_EXPORTER_OTLP_ENDPOINT_DEFAULT`, which always held
+  the HTTP default (`http://localhost:4318`) despite gRPC using
+  `http://localhost:4317`. Omit `.with_endpoint(...)` to let the selected
+  transport use its correct default, or provide the appropriate URL explicitly.
+  [#3690](https://github.com/open-telemetry/opentelemetry-rust/issues/3690)
+- **Breaking** Restrict `MetricExporterBuilder::with_http()` and `with_tonic()`
+  to builders where no transport has been selected, matching the span and log
+  exporter builders. Select a transport once; `with_temporality()` remains
+  available before or after transport selection.
+- **Breaking** Remove the public `HttpExporterBuilder` and
+  `TonicExporterBuilder` transport-first APIs. Configure transports through the
+  signal builders instead:
+  - Replace `HttpExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_http()`, then replace
+    `.build_span_exporter()` or `.build_log_exporter()` with `.build()`.
+  - Replace `.build_metrics_exporter(temporality)` with
+    `.with_temporality(temporality).build()`.
+  - Replace `TonicExporterBuilder::default()` with the corresponding signal
+    exporter builder followed by `.with_tonic()`.
+  Transport-specific configuration methods remain available after
+  `.with_http()` or `.with_tonic()`.
+- **Breaking** Removed the deprecated `tls` feature alias. Replace `tls` with
+  `tls-ring`, or select `tls-aws-lc` or `tls-provider-agnostic` explicitly.
+- Return an exporter build error for invalid OTLP/HTTP endpoint environment
+  variables instead of silently falling back to another endpoint or localhost.
+  Empty endpoint environment variables are now treated as unset.
+- Return an exporter build error for invalid OTLP/gRPC endpoint environment
+  variables instead of silently falling back to another endpoint or localhost.
+  Empty endpoint environment variables are now treated as unset.
+- **Breaking** Add the required `WithHttpConfig::with_max_request_body_size`
+  method. External implementations of `WithHttpConfig` must implement it.
+  OTLP/HTTP request bodies are now limited to 64 MiB by default, before and
+  after compression; oversized requests are discarded without being sent or
+  retried.
+- **Breaking** Seal `WithExportConfig`, `WithHttpConfig`, and
+  `WithTonicConfig`. These traits remain public for calling configuration
+  methods on OTLP builders, but can no longer be implemented for external
+  types.
+- Add support for INSECURE environment variables for gRPC (env-var-only, no builder method, per spec):
+  `OTEL_EXPORTER_OTLP_INSECURE` (generic), `OTEL_EXPORTER_OTLP_TRACES_INSECURE`,
+  `OTEL_EXPORTER_OTLP_METRICS_INSECURE`, `OTEL_EXPORTER_OTLP_LOGS_INSECURE`.
+  Per the spec, these only apply to gRPC connections. When an endpoint has no explicit scheme,
+  `INSECURE=true` uses `http://`, `INSECURE=false` (default) uses `https://` with auto-TLS.
+  **Breaking:** Schemeless endpoints (e.g., `collector.example.com:4317`) now default to `https://`  
+  instead of being passed as-is. Set `OTEL_EXPORTER_OTLP_INSECURE=true` for plaintext connections.
+  Endpoints with an explicit scheme (e.g., `http://`, `https://`, `unix://`) are unaffected.
+  [#774](https://github.com/open-telemetry/opentelemetry-rust/issues/774)
+  [#984](https://github.com/open-telemetry/opentelemetry-rust/issues/984)
+- **Breaking** Removed the `serialize` feature flag and its implicit `serde`
+  dependency. This feature gated `Serialize`/`Deserialize` derives on
+  `Protocol` and `Compression`, but the derived representations were incorrect
+  (Rust variant names instead of spec values) and the feature only covered
+  these two enums. The equivalent feature was removed from the core
+  `opentelemetry` crate in 2022.
+  **Migration**: Remove `serialize` (and `serde`, if listed) from your feature
+  list. If these values are part of serialisable app config, define a local
+  config enum or wrapper and convert it to `Protocol` or `Compression` when
+  building the exporter.
+  [#3711](https://github.com/open-telemetry/opentelemetry-rust/pull/3711)
+- **Breaking** Removed `reqwest-rustls-webpki-roots` feature. The `webpki-roots` cargo feature was
+  removed from `reqwest` in v0.13.0, making this feature broken for anyone resolving `reqwest >= 0.13.0`.
+  **Migration**: Use `reqwest-rustls` instead (now correctly uses `reqwest/rustls` with platform native
+  trust roots). If you specifically need Mozilla's embedded CA bundle, construct a custom client:
+  ```rust
+  let root_store = rustls::RootCertStore::from_iter(
+      webpki_roots::TLS_SERVER_ROOTS.iter().cloned(),
+  );
+  let tls_config = rustls::ClientConfig::builder()
+      .with_root_certificates(root_store)
+      .with_no_client_auth();
+  let client = reqwest::Client::builder()
+      .tls_backend_preconfigured(tls_config)
+      .build()?;
+  exporter_builder.with_http_client(client)
+  ```
+
+## 0.32.0
+
+Released 2026-May-08
+
 - Add `tls-provider-agnostic` feature flag for environments that require a custom crypto backend (e.g., OpenSSL for FIPS compliance). Enables TLS code paths without bundling `ring` or `aws-lc-rs`.
 - Add `build()` directly on `SpanExporterBuilder`, `MetricExporterBuilder`, and `LogExporterBuilder`
   (before selecting a transport), which auto-selects the transport based on the
@@ -20,6 +167,28 @@
   processors contain only the gRPC status code or HTTP status code. Full
   details are logged at DEBUG level only.
   [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021)
+- Surface pre-flight transport error details at ERROR level when `grpc-tonic`
+  OTLP export fails due to a local misconfiguration. When the returned
+  `tonic::Status` wraps a local transport error (invalid URL, connect failure,
+  DNS), its source chain (e.g., `"transport error: invalid URI"`) is appended
+  to the returned error so SDK processors surface it at ERROR without
+  requiring DEBUG logging. Server-returned gRPC status messages remain
+  DEBUG-only to preserve the auth-token leak safeguards from
+  [#3021](https://github.com/open-telemetry/opentelemetry-rust/issues/3021).
+  [#3331](https://github.com/open-telemetry/opentelemetry-rust/issues/3331)
+- Add support for per-signal protocol environment variables:
+  `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`,
+  `OTEL_EXPORTER_OTLP_LOGS_PROTOCOL`. These allow configuring different transport protocols
+  per signal type. Signal-specific vars take precedence over generic `OTEL_EXPORTER_OTLP_PROTOCOL`.
+  The auto-select `build()` method on each exporter builder now respects the full priority chain:
+  signal-specific env var > generic env var > feature-based default.
+- Transport/protocol mismatch validation: HTTP transport returns `InvalidConfig` when gRPC protocol
+  is requested; gRPC transport returns `InvalidConfig` when an HTTP protocol is requested.
+- **Breaking**: `Protocol::default()` no longer consults the `OTEL_EXPORTER_OTLP_PROTOCOL`
+  environment variable. It now returns only the feature-based default (http-json > http-proto >
+  grpc-tonic). Protocol resolution from environment variables is handled internally by the
+  exporter builders. Users who relied on `Protocol::default()` to read env vars should use
+  `Protocol::from_env()` instead.
 - Add support for `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` environment variable
   to configure metrics temporality. Accepted values: `cumulative` (default), `delta`,
   `lowmemory` (case-insensitive). Programmatic `.with_temporality()` overrides the env var.
@@ -29,6 +198,7 @@
 - Fixed [#2777](https://github.com/open-telemetry/opentelemetry rust/issues/2777)  to properly handle `shutdown_with_timeout()` when using `grpc-tonic`.
 - Deprecate `tls` feature in favor of explicit `tls-ring` and `tls-aws-lc` features.
   **Migration**: Replace `tls` with `tls-ring` (or `tls-aws-lc`). Users of `tls-roots` or `tls-webpki-roots` must now also enable one of these.
+- Prevent logging of header values in OTLP tonic exporter [#3465](https://github.com/open-telemetry/opentelemetry-rust/pull/3465)
 
 ## 0.31.0
 

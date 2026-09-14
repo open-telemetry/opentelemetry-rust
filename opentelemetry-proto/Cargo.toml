@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-proto"
-version = "0.31.0"
+version = "0.32.0"
 description = "Protobuf generated files and transformations."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto"
@@ -35,8 +35,8 @@ default = ["full"]
 full = ["gen-tonic", "trace", "logs", "metrics", "zpages", "with-serde", "internal-logs"]
 
 # crates used to generate rs files
-gen-tonic = ["gen-tonic-messages", "tonic/channel"]
-gen-tonic-messages = ["tonic", "tonic-prost", "prost"]
+gen-tonic = ["gen-tonic-messages", "tonic", "tonic-prost", "tonic/channel"]
+gen-tonic-messages = ["prost"]
 
 # telemetry pillars and functions
 trace = ["opentelemetry/trace", "opentelemetry_sdk/trace"]

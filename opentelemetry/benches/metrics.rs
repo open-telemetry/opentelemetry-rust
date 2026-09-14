@@ -1,16 +1,15 @@
 /*
     Benchmark Results:
     criterion = "0.5.1"
-    OS: Ubuntu 22.04.4 LTS (5.15.153.1-microsoft-standard-WSL2)
-    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, 16vCPUs,
-    RAM: 64.0 GB
+    OS: macOS 15
+    Hardware: Apple M4 Pro, 14 cores, RAM: 24 GB
     | Test                                                | Average time|
     |-----------------------------------------------------|-------------|
-    | NoAttributes                                        | 1.1616 ns   |
-    | AddWithInlineStaticAttributes                       | 13.296 ns   |
-    | AddWithStaticArray                                  | 1.1612 ns   |
-    | AddWithDynamicAttributes                            | 110.40 ns   |
-    | AddWithDynamicAttributes_WithStringAllocation       | 77.338 ns   |
+    | NoAttributes                                        |   0.77 ns   |
+    | AddWithInlineStaticAttributes                       |   8.10 ns   |
+    | AddWithStaticArray                                  |   0.77 ns   |
+    | AddWithDynamicAttributes                            |  44.84 ns   |
+    | AddWithDynamicAttributes_WithStringAllocation       |  85.92 ns   |
 */
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};

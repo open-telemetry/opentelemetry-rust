@@ -1,4 +1,4 @@
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! This crate contains generated files from [opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
 //! repository and transformation between types from generated files and types defined in [opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry)
 //!
@@ -17,8 +17,8 @@
 //! - `zpages`: generate types that used in zPages. Currently only tracez related types will be generated. Currently supports `gen-tonic`.
 //!
 //! ## Creates used to generate files
-//! - `gen-tonic-messages`: generate rs files using [tonic](https://github.com/hyperium/tonic) and [prost](https://github.com/tokio-rs/prost).
-//! - `gen-tonic`: adding tonic transport to "`gen-tonic-messages"
+//! - `gen-tonic-messages`: generate OTLP message types using [prost](https://github.com/tokio-rs/prost).
+//! - `gen-tonic`: add tonic gRPC client/server transport support on top of `gen-tonic-messages`.
 //!
 //! ## Misc
 //! - `full`: enabled all features above.

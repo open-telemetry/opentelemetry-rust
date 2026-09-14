@@ -42,6 +42,11 @@ pub const OTEL_EXPORTER_OTLP_METRICS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_MET
 /// Example: `k1=v1,k2=v2`
 /// Note: this is only supported for HTTP.
 pub const OTEL_EXPORTER_OTLP_METRICS_HEADERS: &str = "OTEL_EXPORTER_OTLP_METRICS_HEADERS";
+/// Protocol to use for metrics exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
+pub const OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL";
+/// Whether to disable TLS for gRPC metrics exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_METRICS_INSECURE: &str = "OTEL_EXPORTER_OTLP_METRICS_INSECURE";
 /// Temporality preference for metrics, defaults to cumulative.
 pub const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
     "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE";
@@ -63,15 +68,19 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
     /// variable or feature flags.
     ///
     /// The transport is chosen based on:
-    /// 1. The `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable (if set and the
-    ///    corresponding feature is enabled)
-    /// 2. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
+    /// 1. `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` environment variable
+    /// 2. `OTEL_EXPORTER_OTLP_PROTOCOL` environment variable
+    /// 3. Enabled features, with priority: `http-json` > `http-proto` > `grpc-tonic`
     ///
     /// Use [`with_tonic`](Self::with_tonic) or [`with_http`](Self::with_http) to
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
-        match crate::Protocol::default() {
+        // NOTE: The transport-specific builder will call resolve_protocol again
+        // internally (for HTTP sub-protocol selection or tonic validation), but
+        // that's harmless — the result is the same.
+        let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_METRICS_PROTOCOL, None);
+        match protocol {
             #[cfg(feature = "grpc-tonic")]
             crate::Protocol::Grpc => self.with_tonic().build(),
             #[cfg(feature = "http-proto")]
@@ -80,9 +89,7 @@ impl MetricExporterBuilder<NoExporterBuilderSet> {
             crate::Protocol::HttpJson => self.with_http().build(),
         }
     }
-}
 
-impl<C> MetricExporterBuilder<C> {
     /// With the gRPC Tonic transport.
     #[cfg(feature = "grpc-tonic")]
     pub fn with_tonic(self) -> MetricExporterBuilder<TonicExporterBuilderSet> {
@@ -100,7 +107,9 @@ impl<C> MetricExporterBuilder<C> {
             temporality: self.temporality,
         }
     }
+}
 
+impl<C> MetricExporterBuilder<C> {
     /// Set the temporality for the metrics.
     ///
     /// Note: Programmatically setting this will override any value set via the environment variable.
@@ -277,12 +286,20 @@ impl MetricExporter {
 mod build_tests {
     use crate::MetricExporter;
 
-    #[test]
-    fn build_with_default_transport() {
-        // Verify that `MetricExporter::builder().build()` succeeds
-        // when at least one transport feature is enabled.
-        let result = MetricExporter::builder().build();
-        assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
+        // Unset the temporality env var so parallel tests (e.g.
+        // invalid_env_var_returns_error) that set it to invalid values
+        // don't cause this build to fail.
+        temp_env::with_var_unset(
+            super::OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE,
+            || {
+                let result = MetricExporter::builder().build();
+                assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
+            },
+        );
     }
 }
 

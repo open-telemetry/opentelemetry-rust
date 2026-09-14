@@ -2,6 +2,41 @@
 
 ## vNext
 
+- Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
+  specification allows. `from_str`, `from_key_value` and `insert` now keep at most
+  32, dropping members from the end of the list as the specification prescribes, so
+  neither a parsed nor a locally built `tracestate` can exceed the limit.
+- **Added** experimental support for a global context event observer. A
+  `ContextObserver` can be registered via `GlobalContextObserver::set` to be
+  notified of context transitions through the `on_context_enter` and
+  `on_context_exit` callbacks. This feature is primarily intended to publish a
+  different view of the current context (the `ObserverContextView`) through
+  alternative channels that let external readers (e.g. an eBPF profiler) track
+  the current context. See the associated
+  [OTEP](https://github.com/open-telemetry/opentelemetry-specification/pull/4947).
+  Gated behind the `experimental_context_observer` feature flag.
+- `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
+  (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
+- **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
+  corresponding `Gauge::bind()` / `UpDownCounter::bind()` methods), completing
+  the experimental bound-instrument API across all sync instruments
+  (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
+
+## 0.32.0
+
+Released 2026-May-08
+
+- **Added** `BoundCounter<T>` and `BoundHistogram<T>` types that cache resolved
+  aggregator references for a fixed attribute set. Created via `Counter::bind()`
+  and `Histogram::bind()`, bound instruments bypass per-call attribute lookup,
+  providing significant performance improvements for hot paths where the same
+  attributes are used repeatedly. Both types implement `Clone` so a single bound
+  state can be shared across threads or modules without re-binding. Also adds
+  the `SyncInstrument::bind()` trait method and `BoundSyncInstrument<T>` trait
+  for SDK implementors; the trait method has a no-op default so custom
+  `SyncInstrument` impls degrade gracefully without panicking. Gated behind the
+  `experimental_metrics_bound_instruments` feature flag.
 - Add `reserve` method to `opentelemetry::propagation::Injector` to hint at the number of elements that will be added to avoid multiple resize operations of the underlying data structure. Has an empty default implementation.
 - **Breaking** Removed the following public fields and methods from the `SpanBuilder` [#3227][3227]:
   - `trace_id`, `span_id`, `end_time`, `status`, `sampling_result`

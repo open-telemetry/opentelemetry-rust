@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.32.0
+
+Released 2026-May-08
+
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default.
   [3278](https://github.com/open-telemetry/opentelemetry-rust/pull/3278)

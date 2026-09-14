@@ -21,9 +21,12 @@ use super::{
     Temporality,
 };
 
-const DEFAULT_INTERVAL: Duration = Duration::from_secs(60);
+/// Environment variable for configuring the delay interval (in milliseconds)
+/// between two consecutive exports for [PeriodicReader].
+pub const OTEL_METRIC_EXPORT_INTERVAL: &str = "OTEL_METRIC_EXPORT_INTERVAL";
 
-const METRIC_EXPORT_INTERVAL_NAME: &str = "OTEL_METRIC_EXPORT_INTERVAL";
+/// Default delay interval between two consecutive exports for [PeriodicReader].
+pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60);
 
 /// Configuration options for [PeriodicReader].
 #[derive(Debug)]
@@ -37,10 +40,10 @@ where
     E: PushMetricExporter,
 {
     fn new(exporter: E) -> Self {
-        let interval = env::var(METRIC_EXPORT_INTERVAL_NAME)
+        let interval = env::var(OTEL_METRIC_EXPORT_INTERVAL)
             .ok()
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
-            .unwrap_or(DEFAULT_INTERVAL);
+            .unwrap_or(OTEL_METRIC_EXPORT_INTERVAL_DEFAULT);
 
         PeriodicReaderBuilder { interval, exporter }
     }
@@ -89,6 +92,13 @@ where
 ///
 /// - **`grpc-tonic`**: Requires [`MeterProvider`] to be initialized within a `tokio` runtime.
 /// - **`reqwest-blocking-client`**: Works with both a standard (`main`) function and `tokio::main`.
+///
+/// Async HTTP clients such as `reqwest-client` and `hyper-client` are not
+/// supported by this default reader. The OTLP HTTP exporter chooses its default
+/// HTTP client from enabled crate features and cannot tell which reader will
+/// drive it. If your dependency graph enables async HTTP client features, either
+/// pass an explicit blocking client for this reader or use the experimental
+/// async-runtime periodic reader.
 ///
 /// [`PeriodicReader`] does **not** enforce a timeout for exports either. Instead,
 /// the configured exporter is responsible for enforcing timeouts. If an export operation

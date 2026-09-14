@@ -17,11 +17,12 @@ use opentelemetry::{
     Context, InstrumentationScope, KeyValue,
 };
 use std::fmt;
+use std::sync::Arc;
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct SdkTracer {
-    scope: InstrumentationScope,
+    scope: Arc<InstrumentationScope>,
     provider: SdkTracerProvider,
 }
 
@@ -39,7 +40,10 @@ impl fmt::Debug for SdkTracer {
 impl SdkTracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
-        SdkTracer { scope, provider }
+        SdkTracer {
+            scope: Arc::new(scope),
+            provider,
+        }
     }
 
     /// TracerProvider associated with this tracer.
@@ -208,7 +212,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             builder.links.as_deref().unwrap_or(&[]),
         );
 
-        let trace_flags = parent_cx.span().span_context().trace_flags();
+        let trace_flags = psc.trace_flags();
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
         // Build optional inner context, `None` if not recording.
