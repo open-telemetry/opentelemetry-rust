@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Include the response size limit and observed byte count in oversized HTTP
+  response diagnostics. Response limits and retry classification are unchanged.
+
 ### Retry
 
 - Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
