@@ -29,6 +29,22 @@ enqueue, once with `error.type=queue_full` when dropped due to a full queue,
 and once with `error.type=already_shutdown` when emitted after the processor
 has been shut down.
 
+### `otel.sdk.processor.log.queue.capacity`
+
+- **Instrument**: `ObservableUpDownCounter<i64>`
+- **Unit**: `{log_record}`
+- **Description**: The maximum number of log records the queue of a given
+  instance of an SDK log processor can hold.
+- **Component**: `BatchLogProcessor`
+
+**Attributes:**
+
+- `otel.component.type`: `batching_log_processor`
+- `otel.component.name`: `batching_log_processor/{id}` (auto-assigned)
+
+The callback observes the configured maximum queue size and stops reporting
+after the processor is dropped.
+
 ## Feature Gate
 
 Self-diagnostics metrics require the `experimental_metrics_bound_instruments`
@@ -90,7 +106,6 @@ means no self-diagnostics data.
 ## TODO
 
 - Emit `otel.sdk.processor.log.queue.size` (current queue depth).
-- Emit `otel.sdk.processor.log.queue.capacity` (configured max queue size).
 - Emit `otel.sdk.exporter.log.exported` from log exporters.
 - Add self-diagnostics to `BatchSpanProcessor`.
 - Add self-diagnostics to `SimpleLogProcessor`.

@@ -1,8 +1,8 @@
+# OpenTelemetry Semantic Conventions
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
-
-# OpenTelemetry Semantic Conventions
 
 Semantic conventions for applications instrumented with [`OpenTelemetry`].
 
@@ -25,6 +25,18 @@ and visualization tools.
 
 *[Supported Rust Versions](#supported-rust-versions)*
 
+### What does this crate contain?
+
+This crate contains Rust constants generated from the [OpenTelemetry Semantic
+Conventions](https://github.com/open-telemetry/semantic-conventions)
+specification. It provides standardized attribute keys, metric names and
+resource attributes so that instrumentation produced by different libraries
+remains interoperable across processing and visualization tools.
+
+## Getting started
+
+See [docs](https://docs.rs/opentelemetry-semantic-conventions).
+
 ## Release Notes
 
 You can find the release notes (changelog) [here](https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-semantic-conventions/CHANGELOG.md).
@@ -32,7 +44,7 @@ You can find the release notes (changelog) [here](https://github.com/open-teleme
 ## Supported Rust Versions
 
 OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75.0. The current OpenTelemetry version is not guaranteed to build
+version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build
 on Rust versions earlier than the minimum supported version.
 
 The current stable Rust compiler and the three most recent minor versions

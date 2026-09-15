@@ -10,6 +10,10 @@ The tests connect directly to the collector on `localhost:4317` and
 `localhost:4318`, push data through, and then check that what they expect has
 popped back out into the files output by the collector.
 
+Retry tests use an in-process fake OTLP endpoint instead of the collector. The
+endpoint returns scripted failures so the tests can verify exporter retry
+behavior through a real HTTP client.
+
 ## Pre-requisites
 
 * Docker, for the test container
