@@ -34,9 +34,11 @@ release:
 
 ### Other changes
 
-- **Breaking** Removed the `TryFrom<Compression>` implementation for
-  `tonic::codec::CompressionEncoding`. Configure exporter compression through
-  `WithTonicConfig::with_compression` instead.
+- Exporter compression configuration and behavior are unchanged; users of
+  `.with_compression(...)` need no changes. **Breaking only for direct conversion
+  callers:** removed `TryFrom<Compression>` for
+  `tonic::codec::CompressionEncoding`. Code explicitly converting between these
+  enums must map the variants itself.
 
 - Return an exporter build error when construction of a built-in reqwest HTTP
   client fails instead of silently falling back to a client without the
