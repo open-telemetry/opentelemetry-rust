@@ -659,23 +659,6 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn observable_counter_delta_attribute_set_reappears_after_gap() {
-        // Run this test with stdout enabled to see output.
-        // cargo test observable_counter_delta_attribute_set_reappears_after_gap --features=testing -- --nocapture
-
-        // This test verifies the behavior when an attribute set is not reported
-        // for one collection cycle and then reappears.
-        // See: https://github.com/open-telemetry/opentelemetry-specification/issues/4861
-        //
-        // Scenario (Observable Counter with Delta temporality):
-        // | Collection | Callback Reports  | Expected Delta Export  |
-        // |------------|-------------------|------------------------|
-        // | 1          | A=100, B=50       | A=100, B=50            |
-        // | 2          | A=150 (B missing) | A=50 (B not exported)  |
-        // | 3          | A=200, B=80       | A=50, B=80             |
-        //
-        // Current implementation: When B reappears, its delta is calculated from zero
-        // (fresh start), not from the last known value. This is Option 1 from the spec issue.
-
         let mut test_context = TestContext::new(Temporality::Delta);
 
         // Shared state for callback: (collection_cycle, value_a, value_b_option)
@@ -771,17 +754,106 @@ mod tests {
 
             assert_eq!(dp_a.value, 50, "A's delta should be 50 (200 - 150)");
 
-            // B reappears after a gap. Current implementation uses "delta from zero" (Option 1).
-            // This means B's delta = 80 - 0 = 80, not 80 - 50 = 30.
-            // See: https://github.com/open-telemetry/opentelemetry-specification/issues/4861
-            // TODO: Watch for spec clarification on this behavior.
             assert_eq!(
-                dp_b.value, 80,
-                "B's delta should be 80 (fresh start after gap, not 30 from last known value)"
+                dp_b.value, 30,
+                "B's delta should be 30 (calculated from retained baseline 50 after 1 missed cycle)"
             );
 
             test_context.reset_metrics();
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta_stale_eviction() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let observation = Arc::new(Mutex::new(Some(100u64)));
+        let observation_clone = observation.clone();
+
+        let _observable_counter = test_context
+            .meter()
+            .u64_observable_counter("stale_counter")
+            .with_callback(move |observer| {
+                let val = *observation_clone.lock().unwrap();
+                if let Some(v) = val {
+                    observer.observe(v, &[KeyValue::new("k", "v")]);
+                }
+            })
+            .build();
+
+        // Cycle 1: observe 100 -> export 100
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("stale_counter", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 100);
+        test_context.reset_metrics();
+
+        // Cycle 2: empty (missed 1) -> exports nothing
+        *observation.lock().unwrap() = None;
+        test_context.flush_metrics();
+        test_context.check_no_metrics();
+        test_context.reset_metrics();
+
+        // Cycle 3: empty (missed 2 -> evicted) -> exports nothing
+        test_context.flush_metrics();
+        test_context.check_no_metrics();
+        test_context.reset_metrics();
+
+        // Cycle 4: observe 110 -> starts fresh from 0, exports 110
+        *observation.lock().unwrap() = Some(110);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("stale_counter", None)
+        else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 110);
+        test_context.reset_metrics();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn observable_counter_delta_f64_nan_rejection() {
+        let mut test_context = TestContext::new(Temporality::Delta);
+        let observation = Arc::new(Mutex::new(Some(100.0f64)));
+        let observation_clone = observation.clone();
+
+        let _observable_counter = test_context
+            .meter()
+            .f64_observable_counter("f64_counter")
+            .with_callback(move |observer| {
+                let val = *observation_clone.lock().unwrap();
+                if let Some(v) = val {
+                    observer.observe(v, &[KeyValue::new("k", "v")]);
+                }
+            })
+            .build();
+
+        // Cycle 1: observe 100.0 -> export 100.0
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<f64>("f64_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 100.0);
+        test_context.reset_metrics();
+
+        // Cycle 2: observe NaN (rejected) -> exports nothing
+        *observation.lock().unwrap() = Some(f64::NAN);
+        test_context.flush_metrics();
+        test_context.check_no_metrics();
+        test_context.reset_metrics();
+
+        // Cycle 3: observe 110.0 -> baseline 100.0 retained, export 10.0
+        *observation.lock().unwrap() = Some(110.0);
+        test_context.flush_metrics();
+        let MetricData::Sum(sum) = test_context.get_aggregation::<f64>("f64_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 1);
+        assert_eq!(sum.data_points[0].value, 10.0);
+        test_context.reset_metrics();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
