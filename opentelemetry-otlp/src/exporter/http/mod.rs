@@ -506,11 +506,13 @@ impl OtlpHttpClient {
 
         // Send request
         let response = client.send_bytes(request).await.map_err(|e| {
-            if e.downcast_ref::<ResponseBodyTooLarge>().is_some() {
+            if let Some(body_error) = e.downcast_ref::<ResponseBodyTooLarge>() {
                 let message = e.to_string();
                 otel_debug!(
                     name: "HttpClient.ResponseBodyTooLarge",
                     url = request_uri.as_str(),
+                    limit = body_error.limit(),
+                    observed_size = body_error.observed_size(),
                     error = message.as_str()
                 );
                 return HttpExportError::response_body_too_large(message);
@@ -1938,7 +1940,10 @@ mod tests {
                 _request: http::Request<Bytes>,
             ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
                 self.attempts.fetch_add(1, Ordering::SeqCst);
-                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge::new(
+                    4 * 1024 * 1024,
+                    4 * 1024 * 1024 + 1,
+                )))
             }
         }
 
@@ -2052,9 +2057,9 @@ mod tests {
             .unwrap_err();
 
             assert_eq!(mock.attempt_count(), 1);
-            assert!(error
-                .to_string()
-                .contains("response body exceeded maximum allowed 4 MiB limit"));
+            assert!(error.to_string().contains(
+                "response body exceeded 4194304 byte limit: observed at least 4194305 bytes"
+            ));
         }
 
         #[test]

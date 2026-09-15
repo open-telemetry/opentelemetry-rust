@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **Breaking** Add byte-count details to `ResponseBodyTooLarge`. Construct it with
+  `ResponseBodyTooLarge::new(limit, observed_size)` instead of the unit struct;
+  inspect details with `limit()` and `observed_size()`. The observed size is a
+  lower bound because reading stops when the limit is exceeded.
+
 - Apply `HyperClient`'s configured timeout to the complete response body, not
   only request dispatch and response headers.
 
