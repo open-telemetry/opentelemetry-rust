@@ -133,7 +133,7 @@ impl SdkTracer {
         };
         Span::new(
             sc,
-            Some(SpanData {
+            SpanData {
                 parent_span_id: psc.span_id(),
                 parent_span_is_remote: psc.is_valid() && psc.is_remote(),
                 span_kind: builder.span_kind.take().unwrap_or(SpanKind::Internal),
@@ -145,7 +145,7 @@ impl SdkTracer {
                 events: span_events,
                 links: span_links,
                 status: Status::default(),
-            }),
+            },
             self.clone(),
             span_limits,
         )
@@ -165,23 +165,18 @@ impl opentelemetry::trace::Tracer for SdkTracer {
     /// spans in the trace.
     fn build_with_context(&self, builder: SpanBuilder, parent_cx: &Context) -> Self::Span {
         if parent_cx.is_telemetry_suppressed() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
+            return Span::new_noop(SpanContext::empty_context());
         }
 
         let provider = self.provider();
         // no point start a span if the tracer provider has already being shutdown
         if provider.is_shutdown() {
-            return Span::new(
-                SpanContext::empty_context(),
-                None,
-                self.clone(),
-                SpanLimits::default(),
-            );
+            return Span::new_noop(SpanContext::empty_context());
+        }
+
+        // no point starting a span if the SDK is disabled via OTEL_SDK_DISABLED.
+        if provider.is_disabled() {
+            return Span::new_noop(SpanContext::empty_context());
         }
 
         let config = provider.config();
@@ -252,7 +247,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             SamplingDecision::Drop => {
                 let span_context =
                     SpanContext::new(trace_id, span_id, TraceFlags::default(), false, trace_state);
-                Span::new(span_context, None, self.clone(), span_limits)
+                Span::new_noop(span_context)
             }
         };
 
