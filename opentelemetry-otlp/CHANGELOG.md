@@ -34,6 +34,10 @@ release:
 
 ### Other changes
 
+- **Breaking** Removed the `TryFrom<Compression>` implementation for
+  `tonic::codec::CompressionEncoding`. Configure exporter compression through
+  `WithTonicConfig::with_compression` instead.
+
 - Return an exporter build error when construction of a built-in reqwest HTTP
   client fails instead of silently falling back to a client without the
   exporter-configured timeout. Failure to spawn the blocking client's setup
