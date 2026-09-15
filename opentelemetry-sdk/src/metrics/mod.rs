@@ -120,6 +120,35 @@ impl FromStr for Temporality {
     }
 }
 
+/// The default histogram aggregation selection for a [`exporter::PushMetricExporter`].
+///
+/// This controls which aggregation type is used for histogram instruments
+/// when no explicit aggregation is configured via a view.
+///
+/// Corresponds to the `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION`
+/// environment variable.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum HistogramAggregation {
+    /// Use explicit bucket histogram aggregation with default boundaries.
+    #[default]
+    ExplicitBucketHistogram,
+
+    /// Use base2 exponential bucket histogram aggregation.
+    Base2ExponentialBucketHistogram,
+}
+
+impl FromStr for HistogramAggregation {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "explicit_bucket_histogram" => Ok(Self::ExplicitBucketHistogram),
+            "base2_exponential_bucket_histogram" => Ok(Self::Base2ExponentialBucketHistogram),
+            _ => Err(()),
+        }
+    }
+}
+
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     #[cfg(feature = "experimental_metrics_bound_instruments")]

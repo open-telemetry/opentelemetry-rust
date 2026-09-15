@@ -381,6 +381,7 @@ impl HttpExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
+        histogram_aggregation: opentelemetry_sdk::metrics::HistogramAggregation,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_METRICS_COMPRESSION, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
@@ -397,7 +398,11 @@ impl HttpExporterBuilder {
             OTEL_EXPORTER_OTLP_METRICS_PROTOCOL,
         )?;
 
-        Ok(crate::MetricExporter::from_http(client, temporality))
+        Ok(crate::MetricExporter::from_http(
+            client,
+            temporality,
+            histogram_aggregation,
+        ))
     }
 }
 

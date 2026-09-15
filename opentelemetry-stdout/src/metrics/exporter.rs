@@ -10,6 +10,7 @@ use opentelemetry_sdk::{
             HistogramDataPoint, ResourceMetrics, ScopeMetrics, Sum, SumDataPoint,
         },
         exporter::PushMetricExporter,
+        HistogramAggregation,
     },
 };
 use std::fmt::Debug;
@@ -20,6 +21,7 @@ use std::time::Duration;
 pub struct MetricExporter {
     is_shutdown: atomic::AtomicBool,
     temporality: Temporality,
+    histogram_aggregation: HistogramAggregation,
 }
 
 impl MetricExporter {
@@ -76,6 +78,10 @@ impl PushMetricExporter for MetricExporter {
 
     fn temporality(&self) -> Temporality {
         self.temporality
+    }
+
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        self.histogram_aggregation
     }
 }
 
@@ -354,6 +360,7 @@ fn print_exponential_hist_data_points<'a, T: Debug + Copy + 'a>(
 #[derive(Default)]
 pub struct MetricExporterBuilder {
     temporality: Option<Temporality>,
+    histogram_aggregation: Option<HistogramAggregation>,
 }
 
 impl MetricExporterBuilder {
@@ -363,10 +370,20 @@ impl MetricExporterBuilder {
         self
     }
 
+    /// Set the default histogram aggregation of the exporter.
+    pub fn with_histogram_aggregation(
+        mut self,
+        histogram_aggregation: HistogramAggregation,
+    ) -> Self {
+        self.histogram_aggregation = Some(histogram_aggregation);
+        self
+    }
+
     /// Create a metrics exporter with the current configuration
     pub fn build(self) -> MetricExporter {
         MetricExporter {
             temporality: self.temporality.unwrap_or_default(),
+            histogram_aggregation: self.histogram_aggregation.unwrap_or_default(),
             is_shutdown: atomic::AtomicBool::new(false),
         }
     }

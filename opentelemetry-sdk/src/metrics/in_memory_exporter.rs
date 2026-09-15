@@ -3,7 +3,7 @@ use crate::metrics::data::{
     ExponentialHistogram, Gauge, Histogram, MetricData, ResourceMetrics, Sum,
 };
 use crate::metrics::exporter::PushMetricExporter;
-use crate::metrics::Temporality;
+use crate::metrics::{HistogramAggregation, Temporality};
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -259,5 +259,9 @@ impl PushMetricExporter for InMemoryMetricExporter {
 
     fn temporality(&self) -> Temporality {
         self.temporality
+    }
+
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        HistogramAggregation::ExplicitBucketHistogram
     }
 }

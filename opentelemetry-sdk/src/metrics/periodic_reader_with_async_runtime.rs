@@ -22,6 +22,7 @@ use crate::{
 
 use super::{
     data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
+    HistogramAggregation,
 };
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -437,6 +438,10 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
     fn temporality(&self, kind: InstrumentKind) -> super::Temporality {
         kind.temporality_preference(self.exporter.temporality())
+    }
+
+    fn default_histogram_aggregation(&self) -> HistogramAggregation {
+        self.exporter.default_histogram_aggregation()
     }
 }
 

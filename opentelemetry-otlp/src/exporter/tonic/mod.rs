@@ -378,6 +378,7 @@ impl TonicExporterBuilder {
     pub(crate) fn build_metrics_exporter(
         self,
         temporality: opentelemetry_sdk::metrics::Temporality,
+        histogram_aggregation: opentelemetry_sdk::metrics::HistogramAggregation,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
         use crate::MetricExporter;
         use metrics::TonicMetricsClient;
@@ -396,7 +397,11 @@ impl TonicExporterBuilder {
         let client =
             TonicMetricsClient::new(channel, interceptor, compression, retry_policy, timeout);
 
-        Ok(MetricExporter::from_tonic(client, temporality))
+        Ok(MetricExporter::from_tonic(
+            client,
+            temporality,
+            histogram_aggregation,
+        ))
     }
 
     /// Build a new tonic span exporter

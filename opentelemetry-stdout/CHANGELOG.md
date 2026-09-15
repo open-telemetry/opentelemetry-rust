@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Support `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` ([#3433][3433]).
+
 ## 0.32.0
 
 Released 2026-May-08
