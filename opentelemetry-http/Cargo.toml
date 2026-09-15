@@ -32,6 +32,7 @@ tokio = { workspace = true, features = ["time"], optional = true }
 [dev-dependencies]
 futures-executor = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+tower-service = { workspace = true }
 
 [lints]
 workspace = true
