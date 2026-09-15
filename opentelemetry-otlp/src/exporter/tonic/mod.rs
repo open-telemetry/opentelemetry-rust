@@ -64,26 +64,24 @@ pub(crate) struct TonicConfig {
     pub(crate) retry_policy: Option<RetryPolicy>,
 }
 
-impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
-    type Error = ExporterBuildError;
-
-    fn try_from(value: Compression) -> Result<Self, ExporterBuildError> {
-        match value {
-            #[cfg(feature = "gzip-tonic")]
-            Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
-            #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "gzip-tonic",
-                Compression::Gzip,
-            )),
-            #[cfg(feature = "zstd-tonic")]
-            Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
-            #[cfg(not(feature = "zstd-tonic"))]
-            Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "zstd-tonic",
-                Compression::Zstd,
-            )),
-        }
+fn to_tonic_compression(
+    compression: Compression,
+) -> Result<tonic::codec::CompressionEncoding, ExporterBuildError> {
+    match compression {
+        #[cfg(feature = "gzip-tonic")]
+        Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
+        #[cfg(not(feature = "gzip-tonic"))]
+        Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
+            "gzip-tonic",
+            Compression::Gzip,
+        )),
+        #[cfg(feature = "zstd-tonic")]
+        Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
+        #[cfg(not(feature = "zstd-tonic"))]
+        Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
+            "zstd-tonic",
+            Compression::Zstd,
+        )),
     }
 }
 
@@ -350,7 +348,7 @@ impl TonicExporterBuilder {
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
         super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
-            .map(|c| c.try_into())
+            .map(to_tonic_compression)
             .transpose()
     }
 
@@ -926,13 +924,13 @@ mod tests {
     #[test]
     fn test_convert_compression() {
         #[cfg(feature = "gzip-tonic")]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_ok());
+        assert!(super::to_tonic_compression(Compression::Gzip).is_ok());
         #[cfg(not(feature = "gzip-tonic"))]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_err());
+        assert!(super::to_tonic_compression(Compression::Gzip).is_err());
         #[cfg(feature = "zstd-tonic")]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_ok());
+        assert!(super::to_tonic_compression(Compression::Zstd).is_ok());
         #[cfg(not(feature = "zstd-tonic"))]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_err());
+        assert!(super::to_tonic_compression(Compression::Zstd).is_err());
     }
 
     #[cfg(feature = "zstd-tonic")]
