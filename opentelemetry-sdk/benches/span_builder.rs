@@ -4,10 +4,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::error::OTelSdkResult;
-use opentelemetry_sdk::{
-    trace as sdktrace,
-    trace::{SpanData, SpanExporter},
-};
+use opentelemetry_sdk::{trace as sdktrace, trace::SpanExporter};
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 
@@ -65,7 +62,7 @@ fn not_sampled_provider() -> (sdktrace::SdkTracerProvider, sdktrace::SdkTracer) 
 struct NoopExporter;
 
 impl SpanExporter for NoopExporter {
-    async fn export(&self, _spans: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, _spans: sdktrace::SpanBatch<'_>) -> OTelSdkResult {
         Ok(())
     }
 }

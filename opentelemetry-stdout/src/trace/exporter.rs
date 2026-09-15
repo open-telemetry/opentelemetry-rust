@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
-use opentelemetry_sdk::trace::SpanData;
+use opentelemetry_sdk::trace::SpanBatch;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use opentelemetry_sdk::resource::Resource;
@@ -31,7 +31,7 @@ impl Default for SpanExporter {
 
 impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     /// Write Spans to stdout
-    async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
         if self.is_shutdown.load(Ordering::SeqCst) {
             Err(OTelSdkError::AlreadyShutdown)
         } else {
@@ -69,8 +69,8 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
     }
 }
 
-fn print_spans(batch: Vec<SpanData>) {
-    for (i, span) in batch.into_iter().enumerate() {
+fn print_spans(batch: SpanBatch<'_>) {
+    for (i, span) in batch.iter().enumerate() {
         println!("Span #{i}");
         println!("\tInstrumentation Scope");
         println!("\t\tName         : {:?}", span.instrumentation_scope.name());

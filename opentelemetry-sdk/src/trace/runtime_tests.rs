@@ -4,7 +4,7 @@
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::runtime::RuntimeChannel;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use crate::trace::SpanExporter;
+use crate::trace::{SpanBatch, SpanExporter};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use crate::{error::OTelSdkResult, runtime};
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
@@ -25,8 +25,9 @@ struct SpanCountExporter {
 
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 impl SpanExporter for SpanCountExporter {
-    async fn export(&self, batch: Vec<crate::trace::SpanData>) -> OTelSdkResult {
-        self.span_count.fetch_add(batch.len(), Ordering::SeqCst);
+    async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
+        self.span_count
+            .fetch_add(batch.iter().len(), Ordering::SeqCst);
         Ok(())
     }
 }
