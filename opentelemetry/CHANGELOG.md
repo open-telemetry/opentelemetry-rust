@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Added prototype support for the Metrics `OptIn` advisory parameter through
+  `with_opt_in()` on instrument builders, behind `experimental_metrics_opt_in`.
 - Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
   specification allows. `from_str`, `from_key_value` and `insert` now keep at most
   32, dropping members from the end of the list as the specification prescribes, so
