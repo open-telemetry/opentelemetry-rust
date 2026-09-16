@@ -171,21 +171,26 @@ pub mod tonic {
         logs: &'a LogBatch<'a>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
-        // Group logs by target or instrumentation name
+        // Group by the exported scope: target overrides only the name.
         let scope_map = logs.iter().fold(
             HashMap::new(),
             |mut scope_map: HashMap<
-                Cow<'static, str>,
+                opentelemetry::InstrumentationScope,
                 Vec<(
                     &opentelemetry_sdk::logs::SdkLogRecord,
                     &opentelemetry::InstrumentationScope,
                 )>,
             >,
              (log_record, instrumentation)| {
-                let key = log_record
+                let name = log_record
                     .target()
                     .cloned()
                     .unwrap_or_else(|| Cow::Owned(instrumentation.name().to_owned()));
+                let key = opentelemetry::InstrumentationScope::builder(name)
+                    .with_version(instrumentation.version().unwrap_or_default().to_owned())
+                    .with_schema_url(instrumentation.schema_url().unwrap_or_default().to_owned())
+                    .with_attributes(instrumentation.attributes().cloned())
+                    .build();
                 scope_map
                     .entry(key)
                     .or_default()
@@ -197,11 +202,8 @@ pub mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(InstrumentationScope::from((
-                    log_data.first().unwrap().1,
-                    Some(key.into_owned().into()),
-                ))),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
+                scope: Some(InstrumentationScope::from((&key, None))),
+                schema_url: key.schema_url().unwrap_or_default().to_owned(),
                 log_records: log_data
                     .into_iter()
                     .map(|(log_record, _)| log_record.into())
@@ -359,6 +361,87 @@ mod tests {
                 ("my_app::handlers", "2.0", 1),
             ]
         );
+    }
+
+    #[test]
+    fn scope_grouping_respects_effective_metadata() {
+        let cases = [
+            (
+                "different attributes",
+                InstrumentationScope::builder("bridge")
+                    .with_attributes([KeyValue::new("source", "a")])
+                    .build(),
+                InstrumentationScope::builder("bridge")
+                    .with_attributes([KeyValue::new("source", "b")])
+                    .build(),
+                2,
+            ),
+            (
+                "different schema URLs",
+                InstrumentationScope::builder("bridge")
+                    .with_schema_url("https://scope.example/v1")
+                    .build(),
+                InstrumentationScope::builder("bridge")
+                    .with_schema_url("https://scope.example/v2")
+                    .build(),
+                2,
+            ),
+            (
+                "attribute order is irrelevant",
+                InstrumentationScope::builder("bridge")
+                    .with_attributes([KeyValue::new("a", "1"), KeyValue::new("b", "2")])
+                    .build(),
+                InstrumentationScope::builder("bridge")
+                    .with_attributes([KeyValue::new("b", "2"), KeyValue::new("a", "1")])
+                    .build(),
+                1,
+            ),
+            (
+                "target overrides different original names",
+                InstrumentationScope::builder("bridge-a")
+                    .with_version("1")
+                    .build(),
+                InstrumentationScope::builder("bridge-b")
+                    .with_version("1")
+                    .build(),
+                1,
+            ),
+        ];
+        for (description, first_scope, second_scope, expected_groups) in cases {
+            let (mut first, _) = create_test_log_data("", "first");
+            let (mut second, _) = create_test_log_data("", "second");
+            first.set_target(Cow::Borrowed("shared-target"));
+            second.set_target(Cow::Borrowed("shared-target"));
+            first.set_body("first".into());
+            second.set_body("second".into());
+            let logs = [(&first, &first_scope), (&second, &second_scope)];
+            let batch = LogBatch::new(&logs);
+            let resource = ResourceAttributesWithSchema::default();
+            let grouped =
+                crate::transform::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+            assert_eq!(
+                grouped[0].scope_logs.len(),
+                expected_groups,
+                "{description}"
+            );
+            // Every record must retain the same metadata as when exported alone.
+            for (record, scope) in logs {
+                let single =
+                    crate::tonic::logs::v1::ResourceLogs::from(((record, scope), &resource));
+                let expected = &single.scope_logs[0];
+                let actual = grouped[0]
+                    .scope_logs
+                    .iter()
+                    .find(|group| group.log_records.contains(&expected.log_records[0]))
+                    .unwrap();
+                let mut actual_scope = actual.scope.clone().unwrap();
+                let mut expected_scope = expected.scope.clone().unwrap();
+                actual_scope.attributes.sort_by(|a, b| a.key.cmp(&b.key));
+                expected_scope.attributes.sort_by(|a, b| a.key.cmp(&b.key));
+                assert_eq!(actual_scope, expected_scope, "{description}");
+                assert_eq!(actual.schema_url, expected.schema_url, "{description}");
+            }
+        }
     }
 
     #[test]
