@@ -845,14 +845,12 @@ impl HasHttpConfig for HttpExporterBuilder {
 /// This trait is sealed and cannot be implemented for types outside this crate.
 pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
+    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
+
+    /// Assign client implementation wrapped into shared pointer
     ///
-    /// The client may be provided either as a concrete client value or as an
-    /// `Arc<T>`, allowing the same client instance to be shared across multiple
-    /// exporters.
-    fn with_http_client<T: HttpClient + 'static>(
-        self,
-        client: impl Into<std::sync::Arc<T>>,
-    ) -> Self;
+    /// Prefer this method if you'd like to re-use http client across multiple exporters in your application
+    fn with_shared_http_client(self, client: std::sync::Arc<dyn HttpClient>) -> Self;
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
@@ -875,11 +873,12 @@ pub trait WithHttpConfig: super::sealed::WithHttpConfig {
 impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
-    fn with_http_client<T: HttpClient + 'static>(
-        mut self,
-        client: impl Into<std::sync::Arc<T>>,
-    ) -> Self {
-        self.http_client_config().client = Some(client.into());
+    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self {
+        self.with_shared_http_client(std::sync::Arc::new(client))
+    }
+
+    fn with_shared_http_client(mut self, client: std::sync::Arc<dyn HttpClient>) -> Self {
+        self.http_client_config().client = Some(client);
         self
     }
 
@@ -1292,7 +1291,7 @@ mod tests {
             exporter_config: ExportConfig::default(),
             http_config: HttpConfig::default(),
         }
-        .with_http_client::<MockHttpClient>(std::sync::Arc::new(MockHttpClient));
+        .with_shared_http_client(std::sync::Arc::new(MockHttpClient));
     }
 
     #[cfg(feature = "gzip-http")]
