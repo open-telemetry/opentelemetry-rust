@@ -1572,9 +1572,8 @@ mod tests {
         let mut span = tracer.start("test_span");
         let start_time = span.data.as_ref().unwrap().start_time;
 
-        // Explicitly set end_time = start_time (zero-duration span).
-        // Before the end_time_set fix, this would be silently overwritten
-        // with now() because end_time == start_time triggered the sentinel.
+        // Ensure the refactored end path preserves an explicitly supplied
+        // zero-duration timestamp where end_time == start_time.
         span.end_with_timestamp(start_time);
 
         let spans = exporter.get_finished_spans().unwrap();
