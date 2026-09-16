@@ -320,6 +320,90 @@ mod tests {
     }
 
     #[test]
+    fn scope_grouping_same_target_preserves_distinct_versions() {
+        let (mut first, _) = create_test_log_data("bridge", "first");
+        let (mut second, _) = create_test_log_data("bridge", "second");
+        first.set_target(Cow::Borrowed("my_app::handlers"));
+        second.set_target(Cow::Borrowed("my_app::handlers"));
+        let first_scope = InstrumentationScope::builder("bridge")
+            .with_version("1.0")
+            .build();
+        let second_scope = InstrumentationScope::builder("bridge")
+            .with_version("2.0")
+            .build();
+        let logs = [(&first, &first_scope), (&second, &second_scope)];
+        let batch = LogBatch::new(&logs);
+        let grouped = crate::transform::logs::tonic::group_logs_by_resource_and_scope(
+            &batch,
+            &ResourceAttributesWithSchema::default(),
+        );
+
+        // Target still supplies the exported scope name. Version distinguishes groups.
+        let mut actual: Vec<_> = grouped[0]
+            .scope_logs
+            .iter()
+            .map(|group| {
+                let scope = group.scope.as_ref().unwrap();
+                (
+                    scope.name.as_str(),
+                    scope.version.as_str(),
+                    group.log_records.len(),
+                )
+            })
+            .collect();
+        actual.sort_unstable();
+        assert_eq!(
+            actual,
+            vec![
+                ("my_app::handlers", "1.0", 1),
+                ("my_app::handlers", "2.0", 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn scope_grouping_same_target_empty_metadata_stays_together() {
+        let (mut first, first_scope) = create_test_log_data("", "first");
+        let (mut second, second_scope) = create_test_log_data("", "second");
+        first.set_target(Cow::Borrowed("my_app::handlers"));
+        second.set_target(Cow::Borrowed("my_app::handlers"));
+        let logs = [(&first, &first_scope), (&second, &second_scope)];
+        let batch = LogBatch::new(&logs);
+        let grouped = crate::transform::logs::tonic::group_logs_by_resource_and_scope(
+            &batch,
+            &ResourceAttributesWithSchema::default(),
+        );
+
+        // Typical appender logs with the same target should remain one group.
+        assert_eq!(grouped[0].scope_logs.len(), 1);
+        let group = &grouped[0].scope_logs[0];
+        assert_eq!(group.scope.as_ref().unwrap().name, "my_app::handlers");
+        assert_eq!(group.log_records.len(), 2);
+    }
+
+    #[test]
+    fn scope_grouping_uses_scope_schema_instead_of_resource_schema() {
+        let (mut record, _) = create_test_log_data("bridge", "message");
+        record.set_target(Cow::Borrowed("my_app::handlers"));
+        let scope = InstrumentationScope::builder("bridge")
+            .with_schema_url("https://scope.example/schema")
+            .build();
+        let resource = ResourceAttributesWithSchema {
+            schema_url: Some("https://resource.example/schema".to_owned()),
+            ..Default::default()
+        };
+        let logs = [(&record, &scope)];
+        let batch = LogBatch::new(&logs);
+        let grouped =
+            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+
+        assert_eq!(grouped[0].schema_url, "https://resource.example/schema");
+        let group = &grouped[0].scope_logs[0];
+        assert_eq!(group.scope.as_ref().unwrap().name, "my_app::handlers");
+        assert_eq!(group.schema_url, "https://scope.example/schema");
+    }
+
+    #[test]
     fn test_group_logs_preserves_scope_version_and_attributes_when_target_set() {
         let resource = Resource::builder().build();
         let processor = MockProcessor {};
