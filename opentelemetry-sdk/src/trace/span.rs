@@ -122,16 +122,6 @@ impl Span {
         self.data.as_ref().map(|data| data.start_time)
     }
 
-    /// Returns the end time of the span.
-    ///
-    /// Returns `None` if the span is not recording.
-    ///
-    /// Note: On an active [`Span`] (e.g. inside `on_start`), this returns the timestamp
-    /// initialized at span creation (equal to [`start_time`](Span::start_time)).
-    pub fn end_time(&self) -> Option<SystemTime> {
-        self.data.as_ref().map(|data| data.end_time)
-    }
-
     /// Returns the attributes of the span.
     ///
     /// Returns an empty slice if the span is not recording.
@@ -987,7 +977,6 @@ mod tests {
         assert!(span.span_context().span_id() != SpanId::INVALID);
         assert_eq!(span.name(), Some("test_span"));
         assert!(span.start_time().is_some());
-        assert!(span.end_time().is_some());
         assert_eq!(span.attributes(), &[KeyValue::new("k", "v")]);
         assert_eq!(span.dropped_attributes_count(), 0);
         assert_eq!(span.events().len(), 1);
@@ -1011,7 +1000,6 @@ mod tests {
         assert_eq!(span.name(), None);
         assert_eq!(span.span_kind(), &SpanKind::Internal);
         assert!(span.start_time().is_none());
-        assert!(span.end_time().is_none());
         assert_eq!(span.attributes(), &[]);
         assert_eq!(span.dropped_attributes_count(), 0);
         assert_eq!(span.events().len(), 0);
@@ -1482,7 +1470,6 @@ mod tests {
             seen_kind: Arc<std::sync::Mutex<Option<SpanKind>>>,
             seen_parent_id: Arc<std::sync::Mutex<Option<SpanId>>>,
             seen_start_time: Arc<std::sync::Mutex<Option<SystemTime>>>,
-            seen_end_time: Arc<std::sync::Mutex<Option<SystemTime>>>,
             seen_attributes_count: Arc<std::sync::Mutex<Option<usize>>>,
             seen_dropped_attributes: Arc<std::sync::Mutex<Option<u32>>>,
             seen_events_count: Arc<std::sync::Mutex<Option<usize>>>,
@@ -1501,7 +1488,6 @@ mod tests {
                 *self.seen_kind.lock().unwrap() = Some(span.span_kind().clone());
                 *self.seen_parent_id.lock().unwrap() = Some(span.parent_span_id());
                 *self.seen_start_time.lock().unwrap() = span.start_time();
-                *self.seen_end_time.lock().unwrap() = span.end_time();
                 *self.seen_attributes_count.lock().unwrap() = Some(span.attributes().len());
                 *self.seen_dropped_attributes.lock().unwrap() =
                     Some(span.dropped_attributes_count());
@@ -1556,7 +1542,6 @@ mod tests {
         assert_eq!(*proc.seen_kind.lock().unwrap(), Some(SpanKind::Internal));
         assert_eq!(*proc.seen_parent_id.lock().unwrap(), Some(SpanId::INVALID));
         assert!(proc.seen_start_time.lock().unwrap().is_some());
-        assert!(proc.seen_end_time.lock().unwrap().is_some());
         assert_eq!(*proc.seen_attributes_count.lock().unwrap(), Some(0)); // before start mutated
         assert_eq!(*proc.seen_dropped_attributes.lock().unwrap(), Some(0));
         assert_eq!(*proc.seen_events_count.lock().unwrap(), Some(0));
