@@ -44,12 +44,11 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
-- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `&mut FinishedSpan` or `SpanData`.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `SpanData`.
   - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
   - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
-  - Live `Span` instances now provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `end_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
-  - The `ReadableSpan` trait has been intentionally removed: completed spans are read through `FinishedSpan::span_data()`, live spans are read through inherent `Span` methods, and generic functions over both forms are intentionally no longer supported by this API.
-  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, replacing `span.consume()` with `span.into_owned()`, and replacing `ReadableSpan` method calls with `span.span_data()` or inherent `Span` methods.
+  - Live `Span` instances provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, use `span.span_data()` for read-only access, and call `span.into_owned()` only when they need an owned `SpanData`.
   Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
   Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
   [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
