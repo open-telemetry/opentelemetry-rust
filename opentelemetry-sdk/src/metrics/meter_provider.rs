@@ -41,6 +41,7 @@ struct SdkMeterProviderInner {
     pipes: Arc<Pipelines>,
     meters: Mutex<HashMap<InstrumentationScope, Arc<SdkMeter>>>,
     shutdown_invoked: AtomicBool,
+    is_disabled: bool,
 }
 
 impl Default for SdkMeterProvider {
@@ -189,10 +190,18 @@ impl MeterProvider for SdkMeterProvider {
     }
 
     fn meter_with_scope(&self, scope: InstrumentationScope) -> Meter {
-        if self.inner.shutdown_invoked.load(Ordering::Relaxed) {
+        let noop_reason = if self.inner.shutdown_invoked.load(Ordering::Relaxed) {
+            Some("already_shutdown")
+        } else if self.inner.is_disabled {
+            Some("disabled_via_env_variable")
+        } else {
+            None
+        };
+        if let Some(reason) = noop_reason {
             otel_debug!(
                 name: "MeterProvider.NoOpMeterReturned",
                 meter_name = scope.name(),
+                reason = reason
             );
             return Meter::new(Arc::new(NoopMeter::new()));
         }
@@ -228,11 +237,24 @@ impl MeterProvider for SdkMeterProvider {
 }
 
 /// Configuration options for a [MeterProvider].
-#[derive(Default)]
 pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    // read here and not in build(), as PeriodicReader spawns its background thread
+    // from its constructor, which build() would be too late to prevent
+    is_disabled: bool,
+}
+
+impl Default for MeterProviderBuilder {
+    fn default() -> Self {
+        MeterProviderBuilder {
+            resource: None,
+            readers: Vec::new(),
+            views: Vec::new(),
+            is_disabled: crate::env::sdk_disabled(),
+        }
+    }
 }
 
 impl MeterProviderBuilder {
@@ -285,6 +307,9 @@ impl MeterProviderBuilder {
     /// A [MeterProvider] will export no metrics without a `MetricReader`
     /// added.
     pub fn with_reader<T: MetricReader>(mut self, reader: T) -> Self {
+        if self.is_disabled {
+            return self;
+        }
         self.readers.push(Box::new(reader));
         self
     }
@@ -305,6 +330,9 @@ impl MeterProviderBuilder {
     where
         T: PushMetricExporter,
     {
+        if self.is_disabled {
+            return self;
+        }
         let reader = PeriodicReader::builder(exporter).build();
         self.readers.push(Box::new(reader));
         self
@@ -401,6 +429,14 @@ impl MeterProviderBuilder {
             builder = format!("{:?}", &self),
         );
 
+        let is_disabled = self.is_disabled;
+        if is_disabled {
+            otel_debug!(
+                name: "MeterProvider.Disabled",
+                message = "SDK is disabled through OTEL_SDK_DISABLED; only no-op meters will be returned."
+            );
+        }
+
         let meter_provider = SdkMeterProvider {
             inner: Arc::new(SdkMeterProviderInner {
                 pipes: Arc::new(Pipelines::new(
@@ -410,6 +446,7 @@ impl MeterProviderBuilder {
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
+                is_disabled,
             }),
         };
 
@@ -432,6 +469,7 @@ impl fmt::Debug for MeterProviderBuilder {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use crate::error::OTelSdkError;
+    use crate::metrics::InMemoryMetricExporter;
     use crate::metrics::SdkMeterProvider;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
@@ -777,5 +815,31 @@ mod tests {
             Some(Value::from("value3"))
         );
         assert_eq!(resource.schema_url(), Some("http://example.com"));
+    }
+
+    #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other tests"]
+    fn otel_sdk_disabled_env() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let exporter = InMemoryMetricExporter::default();
+            let meter_provider = super::SdkMeterProvider::builder()
+                .with_periodic_exporter(exporter.clone())
+                .build();
+
+            for name in ["disabled1", "disabled2", "disabled3"] {
+                let meter = meter_provider.meter(name);
+                meter.u64_counter("counter").build().add(1, &[]);
+            }
+
+            // every meter is a no-op meter, so none is cached
+            assert_eq!(meter_provider.inner.meters.lock().unwrap().len(), 0);
+
+            // no reader is wired in, so no pipeline is kept alive
+            assert!(meter_provider.force_flush().is_ok());
+            assert!(exporter.get_finished_metrics().unwrap().is_empty());
+
+            assert!(meter_provider.shutdown().is_ok());
+            assert!(meter_provider.shutdown().is_err());
+        });
     }
 }
