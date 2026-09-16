@@ -78,6 +78,14 @@ async fn handle_echo(
     Ok(res)
 }
 
+fn route_template(method: &hyper::Method, path: &str) -> Option<&'static str> {
+    match (method, path) {
+        (&hyper::Method::GET, "/health") => Some("/health"),
+        (&hyper::Method::GET, "/echo") => Some("/echo"),
+        _ => None,
+    }
+}
+
 async fn router(
     req: Request<Incoming>,
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
@@ -86,11 +94,12 @@ async fn router(
     let response = {
         // Create a span parenting the remote client span.
         let tracer = get_tracer();
-        let span = tracer
-            .span_builder("router")
-            .with_kind(SpanKind::Server)
-            .with_attributes([KeyValue::new("http.route", req.uri().path().to_string())])
-            .start_with_context(tracer, &parent_cx);
+        let route = route_template(req.method(), req.uri().path());
+        let mut span_builder = tracer.span_builder("router").with_kind(SpanKind::Server);
+        if let Some(route) = route {
+            span_builder = span_builder.with_attributes([KeyValue::new("http.route", route)]);
+        }
+        let span = span_builder.start_with_context(tracer, &parent_cx);
 
         info!(name = "router", message = "Dispatching request");
 
@@ -109,6 +118,22 @@ async fn router(
     };
 
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::route_template;
+
+    #[test]
+    fn route_template_only_returns_known_routes() {
+        assert_eq!(
+            route_template(&hyper::Method::GET, "/health"),
+            Some("/health")
+        );
+        assert_eq!(route_template(&hyper::Method::GET, "/echo"), Some("/echo"));
+        assert_eq!(route_template(&hyper::Method::GET, "/users/123"), None);
+        assert_eq!(route_template(&hyper::Method::POST, "/health"), None);
+    }
 }
 
 /// Returns the `http.route` value for a live server span, `None` otherwise.
