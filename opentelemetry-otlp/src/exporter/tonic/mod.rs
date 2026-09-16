@@ -347,9 +347,11 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
-            .map(to_tonic_compression)
-            .transpose()
+        super::resolve_compression_from_env(
+            self.tonic_config.compression,
+            env_override,
+            to_tonic_compression,
+        )
     }
 
     /// Build a new tonic log exporter
