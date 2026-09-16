@@ -63,8 +63,7 @@ fn criterion_benchmark(c: &mut Criterion) {
                             let spans = get_span_data();
                             handles.push(tokio::spawn(async move {
                                 for span in spans {
-                                    let mut span = FinishedSpan::new(span);
-                                    span_processor.on_end(&mut span);
+                                    span_processor.on_end(FinishedSpan::from_ref(&span));
                                     tokio::task::yield_now().await;
                                 }
                             }));

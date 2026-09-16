@@ -565,7 +565,7 @@ mod tests {
                 .fetch_add(1, Ordering::SeqCst);
         }
 
-        fn on_end(&self, _span: &mut FinishedSpan) {
+        fn on_end(&self, _span: FinishedSpan<'_>) {
             // ignore
         }
 
@@ -858,7 +858,7 @@ mod tests {
             // No operation needed for this processor
         }
 
-        fn on_end(&self, _span: &mut FinishedSpan) {
+        fn on_end(&self, _span: FinishedSpan<'_>) {
             // No operation needed for this processor
         }
 

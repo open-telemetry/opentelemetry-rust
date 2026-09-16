@@ -44,13 +44,12 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
-- **Breaking** `SpanProcessor::on_end` now takes `&mut FinishedSpan` instead of `SpanData`.
-  Processors that only need to read span data can use the `ReadableSpan` trait without cloning.
-  Processors that need ownership call `FinishedSpan::consume()` — the last processor receives
-  ownership via move (zero-copy), earlier processors receive a clone. Both `Span` (live) and
-  `FinishedSpan` (ended) implement `ReadableSpan`, enabling processors to inspect span data
-  in both `on_start` and `on_end` hooks. New `FinishedSpan::is_consumed()` method allows
-  checking whether span data has been consumed.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `&mut FinishedSpan` or `SpanData`.
+  - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
+  - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
+  - Live `Span` instances now provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `end_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - The `ReadableSpan` trait has been intentionally removed: completed spans are read through `FinishedSpan::span_data()`, live spans are read through inherent `Span` methods, and generic functions over both forms are intentionally no longer supported by this API.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, replacing `span.consume()` with `span.into_owned()`, and replacing `ReadableSpan` method calls with `span.span_data()` or inherent `Span` methods.
   Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
   Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
   [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),

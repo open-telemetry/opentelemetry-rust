@@ -30,7 +30,7 @@ struct NoopSpanProcessor;
 
 impl sdktrace::SpanProcessor for NoopSpanProcessor {
     fn on_start(&self, _span: &mut sdktrace::Span, _parent_cx: &Context) {}
-    fn on_end(&self, _span: &mut sdktrace::FinishedSpan) {}
+    fn on_end(&self, _span: sdktrace::FinishedSpan<'_>) {}
     fn force_flush(&self) -> opentelemetry_sdk::error::OTelSdkResult {
         Ok(())
     }

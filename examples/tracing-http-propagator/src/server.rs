@@ -15,7 +15,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider},
     propagation::{BaggagePropagator, TraceContextPropagator},
-    trace::{FinishedSpan, ReadableSpan, SdkTracerProvider, SpanProcessor},
+    trace::{FinishedSpan, SdkTracerProvider, SpanProcessor},
 };
 use opentelemetry_semantic_conventions::trace;
 use opentelemetry_stdout::{LogExporter, SpanExporter};
@@ -111,12 +111,24 @@ async fn router(
     response
 }
 
-/// Returns the `http.route` value for server spans, `None` otherwise.
-fn route_of(span: &impl ReadableSpan) -> Option<String> {
+/// Returns the `http.route` value for a live server span, `None` otherwise.
+fn route_of_span(span: &opentelemetry_sdk::trace::Span) -> Option<String> {
     if !matches!(span.span_kind(), SpanKind::Server) {
         return None;
     }
     span.attributes()
+        .iter()
+        .find(|kv| kv.key.as_str() == "http.route")
+        .map(|kv| kv.value.to_string())
+}
+
+/// Returns the `http.route` value for a finished server span, `None` otherwise.
+fn route_of_finished(span: &FinishedSpan<'_>) -> Option<String> {
+    let data = span.span_data();
+    if !matches!(data.span_kind, SpanKind::Server) {
+        return None;
+    }
+    data.attributes
         .iter()
         .find(|kv| kv.key.as_str() == "http.route")
         .map(|kv| kv.value.to_string())
@@ -137,7 +149,7 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
     }
 
     fn on_start(&self, span: &mut opentelemetry_sdk::trace::Span, _cx: &Context) {
-        let Some(route) = route_of(span) else {
+        let Some(route) = route_of_span(span) else {
             return;
         };
         let Ok(mut counts) = self.0.lock() else {
@@ -151,8 +163,8 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         ));
     }
 
-    fn on_end(&self, span: &mut FinishedSpan) {
-        let Some(route) = route_of(span) else {
+    fn on_end(&self, span: FinishedSpan<'_>) {
+        let Some(route) = route_of_finished(&span) else {
             return;
         };
         let Ok(mut counts) = self.0.lock() else {
@@ -209,7 +221,7 @@ impl SpanProcessor for EnrichWithBaggageSpanProcessor {
         }
     }
 
-    fn on_end(&self, _span: &mut opentelemetry_sdk::trace::FinishedSpan) {}
+    fn on_end(&self, _span: opentelemetry_sdk::trace::FinishedSpan<'_>) {}
 }
 
 fn init_tracer() -> SdkTracerProvider {

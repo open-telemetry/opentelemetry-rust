@@ -42,7 +42,7 @@ impl SpanProcessor for NoOpSpanProcessor {
         // No-op
     }
 
-    fn on_end(&self, _span: &mut FinishedSpan) {
+    fn on_end(&self, _span: FinishedSpan<'_>) {
         // No-op
     }
 
