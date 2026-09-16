@@ -845,7 +845,14 @@ impl HasHttpConfig for HttpExporterBuilder {
 /// This trait is sealed and cannot be implemented for types outside this crate.
 pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
-    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
+    ///
+    /// The client may be provided either as a concrete client value or as an
+    /// `Arc<T>`, allowing the same client instance to be shared across multiple
+    /// exporters.
+    fn with_http_client<T: HttpClient + 'static>(
+        self,
+        client: impl Into<std::sync::Arc<T>>,
+    ) -> Self;
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
@@ -868,8 +875,11 @@ pub trait WithHttpConfig: super::sealed::WithHttpConfig {
 impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
-    fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.http_client_config().client = Some(Arc::new(client));
+    fn with_http_client<T: HttpClient + 'static>(
+        mut self,
+        client: impl Into<std::sync::Arc<T>>,
+    ) -> Self {
+        self.http_client_config().client = Some(client.into());
         self
     }
 
@@ -1265,6 +1275,26 @@ mod tests {
         });
     }
 
+    #[test]
+    fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
+        use super::{HttpExporterBuilder, WithHttpConfig};
+        use crate::exporter::http::HttpConfig;
+        use crate::exporter::ExportConfig;
+        use export_body_tests::MockHttpClient;
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client(MockHttpClient);
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client::<MockHttpClient>(std::sync::Arc::new(MockHttpClient));
+    }
+
     #[cfg(feature = "gzip-http")]
     mod compression_tests {
         use super::super::OtlpHttpClient;
@@ -1448,7 +1478,7 @@ mod tests {
         use std::time::Duration;
 
         #[derive(Debug)]
-        struct MockHttpClient;
+        pub(crate) struct MockHttpClient;
 
         #[async_trait::async_trait]
         impl HttpClient for MockHttpClient {
