@@ -112,7 +112,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// Processors can read span data without cloning via [`FinishedSpan::span_data()`].
     /// If ownership of the [`SpanData`] is needed, call [`FinishedSpan::into_owned()`].
     /// The last registered processor receives an owned wrapper and can move the data
-    /// by calling `into_owned()`; earlier processors receive a clone.
+    /// by calling `into_owned()`. Earlier processors receive borrowed wrappers and
+    /// clone only if they call `into_owned()`.
     ///
     /// # Tip: Processor Registration Order
     ///
@@ -134,12 +135,12 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     ///     fn on_end(&self, span: FinishedSpan<'_>) {
     ///         // Read attributes without cloning
-    ///         let my_value = span.span_data().attributes.iter()
-    ///             .find(|kv| kv.key.as_str() == "my-key");
+    ///         let has_value = span.span_data().attributes.iter()
+    ///             .any(|kv| kv.key.as_str() == "my-key");
     ///
-    ///         // Or consume to take ownership (clones if not last registered processor, moves if last)
+    ///         // Or take ownership (clones if not last registered processor, moves if last)
     ///         let span_data = span.into_owned();
-    ///         # let _ = (my_value, span_data);
+    ///         # let _ = (has_value, span_data);
     ///     }
     /// }
     /// ```
