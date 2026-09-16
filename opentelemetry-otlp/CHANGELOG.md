@@ -41,6 +41,17 @@ release:
 
 ### Other changes
 
+- Exporter compression configuration and behavior are unchanged; users of
+  `.with_compression(...)` need no changes. **Breaking only for direct conversion
+  callers:** removed `TryFrom<Compression>` for
+  `tonic::codec::CompressionEncoding`. Code explicitly converting between these
+  enums must map the variants itself.
+
+- Return an exporter build error when construction of a built-in reqwest HTTP
+  client fails instead of silently falling back to a client without the
+  exporter-configured timeout. Failure to spawn the blocking client's setup
+  thread, or a panic in that thread, is also returned instead of panicking.
+
 - **Breaking** Removed `Default` from the `TonicExporterBuilderSet` and
   `HttpExporterBuilderSet` typestate markers. This also removes `Default` from
   the transport-selected exporter builders (e.g.

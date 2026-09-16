@@ -126,6 +126,75 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// }
     /// ```
     ///
+    /// # Filtering completed spans
+    ///
+    /// **Warning:** Filtering individual spans can produce incomplete or broken
+    /// traces, such as an exported child whose parent was discarded. This does
+    /// not coordinate filtering across spans or services. For coordinated
+    /// decisions based on completed spans, prefer [tail-based sampling] in the
+    /// OpenTelemetry Collector or another telemetry pipeline. All spans in a
+    /// trace must reach the same tail-sampling instance; it cannot recover spans
+    /// already discarded by SDK sampling or filtering.
+    ///
+    /// [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
+    ///
+    /// If SDK processor filtering fits your requirements and you accept this
+    /// tradeoff, wrap another processor and delegate only the spans that satisfy
+    /// your condition. This example uses an attribute, but the
+    /// condition can use any information in [`SpanData`] or other processor state.
+    /// Register only the wrapper with [`SdkTracerProvider`](crate::trace::SdkTracerProvider), since separately
+    /// registered processors receive spans independently.
+    ///
+    /// ```rust
+    /// use opentelemetry::{Context, Value};
+    /// use opentelemetry_sdk::{
+    ///     error::OTelSdkResult,
+    ///     trace::{Span, SpanData, SpanProcessor},
+    ///     Resource,
+    /// };
+    /// use std::time::Duration;
+    ///
+    /// #[derive(Debug)]
+    /// struct FilteringSpanProcessor<P> {
+    ///     next: P,
+    /// }
+    ///
+    /// impl<P> FilteringSpanProcessor<P> {
+    ///     fn new(next: P) -> Self {
+    ///         Self { next }
+    ///     }
+    /// }
+    ///
+    /// impl<P: SpanProcessor> SpanProcessor for FilteringSpanProcessor<P> {
+    ///     fn on_start(&self, span: &mut Span, cx: &Context) {
+    ///         self.next.on_start(span, cx);
+    ///     }
+    ///
+    ///     fn on_end(&self, span: SpanData) {
+    ///         let should_drop = span.attributes.iter().any(|attribute| {
+    ///             attribute.key.as_str() == "example.drop"
+    ///                 && attribute.value == Value::Bool(true)
+    ///         });
+    ///
+    ///         if !should_drop {
+    ///             self.next.on_end(span);
+    ///         }
+    ///     }
+    ///
+    ///     fn force_flush(&self) -> OTelSdkResult {
+    ///         self.next.force_flush()
+    ///     }
+    ///
+    ///     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+    ///         self.next.shutdown_with_timeout(timeout)
+    ///     }
+    ///
+    ///     fn set_resource(&mut self, resource: &Resource) {
+    ///         self.next.set_resource(resource);
+    ///     }
+    /// }
+    /// ```
+    ///
     /// [`on_start`]: SpanProcessor::on_start
     /// [`Context::current()`]: opentelemetry::Context::current
     ///
