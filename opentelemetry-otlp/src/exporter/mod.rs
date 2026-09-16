@@ -224,16 +224,26 @@ impl Display for Compression {
     }
 }
 
+/// An error parsing an OTLP configuration value.
+///
+/// The error message provides diagnostic context. Its wording is not a stable
+/// interface and should not be used for programmatic decisions.
+#[derive(Debug, Error)]
+#[error("{message}")]
+pub struct ParseConfigError {
+    message: String,
+}
+
 impl FromStr for Compression {
-    type Err = ExporterBuildError;
+    type Err = ParseConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gzip" => Ok(Compression::Gzip),
             "zstd" => Ok(Compression::Zstd),
-            _ => Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                s.to_string(),
-            )),
+            _ => Err(ParseConfigError {
+                message: format!("unsupported compression algorithm '{s}'"),
+            }),
         }
     }
 }
@@ -259,11 +269,14 @@ fn resolve_compression_from_env<T>(
         if value.eq_ignore_ascii_case("none") {
             return Ok(None);
         }
-        match value
-            .to_ascii_lowercase()
-            .parse::<Compression>()
-            .and_then(&convert)
-        {
+        let compression = match value.to_ascii_lowercase().parse::<Compression>() {
+            Ok(compression) => compression,
+            Err(error) => {
+                warn_ignored_enum_env_var(name, &value, error);
+                continue;
+            }
+        };
+        match convert(compression) {
             Ok(compression) => return Ok(Some(compression)),
             Err(error) => warn_ignored_enum_env_var(name, &value, error),
         }
@@ -987,5 +1000,28 @@ mod tests {
                 assert!(!insecure);
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod config_parsing_tests {
+    use crate::{Compression, ParseConfigError};
+
+    #[test]
+    fn compression_parsing_uses_config_error() {
+        for (input, expected) in [("gzip", Compression::Gzip), ("zstd", Compression::Zstd)] {
+            let result: Result<Compression, ParseConfigError> = input.parse();
+            assert_eq!(result.unwrap(), expected);
+        }
+
+        // Public parsing remains strict; environment normalization is separate.
+        for input in ["br", "GZIP", "", "none", " gzip "] {
+            let result: Result<Compression, ParseConfigError> = input.parse();
+            let error = result.unwrap_err();
+            let error: &(dyn std::error::Error + Send + Sync) = &error;
+            let message = error.to_string();
+            assert!(message.contains("compression"));
+            assert!(message.contains(input));
+        }
     }
 }
