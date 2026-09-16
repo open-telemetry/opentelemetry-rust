@@ -150,44 +150,24 @@ pub trait HttpClient: Debug + Send + Sync {
 const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 /// Error returned when an HTTP response body exceeds the configured size limit.
-#[derive(Debug)]
+///
+/// Construct this error with [`Self::new`] or [`Default::default`]. Its fields
+/// are private to allow future diagnostic details without changing construction.
+#[derive(Debug, Default)]
 pub struct ResponseBodyTooLarge {
-    limit: usize,
-    observed_size: usize,
+    _private: (),
 }
 
 impl ResponseBodyTooLarge {
-    /// Creates an error with the size limit and observed response size, in bytes.
-    ///
-    /// `observed_size` is the number of bytes observed before reading stopped,
-    /// not necessarily the full response size.
-    pub fn new(limit: usize, observed_size: usize) -> Self {
-        Self {
-            limit,
-            observed_size,
-        }
-    }
-
-    /// Returns the response size limit in bytes.
-    pub fn limit(&self) -> usize {
-        self.limit
-    }
-
-    /// Returns the number of response bytes observed before reading stopped.
-    ///
-    /// This is a lower bound on the full response size.
-    pub fn observed_size(&self) -> usize {
-        self.observed_size
+    /// Creates an error indicating that the response body exceeded the size limit.
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
 impl std::fmt::Display for ResponseBodyTooLarge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "response body exceeded {} byte limit: observed at least {} bytes",
-            self.limit, self.observed_size
-        )
+        write!(f, "response body exceeded maximum allowed 4 MiB limit")
     }
 }
 
@@ -220,10 +200,7 @@ mod reqwest {
             let headers = std::mem::take(response.headers_mut());
             while let Some(chunk) = response.chunk().await? {
                 if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                    return Err(Box::new(ResponseBodyTooLarge::new(
-                        MAX_RESPONSE_BODY_BYTES,
-                        body_bytes.len() + chunk.len(),
-                    )));
+                    return Err(Box::new(ResponseBodyTooLarge::new()));
                 }
                 body_bytes.extend_from_slice(&chunk);
             }
@@ -256,10 +233,7 @@ mod reqwest {
                 .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
                 .read_to_end(&mut body_bytes)?;
             if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                return Err(Box::new(ResponseBodyTooLarge::new(
-                    MAX_RESPONSE_BODY_BYTES,
-                    body_bytes.len(),
-                )));
+                return Err(Box::new(ResponseBodyTooLarge::new()));
             }
             let mut http_response = Response::builder()
                 .status(status)
@@ -369,10 +343,7 @@ pub mod hyper {
                     let frame = frame?;
                     if let Ok(chunk) = frame.into_data() {
                         if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                            return Err(Box::new(ResponseBodyTooLarge::new(
-                                MAX_RESPONSE_BODY_BYTES,
-                                body_bytes.len() + chunk.len(),
-                            )) as HttpError);
+                            return Err(Box::new(ResponseBodyTooLarge::new()) as HttpError);
                         }
                         body_bytes.extend_from_slice(&chunk);
                     }
@@ -417,14 +388,15 @@ mod tests {
     use http::HeaderValue;
 
     #[test]
-    fn response_body_too_large_details() {
-        let error = ResponseBodyTooLarge::new(1024, 2048);
-        assert_eq!(error.limit(), 1024);
-        assert_eq!(error.observed_size(), 2048);
-        assert_eq!(
-            error.to_string(),
-            "response body exceeded 1024 byte limit: observed at least 2048 bytes"
-        );
+    fn response_body_too_large_construction() {
+        for error in [ResponseBodyTooLarge::new(), ResponseBodyTooLarge::default()] {
+            let error: HttpError = Box::new(error);
+            assert!(error.downcast_ref::<ResponseBodyTooLarge>().is_some());
+            assert_eq!(
+                error.to_string(),
+                "response body exceeded maximum allowed 4 MiB limit"
+            );
+        }
     }
 
     #[cfg(all(
@@ -691,11 +663,9 @@ Connection: close\r\n\r\n",
                 .body(Bytes::new())
                 .unwrap();
             let error = client.send_bytes(request).await.unwrap_err();
-            let error = error
+            assert!(error
                 .downcast_ref::<crate::ResponseBodyTooLarge>()
-                .expect("oversized responses must retain their error type");
-            assert_eq!(error.limit(), MAX_RESPONSE_BODY_BYTES);
-            assert_eq!(error.observed_size(), MAX_RESPONSE_BODY_BYTES + 1);
+                .is_some());
         }
 
         #[cfg(feature = "reqwest-blocking")]

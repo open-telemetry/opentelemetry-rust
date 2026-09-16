@@ -3,7 +3,7 @@
 # This is used with cargo-check-external-types to reduce the surface area of downstream crates from
 # the public API. Ideally this can have as few exceptions as possible.
 allowed_external_types = [
-    # ResponseBodyTooLarge exposes only primitive byte counts; no allowance needed.
+    # ResponseBodyTooLarge's constructor exposes no external types.
     # Public HTTP client contract and propagation adapters.
     "bytes::bytes::Bytes",
     "http::header::map::HeaderMap",
