@@ -183,7 +183,7 @@ impl SpanProcessor for RouteConcurrencyCounterSpanProcessor {
         let count = counts.entry(route).or_default();
         *count += 1;
         span.set_attribute(KeyValue::new(
-            "http.route.concurrent_requests",
+            "example.route.concurrent_requests",
             *count as i64,
         ));
     }
