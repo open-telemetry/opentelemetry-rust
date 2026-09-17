@@ -138,9 +138,13 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///         let has_value = span.span_data().attributes.iter()
     ///             .any(|kv| kv.key.as_str() == "my-key");
     ///
-    ///         // Or take ownership (clones if not last registered processor, moves if last)
-    ///         let span_data = span.into_owned();
-    ///         # let _ = (has_value, span_data);
+    ///         // Take ownership only when needed.
+    ///         // (clones unless this is the last registered processor)
+    ///         if has_value {
+    ///             let span_data = span.into_owned();
+    ///             // use span_data
+    ///             # let _ = (has_value, span_data);
+    ///         }
     ///     }
     /// }
     /// ```
