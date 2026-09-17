@@ -32,7 +32,10 @@
   `SdkMeterProvider::builder().with_exemplar_filter(..)` and defaulting to
   `TraceBased` as the specification requires. Sampling uses the spec's
   `AlignedHistogramBucketExemplarReservoir`, keeping at most one exemplar per
-  bucket. With the feature disabled the measurement path is unchanged.
+  bucket. With the feature disabled the measurement path is unchanged. Note that
+  an exemplar retains the attributes a view's attribute filter removed from its
+  measurement, as the specification requires, so a view is not a way to keep a
+  sensitive attribute value from being exported once exemplars are collected.
   ([#3369](https://github.com/open-telemetry/opentelemetry-rust/issues/3369))
 - Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
   optional, enabling a minimal SDK build. With `default-features = false`, the

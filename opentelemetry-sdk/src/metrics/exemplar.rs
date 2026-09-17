@@ -7,6 +7,17 @@
 ///
 /// [exemplars]: crate::metrics::data::Exemplar
 ///
+/// # Attributes removed by a view are still exported
+///
+/// As the specification requires, an exemplar retains every attribute of its
+/// measurement that the aggregated data point does not keep. An attribute
+/// removed by a view's attribute filter therefore leaves the process on the
+/// exemplar, with its original value. A view's attribute filter reduces
+/// cardinality; it is **not** a redaction mechanism once exemplars are
+/// collected. If a view is dropping an attribute because its value is
+/// sensitive, do not record that attribute on the measurement, or use
+/// [`ExemplarFilter::AlwaysOff`].
+///
 /// # Example
 ///
 /// ```

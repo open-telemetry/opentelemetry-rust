@@ -404,6 +404,10 @@ impl MeterProviderBuilder {
     /// [`ExemplarFilter::AlwaysOff`] to remove exemplar collection from the
     /// measurement path entirely.
     ///
+    /// An exemplar retains the attributes a view's attribute filter removed
+    /// from its measurement, so such a filter does not keep a sensitive value
+    /// from being exported. See [`ExemplarFilter`] for details.
+    ///
     /// [`ExemplarFilter`]: crate::metrics::ExemplarFilter
     /// [`ExemplarFilter::TraceBased`]: crate::metrics::ExemplarFilter::TraceBased
     /// [`ExemplarFilter::AlwaysOff`]: crate::metrics::ExemplarFilter::AlwaysOff
