@@ -87,6 +87,12 @@
 //! | `OTEL_SERVICE_NAME` | Sets the value of the `service.name` resource attribute. Takes priority over `service.name` in `OTEL_RESOURCE_ATTRIBUTES`. | `unknown_service:<process_name>` |
 //! | `OTEL_RESOURCE_ATTRIBUTES` | Key-value pairs to be used as resource attributes. Format: `key1=value1,key2=value2`. | (none) |
 //!
+//! ### Context Propagation
+//!
+//! | Variable | Description | Default |
+//! |---|---|---|
+//! | `OTEL_PROPAGATORS` | Propagators to be used as a comma-separated list. Supported values: `tracecontext`, `baggage`, `none`. | `tracecontext,baggage` |
+//!
 //! ### Trace: Sampler
 //!
 //! | Variable | Description | Default |
