@@ -40,7 +40,6 @@ full = [
     "zpages",
     "with-serde",
     "internal-logs",
-    "file-descriptors",
 ]
 
 # crates used to generate rs files
