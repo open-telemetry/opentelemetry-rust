@@ -77,6 +77,50 @@ fn histogram_record_with_exemplar_filter(c: &mut Criterion) {
             });
         });
     }
+
+    histogram_record_inside_sampled_span(c);
+}
+
+/// Records inside a sampled span that carries a `tracestate`, so every
+/// measurement is eligible — the worst case for the default `TraceBased`
+/// filter, and the path where building the exemplar has to stay cheap.
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+fn histogram_record_inside_sampled_span(c: &mut Criterion) {
+    use opentelemetry::trace::{
+        SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
+    };
+    use opentelemetry::Context;
+    use opentelemetry_sdk::metrics::ExemplarFilter;
+
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_exemplar_filter(ExemplarFilter::TraceBased)
+        .build();
+    let histogram = meter_provider
+        .meter("benchmarks")
+        .u64_histogram("histogram_exemplar_sampled")
+        .build();
+
+    let span_cx = SpanContext::new(
+        TraceId::from(0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10_u128),
+        SpanId::from(0x1112_1314_1516_1718_u64),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::from_key_value([("vendor", "value"), ("other", "state")])
+            .expect("valid tracestate"),
+    );
+    let _guard = Context::current()
+        .with_remote_span_context(span_cx)
+        .attach();
+
+    c.bench_function("Histogram_Record_Exemplar_TraceBased_SampledSpan", |b| {
+        b.iter(|| {
+            histogram.record(
+                CURRENT_RNG.with(|rng| rng.borrow_mut().random_range(0..1000)),
+                &[KeyValue::new("attribute1", ATTRIBUTE_VALUES[0])],
+            );
+        });
+    });
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
