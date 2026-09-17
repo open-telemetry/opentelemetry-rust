@@ -357,6 +357,13 @@ mod tests {
     }
 
     #[test]
+    fn test_unsupported_propagator_does_not_fall_back_to_default() {
+        let propagator = propagator_from_env_value(Some("unknown_prop, baggage"));
+        let fields = get_fields(&propagator);
+        assert_eq!(fields, HashSet::from(["baggage"]));
+    }
+
+    #[test]
     fn test_mixture_supported_and_unsupported() {
         let propagator =
             propagator_from_env_value(Some("unknown1, tracecontext, b3, baggage, xray"));
