@@ -355,7 +355,7 @@ where
 {
     type InitConfig = BucketConfig;
 
-    type PreComputedValue = T;
+    type PreComputedValue<'a> = T;
 
     fn create(init: &BucketConfig) -> Self {
         Mutex::new(ExpoHistogramDataPoint::new(init))

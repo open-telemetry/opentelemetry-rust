@@ -19,7 +19,9 @@ use std::sync::{Arc, OnceLock, RwLock};
 pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
-pub(crate) use exemplar::{AlignedHistogramBucketReservoir, ExemplarOffer, ExemplarSampler};
+pub(crate) use exemplar::{
+    AlignedHistogramBucketReservoir, DroppedAttributes, ExemplarOffer, ExemplarSampler, OfferRef,
+};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::otel_debug;
@@ -43,13 +45,13 @@ pub(crate) trait Aggregator {
     /// Some aggregators can do some computations before updating aggregator.
     /// This helps to reduce contention for aggregators because it makes
     /// [`Aggregator::update`] as short as possible.
-    type PreComputedValue;
+    type PreComputedValue<'a>;
 
     /// Called everytime a new attribute-set is stored.
     fn create(init: &Self::InitConfig) -> Self;
 
     /// Called for each measurement.
-    fn update(&self, value: Self::PreComputedValue);
+    fn update(&self, value: Self::PreComputedValue<'_>);
 
     /// Return current value and reset this instance
     fn clone_and_reset(&self, init: &Self::InitConfig) -> Self;
@@ -126,7 +128,7 @@ where
         self.count.load(Ordering::SeqCst) < self.cardinality_limit
     }
 
-    fn measure(&self, value: A::PreComputedValue, attributes: &[KeyValue]) {
+    fn measure(&self, value: A::PreComputedValue<'_>, attributes: &[KeyValue]) {
         if attributes.is_empty() {
             self.no_attribute_tracker.aggregator.update(value);
             self.no_attribute_tracker

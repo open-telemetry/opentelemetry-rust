@@ -145,6 +145,19 @@ impl AttributeSetFilter {
             run(attrs);
         };
     }
+
+    /// The attributes of `attrs` this filter removes — the complement of what
+    /// [`Self::apply`] keeps. Empty, without allocating, when no filter is set.
+    #[cfg(any(
+        feature = "spec_unstable_metrics_exemplars",
+        feature = "experimental_metrics_bound_instruments"
+    ))]
+    pub(crate) fn dropped(&self, attrs: &[KeyValue]) -> Vec<KeyValue> {
+        match &self.filter {
+            Some(filter) => attrs.iter().filter(|kv| !filter(kv)).cloned().collect(),
+            None => Vec::new(),
+        }
+    }
 }
 
 /// Builds aggregate functions

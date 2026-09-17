@@ -13,8 +13,8 @@ use opentelemetry::KeyValue;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{
-    Aggregator, AlignedHistogramBucketReservoir, ComputeAggregation, ExemplarOffer,
-    ExemplarSampler, Measure, Number, ValueMap,
+    Aggregator, AlignedHistogramBucketReservoir, ComputeAggregation, DroppedAttributes,
+    ExemplarOffer, ExemplarSampler, Measure, Number, OfferRef, ValueMap,
 };
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
@@ -25,18 +25,18 @@ where
 {
     type InitConfig = usize;
     /// Value, bucket index, and — when the measurement is exemplar-eligible —
-    /// the sampled trace context captured for it.
-    type PreComputedValue = (T, usize, Option<Box<ExemplarOffer>>);
+    /// a borrowed offer for the reservoir.
+    type PreComputedValue<'a> = (T, usize, OfferRef<'a>);
 
-    fn update(&self, (value, index, exemplar): (T, usize, Option<Box<ExemplarOffer>>)) {
+    fn update(&self, (value, index, exemplar): (T, usize, OfferRef<'_>)) {
         let mut buckets = self.lock().unwrap_or_else(|err| err.into_inner());
 
-        if let Some(offer) = exemplar {
-            // Free of extra synchronization: this aggregator already holds the
-            // lock for the counter update, and the bucket index the aligned
-            // reservoir keys on was resolved during precomputation.
-            buckets.exemplars.offer(value, index, *offer);
-        }
+        // Free of extra synchronization: this aggregator already holds the
+        // lock for the counter update, and the bucket index the aligned
+        // reservoir keys on was resolved during precomputation. The reservoir
+        // decides before anything is built, so a measurement it does not keep
+        // allocates nothing.
+        buckets.exemplars.offer(value, index, exemplar);
 
         buckets.total += value;
         buckets.count += 1;
@@ -97,6 +97,10 @@ struct BoundHistogramHandle<T: Number> {
     tracker: Arc<TrackerEntry<Mutex<Buckets<T>>>>,
     bounds: Vec<f64>,
     exemplars: ExemplarSampler,
+    /// Attributes the view's filter removed at bind time. Recording through a
+    /// bound handle passes no attributes, so they are resolved once here for
+    /// exemplars to retain.
+    dropped_attrs: Vec<KeyValue>,
 }
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -104,9 +108,12 @@ impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
         let f = measurement.into_float();
         let index = self.bounds.partition_point(|&x| x < f);
+        let offer = self
+            .exemplars
+            .offer(DroppedAttributes::Resolved(&self.dropped_attrs));
         self.tracker
             .aggregator
-            .update((measurement, index, self.exemplars.offer()));
+            .update((measurement, index, ExemplarOffer::by_ref(&offer)));
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
 }
@@ -290,14 +297,16 @@ where
         // Resolved before the attribute filter runs so that `AlwaysOff` (and
         // any build without the exemplar feature) returns `None` here and the
         // rest of this path is unchanged.
-        let mut exemplar = self.exemplars.offer();
+        let offer = self.exemplars.offer(DroppedAttributes::Unresolved {
+            attrs,
+            filter: &self.filter,
+        });
 
         self.filter.apply(attrs, |filtered| {
-            if let Some(offer) = exemplar.as_mut() {
-                offer.set_filtered_attributes(attrs, filtered);
-            }
-            self.value_map
-                .measure((measurement, index, exemplar.take()), filtered);
+            self.value_map.measure(
+                (measurement, index, ExemplarOffer::by_ref(&offer)),
+                filtered,
+            );
         })
     }
 
@@ -312,6 +321,11 @@ where
                 tracker,
                 bounds: self.bounds.clone(),
                 exemplars: self.exemplars,
+                dropped_attrs: if self.exemplars.is_enabled() {
+                    self.filter.dropped(attrs)
+                } else {
+                    Vec::new()
+                },
             }),
             // Trackers RwLock is poisoned — return a noop handle so writes
             // silently drop, mirroring `measure()`'s own poison handling.
@@ -482,6 +496,71 @@ mod exemplar_tests {
                 .collect::<Vec<_>>(),
             vec![filtered]
         );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    fn bound_handle_exemplar_retains_attributes_filtered_at_bind_time() {
+        let hist = Histogram::<i64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(Some(Arc::new(|kv: &KeyValue| {
+                kv.key.as_str() == "retained"
+            }))),
+            vec![1.0, 3.0, 6.0],
+            false,
+            false,
+            2000,
+            ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+        );
+        let retained = KeyValue::new("retained", "metric");
+        let filtered = KeyValue::new("filtered", "exemplar");
+
+        // Recording through a bound handle passes no attributes, so the ones
+        // the view dropped have to have been resolved when binding.
+        let bound = Measure::bind(&hist, &[retained.clone(), filtered.clone()]);
+        bound.call(2);
+
+        let data_points = collect_data_points(&hist);
+        assert_eq!(data_points.len(), 1);
+        assert_eq!(
+            data_points[0].attributes().cloned().collect::<Vec<_>>(),
+            vec![retained]
+        );
+        let exemplars = &data_points[0].exemplars;
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(
+            exemplars[0]
+                .filtered_attributes()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![filtered]
+        );
+    }
+
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
+    #[test]
+    fn bound_handle_captures_the_span_active_when_recording_not_when_binding() {
+        let hist = hist(ExemplarFilter::TraceBased);
+        let bound = Measure::bind(&hist, &[]);
+        {
+            let _guard = active_span(TraceFlags::SAMPLED);
+            bound.call(2);
+        }
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), 1);
+        assert_eq!(exemplars[0].trace_id, TraceId::from(TRACE_ID).to_bytes());
+        assert_eq!(exemplars[0].span_id, SpanId::from(SPAN_ID).to_bytes());
+    }
+
+    #[test]
+    fn exemplar_time_falls_inside_the_interval_it_is_exported_with() {
+        let hist = hist(ExemplarFilter::AlwaysOn);
+        Measure::call(&hist, 2, &[]);
+
+        let data_points = collect_data_points(&hist);
+        let exemplar = &data_points[0].exemplars[0];
+        assert!(exemplar.time <= opentelemetry::time::now());
     }
 
     #[test]

@@ -6,16 +6,21 @@
 
 use std::marker::PhantomData;
 
-use opentelemetry::KeyValue;
-
+use super::DroppedAttributes;
 use crate::metrics::data::Exemplar;
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ExemplarOffer;
+pub(crate) struct ExemplarOffer<'a>(PhantomData<&'a ()>);
 
-impl ExemplarOffer {
+/// Zero-sized, so a histogram's precomputed value stays exactly as wide as it
+/// was before exemplars existed.
+pub(crate) type OfferRef<'a> = PhantomData<&'a ()>;
+
+impl<'a> ExemplarOffer<'a> {
     #[inline]
-    pub(crate) fn set_filtered_attributes(&mut self, _attrs: &[KeyValue], _filtered: &[KeyValue]) {}
+    pub(crate) fn by_ref(_offer: &'a Option<ExemplarOffer<'a>>) -> OfferRef<'a> {
+        PhantomData
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -27,9 +32,14 @@ impl ExemplarSampler {
         Self
     }
 
-    /// Always `None`, so no aggregator ever reaches its reservoir.
+    #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[inline]
-    pub(crate) fn offer(&self) -> Option<Box<ExemplarOffer>> {
+    pub(crate) fn is_enabled(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    pub(crate) fn offer<'a>(&self, _dropped: DroppedAttributes<'a>) -> Option<ExemplarOffer<'a>> {
         None
     }
 }
@@ -44,7 +54,7 @@ impl<T> AlignedHistogramBucketReservoir<T> {
     }
 
     #[inline]
-    pub(crate) fn offer(&mut self, _value: T, _index: usize, _offer: ExemplarOffer) {}
+    pub(crate) fn offer(&mut self, _value: T, _index: usize, _offer: OfferRef<'_>) {}
 
     #[inline]
     pub(crate) fn take(&mut self) -> Vec<Exemplar<T>> {
