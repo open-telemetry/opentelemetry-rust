@@ -89,9 +89,12 @@
 //!
 //! ### Context Propagation
 //!
+//! Note: `OTEL_PROPAGATORS` is not automatically applied by SDK provider builders. Call
+//! [`propagation::set_global_text_map_propagator_from_env()`] explicitly to apply it.
+//!
 //! | Variable | Description | Default |
 //! |---|---|---|
-//! | `OTEL_PROPAGATORS` | Propagators to be used as a comma-separated list. Supported values: `tracecontext`, `baggage`, `none`. | `tracecontext,baggage` |
+//! | `OTEL_PROPAGATORS` | Configures the global text map propagator when `set_global_text_map_propagator_from_env()` is explicitly called. Supported by this helper: `tracecontext`, `baggage`, `none`. | `tracecontext,baggage` |
 //!
 //! ### Trace: Sampler
 //!

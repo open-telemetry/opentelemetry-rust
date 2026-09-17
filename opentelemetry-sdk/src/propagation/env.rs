@@ -10,18 +10,30 @@ use crate::propagation::{BaggagePropagator, TraceContextPropagator};
 const OTEL_PROPAGATORS: &str = "OTEL_PROPAGATORS";
 const OTEL_PROPAGATORS_DEFAULT: &str = "tracecontext,baggage";
 
-/// Parses a text map propagator configuration from an environment variable value string.
-///
-/// If `value` is `None`, empty string, or whitespace-only, the specification default
-/// (`"tracecontext,baggage"`) is used.
-pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapCompositePropagator {
-    let raw = match value {
-        Some(s) if !s.trim().is_empty() => s,
-        _ => OTEL_PROPAGATORS_DEFAULT,
-    };
+/// Represents the parsed configuration from the `OTEL_PROPAGATORS` string.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum PropagatorConfig {
+    /// "none" was specified by itself (or repeated "none,none"); produces an empty composite.
+    None,
+    /// "none" was combined with other propagator entries; invalid configuration.
+    MixedNone,
+    /// A deduplicated list of propagator names to configure (e.g. `["tracecontext", "baggage"]`).
+    List(Vec<String>),
+}
 
-    let mut propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>> = Vec::new();
+/// Parses a comma-separated list of propagator identifiers into a [`PropagatorConfig`].
+///
+/// Leading and trailing whitespace is trimmed, empty tokens are ignored, and matching is
+/// case-insensitive. Duplicate entries are deduplicated while preserving order.
+///
+/// If `"none"` appears by itself (or only with other `"none"` tokens), [`PropagatorConfig::None`]
+/// is returned. If `"none"` appears alongside any other non-empty propagator entry,
+/// [`PropagatorConfig::MixedNone`] is returned.
+pub(crate) fn parse_propagator_names(raw: &str) -> PropagatorConfig {
+    let mut names = Vec::new();
     let mut seen = HashSet::new();
+    let mut has_none = false;
+    let mut has_other = false;
 
     for entry in raw.split(',') {
         let name = entry.trim().to_ascii_lowercase();
@@ -29,33 +41,79 @@ pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapComposite
             continue;
         }
 
-        match name.as_str() {
-            "tracecontext" => {
-                if seen.insert("tracecontext") {
-                    propagators.push(Box::new(TraceContextPropagator::new()));
-                }
-            }
-            "baggage" => {
-                if seen.insert("baggage") {
-                    propagators.push(Box::new(BaggagePropagator::new()));
-                }
-            }
-            "none" => {
-                // "none" configures no propagator. It adds nothing to the composite.
-            }
-            _ => {
-                otel_warn!(
-                    name: "TextMapPropagator.Config.UnsupportedPropagator",
-                    message = format!(
-                        "Unrecognized or unsupported propagator '{name}' in OTEL_PROPAGATORS environment variable. Supported values are: tracecontext, baggage, none. Ignoring.",
-                    ),
-                    propagator = name.as_str(),
-                );
+        if name == "none" {
+            has_none = true;
+        } else {
+            has_other = true;
+            if seen.insert(name.clone()) {
+                names.push(name);
             }
         }
     }
 
-    TextMapCompositePropagator::new(propagators)
+    if has_none {
+        if has_other {
+            PropagatorConfig::MixedNone
+        } else {
+            PropagatorConfig::None
+        }
+    } else {
+        PropagatorConfig::List(names)
+    }
+}
+
+/// Parses a text map propagator configuration from an environment variable value string.
+///
+/// If `value` is `None`, empty string, or whitespace-only, the specification default
+/// (`"tracecontext,baggage"`) is used.
+///
+/// If `"none"` is specified by itself (or repeated), an empty composite propagator is returned.
+/// If `"none"` is combined with any other non-empty propagator entry, it is treated as invalid,
+/// an internal warning is emitted, and an empty composite propagator is returned.
+pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapCompositePropagator {
+    let raw = match value {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => OTEL_PROPAGATORS_DEFAULT,
+    };
+
+    match parse_propagator_names(raw) {
+        PropagatorConfig::None => TextMapCompositePropagator::new(vec![]),
+        PropagatorConfig::MixedNone => {
+            otel_warn!(
+                name: "TextMapPropagator.Config.InvalidCombination",
+                message = format!(
+                    "OTEL_PROPAGATORS contains 'none' combined with other propagators ('{raw}'). The 'none' propagator must not be combined with other propagators. Falling back to an empty text map propagator."
+                ),
+                otel_propagators = raw,
+            );
+            TextMapCompositePropagator::new(vec![])
+        }
+        PropagatorConfig::List(names) => {
+            let mut propagators: Vec<Box<dyn TextMapPropagator + Send + Sync>> = Vec::new();
+
+            for name in names {
+                match name.as_str() {
+                    "tracecontext" => {
+                        propagators.push(Box::new(TraceContextPropagator::new()));
+                    }
+                    "baggage" => {
+                        propagators.push(Box::new(BaggagePropagator::new()));
+                    }
+                    _ => {
+                        otel_warn!(
+                            name: "TextMapPropagator.Config.UnsupportedPropagator",
+                            message = format!(
+                                "Propagator '{name}' is not supported by this SDK helper and was ignored. Supported values are: tracecontext, baggage, none."
+                            ),
+                            propagator = name.as_str(),
+                        );
+                    }
+                }
+            }
+
+            TextMapCompositePropagator::new(propagators)
+        }
+    }
 }
 
 /// Reads the `OTEL_PROPAGATORS` environment variable and constructs the configured
@@ -88,13 +146,16 @@ pub(crate) fn build_propagator_from_env() -> TextMapCompositePropagator {
 /// The following values are supported:
 /// - `"tracecontext"`: [`TraceContextPropagator`]
 /// - `"baggage"`: [`BaggagePropagator`]
-/// - `"none"`: produces no propagation (adds no propagators to the composite)
+/// - `"none"`: produces no propagation (an empty composite propagator)
 ///
 /// Multiple propagators can be specified as a comma-separated list and will be combined into a
 /// [`TextMapCompositePropagator`]. Values are case-insensitive, surrounding whitespace is trimmed,
 /// and duplicate propagator names are deduplicated.
 ///
-/// Unrecognized propagator names are ignored with an internal warning.
+/// If `"none"` appears together with any other non-empty propagator entry, the configuration is
+/// treated as invalid, an internal warning is emitted, and an empty composite propagator is configured.
+///
+/// Unrecognized or unsupported propagator names are ignored with an internal warning.
 ///
 /// # Global Side Effect
 ///
@@ -228,14 +289,21 @@ mod tests {
     fn test_none_with_tracecontext() {
         let propagator = propagator_from_env_value(Some("tracecontext, none"));
         let fields = get_fields(&propagator);
-        assert_eq!(fields, HashSet::from(["traceparent", "tracestate"]));
+        assert!(fields.is_empty());
     }
 
     #[test]
     fn test_none_with_baggage() {
         let propagator = propagator_from_env_value(Some("none, baggage"));
         let fields = get_fields(&propagator);
-        assert_eq!(fields, HashSet::from(["baggage"]));
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_none_with_tracecontext_and_baggage() {
+        let propagator = propagator_from_env_value(Some("tracecontext, none, baggage"));
+        let fields = get_fields(&propagator);
+        assert!(fields.is_empty());
     }
 
     #[test]
@@ -243,6 +311,42 @@ mod tests {
         let propagator = propagator_from_env_value(Some("none, none"));
         let fields = get_fields(&propagator);
         assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_parse_propagator_names() {
+        assert_eq!(parse_propagator_names("none"), PropagatorConfig::None);
+        assert_eq!(parse_propagator_names("none,none"), PropagatorConfig::None);
+        assert_eq!(parse_propagator_names("NONE"), PropagatorConfig::None);
+        assert_eq!(
+            parse_propagator_names("  none  ,  None  "),
+            PropagatorConfig::None
+        );
+        assert_eq!(
+            parse_propagator_names("tracecontext,none"),
+            PropagatorConfig::MixedNone
+        );
+        assert_eq!(
+            parse_propagator_names("none,baggage"),
+            PropagatorConfig::MixedNone
+        );
+        assert_eq!(
+            parse_propagator_names("tracecontext,none,baggage"),
+            PropagatorConfig::MixedNone
+        );
+        assert_eq!(
+            parse_propagator_names("none, unknown"),
+            PropagatorConfig::MixedNone
+        );
+        assert_eq!(
+            parse_propagator_names("tracecontext, baggage"),
+            PropagatorConfig::List(vec!["tracecontext".to_string(), "baggage".to_string()])
+        );
+        assert_eq!(
+            parse_propagator_names("tracecontext, baggage, tracecontext"),
+            PropagatorConfig::List(vec!["tracecontext".to_string(), "baggage".to_string()])
+        );
+        assert_eq!(parse_propagator_names(",,"), PropagatorConfig::List(vec![]));
     }
 
     #[test]
@@ -288,6 +392,18 @@ mod tests {
                 fields,
                 HashSet::from(["traceparent", "tracestate", "baggage"])
             );
+        });
+
+        temp_env::with_var(OTEL_PROPAGATORS, Some("none"), || {
+            let propagator = build_propagator_from_env();
+            let fields = get_fields(&propagator);
+            assert!(fields.is_empty());
+        });
+
+        temp_env::with_var(OTEL_PROPAGATORS, Some("tracecontext,none"), || {
+            let propagator = build_propagator_from_env();
+            let fields = get_fields(&propagator);
+            assert!(fields.is_empty());
         });
     }
 }
