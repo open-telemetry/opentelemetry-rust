@@ -22,6 +22,8 @@
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
 
 ## 0.32.0
 
