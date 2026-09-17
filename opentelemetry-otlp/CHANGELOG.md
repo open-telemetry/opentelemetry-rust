@@ -2,6 +2,25 @@
 
 ## vNext
 
+- Exporter builder usage and environment configuration are unchanged.
+  **Breaking for callers parsing compression strings:** `Compression::from_str`
+  (including `.parse::<Compression>()`) now returns the opaque `ParseConfigError`
+  instead of `ExporterBuildError`. Update explicit result types and error handling
+  that expects `ExporterBuildError::UnsupportedCompressionAlgorithm`. The new error
+  implements `Display` and `std::error::Error`; its message is for diagnostics.
+  Accepted strings and parsing behavior are unchanged.
+
+  ```rust
+  // Before:
+  let result: Result<Compression, ExporterBuildError> = value.parse();
+
+  // After:
+  let result: Result<Compression, ParseConfigError> = value.parse();
+  if let Err(error) = result {
+      eprintln!("invalid compression configuration: {error}");
+  }
+  ```
+
 - Interpret protocol, compression, and metrics temporality environment values
   case-insensitively. Treat empty values as unset, and warn and ignore invalid,
   non-Unicode, or feature-unavailable enum values so resolution can continue
