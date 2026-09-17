@@ -564,6 +564,78 @@ mod exemplar_tests {
     }
 
     #[test]
+    fn every_measurement_in_a_bucket_is_equally_likely_to_survive() {
+        // Most offers are discarded, which is what keeps recording cheap, so
+        // pin down that the discarding is uniform rather than, say, always
+        // keeping the first or the last measurement.
+        const MEASUREMENTS: usize = 4;
+        const TRIALS: usize = 4000;
+        let hist = hist_with_bounds(ExemplarFilter::AlwaysOn, vec![]);
+        let mut survivors = [0usize; MEASUREMENTS];
+
+        for _ in 0..TRIALS {
+            for v in 0..MEASUREMENTS {
+                Measure::call(&hist, v as i64, &[]);
+            }
+            let exemplars = collect(&hist);
+            assert_eq!(exemplars.len(), 1);
+            survivors[exemplars[0].value as usize] += 1;
+        }
+
+        // Expected 1000 each with a standard deviation of about 27, so these
+        // bounds are more than seven deviations wide.
+        for (value, count) in survivors.iter().enumerate() {
+            assert!(
+                (800..=1200).contains(count),
+                "measurement {value} survived {count} of {TRIALS} trials: {survivors:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn concurrent_recordings_keep_each_value_paired_with_its_own_span() {
+        // One thread per bucket, each inside its own sampled span and recording
+        // a value only it records. Whatever survives must still carry the ids
+        // of the span that value was recorded under.
+        let hist = Arc::new(hist(ExemplarFilter::TraceBased));
+        let values: [i64; 4] = [1, 2, 5, 9];
+
+        std::thread::scope(|scope| {
+            for value in values {
+                let hist = Arc::clone(&hist);
+                scope.spawn(move || {
+                    let span_cx = SpanContext::new(
+                        TraceId::from(value as u128),
+                        SpanId::from(value as u64),
+                        TraceFlags::SAMPLED,
+                        false,
+                        TraceState::default(),
+                    );
+                    let _guard = Context::current()
+                        .with_remote_span_context(span_cx)
+                        .attach();
+                    for _ in 0..1000 {
+                        Measure::call(&*hist, value, &[]);
+                    }
+                });
+            }
+        });
+
+        let exemplars = collect(&hist);
+        assert_eq!(exemplars.len(), values.len());
+        for exemplar in exemplars {
+            assert_eq!(
+                exemplar.trace_id,
+                TraceId::from(exemplar.value as u128).to_bytes()
+            );
+            assert_eq!(
+                exemplar.span_id,
+                SpanId::from(exemplar.value as u64).to_bytes()
+            );
+        }
+    }
+
+    #[test]
     fn always_on_captures_ids_of_an_active_unsampled_span() {
         let hist = hist(ExemplarFilter::AlwaysOn);
         {
