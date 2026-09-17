@@ -2,6 +2,7 @@
 
 ## vNext
 
+- **Feature**: Add support for protobuffer descriptor output. ([#3675](https://github.com/open-telemetry/opentelemetry-rust/pull/3675))
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
 - **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
