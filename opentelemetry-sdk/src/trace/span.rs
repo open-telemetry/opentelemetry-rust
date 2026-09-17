@@ -408,17 +408,6 @@ impl<'a> FinishedSpan<'a> {
     }
 }
 
-#[cfg(any(feature = "testing", test))]
-impl<'a> FinishedSpan<'a> {
-    /// Creates a borrowed [`FinishedSpan`] for testing or benchmarking purposes.
-    ///
-    /// This is a public test/benchmark-only borrowed constructor available when
-    /// the `testing` feature is enabled or during test compilation.
-    pub fn from_ref(span_data: &'a crate::trace::SpanData) -> Self {
-        Self::borrowed(span_data)
-    }
-}
-
 impl FinishedSpan<'_> {
     /// Returns a clone-free immutable view of the finished span's data.
     pub fn span_data(&self) -> &crate::trace::SpanData {

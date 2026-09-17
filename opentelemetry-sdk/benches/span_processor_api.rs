@@ -222,16 +222,16 @@ fn criterion_benchmark(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
-                               .warm_up_time(std::time::Duration::from_secs(1))
-                               .measurement_time(std::time::Duration::from_secs(2));
+                               .warm_up_time(Duration::from_secs(3))
+                               .measurement_time(Duration::from_secs(10));
     targets = criterion_benchmark
 }
 
 #[cfg(target_os = "windows")]
 criterion_group! {
     name = benches;
-    config = Criterion::default().warm_up_time(std::time::Duration::from_secs(1))
-                               .measurement_time(std::time::Duration::from_secs(2));
+    config = Criterion::default().warm_up_time(Duration::from_secs(3))
+                               .measurement_time(Duration::from_secs(10));
     targets = criterion_benchmark
 }
 
