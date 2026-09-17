@@ -157,6 +157,7 @@ release:
       .build()?;
   exporter_builder.with_http_client(client)
   ```
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
 
 ## 0.32.0
 
