@@ -103,7 +103,7 @@ pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapComposite
                         otel_warn!(
                             name: "TextMapPropagator.Config.UnsupportedPropagator",
                             message = format!(
-                                "Propagator '{name}' is not supported by this SDK helper and was ignored. Supported values are: tracecontext, baggage, none."
+                                "Unsupported propagator '{name}' was skipped. Any other valid values in OTEL_PROPAGATORS will still be used. Supported values are: tracecontext, baggage, none."
                             ),
                             propagator = name.as_str(),
                         );
