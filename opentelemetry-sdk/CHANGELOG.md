@@ -125,6 +125,7 @@ Released 2026-May-08
 - Fix panic when `SpanProcessor::on_end` calls `Context::current()` ([#3262][3262]).
   - Updated `SpanProcessor::on_end` documentation to clarify that `Context::current()` returns the parent context, not the span's context
 - Fix `traceparent` headers with unknown flags (e.g. W3C random-trace-id flag `0x02`) being incorrectly rejected. Unknown flags are now accepted and zeroed out as required by the W3C trace-context spec. [#3435][3435]
+- Add public constructors to metrics data types and make SdkLogRecord::new() public. [#2992][2992]
 - **Breaking** `InMemoryExporterError` has been removed and replaced by `OTelSdkError`, and a new `JaegerRemoteSamplerBuildError` introduced to replace last uses of `TraceError`. [#3458][3458]
 - "spec_unstable_logs_enabled" feature flag is removed. The capability (and the
   backing specification) is now stable and is enabled by default. [#3278][3278]
