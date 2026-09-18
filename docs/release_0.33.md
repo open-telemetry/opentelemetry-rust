@@ -41,7 +41,7 @@ struct literals.
 
 #### Stabilisation cleanups
 
-- **Breaking for callers matching or constructing removed build-error variants, or parsing compression strings:** `ExporterBuildError` now has two exhaustive variants, `InvalidConfiguration(String)` and `InternalFailure(String)`. Update uses of removed variants. `Compression::from_str` (including `.parse::<Compression>()`) now returns `ParseConfigError`; update explicit error types or conversions accordingly. Normal exporter builder calls and propagation of build errors with `?` need no changes. See the [OTLP changelog](../opentelemetry-otlp/CHANGELOG.md#0330) for migration examples.
+- **Breaking for callers matching or constructing removed build-error variants:** `ExporterBuildError` now has two exhaustive variants, `InvalidConfiguration(String)` and `InternalFailure(String)`. Update uses of removed variants. Normal exporter builder calls and propagation of build errors with `?` need no changes. See the [OTLP changelog](../opentelemetry-otlp/CHANGELOG.md#0330) for migration examples.
 - **Breaking** `Protocol` and `Compression` are now `#[non_exhaustive]`.
   Exhaustive matches must add a wildcard arm.
 - **Breaking** `Protocol::from_env()` is now crate-private. Builders resolve
