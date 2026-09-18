@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Move B3 propagation to `opentelemetry-propagator-b3`. This crate re-exports `B3Encoding` and `Propagator` for compatibility; existing imports and propagation behavior are unchanged.
+
 ## 0.33.0
 
 Released 2026-Sep-18

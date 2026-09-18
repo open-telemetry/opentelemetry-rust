@@ -4,6 +4,8 @@
 
 **This crate is deprecated.** Use the [OTLP exporter](https://crates.io/crates/opentelemetry-otlp) instead. Zipkin supports [native OTLP ingestion](https://zipkin.io/pages/architecture.html). This crate will be removed in a future release.
 
+For B3 propagation, use [`opentelemetry-propagator-b3`](../opentelemetry-propagator-b3) directly. B3 propagation is not deprecated.
+
 ![OpenTelemetry — An observability framework for cloud-native software.][splash]
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
