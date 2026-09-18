@@ -1,15 +1,16 @@
 # Release Notes 0.33
 
-The release-candidate (RC) period for OpenTelemetry Rust 0.33 applies to the
-OTLP exporters for Logs and Metrics. We intend to keep these exporters in RC
-for two weeks before publishing the final release. It does not change the
-stability status of the other components in this release.
+The OTLP exporters for Logs and Metrics remain in release-candidate (RC) status
+in OpenTelemetry Rust 0.33.0. We intend to declare them stable in 0.33.1,
+approximately two weeks after this release, provided the RC period does not
+uncover any issues requiring breaking API changes. During this period, we expect
+only compatible fixes, documentation updates, and low-risk internal
+optimisations.
 
-OpenTelemetry Rust 0.33 declares the **OTLP exporters for Logs and Metrics
-stable**, brings OTLP retries on by default, and completes the stabilisation
-cleanups that began in 0.32. The Logs and Metrics API and SDK remain stable with
-no breaking changes. The Distributed Tracing API, SDK, and OTLP exporter remain
-pre-stable, and this release includes intentional breaking changes in that area
+OpenTelemetry Rust 0.33.0 brings OTLP retries on by default and completes the
+stabilisation cleanups that began in 0.32. The Logs and Metrics API and SDK
+remain stable with no breaking changes. The Distributed Tracing API, SDK, and
+OTLP exporter remain pre-stable, and this release includes intentional breaking changes in that area
 to continue preparing it for stabilisation.
 
 For detailed changelogs of individual crates, refer to their respective
@@ -17,12 +18,12 @@ changelog files. This document summarises the key changes.
 
 ## Key Changes
 
-### OTLP Exporters for Logs and Metrics (Stable)
+### OTLP Exporters for Logs and Metrics (RC)
 
-With this release, the OTLP exporters for Logs and Metrics are declared
-**stable**. The stabilisation work that began in 0.32 is now complete, and their
-public API surface is considered ready for production use with semver
-guarantees.
+Version 0.33.0 keeps the OTLP exporters for Logs and Metrics in RC for a final
+validation period. If no issues requiring breaking API changes are identified,
+we intend to declare them stable in 0.33.1 approximately two weeks after this
+release.
 
 #### Retries enabled by default
 
@@ -31,8 +32,8 @@ backoff, jitter, and up to 3 retries (4 attempts total). Use
 `.with_retry_policy(RetryPolicy::disabled())` to opt out, or provide a custom
 `RetryPolicy`.
 
-Users of the experimental retry feature flags (`grpc-tonic-with-retry`,
-`http-proto-with-retry`, `http-json-with-retry`) should remove them from
+Users of the experimental retry feature flags (`experimental-grpc-retry` and
+`experimental-http-retry`) should remove them from
 `Cargo.toml`. The `retry` and `retry_classification` modules are now
 crate-private; replace `opentelemetry_otlp::retry` imports with
 `opentelemetry_otlp::RetryPolicy` and use its `with_*` methods instead of
@@ -109,8 +110,8 @@ Endpoints with an explicit scheme are unaffected.
 
 ## Next Release
 
-With the OTLP exporters for Logs and Metrics now stable, the next release will
-focus on declaring the Distributed Tracing API, SDK, and OTLP exporter stable.
+Subject to successful completion of the RC period, OpenTelemetry Rust 0.33.1
+will declare the OTLP exporters for Logs and Metrics stable.
 
 ## Acknowledgments
 
