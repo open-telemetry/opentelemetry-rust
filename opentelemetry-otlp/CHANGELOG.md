@@ -2,6 +2,32 @@
 
 ## vNext
 
+- Exporter builder usage and environment configuration are unchanged.
+  **Breaking for callers parsing compression strings:** `Compression::from_str`
+  (including `.parse::<Compression>()`) now returns the opaque `ParseConfigError`
+  instead of `ExporterBuildError`. Update explicit result types and error handling
+  that expects `ExporterBuildError::UnsupportedCompressionAlgorithm`. The new error
+  implements `Display` and `std::error::Error`; its message is for diagnostics.
+  Accepted strings and parsing behavior are unchanged.
+
+  ```rust
+  // Before:
+  let result: Result<Compression, ExporterBuildError> = value.parse();
+
+  // After:
+  let result: Result<Compression, ParseConfigError> = value.parse();
+  if let Err(error) = result {
+      eprintln!("invalid compression configuration: {error}");
+  }
+  ```
+
+- Interpret protocol, compression, and metrics temporality environment values
+  case-insensitively. Treat empty values as unset, and warn and ignore invalid,
+  non-Unicode, or feature-unavailable enum values so resolution can continue
+  to the next environment variable or default. Compression `none` explicitly
+  disables compression, including when a generic compression value is set.
+  Programmatic configuration remains strict.
+
 ### Retry
 
 - Retries are now enabled by default for OTLP/HTTP and OTLP/gRPC. The default
@@ -33,6 +59,12 @@ release:
   `Retry-After` delays when subsequent export attempts fail.
 
 ### Other changes
+
+- Exporter compression configuration and behavior are unchanged; users of
+  `.with_compression(...)` need no changes. **Breaking only for direct conversion
+  callers:** removed `TryFrom<Compression>` for
+  `tonic::codec::CompressionEncoding`. Code explicitly converting between these
+  enums must map the variants itself.
 
 - Return an exporter build error when construction of a built-in reqwest HTTP
   client fails instead of silently falling back to a client without the
@@ -92,6 +124,43 @@ release:
   `.with_http()` or `.with_tonic()`.
 - **Breaking** Removed the deprecated `tls` feature alias. Replace `tls` with
   `tls-ring`, or select `tls-aws-lc` or `tls-provider-agnostic` explicitly.
+- Exporter builder usage is unchanged. **Breaking for code matching or constructing
+  removed error variants:** Simplified `ExporterBuildError` to the exhaustive
+  `InvalidConfiguration(String)` and `InternalFailure(String)` variants.
+  The enum is no longer marked `#[non_exhaustive]`.
+  Configuration errors such as invalid endpoints, missing HTTP clients,
+  transport/protocol mismatches, and missing compression features now use
+  `InvalidConfiguration`. Replace implementation-specific, non-exhaustive
+  matches such as:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidUri(_, _)
+      | ExporterBuildError::InvalidConfig { .. }
+      | ExporterBuildError::NoHttpClient => {
+          eprintln!("fix the exporter configuration");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+      _ => {}
+  }
+  ```
+  with an exhaustive match over the two stable categories:
+  ```rust
+  match error {
+      ExporterBuildError::InvalidConfiguration(message) => {
+          eprintln!("fix the exporter configuration: {message}");
+      }
+      ExporterBuildError::InternalFailure(message) => {
+          eprintln!("exporter initialization failed: {message}");
+      }
+  }
+  ```
+  Code that propagates build errors with `?` without inspecting their variants
+  needs no changes.
+  Tonic endpoint errors identify the originating environment variable when
+  validating the URI or reporting endpoint-related TLS setup failures.
+  [#3691](https://github.com/open-telemetry/opentelemetry-rust/issues/3691)
 - Return an exporter build error for invalid OTLP/HTTP endpoint environment
   variables instead of silently falling back to another endpoint or localhost.
   Empty endpoint environment variables are now treated as unset.
@@ -144,6 +213,7 @@ release:
       .build()?;
   exporter_builder.with_http_client(client)
   ```
+- Allow to provide http client wrapped in Arc when configuring HTTP exporter. [3468](https://github.com/open-telemetry/opentelemetry-rust/pull/3468)
 
 ## 0.32.0
 

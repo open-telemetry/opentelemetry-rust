@@ -2,9 +2,14 @@
 
 ## vNext
 
+- **Bug fix**: Keep OTLP logs with the same target but different scope versions,
+  attributes, or schema URLs in separate groups. Target still overrides the scope
+  name. Export each scope's schema URL instead of the resource's schema URL.
+
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
 - **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
+- **Bug fix**: Accept OTLP/JSON partial-success responses when protobuf default fields are omitted.
 
 ## 0.32.0
 
