@@ -1,0 +1,23 @@
+{
+    "name": "Rust Dev Container",
+    "build": {
+        "dockerfile": "containerfile"
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/rust:1": {
+            "version": "1.93",
+            "components": "rust-analyzer,rust-src,rustfmt,clippy,rust-docs"
+        },
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "moby": false
+        }
+    },
+    "remoteUser": "vscode",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "rust-lang.rust-analyzer"
+            ]
+        }
+    }
+}
