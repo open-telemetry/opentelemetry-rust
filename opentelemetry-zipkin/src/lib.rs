@@ -1,6 +1,6 @@
 //! # OpenTelemetry Zipkin
 //!
-//! **⚠️ This crate is deprecated.** Use the [OTLP exporter](https://crates.io/crates/opentelemetry-otlp)
+//! **⚠️ This crate is deprecated.** For span export, use the [OTLP exporter](https://crates.io/crates/opentelemetry-otlp)
 //! instead. Zipkin supports [native OTLP ingestion](https://zipkin.io/pages/architecture.html).
 //! This crate will be removed in a future release.
 //! For B3 propagation, use [`opentelemetry_propagator_b3`] directly.
@@ -239,7 +239,7 @@
 //! long as doing so complies with this policy.
 #![deprecated(
     since = "0.32.0",
-    note = "Zipkin exporter is deprecated. Use the OTLP exporter instead. Refer to https://zipkin.io/pages/architecture.html for Zipkin's native OTLP support."
+    note = "This crate is deprecated. For span export, use opentelemetry-otlp. For B3 propagation, use opentelemetry-propagator-b3."
 )]
 #![allow(deprecated)]
 #![warn(
