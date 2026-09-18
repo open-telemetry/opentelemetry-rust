@@ -119,12 +119,13 @@ impl ZipkinExporterBuilder {
 }
 
 async fn zipkin_export(
-    batch: Vec<trace::SpanData>,
+    batch: trace::SpanBatch<'_>,
     uploader: uploader::Uploader,
     local_endpoint: Endpoint,
 ) -> OTelSdkResult {
     let zipkin_spans = batch
-        .into_iter()
+        .iter()
+        .cloned()
         .map(|span| model::into_zipkin_span(local_endpoint.clone(), span))
         .collect();
 
@@ -133,7 +134,7 @@ async fn zipkin_export(
 
 impl trace::SpanExporter for ZipkinExporter {
     /// Export spans to Zipkin collector.
-    async fn export(&self, batch: Vec<trace::SpanData>) -> OTelSdkResult {
+    async fn export(&self, batch: trace::SpanBatch<'_>) -> OTelSdkResult {
         zipkin_export(batch, self.uploader.clone(), self.local_endpoint.clone()).await
     }
 }

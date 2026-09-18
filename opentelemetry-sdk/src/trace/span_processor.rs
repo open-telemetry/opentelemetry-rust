@@ -37,7 +37,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::Span;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{SpanBatch, SpanData, SpanExporter};
 use opentelemetry::Context;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::KeyValue;
@@ -327,7 +327,8 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
                 // exporter, independent of the export outcome, per semconv.
                 #[cfg(feature = "experimental_metrics_bound_instruments")]
                 self.processed_success.add(1);
-                futures_executor::block_on(exporter.export(vec![span]))
+                let batch = [span];
+                futures_executor::block_on(exporter.export(SpanBatch::new(&batch)))
             }
             Err(_) => Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison".into(),
@@ -780,14 +781,9 @@ impl BatchSpanProcessor {
             return OTelSdkResult::Ok(());
         }
 
-        // Splitting off batch clears the existing batch capacity, and is ready
-        // for re-use in the next export. The newly returned vec! from split_off
-        // is passed to the exporter.
-        // TODO: Compared to Logs, this requires new allocation for vec for
-        // every export. See if this can be optimized by
-        // *not* requiring ownership in the exporter.
-        let export = exporter.export(batch.split_off(0));
+        let export = exporter.export(SpanBatch::new(batch.as_slice()));
         let export_result = futures_executor::block_on(export);
+        batch.clear();
 
         match export_result {
             Ok(_) => OTelSdkResult::Ok(()),
@@ -1242,7 +1238,7 @@ mod tests {
     };
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
-    use crate::trace::{SpanData, SpanExporter};
+    use crate::trace::{SpanBatch, SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
     use std::time::Duration;
@@ -1467,9 +1463,9 @@ mod tests {
     }
 
     impl SpanExporter for MockSpanExporter {
-        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
             let exported_spans = self.exported_spans.clone();
-            exported_spans.lock().unwrap().extend(batch);
+            exported_spans.lock().unwrap().extend(batch.iter().cloned());
             Ok(())
         }
 
@@ -1480,6 +1476,23 @@ mod tests {
             let mut exported_resource = self.exported_resource.lock().unwrap();
             *exported_resource = Some(resource.clone());
         }
+    }
+
+    #[test]
+    fn batchspanprocessor_reuses_export_batch_capacity() {
+        let exporter = MockSpanExporter::new();
+        let mut batch = Vec::with_capacity(8);
+        batch.push(create_test_span("test"));
+        let capacity = batch.capacity();
+        let mut last_export_time = Instant::now();
+
+        let result =
+            BatchSpanProcessor::export_batch_sync(&exporter, &mut batch, &mut last_export_time);
+
+        assert!(result.is_ok());
+        assert!(batch.is_empty());
+        assert_eq!(batch.capacity(), capacity);
+        assert_eq!(exporter.exported_spans.lock().unwrap().len(), 1);
     }
 
     #[test]
@@ -1653,11 +1666,12 @@ mod tests {
     }
 
     impl SpanExporter for BlockingExporter {
-        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+        async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
             let _ = self.export_started.try_send(());
             // Block until the test releases the export.
             let _ = self.release.lock().unwrap().recv();
-            self.exported_count.fetch_add(batch.len(), Ordering::SeqCst);
+            self.exported_count
+                .fetch_add(batch.iter().len(), Ordering::SeqCst);
             Ok(())
         }
     }
@@ -1733,8 +1747,8 @@ mod tests {
     }
 
     impl SpanExporter for CountingSpanExporter {
-        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-            self.count.fetch_add(batch.len(), Ordering::SeqCst);
+        async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
+            self.count.fetch_add(batch.iter().len(), Ordering::SeqCst);
             // Simulate slow export to cause queue buildup and drops
             std::thread::sleep(Duration::from_millis(20));
             Ok(())
@@ -1819,11 +1833,11 @@ mod tests {
         }
 
         impl SpanExporter for SlowExporter {
-            async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            async fn export(&self, batch: SpanBatch<'_>) -> OTelSdkResult {
                 // Simulate slow export
                 std::thread::sleep(Duration::from_millis(50));
                 self.exported_count
-                    .fetch_add(batch.len(), Ordering::Relaxed);
+                    .fetch_add(batch.iter().len(), Ordering::Relaxed);
                 Ok(())
             }
 
@@ -1889,7 +1903,7 @@ mod tests {
         }
 
         impl SpanExporter for TrackingExporter {
-            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            async fn export(&self, _batch: SpanBatch<'_>) -> OTelSdkResult {
                 self.export_calls.fetch_add(1, Ordering::SeqCst);
                 let inflight = self.active.fetch_add(1, Ordering::SeqCst) + 1;
                 self.max_inflight.fetch_max(inflight, Ordering::SeqCst);
