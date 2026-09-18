@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
+  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
+  propagator's deferred marker are no longer exported
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+
 ## 0.33.0
 
 Released 2026-Sep-18
@@ -15,10 +20,6 @@ Released 2026-Sep-18
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
 - **Bug fix**: Accept OTLP/JSON partial-success responses when protobuf default fields are omitted.
 - **Performance**: `group_spans_by_resource_and_scope` no longer clones every `SpanData`. The batch is owned by the function, so spans are now moved into the proto conversion instead of being grouped by reference and cloned. This cuts the transform time of a 512-span batch roughly in half. ([#3652](https://github.com/open-telemetry/opentelemetry-rust/pull/3652))
-- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
-  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
-  propagator's deferred marker are no longer exported
-  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 
 ## 0.32.0
 
