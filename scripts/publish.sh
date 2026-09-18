@@ -7,6 +7,7 @@ packages=(
     "opentelemetry-semantic-conventions"
     "opentelemetry-proto"
     "opentelemetry-otlp"
+    "opentelemetry-propagator-b3"
     "opentelemetry-zipkin"
     "opentelemetry-appender-tracing"
     "opentelemetry-stdout"
