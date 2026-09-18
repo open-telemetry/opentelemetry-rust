@@ -1956,7 +1956,7 @@ mod tests {
                 _request: http::Request<Bytes>,
             ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
                 self.attempts.fetch_add(1, Ordering::SeqCst);
-                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge::new()))
             }
         }
 
