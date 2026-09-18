@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-18
+
 - **Bug fix**: Keep OTLP logs with the same target but different scope versions,
   attributes, or schema URLs in separate groups. Target still overrides the scope
   name. Export each scope's schema URL instead of the resource's schema URL.
