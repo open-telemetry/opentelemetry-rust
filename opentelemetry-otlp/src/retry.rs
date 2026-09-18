@@ -1,13 +1,6 @@
-//! This module provides functionality for retrying operations with exponential backoff and jitter.
-//!
-//! The `RetryPolicy` struct defines the configuration for the retry behavior, including the maximum
-//! number of retries, initial delay, maximum delay, and jitter.
-//!
-//! The `retry_with_backoff` function retries the given operation according to the
-//! specified retry policy, using exponential backoff and jitter to determine the delay between
-//! retries. The function uses error classification to determine retry behavior and can honor
-//! server-provided throttling hints.
+//! Internal retry execution with exponential backoff, jitter, and throttling hints.
 
+use crate::retry_policy::RetryPolicy;
 use opentelemetry::{otel_debug, otel_info, otel_warn};
 use std::collections::hash_map::DefaultHasher;
 use std::future::Future;
@@ -36,7 +29,7 @@ async fn sleep_for(duration: Duration) {
 
 /// Classification of errors for retry purposes.
 #[derive(Debug, Clone, PartialEq)]
-pub enum RetryErrorType {
+pub(crate) enum RetryErrorType {
     /// Error is not retryable (e.g., authentication failure, bad request).
     NonRetryable,
     /// Error is retryable with exponential backoff (e.g., server error, network timeout).
@@ -46,60 +39,13 @@ pub enum RetryErrorType {
     Throttled(Duration),
 }
 
-/// Configuration for retry policy.
-///
-/// The default is [`RetryPolicy::recommended()`]. Use
-/// [`RetryPolicy::disabled()`] to perform a single export attempt without
-/// retrying.
-#[derive(Debug, Clone)]
-pub struct RetryPolicy {
-    /// Maximum number of retry attempts.
-    pub max_retries: usize,
-    /// Initial delay in milliseconds before the first retry.
-    pub initial_delay_ms: u64,
-    /// Maximum delay in milliseconds between retries.
-    pub max_delay_ms: u64,
-    /// Maximum jitter in milliseconds to add to the delay.
-    pub jitter_ms: u64,
-}
-
-impl Default for RetryPolicy {
-    /// Returns the recommended OTLP retry policy.
-    fn default() -> Self {
-        Self::recommended()
-    }
-}
-
-impl RetryPolicy {
-    /// Returns a retry policy that performs a single export attempt with no retries.
-    pub fn disabled() -> Self {
-        Self {
-            max_retries: 0,
-            initial_delay_ms: 0,
-            max_delay_ms: 0,
-            jitter_ms: 0,
-        }
-    }
-
-    /// Recommended retry policy per the OTLP spec: 3 retries with exponential
-    /// backoff (100ms initial, 1600ms max, 100ms jitter).
-    pub fn recommended() -> Self {
-        Self {
-            max_retries: 3,
-            initial_delay_ms: 100,
-            max_delay_ms: 1600,
-            jitter_ms: 100,
-        }
-    }
-}
-
 /// Maximum duration a server-provided throttle delay (Retry-After / RetryInfo) is allowed
 /// to block the export thread. Any server-provided delay exceeding this cap is truncated.
 /// This prevents a misbehaving server from stalling the export pipeline indefinitely.
 const MAX_THROTTLE_DURATION: Duration = Duration::from_secs(30);
 
-// Generates a random jitter value up to max_jitter
-fn generate_jitter(max_jitter: u64) -> u64 {
+// Generates a random jitter value up to max_jitter at millisecond resolution.
+fn generate_jitter(max_jitter: Duration) -> Duration {
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -107,7 +53,13 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 
     let mut hasher = DefaultHasher::default();
     hasher.write_u32(nanos);
-    hasher.finish() % (max_jitter + 1)
+    let max_jitter_ms = max_jitter.as_millis().min(u64::MAX as u128) as u64;
+    let jitter_ms = if max_jitter_ms == u64::MAX {
+        hasher.finish()
+    } else {
+        hasher.finish() % (max_jitter_ms + 1)
+    };
+    Duration::from_millis(jitter_ms)
 }
 
 /// Retries the given operation with exponential backoff, jitter, and error classification.
@@ -147,7 +99,7 @@ fn generate_jitter(max_jitter: u64) -> u64 {
 ///
 /// A `Result` containing the operation's result or an error if max retries are reached
 /// or a non-retryable error occurs.
-pub async fn retry_with_backoff<F, Fut, T, E, C>(
+pub(crate) async fn retry_with_backoff<F, Fut, T, E, C>(
     policy: &RetryPolicy,
     deadline: Duration,
     error_classifier: C,
@@ -162,12 +114,12 @@ where
 {
     let start = Instant::now();
     let mut attempt = 0;
-    let mut delay = Duration::from_millis(policy.initial_delay_ms);
+    let mut delay = policy.initial_delay;
     // The delay cap may be raised beyond the configured max if a server-provided
     // throttle delay exceeds it, since retrying sooner than the server requested
     // would defeat the purpose of backpressure signalling. The overall exporter
     // timeout remains the final bound.
-    let mut delay_cap = Duration::from_millis(policy.max_delay_ms);
+    let mut delay_cap = policy.max_delay;
 
     loop {
         match operation().await {
@@ -197,7 +149,7 @@ where
                     }
                     RetryErrorType::Retryable if attempt < policy.max_retries => {
                         attempt += 1;
-                        let jitter = Duration::from_millis(generate_jitter(policy.jitter_ms));
+                        let jitter = generate_jitter(policy.max_jitter);
                         let sleep_duration = delay.saturating_add(jitter).min(delay_cap);
 
                         // If the backoff delay would consume all remaining budget, fail now
@@ -236,7 +188,7 @@ where
                             delay = delay.max(capped_server_delay);
                         }
 
-                        let jitter = Duration::from_millis(generate_jitter(policy.jitter_ms));
+                        let jitter = generate_jitter(policy.max_jitter);
                         let sleep_duration = delay.saturating_add(jitter).min(delay_cap);
 
                         // If the throttle delay would consume all remaining budget, fail now
@@ -280,38 +232,56 @@ mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    fn policy(
+        max_retries: usize,
+        initial_delay_ms: u64,
+        max_delay_ms: u64,
+        max_jitter_ms: u64,
+    ) -> RetryPolicy {
+        RetryPolicy::default()
+            .with_max_retries(max_retries)
+            .with_initial_delay(Duration::from_millis(initial_delay_ms))
+            .with_max_delay(Duration::from_millis(max_delay_ms))
+            .with_max_jitter(Duration::from_millis(max_jitter_ms))
+    }
+
     #[test]
     fn test_generate_jitter() {
-        let max_jitter = 100;
+        let max_jitter = Duration::from_millis(100);
         let jitter = generate_jitter(max_jitter);
         assert!(jitter <= max_jitter);
+    }
+
+    #[test]
+    fn test_generate_jitter_handles_max_duration() {
+        assert!(generate_jitter(Duration::MAX) <= Duration::from_millis(u64::MAX));
     }
 
     #[test]
     fn test_default_retry_policy() {
         let policy = RetryPolicy::default();
         assert_eq!(policy.max_retries, 3);
-        assert_eq!(policy.initial_delay_ms, 100);
-        assert_eq!(policy.max_delay_ms, 1600);
-        assert_eq!(policy.jitter_ms, 100);
+        assert_eq!(policy.initial_delay, Duration::from_millis(100));
+        assert_eq!(policy.max_delay, Duration::from_millis(1600));
+        assert_eq!(policy.max_jitter, Duration::from_millis(100));
     }
 
     #[test]
     fn test_recommended_retry_policy() {
         let policy = RetryPolicy::recommended();
         assert_eq!(policy.max_retries, 3);
-        assert_eq!(policy.initial_delay_ms, 100);
-        assert_eq!(policy.max_delay_ms, 1600);
-        assert_eq!(policy.jitter_ms, 100);
+        assert_eq!(policy.initial_delay, Duration::from_millis(100));
+        assert_eq!(policy.max_delay, Duration::from_millis(1600));
+        assert_eq!(policy.max_jitter, Duration::from_millis(100));
     }
 
     #[test]
     fn test_disabled_retry_policy() {
         let policy = RetryPolicy::disabled();
         assert_eq!(policy.max_retries, 0);
-        assert_eq!(policy.initial_delay_ms, 0);
-        assert_eq!(policy.max_delay_ms, 0);
-        assert_eq!(policy.jitter_ms, 0);
+        assert_eq!(policy.initial_delay, Duration::ZERO);
+        assert_eq!(policy.max_delay, Duration::ZERO);
+        assert_eq!(policy.max_jitter, Duration::ZERO);
     }
 
     #[tokio::test]
@@ -368,12 +338,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_succeeds_after_retries() {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 5,
-        };
+        let policy = policy(3, 10, 100, 5);
         let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 
@@ -401,12 +366,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_fails_after_max_retries() {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 5,
-        };
+        let policy = policy(3, 10, 100, 5);
         let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 
@@ -460,12 +420,7 @@ mod tests {
         // Server delay (50ms) is below max_delay_ms (5000ms), so the
         // configured cap never constrains growth. Verifies the basic
         // mechanism: server delay raises the backoff base from initial.
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10,
-            max_delay_ms: 5000,
-            jitter_ms: 0,
-        };
+        let policy = policy(2, 10, 5000, 0);
         let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 
@@ -500,12 +455,7 @@ mod tests {
         // Repeated throttles (20ms each) with max_delay_ms = 100ms. Server
         // delay is within the cap, so doubling works without needing to lift
         // the cap: 20ms -> 40ms. Total >= 55ms.
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 0,
-        };
+        let policy = policy(2, 10, 100, 0);
         let attempts = AtomicUsize::new(0);
         let start = Instant::now();
 
@@ -537,12 +487,7 @@ mod tests {
         // Throttle (20ms) then a retryable error, with max_delay_ms = 100ms.
         // Server delay is within the cap, so backoff doubles normally:
         // 20ms (throttled) -> 40ms (retryable, doubled from 20ms base).
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 0,
-        };
+        let policy = policy(2, 10, 100, 0);
         let attempts = AtomicUsize::new(0);
         let start = Instant::now();
 
@@ -582,12 +527,7 @@ mod tests {
         // max_delay_ms (50ms). This is the critical case: the cap must be
         // lifted to MAX_THROTTLE_DURATION so that doubling actually grows
         // the delay instead of clamping it back to the server value.
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 10,
-            max_delay_ms: 50, // intentionally below server delay
-            jitter_ms: 0,
-        };
+        let policy = policy(3, 10, 50, 0); // max delay intentionally below server delay
         let attempts = AtomicUsize::new(0);
         let start = Instant::now();
 
@@ -639,12 +579,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_throttle_after_normal_backoff_does_not_reduce_delay() {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 50,
-            max_delay_ms: 500,
-            jitter_ms: 0,
-        };
+        let policy = policy(3, 50, 500, 0);
         let attempts = AtomicUsize::new(0);
         let start = Instant::now();
 
@@ -685,13 +620,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_deadline_exceeded() {
-        let policy = RetryPolicy {
-            max_retries: 100, // many retries allowed
-            initial_delay_ms: 50,
-            max_delay_ms: 200,
-            jitter_ms: 0,
-        };
-        // Very short deadline
+        let policy = policy(100, 50, 200, 0); // many retries allowed
+                                              // Very short deadline
         let deadline = Duration::from_millis(120);
         let attempts = AtomicUsize::new(0);
 
@@ -718,12 +648,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_throttle_capped_at_max() {
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 0,
-        };
+        let policy = policy(2, 10, 100, 0);
         let attempts = AtomicUsize::new(0);
 
         let start = Instant::now();
@@ -753,12 +678,7 @@ mod tests {
 
     #[test]
     fn test_retry_succeeds_after_retries_no_tokio() {
-        let policy = RetryPolicy {
-            max_retries: 3,
-            initial_delay_ms: 10,
-            max_delay_ms: 100,
-            jitter_ms: 5,
-        };
+        let policy = policy(3, 10, 100, 5);
         let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 
@@ -789,12 +709,7 @@ mod tests {
 
     #[test]
     fn test_retry_deadline_exceeded_no_tokio() {
-        let policy = RetryPolicy {
-            max_retries: 100,
-            initial_delay_ms: 50,
-            max_delay_ms: 200,
-            jitter_ms: 0,
-        };
+        let policy = policy(100, 50, 200, 0);
         let deadline = Duration::from_millis(120);
         let attempts = AtomicUsize::new(0);
 
@@ -820,12 +735,7 @@ mod tests {
 
     #[test]
     fn test_retry_throttled_uses_server_delay_no_tokio() {
-        let policy = RetryPolicy {
-            max_retries: 2,
-            initial_delay_ms: 10,
-            max_delay_ms: 5000,
-            jitter_ms: 0,
-        };
+        let policy = policy(2, 10, 5000, 0);
         let deadline = Duration::from_secs(10);
         let attempts = AtomicUsize::new(0);
 

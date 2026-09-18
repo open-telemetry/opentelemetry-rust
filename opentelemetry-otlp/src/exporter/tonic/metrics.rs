@@ -12,7 +12,7 @@ use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Chann
 use super::BoxInterceptor;
 use crate::metric::MetricsClient;
 
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 
 pub(crate) struct TonicMetricsClient {
     inner: Mutex<Option<ClientInner>>,

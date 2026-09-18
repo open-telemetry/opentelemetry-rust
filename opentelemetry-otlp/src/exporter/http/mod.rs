@@ -1,5 +1,5 @@
 use super::{
-    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, read_env_var, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{
@@ -25,8 +25,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::retry::{RetryErrorType, RetryPolicy};
+use crate::retry::RetryErrorType;
 use crate::retry_classification::http::classify_http_error;
+use crate::RetryPolicy;
 
 // Recommended by the OTLP/HTTP specification:
 // https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
@@ -158,7 +159,7 @@ pub(crate) struct HttpConfig {
 /// ```
 ///
 #[derive(Debug)]
-pub struct HttpExporterBuilder {
+pub(crate) struct HttpExporterBuilder {
     pub(crate) exporter_config: ExportConfig,
     pub(crate) http_config: HttpConfig,
 }
@@ -190,10 +191,10 @@ impl HttpExporterBuilder {
         // Validate protocol is compatible with HTTP transport
         #[cfg(feature = "grpc-tonic")]
         if matches!(protocol, Protocol::Grpc) {
-            return Err(ExporterBuildError::InvalidConfig {
-                name: "protocol".to_string(),
-                reason: "gRPC protocol is not compatible with HTTP transport. Use `.with_tonic()` instead.".to_string(),
-            });
+            return Err(ExporterBuildError::invalid_configuration(
+                "protocol",
+                "gRPC protocol is not compatible with HTTP transport; use `.with_tonic()` instead",
+            ));
         }
 
         let endpoint = resolve_http_endpoint(
@@ -203,30 +204,6 @@ impl HttpExporterBuilder {
         )?;
 
         let compression = self.resolve_compression(signal_compression_var)?;
-
-        // Validate compression is supported at build time
-        if let Some(compression_alg) = &compression {
-            match compression_alg {
-                crate::Compression::Gzip => {
-                    #[cfg(not(feature = "gzip-http"))]
-                    {
-                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                            "gzip compression requested but gzip-http feature not enabled"
-                                .to_string(),
-                        ));
-                    }
-                }
-                crate::Compression::Zstd => {
-                    #[cfg(not(feature = "zstd-http"))]
-                    {
-                        return Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                            "zstd compression requested but zstd-http feature not enabled"
-                                .to_string(),
-                        ));
-                    }
-                }
-            }
-        }
 
         let timeout = resolve_timeout(signal_timeout_var, self.exporter_config.timeout.as_ref());
 
@@ -242,12 +219,15 @@ impl HttpExporterBuilder {
         if http_client.is_none() {
             #[cfg(feature = "reqwest-client")]
             {
-                http_client = Some(Arc::new(
-                    reqwest::Client::builder()
-                        .timeout(timeout)
-                        .build()
-                        .unwrap_or_default(),
-                ) as Arc<dyn HttpClient>);
+                let client = reqwest::Client::builder()
+                    .timeout(timeout)
+                    .build()
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the reqwest HTTP client: {error}"
+                        ))
+                    })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
             #[cfg(all(not(feature = "reqwest-client"), feature = "hyper-client"))]
             {
@@ -262,20 +242,38 @@ impl HttpExporterBuilder {
             ))]
             {
                 let timeout_clone = timeout;
-                http_client = Some(Arc::new(
-                    std::thread::spawn(move || {
+                let client = std::thread::Builder::new()
+                    .spawn(move || {
                         reqwest::blocking::Client::builder()
                             .timeout(timeout_clone)
                             .build()
-                            .unwrap_or_else(|_| reqwest::blocking::Client::new())
                     })
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to spawn thread for the blocking HTTP client: {error}"
+                        ))
+                    })?
                     .join()
-                    .unwrap(), // TODO: Return ExporterBuildError::ThreadSpawnFailed
-                ) as Arc<dyn HttpClient>);
+                    .map_err(|_| {
+                        ExporterBuildError::internal_failure(
+                            "thread creating the blocking HTTP client panicked",
+                        )
+                    })?
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the blocking reqwest HTTP client: {error}"
+                        ))
+                    })?;
+                http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
         }
 
-        let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
+        let http_client = http_client.ok_or_else(|| {
+            ExporterBuildError::invalid_configuration(
+                "http_client",
+                "no HTTP client is configured; enable an HTTP client feature or provide one with `.with_http_client()`",
+            )
+        })?;
 
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
@@ -318,12 +316,30 @@ impl HttpExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<crate::Compression>, super::ExporterBuildError> {
-        super::resolve_compression_from_env(self.http_config.compression, env_override)
+        super::resolve_compression_from_env(
+            self.http_config.compression,
+            env_override,
+            |compression| match compression {
+                crate::Compression::Gzip if !cfg!(feature = "gzip-http") => {
+                    Err(ExporterBuildError::invalid_configuration(
+                        "compression",
+                        "gzip compression requested but gzip-http feature not enabled",
+                    ))
+                }
+                crate::Compression::Zstd if !cfg!(feature = "zstd-http") => {
+                    Err(ExporterBuildError::invalid_configuration(
+                        "compression",
+                        "zstd compression requested but zstd-http feature not enabled",
+                    ))
+                }
+                _ => Ok(compression),
+            },
+        )
     }
 
     /// Create a span exporter with the current configuration
     #[cfg(feature = "trace")]
-    pub fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
+    pub(crate) fn build_span_exporter(mut self) -> Result<crate::SpanExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_TRACES_COMPRESSION, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
             OTEL_EXPORTER_OTLP_TRACES_HEADERS, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL,
@@ -344,7 +360,7 @@ impl HttpExporterBuilder {
 
     /// Create a log exporter with the current configuration
     #[cfg(feature = "logs")]
-    pub fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
+    pub(crate) fn build_log_exporter(mut self) -> Result<crate::LogExporter, ExporterBuildError> {
         use crate::{
             OTEL_EXPORTER_OTLP_LOGS_COMPRESSION, OTEL_EXPORTER_OTLP_LOGS_ENDPOINT,
             OTEL_EXPORTER_OTLP_LOGS_HEADERS, OTEL_EXPORTER_OTLP_LOGS_PROTOCOL,
@@ -365,7 +381,7 @@ impl HttpExporterBuilder {
 
     /// Create a metrics exporter with the current configuration
     #[cfg(feature = "metrics")]
-    pub fn build_metrics_exporter(
+    pub(crate) fn build_metrics_exporter(
         mut self,
         temporality: opentelemetry_sdk::metrics::Temporality,
     ) -> Result<crate::MetricExporter, ExporterBuildError> {
@@ -721,43 +737,25 @@ impl OtlpHttpClient {
     }
 }
 
-fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, ExporterBuildError> {
+fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, http::uri::InvalidUri> {
     let path = if endpoint.ends_with('/') && path.starts_with('/') {
         path.strip_prefix('/').unwrap()
     } else {
         path
     };
     let endpoint = format!("{endpoint}{path}");
-    endpoint.parse().map_err(|er: http::uri::InvalidUri| {
-        ExporterBuildError::InvalidUri(endpoint, er.to_string())
-    })
-}
-
-fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
-    match env::var(variable) {
-        Ok(value) if value.is_empty() => Ok(None),
-        Ok(value) => Ok(Some(value)),
-        Err(env::VarError::NotPresent) => Ok(None),
-        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
-            name: variable.to_string(),
-            reason: "environment variable value is not valid Unicode".to_string(),
-        }),
-    }
+    endpoint.parse()
 }
 
 fn invalid_endpoint_env(
     variable: &str,
     value: &str,
-    error: ExporterBuildError,
+    error: http::uri::InvalidUri,
 ) -> ExporterBuildError {
-    let reason = match error {
-        ExporterBuildError::InvalidUri(_, reason) => reason,
-        error => error.to_string(),
-    };
-    ExporterBuildError::InvalidConfig {
-        name: variable.to_string(),
-        reason: format!("invalid endpoint '{value}': {reason}"),
-    }
+    ExporterBuildError::invalid_configuration(
+        variable,
+        format!("invalid endpoint '{value}': {error}"),
+    )
 }
 
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
@@ -768,20 +766,18 @@ fn resolve_http_endpoint(
 ) -> Result<Uri, ExporterBuildError> {
     // programmatic configuration overrides any value set via environment variables
     if let Some(provider_endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-        provider_endpoint
-            .parse()
-            .map_err(|er: http::uri::InvalidUri| {
-                ExporterBuildError::InvalidUri(provider_endpoint.to_string(), er.to_string())
-            })
-    } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+        provider_endpoint.parse().map_err(|error| {
+            ExporterBuildError::invalid_configuration(
+                "endpoint",
+                format!("invalid endpoint '{provider_endpoint}': {error}"),
+            )
+        })
+    } else if let Some(endpoint) = read_env_var(signal_endpoint_var)? {
         // per signal env var is not modified
         endpoint
             .parse()
-            .map_err(|er: http::uri::InvalidUri| {
-                ExporterBuildError::InvalidUri(endpoint.clone(), er.to_string())
-            })
             .map_err(|error| invalid_endpoint_env(signal_endpoint_var, &endpoint, error))
-    } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+    } else if let Some(endpoint) = read_env_var(OTEL_EXPORTER_OTLP_ENDPOINT)? {
         // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT env var is set
         build_endpoint_uri(&endpoint, signal_endpoint_path)
             .map_err(|error| invalid_endpoint_env(OTEL_EXPORTER_OTLP_ENDPOINT, &endpoint, error))
@@ -790,6 +786,11 @@ fn resolve_http_endpoint(
             OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
             signal_endpoint_path,
         )
+        .map_err(|error| {
+            ExporterBuildError::internal_failure(format!(
+                "the default HTTP endpoint is invalid: {error}"
+            ))
+        })
     }
 }
 
@@ -828,9 +829,16 @@ impl HasHttpConfig for HttpExporterBuilder {
 ///     .with_headers(std::collections::HashMap::new());
 /// # }
 /// ```
-pub trait WithHttpConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
     fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
+
+    /// Assign client implementation wrapped into shared pointer
+    ///
+    /// Prefer this method if you'd like to re-use http client across multiple exporters in your application
+    fn with_shared_http_client(self, client: std::sync::Arc<dyn HttpClient>) -> Self;
 
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
@@ -850,9 +858,15 @@ pub trait WithHttpConfig {
     fn with_max_request_body_size(self, max_size: usize) -> Self;
 }
 
+impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
+
 impl<B: HasHttpConfig> WithHttpConfig for B {
-    fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.http_client_config().client = Some(Arc::new(client));
+    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self {
+        self.with_shared_http_client(std::sync::Arc::new(client))
+    }
+
+    fn with_shared_http_client(mut self, client: std::sync::Arc<dyn HttpClient>) -> Self {
+        self.http_client_config().client = Some(client);
         self
     }
 
@@ -889,11 +903,11 @@ mod tests {
     use crate::exporter::http::HttpConfig;
     use crate::exporter::tests::run_env_test;
     use crate::{
-        HttpExporterBuilder, WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
+        WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     };
 
-    use super::{build_endpoint_uri, resolve_http_endpoint};
+    use super::{build_endpoint_uri, resolve_http_endpoint, HttpExporterBuilder};
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
@@ -1009,10 +1023,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
-                            && !reason.contains("invalid URI")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.matches("-*/*-/*-//-/-/invalid-uri").count() == 1
                 ));
             },
         );
@@ -1030,10 +1043,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_ENDPOINT
-                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
-                            && !reason.contains("invalid URI")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_ENDPOINT)
+                            && message.matches("-*/*-/*-//-/-/invalid-uri").count() == 1
                 ));
             },
         );
@@ -1075,9 +1087,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                            && reason.contains("not valid Unicode")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.contains("not valid Unicode")
                 ));
             },
         );
@@ -1246,6 +1258,26 @@ mod tests {
 
             assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
         });
+    }
+
+    #[test]
+    fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
+        use super::{HttpExporterBuilder, WithHttpConfig};
+        use crate::exporter::http::HttpConfig;
+        use crate::exporter::ExportConfig;
+        use export_body_tests::MockHttpClient;
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client(MockHttpClient);
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_shared_http_client(std::sync::Arc::new(MockHttpClient));
     }
 
     #[cfg(feature = "gzip-http")]
@@ -1428,9 +1460,10 @@ mod tests {
         use super::super::OtlpHttpClient;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
+        use std::time::Duration;
 
         #[derive(Debug)]
-        struct MockHttpClient;
+        pub(crate) struct MockHttpClient;
 
         #[async_trait::async_trait]
         impl HttpClient for MockHttpClient {
@@ -1693,7 +1726,10 @@ mod tests {
                     let result = builder
                         .resolve_compression("NONEXISTENT_SIGNAL_COMPRESSION")
                         .unwrap();
+                    #[cfg(feature = "gzip-http")]
                     assert_eq!(result, Some(crate::Compression::Gzip));
+                    #[cfg(not(feature = "gzip-http"))]
+                    assert_eq!(result, None);
                 },
             );
         }
@@ -1707,10 +1743,10 @@ mod tests {
             let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Gzip);
 
             let result = builder.build_span_exporter();
-            // This test will fail until the issue is fixed: compression validation should happen at build time
             assert!(matches!(
                 result,
-                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+                Err(ExporterBuildError::InvalidConfiguration(message))
+                    if message.contains("gzip-http")
             ));
         }
 
@@ -1723,10 +1759,10 @@ mod tests {
             let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Zstd);
 
             let result = builder.build_span_exporter();
-            // This test will fail until the issue is fixed: compression validation should happen at build time
             assert!(matches!(
                 result,
-                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+                Err(ExporterBuildError::InvalidConfiguration(message))
+                    if message.contains("zstd-http")
             ));
         }
 
@@ -1743,24 +1779,23 @@ mod tests {
         #[test]
         fn test_with_retry_policy() {
             use super::super::HttpExporterBuilder;
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
             use crate::WithHttpConfig;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 5,
-                initial_delay_ms: 200,
-                max_delay_ms: 3200,
-                jitter_ms: 50,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(5)
+                .with_initial_delay(Duration::from_millis(200))
+                .with_max_delay(Duration::from_millis(3200))
+                .with_max_jitter(Duration::from_millis(50));
 
             let builder = HttpExporterBuilder::default().with_retry_policy(custom_policy);
 
             // Verify the retry policy was set
             let retry_policy = builder.http_config.retry_policy.as_ref().unwrap();
             assert_eq!(retry_policy.max_retries, 5);
-            assert_eq!(retry_policy.initial_delay_ms, 200);
-            assert_eq!(retry_policy.max_delay_ms, 3200);
-            assert_eq!(retry_policy.jitter_ms, 50);
+            assert_eq!(retry_policy.initial_delay, Duration::from_millis(200));
+            assert_eq!(retry_policy.max_delay, Duration::from_millis(3200));
+            assert_eq!(retry_policy.max_jitter, Duration::from_millis(50));
         }
 
         #[cfg(feature = "http-proto")]
@@ -1770,22 +1805,24 @@ mod tests {
 
             // Verify the recommended default values are used.
             assert_eq!(client.retry_policy.max_retries, 3);
-            assert_eq!(client.retry_policy.initial_delay_ms, 100);
-            assert_eq!(client.retry_policy.max_delay_ms, 1600);
-            assert_eq!(client.retry_policy.jitter_ms, 100);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(100)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(1600));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(100));
         }
 
         #[cfg(feature = "http-proto")]
         #[test]
         fn test_custom_retry_policy_used() {
-            use crate::retry::RetryPolicy;
+            use crate::RetryPolicy;
 
-            let custom_policy = RetryPolicy {
-                max_retries: 7,
-                initial_delay_ms: 500,
-                max_delay_ms: 5000,
-                jitter_ms: 200,
-            };
+            let custom_policy = RetryPolicy::default()
+                .with_max_retries(7)
+                .with_initial_delay(Duration::from_millis(500))
+                .with_max_delay(Duration::from_millis(5000))
+                .with_max_jitter(Duration::from_millis(200));
 
             let client = OtlpHttpClient::new(
                 std::sync::Arc::new(MockHttpClient),
@@ -1799,9 +1836,12 @@ mod tests {
 
             // Verify custom values are used
             assert_eq!(client.retry_policy.max_retries, 7);
-            assert_eq!(client.retry_policy.initial_delay_ms, 500);
-            assert_eq!(client.retry_policy.max_delay_ms, 5000);
-            assert_eq!(client.retry_policy.jitter_ms, 200);
+            assert_eq!(
+                client.retry_policy.initial_delay,
+                Duration::from_millis(500)
+            );
+            assert_eq!(client.retry_policy.max_delay, Duration::from_millis(5000));
+            assert_eq!(client.retry_policy.max_jitter, Duration::from_millis(200));
         }
     }
 
@@ -1810,11 +1850,12 @@ mod tests {
     #[cfg(feature = "http-proto")]
     mod retry_integration_tests {
         use super::super::OtlpHttpClient;
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::time::Duration;
 
         /// Mock HTTP client that returns a sequence of responses controlled by an attempt counter.
         #[derive(Debug)]
@@ -1947,12 +1988,11 @@ mod tests {
         }
 
         fn retry_policy() -> RetryPolicy {
-            RetryPolicy {
-                max_retries: 3,
-                initial_delay_ms: 1,
-                max_delay_ms: 10,
-                jitter_ms: 0,
-            }
+            RetryPolicy::default()
+                .with_max_retries(3)
+                .with_initial_delay(Duration::from_millis(1))
+                .with_max_delay(Duration::from_millis(10))
+                .with_max_jitter(Duration::ZERO)
         }
 
         #[test]

@@ -47,6 +47,14 @@ fn build_tonic() {
     // JSON files without those field cannot deserialize
     // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
     for path in [
+        "collector.trace.v1.ExportTraceServiceRequest",
+        "collector.logs.v1.ExportLogsServiceRequest",
+        "collector.metrics.v1.ExportMetricsServiceRequest",
+        "collector.profiles.v1development.ExportProfilesServiceRequest",
+        "collector.trace.v1.ExportTracePartialSuccess",
+        "collector.logs.v1.ExportLogsPartialSuccess",
+        "collector.metrics.v1.ExportMetricsPartialSuccess",
+        "collector.profiles.v1development.ExportProfilesPartialSuccess",
         "trace.v1.Span",
         "trace.v1.Span.Link",
         "trace.v1.ScopeSpans",
