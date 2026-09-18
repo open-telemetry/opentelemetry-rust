@@ -41,6 +41,7 @@ struct literals.
 
 #### Stabilisation cleanups
 
+- **Breaking for callers matching or constructing removed build-error variants:** `ExporterBuildError` now has two exhaustive variants, `InvalidConfiguration(String)` and `InternalFailure(String)`. Update uses of removed variants. Normal exporter builder calls and propagation of build errors with `?` need no changes. See the [OTLP changelog](../opentelemetry-otlp/CHANGELOG.md#0330) for migration examples.
 - **Breaking** `Protocol` and `Compression` are now `#[non_exhaustive]`.
   Exhaustive matches must add a wildcard arm.
 - **Breaking** `Protocol::from_env()` is now crate-private. Builders resolve
@@ -49,9 +50,8 @@ struct literals.
 - Invalid OTLP endpoint environment variables (HTTP and gRPC) now produce a
   build error instead of silently falling back to localhost. Empty values are
   treated as unset.
-- **Breaking** `WithHttpConfig::with_max_request_body_size` is now a required
-  trait method. OTLP/HTTP request bodies are limited to 64 MiB by default
-  (before and after compression).
+- OTLP/HTTP request bodies are limited to 64 MiB by default (before and after compression). Use `WithHttpConfig::with_max_request_body_size` to configure the limit. Oversized requests are discarded without being sent or retried.
+- **Breaking for external trait implementations:** `WithExportConfig`, `WithHttpConfig`, and `WithTonicConfig` are now sealed. Their configuration methods remain available on OTLP builders, but the traits can no longer be implemented for external types.
 - **Breaking** Removed the `reqwest-rustls-webpki-roots` feature (broken since
   reqwest 0.13.0). Use `reqwest-rustls` instead.
 
