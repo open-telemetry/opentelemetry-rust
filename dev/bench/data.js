@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789725019426,
+  "lastUpdate": 1789800077794,
   "repoUrl": "https://github.com/open-telemetry/opentelemetry-rust",
   "entries": {
     "Benchmark": [
@@ -76483,6 +76483,1390 @@ window.BENCHMARK_DATA = {
             "name": "Tracer_With_Name_And_Scope_Attrs/new_each_time",
             "value": 144,
             "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tracer_With_Name_And_Scope_Attrs/reuse_existing",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Nam Se Hyun",
+            "username": "namse",
+            "email": "3580430+namse@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "1d663f8331f404278565930a4f6ed51404c81cd0",
+          "message": "perf(proto): avoid cloning every span when grouping by scope (#3652)\n\nCo-authored-by: Björn Antonsson <bjorn.antonsson@datadoghq.com>",
+          "timestamp": "2026-09-18T17:34:12Z",
+          "url": "https://github.com/open-telemetry/opentelemetry-rust/commit/1d663f8331f404278565930a4f6ed51404c81cd0"
+        },
+        "date": 1789800076844,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "CreateOTelValueString",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelAnyValueString",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelValueInt",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelAnyValueInt",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelKey_Static",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelKey_Owned",
+            "value": 17,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelKey_Arc",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOTelKeyValue",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateTupleKeyValue",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOtelKeyValueArray",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOtelKeyValueArrayWithMixedValueTypes",
+            "value": 13,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateOtelKeyValueArrayWithNonStaticValues",
+            "value": 108,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateTupleKeyValueArray",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "set_baggage_static_key_value",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "set_baggage_static_key",
+            "value": 64,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "set_baggage_dynamic",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "set_baggage_dynamic_with_metadata",
+            "value": 128,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/single_cx/empty_cx",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/nested_cx/empty_cx",
+            "value": 42,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/out_of_order_cx_drop/empty_cx",
+            "value": 39,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/single_cx/single_value_cx",
+            "value": 28,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/nested_cx/single_value_cx",
+            "value": 56,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/out_of_order_cx_drop/single_value_cx",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/single_cx/span_cx",
+            "value": 28,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/nested_cx/span_cx",
+            "value": 56,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context_attach/out_of_order_cx_drop/span_cx",
+            "value": 49,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "telemetry_suppression/enter_telemetry_suppressed_scope",
+            "value": 28,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "telemetry_suppression/normal_attach",
+            "value": 21,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "telemetry_suppression/is_current_telemetry_suppressed_false",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "telemetry_suppression/is_current_telemetry_suppressed_true",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateLogRecord_NoopLogger",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateLogRecord_NoopLogger_WithAttributes",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateLogRecord_NoopLogger_WithBody",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateLogRecord_NoopLogger_Full",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "EventEnabled_NoopLogger",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "NoAttributes",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AddWithInlineStaticAttributes",
+            "value": 17,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AddWithStaticArray",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AddWithDynamicAttributes",
+            "value": 145,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "AddWithDynamicAttributes_WithStringAllocation",
+            "value": 103,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer",
+            "value": 52,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_4Attributes",
+            "value": 40,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_AddEvent",
+            "value": 52,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_AddLink",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_SetActive",
+            "value": 120,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_WithActiveParent",
+            "value": 133,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "CreateSpan_NoopTracer_InSpan",
+            "value": 148,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpanBuilder_Creation",
+            "value": 30,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpanBuilder_WithAttributes",
+            "value": 73,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpanBuilder_WithLinks",
+            "value": 80,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "otel_2_attributes",
+            "value": 339,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_no_subscriber",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ot_layer_enabled",
+            "value": 333,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ot_layer_disabled",
+            "value": 11,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "noop_layer_enabled",
+            "value": 22,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "noop_layer_disabled",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_1_attr_no_span",
+            "value": 294,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_1_attr_in_span_2_attr",
+            "value": 823,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_1_attr_in_nested_spans_2plus2_attr",
+            "value": 1259,
+            "range": "± 146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span_4_attributes",
+            "value": 289,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span_8_attributes",
+            "value": 713,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "nested_spans_1_levels",
+            "value": 397,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "nested_spans_2_levels",
+            "value": 1097,
+            "range": "± 93",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "nested_spans_3_levels",
+            "value": 1632,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 1 concurrent task",
+            "value": 25569902,
+            "range": "± 3601627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 2 concurrent task",
+            "value": 25486274,
+            "range": "± 777231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 4 concurrent task",
+            "value": 25420382,
+            "range": "± 713062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 8 concurrent task",
+            "value": 25912781,
+            "range": "± 965630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 16 concurrent task",
+            "value": 26888888,
+            "range": "± 711536",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BatchSpanProcessor/with 32 concurrent task",
+            "value": 30240755,
+            "range": "± 792429",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Unbound_Delta",
+            "value": 102,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_Delta",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_With_View_Delta",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_AtOverflow_Delta",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/UpDownCounter_Unbound_Cumulative",
+            "value": 105,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/UpDownCounter_Bound_Cumulative",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Gauge_Unbound_Delta",
+            "value": 97,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Gauge_Bound_Delta",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Unbound_Delta",
+            "value": 114,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Bound_Delta",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Bound_AtOverflow_Delta",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_Multithread/2",
+            "value": 326824,
+            "range": "± 68401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_Multithread/4",
+            "value": 539891,
+            "range": "± 71733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Counter_Bound_Multithread/8",
+            "value": 653494,
+            "range": "± 45230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/UpDownCounter_Bound_Multithread/2",
+            "value": 393973,
+            "range": "± 44290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/UpDownCounter_Bound_Multithread/4",
+            "value": 467370,
+            "range": "± 88667",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/UpDownCounter_Bound_Multithread/8",
+            "value": 638314,
+            "range": "± 32347",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Bound_Multithread/2",
+            "value": 384775,
+            "range": "± 52188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Bound_Multithread/4",
+            "value": 463482,
+            "range": "± 99341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Histogram_Bound_Multithread/8",
+            "value": 627873,
+            "range": "± 68867",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Gauge_Bound_Multithread/2",
+            "value": 382659,
+            "range": "± 48378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Gauge_Bound_Multithread/4",
+            "value": 172187,
+            "range": "± 6470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "BoundInstruments/Gauge_Bound_Multithread/8",
+            "value": 610899,
+            "range": "± 38510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/in-cx/alt",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/in-cx/alt",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/in-cx/alt",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/in-cx/spec",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/in-cx/spec",
+            "value": 20,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/in-cx/spec",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/no-cx/alt",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/no-cx/alt",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/no-cx/alt",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/no-cx/spec",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/no-cx/spec",
+            "value": 6,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/no-cx/spec",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/no-sdk/alt",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/no-sdk/alt",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/no-sdk/alt",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/has_active_span/no-sdk/spec",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_sampled/no-sdk/spec",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "context/is_recording/no-sdk/spec",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Logger_Creation",
+            "value": 154,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LoggerProvider_Creation",
+            "value": 3384,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Logging_Comparable_To_Appender",
+            "value": 95,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log/no-context",
+            "value": 54,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log/with-context",
+            "value": 56,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-int/no-context",
+            "value": 69,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-int/with-context",
+            "value": 69,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-double/no-context",
+            "value": 69,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-double/with-context",
+            "value": 69,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-string/no-context",
+            "value": 69,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-string/with-context",
+            "value": 70,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-bool/no-context",
+            "value": 69,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-bool/with-context",
+            "value": 70,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-bytes/no-context",
+            "value": 81,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-bytes/with-context",
+            "value": 81,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-a-lot-of-bytes/no-context",
+            "value": 107,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-a-lot-of-bytes/with-context",
+            "value": 83,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-vec-any-value/no-context",
+            "value": 156,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-vec-any-value/with-context",
+            "value": 157,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-inner-vec-any-value/no-context",
+            "value": 243,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-inner-vec-any-value/with-context",
+            "value": 245,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-map-any-value/no-context",
+            "value": 173,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-map-any-value/with-context",
+            "value": 134,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-inner-map-any-value/no-context",
+            "value": 279,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "simple-log-with-inner-map-any-value/with-context",
+            "value": 279,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "long-log/no-context",
+            "value": 54,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "long-log/with-context",
+            "value": 56,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log/no-context",
+            "value": 32,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log/with-context",
+            "value": 33,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-4-attributes/no-context",
+            "value": 85,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-4-attributes/with-context",
+            "value": 86,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-9-attributes/no-context",
+            "value": 169,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-9-attributes/with-context",
+            "value": 170,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-attributes/no-context",
+            "value": 281,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "full-log-with-attributes/with-context",
+            "value": 284,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "exporter_disabled_simple_processor",
+            "value": 18,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LogExporterWithFuture",
+            "value": 115,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LogExporterWithoutFuture",
+            "value": 111,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_noop_processor",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_cloning_processor",
+            "value": 187,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "log_clone_and_send_to_channel_processor",
+            "value": 589,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddNoAttrs",
+            "value": 13,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddOneAttr",
+            "value": 82,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddThreeAttr",
+            "value": 143,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddFiveAttr",
+            "value": 209,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddTenAttr",
+            "value": 391,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddOneTillMaxAttr",
+            "value": 50640,
+            "range": "± 5091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddMaxAttr",
+            "value": 102536,
+            "range": "± 249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddInvalidAttr",
+            "value": 226,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddSingleUseAttrs",
+            "value": 266,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddSingleUseInvalid",
+            "value": 366,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/AddSingleUseFiltered",
+            "value": 349,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/CollectOneAttr",
+            "value": 288,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter/CollectTenAttrs",
+            "value": 596,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record0Attrs10bounds",
+            "value": 30,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record3Attrs10bounds",
+            "value": 157,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record5Attrs10bounds",
+            "value": 221,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record7Attrs10bounds",
+            "value": 285,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record10Attrs10bounds",
+            "value": 408,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record0Attrs49bounds",
+            "value": 33,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record3Attrs49bounds",
+            "value": 164,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record5Attrs49bounds",
+            "value": 237,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record7Attrs49bounds",
+            "value": 295,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record10Attrs49bounds",
+            "value": 397,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record0Attrs50bounds",
+            "value": 33,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record3Attrs50bounds",
+            "value": 170,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record5Attrs50bounds",
+            "value": 177,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record7Attrs50bounds",
+            "value": 302,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record10Attrs50bounds",
+            "value": 416,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record0Attrs1000bounds",
+            "value": 37,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record3Attrs1000bounds",
+            "value": 184,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record5Attrs1000bounds",
+            "value": 270,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record7Attrs1000bounds",
+            "value": 334,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/Record10Attrs1000bounds",
+            "value": 442,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/CollectOne",
+            "value": 28,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/CollectFive",
+            "value": 29,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/CollectTen",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram/CollectTwentyFive",
+            "value": 29,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter_Add_Sorted",
+            "value": 208,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter_Add_Unsorted",
+            "value": 205,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter_Add_Sorted_With_Non_Static_Values",
+            "value": 297,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Counter_Overflow",
+            "value": 520,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ThreadLocal_Random_Generator_5",
+            "value": 10,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Gauge_Add",
+            "value": 164,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram_Record",
+            "value": 243,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Histogram_Record_With_Non_Static_Values",
+            "value": 256,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-simple/always-sample",
+            "value": 396,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-simple/never-sample",
+            "value": 94,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-span-builder/always-sample",
+            "value": 427,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-span-builder/never-sample",
+            "value": 176,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-tracer-in-span/always-sample",
+            "value": 663,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-tracer-in-span/never-sample",
+            "value": 238,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-tracer-in-span-with-builder/always-sample",
+            "value": 611,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-tracer-in-span-with-builder/never-sample",
+            "value": 293,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-simple-context-activation/always-sample",
+            "value": 588,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-simple-context-activation/never-sample",
+            "value": 93,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-span-builder-context-activation/always-sample",
+            "value": 604,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-span-builder-context-activation/never-sample",
+            "value": 150,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span-creation-with-active-parent",
+            "value": 226,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span_builder/simplest",
+            "value": 126,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span_builder/with_attributes/1",
+            "value": 156,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "span_builder/with_attributes/4",
+            "value": 177,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span/always-sample",
+            "value": 260,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span/never-sample",
+            "value": 131,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-4-attrs/always-sample",
+            "value": 309,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-4-attrs/never-sample",
+            "value": 148,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-8-attrs/always-sample",
+            "value": 443,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-8-attrs/never-sample",
+            "value": 186,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-all-attr-types/always-sample",
+            "value": 325,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-all-attr-types/never-sample",
+            "value": 157,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-all-attr-types-2x/always-sample",
+            "value": 474,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "start-end-span-all-attr-types-2x/never-sample",
+            "value": 207,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tracer_With_Name/new_each_time",
+            "value": 97,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tracer_With_Name/reuse_existing",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tracer_With_Name_And_Scope_Attrs/new_each_time",
+            "value": 146,
+            "range": "± 1",
             "unit": "ns/iter"
           },
           {
