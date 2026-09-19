@@ -356,8 +356,9 @@ impl SpanContext {
 
     /// Returns details about the trace.
     ///
-    /// Unlike `TraceState` values, these are present in all traces. The current
-    /// version of the specification only supports a single flag [`TraceFlags::SAMPLED`].
+    /// Unlike `TraceState` values, these are present in all traces. See
+    /// [`TraceFlags`] for the flags defined by the
+    /// [W3C TraceContext specification](https://www.w3.org/TR/trace-context-2/#trace-flags).
     pub fn trace_flags(&self) -> TraceFlags {
         self.trace_flags
     }
@@ -378,6 +379,13 @@ impl SpanContext {
     /// Spans that are not sampled will be ignored by most tracing tools.
     pub fn is_sampled(&self) -> bool {
         self.trace_flags.is_sampled()
+    }
+
+    /// Returns `true` if the `random-trace-id` trace flag is set.
+    ///
+    /// See [`TraceFlags::RANDOM`].
+    pub fn is_random(&self) -> bool {
+        self.trace_flags.is_random()
     }
 
     /// A reference to the span context's [`TraceState`].
@@ -582,5 +590,20 @@ mod tests {
         assert_eq!(updated.into_iter().count(), 32);
         assert_eq!(updated.get("key20"), Some("updated"));
         assert_eq!(updated.get("key0"), Some("value0"));
+    }
+
+    #[test]
+    fn span_context_is_random() {
+        assert!(!SpanContext::NONE.is_random());
+
+        let random_only = SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::RANDOM,
+            false,
+            TraceState::default(),
+        );
+        assert!(random_only.is_random());
+        assert!(!random_only.is_sampled());
     }
 }
