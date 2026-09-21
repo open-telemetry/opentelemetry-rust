@@ -4,7 +4,6 @@
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
     "opentelemetry::*",
-    "opentelemetry_propagator_b3::*",
     "opentelemetry_http::*",
     "opentelemetry_sdk::*",
     # http is a pre 1.0 crate

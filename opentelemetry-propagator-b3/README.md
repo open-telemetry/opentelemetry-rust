@@ -1,6 +1,6 @@
 # OpenTelemetry B3 Propagator
 
-B3 trace context propagation for OpenTelemetry Rust, independent of the telemetry exporter.
+B3 trace context propagation for OpenTelemetry Rust.
 B3 remains supported even though the Zipkin exporter is deprecated. The
 [OpenTelemetry specification](https://opentelemetry.io/docs/specs/otel/context/api-propagators/#propagators-distribution)
 requires B3 to be distributed as a core package.
@@ -28,8 +28,7 @@ if you only use B3 propagation, and change the import:
 use opentelemetry_propagator_b3::{B3Encoding, Propagator};
 ```
 
-The public types and propagation behavior are unchanged. The deprecated
-`opentelemetry-zipkin` crate re-exports these types for compatibility.
+The new crate preserves the existing API and propagation behavior.
 
 ## Supported Rust Versions
 

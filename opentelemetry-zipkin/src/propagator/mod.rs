@@ -1,23 +1,18 @@
-//! B3 trace context propagation for OpenTelemetry Rust.
+//! # B3 Propagator
 //!
-//! This crate provides a standalone copy of the B3 implementation in
-//! `opentelemetry-zipkin`. Existing users can change their imports to
-//! `opentelemetry_propagator_b3::{B3Encoding, Propagator}`.
+//! The `B3Propagator` facilitates `SpanContext` propagation using
+//! B3 Headers. This propagator supports both version of B3 headers,
+//!  1. Single Header:
+//!     b3: {trace_id}-{span_id}-{sampling_state}-{parent_span_id}
+//!  2. Multiple Headers:
+//!     X-B3-TraceId: {trace_id}
+//!     X-B3-ParentSpanId: {parent_span_id}
+//!     X-B3-SpanId: {span_id}
+//!     X-B3-Sampled: {sampling_state}
+//!     X-B3-Flags: {debug_flag}
 //!
-//! Both single and multiple headers are accepted when extracting context, with
-//! a valid single header taking precedence. [`Propagator::new`] retains the
-//! existing multiple-header injection default.
-//!
-//! ```
-//! use opentelemetry::global;
-//! use opentelemetry_propagator_b3::Propagator;
-//!
-//! global::set_text_map_propagator(Propagator::new());
-//! ```
-
-#![warn(missing_docs, unreachable_pub, missing_debug_implementations)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
+//! If `inject_encoding` is set to `B3Encoding::SingleHeader` then `b3` header is used to inject
+//! and extract. Otherwise, separate headers are used to inject and extract.
 use once_cell::sync::Lazy;
 use opentelemetry::{
     propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},

@@ -30,7 +30,7 @@ reqwest-client = ["dep:reqwest", "opentelemetry-http/reqwest"]
 reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
 
 [dependencies]
-opentelemetry-propagator-b3 = { workspace = true }
+once_cell = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true, features = ["trace"] }
 opentelemetry-http = { workspace = true }
