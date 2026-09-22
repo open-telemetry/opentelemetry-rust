@@ -194,8 +194,6 @@
 //!   primarily used for learning/debugging purposes.
 //! - [`opentelemetry-prometheus`] provides a pipeline and exporter for sending
 //!   metrics information to [`Prometheus`].
-//! - [`opentelemetry-zipkin`] provides a pipeline and exporter for sending
-//!   trace information to [`Zipkin`].
 //!
 //!  In addition, there are several other useful crates in the [OTel Rust
 //!  Contrib
@@ -211,9 +209,7 @@
 //! [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 //! [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
 //! [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
-//! [`opentelemetry-zipkin`]: https://crates.io/crates/opentelemetry-zipkin
 //! [`Prometheus`]: https://prometheus.io
-//! [`Zipkin`]: https://zipkin.io
 //!
 //! # Supported Rust Versions
 //!

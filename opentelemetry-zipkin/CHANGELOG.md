@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Remove the deprecated crate from the repository. The final published version is 0.33.0. For replacements, see the [migration guidance](README.md).
+
 ## 0.33.0
 
 Released 2026-Sep-18
