@@ -177,31 +177,32 @@ pub mod tonic {
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
-        // Group spans by their instrumentation scope
-        let scope_map = spans.iter().fold(
-            HashMap::new(),
-            |mut scope_map: HashMap<&opentelemetry::InstrumentationScope, Vec<&SpanData>>, span| {
-                let instrumentation = &span.instrumentation_scope;
-                scope_map.entry(instrumentation).or_default().push(span);
-                scope_map
-            },
-        );
+        // Group spans by their instrumentation scope, converting each span as it
+        // is consumed. The batch is owned, so spans are moved rather than cloned.
+        let mut scope_indices: HashMap<opentelemetry::InstrumentationScope, usize> = HashMap::new();
+        let mut scope_spans: Vec<ScopeSpans> = Vec::new();
 
-        // Convert the grouped spans into ScopeSpans
-        let scope_spans = scope_map
-            .into_iter()
-            .map(|(instrumentation, span_records)| ScopeSpans {
-                scope: Some((instrumentation, None).into()),
-                schema_url: instrumentation
-                    .schema_url()
-                    .map(ToOwned::to_owned)
-                    .unwrap_or_default(),
-                spans: span_records
-                    .into_iter()
-                    .map(|span_data| span_data.clone().into())
-                    .collect(),
-            })
-            .collect();
+        for span in spans {
+            let scope_index = match scope_indices.get(&span.instrumentation_scope) {
+                Some(&scope_index) => scope_index,
+                None => {
+                    let instrumentation = span.instrumentation_scope.clone();
+                    let scope_index = scope_spans.len();
+                    scope_spans.push(ScopeSpans {
+                        scope: Some((&instrumentation, None).into()),
+                        schema_url: instrumentation
+                            .schema_url()
+                            .map(ToOwned::to_owned)
+                            .unwrap_or_default(),
+                        spans: Vec::new(),
+                    });
+                    scope_indices.insert(instrumentation, scope_index);
+                    scope_index
+                }
+            };
+
+            scope_spans[scope_index].spans.push(span.into());
+        }
 
         // Wrap ScopeSpans into a single ResourceSpans
         vec![ResourceSpans {

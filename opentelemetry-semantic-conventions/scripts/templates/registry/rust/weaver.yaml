@@ -14,7 +14,7 @@ comment_formats:
 default_comment_format: rust
 
 params:
-  schema_url: "https://opentelemetry.io/schemas/1.36.0"
+  schema_url: "https://opentelemetry.io/schemas/1.42.0"
   exclude_root_namespace: []
   excluded_attributes: ["messaging.client_id"]
 
@@ -35,8 +35,8 @@ templates:
     application_mode: single
   - pattern: trace.rs.j2
     filter: >
-      semconv_signal("span"; $params) + semconv_signal("event"; $params)
-      | map(.attributes[])
+      (semconv_signal("span"; $params) // []) + (semconv_signal("event"; $params) // [])
+      | map(.attributes // [] | .[])
       | unique_by(.name)
       | sort_by(.name)
       | map({name, brief, examples, deprecated, requirement_level, stability, type})

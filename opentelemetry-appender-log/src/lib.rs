@@ -306,8 +306,8 @@ mod any_value {
 
     use opentelemetry::{logs::AnyValue, Key, StringValue};
     use serde::ser::{
-        Error, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
-        SerializeTuple, SerializeTupleStruct, SerializeTupleVariant, Serializer, StdError,
+        Error, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+        SerializeTupleStruct, SerializeTupleVariant, Serializer, StdError,
     };
 
     /// Serialize an arbitrary `serde::Serialize` into an `AnyValue`.
@@ -486,7 +486,7 @@ mod any_value {
         }
 
         fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok, Self::Error> {
-            name.serialize(self)
+            Ok(Some(AnyValue::String(name.into())))
         }
 
         fn serialize_unit_variant(
@@ -495,7 +495,7 @@ mod any_value {
             _: u32,
             variant: &'static str,
         ) -> Result<Self::Ok, Self::Error> {
-            variant.serialize(self)
+            Ok(Some(AnyValue::String(variant.into())))
         }
 
         fn serialize_newtype_struct<T: serde::Serialize + ?Sized>(
@@ -680,7 +680,8 @@ mod any_value {
         ) -> Result<(), Self::Error> {
             let key = match key.serialize(ValueSerializer)? {
                 Some(AnyValue::String(key)) => Key::from(String::from(key)),
-                key => Key::from(format!("{key:?}")),
+                Some(key) => Key::from(format!("{key:?}")),
+                None => Key::from("None"),
             };
 
             self.key = Some(key);

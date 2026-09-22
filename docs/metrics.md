@@ -258,10 +258,12 @@ on every call. For hot paths that repeatedly emit measurements with the *same*
 attribute set, this per-call lookup can be avoided by pre-binding the
 attributes once and reusing the resulting bound handle.
 
-Bound instruments are currently supported on `Counter` and `Histogram` via the
-`bind` method, which returns a `BoundCounter<T>` or `BoundHistogram<T>`
-respectively. Subsequent `add` / `record` calls on the bound handle skip
-attribute resolution and write directly to the pre-resolved tracker.
+Bound instruments are supported on all sync instruments — `Counter`,
+`UpDownCounter`, `Histogram`, and `Gauge` — via the `bind` method, which
+returns a `BoundCounter<T>`, `BoundUpDownCounter<T>`, `BoundHistogram<T>`, or
+`BoundGauge<T>` respectively. Subsequent `add` / `record` calls on the bound
+handle skip attribute resolution and write directly to the pre-resolved
+tracker.
 
 :heavy_check_mark: Use bound instruments on hot paths where the same attribute
 set is used repeatedly, and store the bound handle for reuse.
@@ -285,17 +287,20 @@ tcp_packets.add(1);
 udp_packets.add(1);
 ```
 
-`BoundCounter` and `BoundHistogram` are cheap to clone, so a single bound
-handle can be shared across threads or modules without re-binding. Dropping
-the last clone makes the underlying tracker eligible for cleanup.
+`BoundCounter`, `BoundUpDownCounter`, `BoundHistogram`, and `BoundGauge` are
+cheap to clone, so a single bound handle can be shared across threads or
+modules without re-binding. Dropping the last clone makes the underlying
+tracker eligible for cleanup.
 
 For reference, the SDK's `bound_instruments` benchmark on an Apple M4 Max with
 3 attributes (`method`, `status`, `path`) reports:
 
-| Operation              | Unbound   | Bound     | Speedup |
-| ---------------------- | --------- | --------- | ------- |
-| `Counter::add`         | ~50 ns    | ~1.8 ns   | ~28x    |
-| `Histogram::record`    | ~58 ns    | ~6.5 ns   | ~9x     |
+| Operation                | Unbound   | Bound     | Speedup |
+| ------------------------ | --------- | --------- | ------- |
+| `Counter::add`           | ~50 ns    | ~1.9 ns   | ~26x    |
+| `UpDownCounter::add`     | ~53 ns    | ~1.9 ns   | ~28x    |
+| `Gauge::record`          | ~53 ns    | ~1.3 ns   | ~42x    |
+| `Histogram::record`      | ~60 ns    | ~6.6 ns   | ~9x     |
 
 The exact win depends on attribute count, contention, and the cost of the
 lookup being skipped (more attributes make the unbound path more expensive,

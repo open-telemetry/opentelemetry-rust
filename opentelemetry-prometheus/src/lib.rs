@@ -65,9 +65,6 @@
 //! // a_histogram_bucket{key="value",otel_scope_name="my-app",le="+Inf"} 1
 //! // a_histogram_sum{key="value",otel_scope_name="my-app"} 100
 //! // a_histogram_count{key="value",otel_scope_name="my-app"} 1
-//! // # HELP otel_scope_info Instrumentation Scope metadata
-//! // # TYPE otel_scope_info gauge
-//! // otel_scope_info{otel_scope_name="my-app"} 1
 //! // # HELP target_info Target metadata
 //! // # TYPE target_info gauge
 //! // target_info{service_name="unknown_service"} 1
@@ -114,10 +111,15 @@ use std::{fmt, sync::Weak};
 const TARGET_INFO_NAME: &str = "target_info";
 const TARGET_INFO_DESCRIPTION: &str = "Target metadata";
 
-const SCOPE_INFO_METRIC_NAME: &str = "otel_scope_info";
-const SCOPE_INFO_DESCRIPTION: &str = "Instrumentation Scope metadata";
-
-const SCOPE_INFO_KEYS: [&str; 2] = ["otel_scope_name", "otel_scope_version"];
+const SCOPE_NAME_LABEL: &str = "otel_scope_name";
+const SCOPE_VERSION_LABEL: &str = "otel_scope_version";
+const SCOPE_SCHEMA_URL_LABEL: &str = "otel_scope_schema_url";
+const SCOPE_ATTRIBUTE_PREFIX: &str = "otel_scope_";
+const RESERVED_SCOPE_LABELS: [&str; 3] = [
+    SCOPE_NAME_LABEL,
+    SCOPE_VERSION_LABEL,
+    SCOPE_SCHEMA_URL_LABEL,
+];
 
 // prometheus counters MUST have a _total suffix by default:
 // https://github.com/open-telemetry/opentelemetry-specification/blob/v1.20.0/specification/compatibility/prometheus_and_openmetrics.md
@@ -170,7 +172,7 @@ struct Collector {
     disable_target_info: bool,
     without_units: bool,
     without_counter_suffixes: bool,
-    disable_scope_info: bool,
+    scope_info_enabled: bool,
     create_target_info_once: OnceCell<MetricFamily>,
     resource_labels_once: OnceCell<Vec<LabelPair>>,
     namespace: Option<String>,
@@ -180,7 +182,6 @@ struct Collector {
 
 #[derive(Default)]
 struct CollectorInner {
-    scope_infos: HashMap<InstrumentationScope, MetricFamily>,
     metric_families: HashMap<String, MetricFamily>,
 }
 
@@ -301,27 +302,8 @@ impl prometheus::core::Collector for Collector {
             .get_or_init(|| self.resource_selector.select(metrics.resource()));
 
         for scope_metrics in metrics.scope_metrics() {
-            let scope_labels = if !self.disable_scope_info {
-                if scope_metrics.scope().attributes().count() > 0 {
-                    let scope_info = inner
-                        .scope_infos
-                        .entry(scope_metrics.scope().clone())
-                        .or_insert_with_key(create_scope_info_metric);
-                    res.push(scope_info.clone());
-                }
-
-                let mut labels =
-                    Vec::with_capacity(1 + scope_metrics.scope().version().is_some() as usize);
-                let mut name = LabelPair::default();
-                name.set_name(SCOPE_INFO_KEYS[0].into());
-                name.set_value(scope_metrics.scope().name().to_string());
-                labels.push(name);
-                if let Some(version) = &scope_metrics.scope().version() {
-                    let mut l_version = LabelPair::default();
-                    l_version.set_name(SCOPE_INFO_KEYS[1].into());
-                    l_version.set_value(version.to_string());
-                    labels.push(l_version);
-                }
+            let scope_labels = if self.scope_info_enabled {
+                let mut labels = get_scope_labels(scope_metrics.scope());
 
                 if !resource_labels.is_empty() {
                     labels.extend(resource_labels.iter().cloned());
@@ -395,31 +377,113 @@ impl prometheus::core::Collector for Collector {
 /// It sanitizes invalid characters and handles duplicate keys (due to
 /// sanitization) by sorting and concatenating the values following the spec.
 fn get_attrs(kvs: &mut dyn Iterator<Item = (&Key, &Value)>, extra: &[LabelPair]) -> Vec<LabelPair> {
-    let mut keys_map = BTreeMap::<String, Vec<String>>::new();
+    let mut keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
+    let mut extra_keys_map = BTreeMap::<String, Vec<(String, String)>>::new();
+    let mut extra_key_order = Vec::with_capacity(extra.len());
+
+    for label in extra {
+        let key = label.name().to_string();
+        if !extra_keys_map.contains_key(&key) {
+            extra_key_order.push(key.clone());
+        }
+        extra_keys_map
+            .entry(key.clone())
+            .and_modify(|values| values.push((key.clone(), label.value().to_string())))
+            .or_insert_with(|| vec![(key, label.value().to_string())]);
+    }
+
     for (key, value) in kvs {
-        let key = utils::sanitize_prom_kv(key.as_str());
-        keys_map
-            .entry(key)
-            .and_modify(|v| v.push(value.to_string()))
-            .or_insert_with(|| vec![value.to_string()]);
+        let original_key = key.as_str().to_string();
+        let sanitized_key = utils::sanitize_prom_kv(key.as_str());
+
+        if let Some(values) = extra_keys_map.get_mut(&sanitized_key) {
+            values.push((original_key, value.to_string()));
+        } else {
+            keys_map
+                .entry(sanitized_key)
+                .and_modify(|values| values.push((original_key.clone(), value.to_string())))
+                .or_insert_with(|| vec![(original_key, value.to_string())]);
+        }
     }
 
     let mut res = Vec::with_capacity(keys_map.len() + extra.len());
 
     for (key, mut values) in keys_map.into_iter() {
-        values.sort_unstable();
+        values.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
 
         let mut lp = LabelPair::default();
         lp.set_name(key);
-        lp.set_value(values.join(";"));
+        lp.set_value(
+            values
+                .into_iter()
+                .map(|(_, value)| value)
+                .collect::<Vec<_>>()
+                .join(";"),
+        );
         res.push(lp);
     }
 
-    if !extra.is_empty() {
-        res.extend(&mut extra.iter().cloned());
+    for key in extra_key_order {
+        if let Some(mut values) = extra_keys_map.remove(&key) {
+            values.sort_by(|(left_key, _), (right_key, _)| left_key.cmp(right_key));
+            res.push(label_pair(
+                key,
+                values
+                    .into_iter()
+                    .map(|(_, value)| value)
+                    .collect::<Vec<_>>()
+                    .join(";"),
+            ));
+        }
     }
 
     res
+}
+
+fn get_scope_labels(scope: &InstrumentationScope) -> Vec<LabelPair> {
+    let mut labels = Vec::with_capacity(
+        1 + scope.version().is_some() as usize
+            + scope.schema_url().is_some() as usize
+            + scope.attributes().count(),
+    );
+    labels.push(label_pair(SCOPE_NAME_LABEL, scope.name()));
+
+    if let Some(version) = scope.version() {
+        labels.push(label_pair(SCOPE_VERSION_LABEL, version));
+    }
+
+    if let Some(schema_url) = scope.schema_url() {
+        labels.push(label_pair(SCOPE_SCHEMA_URL_LABEL, schema_url));
+    }
+
+    let mut attr_labels = BTreeMap::<String, Vec<String>>::new();
+    for kv in scope.attributes() {
+        if matches!(kv.key.as_str(), "name" | "version" | "schema_url") {
+            continue;
+        }
+
+        let label_name = utils::sanitize_prom_kv(&format!("{SCOPE_ATTRIBUTE_PREFIX}{}", kv.key));
+        if RESERVED_SCOPE_LABELS.contains(&label_name.as_str()) {
+            continue;
+        }
+        attr_labels
+            .entry(label_name)
+            .and_modify(|values| values.push(kv.value.to_string()))
+            .or_insert_with(|| vec![kv.value.to_string()]);
+    }
+
+    for (label_name, values) in attr_labels {
+        labels.push(label_pair(label_name, values.join(";")));
+    }
+
+    labels
+}
+
+fn label_pair(name: impl Into<String>, value: impl Into<String>) -> LabelPair {
+    let mut label = LabelPair::default();
+    label.set_name(name.into());
+    label.set_value(value.into());
+    label
 }
 
 fn validate_metrics(
@@ -580,34 +644,6 @@ fn create_info_metric(
     let mut mf = MetricFamily::default();
     mf.set_name(target_info_name.into());
     mf.set_help(target_info_description.into());
-    mf.set_field_type(MetricType::GAUGE);
-    mf.set_metric(vec![m]);
-    mf
-}
-
-fn create_scope_info_metric(scope: &InstrumentationScope) -> MetricFamily {
-    let mut g = prometheus::proto::Gauge::default();
-    g.set_value(1.0);
-
-    let mut labels = Vec::with_capacity(1 + scope.version().is_some() as usize);
-    let mut name = LabelPair::default();
-    name.set_name(SCOPE_INFO_KEYS[0].into());
-    name.set_value(scope.name().to_string());
-    labels.push(name);
-    if let Some(version) = &scope.version() {
-        let mut v_label = LabelPair::default();
-        v_label.set_name(SCOPE_INFO_KEYS[1].into());
-        v_label.set_value(version.to_string());
-        labels.push(v_label);
-    }
-
-    let mut m = prometheus::proto::Metric::default();
-    m.set_label(labels);
-    m.set_gauge(g);
-
-    let mut mf = MetricFamily::default();
-    mf.set_name(SCOPE_INFO_METRIC_NAME.into());
-    mf.set_help(SCOPE_INFO_DESCRIPTION.into());
     mf.set_field_type(MetricType::GAUGE);
     mf.set_metric(vec![m]);
     mf
