@@ -5,6 +5,11 @@
 - Added `set_global_text_map_propagator_from_env()` in `opentelemetry_sdk::propagation`
   to configure the process-global text map propagator from the `OTEL_PROPAGATORS`
   environment variable ([#3127](https://github.com/open-telemetry/opentelemetry-rust/issues/3127)).
+
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`

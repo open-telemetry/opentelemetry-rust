@@ -2,10 +2,19 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-18
+
+- **Bug fix**: Keep OTLP logs with the same target but different scope versions,
+  attributes, or schema URLs in separate groups. Target still overrides the scope
+  name. Export each scope's schema URL instead of the resource's schema URL.
+
 - **Bug fix**: Accept empty `AnyValue` objects in OTLP/JSON payloads instead of rejecting the entire request.
 - **Bug fix**: Accept omitted resource fields in empty OTLP/JSON collector requests.
 - **Bug fix**: Accept `null` fields in OTLP/JSON `AnyValue` objects as unset.
 - **Bug fix**: Accept OTLP/JSON partial-success responses when protobuf default fields are omitted.
+- **Performance**: `group_spans_by_resource_and_scope` no longer clones every `SpanData`. The batch is owned by the function, so spans are now moved into the proto conversion instead of being grouped by reference and cloned. This cuts the transform time of a 512-span batch roughly in half. ([#3652](https://github.com/open-telemetry/opentelemetry-rust/pull/3652))
 
 ## 0.32.0
 

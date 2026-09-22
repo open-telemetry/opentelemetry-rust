@@ -1,5 +1,5 @@
 use super::{
-    default_headers, parse_header_string, resolve_timeout, ExporterBuildError,
+    default_headers, parse_header_string, read_env_var, resolve_timeout, ExporterBuildError,
     OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
 };
 use crate::{
@@ -191,10 +191,10 @@ impl HttpExporterBuilder {
         // Validate protocol is compatible with HTTP transport
         #[cfg(feature = "grpc-tonic")]
         if matches!(protocol, Protocol::Grpc) {
-            return Err(ExporterBuildError::InvalidConfig {
-                name: "protocol".to_string(),
-                reason: "gRPC protocol is not compatible with HTTP transport. Use `.with_tonic()` instead.".to_string(),
-            });
+            return Err(ExporterBuildError::invalid_configuration(
+                "protocol",
+                "gRPC protocol is not compatible with HTTP transport; use `.with_tonic()` instead",
+            ));
         }
 
         let endpoint = resolve_http_endpoint(
@@ -223,8 +223,8 @@ impl HttpExporterBuilder {
                     .timeout(timeout)
                     .build()
                     .map_err(|error| {
-                        ExporterBuildError::InternalFailure(format!(
-                            "Failed to build reqwest HTTP client: {error}"
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the reqwest HTTP client: {error}"
                         ))
                     })?;
                 http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
@@ -248,23 +248,32 @@ impl HttpExporterBuilder {
                             .timeout(timeout_clone)
                             .build()
                     })
-                    .map_err(|_| ExporterBuildError::ThreadSpawnFailed)?
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to spawn thread for the blocking HTTP client: {error}"
+                        ))
+                    })?
                     .join()
                     .map_err(|_| {
-                        ExporterBuildError::InternalFailure(
-                            "HTTP client construction thread panicked".to_string(),
+                        ExporterBuildError::internal_failure(
+                            "thread creating the blocking HTTP client panicked",
                         )
+                    })?
+                    .map_err(|error| {
+                        ExporterBuildError::internal_failure(format!(
+                            "failed to build the blocking reqwest HTTP client: {error}"
+                        ))
                     })?;
-                let client = client.map_err(|error| {
-                    ExporterBuildError::InternalFailure(format!(
-                        "Failed to build blocking reqwest HTTP client: {error}"
-                    ))
-                })?;
                 http_client = Some(Arc::new(client) as Arc<dyn HttpClient>);
             }
         }
 
-        let http_client = http_client.ok_or(ExporterBuildError::NoHttpClient)?;
+        let http_client = http_client.ok_or_else(|| {
+            ExporterBuildError::invalid_configuration(
+                "http_client",
+                "no HTTP client is configured; enable an HTTP client feature or provide one with `.with_http_client()`",
+            )
+        })?;
 
         #[allow(clippy::mutable_key_type)] // http headers are not mutated
         let mut headers: HashMap<HeaderName, HeaderValue> = self
@@ -312,13 +321,15 @@ impl HttpExporterBuilder {
             env_override,
             |compression| match compression {
                 crate::Compression::Gzip if !cfg!(feature = "gzip-http") => {
-                    Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                        "gzip compression requested but gzip-http feature not enabled".into(),
+                    Err(ExporterBuildError::invalid_configuration(
+                        "compression",
+                        "gzip compression requested but gzip-http feature not enabled",
                     ))
                 }
                 crate::Compression::Zstd if !cfg!(feature = "zstd-http") => {
-                    Err(ExporterBuildError::UnsupportedCompressionAlgorithm(
-                        "zstd compression requested but zstd-http feature not enabled".into(),
+                    Err(ExporterBuildError::invalid_configuration(
+                        "compression",
+                        "zstd compression requested but zstd-http feature not enabled",
                     ))
                 }
                 _ => Ok(compression),
@@ -726,43 +737,25 @@ impl OtlpHttpClient {
     }
 }
 
-fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, ExporterBuildError> {
+fn build_endpoint_uri(endpoint: &str, path: &str) -> Result<Uri, http::uri::InvalidUri> {
     let path = if endpoint.ends_with('/') && path.starts_with('/') {
         path.strip_prefix('/').unwrap()
     } else {
         path
     };
     let endpoint = format!("{endpoint}{path}");
-    endpoint.parse().map_err(|er: http::uri::InvalidUri| {
-        ExporterBuildError::InvalidUri(endpoint, er.to_string())
-    })
-}
-
-fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
-    match env::var(variable) {
-        Ok(value) if value.is_empty() => Ok(None),
-        Ok(value) => Ok(Some(value)),
-        Err(env::VarError::NotPresent) => Ok(None),
-        Err(env::VarError::NotUnicode(_)) => Err(ExporterBuildError::InvalidConfig {
-            name: variable.to_string(),
-            reason: "environment variable value is not valid Unicode".to_string(),
-        }),
-    }
+    endpoint.parse()
 }
 
 fn invalid_endpoint_env(
     variable: &str,
     value: &str,
-    error: ExporterBuildError,
+    error: http::uri::InvalidUri,
 ) -> ExporterBuildError {
-    let reason = match error {
-        ExporterBuildError::InvalidUri(_, reason) => reason,
-        error => error.to_string(),
-    };
-    ExporterBuildError::InvalidConfig {
-        name: variable.to_string(),
-        reason: format!("invalid endpoint '{value}': {reason}"),
-    }
+    ExporterBuildError::invalid_configuration(
+        variable,
+        format!("invalid endpoint '{value}': {error}"),
+    )
 }
 
 // see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md#endpoint-urls-for-otlphttp
@@ -773,20 +766,18 @@ fn resolve_http_endpoint(
 ) -> Result<Uri, ExporterBuildError> {
     // programmatic configuration overrides any value set via environment variables
     if let Some(provider_endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-        provider_endpoint
-            .parse()
-            .map_err(|er: http::uri::InvalidUri| {
-                ExporterBuildError::InvalidUri(provider_endpoint.to_string(), er.to_string())
-            })
-    } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+        provider_endpoint.parse().map_err(|error| {
+            ExporterBuildError::invalid_configuration(
+                "endpoint",
+                format!("invalid endpoint '{provider_endpoint}': {error}"),
+            )
+        })
+    } else if let Some(endpoint) = read_env_var(signal_endpoint_var)? {
         // per signal env var is not modified
         endpoint
             .parse()
-            .map_err(|er: http::uri::InvalidUri| {
-                ExporterBuildError::InvalidUri(endpoint.clone(), er.to_string())
-            })
             .map_err(|error| invalid_endpoint_env(signal_endpoint_var, &endpoint, error))
-    } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+    } else if let Some(endpoint) = read_env_var(OTEL_EXPORTER_OTLP_ENDPOINT)? {
         // if signal env var is not set, then we check if the OTEL_EXPORTER_OTLP_ENDPOINT env var is set
         build_endpoint_uri(&endpoint, signal_endpoint_path)
             .map_err(|error| invalid_endpoint_env(OTEL_EXPORTER_OTLP_ENDPOINT, &endpoint, error))
@@ -795,6 +786,11 @@ fn resolve_http_endpoint(
             OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
             signal_endpoint_path,
         )
+        .map_err(|error| {
+            ExporterBuildError::internal_failure(format!(
+                "the default HTTP endpoint is invalid: {error}"
+            ))
+        })
     }
 }
 
@@ -839,6 +835,11 @@ pub trait WithHttpConfig: super::sealed::WithHttpConfig {
     /// Assign client implementation
     fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self;
 
+    /// Assign client implementation wrapped into shared pointer
+    ///
+    /// Prefer this method if you'd like to re-use http client across multiple exporters in your application
+    fn with_shared_http_client(self, client: std::sync::Arc<dyn HttpClient>) -> Self;
+
     /// Set additional headers to send to the collector.
     fn with_headers(self, headers: HashMap<String, String>) -> Self;
 
@@ -860,8 +861,12 @@ pub trait WithHttpConfig: super::sealed::WithHttpConfig {
 impl<B: HasHttpConfig> super::sealed::WithHttpConfig for B {}
 
 impl<B: HasHttpConfig> WithHttpConfig for B {
-    fn with_http_client<T: HttpClient + 'static>(mut self, client: T) -> Self {
-        self.http_client_config().client = Some(Arc::new(client));
+    fn with_http_client<T: HttpClient + 'static>(self, client: T) -> Self {
+        self.with_shared_http_client(std::sync::Arc::new(client))
+    }
+
+    fn with_shared_http_client(mut self, client: std::sync::Arc<dyn HttpClient>) -> Self {
+        self.http_client_config().client = Some(client);
         self
     }
 
@@ -1018,10 +1023,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
-                            && !reason.contains("invalid URI")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.matches("-*/*-/*-//-/-/invalid-uri").count() == 1
                 ));
             },
         );
@@ -1039,10 +1043,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_ENDPOINT
-                            && reason.contains("-*/*-/*-//-/-/invalid-uri")
-                            && !reason.contains("invalid URI")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_ENDPOINT)
+                            && message.matches("-*/*-/*-//-/-/invalid-uri").count() == 1
                 ));
             },
         );
@@ -1084,9 +1087,9 @@ mod tests {
                 );
                 assert!(matches!(
                     endpoint,
-                    Err(crate::exporter::ExporterBuildError::InvalidConfig { name, reason })
-                        if name == OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-                            && reason.contains("not valid Unicode")
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.contains("not valid Unicode")
                 ));
             },
         );
@@ -1255,6 +1258,26 @@ mod tests {
 
             assert_eq!(url, "http://localhost:4318/v1/tracesbutnotreally");
         });
+    }
+
+    #[test]
+    fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
+        use super::{HttpExporterBuilder, WithHttpConfig};
+        use crate::exporter::http::HttpConfig;
+        use crate::exporter::ExportConfig;
+        use export_body_tests::MockHttpClient;
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_http_client(MockHttpClient);
+
+        let _ = HttpExporterBuilder {
+            exporter_config: ExportConfig::default(),
+            http_config: HttpConfig::default(),
+        }
+        .with_shared_http_client(std::sync::Arc::new(MockHttpClient));
     }
 
     #[cfg(feature = "gzip-http")]
@@ -1440,7 +1463,7 @@ mod tests {
         use std::time::Duration;
 
         #[derive(Debug)]
-        struct MockHttpClient;
+        pub(crate) struct MockHttpClient;
 
         #[async_trait::async_trait]
         impl HttpClient for MockHttpClient {
@@ -1720,10 +1743,10 @@ mod tests {
             let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Gzip);
 
             let result = builder.build_span_exporter();
-            // This test will fail until the issue is fixed: compression validation should happen at build time
             assert!(matches!(
                 result,
-                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+                Err(ExporterBuildError::InvalidConfiguration(message))
+                    if message.contains("gzip-http")
             ));
         }
 
@@ -1736,10 +1759,10 @@ mod tests {
             let builder = HttpExporterBuilder::default().with_compression(crate::Compression::Zstd);
 
             let result = builder.build_span_exporter();
-            // This test will fail until the issue is fixed: compression validation should happen at build time
             assert!(matches!(
                 result,
-                Err(ExporterBuildError::UnsupportedCompressionAlgorithm(_))
+                Err(ExporterBuildError::InvalidConfiguration(message))
+                    if message.contains("zstd-http")
             ));
         }
 
@@ -1933,7 +1956,7 @@ mod tests {
                 _request: http::Request<Bytes>,
             ) -> Result<http::Response<Bytes>, opentelemetry_http::HttpError> {
                 self.attempts.fetch_add(1, Ordering::SeqCst);
-                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge))
+                Err(Box::new(opentelemetry_http::ResponseBodyTooLarge::new()))
             }
         }
 
