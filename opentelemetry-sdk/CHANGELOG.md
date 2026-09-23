@@ -12,6 +12,11 @@
   export cycles. Non-finite measurements are now dropped before recording,
   matching `ExponentialHistogram`'s existing behavior.
   ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`

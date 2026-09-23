@@ -27,7 +27,7 @@ jobs:
     permissions:
       pull-requests: write
     container:
-      image: rust:slim-bullseye
+      image: rust:slim-bookworm
     env:
       BRANCH_NAME: ${{ github.base_ref }}
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
@@ -69,7 +69,7 @@ jobs:
     permissions:
       contents: write
     container:
-      image: rust:slim-bullseye
+      image: rust:slim-bookworm
     env:
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:

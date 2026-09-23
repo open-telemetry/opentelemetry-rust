@@ -42,6 +42,7 @@ tonic-prost = "0.14.1"
 tonic-types = "0.14.1"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
+tower-service = "0.3"
 # Using `tracing 0.1.40` because 0.1.39 (which is yanked) introduces the ability to set event names in macros,
 # required for OpenTelemetry's internal logging macros.
 tracing = { version = ">=0.1.40", default-features = false }
@@ -60,16 +61,15 @@ const-hex = "1.14.1"
 lazy_static = "1.4.0"
 num-format = "0.4.4"
 num_cpus = "1.15.0"
-opentelemetry = { path = "opentelemetry", version = "0.32", default-features = false }
-opentelemetry_sdk = { path = "opentelemetry-sdk", version = "0.32", default-features = false }
-opentelemetry-appender-log = { path = "opentelemetry-appender-log", version = "0.32", default-features = false }
-opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", version = "0.32", default-features = false }
-opentelemetry-http = { path = "opentelemetry-http", version = "0.32", default-features = false }
-opentelemetry-jaeger-propagator = { path = "opentelemetry-jaeger-propagator", version = "0.32", default-features = false }
-opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.32", default-features = false }
-opentelemetry-proto = { path = "opentelemetry-proto", version = "0.32", default-features = false }
-opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.32", default-features = false }
-opentelemetry-stdout = { path = "opentelemetry-stdout", version = "0.32", default-features = false }
+opentelemetry = { path = "opentelemetry", version = "0.33", default-features = false }
+opentelemetry_sdk = { path = "opentelemetry-sdk", version = "0.33", default-features = false }
+opentelemetry-appender-log = { path = "opentelemetry-appender-log", version = "0.33", default-features = false }
+opentelemetry-appender-tracing = { path = "opentelemetry-appender-tracing", version = "0.33", default-features = false }
+opentelemetry-http = { path = "opentelemetry-http", version = "0.33", default-features = false }
+opentelemetry-otlp = { path = "opentelemetry-otlp", version = "0.33", default-features = false }
+opentelemetry-proto = { path = "opentelemetry-proto", version = "0.33", default-features = false }
+opentelemetry-semantic-conventions = { path = "opentelemetry-semantic-conventions", version = "0.33", default-features = false }
+opentelemetry-stdout = { path = "opentelemetry-stdout", version = "0.33", default-features = false }
 percent-encoding = "2.0"
 rstest = "0.26.1"
 schemars = "1.0"
@@ -100,5 +100,4 @@ all = { level = "warn", priority = 1 }
 ignored = [
     # workspace crates
     "opentelemetry-appender-log",
-    "opentelemetry-jaeger-propagator",
 ]

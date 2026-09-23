@@ -3,11 +3,11 @@
 packages=(
     "opentelemetry"
     "opentelemetry-http"
-    "opentelemetry-jaeger-propagator"
     "opentelemetry-sdk"
     "opentelemetry-semantic-conventions"
     "opentelemetry-proto"
     "opentelemetry-otlp"
+    "opentelemetry-propagator-b3"
     "opentelemetry-zipkin"
     "opentelemetry-appender-tracing"
     "opentelemetry-stdout"
