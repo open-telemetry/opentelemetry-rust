@@ -11,9 +11,9 @@
 //! MappingHeader's documentation.
 
 use std::{
-    ffi::c_void,
+    ffi::{c_void, CStr},
     mem::ManuallyDrop,
-    ptr::{self, addr_of_mut},
+    ptr,
     sync::{
         atomic::{fence, AtomicU64, Ordering},
         Mutex, MutexGuard,
@@ -34,7 +34,10 @@ pub const PROCESS_CTX_VERSION: u32 = 2;
 /// Signature bytes for identifying process context mappings
 pub const SIGNATURE: &[u8; 8] = b"OTEL_CTX";
 /// The discoverable name of the memory mapping.
-pub const MAPPING_NAME: &str = "OTEL_CTX";
+pub const MAPPING_NAME: &CStr = match CStr::from_bytes_with_nul(b"OTEL_CTX\0") {
+    Ok(name) => name,
+    Err(_) => panic!("invalid process context mapping name"),
+};
 
 /// The header structure written at the start of the mapping. This must match the C
 /// layout of the specification.
@@ -45,17 +48,15 @@ pub const MAPPING_NAME: &str = "OTEL_CTX";
 /// based synchronization requires the use of atomics to have any effect (see [Mandatory
 /// atomic](https://doc.rust-lang.org/std/sync/atomic/fn.fence.html#mandatory-atomic))
 ///
-/// We use `monotonic_published_at_ns` for synchronization with the reader. Ideally, it should
-/// be an `AtomicU64`, but this is incompatible with `#[repr(C, packed)]` by default, as it
-/// could be misaligned. In our case, given the page size and the layout of `MappingHeader`, it
-/// is actually 8-bytes aligned: we use [`AtomicU64::from_ptr`] to create an atomic view when
-/// synchronization is needed.
-#[repr(C, packed)]
+/// `monotonic_published_at_ns` is atomic so the publisher can reliably signal publication and
+/// updates to readers. The mapping is page-aligned, and `repr(C)` places the field at its
+/// naturally aligned offset.
+#[repr(C)]
 struct MappingHeader {
     signature: [u8; 8],
     version: u32,
     payload_size: u32,
-    monotonic_published_at_ns: u64,
+    monotonic_published_at_ns: AtomicU64,
     payload_ptr: *const u8,
 }
 
@@ -147,11 +148,7 @@ impl MemMapping {
         // from a previous call to `mmap` of size `mapping_size()`
         set_virtual_memory_region_name(
             unsafe { std::slice::from_raw_parts(self.start_addr as *const u8, mapping_size()) },
-            Some(
-                std::ffi::CString::new(MAPPING_NAME)
-                    .map_err(|_| Error::NamingFailed)?
-                    .as_c_str(),
-            ),
+            Some(MAPPING_NAME),
         )
         .map_err(|_| Error::NamingFailed)?;
         Ok(())
@@ -219,9 +216,9 @@ impl ProcessContextHandle {
         let header = mapping.start_addr as *mut MappingHeader;
 
         unsafe {
-            // Safety: MappingHeader is packed, thus have no alignment requirement. It points
-            // to a freshly mmaped region which is valid for writing at least `mapping_size()`,
-            // which we make sure is greater than the size of MappingHeader.
+            // Safety: mmap returns a page-aligned address, which satisfies MappingHeader's
+            // alignment. It points to a freshly mapped region that is valid for writing at
+            // least `mapping_size()` bytes.
             ptr::write(
                 header,
                 MappingHeader {
@@ -231,8 +228,8 @@ impl ProcessContextHandle {
                         .len()
                         .try_into()
                         .map_err(|_| Error::PayloadTooLarge)?,
-                    // will be set atomically at last
-                    monotonic_published_at_ns: 0,
+                    // Will be set atomically at last.
+                    monotonic_published_at_ns: AtomicU64::new(0),
                     payload_ptr: payload.as_ptr(),
                 },
             );
@@ -243,7 +240,8 @@ impl ProcessContextHandle {
             // To do so, we implement synchronization during publication _as if the reader were
             // another thread of this program_, using atomics and fences.
             fence(Ordering::SeqCst);
-            AtomicU64::from_ptr(addr_of_mut!((*header).monotonic_published_at_ns))
+            (*header)
+                .monotonic_published_at_ns
                 .store(published_at_ns, Ordering::Relaxed);
         }
 
@@ -262,15 +260,8 @@ impl ProcessContextHandle {
             .try_into()
             .map_err(|_| Error::PayloadTooLarge)?;
 
-        // Safety:
-        //
-        // [^atomic-u64-alignment]: Page size is at minimum 4KB and will be always 8 bytes
-        // aligned even on exotic platforms. The offset `monotonic_published_at_ns` is 16
-        // bytes, so it's 8-bytes aligned (`AtomicU64` has both a size and align of 8 bytes).
-        //
-        // The header memory is valid for both read and writes.
-        let published_at_atomic =
-            unsafe { AtomicU64::from_ptr(addr_of_mut!((*header).monotonic_published_at_ns)) };
+        // Safety: the mapping is live and page-aligned, and the field is an aligned atomic.
+        let published_at_atomic = unsafe { &(*header).monotonic_published_at_ns };
 
         // A process shouldn't try to concurrently update its own context
         //
@@ -284,8 +275,7 @@ impl ProcessContextHandle {
         fence(Ordering::SeqCst);
         self.payload = payload;
 
-        // Safety: we own the mapping, which is live and valid for writes. The header is packed
-        // and thus has no alignment constraints.
+        // Safety: we own the mapping, which is live, aligned, and valid for writes.
         unsafe {
             (*header).payload_ptr = self.payload.as_ptr();
             (*header).payload_size = payload_size;
@@ -347,8 +337,22 @@ pub(crate) fn publish_raw_payload(payload: Vec<u8>) -> Result<(), Error> {
 pub(crate) fn unpublish() -> Result<(), Error> {
     let mut guard = lock_context_handle()?;
 
-    if let Some(ProcessContextHandle { mapping, .. }) = guard.take() {
+    if let Some(ProcessContextHandle { mapping, payload }) = guard.take() {
+        let header = mapping.start_addr as *mut MappingHeader;
+
+        // Mark the context unavailable before unmapping its header or freeing its payload.
+        // The fence prevents either deallocation from moving before the marker store, reducing
+        // the window in which a concurrent external reader can observe stale payload metadata.
+        // Safety: the mapping is still live, aligned, and valid for atomic writes.
+        unsafe {
+            (*header)
+                .monotonic_published_at_ns
+                .store(0, Ordering::Relaxed);
+        }
+        fence(Ordering::SeqCst);
+
         mapping.free()?;
+        drop(payload);
     }
 
     Ok(())
@@ -414,8 +418,7 @@ mod tests {
     use std::{
         fs::File,
         io::{BufRead, BufReader},
-        ptr::addr_of_mut,
-        sync::atomic::{fence, AtomicU64, Ordering},
+        sync::atomic::{fence, Ordering},
     };
 
     /// Parses the start address from a /proc/self/maps line.
@@ -446,13 +449,8 @@ mod tests {
         let header: *mut MappingHeader = addr as *mut MappingHeader;
         // Safety: we're reading from our own process memory at an address we found in
         // /proc/self/maps. This should be safe as long as the mapping exists and has read
-        // permissions.
-        //
-        // For the alignment constraint of `AtomicU64`, see [^atomic-u64-alignment].
-        let published_at = unsafe {
-            AtomicU64::from_ptr(addr_of_mut!((*header).monotonic_published_at_ns))
-                .load(Ordering::Relaxed)
-        };
+        // permissions. The mapping and atomic field are naturally aligned.
+        let published_at = unsafe { (*header).monotonic_published_at_ns.load(Ordering::Relaxed) };
         if published_at == 0 {
             return Err("monotonic_published_at_ns is zero");
         }
@@ -515,12 +513,10 @@ mod tests {
         let read_payload =
             unsafe { std::slice::from_raw_parts(header.payload_ptr, header.payload_size as usize) };
 
-        // Copy fields out of the packed struct before assert_eq!, which takes references.
-        // References to fields of packed structs are UB due to potential misalignment.
         let sig = header.signature;
         let ver = header.version;
         let psize = header.payload_size;
-        let published_at = header.monotonic_published_at_ns;
+        let published_at = header.monotonic_published_at_ns.load(Ordering::Relaxed);
         assert_eq!(sig, *SIGNATURE, "wrong signature");
         assert_eq!(ver, PROCESS_CTX_VERSION, "wrong context version");
         assert_eq!(psize, payload_v1.len() as u32, "wrong payload size");
@@ -543,7 +539,7 @@ mod tests {
         let sig = header.signature;
         let ver = header.version;
         let psize = header.payload_size;
-        let published_at = header.monotonic_published_at_ns;
+        let published_at = header.monotonic_published_at_ns.load(Ordering::Relaxed);
         assert_eq!(sig, *SIGNATURE, "wrong signature");
         assert_eq!(ver, PROCESS_CTX_VERSION, "wrong context version");
         assert_eq!(psize, payload_v2.len() as u32, "wrong payload size");
