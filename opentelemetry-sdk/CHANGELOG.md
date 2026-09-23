@@ -2,7 +2,7 @@
 
 ## vNext
 
-- `IdGenerator` gained a defaulted `is_random()` method (default `false`);
+- **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
   configured generator reports random trace IDs, child spans inherit it from their
   parent, and spans with a `Drop` sampling decision keep `RANDOM` while clearing all
