@@ -17,6 +17,7 @@ mod linux;
 use opentelemetry_sdk::Resource;
 
 /// Convert an SDK [`Resource`] into a serialized proto `ProcessContext` payload.
+#[cfg(any(all(target_os = "linux", target_has_atomic = "64"), test))]
 fn encode_process_context(resource: &Resource) -> Vec<u8> {
     use opentelemetry_proto::tonic::processcontext::v1development::ProcessContext;
     use opentelemetry_proto::tonic::resource::v1::Resource as ProtoResource;
@@ -61,10 +62,9 @@ fn encode_process_context(resource: &Resource) -> Vec<u8> {
 /// opentelemetry_context_sharing::process_context::publish(&resource);
 /// ```
 pub fn publish(resource: &Resource) {
-    let payload = encode_process_context(resource);
-
     #[cfg(all(target_os = "linux", target_has_atomic = "64"))]
     {
+        let payload = encode_process_context(resource);
         if let Err(e) = linux::publish_raw_payload(payload) {
             opentelemetry::otel_warn!(
                 name: "process_context.publish.failed",
@@ -74,9 +74,7 @@ pub fn publish(resource: &Resource) {
     }
 
     #[cfg(not(all(target_os = "linux", target_has_atomic = "64")))]
-    {
-        let _ = payload;
-    }
+    let _ = resource;
 }
 
 /// Unpublish the process context, unmapping the shared memory region.
