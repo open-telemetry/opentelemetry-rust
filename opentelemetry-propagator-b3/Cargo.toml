@@ -1,0 +1,29 @@
+[package]
+name = "opentelemetry-propagator-b3"
+version = "0.33.0"
+description = "B3 propagator for OpenTelemetry"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-propagator-b3"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-propagator-b3"
+readme = "README.md"
+categories = ["development-tools::debugging", "development-tools::profiling"]
+keywords = ["opentelemetry", "b3", "tracing", "propagation"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.75.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+once_cell = { workspace = true }
+opentelemetry = { workspace = true, features = ["trace"] }
+
+[dev-dependencies]
+opentelemetry = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true
+
+[lib]
+bench = false
