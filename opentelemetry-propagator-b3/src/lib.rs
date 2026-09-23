@@ -139,7 +139,6 @@ impl Propagator {
             "true" if !self.inject_encoding.support(&B3Encoding::SingleHeader) => {
                 Ok(TraceFlags::SAMPLED)
             }
-            "d" if self.inject_encoding.support(&B3Encoding::SingleHeader) => Ok(TRACE_FLAG_DEBUG),
             _ => Err(()),
         }
     }
@@ -164,7 +163,10 @@ impl Propagator {
         let trace_id = self.extract_trace_id(parts[0])?;
         let span_id = self.extract_span_id(parts[1])?;
         let trace_flags = if parts.len() > 2 {
-            self.extract_sampled_state(parts[2])?
+            match parts[2] {
+                "d" => TRACE_FLAG_DEBUG | TraceFlags::SAMPLED,
+                sampled => self.extract_sampled_state(sampled)?,
+            }
         } else {
             TRACE_FLAG_DEFERRED
         };
@@ -319,13 +321,46 @@ mod tests {
     const TRACE_ID_HEX: u128 = 0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736;
     const SPAN_ID_HEX: u64 = 0x00f0_67aa_0ba9_02b7;
 
+    #[test]
+    fn debug_single_header_is_sampled_with_all_encodings() {
+        let header = format!("{TRACE_ID_STR}-{SPAN_ID_STR}-d");
+        let extractor = HashMap::from([(B3_SINGLE_HEADER.to_string(), header.clone())]);
+
+        for encoding in [
+            B3Encoding::UnSpecified,
+            B3Encoding::MultipleHeader,
+            B3Encoding::SingleHeader,
+            B3Encoding::SingleAndMultiHeader,
+        ] {
+            let propagator = Propagator::with_encoding(encoding);
+            let context = propagator.extract(&extractor);
+            let span = context.span();
+            let span_context = span.span_context();
+            assert!(span_context.is_valid());
+            assert!(span_context.is_sampled());
+            assert_eq!(
+                span_context.trace_flags(),
+                TRACE_FLAG_DEBUG | TraceFlags::SAMPLED
+            );
+
+            let mut injector = HashMap::new();
+            propagator.inject_context(&context, &mut injector);
+            if injector.contains_key(B3_SINGLE_HEADER) {
+                assert_eq!(injector[B3_SINGLE_HEADER], header);
+            }
+            if injector.contains_key(B3_DEBUG_FLAG_HEADER) {
+                assert_eq!(injector[B3_DEBUG_FLAG_HEADER], "1");
+            }
+        }
+    }
+
     #[rustfmt::skip]
     fn single_header_extract_data() -> Vec<(&'static str, SpanContext)> {
         vec![
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())), // not sampled
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // sampled
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED, true, TraceState::default())), // debug
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // with parent span id
             ("a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from(0x0000_0000_0000_0000_a3ce_929d_0e0e_4736), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // padding 64 bit traceID
             ("0", SpanContext::empty_context()),
