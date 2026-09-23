@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Fix resource labels selected via `with_resource_selector` being dropped from metric points when `scope_info_enabled(false)` is set. [#2858](https://github.com/open-telemetry/opentelemetry-rust/issues/2858)
+
 ## 0.33.0
 
 Released 2026-Sep-18

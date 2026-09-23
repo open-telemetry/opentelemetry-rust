@@ -113,6 +113,35 @@ fn scope_info_labels_can_be_disabled() {
     assert!(!output.contains("otel_scope_"));
 }
 
+#[test]
+fn resource_labels_are_added_when_scope_info_disabled() {
+    let registry = prometheus::Registry::new();
+    let exporter = ExporterBuilder::default()
+        .scope_info_enabled(false)
+        .with_resource_selector(ResourceSelector::All)
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+    let resource = Resource::builder_empty()
+        .with_attributes([KeyValue::new(SERVICE_NAME, "prometheus_test")])
+        .build();
+    let provider = SdkMeterProvider::builder()
+        .with_resource(resource)
+        .with_reader(exporter)
+        .build();
+
+    let meter = provider.meter("scope-test");
+    let counter = meter.u64_counter("scope.counter").build();
+    counter.add(1, &[KeyValue::new("metric.attr", "metric-value")]);
+
+    let output = gather_and_encode(registry);
+
+    assert!(output.contains(
+        r#"scope_counter_total{metric_attr="metric-value",service_name="prometheus_test"} 1"#
+    ));
+    assert!(!output.contains("otel_scope_"));
+}
+
 #[ignore = "https://github.com/open-telemetry/opentelemetry-rust/pull/2224"]
 #[test]
 fn prometheus_exporter_integration() {
