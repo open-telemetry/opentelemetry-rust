@@ -26,9 +26,9 @@ jobs:
           persist-credentials: false
 
       - name: Install markdown-link-check
-        # Already pinned to an exact commit; the audit flags the install form,
-        # and the package's own dependencies remain unpinned.
-        run: npm install -g "git://github.com/tcort/markdown-link-check.git#ef7e09486e579ba7479700b386e7ca90f34cbd0a" # zizmor: ignore[adhoc-packages] v3.13.7
+        # The package has no prebuilt binary or official action. Pin the direct
+        # dependency; npm still resolves its transitive dependencies at runtime.
+        run: npm install -g markdown-link-check@3.13.7 # zizmor: ignore[adhoc-packages]
 
       - name: Run markdown-link-check
         run: |
