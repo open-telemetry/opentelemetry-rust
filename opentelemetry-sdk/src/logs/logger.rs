@@ -15,6 +15,7 @@ use opentelemetry::time::now;
 pub struct SdkLogger {
     scope: InstrumentationScope,
     provider: SdkLoggerProvider,
+    deduplicate_log_record_attributes: bool,
 
     // Bound is not strictly needed (no attributes), but the semconv is still
     // `development` so the metric must be feature-gated; reuse the same
@@ -26,6 +27,7 @@ pub struct SdkLogger {
 
 impl SdkLogger {
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkLoggerProvider) -> Self {
+        let deduplicate_log_record_attributes = provider.deduplicate_log_record_attributes();
         #[cfg(feature = "experimental_metrics_bound_instruments")]
         let log_created_counter = opentelemetry::global::meter("otel.sdk")
             .u64_counter("otel.sdk.log.created")
@@ -36,6 +38,7 @@ impl SdkLogger {
         SdkLogger {
             scope,
             provider,
+            deduplicate_log_record_attributes,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             log_created_counter,
         }
@@ -45,8 +48,9 @@ impl SdkLogger {
 impl opentelemetry::logs::Logger for SdkLogger {
     type LogRecord = SdkLogRecord;
 
+    #[inline]
     fn create_log_record(&self) -> Self::LogRecord {
-        SdkLogRecord::new()
+        SdkLogRecord::with_deduplicate_attributes(self.deduplicate_log_record_attributes)
     }
 
     /// Emit a `LogRecord`.

@@ -125,6 +125,11 @@ harness = false
 required-features = ["logs"]
 
 [[bench]]
+name = "log_record_attribute_dedup"
+harness = false
+required-features = ["logs"]
+
+[[bench]]
 name = "bound_instruments"
 harness = false
 required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]

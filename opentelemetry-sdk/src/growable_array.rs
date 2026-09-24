@@ -80,6 +80,21 @@ impl<
         }
     }
 
+    /// Gets a mutable reference to the value at the specified index.
+    ///
+    /// Returns `None` if the index is out of bounds.
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index < self.count {
+            Some(&mut self.inline[index])
+        } else if let Some(ref mut overflow) = self.overflow {
+            overflow.get_mut(index - MAX_INLINE_CAPACITY)
+        } else {
+            None
+        }
+    }
+
     /// Returns the number of elements in the `GrowableArray`.
     #[allow(dead_code)]
     #[inline]
@@ -178,6 +193,17 @@ mod tests {
     use opentelemetry::Key;
 
     type KeyValuePair = Option<(Key, AnyValue)>;
+
+    #[test]
+    fn test_get_mut() {
+        let mut collection = GrowableArray::<i32>::new();
+        collection.push(1);
+        collection.push(2);
+        *collection.get_mut(0).expect("index 0") = 10;
+        *collection.get_mut(1).expect("index 1") = 20;
+        assert_eq!(collection.get(0), Some(&10));
+        assert_eq!(collection.get(1), Some(&20));
+    }
 
     #[test]
     fn test_push_and_get() {
