@@ -105,7 +105,22 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///
     /// **Best Practice**: Extract any needed context information in [`on_start`]
     /// and store it as span attributes. This ensures the information is available
-    /// in the [`SpanData`] passed to `on_end`.
+    /// via [`FinishedSpan::span_data()`] on the [`FinishedSpan`] passed to `on_end`.
+    ///
+    /// # Reading vs Ownership
+    ///
+    /// Processors can read span data without cloning via [`FinishedSpan::span_data()`].
+    /// If ownership of the [`SpanData`] is needed, call [`FinishedSpan::into_owned()`].
+    /// The last registered processor receives an owned wrapper and can move the data
+    /// by calling `into_owned()`. Earlier processors receive borrowed wrappers and
+    /// clone only if they call `into_owned()`.
+    ///
+    /// # Tip: Processor Registration Order
+    ///
+    /// When configuring multiple span processors, register read-only processors
+    /// (such as loggers or metrics counters) *before* exporting processors (such
+    /// as [`BatchSpanProcessor`]). This ensures the exporting processor is last
+    /// in the chain and receives the span data via zero-copy move rather than clone.
     ///
     /// # Example
     ///
@@ -118,10 +133,18 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///         }
     ///     }
     ///
-    ///     fn on_end(&self, span: SpanData) {
-    ///         // Access the attribute stored in on_start
-    ///         let my_value = span.attributes.iter()
-    ///             .find(|kv| kv.key.as_str() == "my-key");
+    ///     fn on_end(&self, span: FinishedSpan<'_>) {
+    ///         // Read attributes without cloning
+    ///         let has_value = span.span_data().attributes.iter()
+    ///             .any(|kv| kv.key.as_str() == "my-key");
+    ///
+    ///         // Take ownership only when needed.
+    ///         // (clones unless this is the last registered processor)
+    ///         if has_value {
+    ///             let span_data = span.into_owned();
+    ///             // use span_data
+    ///             # let _ = (has_value, span_data);
+    ///         }
     ///     }
     /// }
     /// ```
@@ -149,7 +172,7 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// use opentelemetry::{Context, Value};
     /// use opentelemetry_sdk::{
     ///     error::OTelSdkResult,
-    ///     trace::{Span, SpanData, SpanProcessor},
+    ///     trace::{FinishedSpan, Span, SpanProcessor},
     ///     Resource,
     /// };
     /// use std::time::Duration;
@@ -170,8 +193,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     ///         self.next.on_start(span, cx);
     ///     }
     ///
-    ///     fn on_end(&self, span: SpanData) {
-    ///         let should_drop = span.attributes.iter().any(|attribute| {
+    ///     fn on_end(&self, span: FinishedSpan<'_>) {
+    ///         let should_drop = span.span_data().attributes.iter().any(|attribute| {
     ///             attribute.key.as_str() == "example.drop"
     ///                 && attribute.value == Value::Bool(true)
     ///         });
@@ -195,11 +218,26 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
     /// }
     /// ```
     ///
+    /// # Composite and Delegating Processors
+    ///
+    /// When delegating completed spans to multiple child processors, use
+    /// [`FinishedSpan::reborrow()`] for all child processors except the last,
+    /// and pass the original `FinishedSpan` by value to the last child processor:
+    ///
+    /// ```rust,ignore
+    /// fn on_end(&self, span: FinishedSpan<'_>) {
+    ///     if let Some((last, predecessors)) = self.processors.split_last() {
+    ///         for processor in predecessors {
+    ///             processor.on_end(span.reborrow());
+    ///         }
+    ///         last.on_end(span);
+    ///     }
+    /// }
+    /// ```
+    ///
     /// [`on_start`]: SpanProcessor::on_start
     /// [`Context::current()`]: opentelemetry::Context::current
-    ///
-    /// TODO - This method should take reference to `SpanData`
-    fn on_end(&self, span: SpanData);
+    fn on_end(&self, span: FinishedSpan<'_>);
     /// Force the spans lying in the cache to be exported.
     fn force_flush(&self) -> OTelSdkResult;
     /// Shuts down the processor. Called when SDK is shut down. This is an
@@ -304,10 +342,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: FinishedSpan<'_>) {
+        if !span.span_data().span_context.is_sampled() {
             return;
         }
+        let span = span.into_owned();
 
         // noop after shutdown
         if self.is_shutdown.load(Ordering::Relaxed) {
@@ -435,6 +474,8 @@ use std::sync::mpsc::sync_channel;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::mpsc::SyncSender;
+
+use super::span::FinishedSpan;
 
 /// Messages exchanged between the main thread and the background thread.
 #[allow(clippy::large_enum_variant)]
@@ -809,7 +850,9 @@ impl SpanProcessor for BatchSpanProcessor {
     }
 
     /// Handles span end.
-    fn on_end(&self, span: SpanData) {
+    fn on_end(&self, span: FinishedSpan<'_>) {
+        let span = span.into_owned();
+
         // Count the span before enqueueing it so that a concurrent
         // force_flush()/shutdown() drain never observes an
         // enqueued-but-uncounted span and misses it (issue #3453). If the
@@ -1240,8 +1283,8 @@ mod tests {
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
         OTEL_BSP_MAX_CONCURRENT_EXPORTS_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
     };
-    use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
+    use crate::trace::{FinishedSpan, InMemorySpanExporterBuilder};
     use crate::trace::{SpanData, SpanExporter};
     use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
     use std::fmt::Debug;
@@ -1252,7 +1295,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(FinishedSpan::borrowed(&span_data));
         assert_eq!(exporter.get_finished_spans().unwrap()[0], span_data);
         let _result = processor.shutdown();
     }
@@ -1276,7 +1319,7 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope: Default::default(),
         };
-        processor.on_end(unsampled);
+        processor.on_end(FinishedSpan::borrowed(&unsampled));
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 
@@ -1285,7 +1328,7 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = SimpleSpanProcessor::new(exporter.clone());
         let span_data = new_test_export_span_data();
-        processor.on_end(span_data.clone());
+        processor.on_end(FinishedSpan::borrowed(&span_data));
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
         let _result = processor.shutdown();
         // Assume shutdown is called by ensuring spans are empty in the exporter
@@ -1494,7 +1537,7 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config);
 
         let test_span = create_test_span("test_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(FinishedSpan::borrowed(&test_span));
 
         // Wait for flush interval to ensure the span is processed
         std::thread::sleep(Duration::from_secs(6));
@@ -1517,7 +1560,7 @@ mod tests {
 
         // Create a test span and send it to the processor
         let test_span = create_test_span("force_flush_span");
-        processor.on_end(test_span.clone());
+        processor.on_end(FinishedSpan::borrowed(&test_span));
 
         // Call force_flush to immediately export the spans
         let flush_result = processor.force_flush();
@@ -1682,7 +1725,7 @@ mod tests {
         // Fill the queue to the export threshold; the worker drains all four
         // spans and blocks inside export().
         for _ in 0..4 {
-            processor.on_end(create_test_span("first_batch"));
+            processor.on_end(FinishedSpan::borrowed(&create_test_span("first_batch")));
         }
         started_receiver
             .recv_timeout(Duration::from_secs(5))
@@ -1691,10 +1734,10 @@ mod tests {
         // While the worker is blocked, refill the queue and overflow it by
         // two spans, which must be dropped and their counts reverted.
         for _ in 0..4 {
-            processor.on_end(create_test_span("second_batch"));
+            processor.on_end(FinishedSpan::borrowed(&create_test_span("second_batch")));
         }
         for _ in 0..2 {
-            processor.on_end(create_test_span("overflow"));
+            processor.on_end(FinishedSpan::borrowed(&create_test_span("overflow")));
         }
 
         assert_eq!(processor.dropped_spans_count.load(Ordering::Relaxed), 2);
@@ -1768,7 +1811,9 @@ mod tests {
             for _ in 0..num_threads {
                 s.spawn(|| {
                     for _ in 0..total_spans_per_thread {
-                        processor.on_end(create_test_span("stress test span"));
+                        processor.on_end(FinishedSpan::borrowed(&create_test_span(
+                            "stress test span",
+                        )));
                     }
                 });
             }
@@ -1798,12 +1843,14 @@ mod tests {
 
         let record = create_test_span("test_span");
 
-        processor.on_end(record);
+        processor.on_end(FinishedSpan::borrowed(&record));
         processor.force_flush().unwrap();
         processor.shutdown().unwrap();
 
         // todo: expect to see errors here. How should we assert this?
-        processor.on_end(create_test_span("after_shutdown_span"));
+        processor.on_end(FinishedSpan::borrowed(&create_test_span(
+            "after_shutdown_span",
+        )));
 
         assert_eq!(1, exporter.get_finished_spans().unwrap().len());
         assert!(exporter.is_shutdown_called());
@@ -1851,7 +1898,7 @@ mod tests {
         let total_spans_to_send = 100;
         for i in 0..total_spans_to_send {
             let span = create_test_span(&format!("span_{}", i));
-            processor.on_end(span);
+            processor.on_end(FinishedSpan::borrowed(&span));
         }
 
         // Force flush any remaining spans - this waits for export to complete
@@ -1920,9 +1967,9 @@ mod tests {
 
         let processor = BatchSpanProcessor::new(exporter, config);
 
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
@@ -1952,7 +1999,7 @@ mod tests {
             KeyValue::new("key1", "value1"),
             KeyValue::new("key2", "value2"),
         ];
-        processor.on_end(span_data.clone());
+        processor.on_end(FinishedSpan::borrowed(&span_data));
 
         // Force flush to export the span
         let _ = processor.force_flush();
@@ -1985,7 +2032,7 @@ mod tests {
 
         // Create a span and send it to the processor
         let test_span = create_test_span("resource_test");
-        processor.on_end(test_span.clone());
+        processor.on_end(FinishedSpan::borrowed(&test_span));
 
         // Force flush to ensure the span is exported
         let _ = processor.force_flush();
@@ -2020,7 +2067,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(FinishedSpan::borrowed(&span));
         }
 
         processor.force_flush().unwrap();
@@ -2043,7 +2090,7 @@ mod tests {
 
         for _ in 0..4 {
             let span = new_test_export_span_data();
-            processor.on_end(span);
+            processor.on_end(FinishedSpan::borrowed(&span));
         }
 
         processor.force_flush().unwrap();
@@ -2070,7 +2117,7 @@ mod tests {
             let processor_clone = Arc::clone(&processor);
             let handle = tokio::spawn(async move {
                 let span = new_test_export_span_data();
-                processor_clone.on_end(span);
+                processor_clone.on_end(FinishedSpan::borrowed(&span));
             });
             handles.push(handle);
         }
@@ -2154,7 +2201,7 @@ mod tests {
             let processor = BatchSpanProcessor::new(span_exporter, config);
 
             for _ in 0..10 {
-                processor.on_end(create_test_span("success"));
+                processor.on_end(FinishedSpan::borrowed(&create_test_span("success")));
             }
 
             // Flush so the batch is submitted to the exporter, which is when the
@@ -2208,7 +2255,7 @@ mod tests {
             // Fill the queue to the export threshold; the worker drains all four
             // spans and blocks inside export().
             for _ in 0..4 {
-                processor.on_end(create_test_span("first_batch"));
+                processor.on_end(FinishedSpan::borrowed(&create_test_span("first_batch")));
             }
             started_receiver
                 .recv_timeout(Duration::from_secs(5))
@@ -2217,10 +2264,10 @@ mod tests {
             // While the worker is blocked, refill the queue (4) and overflow it by
             // two spans, which must be dropped and counted as queue_full.
             for _ in 0..4 {
-                processor.on_end(create_test_span("second_batch"));
+                processor.on_end(FinishedSpan::borrowed(&create_test_span("second_batch")));
             }
             for _ in 0..2 {
-                processor.on_end(create_test_span("overflow"));
+                processor.on_end(FinishedSpan::borrowed(&create_test_span("overflow")));
             }
 
             // Release the in-flight export and the one triggered by force_flush.
@@ -2264,7 +2311,7 @@ mod tests {
             processor.shutdown().unwrap();
 
             for _ in 0..7 {
-                processor.on_end(create_test_span("after_shutdown"));
+                processor.on_end(FinishedSpan::borrowed(&create_test_span("after_shutdown")));
             }
 
             meter_provider.force_flush().unwrap();
@@ -2299,7 +2346,7 @@ mod tests {
             let processor = SimpleSpanProcessor::new(span_exporter);
 
             for _ in 0..10 {
-                processor.on_end(new_test_export_span_data());
+                processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
             }
 
             meter_provider.force_flush().unwrap();
@@ -2339,7 +2386,7 @@ mod tests {
             processor.shutdown().unwrap();
 
             for _ in 0..7 {
-                processor.on_end(new_test_export_span_data());
+                processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
             }
 
             meter_provider.force_flush().unwrap();
