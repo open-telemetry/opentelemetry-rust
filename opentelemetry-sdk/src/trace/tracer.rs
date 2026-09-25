@@ -189,8 +189,8 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
-        // An active-but-invalid parent (e.g. a span context from an unparsable
-        // traceparent) is not a usable parent: inheriting its all-zero trace id would
+        // An active-but-invalid parent (e.g. a context carrying an invalid active
+        // span context) is not a usable parent: inheriting its all-zero trace id would
         // produce a span with an invalid trace id if the sampler decides to record.
         let parent_span = Some(parent_cx.span()).filter(|span| span.span_context().is_valid());
 
@@ -629,8 +629,8 @@ mod tests {
             .build();
         let tracer = tracer_provider.tracer("test");
 
-        // An active parent whose span context is invalid, e.g. from an unparsable
-        // traceparent header. It must not be inherited as a parent.
+        // An active parent whose span context is invalid (e.g. a context carrying
+        // an invalid active span context). It must not be inherited as a parent.
         let parent_cx = Context::current_with_span(TestSpan(SpanContext::new(
             TraceId::INVALID,
             SpanId::from(7),

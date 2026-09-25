@@ -2,6 +2,14 @@
 
 ## vNext
 
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
 - Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
   their bound-instrument handles) silently accepting NaN/Infinity
   measurements. For `Histogram` and `Sum`, a single NaN measurement
@@ -12,21 +20,8 @@
   export cycles. Non-finite measurements are now dropped before recording,
   matching `ExponentialHistogram`'s existing behavior.
   ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
-
-## 0.33.0
-
-Released 2026-Sep-18
-
-- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
-  all 5 branches of the ParentBased sampler spec be configured independently
-  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
-  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
-  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
-  override the root case; the other 4 were fixed to the spec defaults. Unset
-  branches keep those same defaults, so this is purely additive.
-  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
-- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. one extracted
-  from an unparsable `traceparent` header). Such a parent is now treated as no
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
   parent: the span gets a freshly generated trace id instead of the parent's
   all-zero one, and is not recorded as a child of it.
   ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
@@ -34,6 +29,7 @@ Released 2026-Sep-18
 ## 0.33.0
 
 Released 2026-Sep-18
+
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
