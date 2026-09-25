@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix a panic when the context stack is full and a rejected context value
+  calls `Context::current()` from its `Drop` implementation.
+
 ## 0.33.0
 
 Released 2026-Sep-18
