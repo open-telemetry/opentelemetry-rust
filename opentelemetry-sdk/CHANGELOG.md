@@ -8,6 +8,16 @@
   parent, and spans with a `Drop` sampling decision keep `RANDOM` while clearing all
   other trace flags. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
 
 ## 0.33.0
 

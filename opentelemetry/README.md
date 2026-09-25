@@ -111,9 +111,6 @@ destination. OpenTelemetry provides the following exporters:
   telemetry backends like [Jaeger](https://www.jaegertracing.io/),
   [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
-- **[opentelemetry-zipkin](https://crates.io/crates/opentelemetry-zipkin):**
-  Exports telemetry (traces only) to Zipkin following [OpenTelemetry to Zipkin
-  specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk_exporters/zipkin.md)
 - **[opentelemetry-prometheus](https://crates.io/crates/opentelemetry-prometheus):**
   Exports telemetry (metrics only) to Prometheus following [OpenTelemetry to
   Prometheus

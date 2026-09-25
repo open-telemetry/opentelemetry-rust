@@ -2,10 +2,7 @@
 
 ## vNext
 
-- The B3 propagator's internal "deferred" marker no longer overlaps the W3C
-  `random-trace-id` trace flag; span contexts carrying that flag now inject their
-  sampling state correctly
-  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Remove the deprecated crate from the repository. The final published version is 0.33.0. For replacements, see the [migration guidance](README.md).
 
 ## 0.33.0
 
