@@ -2,6 +2,11 @@
 
 ## vNext
 
+- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
+  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
+  propagator's deferred marker are no longer exported
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+
 ## 0.33.0
 
 Released 2026-Sep-18

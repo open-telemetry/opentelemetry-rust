@@ -21,6 +21,7 @@ opentelemetry = { workspace = true, features = ["trace"] }
 
 [dev-dependencies]
 opentelemetry = { workspace = true, features = ["testing"] }
+opentelemetry_sdk = { workspace = true, features = ["trace"] }
 
 [lints]
 workspace = true

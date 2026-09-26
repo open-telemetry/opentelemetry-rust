@@ -289,7 +289,10 @@ mod tests {
         assert_eq!(span.links.len(), 1);
         assert_eq!(span.links[0].span_context.trace_id(), TraceId::from(47));
         assert_eq!(span.links[0].span_context.span_id(), SpanId::from(11));
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Unset);
     }
@@ -324,7 +327,10 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         let status_expected = Status::error("cancelled");
         assert_eq!(span.status, status_expected);
@@ -361,7 +367,10 @@ mod tests {
         assert_eq!(span.attributes.len(), 1);
         assert_eq!(span.events.len(), 1);
         assert_eq!(span.events[0].name, "test-event");
-        assert_eq!(span.span_context.trace_flags(), TraceFlags::SAMPLED);
+        assert_eq!(
+            span.span_context.trace_flags(),
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
+        );
         assert!(!span.span_context.is_remote());
         assert_eq!(span.status, Status::Ok);
     }

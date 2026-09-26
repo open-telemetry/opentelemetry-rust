@@ -2,6 +2,11 @@
 
 ## vNext
 
+- Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
+  `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Added `TraceFlags::sanitized()` to retain only recognized trace flags.
+
 ## 0.33.0
 
 Released 2026-Sep-18
