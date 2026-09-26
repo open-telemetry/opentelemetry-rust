@@ -16,8 +16,8 @@
   randomly or pseudo-randomly with uniform distribution.
   `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
   configured generator reports random trace IDs, child spans inherit it from their
-  parent, and spans with a `Drop` sampling decision keep `RANDOM` while clearing all
-  other trace flags. `TraceContextPropagator` now propagates the `random-trace-id` flag
+  parent, and local sampling decisions clear private propagator flags while retaining
+  `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
   their bound-instrument handles) silently accepting NaN/Infinity
