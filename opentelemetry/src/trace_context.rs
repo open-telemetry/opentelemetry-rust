@@ -41,6 +41,8 @@ impl TraceFlags {
     /// [W3C TraceContext specification]: https://www.w3.org/TR/trace-context-2/#random-trace-id-flag
     pub const RANDOM: TraceFlags = TraceFlags(0x02);
 
+    const VALID_FLAGS: Self = Self(Self::SAMPLED.0 | Self::RANDOM.0);
+
     /// Construct new trace flags
     pub const fn new(flags: u8) -> Self {
         TraceFlags(flags)
@@ -72,6 +74,12 @@ impl TraceFlags {
         } else {
             *self & !TraceFlags::RANDOM
         }
+    }
+
+    /// Returns a copy with only the recognized [`Self::SAMPLED`] and
+    /// [`Self::RANDOM`] flags preserved.
+    pub fn sanitized(self) -> Self {
+        self & Self::VALID_FLAGS
     }
 
     /// Returns the flags as a `u8`
@@ -325,5 +333,21 @@ mod tests {
             format!("{:02x}", TraceFlags::SAMPLED | TraceFlags::RANDOM),
             "03"
         );
+    }
+
+    #[test]
+    fn trace_flags_sanitized_preserves_only_recognized_flags() {
+        for (bits, expected) in [
+            (0x00, TraceFlags::NOT_SAMPLED),
+            (0x01, TraceFlags::SAMPLED),
+            (0x02, TraceFlags::RANDOM),
+            (0x03, TraceFlags::SAMPLED | TraceFlags::RANDOM),
+            (0xfc, TraceFlags::NOT_SAMPLED),
+            (0xfd, TraceFlags::SAMPLED),
+            (0xfe, TraceFlags::RANDOM),
+            (0xff, TraceFlags::SAMPLED | TraceFlags::RANDOM),
+        ] {
+            assert_eq!(TraceFlags::new(bits).sanitized(), expected);
+        }
     }
 }

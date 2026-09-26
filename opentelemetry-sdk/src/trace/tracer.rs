@@ -214,6 +214,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
 
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
+        let trace_flags = trace_flags.sanitized();
         // Build optional inner context, `None` if not recording.
         let mut span = match samplings_result.decision {
             SamplingDecision::RecordAndSample => {
@@ -249,7 +250,6 @@ impl opentelemetry::trace::Tracer for SdkTracer {
                 )
             }
             SamplingDecision::Drop => {
-                // Keep RANDOM, but clear private flags after a local drop.
                 let span_context = SpanContext::new(
                     trace_id,
                     span_id,
@@ -827,5 +827,35 @@ mod tests {
 
         let child = tracer.start_with_context("child", &remote_parent(private_bit));
         assert_eq!(child.span_context().trace_flags(), TraceFlags::default());
+    }
+
+    #[test]
+    fn recording_children_clear_private_parent_flags() {
+        for random in [false, true] {
+            let parent = remote_parent(TraceFlags::new(0xff).with_random(random));
+            let sampled_provider = crate::trace::SdkTracerProvider::builder()
+                .with_sampler(Sampler::AlwaysOn)
+                .build();
+            let sampled = sampled_provider
+                .tracer("test")
+                .start_with_context("child", &parent);
+            assert!(sampled.is_recording());
+            assert_eq!(
+                sampled.span_context().trace_flags(),
+                TraceFlags::SAMPLED.with_random(random)
+            );
+
+            let recording_provider = crate::trace::SdkTracerProvider::builder()
+                .with_sampler(RecordOnlySampler)
+                .build();
+            let recording = recording_provider
+                .tracer("test")
+                .start_with_context("child", &parent);
+            assert!(recording.is_recording());
+            assert_eq!(
+                recording.span_context().trace_flags(),
+                TraceFlags::NOT_SAMPLED.with_random(random)
+            );
+        }
     }
 }
