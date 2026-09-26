@@ -41,7 +41,6 @@ body:
       options:
         - stdout
         - OTLP
-        - Zipkin
         - Prometheus
         - N/A
   - type: textarea

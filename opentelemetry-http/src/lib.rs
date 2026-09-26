@@ -150,8 +150,20 @@ pub trait HttpClient: Debug + Send + Sync {
 const MAX_RESPONSE_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 /// Error returned when an HTTP response body exceeds the configured size limit.
-#[derive(Debug)]
-pub struct ResponseBodyTooLarge;
+///
+/// Construct this error with [`Self::new`] or [`Default::default`]. Its fields
+/// are private to allow future diagnostic details without changing construction.
+#[derive(Debug, Default)]
+pub struct ResponseBodyTooLarge {
+    _private: (),
+}
+
+impl ResponseBodyTooLarge {
+    /// Creates an error indicating that the response body exceeded the size limit.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 impl std::fmt::Display for ResponseBodyTooLarge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -188,7 +200,7 @@ mod reqwest {
             let headers = std::mem::take(response.headers_mut());
             while let Some(chunk) = response.chunk().await? {
                 if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                    return Err(Box::new(ResponseBodyTooLarge));
+                    return Err(Box::new(ResponseBodyTooLarge::new()));
                 }
                 body_bytes.extend_from_slice(&chunk);
             }
@@ -221,7 +233,7 @@ mod reqwest {
                 .take(MAX_RESPONSE_BODY_BYTES as u64 + 1)
                 .read_to_end(&mut body_bytes)?;
             if body_bytes.len() > MAX_RESPONSE_BODY_BYTES {
-                return Err(Box::new(ResponseBodyTooLarge));
+                return Err(Box::new(ResponseBodyTooLarge::new()));
             }
             let mut http_response = Response::builder()
                 .status(status)
@@ -331,7 +343,7 @@ pub mod hyper {
                     let frame = frame?;
                     if let Ok(chunk) = frame.into_data() {
                         if body_bytes.len() + chunk.len() > MAX_RESPONSE_BODY_BYTES {
-                            return Err(Box::new(ResponseBodyTooLarge) as HttpError);
+                            return Err(Box::new(ResponseBodyTooLarge::new()) as HttpError);
                         }
                         body_bytes.extend_from_slice(&chunk);
                     }
@@ -374,6 +386,18 @@ impl<T> ResponseExt for Response<T> {
 mod tests {
     use super::*;
     use http::HeaderValue;
+
+    #[test]
+    fn response_body_too_large_construction() {
+        for error in [ResponseBodyTooLarge::new(), ResponseBodyTooLarge::default()] {
+            let error: HttpError = Box::new(error);
+            assert!(error.downcast_ref::<ResponseBodyTooLarge>().is_some());
+            assert_eq!(
+                error.to_string(),
+                "response body exceeded maximum allowed 4 MiB limit"
+            );
+        }
+    }
 
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
@@ -491,6 +515,24 @@ mod tests {
         assert!(new_carrier.capacity() >= 5);
     }
 
+    #[test]
+    fn error_for_status_matches_http_status_class() {
+        for status in [http::StatusCode::OK, http::StatusCode::NO_CONTENT] {
+            let response = Response::builder().status(status).body(()).unwrap();
+            assert!(response.error_for_status().is_ok());
+        }
+
+        for status in [
+            http::StatusCode::MOVED_PERMANENTLY,
+            http::StatusCode::BAD_REQUEST,
+            http::StatusCode::TOO_MANY_REQUESTS,
+            http::StatusCode::INTERNAL_SERVER_ERROR,
+        ] {
+            let response = Response::builder().status(status).body(()).unwrap();
+            assert!(response.error_for_status().is_err());
+        }
+    }
+
     #[cfg(all(
         any(feature = "hyper", feature = "reqwest", feature = "reqwest-blocking"),
         not(target_arch = "wasm32")
@@ -579,9 +621,40 @@ Connection: close\r\n\r\n",
         use crate::HttpClient;
         use bytes::Bytes;
         use http::Request;
+        #[cfg(feature = "hyper")]
+        use std::future::Future;
         use std::net::SocketAddr;
+        #[cfg(feature = "hyper")]
+        use std::pin::Pin;
+        #[cfg(feature = "hyper")]
+        use std::task::{Context, Poll};
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         use tokio::net::TcpListener;
+
+        #[cfg(feature = "hyper")]
+        #[derive(Clone, Debug)]
+        struct LocalConnector(SocketAddr);
+
+        #[cfg(feature = "hyper")]
+        impl tower_service::Service<http::Uri> for LocalConnector {
+            type Response = hyper_util::rt::TokioIo<tokio::net::TcpStream>;
+            type Error = std::io::Error;
+            type Future =
+                Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;
+
+            fn poll_ready(&mut self, _context: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+                Poll::Ready(Ok(()))
+            }
+
+            fn call(&mut self, _uri: http::Uri) -> Self::Future {
+                let address = self.0;
+                Box::pin(async move {
+                    tokio::net::TcpStream::connect(address)
+                        .await
+                        .map(hyper_util::rt::TokioIo::new)
+                })
+            }
+        }
 
         async fn start_server(body_size: usize) -> SocketAddr {
             let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -622,14 +695,14 @@ Connection: close\r\n\r\n",
             addr
         }
 
-        async fn assert_within_limit(client: &dyn HttpClient, addr: SocketAddr) {
+        async fn assert_body_size(client: &dyn HttpClient, addr: SocketAddr, expected_size: usize) {
             let request = Request::builder()
                 .method("POST")
                 .uri(format!("http://{}/", addr))
                 .body(Bytes::new())
                 .unwrap();
             let response = client.send_bytes(request).await.unwrap();
-            assert_eq!(response.body().len(), 100);
+            assert_eq!(response.body().len(), expected_size);
         }
 
         async fn assert_exceeds_limit(client: &dyn HttpClient, addr: SocketAddr) {
@@ -674,8 +747,8 @@ Connection: close\r\n\r\n",
         #[cfg(feature = "reqwest")]
         #[tokio::test]
         async fn reqwest_body_within_limit() {
-            let addr = start_server(100).await;
-            assert_within_limit(&reqwest::Client::new(), addr).await;
+            let addr = start_server(MAX_RESPONSE_BODY_BYTES).await;
+            assert_body_size(&reqwest::Client::new(), addr, MAX_RESPONSE_BODY_BYTES).await;
         }
 
         #[cfg(feature = "reqwest")]
@@ -688,11 +761,12 @@ Connection: close\r\n\r\n",
         #[cfg(feature = "reqwest-blocking")]
         #[test]
         fn reqwest_blocking_body_within_limit() {
-            let addr = start_blocking_server(100);
+            let addr = start_blocking_server(MAX_RESPONSE_BODY_BYTES);
 
-            futures_executor::block_on(assert_within_limit(
+            futures_executor::block_on(assert_body_size(
                 &reqwest::blocking::Client::new(),
                 addr,
+                MAX_RESPONSE_BODY_BYTES,
             ));
         }
 
@@ -710,12 +784,24 @@ Connection: close\r\n\r\n",
         #[cfg(feature = "hyper")]
         #[tokio::test]
         async fn hyper_body_within_limit() {
-            let addr = start_server(100).await;
+            let addr = start_server(MAX_RESPONSE_BODY_BYTES).await;
             let client = crate::hyper::HyperClient::with_default_connector(
                 std::time::Duration::from_secs(5),
                 None,
             );
-            assert_within_limit(&client, addr).await;
+            assert_body_size(&client, addr, MAX_RESPONSE_BODY_BYTES).await;
+        }
+
+        #[cfg(feature = "hyper")]
+        #[tokio::test]
+        async fn hyper_client_new_accepts_custom_connector() {
+            let addr = start_server(100).await;
+            let client = crate::hyper::HyperClient::new(
+                LocalConnector(addr),
+                std::time::Duration::from_secs(5),
+                None,
+            );
+            assert_body_size(&client, addr, 100).await;
         }
         #[cfg(feature = "hyper")]
         #[tokio::test]

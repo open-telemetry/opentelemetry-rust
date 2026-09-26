@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
   specification allows. `from_str`, `from_key_value` and `insert` now keep at most
   32, dropping members from the end of the list as the specification prescribes, so
@@ -22,6 +26,8 @@
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
 
 ## 0.32.0
 
