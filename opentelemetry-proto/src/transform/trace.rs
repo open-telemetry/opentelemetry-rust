@@ -493,6 +493,13 @@ mod tests {
                 .with_attributes([KeyValue::new("enabled", enabled)])
                 .build()
         };
+        let scope_with_attributes = |attributes| {
+            InstrumentationScope::builder("contract-lib")
+                .with_version("1.0")
+                .with_schema_url("https://example.com/scope/1")
+                .with_attributes(attributes)
+                .build()
+        };
         let make_span = |id, instrumentation_scope| SpanData {
             span_context: SpanContext::new(
                 TraceId::from_bytes([1; 16]),
@@ -514,7 +521,12 @@ mod tests {
             status: Status::Unset,
             instrumentation_scope,
         };
-        // Each metadata variant differs from the base scope in exactly one field.
+        // Attribute insertion order does not change an instrumentation scope's identity.
+        let attributes_ab =
+            scope_with_attributes([KeyValue::new("a", 1_i64), KeyValue::new("b", 2_i64)]);
+        let attributes_ba =
+            scope_with_attributes([KeyValue::new("b", 2_i64), KeyValue::new("a", 1_i64)]);
+        // The first six spans vary one scope field at a time.
         let batch = vec![
             make_span(1, scope("1.0", "https://example.com/scope/1", true)),
             make_span(2, scope("2.0", "https://example.com/scope/1", true)),
@@ -522,6 +534,8 @@ mod tests {
             make_span(4, scope("1.0", "https://example.com/scope/2", true)),
             make_span(5, scope("1.0", "https://example.com/scope/1", false)),
             make_span(6, scope("2.0", "https://example.com/scope/1", true)),
+            make_span(7, attributes_ab),
+            make_span(8, attributes_ba),
         ];
         let resource = Resource::builder_empty()
             .with_schema_url(
@@ -564,6 +578,19 @@ mod tests {
             schema_url: schema_url.to_owned(),
             spans,
         };
+        let expected_scope_with_attributes = |spans| ScopeSpans {
+            scope: Some(ProtoScope {
+                name: "contract-lib".to_owned(),
+                version: "1.0".to_owned(),
+                attributes: vec![
+                    proto_attribute("a", Value::IntValue(1)),
+                    proto_attribute("b", Value::IntValue(2)),
+                ],
+                dropped_attributes_count: 0,
+            }),
+            schema_url: "https://example.com/scope/1".to_owned(),
+            spans,
+        };
         let expected = vec![ResourceSpans {
             resource: Some(ProtoResource {
                 attributes: vec![proto_attribute(
@@ -599,6 +626,7 @@ mod tests {
                     false,
                     vec![expected_span(5)],
                 ),
+                expected_scope_with_attributes(vec![expected_span(7), expected_span(8)]),
             ],
         }];
 
