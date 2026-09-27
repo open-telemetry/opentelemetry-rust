@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Expand tracing documentation on async context propagation, child spans,
+  spawned tasks, and span lifetimes.
+
 ## 0.33.0
 
 Released 2026-Sep-18

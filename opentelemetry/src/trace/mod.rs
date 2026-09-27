@@ -144,26 +144,136 @@
 //! });
 //! ```
 //!
-//! #### Async active spans
+//! ### Spans and contexts in async code
 //!
-//! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
+//! A [`Tracer`] creates spans, a [`Span`] records an operation, and a [`Context`]
+//! carries the span and other values, such as baggage, to the code that needs
+//! them. Creating a span and making it current are separate steps:
+//!
+//! * [`Tracer::start`] creates a span using the current context as its parent.
+//!   It does not make the new span current.
+//! * [`TraceContextExt::with_span`] returns a new context containing a span.
+//!   [`Context::current_with_span`] does the same using the current context.
+//!   Neither changes the current context.
+//! * [`FutureExt::with_context`] makes a context current while a future is
+//!   being polled. Code running inside that future can use [`Context::current`]
+//!   and [`Tracer::start`] to access the context and create child spans.
+//!
+//! Use a span directly to record an operation's events and attributes. Use a
+//! context to pass that span to other code, either explicitly as a function
+//! argument or by making the context current while the code runs.
+//!
+//! The current context is stored per thread. An async task can yield at an
+//! `.await`, allowing another task to run on that thread, and may later resume
+//! on a different thread. Do not keep a [`Context::attach`] guard or a
+//! [`mark_span_as_active`] guard across an `.await`. The context could remain
+//! current while unrelated code runs. Instead, wrap the future with
+//! `.with_context(cx)`. Each time the runtime polls the future to make progress,
+//! the wrapper makes `cx` current. It restores the previous context when that
+//! poll returns, including when the future yields.
+//!
+//! #### Creating child spans
+//!
+//! This example keeps a request span current while creating a child span for
+//! loading data. Both spans cover the work performed by their futures.
+//! Configure an SDK tracer provider in your application to record and export
+//! the spans.
 //!
 //! ```
-//! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
+//! use opentelemetry::{
+//!     global,
+//!     trace::{FutureExt, TraceContextExt, Tracer},
+//!     Context,
+//! };
 //!
-//! async fn some_work() { }
-//! # async fn in_an_async_context() {
+//! async fn load_data() {
+//!     // Load data here.
+//! }
 //!
-//! // Get a tracer
-//! let tracer = global::tracer("my_tracer");
+//! async fn handle_request() {
+//!     let tracer = global::tracer("my-component");
+//!     let request_cx = Context::current_with_span(tracer.start("request"));
 //!
-//! // Start a span
-//! let span = tracer.start("my_span");
+//!     async {
+//!         // The request span is current when this code runs.
+//!         let span = tracer.start("load_data");
+//!         let child_cx = Context::current_with_span(span);
+//!         load_data().with_context(child_cx.clone()).await;
+//!         child_cx.span().end();
+//!     }
+//!     .with_context(request_cx.clone())
+//!     .await;
 //!
-//! // Perform some async work with this span as the currently active parent.
-//! some_work().with_context(Context::current_with_span(span)).await;
-//! # }
+//!     request_cx.span().end();
+//! }
 //! ```
+//!
+//! The parent is chosen when the span is created. Wrapping a future in a
+//! context later does not change the parent of a span that already exists.
+//! If a function accepts a parent context explicitly, use
+//! [`Tracer::start_with_context`] to create a child of that context. Wrap its
+//! work in a context containing the child span if calls within that work need
+//! to find the child through [`Context::current`].
+//!
+//! #### Span lifetime
+//!
+//! `.with_context` controls which context is current; it does not call
+//! [`Span::end`] when the future finishes. In the Rust SDK, a span also ends
+//! when it is dropped. Moving a span into a context transfers ownership, and
+//! cloned contexts share that span. The span is dropped when the last context
+//! holding it is dropped. Keeping a context clone for later use can therefore
+//! keep its span open longer than the operation it represents. The example
+//! above calls `.span().end()` explicitly after each operation completes.
+//!
+//! [`Tracer::in_span`] makes a span current for its synchronous closure. An
+//! `async` block returned by that closure runs later, when the future is
+//! polled, after the context guard has been dropped. If no context keeps the
+//! span alive, the SDK ends it before the async work begins. Keeping a context
+//! clone alive does not make it current inside the future; wrap the future
+//! with `.with_context` to do that.
+//!
+//! #### Spawning tasks
+//!
+//! A newly spawned task does not automatically inherit the current
+//! OpenTelemetry context. Capture the context at the spawn site and wrap the
+//! task's future before passing it to the runtime. `.with_current_context()`
+//! is shorthand for `.with_context(Context::current())`; it captures the
+//! context when the wrapper is created, not when the task first runs.
+//!
+//! ```no_run
+//! use opentelemetry::{
+//!     global,
+//!     trace::{FutureExt, TraceContextExt, Tracer},
+//!     Context,
+//! };
+//! async fn work() {
+//!     // Do work here.
+//! }
+//!
+//! // Await this function while the request context is current.
+//! async fn spawn_work() -> Result<(), tokio::task::JoinError> {
+//!     let task = tokio::spawn(
+//!         async {
+//!             let tracer = global::tracer("worker");
+//!             let cx = Context::current_with_span(tracer.start("worker"));
+//!             work().with_context(cx.clone()).await;
+//!             cx.span().end();
+//!         }
+//!         .with_current_context(),
+//!     );
+//!
+//!     task.await
+//! }
+//! ```
+//!
+//! Capture and wrap the context for each spawned task, including when using
+//! a different async runtime. If the parent operation should include the
+//! tasks' work, wait for those tasks before ending the parent span. Ending a
+//! parent span does not wait for or end its children.
+//!
+//! [`Context::current_with_span`]: TraceContextExt::current_with_span
+//! [`Context::current`]: crate::Context::current
+//! [`Context::attach`]: crate::Context::attach
 
 use std::borrow::Cow;
 use std::time;

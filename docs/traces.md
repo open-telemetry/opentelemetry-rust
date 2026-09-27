@@ -58,6 +58,17 @@ log guidance.
    express these concepts, but these are a workaround, not the recommended
    path for edge spans.
 
+## Async spans and context
+
+Creating a span does not make it current. In async code, wrap the future with
+`FutureExt::with_context` to make its context current while the future is
+polled. Pass the context to each spawned task as well; tasks do not inherit
+it automatically.
+
+See [Spans and contexts in async code] in the tracing API docs for how
+`Tracer`, `Span`, and `Context` work together, examples of child spans and
+spawned tasks, and guidance on when spans end.
+
 ## Filtering spans
 
 Processor filtering is one option for controlling which spans are exported.
@@ -125,6 +136,7 @@ to the depth in [metrics.md](metrics.md):
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
+[Spans and contexts in async code]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html#spans-and-contexts-in-async-code
 [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
 [`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
