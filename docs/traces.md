@@ -62,8 +62,7 @@ log guidance.
 
 Creating a span does not make it current. In async code, wrap the future with
 `FutureExt::with_context` to make its context current while the future is
-polled. Pass the context to each spawned task as well; tasks do not inherit
-it automatically.
+polled. Propagate the context to each spawned task as well; spawned tasks do not inherit the current OpenTelemetry context automatically.
 
 See [Spans and contexts in async code] in the tracing API docs for how
 `Tracer`, `Span`, and `Context` work together, examples of child spans and
