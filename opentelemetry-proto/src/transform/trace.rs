@@ -314,19 +314,310 @@ mod span_flags_tests {
 
 #[cfg(test)]
 mod tests {
-    use crate::tonic::common::v1::any_value::Value;
+    use crate::tonic::common::v1::{
+        any_value::Value, AnyValue, InstrumentationScope as ProtoScope, KeyValue as ProtoKeyValue,
+    };
+    use crate::tonic::resource::v1::Resource as ProtoResource;
+    use crate::tonic::trace::v1::{
+        span, status, ResourceSpans, ScopeSpans, Span, Status as ProtoStatus,
+    };
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::time::now;
     use opentelemetry::trace::{
-        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+        Event, Link, SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::resource::Resource;
-    use opentelemetry_sdk::trace::SpanData;
-    use opentelemetry_sdk::trace::{SpanEvents, SpanLinks};
+    use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
     use std::borrow::Cow;
-    use std::time::Duration;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    fn proto_attribute(key: &str, value: Value) -> ProtoKeyValue {
+        ProtoKeyValue {
+            key: key.to_owned(),
+            value: Some(AnyValue { value: Some(value) }),
+            key_strindex: 0,
+        }
+    }
+
+    #[test]
+    fn span_data_transforms_to_expected_otlp_contract() {
+        let start_time = UNIX_EPOCH + Duration::from_nanos(1_000);
+        let end_time = UNIX_EPOCH + Duration::from_nanos(2_500);
+        let scope = InstrumentationScope::builder("contract-lib")
+            .with_version("2.1.0")
+            .with_schema_url("https://example.com/scope/1")
+            .with_attributes([KeyValue::new("scope.attr", true)])
+            .build();
+        let span_data = SpanData {
+            span_context: SpanContext::new(
+                TraceId::from(0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00),
+                SpanId::from(0x1020_3040_5060_7080),
+                TraceFlags::SAMPLED,
+                false,
+                "vendor=span".parse().unwrap(),
+            ),
+            parent_span_id: SpanId::from(0x8877_6655_4433_2211),
+            parent_span_is_remote: true,
+            span_kind: SpanKind::Server,
+            name: Cow::Borrowed("contract span"),
+            start_time,
+            end_time,
+            attributes: vec![
+                KeyValue::new("str", "value"),
+                KeyValue::new("bool", true),
+                KeyValue::new("int", 42_i64),
+                KeyValue::new("float", 3.5_f64),
+            ],
+            dropped_attributes_count: 2,
+            events: {
+                let mut events = SpanEvents::default();
+                events.events = vec![Event::new(
+                    "exception",
+                    UNIX_EPOCH + Duration::from_nanos(1_500),
+                    vec![KeyValue::new("handled", false)],
+                    3,
+                )];
+                events.dropped_count = 4;
+                events
+            },
+            links: {
+                let mut links = SpanLinks::default();
+                links.links = vec![Link::new(
+                    SpanContext::new(
+                        TraceId::from(0x2233_4455_6677_8899_aabb_ccdd_eeff_0011),
+                        SpanId::from(0x2030_4050_6070_8090),
+                        TraceFlags::SAMPLED,
+                        true,
+                        "vendor=link".parse().unwrap(),
+                    ),
+                    vec![KeyValue::new("link.attr", "linked")],
+                    5,
+                )];
+                links.dropped_count = 6;
+                links
+            },
+            status: Status::Error {
+                description: "failed".into(),
+            },
+            instrumentation_scope: scope,
+        };
+        let resource = Resource::builder_empty()
+            .with_schema_url(
+                [KeyValue::new("service.name", "checkout")],
+                "https://example.com/resource/1",
+            )
+            .build();
+        let resource: ResourceAttributesWithSchema = (&resource).into();
+
+        let actual = crate::transform::trace::tonic::group_spans_by_resource_and_scope(
+            vec![span_data],
+            &resource,
+        );
+        let expected = vec![ResourceSpans {
+            resource: Some(ProtoResource {
+                attributes: vec![proto_attribute(
+                    "service.name",
+                    Value::StringValue("checkout".to_owned()),
+                )],
+                dropped_attributes_count: 0,
+                entity_refs: vec![],
+            }),
+            schema_url: "https://example.com/resource/1".to_owned(),
+            scope_spans: vec![ScopeSpans {
+                scope: Some(ProtoScope {
+                    name: "contract-lib".to_owned(),
+                    version: "2.1.0".to_owned(),
+                    attributes: vec![proto_attribute("scope.attr", Value::BoolValue(true))],
+                    dropped_attributes_count: 0,
+                }),
+                schema_url: "https://example.com/scope/1".to_owned(),
+                spans: vec![Span {
+                    trace_id: 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00_u128
+                        .to_be_bytes()
+                        .to_vec(),
+                    span_id: 0x1020_3040_5060_7080_u64.to_be_bytes().to_vec(),
+                    trace_state: "vendor=span".to_owned(),
+                    parent_span_id: 0x8877_6655_4433_2211_u64.to_be_bytes().to_vec(),
+                    flags: 0x301, // Sampled, with a known remote parent.
+                    name: "contract span".to_owned(),
+                    kind: span::SpanKind::Server as i32,
+                    start_time_unix_nano: 1_000,
+                    end_time_unix_nano: 2_500,
+                    attributes: vec![
+                        proto_attribute("str", Value::StringValue("value".to_owned())),
+                        proto_attribute("bool", Value::BoolValue(true)),
+                        proto_attribute("int", Value::IntValue(42)),
+                        proto_attribute("float", Value::DoubleValue(3.5)),
+                    ],
+                    dropped_attributes_count: 2,
+                    events: vec![span::Event {
+                        time_unix_nano: 1_500,
+                        name: "exception".to_owned(),
+                        attributes: vec![proto_attribute("handled", Value::BoolValue(false))],
+                        dropped_attributes_count: 3,
+                    }],
+                    dropped_events_count: 4,
+                    links: vec![span::Link {
+                        trace_id: 0x2233_4455_6677_8899_aabb_ccdd_eeff_0011_u128
+                            .to_be_bytes()
+                            .to_vec(),
+                        span_id: 0x2030_4050_6070_8090_u64.to_be_bytes().to_vec(),
+                        trace_state: "vendor=link".to_owned(),
+                        attributes: vec![proto_attribute(
+                            "link.attr",
+                            Value::StringValue("linked".to_owned()),
+                        )],
+                        dropped_attributes_count: 5,
+                        flags: 0x301,
+                    }],
+                    dropped_links_count: 6,
+                    status: Some(ProtoStatus {
+                        code: status::StatusCode::Error as i32,
+                        message: "failed".to_owned(),
+                    }),
+                }],
+            }],
+        }];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn span_batch_preserves_scope_identity_and_span_associations() {
+        let scope = |version, schema_url, enabled| {
+            InstrumentationScope::builder("contract-lib")
+                .with_version(version)
+                .with_schema_url(schema_url)
+                .with_attributes([KeyValue::new("enabled", enabled)])
+                .build()
+        };
+        let make_span = |id, instrumentation_scope| SpanData {
+            span_context: SpanContext::new(
+                TraceId::from_bytes([1; 16]),
+                SpanId::from(id),
+                TraceFlags::default(),
+                false,
+                TraceState::default(),
+            ),
+            parent_span_id: SpanId::INVALID,
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Internal,
+            name: "batch span".into(),
+            start_time: UNIX_EPOCH + Duration::from_nanos(1_000),
+            end_time: UNIX_EPOCH + Duration::from_nanos(2_500),
+            attributes: vec![],
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope,
+        };
+        // Each metadata variant differs from the base scope in exactly one field.
+        let batch = vec![
+            make_span(1, scope("1.0", "https://example.com/scope/1", true)),
+            make_span(2, scope("2.0", "https://example.com/scope/1", true)),
+            make_span(3, scope("1.0", "https://example.com/scope/1", true)),
+            make_span(4, scope("1.0", "https://example.com/scope/2", true)),
+            make_span(5, scope("1.0", "https://example.com/scope/1", false)),
+            make_span(6, scope("2.0", "https://example.com/scope/1", true)),
+        ];
+        let resource = Resource::builder_empty()
+            .with_schema_url(
+                [KeyValue::new("service.name", "batch-service")],
+                "https://example.com/resource/1",
+            )
+            .build();
+        let resource: ResourceAttributesWithSchema = (&resource).into();
+        let mut actual =
+            crate::transform::trace::tonic::group_spans_by_resource_and_scope(batch, &resource);
+
+        let expected_span = |id: u64| Span {
+            trace_id: vec![1; 16],
+            span_id: id.to_be_bytes().to_vec(),
+            trace_state: String::new(),
+            parent_span_id: vec![],
+            flags: 0x100, // Unsampled, with a known non-remote parent state.
+            name: "batch span".to_owned(),
+            kind: span::SpanKind::Internal as i32,
+            start_time_unix_nano: 1_000,
+            end_time_unix_nano: 2_500,
+            attributes: vec![],
+            dropped_attributes_count: 0,
+            events: vec![],
+            dropped_events_count: 0,
+            links: vec![],
+            dropped_links_count: 0,
+            status: Some(ProtoStatus {
+                code: status::StatusCode::Unset as i32,
+                message: String::new(),
+            }),
+        };
+        let expected_scope = |version: &str, schema_url: &str, enabled, spans| ScopeSpans {
+            scope: Some(ProtoScope {
+                name: "contract-lib".to_owned(),
+                version: version.to_owned(),
+                attributes: vec![proto_attribute("enabled", Value::BoolValue(enabled))],
+                dropped_attributes_count: 0,
+            }),
+            schema_url: schema_url.to_owned(),
+            spans,
+        };
+        let expected = vec![ResourceSpans {
+            resource: Some(ProtoResource {
+                attributes: vec![proto_attribute(
+                    "service.name",
+                    Value::StringValue("batch-service".to_owned()),
+                )],
+                dropped_attributes_count: 0,
+                entity_refs: vec![],
+            }),
+            schema_url: "https://example.com/resource/1".to_owned(),
+            scope_spans: vec![
+                expected_scope(
+                    "1.0",
+                    "https://example.com/scope/1",
+                    true,
+                    vec![expected_span(1), expected_span(3)],
+                ),
+                expected_scope(
+                    "2.0",
+                    "https://example.com/scope/1",
+                    true,
+                    vec![expected_span(2), expected_span(6)],
+                ),
+                expected_scope(
+                    "1.0",
+                    "https://example.com/scope/2",
+                    true,
+                    vec![expected_span(4)],
+                ),
+                expected_scope(
+                    "1.0",
+                    "https://example.com/scope/1",
+                    false,
+                    vec![expected_span(5)],
+                ),
+            ],
+        }];
+
+        // OTLP does not require scope groups or spans to follow the input order.
+        for resource_spans in &mut actual {
+            for scope_spans in &mut resource_spans.scope_spans {
+                scope_spans
+                    .spans
+                    .sort_unstable_by(|a, b| a.span_id.cmp(&b.span_id));
+            }
+            resource_spans.scope_spans.sort_unstable_by(|a, b| {
+                a.spans
+                    .first()
+                    .map(|s| &s.span_id)
+                    .cmp(&b.spans.first().map(|s| &s.span_id))
+            });
+        }
+        assert_eq!(actual, expected);
+    }
 
     fn create_test_span_data(instrumentation_name: &'static str) -> SpanData {
         let span_context = SpanContext::new(
