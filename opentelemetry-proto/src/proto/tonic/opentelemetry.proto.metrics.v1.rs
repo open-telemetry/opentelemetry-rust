@@ -525,6 +525,7 @@ pub struct HistogramDataPoint {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -653,6 +654,7 @@ pub mod exponential_histogram_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct Buckets {
         /// The bucket index of the first entry in the bucket_counts array.
@@ -766,6 +768,7 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
@@ -800,6 +803,7 @@ pub mod summary_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but

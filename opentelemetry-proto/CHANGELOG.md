@@ -2,6 +2,8 @@
 
 ## vNext
 
+- **Bug fix**: Accept omitted default fields in OTLP/JSON exponential histogram data points and buckets, summary quantile values, and exemplars instead of silently dropping the metric data. ([#3755](https://github.com/open-telemetry/opentelemetry-rust/issues/3755))
+
 ## 0.33.0
 
 Released 2026-Sep-18

@@ -77,6 +77,10 @@ fn build_tonic() {
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
         "metrics.v1.SummaryDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile",
+        "metrics.v1.Exemplar",
         "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
