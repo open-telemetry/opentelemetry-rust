@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn span_data_transforms_to_expected_otlp_contract() {
+    fn test_group_spans_by_resource_and_scope_single_scope() {
         let start_time = UNIX_EPOCH + Duration::from_nanos(1_000);
         let end_time = UNIX_EPOCH + Duration::from_nanos(2_500);
         let scope = InstrumentationScope::builder("contract-lib")
@@ -485,9 +485,9 @@ mod tests {
     }
 
     #[test]
-    fn span_batch_preserves_scope_identity_and_span_associations() {
-        let scope = |version, schema_url, enabled| {
-            InstrumentationScope::builder("contract-lib")
+    fn test_group_spans_by_resource_and_scope_multiple_scopes() {
+        let scope = |name, version, schema_url, enabled| {
+            InstrumentationScope::builder(name)
                 .with_version(version)
                 .with_schema_url(schema_url)
                 .with_attributes([KeyValue::new("enabled", enabled)])
@@ -528,14 +528,36 @@ mod tests {
             scope_with_attributes([KeyValue::new("b", 2_i64), KeyValue::new("a", 1_i64)]);
         // The first six spans vary one scope field at a time.
         let batch = vec![
-            make_span(1, scope("1.0", "https://example.com/scope/1", true)),
-            make_span(2, scope("2.0", "https://example.com/scope/1", true)),
-            make_span(3, scope("1.0", "https://example.com/scope/1", true)),
-            make_span(4, scope("1.0", "https://example.com/scope/2", true)),
-            make_span(5, scope("1.0", "https://example.com/scope/1", false)),
-            make_span(6, scope("2.0", "https://example.com/scope/1", true)),
+            make_span(
+                1,
+                scope("contract-lib", "1.0", "https://example.com/scope/1", true),
+            ),
+            make_span(
+                2,
+                scope("contract-lib", "2.0", "https://example.com/scope/1", true),
+            ),
+            make_span(
+                3,
+                scope("contract-lib", "1.0", "https://example.com/scope/1", true),
+            ),
+            make_span(
+                4,
+                scope("contract-lib", "1.0", "https://example.com/scope/2", true),
+            ),
+            make_span(
+                5,
+                scope("contract-lib", "1.0", "https://example.com/scope/1", false),
+            ),
+            make_span(
+                6,
+                scope("contract-lib", "2.0", "https://example.com/scope/1", true),
+            ),
             make_span(7, attributes_ab),
             make_span(8, attributes_ba),
+            make_span(
+                9,
+                scope("another-lib", "1.0", "https://example.com/scope/1", true),
+            ),
         ];
         let resource = Resource::builder_empty()
             .with_schema_url(
@@ -568,16 +590,17 @@ mod tests {
                 message: String::new(),
             }),
         };
-        let expected_scope = |version: &str, schema_url: &str, enabled, spans| ScopeSpans {
-            scope: Some(ProtoScope {
-                name: "contract-lib".to_owned(),
-                version: version.to_owned(),
-                attributes: vec![proto_attribute("enabled", Value::BoolValue(enabled))],
-                dropped_attributes_count: 0,
-            }),
-            schema_url: schema_url.to_owned(),
-            spans,
-        };
+        let expected_scope =
+            |name: &str, version: &str, schema_url: &str, enabled, spans| ScopeSpans {
+                scope: Some(ProtoScope {
+                    name: name.to_owned(),
+                    version: version.to_owned(),
+                    attributes: vec![proto_attribute("enabled", Value::BoolValue(enabled))],
+                    dropped_attributes_count: 0,
+                }),
+                schema_url: schema_url.to_owned(),
+                spans,
+            };
         let expected_scope_with_attributes = |spans| ScopeSpans {
             scope: Some(ProtoScope {
                 name: "contract-lib".to_owned(),
@@ -603,30 +626,41 @@ mod tests {
             schema_url: "https://example.com/resource/1".to_owned(),
             scope_spans: vec![
                 expected_scope(
+                    "contract-lib",
                     "1.0",
                     "https://example.com/scope/1",
                     true,
                     vec![expected_span(1), expected_span(3)],
                 ),
                 expected_scope(
+                    "contract-lib",
                     "2.0",
                     "https://example.com/scope/1",
                     true,
                     vec![expected_span(2), expected_span(6)],
                 ),
                 expected_scope(
+                    "contract-lib",
                     "1.0",
                     "https://example.com/scope/2",
                     true,
                     vec![expected_span(4)],
                 ),
                 expected_scope(
+                    "contract-lib",
                     "1.0",
                     "https://example.com/scope/1",
                     false,
                     vec![expected_span(5)],
                 ),
                 expected_scope_with_attributes(vec![expected_span(7), expected_span(8)]),
+                expected_scope(
+                    "another-lib",
+                    "1.0",
+                    "https://example.com/scope/1",
+                    true,
+                    vec![expected_span(9)],
+                ),
             ],
         }];
 
@@ -645,153 +679,6 @@ mod tests {
             });
         }
         assert_eq!(actual, expected);
-    }
-
-    fn create_test_span_data(instrumentation_name: &'static str) -> SpanData {
-        let span_context = SpanContext::new(
-            TraceId::from(123),
-            SpanId::from(456),
-            TraceFlags::default(),
-            false,
-            TraceState::default(),
-        );
-
-        SpanData {
-            span_context,
-            parent_span_id: SpanId::from(0),
-            parent_span_is_remote: false,
-            span_kind: SpanKind::Internal,
-            name: Cow::Borrowed("test_span"),
-            start_time: now(),
-            end_time: now() + Duration::from_secs(1),
-            attributes: vec![KeyValue::new("key", "value")],
-            dropped_attributes_count: 0,
-            events: SpanEvents::default(),
-            links: SpanLinks::default(),
-            status: Status::Unset,
-            instrumentation_scope: InstrumentationScope::builder(instrumentation_name).build(),
-        }
-    }
-
-    #[test]
-    fn test_group_spans_by_resource_and_scope_single_scope() {
-        let resource = Resource::builder_empty()
-            .with_attribute(KeyValue::new("resource_key", "resource_value"))
-            .build();
-        let span_data = create_test_span_data("lib1");
-
-        let spans = vec![span_data.clone()];
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-
-        let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
-
-        assert_eq!(grouped_spans.len(), 1);
-
-        let resource_spans = &grouped_spans[0];
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes.len(),
-            1
-        );
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes[0].key,
-            "resource_key"
-        );
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes[0]
-                .value
-                .clone()
-                .unwrap()
-                .value
-                .unwrap(),
-            Value::StringValue("resource_value".to_string())
-        );
-
-        let scope_spans = &resource_spans.scope_spans;
-        assert_eq!(scope_spans.len(), 1);
-
-        let scope_span = &scope_spans[0];
-        assert_eq!(scope_span.scope.as_ref().unwrap().name, "lib1");
-        assert_eq!(scope_span.spans.len(), 1);
-
-        assert_eq!(
-            scope_span.spans[0].trace_id,
-            span_data.span_context.trace_id().to_bytes().to_vec()
-        );
-    }
-
-    #[test]
-    fn test_group_spans_by_resource_and_scope_multiple_scopes() {
-        let resource = Resource::builder_empty()
-            .with_attribute(KeyValue::new("resource_key", "resource_value"))
-            .build();
-        let span_data1 = create_test_span_data("lib1");
-        let span_data2 = create_test_span_data("lib1");
-        let span_data3 = create_test_span_data("lib2");
-
-        let spans = vec![span_data1.clone(), span_data2.clone(), span_data3.clone()];
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-
-        let grouped_spans =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
-
-        assert_eq!(grouped_spans.len(), 1);
-
-        let resource_spans = &grouped_spans[0];
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes.len(),
-            1
-        );
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes[0].key,
-            "resource_key"
-        );
-        assert_eq!(
-            resource_spans.resource.as_ref().unwrap().attributes[0]
-                .value
-                .clone()
-                .unwrap()
-                .value
-                .unwrap(),
-            Value::StringValue("resource_value".to_string())
-        );
-
-        let scope_spans = &resource_spans.scope_spans;
-        assert_eq!(scope_spans.len(), 2);
-
-        // Check the scope spans for both lib1 and lib2
-        let mut lib1_scope_span = None;
-        let mut lib2_scope_span = None;
-
-        for scope_span in scope_spans {
-            match scope_span.scope.as_ref().unwrap().name.as_str() {
-                "lib1" => lib1_scope_span = Some(scope_span),
-                "lib2" => lib2_scope_span = Some(scope_span),
-                _ => {}
-            }
-        }
-
-        let lib1_scope_span = lib1_scope_span.expect("lib1 scope span not found");
-        let lib2_scope_span = lib2_scope_span.expect("lib2 scope span not found");
-
-        assert_eq!(lib1_scope_span.scope.as_ref().unwrap().name, "lib1");
-        assert_eq!(lib2_scope_span.scope.as_ref().unwrap().name, "lib2");
-
-        assert_eq!(lib1_scope_span.spans.len(), 2);
-        assert_eq!(lib2_scope_span.spans.len(), 1);
-
-        assert_eq!(
-            lib1_scope_span.spans[0].trace_id,
-            span_data1.span_context.trace_id().to_bytes().to_vec()
-        );
-        assert_eq!(
-            lib1_scope_span.spans[1].trace_id,
-            span_data2.span_context.trace_id().to_bytes().to_vec()
-        );
-        assert_eq!(
-            lib2_scope_span.spans[0].trace_id,
-            span_data3.span_context.trace_id().to_bytes().to_vec()
-        );
     }
 
     #[test]
