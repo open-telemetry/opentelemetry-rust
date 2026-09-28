@@ -440,7 +440,7 @@ mod tests {
                     span_id: 0x1020_3040_5060_7080_u64.to_be_bytes().to_vec(),
                     trace_state: "vendor=span".to_owned(),
                     parent_span_id: 0x8877_6655_4433_2211_u64.to_be_bytes().to_vec(),
-                    flags: 0x301, // Sampled, with a known remote parent.
+                    flags: 0x301, // Verifies the sampled flag and remote-parent bits.
                     name: "contract span".to_owned(),
                     kind: span::SpanKind::Server as i32,
                     start_time_unix_nano: 1_000,
@@ -470,7 +470,7 @@ mod tests {
                             Value::StringValue("linked".to_owned()),
                         )],
                         dropped_attributes_count: 5,
-                        flags: 0x301,
+                        flags: 0x301, // Verifies the sampled flag and remote-parent bits.
                     }],
                     dropped_links_count: 6,
                     status: Some(ProtoStatus {
@@ -552,7 +552,7 @@ mod tests {
             span_id: id.to_be_bytes().to_vec(),
             trace_state: String::new(),
             parent_span_id: vec![],
-            flags: 0x100, // Unsampled, with a known non-remote parent state.
+            flags: 0x100, // Verifies the remote-parent-known bit when unsampled.
             name: "batch span".to_owned(),
             kind: span::SpanKind::Internal as i32,
             start_time_unix_nano: 1_000,
@@ -681,7 +681,7 @@ mod tests {
         let span_data = create_test_span_data("lib1");
 
         let spans = vec![span_data.clone()];
-        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let resource: ResourceAttributesWithSchema = (&resource).into();
 
         let grouped_spans =
             crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
@@ -730,7 +730,7 @@ mod tests {
         let span_data3 = create_test_span_data("lib2");
 
         let spans = vec![span_data1.clone(), span_data2.clone(), span_data3.clone()];
-        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
+        let resource: ResourceAttributesWithSchema = (&resource).into();
 
         let grouped_spans =
             crate::transform::trace::tonic::group_spans_by_resource_and_scope(spans, &resource);
