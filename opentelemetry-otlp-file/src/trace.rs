@@ -143,8 +143,9 @@ mod tests {
             parent_span_is_remote: false,
             span_kind: SpanKind::Server,
             name: Cow::Borrowed(name),
-            start_time: SystemTime::UNIX_EPOCH + Duration::from_nanos(1_581_452_772_000_000_321),
-            end_time: SystemTime::UNIX_EPOCH + Duration::from_nanos(1_581_452_773_000_000_789),
+            // Multiples of 100 ns, the resolution of `SystemTime` on Windows.
+            start_time: SystemTime::UNIX_EPOCH + Duration::from_nanos(1_581_452_772_000_000_300),
+            end_time: SystemTime::UNIX_EPOCH + Duration::from_nanos(1_581_452_773_000_000_700),
             attributes: vec![KeyValue::new("http.response.status_code", 200)],
             dropped_attributes_count: 0,
             events: SpanEvents::default(),
@@ -206,8 +207,8 @@ mod tests {
         assert_eq!(span["parentSpanId"], "");
         assert_eq!(span["name"], "GET /cart");
         assert_eq!(span["kind"], 2);
-        assert_eq!(span["startTimeUnixNano"], "1581452772000000321");
-        assert_eq!(span["endTimeUnixNano"], "1581452773000000789");
+        assert_eq!(span["startTimeUnixNano"], "1581452772000000300");
+        assert_eq!(span["endTimeUnixNano"], "1581452773000000700");
         assert_eq!(
             span["attributes"][0],
             json!({"key": "http.response.status_code", "value": {"intValue": "200"}})
