@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
+
 ## 0.33.0
 
 Released 2026-Sep-18
