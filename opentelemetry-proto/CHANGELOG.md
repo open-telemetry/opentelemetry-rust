@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Bug fix**: Encode `asInt` in OTLP/JSON `NumberDataPoint` and `Exemplar` as a decimal string, and accept both strings and numbers when decoding. A quoted `asInt`, as written by other OTLP/JSON producers, was silently dropped on decode.
+- **Bug fix**: Write and read the `Exemplar` value (`asInt` or `asDouble`) directly on the exemplar object instead of nesting it under `"value"`, so exemplar values round-trip with other OTLP/JSON producers and consumers.
+
 ## 0.33.0
 
 Released 2026-Sep-18

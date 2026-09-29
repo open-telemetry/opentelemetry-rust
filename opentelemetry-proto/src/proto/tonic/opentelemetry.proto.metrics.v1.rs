@@ -392,6 +392,13 @@ pub mod number_data_point {
         #[prost(double, tag = "4")]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_i64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_i64"
+            )
+        )]
         AsInt(i64),
     }
 }
@@ -850,6 +857,7 @@ pub struct Exemplar {
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
     #[prost(oneof = "exemplar::Value", tags = "3, 6")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub value: ::core::option::Option<exemplar::Value>,
 }
 /// Nested message and enum types in `Exemplar`.
@@ -865,6 +873,13 @@ pub mod exemplar {
         #[prost(double, tag = "3")]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_i64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_i64"
+            )
+        )]
         AsInt(i64),
     }
 }
