@@ -25,10 +25,9 @@
   parent: the span gets a freshly generated trace id instead of the parent's
   all-zero one, and is not recorded as a child of it.
   ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
-- Fixed `PeriodicReader` only logging a failed metric export at `DEBUG`. It
-  now logs `PeriodicReader.ExportError` at `ERROR`, matching
-  `BatchSpanProcessor` and `BatchLogProcessor`, so an unreachable collector
-  is visible without enabling debug logging.
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
   ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
 
 ## 0.33.0
