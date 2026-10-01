@@ -342,7 +342,9 @@ mod tests {
     }
 
     #[test]
-    fn test_group_spans_by_resource_and_scope_single_scope() {
+    fn test_span_data_transforms_to_expected_otlp_contract() {
+        // Compare the full OTLP output so changes to span, event, link, resource,
+        // or scope field mapping are caught by one readable contract test.
         let start_time = UNIX_EPOCH + Duration::from_nanos(1_000);
         let end_time = UNIX_EPOCH + Duration::from_nanos(2_500);
         let scope = InstrumentationScope::builder("contract-lib")
@@ -526,7 +528,8 @@ mod tests {
             scope_with_attributes([KeyValue::new("a", 1_i64), KeyValue::new("b", 2_i64)]);
         let attributes_ba =
             scope_with_attributes([KeyValue::new("b", 2_i64), KeyValue::new("a", 1_i64)]);
-        // The first six spans vary one scope field at a time.
+        // Equal scopes recur at different positions; changes to name, version,
+        // schema URL, or attributes should produce separate groups.
         let batch = vec![
             make_span(
                 1,
