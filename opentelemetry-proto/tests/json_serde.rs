@@ -546,6 +546,70 @@ mod json_serde {
         }
 
         #[test]
+        fn double() {
+            let value = Value::DoubleValue(637.704);
+            // language=json
+            let json = r#"{"doubleValue":637.704}"#;
+            assert_eq!(
+                serde_json::to_string(&value).expect("serialization succeeds"),
+                json
+            );
+            assert_eq!(
+                serde_json::from_str::<Value>(json).expect("deserialization succeeds"),
+                value
+            );
+        }
+
+        #[test]
+        fn double_nan_via_any_value() {
+            let any = AnyValue {
+                value: Some(Value::DoubleValue(f64::NAN)),
+            };
+            let json = r#"{"doubleValue":"NaN"}"#;
+            assert_eq!(
+                serde_json::to_string(&any).expect("serialization succeeds"),
+                json
+            );
+            let roundtripped: AnyValue =
+                serde_json::from_str(json).expect("deserialization succeeds");
+            match roundtripped.value {
+                Some(Value::DoubleValue(v)) => assert!(v.is_nan()),
+                other => panic!("expected DoubleValue NaN, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn double_infinity_via_any_value() {
+            for (json, expected) in [
+                (r#"{"doubleValue":"Infinity"}"#, f64::INFINITY),
+                (r#"{"doubleValue":"-Infinity"}"#, f64::NEG_INFINITY),
+            ] {
+                let any = AnyValue {
+                    value: Some(Value::DoubleValue(expected)),
+                };
+                assert_eq!(
+                    serde_json::to_string(&any).expect("serialization succeeds"),
+                    json
+                );
+                let roundtripped: AnyValue =
+                    serde_json::from_str(json).expect("deserialization succeeds");
+                assert_eq!(
+                    roundtripped.value,
+                    Some(Value::DoubleValue(expected)),
+                    "json: {json}"
+                );
+            }
+        }
+
+        #[test]
+        fn double_malformed_string_fails() {
+            assert!(
+                serde_json::from_str::<AnyValue>(r#"{"doubleValue":"not-a-number"}"#).is_err(),
+                "malformed doubleValue string must not deserialize"
+            );
+        }
+
+        #[test]
         fn array_empty() {
             let value = Value::ArrayValue(ArrayValue { values: vec![] });
             // language=json
