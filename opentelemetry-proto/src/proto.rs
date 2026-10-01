@@ -171,8 +171,8 @@ pub(crate) mod serializers {
                             }
                         }
                         "doubleValue" => {
-                            if let Some(d) = map.next_value::<Option<f64>>()? {
-                                value = Some(any_value::Value::DoubleValue(d));
+                            if let Some(d) = map.next_value::<Option<StringOrFloat>>()? {
+                                value = Some(any_value::Value::DoubleValue(d.get_f64::<V>()?));
                             }
                         }
                         "arrayValue" => {
@@ -500,6 +500,20 @@ pub(crate) mod serializers {
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(None)
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(None)
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Option<f64>, E>
