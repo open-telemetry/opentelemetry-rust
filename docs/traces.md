@@ -60,13 +60,14 @@ log guidance.
 
 ## Async spans and context
 
-Creating a span does not make it current. In async code, wrap the future with
-`FutureExt::with_context` to make its context current while the future is
-polled. Propagate the context to each spawned task as well; spawned tasks do not inherit the current OpenTelemetry context automatically.
+OpenTelemetry `Context` carries request-scoped information, including the
+active span. It does not propagate across async boundaries automatically. Use
+`FutureExt::with_context` to propagate context through a future. For common
+HTTP, database, and messaging libraries, use OpenTelemetry instrumentation when
+available; it can also propagate context into outgoing calls.
 
-See [Spans and contexts in async code] in the tracing API docs for how
-`Tracer`, `Span`, and `Context` work together, examples of child spans and
-spawned tasks, and guidance on when spans end.
+See [Async context propagation] in the tracing API docs for a short example of
+creating a child span.
 
 ## Filtering spans
 
@@ -135,7 +136,7 @@ to the depth in [metrics.md](metrics.md):
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
-[Spans and contexts in async code]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html#spans-and-contexts-in-async-code
+[Async context propagation]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html#async-context-propagation
 [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
 [`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib
