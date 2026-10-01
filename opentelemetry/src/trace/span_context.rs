@@ -209,13 +209,13 @@ impl FromStr for TraceState {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut key_value_pairs: Vec<(String, String)> = Vec::new();
 
-        for list_member in s.split_terminator(',').take(MAX_LIST_MEMBERS) {
+        for list_member in s
+            .split_terminator(',')
+            .map(|member| member.trim_matches([' ', '\t']))
+            .filter(|member| !member.is_empty())
+            .take(MAX_LIST_MEMBERS)
+        {
             // W3C OWS around list members consists of spaces and horizontal tabs.
-            let list_member = list_member.trim_matches([' ', '\t']);
-            if list_member.is_empty() {
-                continue;
-            }
-
             match list_member.find('=') {
                 None => return Err(TraceStateError::List(list_member.to_string())),
                 Some(separator_index) => {
