@@ -30,10 +30,7 @@ const MAX_KEY_VALUE_PAIRS: usize = 64;
 const MAX_LEN_OF_ALL_PAIRS: usize = 8192;
 
 // https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.6
-const INVALID_ASCII_KEY_CHARS: [u8; 17] = [
-    b'(', b')', b',', b'/', b':', b';', b'<', b'=', b'>', b'?', b'@', b'[', b'\\', b']', b'{',
-    b'}', b'"',
-];
+const INVALID_ASCII_KEY_CHARS: [u8; 17] = *b"(),/:;<=>?@[\\]{}\"";
 
 /// Returns the default baggage, ensuring it is initialized only once.
 #[inline]

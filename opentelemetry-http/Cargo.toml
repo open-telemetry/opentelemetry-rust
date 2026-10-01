@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-http"
-version = "0.32.0"
+version = "0.33.0"
 description = "Helper implementations for sending HTTP requests. Uses include propagating and extracting context over http, exporting telemetry, requesting sampling strategies."
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http"
@@ -15,8 +15,7 @@ default = ["internal-logs"]
 hyper = ["dep:http-body-util", "dep:hyper", "dep:hyper-util", "dep:tokio"]
 reqwest = ["dep:reqwest"]
 reqwest-blocking = ["dep:reqwest", "reqwest/blocking"]
-reqwest-rustls = ["dep:reqwest", "reqwest/default-tls"]
-reqwest-rustls-webpki-roots = ["dep:reqwest", "reqwest/default-tls", "reqwest/webpki-roots"]
+reqwest-rustls = ["dep:reqwest", "reqwest/rustls"]
 internal-logs = ["opentelemetry/internal-logs"]
 
 [dependencies]
@@ -29,6 +28,11 @@ hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2"],
 opentelemetry = { workspace = true, features = ["trace"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
+
+[dev-dependencies]
+futures-executor = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
+tower-service = { workspace = true }
 
 [lints]
 workspace = true

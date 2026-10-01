@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.32.0"
+version = "0.33.0"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
@@ -40,6 +40,7 @@ testing = ["trace"]
 logs = []
 internal-logs = ["tracing"]
 experimental_metrics_bound_instruments = ["metrics"]
+experimental_context_observer = []
 
 [dev-dependencies]
 opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests

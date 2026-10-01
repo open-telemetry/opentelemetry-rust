@@ -11,10 +11,16 @@ use std::time;
 use crate::{exporter::HasExportConfig, ExporterBuildError, NoExporterBuilderSet};
 
 #[cfg(feature = "grpc-tonic")]
-use crate::{exporter::tonic::HasTonicConfig, TonicExporterBuilder, TonicExporterBuilderSet};
+use crate::{
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
+    TonicExporterBuilderSet,
+};
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
-use crate::{exporter::http::HasHttpConfig, HttpExporterBuilder, HttpExporterBuilderSet};
+use crate::{
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
+    HttpExporterBuilderSet,
+};
 
 /// Compression algorithm to use, defaults to none.
 pub const OTEL_EXPORTER_OTLP_LOGS_COMPRESSION: &str = "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION";
@@ -32,12 +38,14 @@ pub const OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: &str = "OTEL_EXPORTER_OTLP_LOGS_TIMEO
 pub const OTEL_EXPORTER_OTLP_LOGS_HEADERS: &str = "OTEL_EXPORTER_OTLP_LOGS_HEADERS";
 /// Protocol to use for log exports. Valid values: `grpc`, `http/protobuf`, `http/json`.
 pub const OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: &str = "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL";
+/// Whether to disable TLS for gRPC log exports.
+/// Only applies to gRPC; HTTP security is determined by URL scheme.
+pub const OTEL_EXPORTER_OTLP_LOGS_INSECURE: &str = "OTEL_EXPORTER_OTLP_LOGS_INSECURE";
 
 /// Builder for creating a new [LogExporter].
 #[derive(Debug, Default, Clone)]
 pub struct LogExporterBuilder<C> {
     client: C,
-    endpoint: Option<String>,
 }
 
 impl LogExporterBuilder<NoExporterBuilderSet> {
@@ -51,7 +59,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_tonic(self) -> LogExporterBuilder<TonicExporterBuilderSet> {
         LogExporterBuilder {
             client: TonicExporterBuilderSet(TonicExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 
@@ -60,7 +67,6 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     pub fn with_http(self) -> LogExporterBuilder<HttpExporterBuilderSet> {
         LogExporterBuilder {
             client: HttpExporterBuilderSet(HttpExporterBuilder::default()),
-            endpoint: self.endpoint,
         }
     }
 
@@ -76,17 +82,16 @@ impl LogExporterBuilder<NoExporterBuilderSet> {
     /// explicitly select a transport and access transport-specific configuration.
     #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
-        // NOTE: The transport-specific builder will call resolve_protocol again
-        // internally (for HTTP sub-protocol selection or tonic validation), but
-        // that's harmless — the result is the same.
+        use crate::WithExportConfig;
+
         let protocol = crate::exporter::resolve_protocol(OTEL_EXPORTER_OTLP_LOGS_PROTOCOL, None);
         match protocol {
             #[cfg(feature = "grpc-tonic")]
-            crate::Protocol::Grpc => self.with_tonic().build(),
+            crate::Protocol::Grpc => self.with_tonic().with_protocol(protocol).build(),
             #[cfg(feature = "http-proto")]
-            crate::Protocol::HttpBinary => self.with_http().build(),
+            crate::Protocol::HttpBinary => self.with_http().with_protocol(protocol).build(),
             #[cfg(feature = "http-json")]
-            crate::Protocol::HttpJson => self.with_http().build(),
+            crate::Protocol::HttpJson => self.with_http().with_protocol(protocol).build(),
         }
     }
 }
@@ -206,8 +211,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 mod tests {
     use crate::LogExporter;
 
-    #[test]
-    fn build_with_default_transport() {
+    // Uses a tokio runtime because, under a gRPC-only build, the auto-selected
+    // tonic transport needs an active reactor to construct its channel.
+    #[tokio::test]
+    async fn build_with_default_transport() {
         let result = LogExporter::builder().build();
         assert!(result.is_ok(), "build() should succeed: {:?}", result.err());
     }

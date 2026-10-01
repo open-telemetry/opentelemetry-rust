@@ -10,14 +10,12 @@ use super::OtlpHttpClient;
 
 impl MetricsClient for OtlpHttpClient {
     async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
-        let build_body_wrapper = |client: &OtlpHttpClient, metrics: &ResourceMetrics| {
-            client
-                .build_metrics_export_body(metrics)
-                .ok_or_else(|| "Failed to serialize metrics".to_string())
-        };
-
         let response_body = self
-            .export_http_with_retry(metrics, build_body_wrapper, "HttpMetricsClient.Export")
+            .export_http_with_retry(
+                metrics,
+                OtlpHttpClient::build_metrics_export_body,
+                "HttpMetricsClient.Export",
+            )
             .await?;
 
         handle_partial_success(&response_body, self.protocol);
@@ -77,6 +75,7 @@ fn handle_partial_success(response_body: &[u8], protocol: Protocol) {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "http-proto")]
     #[test]
     fn test_handle_invalid_protobuf() {
         // Corrupted/invalid protobuf data
@@ -86,6 +85,7 @@ mod tests {
         handle_partial_success(&invalid, Protocol::HttpBinary);
     }
 
+    #[cfg(feature = "http-proto")]
     #[test]
     fn test_handle_empty_response() {
         let empty = vec![];

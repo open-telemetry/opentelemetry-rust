@@ -72,6 +72,24 @@ fn construct_otel_resources(s: String) -> Resource {
 #[derive(Debug)]
 pub struct SdkProvidedResourceDetector;
 
+fn default_service_name() -> Value {
+    // Fallback to unknown_service:<process.executable.name> per spec.
+    // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
+    if cfg!(miri) {
+        return "unknown_service".into();
+    }
+
+    env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| format!("unknown_service:{}", name))
+        })
+        .unwrap_or_else(|| "unknown_service".to_string())
+        .into()
+}
+
 impl ResourceDetector for SdkProvidedResourceDetector {
     fn detect(&self) -> Resource {
         Resource::builder_empty()
@@ -86,19 +104,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
                             .detect()
                             .get(&Key::new(super::SERVICE_NAME))
                     })
-                    .unwrap_or_else(|| {
-                        // Fallback to unknown_service:<process.executable.name> per spec
-                        // https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/sdk.md#sdk-provided-resource-attributes
-                        env::current_exe()
-                            .ok()
-                            .and_then(|path| {
-                                path.file_name()
-                                    .and_then(|name| name.to_str())
-                                    .map(|name| format!("unknown_service:{}", name))
-                            })
-                            .unwrap_or_else(|| "unknown_service".to_string())
-                            .into()
-                    }),
+                    .unwrap_or_else(default_service_name),
             )])
             .build()
     }
@@ -155,11 +161,15 @@ mod tests {
             .map(|v| v.to_string())
             .unwrap();
 
-        assert!(
-            service_name.starts_with("unknown_service:opentelemetry_sdk-"),
-            "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
-            service_name
-        );
+        if cfg!(miri) {
+            assert_eq!(service_name, "unknown_service");
+        } else {
+            assert!(
+                service_name.starts_with("unknown_service:opentelemetry_sdk-"),
+                "Expected service name to start with 'unknown_service:opentelemetry_sdk-', got: {}",
+                service_name
+            );
+        }
 
         temp_env::with_var(OTEL_SERVICE_NAME, Some("test service"), || {
             let with_service = SdkProvidedResourceDetector.detect();

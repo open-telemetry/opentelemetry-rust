@@ -9,12 +9,16 @@ use opentelemetry_sdk::metrics::{Instrument, ManualReader, SdkMeterProvider, Str
 //
 // Results (3 attributes: method, status, path):
 // Counter_Unbound_Delta              time:   [50.20 ns]
-// Counter_Bound_Delta                time:   [ 1.80 ns]  ~28x faster
+// Counter_Bound_Delta                time:   [ 1.92 ns]  ~26x faster
 // Counter_Bound_With_View_Delta      time:   [ 1.82 ns]  view filter applied at bind, not on hot path
 // Counter_Bound_AtOverflow_Delta     time:   [ 1.82 ns]  bind() at cardinality limit binds directly to the overflow
 //                                                        tracker — perf parity with a normal bind, no per-call resolution
-// Histogram_Unbound_Delta            time:   [58.64 ns]
-// Histogram_Bound_Delta              time:   [ 6.50 ns]  ~9.0x faster
+// UpDownCounter_Unbound_Cumulative   time:   [53.08 ns]  UpDownCounter always uses Cumulative regardless of reader pref
+// UpDownCounter_Bound_Cumulative     time:   [ 1.91 ns]  ~28x faster
+// Gauge_Unbound_Delta                time:   [52.82 ns]
+// Gauge_Bound_Delta                  time:   [ 1.27 ns]  ~42x faster (LastValue store is cheaper than atomic add)
+// Histogram_Unbound_Delta            time:   [60.15 ns]
+// Histogram_Bound_Delta              time:   [ 6.61 ns]  ~9.1x faster
 // Histogram_Bound_AtOverflow_Delta   time:   [ 6.58 ns]  perf parity with a normal bind
 // Counter_Bound_Multithread/2        time:   [21.59 µs]  (100 adds/thread)
 // Counter_Bound_Multithread/4        time:   [37.21 µs]  (100 adds/thread)
@@ -127,6 +131,46 @@ fn bench_bound_instruments(c: &mut Criterion) {
         });
     }
 
+    // UpDownCounter: Unbound vs Bound (always Cumulative regardless of reader pref)
+    {
+        let provider = create_provider(Temporality::Cumulative);
+        let meter = provider.meter("bench");
+        let updown = meter.i64_up_down_counter("unbound_updown").build();
+        group.bench_function("UpDownCounter_Unbound_Cumulative", |b| {
+            b.iter(|| updown.add(1, &attrs));
+        });
+    }
+
+    {
+        let provider = create_provider(Temporality::Cumulative);
+        let meter = provider.meter("bench");
+        let updown = meter.i64_up_down_counter("bound_updown").build();
+        let bound = updown.bind(&attrs);
+        group.bench_function("UpDownCounter_Bound_Cumulative", |b| {
+            b.iter(|| bound.add(1));
+        });
+    }
+
+    // Gauge: Unbound vs Bound (Delta)
+    {
+        let provider = create_provider(Temporality::Delta);
+        let meter = provider.meter("bench");
+        let gauge = meter.u64_gauge("unbound_gauge").build();
+        group.bench_function("Gauge_Unbound_Delta", |b| {
+            b.iter(|| gauge.record(1, &attrs));
+        });
+    }
+
+    {
+        let provider = create_provider(Temporality::Delta);
+        let meter = provider.meter("bench");
+        let gauge = meter.u64_gauge("bound_gauge").build();
+        let bound = gauge.bind(&attrs);
+        group.bench_function("Gauge_Bound_Delta", |b| {
+            b.iter(|| bound.record(1));
+        });
+    }
+
     // Histogram: Unbound vs Bound (Delta)
     {
         let provider = create_provider(Temporality::Delta);
@@ -192,6 +236,76 @@ fn bench_bound_instruments(c: &mut Criterion) {
                         s.spawn(|| {
                             for _ in 0..100 {
                                 bound.add(1);
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    // Multi-threaded bound up-down counter (atomic add on i64)
+    for num_threads in [2, 4, 8] {
+        let provider = create_provider(Temporality::Cumulative);
+        let meter = provider.meter("bench");
+        let updown = meter.i64_up_down_counter("mt_bound_updown").build();
+        let bound = updown.bind(&attrs);
+
+        group.bench_function(
+            format!("UpDownCounter_Bound_Multithread/{num_threads}"),
+            |b| {
+                b.iter(|| {
+                    std::thread::scope(|s| {
+                        for _ in 0..num_threads {
+                            s.spawn(|| {
+                                for _ in 0..100 {
+                                    bound.add(1);
+                                }
+                            });
+                        }
+                    });
+                });
+            },
+        );
+    }
+
+    // Multi-threaded bound histogram (Mutex<Buckets> — expected to show
+    // contention quickly relative to atomic-based instruments).
+    for num_threads in [2, 4, 8] {
+        let provider = create_provider(Temporality::Delta);
+        let meter = provider.meter("bench");
+        let histogram = meter.f64_histogram("mt_bound_hist").build();
+        let bound = histogram.bind(&attrs);
+
+        group.bench_function(format!("Histogram_Bound_Multithread/{num_threads}"), |b| {
+            b.iter(|| {
+                std::thread::scope(|s| {
+                    for _ in 0..num_threads {
+                        s.spawn(|| {
+                            for _ in 0..100 {
+                                bound.record(1.5);
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    // Multi-threaded bound gauge (LastValue: atomic store, no read-modify-write)
+    for num_threads in [2, 4, 8] {
+        let provider = create_provider(Temporality::Delta);
+        let meter = provider.meter("bench");
+        let gauge = meter.u64_gauge("mt_bound_gauge").build();
+        let bound = gauge.bind(&attrs);
+
+        group.bench_function(format!("Gauge_Bound_Multithread/{num_threads}"), |b| {
+            b.iter(|| {
+                std::thread::scope(|s| {
+                    for _ in 0..num_threads {
+                        s.spawn(|| {
+                            for _ in 0..100 {
+                                bound.record(1);
                             }
                         });
                     }

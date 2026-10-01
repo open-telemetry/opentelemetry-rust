@@ -47,7 +47,16 @@ yanked = "deny"
 # `time` is only used transitively in test infrastructure (integration_test_runner → testcontainers → bollard → time).
 # No published crate depends on it. If a published crate ever adds a dependency on `time`,
 # this ignore will silently suppress the advisory — revisit this entry if that happens.
-ignore = [{ id = "RUSTSEC-2026-0009", reason = "currently dev-only via test infra" }]
+#
+# `quick-xml` 0.26 is only reachable via `pprof` -> `inferno` (a dev-dependency
+# used to write SVG flamegraphs from benchmark data). The two advisories both
+# apply to *parsing* untrusted XML input, which is not the path exercised here.
+# No published crate depends on `quick-xml` via a runtime path.
+ignore = [
+    { id = "RUSTSEC-2026-0009", reason = "currently dev-only via test infra" },
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml only used to write SVG flamegraphs via pprof/inferno (dev-only)" },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml only used to write SVG flamegraphs via pprof/inferno (dev-only)" },
+]
 
 # This section is considered when running `cargo deny check bans`.
 # More documentation about the 'bans' section can be found here:

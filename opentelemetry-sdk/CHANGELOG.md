@@ -2,6 +2,81 @@
 
 ## vNext
 
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
+  ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
+  default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
+  `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
+  (`opentelemetry_sdk::metrics`), so downstream configuration systems can read
+  the SDK's spec-defined defaults programmatically instead of duplicating
+  them. As part of this, `PeriodicReader`'s previously-private
+  `DEFAULT_INTERVAL`/`METRIC_EXPORT_INTERVAL_NAME` constants were renamed
+  to `OTEL_METRIC_EXPORT_INTERVAL_DEFAULT`/`OTEL_METRIC_EXPORT_INTERVAL` to
+  match the naming convention already used elsewhere.
+  ([#3623](https://github.com/open-telemetry/opentelemetry-rust/issues/3623))
+- Added SDK self-observability metrics, feature-gated behind
+  `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
+  records submitted to the SDK; `otel.sdk.processor.log.processed` and
+  `otel.sdk.processor.span.processed` count records and spans submitted to an
+  exporter by batch and simple processors, with `error.type` reporting items
+  dropped before submission; and `otel.sdk.processor.log.queue.capacity`
+  reports the configured `BatchLogProcessor` queue capacity.
+  ([#3514](https://github.com/open-telemetry/opentelemetry-rust/pull/3514),
+  [#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608),
+  [#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609),
+  [#3611](https://github.com/open-telemetry/opentelemetry-rust/pull/3611))
+- Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
+  optional, enabling a minimal SDK build. With `default-features = false`, the
+  SDK's only dependency is the `opentelemetry` API crate.
+  ([#3593](https://github.com/open-telemetry/opentelemetry-rust/pull/3593))
+- Bound instruments are now available for `Gauge` and `UpDownCounter` via the
+  new `BoundGauge<T>` and `BoundUpDownCounter<T>` types exposed by the
+  `opentelemetry` crate. Requires the `experimental_metrics_bound_instruments`
+  feature.
+- Fixed a race in `BatchSpanProcessor` and `BatchLogProcessor` where a
+  span/log enqueued just before `force_flush()` or `shutdown()` could be
+  missed by the flush and dropped at shutdown: the pending-item counter is
+  now incremented before enqueueing (and reverted if the queue is full), so
+  the worker's counter snapshot can no longer under-count items already in
+  the queue (#3453).
+- Default SDK Resource construction now falls back to `unknown_service` under
+  Miri instead of calling `std::env::current_exe()`, avoiding an abort in Miri
+  isolation mode while preserving the normal
+  `unknown_service:<process.executable.name>` fallback outside Miri.
+- Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
+  using delta temporality reporting incorrect deltas when observed attributes
+  were recorded in an unsorted key order.
+
 ## 0.32.1
 
 Released 2026-May-23
