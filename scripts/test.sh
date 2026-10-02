@@ -9,6 +9,9 @@ set -eu
 echo "Running tests for all packages in workspace with --all-features"
 cargo test --workspace --all-features --lib
 
+echo "Running public metric construction and producer integration tests"
+cargo test -p opentelemetry_sdk --all-features --test metric_data --test metric_producer
+
 echo "Running OTLP JSON serialization tests"
 cargo test -p opentelemetry-proto --all-features --test json_serde
 

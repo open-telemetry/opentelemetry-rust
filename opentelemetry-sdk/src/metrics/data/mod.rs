@@ -1,4 +1,10 @@
 //! Types for delivery of pre-aggregated metric time series data.
+//!
+//! External sources can construct these types for a
+//! [`MetricProducer`](crate::metrics::MetricProducer) or to export directly.
+//! Constructors preserve the supplied data without aggregation or validation.
+//! Callers are responsible for valid timestamps, unique attribute keys, and
+//! consistent histogram bounds, bucket counts, and totals.
 
 use std::{borrow::Cow, time::SystemTime};
 
@@ -27,6 +33,14 @@ impl Default for ResourceMetrics {
 }
 
 impl ResourceMetrics {
+    /// Returns a builder with an empty resource and no scope metrics.
+    pub fn builder() -> ResourceMetricsBuilder {
+        ResourceMetricsBuilder {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        }
+    }
+
     /// Returns a reference to the [Resource] in [ResourceMetrics].
     pub fn resource(&self) -> &Resource {
         &self.resource
@@ -35,6 +49,35 @@ impl ResourceMetrics {
     /// Returns an iterator over the [ScopeMetrics] in [ResourceMetrics].
     pub fn scope_metrics(&self) -> impl Iterator<Item = &ScopeMetrics> {
         self.scope_metrics.iter()
+    }
+}
+
+/// Builder for [ResourceMetrics].
+#[derive(Debug)]
+pub struct ResourceMetricsBuilder {
+    resource: Resource,
+    scope_metrics: Vec<ScopeMetrics>,
+}
+
+impl ResourceMetricsBuilder {
+    /// Sets the resource associated with all the metrics.
+    pub fn with_resource(mut self, resource: Resource) -> Self {
+        self.resource = resource;
+        self
+    }
+
+    /// Sets the scope metrics, replacing any previously supplied collection.
+    pub fn with_scope_metrics(mut self, scope_metrics: Vec<ScopeMetrics>) -> Self {
+        self.scope_metrics = scope_metrics;
+        self
+    }
+
+    /// Creates the resource metrics.
+    pub fn build(self) -> ResourceMetrics {
+        ResourceMetrics {
+            resource: self.resource,
+            scope_metrics: self.scope_metrics,
+        }
     }
 }
 
@@ -48,6 +91,14 @@ pub struct ScopeMetrics {
 }
 
 impl ScopeMetrics {
+    /// Returns a builder with the default scope and no metrics.
+    pub fn builder() -> ScopeMetricsBuilder {
+        ScopeMetricsBuilder {
+            scope: InstrumentationScope::default(),
+            metrics: Vec::new(),
+        }
+    }
+
     /// Returns a reference to the [InstrumentationScope] in [ScopeMetrics].
     pub fn scope(&self) -> &InstrumentationScope {
         &self.scope
@@ -56,6 +107,35 @@ impl ScopeMetrics {
     /// Returns an iterator over the [Metric]s in [ScopeMetrics].
     pub fn metrics(&self) -> impl Iterator<Item = &Metric> {
         self.metrics.iter()
+    }
+}
+
+/// Builder for [ScopeMetrics].
+#[derive(Debug)]
+pub struct ScopeMetricsBuilder {
+    scope: InstrumentationScope,
+    metrics: Vec<Metric>,
+}
+
+impl ScopeMetricsBuilder {
+    /// Sets the instrumentation scope.
+    pub fn with_scope(mut self, scope: InstrumentationScope) -> Self {
+        self.scope = scope;
+        self
+    }
+
+    /// Sets the metrics, replacing any previously supplied collection.
+    pub fn with_metrics(mut self, metrics: Vec<Metric>) -> Self {
+        self.metrics = metrics;
+        self
+    }
+
+    /// Creates the scope metrics.
+    pub fn build(self) -> ScopeMetrics {
+        ScopeMetrics {
+            scope: self.scope,
+            metrics: self.metrics,
+        }
     }
 }
 
@@ -75,6 +155,16 @@ pub struct Metric {
 }
 
 impl Metric {
+    /// Returns a builder with the given name and data, and empty description and unit.
+    pub fn builder(name: impl Into<Cow<'static, str>>, data: AggregatedMetrics) -> MetricBuilder {
+        MetricBuilder {
+            name: name.into(),
+            description: Cow::Borrowed(""),
+            unit: Cow::Borrowed(""),
+            data,
+        }
+    }
+
     /// Returns the name of the instrument that created this data.
     pub fn name(&self) -> &str {
         &self.name
@@ -93,6 +183,39 @@ impl Metric {
     /// Returns the aggregated data from the instrument.
     pub fn data(&self) -> &AggregatedMetrics {
         &self.data
+    }
+}
+
+/// Builder for [Metric].
+#[derive(Debug)]
+pub struct MetricBuilder {
+    name: Cow<'static, str>,
+    description: Cow<'static, str>,
+    unit: Cow<'static, str>,
+    data: AggregatedMetrics,
+}
+
+impl MetricBuilder {
+    /// Sets the metric description.
+    pub fn with_description(mut self, description: impl Into<Cow<'static, str>>) -> Self {
+        self.description = description.into();
+        self
+    }
+
+    /// Sets the metric unit.
+    pub fn with_unit(mut self, unit: impl Into<Cow<'static, str>>) -> Self {
+        self.unit = unit.into();
+        self
+    }
+
+    /// Creates the metric.
+    pub fn build(self) -> Metric {
+        Metric {
+            name: self.name,
+            description: self.description,
+            unit: self.unit,
+            data: self.data,
+        }
     }
 }
 
@@ -175,6 +298,15 @@ pub struct GaugeDataPoint<T> {
 }
 
 impl<T> GaugeDataPoint<T> {
+    /// Returns a builder with the given value, no attributes, and no exemplars.
+    pub fn builder(value: T) -> GaugeDataPointBuilder<T> {
+        GaugeDataPointBuilder {
+            attributes: Vec::new(),
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [GaugeDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -183,6 +315,37 @@ impl<T> GaugeDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [GaugeDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+/// Builder for [GaugeDataPoint].
+#[derive(Debug)]
+pub struct GaugeDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    value: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> GaugeDataPointBuilder<T> {
+    /// Sets the attributes, replacing any previously supplied collection.
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the exemplars, replacing any previously supplied collection.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Creates the data point.
+    pub fn build(self) -> GaugeDataPoint<T> {
+        GaugeDataPoint {
+            attributes: self.attributes,
+            value: self.value,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -205,6 +368,15 @@ pub struct Gauge<T> {
 }
 
 impl<T> Gauge<T> {
+    /// Returns a builder with the given data points and timestamp, and no start time.
+    pub fn builder(data_points: Vec<GaugeDataPoint<T>>, time: SystemTime) -> GaugeBuilder<T> {
+        GaugeBuilder {
+            data_points,
+            start_time: None,
+            time,
+        }
+    }
+
     /// Returns an iterator over the [GaugeDataPoint]s in [Gauge].
     pub fn data_points(&self) -> impl Iterator<Item = &GaugeDataPoint<T>> {
         self.data_points.iter()
@@ -221,6 +393,31 @@ impl<T> Gauge<T> {
     }
 }
 
+/// Builder for [Gauge].
+#[derive(Debug)]
+pub struct GaugeBuilder<T> {
+    data_points: Vec<GaugeDataPoint<T>>,
+    start_time: Option<SystemTime>,
+    time: SystemTime,
+}
+
+impl<T> GaugeBuilder<T> {
+    /// Sets the time when the time series started.
+    pub fn with_start_time(mut self, start_time: SystemTime) -> Self {
+        self.start_time = Some(start_time);
+        self
+    }
+
+    /// Creates the gauge.
+    pub fn build(self) -> Gauge<T> {
+        Gauge {
+            data_points: self.data_points,
+            start_time: self.start_time,
+            time: self.time,
+        }
+    }
+}
+
 /// DataPoint is a single data point in a time series.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SumDataPoint<T> {
@@ -234,6 +431,15 @@ pub struct SumDataPoint<T> {
 }
 
 impl<T> SumDataPoint<T> {
+    /// Returns a builder with the given value, no attributes, and no exemplars.
+    pub fn builder(value: T) -> SumDataPointBuilder<T> {
+        SumDataPointBuilder {
+            attributes: Vec::new(),
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [SumDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -242,6 +448,37 @@ impl<T> SumDataPoint<T> {
     /// Returns an iterator over the [Exemplar]s in [SumDataPoint].
     pub fn exemplars(&self) -> impl Iterator<Item = &Exemplar<T>> {
         self.exemplars.iter()
+    }
+}
+
+/// Builder for [SumDataPoint].
+#[derive(Debug)]
+pub struct SumDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    value: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> SumDataPointBuilder<T> {
+    /// Sets the attributes, replacing any previously supplied collection.
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the exemplars, replacing any previously supplied collection.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Creates the data point.
+    pub fn build(self) -> SumDataPoint<T> {
+        SumDataPoint {
+            attributes: self.attributes,
+            value: self.value,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -269,6 +506,26 @@ pub struct Sum<T> {
 }
 
 impl<T> Sum<T> {
+    /// Creates a sum from pre-aggregated data points.
+    ///
+    /// `start_time` and `time` describe the aggregation interval. The caller
+    /// supplies the temporality and whether the sum is monotonic.
+    pub fn new(
+        data_points: Vec<SumDataPoint<T>>,
+        temporality: Temporality,
+        is_monotonic: bool,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+            is_monotonic,
+        }
+    }
+
     /// Returns an iterator over the [SumDataPoint]s in [Sum].
     pub fn data_points(&self) -> impl Iterator<Item = &SumDataPoint<T>> {
         self.data_points.iter()
@@ -311,6 +568,21 @@ pub struct Histogram<T> {
 }
 
 impl<T> Histogram<T> {
+    /// Creates a histogram from pre-aggregated data points for the given interval.
+    pub fn new(
+        data_points: Vec<HistogramDataPoint<T>>,
+        temporality: Temporality,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+
     /// Returns an iterator over the [HistogramDataPoint]s in [Histogram].
     pub fn data_points(&self) -> impl Iterator<Item = &HistogramDataPoint<T>> {
         self.data_points.iter()
@@ -359,6 +631,31 @@ pub struct HistogramDataPoint<T> {
 }
 
 impl<T> HistogramDataPoint<T> {
+    /// Returns a builder with the given histogram distribution.
+    ///
+    /// Attributes and exemplars default to empty; minimum and maximum default
+    /// to absent. When a bucket distribution is supplied, bounds must be
+    /// strictly increasing and bucket counts must contain one more entry than
+    /// bounds, with their total equal to `count`.
+    /// The supplied distribution is not validated.
+    pub fn builder(
+        count: u64,
+        sum: T,
+        bounds: Vec<f64>,
+        bucket_counts: Vec<u64>,
+    ) -> HistogramDataPointBuilder<T> {
+        HistogramDataPointBuilder {
+            attributes: Vec::new(),
+            count,
+            bounds,
+            bucket_counts,
+            min: None,
+            max: None,
+            sum,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [HistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -382,6 +679,59 @@ impl<T> HistogramDataPoint<T> {
     /// Returns the number of updates this histogram has been calculated with.
     pub fn count(&self) -> u64 {
         self.count
+    }
+}
+
+/// Builder for [HistogramDataPoint].
+#[derive(Debug)]
+pub struct HistogramDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    count: u64,
+    bounds: Vec<f64>,
+    bucket_counts: Vec<u64>,
+    min: Option<T>,
+    max: Option<T>,
+    sum: T,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> HistogramDataPointBuilder<T> {
+    /// Sets the attributes, replacing any previously supplied collection.
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the minimum value.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars, replacing any previously supplied collection.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Creates the data point without validating the supplied distribution.
+    pub fn build(self) -> HistogramDataPoint<T> {
+        HistogramDataPoint {
+            attributes: self.attributes,
+            count: self.count,
+            bounds: self.bounds,
+            bucket_counts: self.bucket_counts,
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            exemplars: self.exemplars,
+        }
     }
 }
 
@@ -417,6 +767,21 @@ pub struct ExponentialHistogram<T> {
 }
 
 impl<T> ExponentialHistogram<T> {
+    /// Creates an exponential histogram from pre-aggregated data points for the given interval.
+    pub fn new(
+        data_points: Vec<ExponentialHistogramDataPoint<T>>,
+        temporality: Temporality,
+        start_time: SystemTime,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+
     /// Returns an iterator over the [ExponentialHistogramDataPoint]s in [ExponentialHistogram].
     pub fn data_points(&self) -> impl Iterator<Item = &ExponentialHistogramDataPoint<T>> {
         self.data_points.iter()
@@ -485,6 +850,36 @@ pub struct ExponentialHistogramDataPoint<T> {
 }
 
 impl<T> ExponentialHistogramDataPoint<T> {
+    /// Returns a builder with the given exponential histogram distribution.
+    ///
+    /// Attributes and exemplars default to empty; minimum and maximum default
+    /// to absent, and the zero threshold defaults to zero. The caller must
+    /// ensure that bucket counts plus `zero_count` sum to `count`, and that
+    /// bucket indexes fit within a signed 32-bit integer at the chosen scale.
+    /// The supplied distribution is not validated.
+    pub fn builder(
+        count: usize,
+        sum: T,
+        scale: i8,
+        zero_count: u64,
+        positive_bucket: ExponentialBucket,
+        negative_bucket: ExponentialBucket,
+    ) -> ExponentialHistogramDataPointBuilder<T> {
+        ExponentialHistogramDataPointBuilder {
+            attributes: Vec::new(),
+            count,
+            min: None,
+            max: None,
+            sum,
+            scale,
+            zero_count,
+            positive_bucket,
+            negative_bucket,
+            zero_threshold: 0.0,
+            exemplars: Vec::new(),
+        }
+    }
+
     /// Returns an iterator over the attributes in [ExponentialHistogramDataPoint].
     pub fn attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.attributes.iter()
@@ -526,6 +921,71 @@ impl<T> ExponentialHistogramDataPoint<T> {
     }
 }
 
+/// Builder for [ExponentialHistogramDataPoint].
+#[derive(Debug)]
+pub struct ExponentialHistogramDataPointBuilder<T> {
+    attributes: Vec<KeyValue>,
+    count: usize,
+    min: Option<T>,
+    max: Option<T>,
+    sum: T,
+    scale: i8,
+    zero_count: u64,
+    positive_bucket: ExponentialBucket,
+    negative_bucket: ExponentialBucket,
+    zero_threshold: f64,
+    exemplars: Vec<Exemplar<T>>,
+}
+
+impl<T> ExponentialHistogramDataPointBuilder<T> {
+    /// Sets the attributes, replacing any previously supplied collection.
+    pub fn with_attributes(mut self, attributes: Vec<KeyValue>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Sets the minimum value.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the nonnegative width of the zero region.
+    pub fn with_zero_threshold(mut self, zero_threshold: f64) -> Self {
+        self.zero_threshold = zero_threshold;
+        self
+    }
+
+    /// Sets the exemplars, replacing any previously supplied collection.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+
+    /// Creates the data point without validating the supplied distribution.
+    pub fn build(self) -> ExponentialHistogramDataPoint<T> {
+        ExponentialHistogramDataPoint {
+            attributes: self.attributes,
+            count: self.count,
+            min: self.min,
+            max: self.max,
+            sum: self.sum,
+            scale: self.scale,
+            zero_count: self.zero_count,
+            positive_bucket: self.positive_bucket,
+            negative_bucket: self.negative_bucket,
+            zero_threshold: self.zero_threshold,
+            exemplars: self.exemplars,
+        }
+    }
+}
+
 impl<T: Copy> ExponentialHistogramDataPoint<T> {
     /// Returns the minimum value recorded.
     pub fn min(&self) -> Option<T> {
@@ -557,6 +1017,11 @@ pub struct ExponentialBucket {
 }
 
 impl ExponentialBucket {
+    /// Creates contiguous bucket counts beginning at the given bucket index.
+    pub fn new(offset: i32, counts: Vec<u64>) -> Self {
+        Self { offset, counts }
+    }
+
     /// Returns the bucket index of the first entry in the counts vec.
     pub fn offset(&self) -> i32 {
         self.offset
@@ -589,6 +1054,19 @@ pub struct Exemplar<T> {
 }
 
 impl<T> Exemplar<T> {
+    /// Returns a builder with the given value and timestamp.
+    ///
+    /// Filtered attributes default to empty and trace and span IDs default to zero.
+    pub fn builder(value: T, time: SystemTime) -> ExemplarBuilder<T> {
+        ExemplarBuilder {
+            filtered_attributes: Vec::new(),
+            time,
+            value,
+            span_id: [0; 8],
+            trace_id: [0; 16],
+        }
+    }
+
     /// Returns an iterator over the filtered attributes in [Exemplar].
     pub fn filtered_attributes(&self) -> impl Iterator<Item = &KeyValue> {
         self.filtered_attributes.iter()
@@ -607,6 +1085,47 @@ impl<T> Exemplar<T> {
     /// Returns the ID of the trace the active span belonged to during the measurement.
     pub fn trace_id(&self) -> &[u8; 16] {
         &self.trace_id
+    }
+}
+
+/// Builder for [Exemplar].
+#[derive(Debug)]
+pub struct ExemplarBuilder<T> {
+    filtered_attributes: Vec<KeyValue>,
+    time: SystemTime,
+    value: T,
+    span_id: [u8; 8],
+    trace_id: [u8; 16],
+}
+
+impl<T> ExemplarBuilder<T> {
+    /// Sets the filtered attributes, replacing any previously supplied collection.
+    pub fn with_filtered_attributes(mut self, filtered_attributes: Vec<KeyValue>) -> Self {
+        self.filtered_attributes = filtered_attributes;
+        self
+    }
+
+    /// Sets the ID of the span active during the measurement.
+    pub fn with_span_id(mut self, span_id: [u8; 8]) -> Self {
+        self.span_id = span_id;
+        self
+    }
+
+    /// Sets the ID of the trace active during the measurement.
+    pub fn with_trace_id(mut self, trace_id: [u8; 16]) -> Self {
+        self.trace_id = trace_id;
+        self
+    }
+
+    /// Creates the exemplar.
+    pub fn build(self) -> Exemplar<T> {
+        Exemplar {
+            filtered_attributes: self.filtered_attributes,
+            time: self.time,
+            value: self.value,
+            span_id: self.span_id,
+            trace_id: self.trace_id,
+        }
     }
 }
 

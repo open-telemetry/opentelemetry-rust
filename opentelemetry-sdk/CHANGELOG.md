@@ -2,6 +2,15 @@
 
 ## vNext
 
+- Added `MetricProducer` support to periodic and manual metric readers. External
+  producers receive the SDK `Resource` and return pre-aggregated
+  `ScopeMetrics`, which are exported alongside metrics collected by the SDK.
+  Producer failures are logged without preventing collection or export of
+  healthy SDK and producer metrics, including during shutdown.
+  ([#1670](https://github.com/open-telemetry/opentelemetry-rust/issues/1670))
+- Added public builders and constructors for all metric data types, including
+  `ResourceMetrics`, `ScopeMetrics`, metrics, data points, and exemplars, so
+  external sources can implement `MetricProducer` or export directly.
 - Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
   all 5 branches of the ParentBased sampler spec be configured independently
   (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,

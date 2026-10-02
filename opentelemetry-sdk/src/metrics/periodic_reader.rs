@@ -12,7 +12,10 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{
+        exporter::PushMetricExporter,
+        reader::{produce_external, MetricProducer, SdkProducer},
+    },
     Resource,
 };
 
@@ -33,6 +36,7 @@ pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
     exporter: E,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E> PeriodicReaderBuilder<E>
@@ -45,7 +49,11 @@ where
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
             .unwrap_or(OTEL_METRIC_EXPORT_INTERVAL_DEFAULT);
 
-        PeriodicReaderBuilder { interval, exporter }
+        PeriodicReaderBuilder {
+            interval,
+            exporter,
+            producers: Vec::new(),
+        }
     }
 
     /// Configures the intervening time between exports for a [PeriodicReader].
@@ -62,9 +70,18 @@ where
         self
     }
 
+    /// Registers an external [`MetricProducer`] with this reader.
+    ///
+    /// The producer supplies pre-aggregated metrics that are exported under
+    /// the SDK [`Resource`] alongside metrics collected from SDK instruments.
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
+        self
+    }
+
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader<E> {
-        PeriodicReader::new(self.exporter, self.interval)
+        PeriodicReader::new(self.exporter, self.interval, self.producers)
     }
 }
 
@@ -153,7 +170,11 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new(exporter: E, interval: Duration) -> Self {
+    fn new(
+        exporter: E,
+        interval: Duration,
+        external_producers: Vec<Box<dyn MetricProducer>>,
+    ) -> Self {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
         let exporter_arc = Arc::new(exporter);
@@ -162,6 +183,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                 message_sender,
                 producer: Mutex::new(None),
                 exporter: exporter_arc.clone(),
+                external_producers,
             }),
         };
         let cloned_reader = reader.clone();
@@ -361,6 +383,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    external_producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
@@ -374,11 +397,12 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
     }
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
-        let producer = self.producer.lock().expect("lock poisoned");
+        let producer = self.producer.lock().expect("lock poisoned").clone();
         if let Some(p) = producer.as_ref() {
             p.upgrade()
                 .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
+            produce_external(&self.external_producers, rm);
             Ok(())
         } else {
             otel_warn!(
@@ -524,12 +548,14 @@ mod tests {
     use crate::{
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
-            InMemoryMetricExporter, SdkMeterProvider, Temporality,
+            data::{ResourceMetrics, ScopeMetrics},
+            exporter::PushMetricExporter,
+            reader::MetricReader,
+            InMemoryMetricExporter, MetricProducer, SdkMeterProvider, Temporality,
         },
         Resource,
     };
-    use opentelemetry::metrics::MeterProvider;
+    use opentelemetry::{metrics::MeterProvider, InstrumentationScope, Key, KeyValue};
     use std::{
         sync::{
             atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -591,6 +617,22 @@ mod tests {
         is_shutdown: Arc<AtomicBool>,
     }
 
+    #[derive(Debug)]
+    struct TestMetricProducer;
+
+    impl MetricProducer for TestMetricProducer {
+        fn produce(&self, resource: &Resource) -> Result<Vec<ScopeMetrics>, OTelSdkError> {
+            assert_eq!(
+                resource.get(&Key::new("service.name")),
+                Some("test-service".into())
+            );
+            Ok(vec![ScopeMetrics {
+                scope: InstrumentationScope::builder("external").build(),
+                metrics: Vec::new(),
+            }])
+        }
+    }
+
     impl PushMetricExporter for MockMetricExporter {
         async fn export(&self, _metrics: &ResourceMetrics) -> OTelSdkResult {
             Ok(())
@@ -644,6 +686,46 @@ mod tests {
 
         // Assert
         assert!(i.load(Ordering::Relaxed) >= 5);
+    }
+
+    #[test]
+    fn collects_metrics_from_external_producer() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_producer(TestMetricProducer)
+            .build();
+        let meter_provider = SdkMeterProvider::builder()
+            .with_resource(
+                Resource::builder_empty()
+                    .with_attribute(KeyValue::new("service.name", "test-service"))
+                    .build(),
+            )
+            .with_reader(reader)
+            .build();
+
+        meter_provider.force_flush().unwrap();
+
+        let exported = exporter.get_finished_metrics().unwrap();
+        assert_eq!(exported.len(), 1);
+        assert_eq!(exported[0].scope_metrics.len(), 1);
+        assert_eq!(exported[0].scope_metrics[0].scope.name(), "external");
+    }
+
+    #[test]
+    fn collection_failure_does_not_export_stale_metrics() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_interval(Duration::from_secs(3600))
+            .with_producer(TestMetricProducer)
+            .build();
+        let mut rm = ResourceMetrics::builder()
+            .with_scope_metrics(vec![ScopeMetrics::default()])
+            .build();
+
+        assert!(reader.collect_and_export(&mut rm).is_err());
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
+        assert!(reader.shutdown().is_err());
+        assert!(exporter.get_finished_metrics().unwrap().is_empty());
     }
 
     #[test]
