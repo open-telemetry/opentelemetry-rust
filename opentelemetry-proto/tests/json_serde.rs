@@ -1,13 +1,21 @@
 #[cfg(all(feature = "with-serde", feature = "gen-tonic-messages"))]
 mod json_serde {
     #[cfg(feature = "logs")]
-    use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+    use opentelemetry_proto::tonic::collector::logs::v1::{
+        ExportLogsServiceRequest, ExportLogsServiceResponse,
+    };
     #[cfg(feature = "metrics")]
-    use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
+    use opentelemetry_proto::tonic::collector::metrics::v1::{
+        ExportMetricsServiceRequest, ExportMetricsServiceResponse,
+    };
     #[cfg(feature = "profiles")]
-    use opentelemetry_proto::tonic::collector::profiles::v1development::ExportProfilesServiceRequest;
+    use opentelemetry_proto::tonic::collector::profiles::v1development::{
+        ExportProfilesServiceRequest, ExportProfilesServiceResponse,
+    };
     #[cfg(feature = "trace")]
-    use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+    use opentelemetry_proto::tonic::collector::trace::v1::{
+        ExportTraceServiceRequest, ExportTraceServiceResponse,
+    };
     use opentelemetry_proto::tonic::common::v1::any_value::Value;
     use opentelemetry_proto::tonic::common::v1::{
         AnyValue, ArrayValue, InstrumentationScope, KeyValue, KeyValueList,
@@ -1340,6 +1348,194 @@ mod json_serde {
                 let expected: ExportMetricsServiceRequest = value();
                 assert_eq!(actual, expected);
             }
+        }
+    }
+
+    #[cfg(feature = "logs")]
+    mod export_logs_service_response {
+        use super::*;
+
+        #[test]
+        fn deserialize_empty_partial_success() {
+            let response: ExportLogsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_log_records, 0);
+            assert!(partial_success.error_message.is_empty());
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_rejected_log_records() {
+            let response: ExportLogsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"errorMessage":"backend warning"}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_log_records, 0);
+            assert_eq!(partial_success.error_message, "backend warning");
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_error_message() {
+            let response: ExportLogsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"rejectedLogRecords":1}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_log_records, 1);
+            assert!(partial_success.error_message.is_empty());
+        }
+    }
+
+    #[cfg(feature = "trace")]
+    mod export_trace_service_response {
+        use super::*;
+
+        #[test]
+        fn deserialize_empty_partial_success() {
+            let response: ExportTraceServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_spans, 0);
+            assert!(partial_success.error_message.is_empty());
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_rejected_spans() {
+            let response: ExportTraceServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"errorMessage":"backend warning"}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_spans, 0);
+            assert_eq!(partial_success.error_message, "backend warning");
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_error_message() {
+            let response: ExportTraceServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"rejectedSpans":1}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_spans, 1);
+            assert!(partial_success.error_message.is_empty());
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod export_metrics_service_response {
+        use super::*;
+
+        #[test]
+        fn deserialize_empty_partial_success() {
+            let response: ExportMetricsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_data_points, 0);
+            assert!(partial_success.error_message.is_empty());
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_rejected_data_points() {
+            let response: ExportMetricsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"errorMessage":"backend warning"}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_data_points, 0);
+            assert_eq!(partial_success.error_message, "backend warning");
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_error_message() {
+            let response: ExportMetricsServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"rejectedDataPoints":1}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_data_points, 1);
+            assert!(partial_success.error_message.is_empty());
+        }
+    }
+
+    #[cfg(feature = "profiles")]
+    mod export_profiles_service_response {
+        use super::*;
+
+        #[test]
+        fn deserialize_empty_partial_success() {
+            let response: ExportProfilesServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_profiles, 0);
+            assert!(partial_success.error_message.is_empty());
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_rejected_profiles() {
+            let response: ExportProfilesServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"errorMessage":"backend warning"}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_profiles, 0);
+            assert_eq!(partial_success.error_message, "backend warning");
+        }
+
+        #[test]
+        fn deserialize_partial_success_with_omitted_error_message() {
+            let response: ExportProfilesServiceResponse =
+                serde_json::from_str(r#"{"partialSuccess":{"rejectedProfiles":1}}"#)
+                    .expect("deserialization must succeed");
+
+            let partial_success = response
+                .partial_success
+                .expect("partial success must be present");
+
+            assert_eq!(partial_success.rejected_profiles, 1);
+            assert!(partial_success.error_message.is_empty());
         }
     }
 

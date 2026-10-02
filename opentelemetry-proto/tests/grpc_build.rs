@@ -51,6 +51,10 @@ fn build_tonic() {
         "collector.logs.v1.ExportLogsServiceRequest",
         "collector.metrics.v1.ExportMetricsServiceRequest",
         "collector.profiles.v1development.ExportProfilesServiceRequest",
+        "collector.trace.v1.ExportTracePartialSuccess",
+        "collector.logs.v1.ExportLogsPartialSuccess",
+        "collector.metrics.v1.ExportMetricsPartialSuccess",
+        "collector.profiles.v1development.ExportProfilesPartialSuccess",
         "trace.v1.Span",
         "trace.v1.Span.Link",
         "trace.v1.ScopeSpans",
@@ -135,14 +139,14 @@ fn build_tonic() {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
-    for path in ["profiles.v1development.Profile.time_nanos"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
-    }
-    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
-    }
+    builder = builder.field_attribute(
+        "profiles.v1development.Profile.time_nanos",
+        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]",
+    );
+    builder = builder.field_attribute(
+        "profiles.v1development.Sample.timestamps_unix_nano",
+        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
+    );
 
     // special serializer and deserializer for metrics count
     // OTLP/JSON format may use string for count
