@@ -368,8 +368,19 @@ impl Context {
             match stack.push(self) {
                 Ok(id) => id,
                 Err(rejected) => {
-                    // Release the borrow before running context destructors.
+                    // Release the borrow before logging or running context destructors.
                     drop(stack);
+
+                    otel_warn!(
+                            name: "Context.AttachFailed",
+                            message = format!(
+                                "Too many contexts. Max limit is {}. \
+                                 Context::current() remains unchanged as this attach failed. \
+                                 Dropping the returned ContextGuard will have no impact on Context::current().",
+                                ContextStack::MAX_POS
+                            )
+                        );
+
                     drop(rejected);
                     ContextStack::MAX_POS
                 }
@@ -646,14 +657,6 @@ impl ContextStack {
             self.stack.push(Some(current_cx));
             Ok(next_id as u16)
         } else {
-            // This is an overflow, log it and ignore it.
-            otel_warn!(
-                name: "Context.AttachFailed",
-                message = format!("Too many contexts. Max limit is {}. \
-                  Context::current() remains unchanged as this attach failed. \
-                  Dropping the returned ContextGuard will have no impact on Context::current().",
-                  ContextStack::MAX_POS)
-            );
             Err(cx)
         }
     }
@@ -897,6 +900,58 @@ mod tests {
         fn drop(&mut self) {
             let _ = Context::current();
         }
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn overflow_warning_can_access_current_context() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use tracing_subscriber::prelude::*;
+
+        struct ReadCurrentContextOnEvent {
+            observed: Arc<AtomicBool>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for ReadCurrentContextOnEvent {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if event.metadata().name() == "Context.AttachFailed" {
+                    assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+                    self.observed.store(true, Ordering::Relaxed);
+                }
+            }
+        }
+
+        let _other_dispatch = tracing::Dispatch::new(tracing_subscriber::registry());
+        let observed = Arc::new(AtomicBool::new(false));
+        let subscriber = tracing_subscriber::registry().with(ReadCurrentContextOnEvent {
+            observed: observed.clone(),
+        });
+
+        tracing::subscriber::with_default(subscriber, || {
+            let mut guards = Vec::new();
+            let cx = Context::new().with_value(ValueA(42));
+
+            for _ in 1..ContextStack::MAX_POS {
+                guards.push(cx.clone().attach());
+            }
+
+            let rejected_guard = Context::new().attach();
+
+            assert!(observed.load(Ordering::Relaxed));
+            assert_eq!(rejected_guard.cx_pos, ContextStack::MAX_POS);
+
+            drop(rejected_guard);
+
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+            while let Some(guard) = guards.pop() {
+                drop(guard);
+            }
+        });
     }
 
     #[test]

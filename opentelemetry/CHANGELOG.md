@@ -2,8 +2,8 @@
 
 ## vNext
 
-- Fix a panic when the context stack is full and a rejected context value
-  calls `Context::current()` from its `Drop` implementation.
+- Fix panics when the context stack is full and a rejected value's destructor
+  or a tracing subscriber calls `Context::current()`.
 
 ## 0.33.0
 
