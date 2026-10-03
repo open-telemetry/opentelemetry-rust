@@ -199,11 +199,11 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
                             // If response_sender is disconnected, we can't send
                             // the result back. This occurs when the thread that
                             // initiated flush gave up due to timeout.
-                            // Gracefully handle that with internal logs. The
-                            // internal errors are of Info level, as this is
-                            // useful for user to know whether the flush was
-                            // successful or not, when flush() itself merely
-                            // tells that it timed out.
+                            // Gracefully handle that with internal logs. A
+                            // failed export has already been logged at Error
+                            // level by collect_and_export, so these are Debug
+                            // level and only note that the result could not be
+                            // delivered to the caller.
 
                             if export_result.is_err() {
                                 if response_sender.send(false).is_err() {
@@ -419,7 +419,16 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 
         // Relying on futures executor to execute async call.
         // TODO: Pass timeout to exporter
-        futures_executor::block_on(self.exporter.export(rm))
+        match futures_executor::block_on(self.exporter.export(rm)) {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                otel_error!(
+                    name: "PeriodicReader.ExportError",
+                    error = format!("{}", err)
+                );
+                Err(err)
+            }
+        }
     }
 
     fn force_flush(&self) -> OTelSdkResult {
