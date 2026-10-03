@@ -78,6 +78,7 @@ pub use meter_provider::*;
 pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
+pub use reader::MetricProducer;
 
 pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
 
