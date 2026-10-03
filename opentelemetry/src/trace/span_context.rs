@@ -210,6 +210,12 @@ impl FromStr for TraceState {
         let mut key_value_pairs: Vec<(String, String)> = Vec::new();
 
         for list_member in s.split_terminator(',').take(MAX_LIST_MEMBERS) {
+            // W3C OWS around list members consists of spaces and horizontal tabs.
+            let list_member = list_member.trim_matches([' ', '\t']);
+            if list_member.is_empty() {
+                continue;
+            }
+
             match list_member.find('=') {
                 None => return Err(TraceStateError::List(list_member.to_string())),
                 Some(separator_index) => {
@@ -536,6 +542,38 @@ mod tests {
             .collect::<Vec<_>>()
             .join(",");
         assert_eq!(trace_state.header(), expected_header);
+    }
+
+    #[test]
+    fn test_tracestate_from_str_allows_optional_whitespace_around_members() {
+        for header in [
+            "rojo=1, congo=2",
+            " rojo=1,\tcongo=2 \t",
+            "rojo=1 \t, congo=2",
+        ] {
+            let trace_state = TraceState::from_str(header).unwrap();
+
+            assert_eq!(trace_state.header(), "rojo=1,congo=2", "{header:?}");
+        }
+    }
+
+    #[test]
+    fn test_tracestate_from_str_preserves_leading_spaces_in_values() {
+        let trace_state = TraceState::from_str("rojo= 1 , congo=  2\t").unwrap();
+
+        assert_eq!(trace_state.get("rojo"), Some(" 1"));
+        assert_eq!(trace_state.get("congo"), Some("  2"));
+    }
+
+    #[test]
+    fn test_tracestate_from_str_ignores_empty_members() {
+        let trace_state = TraceState::from_str("rojo=1, ,\t,congo=2").unwrap();
+
+        assert_eq!(trace_state.get("rojo"), Some("1"));
+        assert_eq!(trace_state.get("congo"), Some("2"));
+        assert_eq!(trace_state.into_iter().count(), 2);
+
+        assert_eq!(TraceState::from_str(" \t ").unwrap(), TraceState::NONE);
     }
     #[test]
     fn test_tracestate_from_str_ignores_invalid_members_beyond_the_limit() {
