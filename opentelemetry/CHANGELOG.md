@@ -2,8 +2,8 @@
 
 ## vNext
 
-- Expand tracing documentation on async context propagation, child spans,
-  spawned tasks, and span lifetimes.
+- Expand tracing documentation on async context propagation and child spans
+  ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
 
 ## 0.33.0
 

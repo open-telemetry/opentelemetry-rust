@@ -97,9 +97,9 @@ use std::time::SystemTime;
 ///
 /// The wrapper makes the context current for each poll and restores the
 /// previous context when that poll returns. Creating a span, making it current,
-/// and ending it are separate operations. See [Spans and contexts in async
-/// code](crate::trace#spans-and-contexts-in-async-code) for examples, including
-/// propagating a context to spawned tasks and managing span lifetimes.
+/// and ending it are separate operations. See [Async context
+/// propagation](crate::trace#async-context-propagation) for an example that
+/// creates a child span inside a future.
 ///
 /// [`FutureExt::with_context`]: crate::trace::FutureExt::with_context
 /// [`mark_span_as_active`]: crate::trace::mark_span_as_active
