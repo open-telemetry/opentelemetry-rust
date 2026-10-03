@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix panics when the context stack is full and a rejected value's destructor
+  or a tracing subscriber calls `Context::current()`.
+
 ## 0.33.0
 
 Released 2026-Sep-18
