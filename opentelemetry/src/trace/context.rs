@@ -7,7 +7,10 @@ use crate::{
 use std::{borrow::Cow, error::Error, sync::Mutex};
 
 // Re-export for compatability. This used to be contained here.
-pub use crate::context::{FutureExt, WithContext};
+#[allow(deprecated)]
+pub use crate::context::{
+    FutureContextExt, FutureExt, SinkContextExt, StreamContextExt, WithContext,
+};
 
 const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,

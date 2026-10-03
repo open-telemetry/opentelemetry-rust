@@ -26,7 +26,8 @@ use std::sync::OnceLock;
 mod future_ext;
 
 #[cfg(feature = "futures")]
-pub use future_ext::{FutureExt, WithContext};
+#[allow(deprecated)]
+pub use future_ext::{FutureContextExt, FutureExt, SinkContextExt, StreamContextExt, WithContext};
 
 #[cfg(feature = "experimental_context_observer")]
 pub use context_observer::*;
