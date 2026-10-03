@@ -2213,6 +2213,7 @@ mod json_serde {
                     1544712660000000000
                 );
                 assert_eq!(gauge.data_points[0].time_unix_nano, 1544712661000000000);
+                assert_eq!(gauge.data_points[0].value, Some(MetricValue::AsInt(42)));
             } else {
                 panic!("expected gauge data");
             }
@@ -2305,6 +2306,93 @@ mod json_serde {
                 assert_eq!(qv.value, 99.0);
             } else {
                 panic!("expected summary data");
+            }
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod as_int {
+        use super::*;
+
+        #[test]
+        fn is_written_as_a_decimal_string() {
+            for (value, expected) in [
+                (i64::MAX, "9223372036854775807"),
+                (i64::MIN, "-9223372036854775808"),
+            ] {
+                let point = NumberDataPoint {
+                    value: Some(MetricValue::AsInt(value)),
+                    ..Default::default()
+                };
+                let json = serde_json::to_value(&point).unwrap();
+                assert_eq!(json["asInt"], expected);
+            }
+        }
+
+        #[test]
+        fn is_read_from_a_string_or_a_number() {
+            for json in [r#"{"asInt":"-7"}"#, r#"{"asInt":-7}"#] {
+                let point: NumberDataPoint = serde_json::from_str(json).unwrap();
+                assert_eq!(point.value, Some(MetricValue::AsInt(-7)), "{json}");
+            }
+        }
+
+        #[test]
+        fn survives_a_request_round_trip() {
+            // `Metric.data` and `NumberDataPoint.value` are both flattened, so a quoted
+            // `asInt` that fails to decode is dropped silently instead of returning an error.
+            let json = r#"{"resourceMetrics":[{"scopeMetrics":[{"metrics":[{"name":"requests","sum":{"aggregationTemporality":2,"isMonotonic":true,"dataPoints":[{"timeUnixNano":"1","asInt":"10"}]}}]}]}]}"#;
+            let request: ExportMetricsServiceRequest = serde_json::from_str(json).unwrap();
+            let Some(Data::Sum(sum)) =
+                &request.resource_metrics[0].scope_metrics[0].metrics[0].data
+            else {
+                panic!("expected sum data");
+            };
+            assert_eq!(sum.data_points[0].value, Some(MetricValue::AsInt(10)));
+
+            let encoded = serde_json::to_string(&request).unwrap();
+            let decoded: ExportMetricsServiceRequest = serde_json::from_str(&encoded).unwrap();
+            assert_eq!(decoded, request);
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod exemplar_value {
+        use opentelemetry_proto::tonic::metrics::v1::{exemplar, Exemplar};
+
+        #[test]
+        fn is_written_on_the_exemplar() {
+            let exemplar = Exemplar {
+                value: Some(exemplar::Value::AsInt(7)),
+                ..Default::default()
+            };
+            let json = serde_json::to_value(&exemplar).unwrap();
+            assert_eq!(json["asInt"], "7");
+            assert!(json.get("value").is_none());
+
+            let exemplar = Exemplar {
+                value: Some(exemplar::Value::AsDouble(1.5)),
+                ..Default::default()
+            };
+            let json = serde_json::to_value(&exemplar).unwrap();
+            assert_eq!(json["asDouble"], 1.5);
+            assert!(json.get("value").is_none());
+        }
+
+        #[test]
+        fn is_read_from_the_exemplar() {
+            for (json, expected) in [
+                (
+                    r#"{"filteredAttributes":[],"timeUnixNano":"1","spanId":"","traceId":"","asInt":"7"}"#,
+                    exemplar::Value::AsInt(7),
+                ),
+                (
+                    r#"{"filteredAttributes":[],"timeUnixNano":"1","spanId":"","traceId":"","asDouble":1.5}"#,
+                    exemplar::Value::AsDouble(1.5),
+                ),
+            ] {
+                let exemplar: Exemplar = serde_json::from_str(json).unwrap();
+                assert_eq!(exemplar.value, Some(expected), "{json}");
             }
         }
     }
