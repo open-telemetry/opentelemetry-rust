@@ -164,6 +164,9 @@
 
 pub(crate) mod growable_array;
 
+#[cfg(any(feature = "logs", feature = "metrics", feature = "trace"))]
+pub(crate) mod env;
+
 #[cfg(feature = "logs")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
