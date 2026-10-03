@@ -1,0 +1,118 @@
+# OpenTelemetry Protocol File Exporter
+
+![OpenTelemetry — An observability framework for cloud-native software.][splash]
+
+[splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
+
+This crate contains [OpenTelemetry](https://opentelemetry.io/) exporters that write traces, metrics and logs as [OTLP JSON](https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding) lines to stdout, to a file, or to any `std::io::Write` implementation. It implements the [OpenTelemetry Protocol File Exporter](https://opentelemetry.io/docs/specs/otel/protocol/file-exporter/) specification.
+
+> [!WARNING]
+> The OTLP File Exporter specification has [Development](https://opentelemetry.io/docs/specs/otel/document-status/) status, so the configuration API of this crate may change. The output is the stable OTLP JSON encoding.
+
+## When to use it
+
+Use these exporters where sending OTLP over the network is not possible or not wanted:
+
+- Function-as-a-Service platforms, such as AWS Lambda, which capture stdout as the function's log stream.
+- Containers whose stdout is already collected by a log scraping pipeline.
+- Hosts that persist telemetry to local files for reliability.
+
+To send OTLP to a collector over HTTP or gRPC, use [`opentelemetry-otlp`](../opentelemetry-otlp) instead. For human-readable output while debugging, use [`opentelemetry-stdout`](../opentelemetry-stdout).
+
+## Output format
+
+Every export is written as one [JSON Lines](https://jsonlines.org) entry: a single line of compact, UTF-8 encoded JSON terminated by `\n`. `SpanExporter` writes one `TracesData` object per batch of spans, `MetricExporter` writes one `MetricsData` object per collection, and `LogExporter` writes one `LogsData` object per batch of log records.
+
+For example, a batch with a single span:
+
+```json
+{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"checkout"}}],"droppedAttributesCount":0,"entityRefs":[]},"scopeSpans":[{"scope":{"name":"checkout","version":"","attributes":[],"droppedAttributesCount":0},"spans":[{"traceId":"0a079c94ed47f19726c508c68784b1ca","spanId":"179fe26c0a822afa","traceState":"","parentSpanId":"","flags":257,"name":"GET /cart","kind":2,"startTimeUnixNano":"1790637708114866590","endTimeUnixNano":"1790637708114868607","attributes":[],"droppedAttributesCount":0,"events":[],"droppedEventsCount":0,"links":[],"droppedLinksCount":0,"status":{"message":"","code":0}}],"schemaUrl":""}],"schemaUrl":""}]}
+```
+
+Any OTLP JSON consumer can read these lines, for example the OpenTelemetry Collector's [OTLP JSON file receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/otlpjsonfilereceiver).
+
+## Getting started
+
+```rust
+use opentelemetry_otlp_file::{MetricExporter, SpanExporter};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Spans are written to stdout, the default output.
+    let tracer_provider = SdkTracerProvider::builder()
+        .with_batch_exporter(SpanExporter::default())
+        .build();
+
+    // Metrics are appended to a file, which is created if it does not exist.
+    let meter_provider = SdkMeterProvider::builder()
+        .with_periodic_exporter(
+            MetricExporter::builder()
+                .with_file("/var/log/otel/metrics.jsonl")
+                .build()?,
+        )
+        .build();
+
+    // ... run the instrumented application ...
+
+    tracer_provider.shutdown()?;
+    meter_provider.shutdown()?;
+    Ok(())
+}
+```
+
+Log records are exported the same way with `LogExporter`; connect the `SdkLoggerProvider` to your logging library with an appender such as [`opentelemetry-appender-tracing`](../opentelemetry-appender-tracing). The [basic example](./examples/basic.rs) exports all three signals:
+
+```sh
+# Write every signal to stdout.
+cargo run --example basic
+# Append each signal to its own file in /tmp/otel.
+cargo run --example basic -- /tmp/otel
+```
+
+## Destinations
+
+| Builder method | Destination |
+| --- | --- |
+| `with_stdout()` | The standard output of the process. This is the default. |
+| `with_file(path)` | The file at `path`, created if it does not exist and always appended to. |
+| `with_writer(writer)` | Any `std::io::Write + Send + 'static` value. |
+
+Files are opened when the exporter is built, so `build()` reports a missing directory or a permission problem. Each line is written with a single `write_all` call and flushed immediately, so it is complete as soon as the export returns and is never interleaved with other output written through Rust's `stdout`, such as `println!`. Shutting down an exporter flushes and drops its writer, which closes a file that the exporter opened.
+
+The specification requires a file to contain a single type of telemetry, so give each signal its own file. On stdout, the lines share the stream with anything else the process prints; consumers can tell them apart by their top-level key: `resourceSpans`, `resourceMetrics` or `resourceLogs`.
+
+## AWS Lambda and other short-lived environments
+
+Lambda sends a function's stdout to CloudWatch Logs, so the exported lines land in the function's log group, from where they can be forwarded, for example with a subscription filter, to anything that reads OTLP JSON.
+
+Batch processors and the periodic reader export from a background thread, and Lambda freezes the execution environment between invocations. Flush the providers before each invocation returns:
+
+```rust
+tracer_provider.force_flush()?;
+meter_provider.force_flush()?;
+logger_provider.force_flush()?;
+```
+
+Alternatively, use `with_simple_exporter` so that each span or log record is written as soon as it ends.
+
+With the `provided.al2023` runtime, every exported line becomes one CloudWatch log event, whether the function uses the Text or the JSON log format. A line longer than about 256 KiB, the CloudWatch Logs event size limit, is split across consecutive log events, and only the last part ends with a newline, so a consumer has to join the parts back together. Keep batches small to avoid this, for example with `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` for spans and `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` for log records.
+
+## Configuration
+
+The Rust SDK does not select exporters from the `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` environment variables, so these exporters are configured in code.
+
+`MetricExporter` reads `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, which accepts `cumulative` (the default), `delta` or `lowmemory`. `MetricExporterBuilder::with_temporality` takes precedence over it. `OTEL_EXPORTER_OTLP_METRICS_DEFAULT_HISTOGRAM_AGGREGATION` is not supported, because the SDK does not let exporters choose the default aggregation; use a view to select the histogram aggregation instead.
+
+## Feature flags
+
+- `trace`: the span exporter. Enabled by default.
+- `metrics`: the metric exporter. Enabled by default.
+- `logs`: the log exporter. Enabled by default.
+- `internal-logs`: report problems, such as an invalid environment variable, through the OpenTelemetry internal logging macros. Enabled by default.
+
+## Supported Rust Versions
+
+OpenTelemetry is built against the latest stable release. The minimum supported version is 1.75.0. The current OpenTelemetry version is NOT guaranteed to build on Rust versions earlier than the minimum supported version.
+
+The current stable Rust compiler and the three most recent minor versions before it will always be supported. For example, if the current stable compiler version is 1.49, the minimum supported version will not be increased past 1.46, three minor versions prior. Increasing the minimum supported compiler version is not considered a semver breaking change as long as doing so complies with this policy.
