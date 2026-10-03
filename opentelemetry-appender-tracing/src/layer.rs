@@ -477,7 +477,14 @@ where
         #[cfg_attr(not(feature = "experimental_span_attributes"), allow(unused_variables))]
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
+        #[cfg(feature = "experimental_metadata_attributes")]
+        let normalized_meta = event.normalized_metadata();
+        #[cfg(feature = "experimental_metadata_attributes")]
+        let metadata = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
+
+        #[cfg(not(feature = "experimental_metadata_attributes"))]
         let metadata = event.metadata();
+
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
         let name = metadata.name();
@@ -486,15 +493,9 @@ where
             return;
         }
 
-        #[cfg(feature = "experimental_metadata_attributes")]
-        let normalized_meta = event.normalized_metadata();
-
-        #[cfg(feature = "experimental_metadata_attributes")]
-        let meta = normalized_meta.as_ref().unwrap_or_else(|| event.metadata());
-
         let mut log_record = self.logger.create_log_record();
 
-        log_record.set_target(target);
+        log_record.set_target(target.to_string());
         log_record.set_event_name(name);
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
@@ -518,7 +519,7 @@ where
 
         let mut visitor = EventVisitor::new(&mut log_record);
         #[cfg(feature = "experimental_metadata_attributes")]
-        visitor.visit_experimental_metadata(meta);
+        visitor.visit_experimental_metadata(metadata);
         // Visit fields.
         event.record(&mut visitor);
 
@@ -1009,13 +1010,21 @@ mod tests {
         // Validate common fields
         assert_eq!(log.instrumentation.name(), "");
         assert_eq!(log.record.severity_number(), Some(Severity::Error));
-        // Target and EventName from Log crate are "log" and "log event" respectively.
         // Validate target
+        #[cfg(feature = "experimental_metadata_attributes")]
+        // Target from Log crate are extracted from the log record.
+        assert_eq!(
+            log.record.target().expect("target is expected").to_string(),
+            "opentelemetry_appender_tracing::layer::tests"
+        );
+        #[cfg(not(feature = "experimental_metadata_attributes"))]
+        // Target from Log crate is "log".
         assert_eq!(
             log.record.target().expect("target is expected").to_string(),
             "log"
         );
         // Validate event name
+        // EventName from Log crate is "log event".
         assert_eq!(
             log.record.event_name().expect("event_name is expected"),
             "log event"
