@@ -12,7 +12,7 @@ use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, Number,
+    precomputed_sum::PrecomputedSum, sum::Sum, ExemplarSampler, Number,
 };
 
 /// Receives measurements to be aggregated.
@@ -145,6 +145,19 @@ impl AttributeSetFilter {
             run(attrs);
         };
     }
+
+    /// The attributes of `attrs` this filter removes — the complement of what
+    /// [`Self::apply`] keeps. Empty, without allocating, when no filter is set.
+    #[cfg(any(
+        feature = "spec_unstable_metrics_exemplars",
+        feature = "experimental_metrics_bound_instruments"
+    ))]
+    pub(crate) fn dropped(&self, attrs: &[KeyValue]) -> Vec<KeyValue> {
+        match &self.filter {
+            Some(filter) => attrs.iter().filter(|kv| !filter(kv)).cloned().collect(),
+            None => Vec::new(),
+        }
+    }
 }
 
 /// Builds aggregate functions
@@ -159,6 +172,12 @@ pub(crate) struct AggregateBuilder<T> {
     /// Cardinality limit for the metric stream
     cardinality_limit: usize,
 
+    /// Decides which measurements are eligible to become exemplars.
+    ///
+    /// Only the explicit-bucket histogram consumes this today; the other
+    /// aggregations still emit empty exemplar lists.
+    exemplars: ExemplarSampler,
+
     _marker: marker::PhantomData<T>,
 }
 
@@ -167,11 +186,13 @@ impl<T: Number> AggregateBuilder<T> {
         temporality: Temporality,
         filter: Option<Filter>,
         cardinality_limit: usize,
+        exemplars: ExemplarSampler,
     ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
+            exemplars,
             _marker: marker::PhantomData,
         }
     }
@@ -222,6 +243,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.exemplars,
         )
         .into()
     }
@@ -261,9 +283,13 @@ mod tests {
 
     #[test]
     fn last_value_aggregation() {
-        let AggregateFns { measure, collect } =
-            AggregateBuilder::<u64>::new(Temporality::Cumulative, None, CARDINALITY_LIMIT_DEFAULT)
-                .last_value(None);
+        let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+            Temporality::Cumulative,
+            None,
+            CARDINALITY_LIMIT_DEFAULT,
+            ExemplarSampler::default(),
+        )
+        .last_value(None);
         let mut a = MetricData::Gauge(Gauge {
             data_points: vec![GaugeDataPoint {
                 attributes: vec![KeyValue::new("a", 1)],
@@ -292,9 +318,13 @@ mod tests {
     #[test]
     fn precomputed_sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .precomputed_sum(true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                ExemplarSampler::default(),
+            )
+            .precomputed_sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -339,9 +369,13 @@ mod tests {
     #[test]
     fn sum_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .sum(true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                ExemplarSampler::default(),
+            )
+            .sum(true);
             let mut a = MetricData::Sum(Sum {
                 data_points: vec![
                     SumDataPoint {
@@ -386,9 +420,13 @@ mod tests {
     #[test]
     fn explicit_bucket_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .explicit_bucket_histogram(vec![1.0], true, true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                ExemplarSampler::default(),
+            )
+            .explicit_bucket_histogram(vec![1.0], true, true);
             let mut a = MetricData::Histogram(Histogram {
                 data_points: vec![HistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
@@ -434,9 +472,13 @@ mod tests {
     #[test]
     fn exponential_histogram_aggregation() {
         for temporality in [Temporality::Delta, Temporality::Cumulative] {
-            let AggregateFns { measure, collect } =
-                AggregateBuilder::<u64>::new(temporality, None, CARDINALITY_LIMIT_DEFAULT)
-                    .exponential_bucket_histogram(4, 20, true, true);
+            let AggregateFns { measure, collect } = AggregateBuilder::<u64>::new(
+                temporality,
+                None,
+                CARDINALITY_LIMIT_DEFAULT,
+                ExemplarSampler::default(),
+            )
+            .exponential_bucket_histogram(4, 20, true, true);
             let mut a = MetricData::ExponentialHistogram(ExponentialHistogram {
                 data_points: vec![ExponentialHistogramDataPoint {
                     attributes: vec![KeyValue::new("a1", 1)],
