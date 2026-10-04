@@ -11,6 +11,7 @@ pub use crate::context::{FutureExt, WithContext};
 
 const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,
+    initially_recording: false,
     inner: None,
 };
 
@@ -22,6 +23,8 @@ pub struct SpanRef<'a>(&'a SynchronizedSpan);
 pub(crate) struct SynchronizedSpan {
     /// Immutable span context
     span_context: SpanContext,
+    /// Non-recording spans cannot start recording later.
+    initially_recording: bool,
     /// Mutable span inner that requires synchronization
     inner: Option<Mutex<global::BoxedSpan>>,
 }
@@ -36,6 +39,7 @@ impl From<SpanContext> for SynchronizedSpan {
     fn from(value: SpanContext) -> Self {
         Self {
             span_context: value,
+            initially_recording: false,
             inner: None,
         }
     }
@@ -45,6 +49,7 @@ impl<T: Span + Send + Sync + 'static> From<T> for SynchronizedSpan {
     fn from(value: T) -> Self {
         Self {
             span_context: value.span_context().clone(),
+            initially_recording: value.is_recording(),
             inner: Some(Mutex::new(global::BoxedSpan::new(value))),
         }
     }
@@ -130,6 +135,9 @@ impl SpanRef<'_> {
     /// and building of SLA/SLO latency charts while sending only a subset -
     /// sampled spans - to the backend.
     pub fn is_recording(&self) -> bool {
+        if !self.0.initially_recording {
+            return false;
+        }
         self.0
             .inner
             .as_ref()
