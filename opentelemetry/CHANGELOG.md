@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Avoid locking context spans that were non-recording when inserted when checking
+  `is_recording()`. The context still owns the span and forwards lifecycle calls.
+  ([#2800](https://github.com/open-telemetry/opentelemetry-rust/issues/2800))
+
 - Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
   ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
   ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))

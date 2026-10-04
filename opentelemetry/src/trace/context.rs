@@ -11,6 +11,7 @@ pub use crate::context::{FutureExt, WithContext};
 
 const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,
+    initially_recording: false,
     inner: None,
 };
 
@@ -22,6 +23,8 @@ pub struct SpanRef<'a>(&'a SynchronizedSpan);
 pub(crate) struct SynchronizedSpan {
     /// Immutable span context
     span_context: SpanContext,
+    /// Non-recording spans cannot start recording later.
+    initially_recording: bool,
     /// Mutable span inner that requires synchronization
     inner: Option<Mutex<global::BoxedSpan>>,
 }
@@ -36,6 +39,7 @@ impl From<SpanContext> for SynchronizedSpan {
     fn from(value: SpanContext) -> Self {
         Self {
             span_context: value,
+            initially_recording: false,
             inner: None,
         }
     }
@@ -45,6 +49,7 @@ impl<T: Span + Send + Sync + 'static> From<T> for SynchronizedSpan {
     fn from(value: T) -> Self {
         Self {
             span_context: value.span_context().clone(),
+            initially_recording: value.is_recording(),
             inner: Some(Mutex::new(global::BoxedSpan::new(value))),
         }
     }
@@ -130,6 +135,9 @@ impl SpanRef<'_> {
     /// and building of SLA/SLO latency charts while sending only a subset -
     /// sampled spans - to the backend.
     pub fn is_recording(&self) -> bool {
+        if !self.0.initially_recording {
+            return false;
+        }
         self.0
             .inner
             .as_ref()
@@ -388,4 +396,112 @@ where
     F: FnOnce(SpanRef<'_>) -> T,
 {
     Context::map_current(|cx| f(cx.span()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trace::{Span, SpanContext, SpanId, Status, TraceFlags, TraceId, TraceState};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    struct TestRecordingSpan {
+        span_context: SpanContext,
+        recording: Arc<AtomicBool>,
+        end_calls: Arc<AtomicUsize>,
+        drop_calls: Arc<AtomicUsize>,
+    }
+
+    impl Span for TestRecordingSpan {
+        fn add_event_with_timestamp<T>(
+            &mut self,
+            _name: T,
+            _timestamp: std::time::SystemTime,
+            _attributes: Vec<KeyValue>,
+        ) where
+            T: Into<Cow<'static, str>>,
+        {
+        }
+        fn span_context(&self) -> &SpanContext {
+            &self.span_context
+        }
+        fn is_recording(&self) -> bool {
+            self.recording.load(Ordering::Acquire)
+        }
+        fn set_attribute(&mut self, _attribute: KeyValue) {}
+        fn set_status(&mut self, _status: Status) {}
+        fn update_name<T>(&mut self, _new_name: T)
+        where
+            T: Into<Cow<'static, str>>,
+        {
+        }
+        fn add_link(&mut self, _span_context: SpanContext, _attributes: Vec<KeyValue>) {}
+        fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {
+            self.end_calls.fetch_add(1, Ordering::SeqCst);
+            self.recording.store(false, Ordering::Release);
+        }
+    }
+
+    impl Drop for TestRecordingSpan {
+        fn drop(&mut self) {
+            self.drop_calls.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn test_span_context() -> SpanContext {
+        SpanContext::new(
+            TraceId::from_bytes([1; 16]),
+            SpanId::from_bytes([2; 8]),
+            TraceFlags::SAMPLED,
+            false,
+            TraceState::default(),
+        )
+    }
+
+    #[test]
+    fn context_span_ended_by_another_thread() {
+        let sc = test_span_context();
+        let recording = Arc::new(AtomicBool::new(true));
+        let span = TestRecordingSpan {
+            span_context: sc,
+            recording,
+            end_calls: Default::default(),
+            drop_calls: Default::default(),
+        };
+        let cx = Context::new().with_span(span);
+        assert!(cx.span().is_recording());
+
+        let cx_clone = cx.clone();
+        let handle = std::thread::spawn(move || {
+            cx_clone.span().end();
+        });
+        handle.join().unwrap();
+
+        assert!(!cx.span().is_recording());
+    }
+
+    #[test]
+    fn non_recording_span_lives_until_last_context_is_dropped() {
+        let end_calls = Arc::new(AtomicUsize::new(0));
+        let drop_calls = Arc::new(AtomicUsize::new(0));
+        let span = TestRecordingSpan {
+            span_context: test_span_context(),
+            recording: Arc::new(AtomicBool::new(false)),
+            end_calls: Arc::clone(&end_calls),
+            drop_calls: Arc::clone(&drop_calls),
+        };
+        let cx = Context::new().with_span(span);
+        let other_cx = cx.clone();
+
+        assert_eq!(drop_calls.load(Ordering::SeqCst), 0);
+        assert!(!cx.span().is_recording());
+        cx.span().end();
+        assert_eq!(end_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(drop_calls.load(Ordering::SeqCst), 0);
+
+        drop(cx);
+        assert_eq!(drop_calls.load(Ordering::SeqCst), 0);
+        drop(other_cx);
+        assert_eq!(drop_calls.load(Ordering::SeqCst), 1);
+    }
 }

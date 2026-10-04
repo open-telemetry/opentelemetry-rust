@@ -18,7 +18,7 @@
     | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
     trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
     Context, KeyValue,
@@ -161,6 +161,62 @@ fn criterion_benchmark(c: &mut Criterion) {
             span.end();
         });
     });
+
+    let mut group = c.benchmark_group("span-is-recording");
+    let recording_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOn)
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let recording_tracer = recording_provider.tracer("is-recording-always");
+    let recording_span = recording_tracer.start("span-name");
+
+    let non_recording_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOff)
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let non_recording_tracer = non_recording_provider.tracer("is-recording-never");
+    let non_recording_span = non_recording_tracer.start("span-name");
+
+    group.bench_function(BenchmarkId::new("direct", "always-sample"), |b| {
+        b.iter(|| black_box(black_box(&recording_span).is_recording()));
+    });
+    group.bench_function(BenchmarkId::new("direct", "never-sample"), |b| {
+        b.iter(|| black_box(black_box(&non_recording_span).is_recording()));
+    });
+
+    {
+        let _guard = Context::new().attach();
+        group.bench_function(BenchmarkId::new("context", "no-active-span"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        group.bench_function(BenchmarkId::new("context", "always-sample"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = non_recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        group.bench_function(BenchmarkId::new("context", "never-sample"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        Context::map_current(|cx| cx.span().end());
+        group.bench_function(BenchmarkId::new("context", "ended"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    group.finish();
 }
 
 #[derive(Debug)]

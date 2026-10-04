@@ -765,4 +765,60 @@ mod tests {
         // return none if the provider has already been dropped
         assert!(dropped_span.exported_data().is_none());
     }
+
+    #[test]
+    fn context_recording_and_non_recording_checks() {
+        use opentelemetry::trace::TraceContextExt;
+
+        let on_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOn)
+            .build();
+        let on_tracer = on_provider.tracer("test_on");
+        let recording_span = on_tracer.start("recording");
+
+        let off_provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOff)
+            .build();
+        let off_tracer = off_provider.tracer("test_off");
+        let non_recording_span = off_tracer.start("non_recording");
+
+        let cx_empty = opentelemetry::Context::new();
+        assert!(!cx_empty.has_active_span());
+        assert!(!cx_empty.span().is_recording());
+
+        let cx_non_rec = opentelemetry::Context::new().with_span(non_recording_span);
+        assert!(cx_non_rec.has_active_span());
+        assert!(!cx_non_rec.span().is_recording());
+        cx_non_rec.span().set_attribute(KeyValue::new("a", "b"));
+        cx_non_rec.span().end();
+        assert!(!cx_non_rec.span().is_recording());
+
+        let cx_rec = opentelemetry::Context::new().with_span(recording_span);
+        assert!(cx_rec.has_active_span());
+        assert!(cx_rec.span().is_recording());
+        cx_rec.span().end();
+        assert!(!cx_rec.span().is_recording());
+    }
+
+    #[test]
+    fn context_recording_span_ended_from_another_thread() {
+        use opentelemetry::trace::TraceContextExt;
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOn)
+            .build();
+        let tracer = provider.tracer("test_thread");
+        let span = tracer.start("thread_span");
+
+        let cx = opentelemetry::Context::new().with_span(span);
+        assert!(cx.span().is_recording());
+
+        let cx_clone = cx.clone();
+        let handle = std::thread::spawn(move || {
+            cx_clone.span().end();
+        });
+        handle.join().unwrap();
+
+        assert!(!cx.span().is_recording());
+    }
 }
