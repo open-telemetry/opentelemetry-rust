@@ -17,7 +17,6 @@ ignore:
   - "opentelemetry-proto/src/proto" # auto generated files
   # examples below
   - "examples"
-  - "opentelemetry-zipkin/examples"
   - "opentelemetry-otlp/examples"
   - "opentelemetry-http/examples"
   - "opentelemetry-prometheus/examples"

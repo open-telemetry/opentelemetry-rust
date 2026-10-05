@@ -2,6 +2,12 @@
 
 ## vNext
 
+- Expand tracing documentation on async context propagation and child spans
+  ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
+- Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+
 ## 0.33.0
 
 Released 2026-Sep-18
@@ -26,6 +32,8 @@ Released 2026-Sep-18
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
 
 ## 0.32.0
 
