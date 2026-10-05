@@ -144,26 +144,45 @@
 //! });
 //! ```
 //!
-//! #### Async active spans
+//! ### Async context propagation
 //!
-//! Async spans can be propagated with [`TraceContextExt`] and [`FutureExt`].
+//! OpenTelemetry [`Context`] carries request-scoped information, including the
+//! active span. It does not propagate across async boundaries automatically.
+//! Use [`FutureExt::with_context`] to wrap a future when it should run with a
+//! particular context. Spans created inside that future will then be children
+//! of the active span.
+//!
+//! For common HTTP, database, and messaging libraries, use OpenTelemetry
+//! instrumentation when available. It can propagate context into outgoing
+//! calls as well.
+//!
+//! This example creates a request span and a child span for loading data.
 //!
 //! ```
-//! use opentelemetry::{Context, global, trace::{FutureExt, TraceContextExt, Tracer}};
+//! use opentelemetry::{
+//!     global,
+//!     trace::{FutureExt, TraceContextExt, Tracer},
+//!     Context,
+//! };
 //!
-//! async fn some_work() { }
-//! # async fn in_an_async_context() {
+//! async fn load_data() {
+//!     // Load data here.
+//! }
 //!
-//! // Get a tracer
-//! let tracer = global::tracer("my_tracer");
-//!
-//! // Start a span
-//! let span = tracer.start("my_span");
-//!
-//! // Perform some async work with this span as the currently active parent.
-//! some_work().with_context(Context::current_with_span(span)).await;
-//! # }
+//! async fn handle_request() {
+//!     let tracer = global::tracer("my-component");
+//!     async {
+//!         let child = tracer.start("load_data");
+//!         load_data()
+//!             .with_context(Context::current_with_span(child))
+//!             .await;
+//!     }
+//!     .with_context(Context::current_with_span(tracer.start("request")))
+//!     .await;
+//! }
 //! ```
+//!
+//! [`Context::current_with_span`]: TraceContextExt::current_with_span
 
 use std::borrow::Cow;
 use std::time;
