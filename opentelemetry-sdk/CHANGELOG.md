@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Avoid cloning the tracer for non-recording spans and reading the clock when
+  ending them. Recording spans release their tracer reference when they end.
+  ([#2800](https://github.com/open-telemetry/opentelemetry-rust/issues/2800))
 - Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
   all 5 branches of the ParentBased sampler spec be configured independently
   (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,

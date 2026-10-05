@@ -18,9 +18,12 @@
     | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
+    trace::{
+        mark_span_as_active, Span, SpanBuilder, SpanContext, SpanId, TraceContextExt, TraceFlags,
+        TraceId, Tracer, TracerProvider,
+    },
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -29,6 +32,7 @@ use opentelemetry_sdk::{
 };
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
+use std::hint::black_box;
 
 fn criterion_benchmark(c: &mut Criterion) {
     trace_benchmark_group(c, "span-creation-simple", |tracer| {
@@ -161,6 +165,51 @@ fn criterion_benchmark(c: &mut Criterion) {
             span.end();
         });
     });
+
+    let parent_based_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::ParentBased(Box::new(
+            sdktrace::Sampler::AlwaysOn,
+        )))
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let parent_based_tracer = parent_based_provider.tracer("parent-based");
+    let unsampled_parent_cx = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::from_bytes([1; 16]),
+        SpanId::from_bytes([1; 8]),
+        TraceFlags::default(),
+        true,
+        Default::default(),
+    ));
+
+    c.bench_function("span-creation-dropped-child-under-unsampled-parent", |b| {
+        b.iter(|| {
+            let mut span =
+                parent_based_tracer.start_with_context("span-name", &unsampled_parent_cx);
+            span.end();
+        });
+    });
+
+    let mut group = c.benchmark_group("span-is-recording");
+    for (name, sampler) in [
+        ("always-sample", sdktrace::Sampler::AlwaysOn),
+        ("never-sample", sdktrace::Sampler::AlwaysOff),
+    ] {
+        let provider = sdktrace::SdkTracerProvider::builder()
+            .with_sampler(sampler)
+            .with_simple_exporter(VoidExporter)
+            .build();
+        let tracer = provider.tracer("is-recording");
+        let span = tracer.start("span-name");
+        group.bench_function(BenchmarkId::new("direct", name), |b| {
+            b.iter(|| black_box(black_box(&span).is_recording()));
+        });
+
+        let _guard = Context::new().with_span(span).attach();
+        group.bench_function(BenchmarkId::new("context", name), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+    group.finish();
 }
 
 #[derive(Debug)]
