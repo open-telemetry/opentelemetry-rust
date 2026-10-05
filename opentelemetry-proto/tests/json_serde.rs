@@ -2376,9 +2376,7 @@ mod json_serde {
                               "timeUnixNano": "1544712660300000000",
                               "traceId": "",
                               "spanId": "",
-                              "value": {
-                                "asDouble": "NaN"
-                              }
+                              "asDouble": "NaN"
                             }
                           ],
                           "flags": 0,
@@ -2427,9 +2425,7 @@ mod json_serde {
                                 "timeUnixNano": "1544712660300000000",
                                 "traceId": "",
                                 "spanId": "",
-                                "value": {
-                                  "asDouble": "NaN"
-                                }
+                                "asDouble": "NaN"
                               }
                             ],
                             "min": "NaN",
@@ -2471,9 +2467,7 @@ mod json_serde {
                                 "timeUnixNano": "1544712660300000000",
                                 "traceId": "",
                                 "spanId": "",
-                                "value": {
-                                  "asDouble": "NaN"
-                                }
+                                "asDouble": "NaN"
                               }
                             ],
                             "flags": 0,
@@ -2515,9 +2509,7 @@ mod json_serde {
                                 "timeUnixNano": "1544712660300000000",
                                 "traceId": "",
                                 "spanId": "",
-                                "value": {
-                                  "asDouble": "NaN"
-                                }
+                                "asDouble": "NaN"
                               }
                             ],
                             "flags": 0,
