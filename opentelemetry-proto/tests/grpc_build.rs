@@ -1,3 +1,4 @@
+use prost::Message;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
@@ -209,6 +210,20 @@ fn build_tonic() {
         .out_dir(out_dir.path())
         .compile_protos(TONIC_PROTO_FILES, TONIC_INCLUDES)
         .expect("cannot compile protobuf using tonic");
+
+    // Reflection consumers don't need source_code_info (proto comments/locations).
+    // Strip it so the committed descriptor stays small (~19KB vs ~124KB) and stable across protoc versions.
+    let desc_path = out_dir.path().join(PROTO_DESCRIPTOR_FILE_NAME);
+    let raw = std::fs::read(&desc_path).expect("read descriptor set");
+    let mut set =
+        tonic_prost_build::FileDescriptorSet::decode(&raw[..]).expect("decode descriptor set");
+
+    for file in &mut set.file {
+        file.source_code_info = None;
+    }
+    let mut stripped = Vec::new();
+    prost::Message::encode(&set, &mut stripped).expect("encode descriptor set");
+    std::fs::write(&desc_path, stripped).expect("write descriptor set");
 
     let after_build = build_content_map(out_dir.path());
     ensure_files_are_same(before_build, after_build, TONIC_OUT_DIR);
