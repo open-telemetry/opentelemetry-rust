@@ -185,6 +185,7 @@ you're more than welcome to participate!
 
 * [Cijo Thomas](https://github.com/cijothomas), Microsoft
 * [Lalit Kumar Bhasin](https://github.com/lalitb), Microsoft
+* [Scott Gerring](https://github.com/scottgerring), Datadog
 * [Utkarsh Umesan Pillai](https://github.com/utpilla), Microsoft
 * [Zhongyang Wu](https://github.com/TommyCpp)
 
@@ -193,7 +194,6 @@ For more information about the maintainer role, see the [community repository](h
 ### Approvers
 
 * [Björn Antonsson](https://github.com/bantonsson), Datadog
-* [Scott Gerring](https://github.com/scottgerring), Datadog
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
