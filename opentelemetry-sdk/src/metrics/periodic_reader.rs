@@ -171,9 +171,14 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
             scope_metrics: Vec::new(),
         };
 
+        #[cfg(all(test, feature = "internal-logs"))]
+        let dispatcher = tracing::dispatcher::get_default(Clone::clone);
+
         let result_thread_creation = thread::Builder::new()
             .name("OpenTelemetry.Metrics.PeriodicReader".to_string())
             .spawn(move || {
+                #[cfg(all(test, feature = "internal-logs"))]
+                let _subscriber_guard = tracing::dispatcher::set_default(&dispatcher);
                 let _suppress_guard = Context::enter_telemetry_suppressed_scope();
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
@@ -1011,5 +1016,167 @@ mod tests {
             !exported_metrics.is_empty(),
             "Metrics should be available in exporter."
         );
+    }
+    #[cfg(feature = "internal-logs")]
+    struct TerminationEvents {
+        count: Arc<AtomicUsize>,
+        sender: mpsc::Sender<()>,
+    }
+
+    #[cfg(feature = "internal-logs")]
+    impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for TerminationEvents {
+        fn on_event(
+            &self,
+            event: &tracing::Event<'_>,
+            _ctx: tracing_subscriber::layer::Context<'_, S>,
+        ) {
+            if event.metadata().name() == "PeriodicReader.WorkerThreadTerminated"
+                && *event.metadata().level() == tracing::Level::ERROR
+            {
+                self.count.fetch_add(1, Ordering::Relaxed);
+                let _ = self.sender.send(());
+            }
+        }
+    }
+
+    #[cfg(feature = "internal-logs")]
+    fn termination_subscriber() -> (
+        impl tracing::Subscriber + Send + Sync,
+        Arc<AtomicUsize>,
+        mpsc::Receiver<()>,
+    ) {
+        use tracing_subscriber::prelude::*;
+        let count = Arc::new(AtomicUsize::new(0));
+        let (sender, receiver) = mpsc::channel();
+        let subscriber = tracing_subscriber::registry().with(TerminationEvents {
+            count: count.clone(),
+            sender,
+        });
+        (subscriber, count, receiver)
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn callback_panic_during_flush_does_not_report_termination() {
+        let (subscriber, count, _events) = termination_subscriber();
+        tracing::subscriber::with_default(subscriber, || {
+            let reader = PeriodicReader::builder(InMemoryMetricExporter::default()).build();
+            let provider = SdkMeterProvider::builder()
+                .with_reader(reader.clone())
+                .build();
+            let _counter = provider
+                .meter("test")
+                .u64_observable_counter("panicking_counter")
+                .with_callback(|_| panic!("intentional callback panic"))
+                .build();
+
+            assert!(matches!(
+                reader.force_flush(),
+                Err(OTelSdkError::InternalFailure(message)) if message == "Failed to flush"
+            ));
+            assert!(provider.force_flush().is_err());
+            assert!(reader.shutdown().is_err());
+            assert_eq!(count.load(Ordering::Relaxed), 0);
+        });
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn callback_panic_during_periodic_collection_does_not_report_termination() {
+        let (subscriber, count, _events) = termination_subscriber();
+        tracing::subscriber::with_default(subscriber, || {
+            let reader = PeriodicReader::builder(InMemoryMetricExporter::default())
+                .with_interval(Duration::from_millis(10))
+                .build();
+            let provider = SdkMeterProvider::builder()
+                .with_reader(reader.clone())
+                .build();
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let _counter = provider
+                .meter("test")
+                .u64_observable_counter("panicking_counter")
+                .with_callback(move |_| {
+                    entered_tx.send(()).unwrap();
+                    panic!("intentional callback panic");
+                })
+                .build();
+
+            entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            // The poisoned producer lock confirms the callback has unwound.
+            assert!(reader.inner.producer.lock().is_err());
+            assert_eq!(count.load(Ordering::Relaxed), 0);
+            assert!(provider.force_flush().is_err());
+            assert!(provider.shutdown().is_err());
+            assert_eq!(count.load(Ordering::Relaxed), 0);
+        });
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn callback_panic_during_shutdown_does_not_report_termination() {
+        let (subscriber, count, _events) = termination_subscriber();
+        tracing::subscriber::with_default(subscriber, || {
+            let provider = SdkMeterProvider::builder()
+                .with_reader(PeriodicReader::builder(InMemoryMetricExporter::default()).build())
+                .build();
+            let _counter = provider
+                .meter("test")
+                .u64_observable_counter("panicking_counter")
+                .with_callback(|_| panic!("intentional callback panic"))
+                .build();
+
+            assert!(provider.shutdown().is_err());
+            assert_eq!(count.load(Ordering::Relaxed), 0);
+        });
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn flush_queued_after_shutdown_does_not_report_termination() {
+        let (subscriber, count, _events) = termination_subscriber();
+        tracing::subscriber::with_default(subscriber, || {
+            let reader = PeriodicReader::builder(InMemoryMetricExporter::default()).build();
+            let provider = SdkMeterProvider::builder()
+                .with_reader(reader.clone())
+                .build();
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let release_rx = std::sync::Mutex::new(release_rx);
+            let _counter = provider
+                .meter("test")
+                .u64_observable_counter("blocking_counter")
+                .with_callback(move |_| {
+                    entered_tx.send(()).unwrap();
+                    release_rx
+                        .lock()
+                        .unwrap()
+                        .recv_timeout(Duration::from_secs(5))
+                        .unwrap();
+                })
+                .build();
+
+            let (shutdown_tx, shutdown_rx) = mpsc::channel();
+            reader
+                .inner
+                .message_sender
+                .send(super::Message::Shutdown(shutdown_tx))
+                .unwrap();
+            entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let (flush_tx, flush_rx) = mpsc::channel();
+            reader
+                .inner
+                .message_sender
+                .send(super::Message::Flush(flush_tx))
+                .unwrap();
+            release_tx.send(()).unwrap();
+            assert_eq!(shutdown_rx.recv_timeout(Duration::from_secs(5)), Ok(true));
+            assert_eq!(
+                flush_rx.recv_timeout(Duration::from_secs(5)),
+                Err(mpsc::RecvTimeoutError::Disconnected)
+            );
+            assert!(reader.force_flush().is_err());
+            assert!(reader.shutdown().is_err());
+            assert_eq!(count.load(Ordering::Relaxed), 0);
+        });
     }
 }
