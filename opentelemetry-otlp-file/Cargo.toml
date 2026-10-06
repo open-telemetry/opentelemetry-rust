@@ -9,7 +9,7 @@ categories = [
     "development-tools::debugging",
     "development-tools::profiling",
 ]
-keywords = ["opentelemetry", "otlp", "jsonl", "stdout", "exporter"]
+keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
 license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.75.0"
