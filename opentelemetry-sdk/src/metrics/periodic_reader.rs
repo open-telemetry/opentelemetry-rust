@@ -84,7 +84,9 @@ where
 /// [`PeriodicReader`] does **not** enforce a timeout for collection. If an
 /// observable callback takes too long, it may delay the next collection cycle.
 /// If a callback never returns, it **will stall** all metric collection (and exports)
-/// indefinitely.
+/// indefinitely. Furthermore, the SDK does not isolate callbacks from panics; if a
+/// callback panics, the background worker thread will terminate, stopping all subsequent
+/// periodic metric collection and export.
 ///
 /// ## Exporter Compatibility
 /// When used with the [`OTLP Exporter`](https://docs.rs/opentelemetry-otlp), the following
@@ -177,9 +179,12 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
         let result_thread_creation = thread::Builder::new()
             .name("OpenTelemetry.Metrics.PeriodicReader".to_string())
             .spawn(move || {
-                #[cfg(all(test, feature = "internal-logs"))]
-                let _subscriber_guard = tracing::dispatcher::set_default(&dispatcher);
                 let _suppress_guard = Context::enter_telemetry_suppressed_scope();
+                // Logs worker-thread panics; drops before _suppress_guard so suppression is still active.
+                let _termination_guard = WorkerTerminationGuard::new(
+                    #[cfg(all(test, feature = "internal-logs"))]
+                    &dispatcher,
+                );
                 let mut interval_start = Instant::now();
                 let mut remaining_interval = interval;
                 otel_debug!(
@@ -529,6 +534,33 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     /// [metric-reader]: https://github.com/open-telemetry/opentelemetry-specification/blob/0a78571045ca1dca48621c9648ec3c832c3c541c/specification/metrics/sdk.md#metricreader
     fn temporality(&self, kind: InstrumentKind) -> Temporality {
         kind.temporality_preference(self.inner.temporality(kind))
+    }
+}
+
+/// Reports a worker panic during unwind. In tests, keeps the scoped subscriber
+/// active until reporting finishes, then restores the previous subscriber.
+struct WorkerTerminationGuard {
+    #[cfg(all(test, feature = "internal-logs"))]
+    _subscriber_guard: tracing::dispatcher::DefaultGuard,
+}
+
+impl WorkerTerminationGuard {
+    fn new(#[cfg(all(test, feature = "internal-logs"))] dispatcher: &tracing::Dispatch) -> Self {
+        Self {
+            #[cfg(all(test, feature = "internal-logs"))]
+            _subscriber_guard: tracing::dispatcher::set_default(dispatcher),
+        }
+    }
+}
+
+impl Drop for WorkerTerminationGuard {
+    fn drop(&mut self) {
+        if thread::panicking() {
+            otel_error!(
+                name: "PeriodicReader.WorkerThreadTerminated",
+                message = "PeriodicReader worker thread is no longer running; future periodic metric collection and export will not occur. An observable metric callback panic is one possible cause."
+            );
+        }
     }
 }
 
@@ -1017,10 +1049,11 @@ mod tests {
             "Metrics should be available in exporter."
         );
     }
+
     #[cfg(feature = "internal-logs")]
     struct TerminationEvents {
         count: Arc<AtomicUsize>,
-        sender: mpsc::Sender<()>,
+        sender: mpsc::Sender<bool>,
     }
 
     #[cfg(feature = "internal-logs")]
@@ -1034,7 +1067,9 @@ mod tests {
                 && *event.metadata().level() == tracing::Level::ERROR
             {
                 self.count.fetch_add(1, Ordering::Relaxed);
-                let _ = self.sender.send(());
+                let _ = self
+                    .sender
+                    .send(opentelemetry::Context::is_current_telemetry_suppressed());
             }
         }
     }
@@ -1043,7 +1078,7 @@ mod tests {
     fn termination_subscriber() -> (
         impl tracing::Subscriber + Send + Sync,
         Arc<AtomicUsize>,
-        mpsc::Receiver<()>,
+        mpsc::Receiver<bool>,
     ) {
         use tracing_subscriber::prelude::*;
         let count = Arc::new(AtomicUsize::new(0));
@@ -1057,8 +1092,8 @@ mod tests {
 
     #[cfg(feature = "internal-logs")]
     #[test]
-    fn callback_panic_during_flush_does_not_report_termination() {
-        let (subscriber, count, _events) = termination_subscriber();
+    fn callback_panic_during_flush_reports_termination_once() {
+        let (subscriber, count, events) = termination_subscriber();
         tracing::subscriber::with_default(subscriber, || {
             let reader = PeriodicReader::builder(InMemoryMetricExporter::default()).build();
             let provider = SdkMeterProvider::builder()
@@ -1074,16 +1109,17 @@ mod tests {
                 reader.force_flush(),
                 Err(OTelSdkError::InternalFailure(message)) if message == "Failed to flush"
             ));
+            assert!(events.recv_timeout(Duration::from_secs(5)).unwrap());
             assert!(provider.force_flush().is_err());
             assert!(reader.shutdown().is_err());
-            assert_eq!(count.load(Ordering::Relaxed), 0);
+            assert_eq!(count.load(Ordering::Relaxed), 1);
         });
     }
 
     #[cfg(feature = "internal-logs")]
     #[test]
-    fn callback_panic_during_periodic_collection_does_not_report_termination() {
-        let (subscriber, count, _events) = termination_subscriber();
+    fn callback_panic_during_periodic_collection_reports_termination_once() {
+        let (subscriber, count, events) = termination_subscriber();
         tracing::subscriber::with_default(subscriber, || {
             let reader = PeriodicReader::builder(InMemoryMetricExporter::default())
                 .with_interval(Duration::from_millis(10))
@@ -1091,30 +1127,24 @@ mod tests {
             let provider = SdkMeterProvider::builder()
                 .with_reader(reader.clone())
                 .build();
-            let (entered_tx, entered_rx) = mpsc::channel();
             let _counter = provider
                 .meter("test")
                 .u64_observable_counter("panicking_counter")
-                .with_callback(move |_| {
-                    entered_tx.send(()).unwrap();
-                    panic!("intentional callback panic");
-                })
+                .with_callback(|_| panic!("intentional callback panic"))
                 .build();
 
-            entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-            // The poisoned producer lock confirms the callback has unwound.
-            assert!(reader.inner.producer.lock().is_err());
-            assert_eq!(count.load(Ordering::Relaxed), 0);
+            // Wait for the worker diagnostic without triggering flush or shutdown.
+            assert!(events.recv_timeout(Duration::from_secs(5)).unwrap());
             assert!(provider.force_flush().is_err());
             assert!(provider.shutdown().is_err());
-            assert_eq!(count.load(Ordering::Relaxed), 0);
+            assert_eq!(count.load(Ordering::Relaxed), 1);
         });
     }
 
     #[cfg(feature = "internal-logs")]
     #[test]
-    fn callback_panic_during_shutdown_does_not_report_termination() {
-        let (subscriber, count, _events) = termination_subscriber();
+    fn callback_panic_during_shutdown_reports_termination_once() {
+        let (subscriber, count, events) = termination_subscriber();
         tracing::subscriber::with_default(subscriber, || {
             let provider = SdkMeterProvider::builder()
                 .with_reader(PeriodicReader::builder(InMemoryMetricExporter::default()).build())
@@ -1126,7 +1156,8 @@ mod tests {
                 .build();
 
             assert!(provider.shutdown().is_err());
-            assert_eq!(count.load(Ordering::Relaxed), 0);
+            assert!(events.recv_timeout(Duration::from_secs(5)).unwrap());
+            assert_eq!(count.load(Ordering::Relaxed), 1);
         });
     }
 
