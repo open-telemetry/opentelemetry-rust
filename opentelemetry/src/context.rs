@@ -372,14 +372,14 @@ impl Context {
                     drop(stack);
 
                     otel_warn!(
-                            name: "Context.AttachFailed",
-                            message = format!(
-                                "Too many contexts. Max limit is {}. \
-                                 Context::current() remains unchanged as this attach failed. \
-                                 Dropping the returned ContextGuard will have no impact on Context::current().",
-                                ContextStack::MAX_POS
-                            )
-                        );
+                        name: "Context.AttachFailed",
+                        message = format!(
+                            "Too many contexts. Max limit is {}. \
+                             Context::current() remains unchanged as this attach failed. \
+                             Dropping the returned ContextGuard will have no impact on Context::current().",
+                            ContextStack::MAX_POS
+                        )
+                    );
 
                     drop(rejected);
                     ContextStack::MAX_POS
@@ -643,7 +643,7 @@ impl ContextStack {
     const INITIAL_CAPACITY: usize = 8;
 
     #[inline(always)]
-    fn push(&mut self, cx: Context) -> Result<u16, Context> {
+    fn push(&mut self, cx: Context) -> Result<u16, Box<Context>> {
         // The next id is the length of the `stack`, plus one since we have the
         // top of the [`ContextStack`] as the `current_cx`.
         let next_id = self.stack.len() + 1;
@@ -657,7 +657,7 @@ impl ContextStack {
             self.stack.push(Some(current_cx));
             Ok(next_id as u16)
         } else {
-            Err(cx)
+            Err(Box::new(cx))
         }
     }
 

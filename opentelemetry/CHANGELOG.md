@@ -4,6 +4,7 @@
 
 - Fix panics when the context stack is full and a rejected value's destructor
   or a tracing subscriber calls `Context::current()`.
+  ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
 - Expand tracing documentation on async context propagation and child spans
   ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
 - Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
