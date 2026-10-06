@@ -925,6 +925,7 @@ mod tests {
             }
         }
 
+        // Without this dispatcher, the subscriber can miss the warning when other tests run in parallel.
         let _other_dispatch = tracing::Dispatch::new(tracing_subscriber::registry());
         let observed = Arc::new(AtomicBool::new(false));
         let subscriber = tracing_subscriber::registry().with(ReadCurrentContextOnEvent {
