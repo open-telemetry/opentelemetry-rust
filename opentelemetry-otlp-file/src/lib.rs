@@ -94,10 +94,12 @@
 //! ## Processors and short-lived environments
 //!
 //! The specification recommends pairing these exporters with a batching processor, as in the
-//! example above. Batch processors and the periodic reader export from a background thread, so
-//! in environments that suspend the process between requests, such as AWS Lambda, call
-//! `force_flush` on the providers before each invocation returns. Alternatively, use
-//! `with_simple_exporter` so that each span or log record is written as soon as it ends.
+//! example above. Batch processors and the periodic reader export from background threads,
+//! which do not run while an environment such as AWS Lambda has suspended the process between
+//! requests. Call `force_flush` on the providers at the end of each request, or flush them when
+//! the environment shuts down; the [README] compares these approaches on AWS Lambda.
+//!
+//! [README]: https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp-file#aws-lambda-and-other-short-lived-environments
 //!
 //! ## Configuration
 //!

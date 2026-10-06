@@ -86,15 +86,20 @@ The specification requires a file to contain a single type of telemetry, so give
 
 Lambda sends a function's stdout to CloudWatch Logs, so the exported lines land in the function's log group, from where they can be forwarded, for example with a subscription filter, to anything that reads OTLP JSON.
 
-Batch processors and the periodic reader export from a background thread, and Lambda freezes the execution environment between invocations. Flush the providers before each invocation returns:
+Batch processors and the periodic reader export from background threads. Lambda freezes the execution environment once the handler has returned and no other event is waiting, and does not notify the function beforehand. While the environment is frozen these threads do not run, so whatever they hold is written after the next invocation thaws it, or is lost if Lambda removes the environment first. Lambda sends `SIGTERM` before removing an environment only when an extension is registered, and then allows 500 ms for the shutdown when all registered extensions are internal. Choose one of these approaches:
 
-```rust
-tracer_provider.force_flush()?;
-meter_provider.force_flush()?;
-logger_provider.force_flush()?;
-```
+- Flush the providers at the end of each invocation. Nothing is left in memory between invocations, at the cost of the time each flush adds to the response. Because the periodic reader exports every metric stream on each flush, the function also writes a metrics line on every invocation, however often it runs.
 
-Alternatively, use `with_simple_exporter` so that each span or log record is written as soon as it ends.
+  ```rust
+  tracer_provider.force_flush()?;
+  meter_provider.force_flush()?;
+  logger_provider.force_flush()?;
+  ```
+
+- Leave the batch processors and the periodic reader to export on their own schedule, and flush when the environment shuts down, for example from the hook passed to [`lambda_runtime::spawn_graceful_shutdown_handler`](https://docs.rs/lambda_runtime/latest/lambda_runtime/fn.spawn_graceful_shutdown_handler.html), which registers an extension so that the function receives `SIGTERM`. This writes the fewest lines under steady traffic, but telemetry can wait in memory until the next invocation, and is lost if the environment is reset after a timeout or crash.
+- Flush from an [internal extension](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-extensions-api.html) registered for `INVOKE` events once the handler has returned. Lambda sends the response without waiting for extensions, so the flush does not delay it, although its duration is still billed.
+
+`with_simple_exporter` writes each span or log record as soon as it ends, so nothing waits in memory, but every record becomes its own line that repeats the resource, which increases the number of CloudWatch log events and the bytes ingested.
 
 With the `provided.al2023` runtime, every exported line becomes one CloudWatch log event, whether the function uses the Text or the JSON log format. A line longer than about 256 KiB, the CloudWatch Logs event size limit, is split across consecutive log events, and only the last part ends with a newline, so a consumer has to join the parts back together. Keep batches small to avoid this, for example with `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` for spans and `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` for log records.
 
