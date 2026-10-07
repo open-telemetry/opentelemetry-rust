@@ -5,6 +5,29 @@
 - **Added** experimental `EnvVarExtractor` and `EnvVarInjector` helpers for
   propagating OpenTelemetry context through environment variables. This API is
   gated behind the `otel_unstable` feature flag.
+- Expand tracing documentation on async context propagation and child spans
+  ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
+- Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
+  specification allows. `from_str`, `from_key_value` and `insert` now keep at most
+  32, dropping members from the end of the list as the specification prescribes, so
+  neither a parsed nor a locally built `tracestate` can exceed the limit.
+- **Added** experimental support for a global context event observer. A
+  `ContextObserver` can be registered via `GlobalContextObserver::set` to be
+  notified of context transitions through the `on_context_enter` and
+  `on_context_exit` callbacks. This feature is primarily intended to publish a
+  different view of the current context (the `ObserverContextView`) through
+  alternative channels that let external readers (e.g. an eBPF profiler) track
+  the current context. See the associated
+  [OTEP](https://github.com/open-telemetry/opentelemetry-specification/pull/4947).
+  Gated behind the `experimental_context_observer` feature flag.
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the
@@ -12,6 +35,8 @@
   the experimental bound-instrument API across all sync instruments
   (`Counter`, `UpDownCounter`, `Histogram`, `Gauge`). Gated behind the
   `experimental_metrics_bound_instruments` feature flag.
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
 
 ## 0.32.0
 

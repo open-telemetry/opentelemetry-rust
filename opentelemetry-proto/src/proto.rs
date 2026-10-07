@@ -4,7 +4,7 @@
 #[cfg(all(feature = "with-serde", feature = "gen-tonic-messages"))]
 pub(crate) mod serializers {
     use crate::tonic::common::v1::any_value::{self, Value};
-    use crate::tonic::common::v1::AnyValue;
+    use crate::tonic::common::v1::{AnyValue, ArrayValue, KeyValueList};
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -115,34 +115,41 @@ pub(crate) mod serializers {
                     let key_str = key.as_str();
                     match key_str {
                         "stringValue" => {
-                            let s = map.next_value()?;
-                            value = Some(any_value::Value::StringValue(s));
+                            if let Some(s) = map.next_value::<Option<String>>()? {
+                                value = Some(any_value::Value::StringValue(s));
+                            }
                         }
                         "boolValue" => {
-                            let b = map.next_value()?;
-                            value = Some(any_value::Value::BoolValue(b));
+                            if let Some(b) = map.next_value::<Option<bool>>()? {
+                                value = Some(any_value::Value::BoolValue(b));
+                            }
                         }
                         "intValue" => {
-                            let int_value = map.next_value::<StringOrInt>()?.get_int::<V>()?;
-                            value = Some(any_value::Value::IntValue(int_value));
+                            if let Some(int_value) = map.next_value::<Option<StringOrInt>>()? {
+                                value = Some(any_value::Value::IntValue(int_value.get_int::<V>()?));
+                            }
                         }
                         "doubleValue" => {
-                            let d = map.next_value()?;
-                            value = Some(any_value::Value::DoubleValue(d));
+                            if let Some(d) = map.next_value::<Option<f64>>()? {
+                                value = Some(any_value::Value::DoubleValue(d));
+                            }
                         }
                         "arrayValue" => {
-                            let a = map.next_value()?;
-                            value = Some(any_value::Value::ArrayValue(a));
+                            if let Some(a) = map.next_value::<Option<ArrayValue>>()? {
+                                value = Some(any_value::Value::ArrayValue(a));
+                            }
                         }
                         "kvlistValue" => {
-                            let kv = map.next_value()?;
-                            value = Some(any_value::Value::KvlistValue(kv));
+                            if let Some(kv) = map.next_value::<Option<KeyValueList>>()? {
+                                value = Some(any_value::Value::KvlistValue(kv));
+                            }
                         }
                         "bytesValue" => {
-                            let base64: String = map.next_value()?;
-                            let decoded = base64::decode(base64.as_bytes())
-                                .map_err(|e| de::Error::custom(e))?;
-                            value = Some(any_value::Value::BytesValue(decoded));
+                            if let Some(base64) = map.next_value::<Option<String>>()? {
+                                let decoded = base64::decode(base64.as_bytes())
+                                    .map_err(|e| de::Error::custom(e))?;
+                                value = Some(any_value::Value::BytesValue(decoded));
+                            }
                         }
                         _ => {
                             //skip unknown keys, and handle error later.

@@ -47,6 +47,14 @@ fn build_tonic() {
     // JSON files without those field cannot deserialize
     // we cannot add serde(default) to all generated types because enums cannot be annotated with serde(default)
     for path in [
+        "collector.trace.v1.ExportTraceServiceRequest",
+        "collector.logs.v1.ExportLogsServiceRequest",
+        "collector.metrics.v1.ExportMetricsServiceRequest",
+        "collector.profiles.v1development.ExportProfilesServiceRequest",
+        "collector.trace.v1.ExportTracePartialSuccess",
+        "collector.logs.v1.ExportLogsPartialSuccess",
+        "collector.metrics.v1.ExportMetricsPartialSuccess",
+        "collector.profiles.v1development.ExportProfilesPartialSuccess",
         "trace.v1.Span",
         "trace.v1.Span.Link",
         "trace.v1.ScopeSpans",
@@ -69,6 +77,10 @@ fn build_tonic() {
         "metrics.v1.NumberDataPoint",
         "metrics.v1.HistogramDataPoint",
         "metrics.v1.SummaryDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint",
+        "metrics.v1.ExponentialHistogramDataPoint.Buckets",
+        "metrics.v1.SummaryDataPoint.ValueAtQuantile",
+        "metrics.v1.Exemplar",
         "profiles.v1development.Function",
     ] {
         builder = builder.type_attribute(
@@ -131,14 +143,19 @@ fn build_tonic() {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_u64\"))]")
     }
-    for path in ["profiles.v1development.Profile.time_nanos"] {
+    for path in [
+        "profiles.v1development.Profile.time_nanos",
+        // `as_int` is an sfixed64 member of the value oneofs, written as a string in OTLP/JSON.
+        "metrics.v1.NumberDataPoint.value.as_int",
+        "metrics.v1.Exemplar.value.as_int",
+    ] {
         builder = builder
             .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_i64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_string_to_i64\"))]")
     }
-    for path in ["profiles.v1development.Sample.timestamps_unix_nano"] {
-        builder = builder
-            .field_attribute(path, "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]")
-    }
+    builder = builder.field_attribute(
+        "profiles.v1development.Sample.timestamps_unix_nano",
+        "#[cfg_attr(feature = \"with-serde\", serde(serialize_with = \"crate::proto::serializers::serialize_vec_u64_to_string\", deserialize_with = \"crate::proto::serializers::deserialize_vec_string_to_vec_u64\"))]",
+    );
 
     // special serializer and deserializer for metrics count
     // OTLP/JSON format may use string for count
@@ -190,7 +207,11 @@ fn build_tonic() {
         .field_attribute("common.v1.AnyValue.value", "#[cfg_attr(feature =\"with-serde\", serde(flatten, serialize_with = \"crate::proto::serializers::serialize_to_value\", deserialize_with = \"crate::proto::serializers::deserialize_from_value\"))]");
 
     // flatten
-    for path in ["metrics.v1.Metric.data", "metrics.v1.NumberDataPoint.value"] {
+    for path in [
+        "metrics.v1.Metric.data",
+        "metrics.v1.NumberDataPoint.value",
+        "metrics.v1.Exemplar.value",
+    ] {
         builder =
             builder.field_attribute(path, "#[cfg_attr(feature =\"with-serde\", serde(flatten))]");
     }

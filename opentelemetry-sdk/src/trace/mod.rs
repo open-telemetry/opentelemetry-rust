@@ -36,12 +36,15 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{Sampler, SamplingDecision, SamplingResult, ShouldSample};
+pub use sampler::{ParentBasedSampler, Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
-    SimpleSpanProcessor, SpanProcessor,
+    SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
+    OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
+    OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY,
+    OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
 };
 
 pub use tracer::SdkTracer;
