@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Preserve original field names for tracing fields containing `std::error::Error` values. 
+  Only the explicit field named `"error"` will be mapped to `"exception.message"`.
+  [3776](https://github.com/open-telemetry/opentelemetry-rust/issues/3776)
 - Add custom instrumentation scope attributes support via
   `OpenTelemetryTracingBridge::builder_with_scope_attributes(..)`.
   [3415](https://github.com/open-telemetry/opentelemetry-rust/issues/3415)

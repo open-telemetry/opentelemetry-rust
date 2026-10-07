@@ -86,13 +86,18 @@ impl<LR: LogRecord> tracing::field::Visit for EventVisitor<'_, LR> {
 
     fn record_error(
         &mut self,
-        _field: &tracing_core::Field,
+        field: &tracing_core::Field,
         value: &(dyn std::error::Error + 'static),
     ) {
-        self.log_record.add_attribute(
-            Key::new("exception.message"),
-            AnyValue::from(value.to_string()),
-        );
+        if field.name() == "error" {
+            self.log_record.add_attribute(
+                Key::new("exception.message"),
+                AnyValue::from(value.to_string()),
+            );
+        } else {
+            self.log_record
+                .add_attribute(Key::new(field.name()), AnyValue::from(value.to_string()));
+        }
         // No ability to get exception.stacktrace or exception.type from the error today.
     }
 
@@ -217,10 +222,15 @@ impl tracing::field::Visit for SpanFieldVisitor<'_> {
         value: &(dyn std::error::Error + 'static),
     ) {
         if self.allowed(field) {
-            self.attributes.push((
-                Key::new("exception.message"),
-                AnyValue::from(value.to_string()),
-            ));
+            if field.name() == "error" {
+                self.attributes.push((
+                    Key::new("exception.message"),
+                    AnyValue::from(value.to_string()),
+                ));
+            } else {
+                self.attributes
+                    .push((Key::from(field.name()), AnyValue::from(value.to_string())));
+            }
         }
     }
 
@@ -1758,5 +1768,90 @@ mod tests {
             .record
             .attributes_iter()
             .any(|(k, _)| k == &Key::new("session.id")));
+    }
+
+    #[test]
+    fn tracing_appender_error_attributes() {
+        let exporter = InMemoryLogExporter::default();
+        let logger_provider = SdkLoggerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let subscriber = create_tracing_subscriber(&logger_provider);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // A. Existing canonical error behavior
+        // E. Error and ordinary fields
+        error!(
+            request_id = "123",
+            error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error,
+        );
+
+        // B. Named error field
+        error!(previous_error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error,);
+
+        // C. Multiple error fields
+        // D. Canonical and named error together
+        error!(
+            error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error,
+            primary_error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error,
+            fallback_error = &OTelSdkError::AlreadyShutdown as &dyn std::error::Error,
+        );
+
+        assert!(logger_provider.force_flush().is_ok());
+
+        let exported_logs = exporter.get_emitted_logs().unwrap();
+        assert_eq!(exported_logs.len(), 3);
+
+        // Log 0: Canonical + ordinary
+        let log0 = &exported_logs[0];
+        assert!(attributes_contains(
+            &log0.record,
+            &Key::new("request_id"),
+            &AnyValue::String("123".into())
+        ));
+        assert!(attributes_contains(
+            &log0.record,
+            &Key::new("exception.message"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
+        ));
+        assert!(!log0
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("error")));
+
+        // Log 1: Named error field
+        let log1 = &exported_logs[1];
+        assert!(attributes_contains(
+            &log1.record,
+            &Key::new("previous_error"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
+        ));
+        assert!(!log1
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("exception.message")));
+
+        // Log 2: Multiple error fields, canonical + named
+        let log2 = &exported_logs[2];
+        assert!(attributes_contains(
+            &log2.record,
+            &Key::new("exception.message"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log2.record,
+            &Key::new("primary_error"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
+        ));
+        assert!(attributes_contains(
+            &log2.record,
+            &Key::new("fallback_error"),
+            &AnyValue::String(OTelSdkError::AlreadyShutdown.to_string().into())
+        ));
+        assert!(!log2
+            .record
+            .attributes_iter()
+            .any(|(k, _)| k == &Key::new("error")));
     }
 }
