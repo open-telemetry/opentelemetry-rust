@@ -657,6 +657,7 @@ mod metric;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 mod span;
+mod transform;
 
 #[cfg(any(
     feature = "http-proto",

@@ -2,6 +2,7 @@
 
 ## vNext
 
+- **Breaking change**: Removed the `opentelemetry_proto::transform` module and the direct dependencies on `opentelemetry` and `opentelemetry_sdk`. The transformation helpers were intended for exporter internals and now live in `opentelemetry-otlp`. Applications should use the OTLP exporters from `opentelemetry-otlp`; custom exporters should convert SDK data to the generated protobuf types directly.
 - **Bug fix**: Accept omitted default fields in OTLP/JSON exponential histogram data points and buckets, summary quantile values, and exemplars instead of silently dropping the metric data. ([#3755](https://github.com/open-telemetry/opentelemetry-rust/issues/3755))
 - **Bug fix**: Encode `asInt` in OTLP/JSON `NumberDataPoint` and `Exemplar` as a decimal string, and accept both strings and numbers when decoding. A quoted `asInt`, as written by other OTLP/JSON producers, was silently dropped on decode.
 - **Bug fix**: Write and read the `Exemplar` value (`asInt` or `asDouble`) directly on the exemplar object instead of nesting it under `"value"`, so exemplar values round-trip with other OTLP/JSON producers and consumers.
