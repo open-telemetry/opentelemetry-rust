@@ -37,6 +37,12 @@ Released 2026-Oct-08
   failures such as an unreachable collector visible without enabling DEBUG
   logging.
   ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+- `TraceContextPropagator` now follows the W3C Trace Context Level 2 `tracestate` rules.
+  Multiple `tracestate` header fields are combined into a single list, `tracestate` is
+  only parsed once `traceparent` is known to be valid, an invalid `tracestate` (see
+  the stricter `TraceState` parsing in `opentelemetry`) is discarded without
+  affecting `traceparent` and an empty `tracestate` header is no longer injected.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
 
 ## 0.33.0
 
