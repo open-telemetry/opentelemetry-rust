@@ -9,7 +9,7 @@ use std::{borrow::Cow, error::Error, sync::Mutex};
 // Re-export for compatability. This used to be contained here.
 pub use crate::context::{FutureExt, WithContext};
 
-const NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
+static NOOP_SPAN: SynchronizedSpan = SynchronizedSpan {
     span_context: SpanContext::NONE,
     inner: None,
 };

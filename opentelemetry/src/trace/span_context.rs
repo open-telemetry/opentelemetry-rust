@@ -115,7 +115,7 @@ mod tests {
                        span_id: 0000000000000000, \
                        trace_flags: TraceFlags(0), \
                        is_remote: false, \
-                       trace_state: TraceState(None) \
+                       trace_state: TraceState([]) \
                      }, \
                entries count: 1, suppress_telemetry: false \
              }"

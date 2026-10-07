@@ -10,7 +10,7 @@ use thiserror::Error;
 ///
 /// [W3C specification]: https://www.w3.org/TR/trace-context-2/#tracestate-header
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
-pub struct TraceState(Option<VecDeque<(String, String)>>);
+pub struct TraceState(VecDeque<(String, String)>);
 
 /// The maximum number of list-members a `TraceState` may hold.
 const MAX_LIST_MEMBERS: usize = 32;
@@ -20,7 +20,7 @@ const MAX_KEY_VALUE_LEN: usize = 256;
 
 impl TraceState {
     /// The default `TraceState`, as a constant
-    pub const NONE: TraceState = TraceState(None);
+    pub const NONE: TraceState = TraceState(VecDeque::new());
 
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     ///
@@ -81,11 +81,7 @@ impl TraceState {
             ordered_data.push_back((key, value));
         }
 
-        if ordered_data.is_empty() {
-            Ok(TraceState(None))
-        } else {
-            Ok(TraceState(Some(ordered_data)))
-        }
+        Ok(TraceState(ordered_data))
     }
 
     /// Creates a new `TraceState` from the given key-value collection, keeping at most the 32
@@ -123,11 +119,10 @@ impl TraceState {
 
     /// Retrieves a value for a given key from the `TraceState` if it exists.
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.as_ref().and_then(|kvs| {
-            kvs.iter()
-                .find(|(k, _)| k == key)
-                .map(|(_, value)| value.as_str())
-        })
+        self.0
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, value)| value.as_str())
     }
 
     /// Inserts the given key-value pair into the `TraceState`. If a value already exists for the
@@ -147,11 +142,8 @@ impl TraceState {
         let (key, value) = TraceState::validate(key.into(), value.into())?;
 
         let mut trace_state = self.delete_from_deque(&key);
-        let kvs = trace_state
-            .0
-            .get_or_insert_with(|| VecDeque::with_capacity(1));
-        kvs.push_front((key, value));
-        kvs.truncate(MAX_LIST_MEMBERS);
+        trace_state.0.push_front((key, value));
+        trace_state.0.truncate(MAX_LIST_MEMBERS);
 
         Ok(trace_state)
     }
@@ -175,12 +167,7 @@ impl TraceState {
     /// Delete every entry with the given key from the trace state's deque. The key MUST be valid
     fn delete_from_deque(&self, key: &str) -> TraceState {
         let mut owned = self.clone();
-        if let Some(kvs) = owned.0.as_mut() {
-            kvs.retain(|(k, _)| k != key);
-            if kvs.is_empty() {
-                owned.0 = None;
-            }
-        }
+        owned.0.retain(|(k, _)| k != key);
         owned
     }
 
@@ -193,14 +180,10 @@ impl TraceState {
     /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
     pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
         self.0
-            .as_ref()
-            .map(|kvs| {
-                kvs.iter()
-                    .map(|(key, value)| format!("{key}{entry_delimiter}{value}"))
-                    .collect::<Vec<String>>()
-                    .join(list_delimiter)
-            })
-            .unwrap_or_default()
+            .iter()
+            .map(|(key, value)| format!("{key}{entry_delimiter}{value}"))
+            .collect::<Vec<String>>()
+            .join(list_delimiter)
     }
 }
 
@@ -233,7 +216,7 @@ impl FromStr for TraceState {
 /// Iterator over TraceState key-value pairs as (&str, &str)
 #[derive(Debug)]
 pub struct TraceStateIter<'a> {
-    inner: Option<std::collections::vec_deque::Iter<'a, (String, String)>>,
+    inner: std::collections::vec_deque::Iter<'a, (String, String)>,
 }
 
 impl<'a> Iterator for TraceStateIter<'a> {
@@ -241,25 +224,18 @@ impl<'a> Iterator for TraceStateIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
-            .as_mut()?
             .next()
             .map(|(key, value)| (key.as_str(), value.as_str()))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match &self.inner {
-            Some(iter) => iter.size_hint(),
-            None => (0, Some(0)),
-        }
+        self.inner.size_hint()
     }
 }
 
 impl ExactSizeIterator for TraceStateIter<'_> {
     fn len(&self) -> usize {
-        match &self.inner {
-            Some(iter) => iter.len(),
-            None => 0,
-        }
+        self.inner.len()
     }
 }
 
@@ -269,7 +245,7 @@ impl<'a> IntoIterator for &'a TraceState {
 
     fn into_iter(self) -> Self::IntoIter {
         TraceStateIter {
-            inner: self.0.as_ref().map(|deque| deque.iter()),
+            inner: self.0.iter(),
         }
     }
 }
