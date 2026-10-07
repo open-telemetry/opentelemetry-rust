@@ -191,6 +191,144 @@ impl Sampler {
     {
         JaegerRemoteSamplerBuilder::new(runtime, http_client, default_sampler, service_name)
     }
+
+    /// Create a [`ParentBasedSampler`] with `root` as the sampler used for spans with
+    /// no parent or an invalid parent.
+    ///
+    /// `Sampler::ParentBased` only lets you configure that one root case; the other 4
+    /// branches defined by the [ParentBased sampler spec] (remote/local parent,
+    /// sampled/not-sampled) are fixed to the spec defaults. Use this instead when you
+    /// need to override any of those, via `ParentBasedSampler`'s `with_*` methods.
+    ///
+    /// [ParentBased sampler spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#parentbased
+    pub fn parent_based(root: impl Into<Box<dyn ShouldSample>>) -> ParentBasedSampler {
+        ParentBasedSampler::new(root)
+    }
+}
+
+/// A [`ShouldSample`] sampler that lets each of the 5 branches defined by the
+/// [ParentBased sampler spec] be configured independently: the root sampler (no
+/// parent or an invalid parent), and a sampler for each combination of remote/local parent and
+/// sampled/not-sampled. Any branch left unset falls back to the spec default
+/// (`Sampler::AlwaysOn` for the two `*_sampled` branches, `Sampler::AlwaysOff` for
+/// the two `*_not_sampled` branches).
+///
+/// Unlike [`Sampler::ParentBased`], which keeps only the delegate's [`SamplingDecision`]
+/// and always returns the parent's trace state with no attributes, this returns the
+/// selected delegate's [`SamplingResult`] unchanged, preserving any attributes it adds
+/// and any trace state it modifies. Worth keeping in mind when moving an existing custom
+/// root sampler over to this API.
+///
+/// Build one with [`ParentBasedSampler::new`] or [`Sampler::parent_based`].
+///
+/// [ParentBased sampler spec]: https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/sdk.md#parentbased
+#[derive(Clone, Debug)]
+pub struct ParentBasedSampler {
+    root: Box<dyn ShouldSample>,
+    remote_parent_sampled: Option<Box<dyn ShouldSample>>,
+    remote_parent_not_sampled: Option<Box<dyn ShouldSample>>,
+    local_parent_sampled: Option<Box<dyn ShouldSample>>,
+    local_parent_not_sampled: Option<Box<dyn ShouldSample>>,
+}
+
+impl ParentBasedSampler {
+    /// Create a new [`ParentBasedSampler`] with `root` as the sampler used for spans with
+    /// no parent or an invalid parent.
+    ///
+    /// The other 4 branches default to the [ParentBased sampler spec] values:
+    /// - `remote_parent_sampled`: [`Sampler::AlwaysOn`]
+    /// - `remote_parent_not_sampled`: [`Sampler::AlwaysOff`]
+    /// - `local_parent_sampled`: [`Sampler::AlwaysOn`]
+    /// - `local_parent_not_sampled`: [`Sampler::AlwaysOff`]
+    ///
+    /// Each of these branches can be configured using their respective `with_*` methods.
+    pub fn new(root: impl Into<Box<dyn ShouldSample>>) -> Self {
+        Self {
+            root: root.into(),
+            remote_parent_sampled: None,
+            remote_parent_not_sampled: None,
+            local_parent_sampled: None,
+            local_parent_not_sampled: None,
+        }
+    }
+    /// Sampler used when the parent's `SpanContext` is remote and sampled.
+    /// Defaults to `Sampler::AlwaysOn`.
+    pub fn with_remote_parent_sampled(mut self, sampler: impl Into<Box<dyn ShouldSample>>) -> Self {
+        self.remote_parent_sampled = Some(sampler.into());
+        self
+    }
+
+    /// Sampler used when the parent's `SpanContext` is remote and not sampled.
+    /// Defaults to `Sampler::AlwaysOff`.
+    pub fn with_remote_parent_not_sampled(
+        mut self,
+        sampler: impl Into<Box<dyn ShouldSample>>,
+    ) -> Self {
+        self.remote_parent_not_sampled = Some(sampler.into());
+        self
+    }
+
+    /// Sampler used when the parent's `SpanContext` is local and sampled.
+    /// Defaults to `Sampler::AlwaysOn`.
+    pub fn with_local_parent_sampled(mut self, sampler: impl Into<Box<dyn ShouldSample>>) -> Self {
+        self.local_parent_sampled = Some(sampler.into());
+        self
+    }
+
+    /// Sampler used when the parent's `SpanContext` is local and not sampled.
+    /// Defaults to `Sampler::AlwaysOff`.
+    pub fn with_local_parent_not_sampled(
+        mut self,
+        sampler: impl Into<Box<dyn ShouldSample>>,
+    ) -> Self {
+        self.local_parent_not_sampled = Some(sampler.into());
+        self
+    }
+}
+
+impl ShouldSample for ParentBasedSampler {
+    fn should_sample(
+        &self,
+        parent_context: Option<&Context>,
+        trace_id: TraceId,
+        name: &str,
+        span_kind: &SpanKind,
+        attributes: &[KeyValue],
+        links: &[Link],
+    ) -> SamplingResult {
+        let delegate = |sampler: &dyn ShouldSample| {
+            sampler.should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+        };
+
+        match parent_context.filter(|cx| cx.span().span_context().is_valid()) {
+            None => delegate(self.root.as_ref()),
+            Some(cx) => {
+                let span = cx.span();
+                let parent_span_context = span.span_context();
+                match (
+                    parent_span_context.is_remote(),
+                    parent_span_context.is_sampled(),
+                ) {
+                    (true, true) => match &self.remote_parent_sampled {
+                        Some(s) => delegate(s.as_ref()),
+                        None => delegate(&Sampler::AlwaysOn),
+                    },
+                    (true, false) => match &self.remote_parent_not_sampled {
+                        Some(s) => delegate(s.as_ref()),
+                        None => delegate(&Sampler::AlwaysOff),
+                    },
+                    (false, true) => match &self.local_parent_sampled {
+                        Some(s) => delegate(s.as_ref()),
+                        None => delegate(&Sampler::AlwaysOn),
+                    },
+                    (false, false) => match &self.local_parent_not_sampled {
+                        Some(s) => delegate(s.as_ref()),
+                        None => delegate(&Sampler::AlwaysOff),
+                    },
+                }
+            }
+        }
+    }
 }
 
 impl ShouldSample for Sampler {
@@ -208,7 +346,10 @@ impl ShouldSample for Sampler {
             Sampler::AlwaysOn => SamplingDecision::RecordAndSample,
             // Never sample the trace
             Sampler::AlwaysOff => SamplingDecision::Drop,
-            // The parent decision if sampled; otherwise the decision of delegate_sampler
+            // The parent decision if sampled; otherwise the decision of delegate_sampler.
+            // Note: checks `has_active_span()` for backwards compatibility with existing behavior
+            // (e.g. active spans with empty/dropped contexts are treated as unsampled parents).
+            // For full spec compliance where invalid parents fall back to root, use `ParentBasedSampler`.
             Sampler::ParentBased(delegate_sampler) => parent_context
                 .filter(|cx| cx.has_active_span())
                 .map_or_else(
@@ -465,5 +606,258 @@ mod tests {
 
             assert_eq!(result.decision, expected);
         }
+    }
+
+    /// Delegate that tags its `SamplingResult` with its own name and the span id of the
+    /// parent context it was handed, so both the branch selection and the forwarding of
+    /// the full result are observable.
+    #[derive(Clone, Debug)]
+    struct TaggedSampler(&'static str);
+
+    impl ShouldSample for TaggedSampler {
+        fn should_sample(
+            &self,
+            parent_context: Option<&Context>,
+            _trace_id: TraceId,
+            _name: &str,
+            _span_kind: &SpanKind,
+            _attributes: &[KeyValue],
+            _links: &[Link],
+        ) -> SamplingResult {
+            let parent_span_id = parent_context
+                .map(|cx| cx.span().span_context().span_id())
+                .unwrap_or(SpanId::INVALID);
+            SamplingResult {
+                decision: SamplingDecision::RecordAndSample,
+                attributes: vec![
+                    KeyValue::new("branch", self.0),
+                    KeyValue::new("parent_span_id", parent_span_id.to_string()),
+                ],
+                trace_state: TraceState::from_key_value([("branch", self.0)]).unwrap(),
+            }
+        }
+    }
+
+    fn tagged_attr(result: &SamplingResult, key: &str) -> String {
+        result
+            .attributes
+            .iter()
+            .find(|kv| kv.key.as_str() == key)
+            .map(|kv| kv.value.as_str().into_owned())
+            .expect("delegate result must be forwarded unchanged")
+    }
+
+    fn parent_cx(is_remote: bool, sampled: bool) -> Context {
+        let trace_flags = if sampled {
+            TraceFlags::SAMPLED
+        } else {
+            TraceFlags::default()
+        };
+        Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            trace_flags,
+            is_remote,
+            TraceState::default(),
+        )))
+    }
+
+    #[test]
+    fn parent_based_sampler_defaults_match_spec() {
+        // No overrides: *_sampled branches default to AlwaysOn, *_not_sampled to AlwaysOff,
+        // same as the plain `Sampler::ParentBased` behavior.
+        let sampler = Sampler::parent_based(Sampler::AlwaysOff);
+
+        assert_eq!(
+            sampler
+                .should_sample(
+                    None,
+                    TraceId::from(1),
+                    "root",
+                    &SpanKind::Internal,
+                    &[],
+                    &[]
+                )
+                .decision,
+            SamplingDecision::Drop,
+            "no parent uses the root sampler"
+        );
+        for is_remote in [true, false] {
+            let cx = parent_cx(is_remote, true);
+            assert_eq!(
+                sampler
+                    .should_sample(
+                        Some(&cx),
+                        TraceId::from(1),
+                        "s",
+                        &SpanKind::Internal,
+                        &[],
+                        &[]
+                    )
+                    .decision,
+                SamplingDecision::RecordAndSample,
+                "sampled parent (remote={is_remote}) defaults to AlwaysOn"
+            );
+            let cx = parent_cx(is_remote, false);
+            assert_eq!(
+                sampler
+                    .should_sample(
+                        Some(&cx),
+                        TraceId::from(1),
+                        "s",
+                        &SpanKind::Internal,
+                        &[],
+                        &[]
+                    )
+                    .decision,
+                SamplingDecision::Drop,
+                "unsampled parent (remote={is_remote}) defaults to AlwaysOff"
+            );
+        }
+    }
+
+    #[test]
+    fn parent_based_sampler_respects_branch_overrides() {
+        // Every branch gets a distinctly tagged delegate, so mixing up e.g. the remote and
+        // local branches fails the test instead of coincidentally matching.
+        let sampler = Sampler::parent_based(TaggedSampler("root"))
+            .with_remote_parent_sampled(TaggedSampler("remote_sampled"))
+            .with_remote_parent_not_sampled(TaggedSampler("remote_not_sampled"))
+            .with_local_parent_sampled(TaggedSampler("local_sampled"))
+            .with_local_parent_not_sampled(TaggedSampler("local_not_sampled"));
+
+        let cases = [
+            (true, true, "remote_sampled"),
+            (true, false, "remote_not_sampled"),
+            (false, true, "local_sampled"),
+            (false, false, "local_not_sampled"),
+        ];
+        for (is_remote, sampled, expected) in cases {
+            let cx = parent_cx(is_remote, sampled);
+            let result = sampler.should_sample(
+                Some(&cx),
+                TraceId::from(1),
+                "s",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            );
+            assert_eq!(
+                tagged_attr(&result, "branch"),
+                expected,
+                "remote={is_remote}, sampled={sampled} should honor the overridden branch"
+            );
+            assert_eq!(
+                result.trace_state.get("branch"),
+                Some(expected),
+                "the delegate's modified trace state must be forwarded"
+            );
+            assert_eq!(
+                tagged_attr(&result, "parent_span_id"),
+                SpanId::from(1).to_string(),
+                "the delegate must receive the original parent context"
+            );
+        }
+
+        // No parent at all: the root delegate runs, and its full result is forwarded too.
+        let result = sampler.should_sample(
+            None,
+            TraceId::from(1),
+            "root",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(tagged_attr(&result, "branch"), "root");
+        assert_eq!(result.trace_state.get("branch"), Some("root"));
+    }
+
+    #[test]
+    fn parent_based_sampler_invalid_parent_falls_back_to_root() {
+        // Root is AlwaysOn, while local_parent_not_sampled defaults to AlwaysOff.
+        let sampler = Sampler::parent_based(Sampler::AlwaysOn);
+
+        // 1. Context with an active span whose span context is invalid (zeros).
+        let cx_invalid = Context::current_with_span(TestSpan(SpanContext::empty_context()));
+        assert!(cx_invalid.has_active_span());
+        assert!(!cx_invalid.span().span_context().is_valid());
+
+        let decision = sampler
+            .should_sample(
+                Some(&cx_invalid),
+                TraceId::from(1),
+                "s",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            )
+            .decision;
+        assert_eq!(
+            decision,
+            SamplingDecision::RecordAndSample,
+            "invalid parent span must fall back to the root sampler (AlwaysOn)"
+        );
+
+        // 2. Context with no active span at all.
+        let cx_empty = Context::new();
+        assert!(!cx_empty.has_active_span());
+
+        let decision = sampler
+            .should_sample(
+                Some(&cx_empty),
+                TraceId::from(1),
+                "s",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            )
+            .decision;
+        assert_eq!(
+            decision,
+            SamplingDecision::RecordAndSample,
+            "context without active span must fall back to the root sampler (AlwaysOn)"
+        );
+
+        // 3. The root delegate is still handed the original parent context, not `None`.
+        // Zero trace id with a non-zero span id is invalid, but distinguishable.
+        let cx = Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(7),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+        let result = Sampler::parent_based(TaggedSampler("root")).should_sample(
+            Some(&cx),
+            TraceId::from(1),
+            "s",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(tagged_attr(&result, "branch"), "root");
+        assert_eq!(
+            tagged_attr(&result, "parent_span_id"),
+            SpanId::from(7).to_string(),
+            "the root delegate must receive the original parent context"
+        );
+    }
+
+    #[test]
+    fn parent_based_sampler_new() {
+        let sampler = ParentBasedSampler::new(Sampler::AlwaysOn);
+        assert_eq!(
+            sampler
+                .should_sample(
+                    None,
+                    TraceId::from(1),
+                    "root",
+                    &SpanKind::Internal,
+                    &[],
+                    &[]
+                )
+                .decision,
+            SamplingDecision::RecordAndSample
+        );
     }
 }

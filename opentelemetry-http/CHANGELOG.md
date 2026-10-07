@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Apply `HyperClient`'s configured timeout to the complete response body, not
   only request dispatch and response headers.
 
@@ -10,7 +14,6 @@
   `http::Response<T>` types, so calling code is unaffected -- only
   `impl ResponseExt for MyType` will stop compiling. If you have a custom
   implementation, remove it and rely on the blanket impl instead.
-
 - **Breaking** Removed the deprecated `HttpClient::send` method, which accepted
   `Request<Vec<u8>>`. Implement and call `HttpClient::send_bytes` instead,
   converting existing requests with `request.map(Bytes::from)` when needed.
@@ -18,7 +21,7 @@
 - **Breaking:** Remove `opentelemetry_http::hyper::Body`, which is no longer used
   by any public constructor. Use `http_body_util::Full<Bytes>` for custom Hyper
   client request bodies.
-- Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`) by enforcing the cap while streaming response chunks and reads that exceed the limit are aborted to prevent unbounded memory allocation.
+- Limit HTTP response body reads to 4 MiB in built-in HTTP clients (`reqwest` async/blocking and `hyper`). Reads exceeding the limit are aborted to prevent unbounded memory allocation and return the new opaque `ResponseBodyTooLarge` error. Custom HTTP clients can construct this error with `ResponseBodyTooLarge::new()` or `ResponseBodyTooLarge::default()`.
 
 - **Breaking** Built-in reqwest and hyper clients now return HTTP 4xx and 5xx
   responses as `Ok(Response<Bytes>)` instead of `Err(HttpError)`. Here, `Ok`

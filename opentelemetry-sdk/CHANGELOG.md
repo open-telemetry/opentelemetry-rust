@@ -2,6 +2,38 @@
 
 ## vNext
 
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
+  ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`

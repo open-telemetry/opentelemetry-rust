@@ -233,7 +233,6 @@ These indicate which crate is affected:
 | `M-sdk` | `opentelemetry-sdk` |
 | `M-exporter-otlp` | `opentelemetry-otlp` |
 | `M-exporter-prometheus` | `opentelemetry-prometheus` |
-| `M-exporter-zipkin` | `opentelemetry-zipkin` |
 
 ### Priority
 
