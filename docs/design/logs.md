@@ -348,7 +348,7 @@ hand it to the processor.
 
 ### Perf test - stress test
 
-The stress harness at [stress/src/logs.rs](stress/src/logs.rs) measures
+ The stress harness at [stress/src/logs.rs](../../stress/src/logs.rs) measures
 sustained end-to-end throughput of `tracing::error!` -> appender ->
 `SdkLoggerProvider` -> no-op processor, across all available cores.
 
