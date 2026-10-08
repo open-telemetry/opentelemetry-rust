@@ -9,6 +9,7 @@
 //!
 //! Currently, the following `Propagator` types are supported:
 //! -  [`TextMapPropagator`], inject values into and extracts values from carriers as string key/value pairs
+//! -  Experimental environment-variable carriers behind the `otel_unstable` feature flag
 //!
 //! A binary Propagator type will be added in
 //! the future, See [tracking issues](https://github.com/open-telemetry/opentelemetry-specification/issues/437)).
@@ -22,9 +23,15 @@
 use std::collections::HashMap;
 
 pub mod composite;
+#[cfg(feature = "otel_unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "otel_unstable")))]
+pub mod env;
 pub mod text_map_propagator;
 
 pub use composite::TextMapCompositePropagator;
+#[cfg(feature = "otel_unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "otel_unstable")))]
+pub use env::{EnvVarExtractor, EnvVarInjector};
 pub use text_map_propagator::TextMapPropagator;
 
 /// Injector provides an interface for adding fields from an underlying struct like `HashMap`

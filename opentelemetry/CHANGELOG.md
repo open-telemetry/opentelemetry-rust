@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Added** experimental `EnvVarExtractor` and `EnvVarInjector` helpers for
+  propagating OpenTelemetry context through environment variables. This API is
+  gated behind the `otel_unstable` feature flag.
 - Expand tracing documentation on async context propagation and child spans
   ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
 - Document the panic contract for observable metric callbacks (`Callback` and
