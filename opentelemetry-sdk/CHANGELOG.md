@@ -2,6 +2,10 @@
 
 ## vNext
 
+## 0.33.1
+
+Released 2026-Oct-08
+
 - Emit a one-time internal error diagnostic when the default `PeriodicReader`
   worker thread panics (such as from an observable metric callback), and document
   the callback panic contract.
