@@ -12,6 +12,9 @@ cargo test --workspace --all-features --lib
 echo "Running OTLP JSON serialization tests"
 cargo test -p opentelemetry-proto --all-features --test json_serde
 
+echo "Running grpc_build test for opentelemetry-proto"
+cargo test -p opentelemetry-proto --test grpc_build
+
 echo "Running doctests for all packages in workspace with --all-features"
 cargo test --workspace --all-features --doc --exclude opentelemetry-proto
 
