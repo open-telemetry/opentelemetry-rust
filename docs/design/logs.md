@@ -326,7 +326,7 @@ unique targets. (because `tracing` defaults to using module path as target).
 ### Perf test - benchmarks
 
 Criterion benchmarks for the `tracing` appender live in
-[opentelemetry-appender-tracing/benches/logs.rs](opentelemetry-appender-tracing/benches/logs.rs).
+[opentelemetry-appender-tracing/benches/logs.rs](../../opentelemetry-appender-tracing/benches/logs.rs).
 They measure the cost of emitting a `tracing::error!` event through a number of
 configurations, including the OTel layer with a no-op processor.
 
