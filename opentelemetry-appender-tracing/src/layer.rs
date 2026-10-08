@@ -495,7 +495,10 @@ where
 
         let mut log_record = self.logger.create_log_record();
 
+        #[cfg(feature = "experimental_metadata_attributes")]
         log_record.set_target(target.to_string());
+        #[cfg(not(feature = "experimental_metadata_attributes"))]
+        log_record.set_target(target);
         log_record.set_event_name(name);
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
