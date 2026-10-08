@@ -4,6 +4,9 @@
 
 - Expand tracing documentation on async context propagation and child spans
   ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
+- Document the panic contract for observable metric callbacks (`Callback` and
+  `AsyncInstrumentBuilder::with_callback`).
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
 - Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
   ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
   ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
