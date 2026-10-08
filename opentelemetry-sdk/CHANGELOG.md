@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Emit a one-time internal error diagnostic when the default `PeriodicReader`
+  worker thread panics (such as from an observable metric callback), and document
+  the callback panic contract.
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
 - Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
   all 5 branches of the ParentBased sampler spec be configured independently
   (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
