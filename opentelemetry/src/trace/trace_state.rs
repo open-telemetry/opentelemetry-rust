@@ -24,10 +24,10 @@ impl TraceState {
     pub const NONE: TraceState = TraceState(VecDeque::new());
 
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
+    /// 1-256 chars, starting with ASCII lowercase letters or digits. The rest may also
+    /// include  `_`, `-`, `*`, `/`, `@`
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#key
-    /// 1-256 char, starting with ASCII lowercase letter or digit. The rest may also
-    /// include  `_`, `-`, `*`, `/`, `@` 
     fn valid_key(key: &str) -> bool {
         let bytes = key.as_bytes();
         match bytes.split_first() {
@@ -44,6 +44,8 @@ impl TraceState {
     }
 
     /// Validates that the given `TraceState` list-member value is valid per the [W3 Spec].
+    /// 1-256 chars, covers all printable ASCII characters excluding ',' and '='. Must not
+    /// end with a space.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#value
     fn valid_value(value: &str) -> bool {
