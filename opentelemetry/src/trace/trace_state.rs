@@ -151,20 +151,20 @@ impl TraceState {
         Ok(trace_state)
     }
 
-    /// Removes the given key-value pair from the `TraceState`. If the key is invalid per the
-    /// [W3 Spec] an `Err` is returned. Else, a new `TraceState`
-    /// with the removed entry is returned.
+    /// Removes the given key-value pair from the `TraceState`, returning a new `TraceState`
+    /// without the entry.
     ///
-    /// If the key is not in `TraceState`. The original `TraceState` will be cloned and returned.
+    /// If the key is not in `TraceState` or is invalid per the [W3 Spec], it is silently
+    /// ignored and a clone of the original `TraceState` is returned.
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#mutating-the-tracestate-field
-    pub fn delete<K: Into<String>>(&self, key: K) -> TraceStateResult<TraceState> {
+    pub fn delete<K: Into<String>>(&self, key: K) -> TraceState {
         let key = key.into();
         if !TraceState::valid_key(key.as_str()) {
-            return Err(TraceStateError::Key(key));
+            return self.clone();
         }
 
-        Ok(self.delete_from_deque(&key))
+        self.delete_from_deque(&key)
     }
 
     /// Delete every entry with the given key from the trace state's deque. The key MUST be valid
@@ -181,7 +181,7 @@ impl TraceState {
     }
 
     /// Creates a new `TraceState` header string, with the given key/value delimiter and entry delimiter.
-    pub fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
+    pub(crate) fn header_delimited(&self, entry_delimiter: &str, list_delimiter: &str) -> String {
         self.0
             .iter()
             .map(|(key, value)| format!("{key}{entry_delimiter}{value}"))
@@ -317,10 +317,6 @@ mod tests {
             assert_eq!(index.unwrap(), 0);
 
             let deleted_trace_state = updated_trace_state.delete(test_case.2.to_string());
-            assert!(deleted_trace_state.is_ok());
-
-            let deleted_trace_state = deleted_trace_state.unwrap();
-
             assert!(deleted_trace_state.get(test_case.2).is_none());
         }
     }
@@ -445,17 +441,11 @@ mod tests {
     fn test_trace_state_delete() {
         let trace_state = TraceState::from_str("foo=1,bar=2,baz=3").unwrap();
 
-        assert_eq!(trace_state.delete("bar").unwrap().header(), "foo=1,baz=3");
-        assert_eq!(trace_state.delete("missing").unwrap(), trace_state);
-        assert!(matches!(
-            trace_state.delete("Bad"),
-            Err(TraceStateError::Key(_))
-        ));
+        assert_eq!(trace_state.delete("bar").header(), "foo=1,baz=3");
+        assert_eq!(trace_state.delete("missing"), trace_state);
+        assert_eq!(trace_state.delete("Bad"), trace_state);
 
-        let emptied = TraceState::from_str("foo=1")
-            .unwrap()
-            .delete("foo")
-            .unwrap();
+        let emptied = TraceState::from_str("foo=1").unwrap().delete("foo");
         assert_eq!(emptied, TraceState::NONE);
     }
 

@@ -24,9 +24,8 @@ Released 2026-Oct-08
   - values with trailing spaces passed to `from_key_value` or `insert` (trailing
     spaces in a parsed header are still treated as optional whitespace),
   - duplicate keys, reported via the new `TraceStateError::DuplicateKey` variant.
-
-  `TraceState`'s `Debug` output changed from `TraceState(None)` /
-  `TraceState(Some([..]))` to `TraceState([])` / `TraceState([("key", "value")])`.
+  `TraceState::delete` now returns `TraceState` instead of `Result<TraceState, TraceStateError>`
+  `TraceState`'s `Debug` output changed from `TraceState(None)` / `TraceState(Some([..]))` to `TraceState([])` / `TraceState([("key", "value")])`.
   ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
 
 ## 0.33.0
