@@ -262,6 +262,13 @@ impl<T> fmt::Debug for HistogramBuilder<'_, T> {
 /// for these instruments.
 ///
 /// The function needs to complete in a finite amount of time.
+///
+/// # Panics
+///
+/// Callbacks should avoid panicking. The SDK does not currently isolate or recover
+/// from panics occurring within observable callbacks. If an operation inside
+/// a callback can panic, the caller should catch the panic or handle the error within
+/// the callback.
 pub type Callback<T> = Box<dyn Fn(&dyn AsyncInstrument<T>) + Send + Sync>;
 
 /// Configuration for building an async instrument.
@@ -318,6 +325,12 @@ impl<'a, I, M> AsyncInstrumentBuilder<'a, I, M> {
     }
 
     /// Set the callback to be called for this instrument.
+    ///
+    /// # Panics
+    ///
+    /// Callbacks should avoid panicking. If an operation inside a callback can panic,
+    /// the caller should catch the panic or handle the error within the callback.
+    /// See [`Callback`] for details about panic recovery.
     pub fn with_callback<F>(mut self, callback: F) -> Self
     where
         F: Fn(&dyn AsyncInstrument<M>) + Send + Sync + 'static,
