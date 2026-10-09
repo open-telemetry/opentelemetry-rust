@@ -258,7 +258,6 @@ type TraceStateResult<T> = Result<T, TraceStateError>;
 
 /// Error returned by `TraceState` operations.
 #[derive(Error, Debug)]
-#[non_exhaustive]
 pub enum TraceStateError {
     /// The key is invalid.
     ///
