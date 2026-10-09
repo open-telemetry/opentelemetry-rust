@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry-otlp-file"
-version = "0.33.0"
+version = "0.33.1"
 description = "OpenTelemetry Protocol File Exporter: writes OTLP JSON Lines to stdout or a file"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp-file"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp-file"
