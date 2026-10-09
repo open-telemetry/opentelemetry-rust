@@ -2,9 +2,10 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use thiserror::Error;
 
-/// TraceState carries system-specific configuration data, represented as a list
-/// of key-value pairs. TraceState allows multiple tracing systems to
-/// participate in the same trace.
+/// `TraceState` carries vendor-specific trace identification data across different distributed
+/// tracing systems, represented as a list of key-value pairs. It is a companion to the
+/// `traceparent` field and conveys the request's position in multiple distributed tracing graphs,
+/// allowing several tracing systems to participate in the same trace.
 ///
 /// Please review the [W3C specification] for details on this field.
 ///
