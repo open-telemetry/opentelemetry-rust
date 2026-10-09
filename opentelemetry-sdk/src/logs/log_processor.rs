@@ -215,10 +215,9 @@ pub(crate) mod tests {
                 Key::from_static_str("processed_by"),
                 AnyValue::from("ThirdProcessor"),
             );
-            assert!(!record.attributes_contains(
-                &Key::from_static_str("key1"),
-                &AnyValue::String("value1".into())
-            ));
+            assert!(!record
+                .attributes_iter()
+                .any(|(k, _)| k == &Key::from_static_str("key1")));
 
             // SecondProcessor already removed the attribute
             assert_eq!(record.remove_attribute(&Key::from_static_str("key1")), 0);
