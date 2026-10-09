@@ -444,17 +444,26 @@ mod tests {
     }
 
     #[test]
-    fn test_update_attribute() {
+    fn test_set_attribute_adds_new_attribute() {
         let mut log_record = SdkLogRecord::new();
         let key = Key::new("key1");
         let value = AnyValue::String("value1".into());
-        let updated_value = AnyValue::String("updated_value".into());
 
         // Add a new attribute
         assert!(log_record
             .set_attribute(key.clone(), value.clone())
             .is_none());
         assert!(log_record.attributes_contains(&key, &value));
+        assert_eq!(log_record.attributes_len(), 1);
+    }
+
+    #[test]
+    fn test_set_attribute_updates_existing_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+        let updated_value = AnyValue::String("updated_value".into());
+        log_record.add_attribute(key.clone(), value.clone());
 
         // Update the existing attribute
         assert_eq!(
@@ -462,6 +471,7 @@ mod tests {
             Some(value)
         );
         assert!(log_record.attributes_contains(&key, &updated_value));
+        assert_eq!(log_record.attributes_len(), 1);
     }
 
     #[test]

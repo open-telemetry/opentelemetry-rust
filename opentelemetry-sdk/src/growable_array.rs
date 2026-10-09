@@ -432,18 +432,22 @@ mod tests {
     }
 
     #[test]
-    fn test_retain_mut_all_cases() {
+    fn test_retain_mut_modify_empty() {
         let mut collection = GrowableArray::<i32>::new();
 
-        // Case 1: Try to modify values in an empty list
-        collection.retain_mut(|value| {
-            *value *= 2; // This should not be executed
-            true
+        // Try to modify values in an empty list
+        collection.retain_mut(|_| {
+            panic!("This closure should not be called for an empty collection");
         });
         assert_eq!(collection.len(), 0);
         assert_eq!(collection.get(0), None);
+    }
 
-        // Case 2: Add a single element and modify it
+    #[test]
+    fn test_retain_mut_modify_single_element() {
+        let mut collection = GrowableArray::<i32>::new();
+
+        // Add a single element and modify it
         collection.push(5);
         collection.retain_mut(|value| {
             *value *= 2;
@@ -451,11 +455,12 @@ mod tests {
         });
         assert_eq!(collection.get(0), Some(&10));
         assert_eq!(collection.len(), 1);
+    }
 
-        // Case 3: Add more elements and modify them
-        for i in 1..10 {
-            collection.push(i);
-        }
+    #[test]
+    fn test_retain_mut_modify_all_elements() {
+        // Add more elements and modify them
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 3);
         let mut i = 0;
         collection.retain_mut(|value| {
             *value = i * 3; // Set values to i * 3
@@ -483,10 +488,16 @@ mod tests {
         for i in 3..collection.len() {
             assert_eq!(collection.get(i), Some(&((i + 1) as i32)));
         }
+    }
 
-        // Try to remove a value out of bounds
+    #[test]
+    fn test_retain_mut_no_match() {
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY);
+
+        // Try to remove a value that is not in the collection
         let non_existent = collection.retain_mut(|v| *v != 99);
         assert_eq!(non_existent, 0);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
     }
 
     #[test]
@@ -553,6 +564,13 @@ mod tests {
         // Ensure it's empty
         assert_eq!(collection.len(), 0);
         assert_eq!(collection.get(0), None);
+    }
+
+    #[test]
+    fn test_retain_mut_push_after_all_elements_removed() {
+        // Fill inline array and add elements to the overflow, then remove all
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
+        collection.retain_mut(|_| false);
 
         // Ensure the collection is usable after it was emptied
         collection.push(1);
