@@ -393,8 +393,8 @@ mod tests {
     fn test_trace_state_insert() {
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let inserted_trace_state = trace_state.insert("testkey", "testvalue").unwrap();
-        assert!(trace_state.get("testkey").is_none()); // The original state doesn't change
-        assert_eq!(inserted_trace_state.get("testkey").unwrap(), "testvalue"); //
+        assert!(trace_state.get("testkey").is_none());
+        assert_eq!(inserted_trace_state.get("testkey").unwrap(), "testvalue");
     }
 
     #[test]
