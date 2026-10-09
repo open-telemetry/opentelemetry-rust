@@ -2,16 +2,13 @@
 
 ## vNext
 
-- Added Two new methods to the LogRecord struct's public API:
-```rust
-  update_attribute(&Key, &AnyValue) -> Option<AnyValue>
-```
-  - Updates the value of the first occurrence of an attribute with the specified key.
-  - If the key exists, the old value is returned. If not, the new key-value pair is added, and None is returned.
-```rust
-remove_attribute(&mut self, key: &Key) -> usize
-```
-- Removes all occurrences of attributes with the specified key and returns the count of deleted attributes.
+- Added `SdkLogRecord::set_attribute` and `SdkLogRecord::remove_attribute`, so a
+  `LogProcessor` can change or redact attributes that are already on a record.
+  `set_attribute` replaces the value of an existing key, removes other
+  occurrences of that key, and returns the old value. If the key is not
+  present, it adds the attribute. `remove_attribute` removes all occurrences of
+  a key and returns the number of removed attributes.
+  ([#1986](https://github.com/open-telemetry/opentelemetry-rust/issues/1986))
 
 ## 0.33.1
 

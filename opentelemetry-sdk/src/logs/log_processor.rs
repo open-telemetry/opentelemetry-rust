@@ -176,11 +176,11 @@ pub(crate) mod tests {
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("FirstProcessor".into())
             ));
-            record.update_attribute(
-                &Key::from_static_str("processed_by"),
+            record.set_attribute(
+                Key::from_static_str("processed_by"),
                 AnyValue::from("SecondProcessor"),
             );
-            let _ = record.remove_attribute(&Key::from_static_str("key1"));
+            assert_eq!(record.remove_attribute(&Key::from_static_str("key1")), 1);
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())
@@ -211,8 +211,8 @@ pub(crate) mod tests {
                 &Key::from_static_str("processed_by"),
                 &AnyValue::String("SecondProcessor".into())
             ));
-            record.update_attribute(
-                &Key::from_static_str("processed_by"),
+            record.set_attribute(
+                Key::from_static_str("processed_by"),
                 AnyValue::from("ThirdProcessor"),
             );
             assert!(!record.attributes_contains(
@@ -220,7 +220,8 @@ pub(crate) mod tests {
                 &AnyValue::String("value1".into())
             ));
 
-            let _ = record.remove_attribute(&Key::from_static_str("key1"));
+            // SecondProcessor already removed the attribute
+            assert_eq!(record.remove_attribute(&Key::from_static_str("key1")), 0);
             assert!(
                 record.body.clone().unwrap()
                     == AnyValue::String("Updated by FirstProcessor".into())

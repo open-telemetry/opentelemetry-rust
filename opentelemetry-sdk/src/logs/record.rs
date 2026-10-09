@@ -1,5 +1,4 @@
 use crate::growable_array::GrowableArray;
-use opentelemetry::logs::LogRecord as _;
 #[cfg(feature = "trace")]
 use opentelemetry::trace::SpanContext;
 use opentelemetry::{
@@ -204,44 +203,63 @@ impl SdkLogRecord {
             .any(|(k, v)| k == key && v == value)
     }
 
-    /// Updates the first occurrence of an attribute with the specified key.
+    /// Sets the value of the attribute with the specified key.
     ///
-    /// This method searches for the first occurrence of the attribute with the given key
-    /// in the `attributes` collection. If the key is found, its value is updated with the
-    /// provided value. If the key is not found, the attribute is added.
+    /// This method searches the `attributes` collection for the given key:
+    ///
+    /// - If the key is found, the first occurrence gets the new value, and all other
+    ///   occurrences of the key are removed. After the call, the key occurs exactly once.
+    /// - If the key is not found, the attribute is added.
+    ///
+    /// A `LogProcessor` can use this method to redact a value: no copy of the old value
+    /// stays on the record.
+    ///
+    /// This method examines all attributes on each call, because it must remove the
+    /// duplicates. Use `add_attribute` if the key is not on the record yet.
     ///
     /// # Arguments
     ///
-    /// - `key`: A reference to the key of the attribute to update.
-    /// - `value`: A new value for the attribute.
+    /// - `key`: The key of the attribute to set.
+    /// - `value`: The new value for the attribute.
     ///
     /// # Returns
     ///
-    /// - `Some(AnyValue)`: The old value of the attribute if found and updated.
-    /// - `None`: If the attribute was not found, and a new one was added.
+    /// - `Some(AnyValue)`: The old value of the first occurrence, if the key was found.
+    /// - `None`: If the key was not found, and a new attribute was added.
     ///
-    pub fn update_attribute(&mut self, key: &Key, value: AnyValue) -> Option<AnyValue> {
-        // First, search for the attribute mutably
-        if let Some(attr) = self
-            .attributes
-            .iter_mut()
-            .find(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false))
-        {
-            // Take the old value and update the attribute
-            let old_value = attr.take().map(|(_, v)| v);
-            *attr = Some((key.clone(), value));
-            return old_value;
-        }
+    pub fn set_attribute<K, V>(&mut self, key: K, value: V) -> Option<AnyValue>
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+        let key = key.into();
+        let mut new_value = Some(value.into());
+        let mut old_value = None;
 
-        // If not found, add a new attribute
-        self.add_attribute(key.clone(), value.clone());
-        None
+        self.attributes.retain_mut(|attr| match attr {
+            Some((k, v)) if *k == key => match new_value.take() {
+                Some(new_value) => {
+                    old_value = Some(std::mem::replace(v, new_value));
+                    true
+                }
+                None => false,
+            },
+            _ => true,
+        });
+
+        if let Some(new_value) = new_value {
+            self.attributes.push(Some((key, new_value)));
+        }
+        old_value
     }
 
-    /// Removes all occurrences of an attribute with the specified key.
+    /// Removes all occurrences of the attribute with the specified key.
     ///
     /// This method searches for all occurrences of the attribute with the given key
-    /// in the `attributes` collection and removes them.
+    /// in the `attributes` collection and removes them. The order of the other
+    /// attributes does not change.
+    ///
+    /// This method examines all attributes on each call.
     ///
     /// # Arguments
     ///
@@ -252,23 +270,8 @@ impl SdkLogRecord {
     /// - The number of removed occurrences of the key.
     ///
     pub fn remove_attribute(&mut self, key: &Key) -> usize {
-        let mut deleted_count = 0;
-
-        // Loop to find and remove all occurrences
-        while let Some(index) = {
-            // Isolate the immutable borrow in a block scope
-            let position = self
-                .attributes
-                .iter()
-                .position(|opt| opt.as_ref().map(|(k, _)| k == key).unwrap_or(false));
-            position
-        } {
-            // Now proceed with the mutable borrow and remove the item
-            self.attributes.remove_at(index);
-            deleted_count += 1;
-        }
-
-        deleted_count
+        self.attributes
+            .retain_mut(|attr| !matches!(attr, Some((k, _)) if k == key))
     }
 }
 
@@ -299,7 +302,7 @@ impl From<&SpanContext> for TraceContext {
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use opentelemetry::logs::{AnyValue, Severity};
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Severity};
     use opentelemetry::time::now;
     use std::borrow::Cow;
 
@@ -448,12 +451,14 @@ mod tests {
         let updated_value = AnyValue::String("updated_value".into());
 
         // Add a new attribute
-        assert!(log_record.update_attribute(&key, value.clone()).is_none());
+        assert!(log_record
+            .set_attribute(key.clone(), value.clone())
+            .is_none());
         assert!(log_record.attributes_contains(&key, &value));
 
         // Update the existing attribute
         assert_eq!(
-            log_record.update_attribute(&key, updated_value.clone()),
+            log_record.set_attribute(key.clone(), updated_value.clone()),
             Some(value)
         );
         assert!(log_record.attributes_contains(&key, &updated_value));
@@ -475,5 +480,60 @@ mod tests {
 
         // Ensure it is deleted
         assert!(!log_record.attributes_contains(&key, &value));
+    }
+
+    #[test]
+    fn test_set_attribute_removes_duplicates() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("secret");
+        // Put the duplicates in the inline array and in the overflow vector.
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY + 3 {
+            if i % 3 == 0 {
+                log_record.add_attribute(key.clone(), format!("secret-{i}"));
+            } else {
+                log_record.add_attribute(format!("key{i}"), i as i64);
+            }
+        }
+
+        // Redact the attribute, the first occurrence returns its old value
+        assert_eq!(
+            log_record.set_attribute(key.clone(), "redacted"),
+            Some(AnyValue::from("secret-0"))
+        );
+
+        // Ensure only the redacted value is left and the duplicates are removed
+        let matches: Vec<_> = log_record
+            .attributes_iter()
+            .filter(|(k, _)| k == &key)
+            .collect();
+        assert_eq!(matches, vec![&(key.clone(), AnyValue::from("redacted"))]);
+        assert_eq!(log_record.attributes_len(), 6);
+    }
+
+    #[test]
+    fn test_remove_attribute_duplicates() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let other = Key::new("other");
+
+        // Add attributes in the inline array and in the overflow vector
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY + 3 {
+            if i % 2 == 0 {
+                log_record.add_attribute(key.clone(), i as i64);
+            } else {
+                log_record.add_attribute(other.clone(), i as i64);
+            }
+        }
+
+        // Delete all occurrences of the attribute
+        assert_eq!(log_record.remove_attribute(&key), 4);
+
+        // Ensure it is deleted and the other attributes stay
+        assert!(log_record.attributes_iter().all(|(k, _)| k == &other));
+        assert_eq!(log_record.attributes_len(), 4);
+
+        // Delete it again, nothing is removed
+        assert_eq!(log_record.remove_attribute(&key), 0);
+        assert_eq!(log_record.attributes_len(), 4);
     }
 }
