@@ -26,7 +26,9 @@
 //! * [`LogExporter`] writes one `LogsData` object per batch of log records.
 //!
 //! Any OTLP JSON consumer can read these lines, for example the OpenTelemetry Collector's
-//! [OTLP JSON file receiver].
+//! [OTLP JSON file receiver]. The receiver reads lines of up to 1 MiB by default, and the
+//! telemetry in a longer line is lost, so set its `max_log_size` option above the longest line
+//! you expect or keep batches small.
 //!
 //! The specification requires a file to contain a single type of telemetry, so give each
 //! signal its own file. On stdout, the lines share the stream with anything else the process
@@ -84,9 +86,16 @@
 //!
 //! * Files are opened in append mode when the exporter is built, so a missing parent directory
 //!   or a permission problem is reported by `build`.
-//! * Each line is written with a single `write_all` call and then flushed, so a line is
-//!   complete as soon as the export call returns and is not interleaved with other output
-//!   written through Rust's `stdout`, such as `println!`.
+//! * Each line is written and flushed while the exporter holds its writer, and also Rust's
+//!   `stdout` lock when writing there, so a line is complete as soon as the export call returns
+//!   and is not interleaved with other exports or with other output written through Rust's
+//!   `stdout`, such as `println!`.
+//! * If a write fails partway through a line, the export returns an error and the rest of the
+//!   line is written before the next one, so the following lines stay valid. A line of which
+//!   nothing was written is dropped.
+//! * Writes use the blocking [`std::io::Write`] API. With the experimental processors and
+//!   readers that export on an async runtime, a slow or blocked write blocks a worker thread of
+//!   that runtime, and the export timeout cannot take effect until the write returns.
 //! * Shutting down an exporter flushes and drops its writer, which closes a file opened by the
 //!   exporter. Exports after shutdown fail with
 //!   [`OTelSdkError::AlreadyShutdown`](opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown).

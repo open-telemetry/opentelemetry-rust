@@ -29,7 +29,7 @@ For example, a batch with a single span:
 {"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"checkout"}}],"droppedAttributesCount":0,"entityRefs":[]},"scopeSpans":[{"scope":{"name":"checkout","version":"","attributes":[],"droppedAttributesCount":0},"spans":[{"traceId":"0a079c94ed47f19726c508c68784b1ca","spanId":"179fe26c0a822afa","traceState":"","parentSpanId":"","flags":257,"name":"GET /cart","kind":2,"startTimeUnixNano":"1790637708114866590","endTimeUnixNano":"1790637708114868607","attributes":[],"droppedAttributesCount":0,"events":[],"droppedEventsCount":0,"links":[],"droppedLinksCount":0,"status":{"message":"","code":0}}],"schemaUrl":""}],"schemaUrl":""}]}
 ```
 
-Any OTLP JSON consumer can read these lines, for example the OpenTelemetry Collector's [OTLP JSON file receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/otlpjsonfilereceiver).
+Any OTLP JSON consumer can read these lines, for example the OpenTelemetry Collector's [OTLP JSON file receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/otlpjsonfilereceiver). The receiver reads lines of up to 1 MiB by default and splits or truncates longer ones, so the telemetry in such a line is lost; in Collector contrib 0.162.0 this happens without an error at the default log level. Set its `max_log_size` option above the longest line you expect, or keep lines short with smaller batches, for example with `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` for spans and `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` for log records. A metrics line contains every metric stream of a collection, so its length depends on the number of streams instead.
 
 ## Getting started
 
@@ -78,9 +78,11 @@ cargo run --example basic -- /tmp/otel
 | `with_file(path)` | The file at `path`, created if it does not exist and always appended to. |
 | `with_writer(writer)` | Any `std::io::Write + Send + 'static` value. |
 
-Files are opened when the exporter is built, so `build()` reports a missing directory or a permission problem. Each line is written with a single `write_all` call and flushed immediately, so it is complete as soon as the export returns and is never interleaved with other output written through Rust's `stdout`, such as `println!`. Shutting down an exporter flushes and drops its writer, which closes a file that the exporter opened.
+Files are opened when the exporter is built, so `build()` reports a missing directory or a permission problem. Each line is written and flushed while the exporter holds its writer, and also Rust's `stdout` lock when writing there, so it is complete as soon as the export returns and is never interleaved with other exports or with other output written through Rust's `stdout`, such as `println!`. If a write fails partway through a line, the export returns an error and the rest of the line is written before the next one, so the following lines stay valid; a line of which nothing was written is dropped. Shutting down an exporter flushes and drops its writer, which closes a file that the exporter opened.
 
 The specification requires a file to contain a single type of telemetry, so give each signal its own file. On stdout, the lines share the stream with anything else the process prints; consumers can tell them apart by their top-level key: `resourceSpans`, `resourceMetrics` or `resourceLogs`.
+
+Exports write with the blocking `std::io::Write` API. The SDK's default batch processors and periodic reader export from their own threads, so a slow destination only delays those threads, whereas `with_simple_exporter` writes on the thread that ends the span or emits the log record, which may be running an async task. The experimental processors and readers that run on an async runtime, enabled by the `experimental_*_with_async_runtime` features of `opentelemetry_sdk`, export on that runtime instead: a slow or blocked write, such as stdout connected to a full pipe, blocks one of its worker threads, and the export timeout cannot take effect until the write returns. Prefer the default processors and reader with these exporters.
 
 ## AWS Lambda and other short-lived environments
 
