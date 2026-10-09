@@ -423,6 +423,14 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 
+    fn collection_of(len: usize) -> GrowableArray<i32> {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..len {
+            collection.push(i as i32);
+        }
+        collection
+    }
+
     #[test]
     fn test_retain_mut_all_cases() {
         let mut collection = GrowableArray::<i32>::new();
@@ -460,10 +468,7 @@ mod tests {
     }
     #[test]
     fn test_retain_mut_inline() {
-        let mut collection = GrowableArray::<i32>::new();
-        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
-            collection.push(i as i32);
-        }
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY);
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
 
         // Remove a value from the inline array using retain_mut
@@ -486,15 +491,8 @@ mod tests {
 
     #[test]
     fn test_retain_mut_overflow() {
-        let mut collection = GrowableArray::<i32>::new();
-        // Fill inline array
-        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
-            collection.push(i as i32);
-        }
-        // Add elements to the overflow
-        for i in DEFAULT_MAX_INLINE_CAPACITY..(DEFAULT_MAX_INLINE_CAPACITY + 5) {
-            collection.push(i as i32);
-        }
+        // Fill inline array and add elements to the overflow
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 5);
 
         // Remove a value from the overflow vector using retain_mut
@@ -528,17 +526,8 @@ mod tests {
 
     #[test]
     fn test_retain_mut_from_inline_and_replace_with_overflow() {
-        let mut collection = GrowableArray::<i32>::new();
-
-        // Fill inline array
-        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
-            collection.push(i as i32);
-        }
-
-        // Add overflow elements
-        for i in DEFAULT_MAX_INLINE_CAPACITY..(DEFAULT_MAX_INLINE_CAPACITY + 3) {
-            collection.push(i as i32);
-        }
+        // Fill inline array and add overflow elements
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 3);
 
         // Before removing, ensure that the count is correct
         assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 3);
@@ -554,15 +543,8 @@ mod tests {
 
     #[test]
     fn test_retain_mut_all_elements() {
-        let mut collection = GrowableArray::<i32>::new();
-        // Fill inline array
-        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
-            collection.push(i as i32);
-        }
-        // Add elements to the overflow
-        for i in DEFAULT_MAX_INLINE_CAPACITY..(DEFAULT_MAX_INLINE_CAPACITY + 5) {
-            collection.push(i as i32);
-        }
+        // Fill inline array and add elements to the overflow
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
 
         // Remove all values from the inline array and the overflow vector using retain_mut
         let removed = collection.retain_mut(|_| false);
