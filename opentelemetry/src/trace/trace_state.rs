@@ -2,10 +2,9 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use thiserror::Error;
 
-/// `TraceState` carries vendor-specific trace identification data across different distributed
-/// tracing systems, represented as a list of key-value pairs. It is a companion to the
-/// `traceparent` field and conveys the request's position in multiple distributed tracing graphs,
-/// allowing several tracing systems to participate in the same trace.
+/// TraceState carries system-specific configuration data, represented as a list
+/// of key-value pairs. TraceState allows multiple tracing systems to
+/// participate in the same trace.
 ///
 /// Please review the [W3C specification] for details on this field.
 ///
@@ -50,15 +49,14 @@ impl TraceState {
     /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#value
     fn valid_value(value: &str) -> bool {
         let bytes = value.as_bytes();
-        match bytes.last() {
-            Some(&last) if bytes.len() <= MAX_KEY_VALUE_LEN => {
-                last != b' '
-                    && bytes
-                        .iter()
-                        .all(|&b| matches!(b, 0x20..=0x7E) && b != b',' && b != b'=')
-            }
-            _ => false,
-        }
+        let Some(&last) = bytes.last() else {
+            return false;
+        };
+        bytes.len() <= MAX_KEY_VALUE_LEN
+            && last != b' '
+            && bytes
+                .iter()
+                .all(|&b| matches!(b, 0x20..=0x7E) && b != b',' && b != b'=')
     }
 
     /// Validates the given key and value, returning an error naming whichever is invalid.
