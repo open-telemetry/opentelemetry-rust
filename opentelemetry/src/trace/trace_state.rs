@@ -25,6 +25,8 @@ impl TraceState {
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     ///
     /// [W3 Spec]: https://www.w3.org/TR/trace-context-2/#key
+    /// 1-256 char, starting with ASCII lowercase letter or digit. The rest may also
+    /// include  `_`, `-`, `*`, `/`, `@` 
     fn valid_key(key: &str) -> bool {
         let bytes = key.as_bytes();
         match bytes.split_first() {
