@@ -11,6 +11,12 @@
 //! - gRPC
 //! - HTTP (binary protobuf or JSON)
 //!
+//! ## Stability
+//!
+//! The OTLP exporters for Logs and Metrics are stable as of 0.33.1. The OTLP
+//! exporter for Traces remains in beta. Features explicitly marked experimental
+//! remain experimental.
+//!
 //! ## Quickstart with OpenTelemetry Collector
 //!
 //! The examples below show traces, but the same pattern applies to metrics
