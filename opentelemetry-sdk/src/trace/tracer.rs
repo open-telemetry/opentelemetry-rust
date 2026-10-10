@@ -140,6 +140,7 @@ impl SdkTracer {
                 name,
                 start_time,
                 end_time: start_time,
+                end_time_set: false,
                 attributes: attribute_options,
                 dropped_attributes_count,
                 events: span_events,
