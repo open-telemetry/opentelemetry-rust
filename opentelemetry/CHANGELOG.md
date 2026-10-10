@@ -2,6 +2,20 @@
 
 ## vNext
 
+- **Breaking** Baggage no longer does any wire format processing. Encoding and
+  decoding is handled by `BaggagePropagator` in `opentelemetry-sdk`.
+  - Removed `impl Display for Baggage`. Use `BaggagePropagator` to serialize
+    baggage in W3C format.
+  - `Baggage` no longer limits the total size of its entries. The W3C 8192 byte
+    limit depends on the encoded form and is enforced by the propagator. The
+    64 entry limit is unchanged.
+  - `Baggage` accepts any non-empty UTF-8 string as a name, as required by
+    the specification. Restrictions are left to propagators.
+    `BaggagePropagator` skips names that are not valid W3C tokens.
+  - `BaggageMetadata` is now stored exactly as given without trimming. It is an
+    opaque string that must be valid, percent encoded W3C `property` syntax to
+    be properly propagated.
+
 ## 0.33.1
 
 Released 2026-Oct-08

@@ -2,6 +2,26 @@
 
 ## vNext
 
+- Fix several W3C compliance issues in `BaggagePropagator`:
+  - Metadata (properties) are validated against the W3C `property` grammar
+    and propagated verbatim in their percent-encoded form, so encoded
+    delimiters such as `%2C` are no longer emitted as literal `,`. Empty
+    properties (e.g. `;;` or a trailing `;`) make a member invalid.
+  - Entries whose name is not a valid token are skipped on injection.
+  - Values containing `=` are no longer truncated.
+  - `%` and `\` in values are now percent-encoded on injection.
+  - Only optional whitespace (space and tab) around members is trimmed.
+  - Names are no longer percent decoded.
+  - All `baggage` headers are read (via `Extractor::get_all`) and limits apply
+    to their combination.
+  - Percent encoded sequences that are not valid UTF-8 are replaced with
+    U+FFFD instead of dropping the member.
+  - Existing baggage in the context is kept when no valid member is extracted.
+  - The 8192 byte limit is enforced on the encoded header during injection.
+    Entries that do not fit  or whose metadata is not valid W3C `property`
+    syntax are skipped.
+  - Internal logs no longer include the baggage header content.
+
 ## 0.33.1
 
 Released 2026-Oct-08
