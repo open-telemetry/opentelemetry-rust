@@ -10,6 +10,19 @@ pub trait IdGenerator: Send + Sync + fmt::Debug {
 
     /// Generate a new `SpanId`
     fn new_span_id(&self) -> SpanId;
+
+    /// Returns `true` if every trace ID returned by [`new_trace_id`] has at least its
+    /// right-most 7 bytes generated randomly or pseudo-randomly with uniform
+    /// distribution, as required by
+    /// [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/#random-trace-id-flag).
+    ///
+    /// When this returns `true`, the SDK sets [`TraceFlags::RANDOM`] on the span
+    /// context of every root span. Implementations must return `false` if they
+    /// cannot guarantee this randomness.
+    ///
+    /// [`new_trace_id`]: IdGenerator::new_trace_id
+    /// [`TraceFlags::RANDOM`]: opentelemetry::trace::TraceFlags::RANDOM
+    fn is_random(&self) -> bool;
 }
 
 /// Default [`IdGenerator`] implementation.
@@ -27,6 +40,20 @@ impl IdGenerator for RandomIdGenerator {
 
     fn new_span_id(&self) -> SpanId {
         CURRENT_RNG.with(|rng| SpanId::from(rng.borrow_mut().random::<u64>()))
+    }
+
+    fn is_random(&self) -> bool {
+        true
+    }
+}
+
+#[cfg(all(test, feature = "testing", feature = "trace"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn random_id_generator_is_random() {
+        assert!(RandomIdGenerator::default().is_random());
     }
 }
 
