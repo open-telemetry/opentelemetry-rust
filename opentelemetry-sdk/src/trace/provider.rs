@@ -79,7 +79,7 @@ use std::time::Duration;
 
 static PROVIDER_RESOURCE: OnceLock<Resource> = OnceLock::new();
 
-// a no nop tracer provider used as placeholder when the provider is shutdown
+// a no op tracer provider used as placeholder when the provider is shutdown or disabled
 // TODO Replace with LazyLock once it is stable
 static NOOP_TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
 #[inline]
@@ -96,6 +96,7 @@ fn noop_tracer_provider() -> &'static SdkTracerProvider {
                     resource: Cow::Owned(Resource::empty()),
                 },
                 is_shutdown: AtomicBool::new(true),
+                is_disabled: false,
             }),
         }
     })
@@ -107,6 +108,7 @@ pub(crate) struct TracerProviderInner {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
     is_shutdown: AtomicBool,
+    is_disabled: bool,
 }
 
 impl TracerProviderInner {
@@ -192,6 +194,12 @@ impl SdkTracerProvider {
     /// Don't start span or export spans when provider is shutdown
     pub(crate) fn is_shutdown(&self) -> bool {
         self.inner.is_shutdown.load(Ordering::Relaxed)
+    }
+
+    /// true if the sdk is disabled through `OTEL_SDK_DISABLED`
+    /// Don't start span when the sdk is disabled
+    pub(crate) fn is_disabled(&self) -> bool {
+        self.inner.is_disabled
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -285,7 +293,20 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
     }
 
     fn tracer_with_scope(&self, scope: InstrumentationScope) -> Self::Tracer {
-        if self.inner.is_shutdown.load(Ordering::Relaxed) {
+        // If the provider is shutdown or disabled, new tracer will refer a no-op tracer provider.
+        let noop_reason = if self.inner.is_shutdown.load(Ordering::Relaxed) {
+            Some("already_shutdown")
+        } else if self.inner.is_disabled {
+            Some("disabled_via_env_variable")
+        } else {
+            None
+        };
+        if let Some(reason) = noop_reason {
+            otel_debug!(
+                name: "TracerProvider.NoOpTracerReturned",
+                scope = scope.name(),
+                reason = reason
+            );
             return SdkTracer::new(scope, noop_tracer_provider().clone());
         }
         if scope.name().is_empty() {
@@ -296,11 +317,25 @@ impl opentelemetry::trace::TracerProvider for SdkTracerProvider {
 }
 
 /// Builder for provider attributes.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TracerProviderBuilder {
     processors: Vec<Box<dyn SpanProcessor>>,
     config: crate::trace::Config,
     resource: Option<Resource>,
+    // read here and not in build(), as BatchSpanProcessor spawns its worker thread
+    // from its constructor, which build() would be too late to prevent
+    is_disabled: bool,
+}
+
+impl Default for TracerProviderBuilder {
+    fn default() -> Self {
+        TracerProviderBuilder {
+            processors: Vec::new(),
+            config: crate::trace::Config::default(),
+            resource: None,
+            is_disabled: crate::env::sdk_disabled(),
+        }
+    }
 }
 
 impl TracerProviderBuilder {
@@ -316,6 +351,9 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_simple_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        if self.is_disabled {
+            return self;
+        }
         let simple = SimpleSpanProcessor::new(exporter);
         self.with_span_processor(simple)
     }
@@ -332,6 +370,9 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_batch_exporter<T: SpanExporter + 'static>(self, exporter: T) -> Self {
+        if self.is_disabled {
+            return self;
+        }
         let batch = BatchSpanProcessor::builder(exporter).build();
         self.with_span_processor(batch)
     }
@@ -348,6 +389,9 @@ impl TracerProviderBuilder {
     ///
     /// Processors are invoked in the order they are added.
     pub fn with_span_processor<T: SpanProcessor + 'static>(self, processor: T) -> Self {
+        if self.is_disabled {
+            return self;
+        }
         let mut processors = self.processors;
         processors.push(Box::new(processor));
 
@@ -494,11 +538,20 @@ impl TracerProviderBuilder {
             p.set_resource(config.resource.as_ref());
         }
 
+        let is_disabled = self.is_disabled;
+        if is_disabled {
+            otel_debug!(
+                name: "TracerProvider.Disabled",
+                message = "SDK is disabled through OTEL_SDK_DISABLED; only no-op tracers will be returned."
+            );
+        }
+
         let is_shutdown = AtomicBool::new(false);
         SdkTracerProvider::new(TracerProviderInner {
             processors,
             config,
             is_shutdown,
+            is_disabled,
         })
     }
 }
@@ -511,9 +564,12 @@ mod tests {
     };
     use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, Span, SpanProcessor};
-    use crate::trace::{SdkTracerProvider, SpanData};
+    use crate::trace::{InMemorySpanExporter, SdkTracerProvider, SpanData};
     use crate::Resource;
-    use opentelemetry::trace::{Tracer, TracerProvider};
+    use opentelemetry::trace::{
+        Span as _, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, Tracer,
+        TracerProvider,
+    };
     use opentelemetry::{Context, Key, KeyValue, Value};
 
     use std::env;
@@ -601,6 +657,7 @@ mod tests {
             ],
             config: Default::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         let results = tracer_provider.force_flush();
@@ -762,6 +819,7 @@ mod tests {
             processors: vec![Box::from(processor)],
             config: Default::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         let test_tracer_1 = tracer_provider.tracer("test1");
@@ -795,6 +853,69 @@ mod tests {
 
         // also existing tracer's tracer provider are in shutdown state
         assert!(test_tracer_1.provider().is_shutdown());
+    }
+
+    #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other tests"]
+    fn otel_sdk_disabled_env() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let exporter = InMemorySpanExporter::default();
+            let tracer_provider = super::SdkTracerProvider::builder()
+                .with_simple_exporter(exporter.clone())
+                .build();
+
+            // no processor is wired in, so no pipeline is kept alive
+            assert_eq!(tracer_provider.span_processors().len(), 0);
+
+            let tracer = tracer_provider.tracer("disabled");
+            let _ = tracer.start("test");
+            let _ = tracer.start("test2");
+            let _ = tracer.start("test3");
+            assert_eq!(exporter.get_finished_spans().unwrap().len(), 0);
+
+            assert!(tracer_provider.shutdown().is_ok());
+            assert!(tracer_provider.shutdown().is_err());
+        });
+    }
+
+    #[test]
+    #[ignore = "modifies OTEL_SDK_DISABLED env var which can affect other tests"]
+    fn otel_sdk_disabled_env_propagates_parent_context() {
+        temp_env::with_var("OTEL_SDK_DISABLED", Some("true"), || {
+            let tracer_provider = super::SdkTracerProvider::builder().build();
+            let span = tracer_provider
+                .tracer("disabled")
+                .start_with_context("test", &remote_parent_context());
+
+            assert!(!span.is_recording());
+            assert_eq!(span.span_context(), &remote_parent_span_context());
+        });
+    }
+
+    #[test]
+    fn shutdown_provider_propagates_parent_context() {
+        let tracer_provider = super::SdkTracerProvider::builder().build();
+        let tracer = tracer_provider.tracer("shutdown");
+        tracer_provider.shutdown().unwrap();
+
+        let span = tracer.start_with_context("test", &remote_parent_context());
+
+        assert!(!span.is_recording());
+        assert_eq!(span.span_context(), &remote_parent_span_context());
+    }
+
+    fn remote_parent_span_context() -> SpanContext {
+        SpanContext::new(
+            TraceId::from(123_u128),
+            SpanId::from(456_u64),
+            TraceFlags::SAMPLED,
+            true,
+            Default::default(),
+        )
+    }
+
+    fn remote_parent_context() -> Context {
+        Context::new().with_remote_span_context(remote_parent_span_context())
     }
 
     #[test]
@@ -884,6 +1005,7 @@ mod tests {
                 ))],
                 config: Config::default(),
                 is_shutdown: AtomicBool::new(false),
+                is_disabled: false,
             });
 
             {
@@ -922,6 +1044,7 @@ mod tests {
             ))],
             config: Config::default(),
             is_shutdown: AtomicBool::new(false),
+            is_disabled: false,
         });
 
         // Create a scope to test behavior when providers are dropped
