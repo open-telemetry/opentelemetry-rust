@@ -47,8 +47,177 @@ fn create_histogram(name: &'static str) -> Histogram<u64> {
     meter.u64_histogram(name).build()
 }
 
+/// Records into a histogram whose meter provider uses `filter`, with no span
+/// active — the shape of the hot path for a service that has exemplars enabled
+/// but is recording outside a sampled request.
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+fn histogram_record_with_exemplar_filter(c: &mut Criterion) {
+    use opentelemetry_sdk::metrics::ExemplarFilter;
+
+    for (label, filter) in [
+        ("AlwaysOff", ExemplarFilter::AlwaysOff),
+        ("TraceBased", ExemplarFilter::TraceBased),
+        ("AlwaysOn", ExemplarFilter::AlwaysOn),
+    ] {
+        let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+            .with_reader(ManualReader::builder().build())
+            .with_exemplar_filter(filter)
+            .build();
+        let histogram = meter_provider
+            .meter("benchmarks")
+            .u64_histogram("histogram_exemplar")
+            .build();
+
+        c.bench_function(&format!("Histogram_Record_Exemplar_{label}"), |b| {
+            b.iter(|| {
+                histogram.record(
+                    CURRENT_RNG.with(|rng| rng.borrow_mut().random_range(0..1000)),
+                    &[KeyValue::new("attribute1", ATTRIBUTE_VALUES[0])],
+                );
+            });
+        });
+    }
+
+    histogram_record_inside_sampled_span(c);
+    histogram_record_and_collect(c);
+}
+
+/// Records inside a sampled span that carries a `tracestate`, so every
+/// measurement is eligible — the worst case for the default `TraceBased`
+/// filter, and the path where building the exemplar has to stay cheap.
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+fn histogram_record_inside_sampled_span(c: &mut Criterion) {
+    use opentelemetry::trace::{
+        SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
+    };
+    use opentelemetry::Context;
+    use opentelemetry_sdk::metrics::ExemplarFilter;
+
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_exemplar_filter(ExemplarFilter::TraceBased)
+        .build();
+    let histogram = meter_provider
+        .meter("benchmarks")
+        .u64_histogram("histogram_exemplar_sampled")
+        .build();
+
+    let span_cx = SpanContext::new(
+        TraceId::from(0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10_u128),
+        SpanId::from(0x1112_1314_1516_1718_u64),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::from_key_value([("vendor", "value"), ("other", "state")])
+            .expect("valid tracestate"),
+    );
+    let _guard = Context::current()
+        .with_remote_span_context(span_cx)
+        .attach();
+
+    c.bench_function("Histogram_Record_Exemplar_TraceBased_SampledSpan", |b| {
+        b.iter(|| {
+            histogram.record(
+                CURRENT_RNG.with(|rng| rng.borrow_mut().random_range(0..1000)),
+                &[KeyValue::new("attribute1", ATTRIBUTE_VALUES[0])],
+            );
+        });
+    });
+}
+
+/// Records one measurement inside a sampled span and then collects, so the
+/// reservoir is empty again for the next iteration and **every** recording is
+/// one the reservoir keeps. `TraceBased_SampledSpan` above measures the steady
+/// state of a busy bucket, where nearly every offer is discarded; this measures
+/// the opposite extreme, the full cost of materializing an exemplar. Collection
+/// dominates the absolute number, so compare it to the `AlwaysOff` variant.
+#[cfg(feature = "spec_unstable_metrics_exemplars")]
+fn histogram_record_and_collect(c: &mut Criterion) {
+    use opentelemetry::trace::{
+        SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
+    };
+    use opentelemetry::Context;
+    use opentelemetry_sdk::metrics::data::ResourceMetrics;
+    use opentelemetry_sdk::metrics::reader::MetricReader;
+    use opentelemetry_sdk::metrics::ExemplarFilter;
+    use std::sync::Arc;
+
+    #[derive(Clone, Debug)]
+    struct SharedReader(Arc<ManualReader>);
+    impl MetricReader for SharedReader {
+        fn register_pipeline(
+            &self,
+            pipeline: std::sync::Weak<opentelemetry_sdk::metrics::Pipeline>,
+        ) {
+            self.0.register_pipeline(pipeline)
+        }
+        fn collect(&self, rm: &mut ResourceMetrics) -> opentelemetry_sdk::error::OTelSdkResult {
+            self.0.collect(rm)
+        }
+        fn force_flush(&self) -> opentelemetry_sdk::error::OTelSdkResult {
+            self.0.force_flush()
+        }
+        fn shutdown_with_timeout(
+            &self,
+            timeout: std::time::Duration,
+        ) -> opentelemetry_sdk::error::OTelSdkResult {
+            self.0.shutdown_with_timeout(timeout)
+        }
+        fn temporality(
+            &self,
+            kind: opentelemetry_sdk::metrics::InstrumentKind,
+        ) -> opentelemetry_sdk::metrics::Temporality {
+            self.0.temporality(kind)
+        }
+    }
+
+    let span_cx = SpanContext::new(
+        TraceId::from(0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10_u128),
+        SpanId::from(0x1112_1314_1516_1718_u64),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::from_key_value([("vendor", "value"), ("other", "state")])
+            .expect("valid tracestate"),
+    );
+    let _guard = Context::current()
+        .with_remote_span_context(span_cx)
+        .attach();
+
+    for (label, filter) in [
+        ("AlwaysOff", ExemplarFilter::AlwaysOff),
+        ("TraceBased", ExemplarFilter::TraceBased),
+    ] {
+        let reader = SharedReader(Arc::new(
+            ManualReader::builder()
+                .with_temporality(opentelemetry_sdk::metrics::Temporality::Delta)
+                .build(),
+        ));
+        let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .with_exemplar_filter(filter)
+            .build();
+        let histogram = meter_provider
+            .meter("benchmarks")
+            .u64_histogram("histogram_exemplar_kept")
+            .build();
+        let mut rm = ResourceMetrics::default();
+
+        c.bench_function(
+            &format!("Histogram_RecordAndCollect_SampledSpan_{label}"),
+            |b| {
+                b.iter(|| {
+                    histogram.record(500, &[KeyValue::new("attribute1", ATTRIBUTE_VALUES[0])]);
+                    reader.collect(&mut rm).expect("collect");
+                });
+            },
+        );
+    }
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     histogram_record(c);
+
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    histogram_record_with_exemplar_filter(c);
 
     let attribute_values: [String; 10] = (1..=10)
         .map(|i| format!("value{i}"))

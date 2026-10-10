@@ -580,11 +580,11 @@ pub struct Exemplar<T> {
     pub value: T,
     /// The ID of the span that was active during the measurement.
     ///
-    /// If no span was active or the span was not sampled this will be empty.
+    /// If no span was active this will be empty.
     pub(crate) span_id: [u8; 8],
     /// The ID of the trace the active span belonged to during the measurement.
     ///
-    /// If no span was active or the span was not sampled this will be empty.
+    /// If no span was active this will be empty.
     pub(crate) trace_id: [u8; 16],
 }
 
