@@ -49,6 +49,22 @@ where
         let mut current = self.lock().unwrap_or_else(|err| err.into_inner());
         Mutex::new(replace(current.deref_mut(), Buckets::new(*count)))
     }
+
+    fn merge_to(&self, target: &Self) {
+        let src = self.lock().unwrap_or_else(|err| err.into_inner());
+        let mut dst = target.lock().unwrap_or_else(|err| err.into_inner());
+        dst.count += src.count;
+        dst.total += src.total;
+        if src.min < dst.min {
+            dst.min = src.min;
+        }
+        if src.max > dst.max {
+            dst.max = src.max;
+        }
+        for (i, &c) in src.counts.iter().enumerate() {
+            dst.counts[i] += c;
+        }
+    }
 }
 
 #[derive(Default)]

@@ -204,6 +204,31 @@ fn scale_change(max_size: i32, bin: i32, start_bin: i32, length: i32) -> u32 {
     count
 }
 
+/// Returns the number of doubling-shrinks (downscale delta) needed so the union bin range
+/// of two bucket sets fits within `max_size` after downscaling.
+/// This is used during merge to avoid allocating huge sparse bucket vectors that's beyond
+/// the "max_size" limit when two histograms at the same scale cover widely different ranges.
+fn scale_change_for_union(max_size: i32, start1: i32, len1: i32, start2: i32, len2: i32) -> u32 {
+    if len1 <= 0 || len2 <= 0 {
+        return 0;
+    }
+    let end1 = start1 + len1 - 1;
+    let end2 = start2 + len2 - 1;
+    let mut low = start1.min(start2);
+    let mut high = end1.max(end2);
+    let mut count = 0u32;
+    while high - low >= max_size {
+        low >>= 1;
+        high >>= 1;
+        count += 1;
+
+        if count > (EXPO_MAX_SCALE - EXPO_MIN_SCALE) as u32 {
+            return count;
+        }
+    }
+    count
+}
+
 // TODO - replace it with LazyLock once it is stable
 static SCALE_FACTORS: OnceLock<[f64; 21]> = OnceLock::new();
 
@@ -265,7 +290,7 @@ fn frexp(x: f64) -> (f64, i32) {
 }
 
 /// A set of buckets in an exponential histogram.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Clone)]
 struct ExpoBuckets {
     start_bin: i32,
     counts: Vec<u64>,
@@ -373,6 +398,135 @@ where
         let mut current = self.lock().unwrap_or_else(|err| err.into_inner());
         let cloned = replace(current.deref_mut(), ExpoHistogramDataPoint::new(init));
         Mutex::new(cloned)
+    }
+
+    fn merge_to(&self, target: &Self) {
+        let src = self.lock().unwrap_or_else(|err| err.into_inner());
+        // Source is empty: nothing to merge.
+        if src.count == 0 {
+            return;
+        }
+
+        let mut dst = target.lock().unwrap_or_else(|err| err.into_inner());
+        // dest is empty: just copy the src.
+        if dst.count == 0 {
+            *dst = ExpoHistogramDataPoint {
+                max_size: dst.max_size,
+                count: src.count,
+                min: src.min,
+                max: src.max,
+                sum: src.sum,
+                scale: src.scale,
+                pos_buckets: src.pos_buckets.clone(),
+                neg_buckets: src.neg_buckets.clone(),
+                zero_count: src.zero_count,
+            };
+            return;
+        }
+
+        dst.count += src.count;
+        dst.sum += src.sum;
+        dst.zero_count += src.zero_count;
+        if src.min < dst.min {
+            dst.min = src.min;
+        }
+        if src.max > dst.max {
+            dst.max = src.max;
+        }
+
+        // Unify the scales of both sides to smaller scale before merging.
+        let target_scale = src.scale.min(dst.scale);
+
+        if dst.scale > target_scale {
+            let delta = (dst.scale - target_scale) as u32;
+            dst.pos_buckets.downscale(delta);
+            dst.neg_buckets.downscale(delta);
+        }
+        dst.scale = target_scale;
+
+        // Prepare src buckets (cloned) at the common target_scale.
+        let mut src_pos = src.pos_buckets.clone();
+        let mut src_neg = src.neg_buckets.clone();
+        if src.scale > target_scale {
+            let delta = (src.scale - target_scale) as u32;
+            src_pos.downscale(delta);
+            src_neg.downscale(delta);
+        }
+
+        // If the two (now same-scale) bucket ranges are far apart (different start_bin
+        // because the original value ranges were widely different), their union at the
+        // current resolution would exceed max_size. Pre-downscale both so the union fits.
+        let pos_delta = scale_change_for_union(
+            dst.max_size,
+            dst.pos_buckets.start_bin,
+            dst.pos_buckets.counts.len() as i32,
+            src_pos.start_bin,
+            src_pos.counts.len() as i32,
+        );
+        let neg_delta = scale_change_for_union(
+            dst.max_size,
+            dst.neg_buckets.start_bin,
+            dst.neg_buckets.counts.len() as i32,
+            src_neg.start_bin,
+            src_neg.counts.len() as i32,
+        );
+        let delta = pos_delta.max(neg_delta);
+        if delta > 0 {
+            dst.pos_buckets.downscale(delta);
+            dst.neg_buckets.downscale(delta);
+            src_pos.downscale(delta);
+            src_neg.downscale(delta);
+            dst.scale -= delta as i8;
+        }
+
+        merge_expo_buckets(&src_pos, &mut dst.pos_buckets);
+        merge_expo_buckets(&src_neg, &mut dst.neg_buckets);
+
+        // Final safety net (in case alignment after downscale adds an extra bucket).
+        while dst.scale > EXPO_MIN_SCALE
+            && (dst.pos_buckets.counts.len() as i32 > dst.max_size
+                || dst.neg_buckets.counts.len() as i32 > dst.max_size)
+        {
+            dst.pos_buckets.downscale(1);
+            dst.neg_buckets.downscale(1);
+            dst.scale -= 1;
+        }
+    }
+}
+
+/// Merges `src` bucket counts into `dst`, aligning by bin index.
+/// Assumes both have the same scale (no downscaling needed).
+fn merge_expo_buckets(src: &ExpoBuckets, dst: &mut ExpoBuckets) {
+    if src.counts.is_empty() {
+        return;
+    }
+
+    if dst.counts.is_empty() {
+        dst.start_bin = src.start_bin;
+        dst.counts = src.counts.clone();
+        return;
+    }
+
+    // Compute the union bin range
+    let src_end = src.start_bin + src.counts.len() as i32 - 1;
+    let dst_end = dst.start_bin + dst.counts.len() as i32 - 1;
+    let new_start = src.start_bin.min(dst.start_bin);
+    let new_end = src_end.max(dst_end);
+    let new_len = (new_end - new_start + 1) as usize;
+
+    // Shift dst counts to align with new_start
+    let dst_offset = (dst.start_bin - new_start) as usize;
+    if dst_offset > 0 || new_len > dst.counts.len() {
+        let mut new_counts = vec![0u64; new_len];
+        new_counts[dst_offset..dst_offset + dst.counts.len()].copy_from_slice(&dst.counts);
+        dst.counts = new_counts;
+        dst.start_bin = new_start;
+    }
+
+    // Add src counts at their aligned offsets
+    let src_offset = (src.start_bin - new_start) as usize;
+    for (i, &c) in src.counts.iter().enumerate() {
+        dst.counts[src_offset + i] += c;
     }
 }
 
@@ -1695,5 +1849,215 @@ mod tests {
             a.negative_bucket, b.negative_bucket,
             "{test_name}: {message} neg"
         );
+    }
+
+    #[test]
+    fn merge_same_scale() {
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+        // Both source and dest are at the same scale.
+        let a: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.update(1.0);
+        a.update(2.0);
+
+        let b: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        b.update(1.0);
+        b.update(4.0);
+
+        let merged: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.merge_to(&merged);
+        b.merge_to(&merged);
+
+        let m = merged.lock().unwrap();
+        assert_eq!(m.count, 4);
+        assert_eq!(m.sum, 8.0); // 1+2+1+4
+        assert_eq!(m.min, 1.0);
+        assert_eq!(m.max, 4.0);
+    }
+
+    #[test]
+    fn merge_same_scale_different_start_bin() {
+        // Histogram a records a narrow cluster [1, 2, 3]   (log-span ~1.58)  → ends at scale 0
+        // Histogram b records a wide cluster [1M, 1G, 10G] (log-span ~13.3)  → ends at scale -3
+        //
+        // The two histograms therefore have different scales *and* different start_bin
+        // values after their own recordings. The merge must:
+        //   1. Normalize the finer histogram (A) to the coarser scale (-3)
+        //   2. Detect that even at the common scale the start_bins are still far apart
+        //   3. Perform an additional union downscale (to scale -4) so the merged
+        //      buckets fit in max_size=4.
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+
+        let a: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.update(1.0);
+        a.update(2.0);
+        a.update(3.0);
+
+        let b: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        b.update(1_000_000.0); // 1M
+        b.update(1_000_000_000.0); // 1G
+        b.update(10_000_000_000.0); // 10G
+
+        let merged: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.merge_to(&merged);
+        b.merge_to(&merged);
+
+        let m = merged.lock().unwrap();
+
+        // Structural invariants that must always hold after any merge
+        assert!(
+            m.pos_buckets.counts.len() as i32 <= m.max_size,
+            "pos bucket len {} > max_size {}",
+            m.pos_buckets.counts.len(),
+            m.max_size
+        );
+        let bucket_total: u64 = m.pos_buckets.counts.iter().sum::<u64>() + m.zero_count;
+        assert_eq!(bucket_total, m.count as u64);
+
+        // Exact results for the given inputs (verified by running the merge)
+        assert_eq!(m.count, 6);
+        assert_eq!(m.min, 1.0);
+        assert_eq!(m.max, 10_000_000_000.0);
+        let expected_sum = 1.0 + 2.0 + 3.0 + 1_000_000.0 + 1_000_000_000.0 + 10_000_000_000.0;
+        assert!((m.sum - expected_sum).abs() < 1.0);
+
+        // After normalizing to -3 and then one extra union downscale we land at -4
+        assert_eq!(m.scale, -4);
+        // The final bucket layout (start_bin + counts) is deterministic for these inputs
+        assert_eq!(m.pos_buckets.start_bin, -1);
+        assert_eq!(m.pos_buckets.counts, vec![1, 2, 2, 1]);
+    }
+
+    #[test]
+    fn merge_different_scales_rescales_buckets() {
+        // Shard A: small values stay at a fine scale.
+        // Shard B: wide-range values force a coarser scale.
+        // After merge, buckets must be rescaled to the coarser scale.
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+
+        let a: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.update(1.0);
+        a.update(1.0);
+        let a_scale = a.lock().unwrap().scale;
+
+        let b: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        // Record values that span a wide range to force downscaling.
+        for &v in &[1.0, 2.0, 4.0, 8.0, 16.0] {
+            b.update(v);
+        }
+        let b_scale = b.lock().unwrap().scale;
+
+        // Confirm B is downscaled, B scale < A scale.
+        assert!(
+            b_scale < a_scale,
+            "expected B to be at a coarser scale than A, got a={a_scale} b={b_scale}"
+        );
+
+        let merged: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.merge_to(&merged);
+        b.merge_to(&merged);
+
+        let m = merged.lock().unwrap();
+        assert_eq!(m.count, 7); // 2 + 5
+        assert_eq!(m.sum, 1.0 + 1.0 + 1.0 + 2.0 + 4.0 + 8.0 + 16.0);
+        assert_eq!(m.min, 1.0);
+        assert_eq!(m.max, 16.0);
+        // Merged scale should be the coarser of the two.
+        assert_eq!(m.scale, b_scale);
+        // Bucket count must not exceed max_size.
+        assert!(
+            m.pos_buckets.counts.len() as i32 <= m.max_size,
+            "pos buckets {} exceed max_size {}",
+            m.pos_buckets.counts.len(),
+            m.max_size
+        );
+
+        // Total bucket counts must equal count minus zero_count.
+        let total_bucket_count: u64 = m.pos_buckets.counts.iter().sum::<u64>()
+            + m.neg_buckets.counts.iter().sum::<u64>()
+            + m.zero_count;
+        assert_eq!(total_bucket_count, m.count as u64);
+    }
+
+    #[test]
+    fn merge_into_empty_target() {
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+
+        let a: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.update(2.0);
+        a.update(8.0);
+
+        let merged: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.merge_to(&merged);
+
+        let m = merged.lock().unwrap();
+        let a_inner = a.lock().unwrap();
+        assert_eq!(m.count, a_inner.count);
+        assert_eq!(m.sum, a_inner.sum);
+        assert_eq!(m.scale, a_inner.scale);
+        assert_eq!(m.pos_buckets, a_inner.pos_buckets);
+        assert_eq!(m.neg_buckets, a_inner.neg_buckets);
+    }
+
+    #[test]
+    fn merge_empty_source_is_noop() {
+        let cfg = BucketConfig {
+            max_size: 4,
+            max_scale: 20,
+        };
+
+        let dst: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        dst.update(5.0);
+
+        let empty: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        let before_count = dst.lock().unwrap().count;
+
+        empty.merge_to(&dst);
+
+        let after = dst.lock().unwrap();
+        assert_eq!(after.count, before_count);
+    }
+
+    #[test]
+    fn merge_enforces_max_size() {
+        // Use a very small max_size so that merging two histograms with
+        // non-overlapping bucket ranges forces post-merge downscaling.
+        let cfg = BucketConfig {
+            max_size: 2,
+            max_scale: 20,
+        };
+
+        let a: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.update(1.0);
+
+        let b: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        b.update(1024.0);
+
+        let merged: Mutex<ExpoHistogramDataPoint<f64>> = Aggregator::create(&cfg);
+        a.merge_to(&merged);
+        b.merge_to(&merged);
+
+        let m = merged.lock().unwrap();
+        assert_eq!(m.count, 2);
+        assert!(
+            m.pos_buckets.counts.len() as i32 <= m.max_size,
+            "pos buckets {} exceed max_size {}",
+            m.pos_buckets.counts.len(),
+            m.max_size
+        );
+
+        let total: u64 = m.pos_buckets.counts.iter().sum::<u64>() + m.zero_count;
+        assert_eq!(total, m.count as u64);
     }
 }
