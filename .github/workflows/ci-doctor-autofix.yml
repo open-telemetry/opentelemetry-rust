@@ -1,0 +1,184 @@
+# CI Doctor — Tier 2 (auto-fix)
+#
+# Runs after the canary. Attempts `cargo clippy --fix` for the machine-
+# applicable clippy lints on the stable toolchain. If the resulting tree
+# is clean-clippy + tests pass, opens (or updates) a PR titled
+# "chore(ci-hygiene): apply clippy suggestions". If the fix does not
+# resolve all lints, no PR is opened — the tracking issue from Tier 1
+# will still track the problem for a human.
+#
+# Only stable is auto-fixed. Beta lints may not be stabilized in their
+# final form, so we do not want to churn code chasing them.
+#
+# Note: PRs opened via GITHUB_TOKEN do not trigger downstream workflow
+# runs. Reviewers must close-and-reopen the PR to force CI. Provide a
+# repo secret `CI_DOCTOR_TOKEN` (a fine-grained PAT or GitHub App
+# installation token with contents:write and pull_requests:write) to
+# have the bot's PR trigger CI automatically.
+name: CI Doctor Autofix
+env:
+  CI: true
+permissions:
+  contents: read
+on:
+  schedule:
+    # 30 minutes after the canary run so we work off the same daily view.
+    - cron: '30 6 * * *'
+  workflow_dispatch: {}
+concurrency:
+  group: ci-doctor-autofix
+  cancel-in-progress: false
+jobs:
+  clippy-autofix:
+    if: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && vars.CI_DOCTOR_ENABLED != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+          # Full history so we can force-push the autofix branch cleanly.
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@25435dc8dd3baed7417e0c96d3fe89013a5b2e09 # v2.81.3
+        with:
+          tool: cargo-hack
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refresh dependency graph
+        run: cargo update
+      - name: Confirm main is failing on clippy
+        id: precheck
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --all-features -- -Dwarnings 2>&1 | tee /tmp/precheck.log
+      - name: Nothing to fix
+        if: steps.precheck.outcome == 'success'
+        run: |
+          echo "clippy already clean on main — nothing to auto-fix."
+          exit 0
+      - name: Attempt cargo clippy --fix
+        if: steps.precheck.outcome == 'failure'
+        run: |
+          set -o pipefail
+          # --fix requires a clean-ish tree; --allow-dirty + --allow-no-vcs cover the
+          # case where cargo update touched Cargo.lock. Do not fail the step if
+          # unfixable lints remain — we detect that in the verify step below.
+          cargo clippy \
+            --workspace --all-targets --all-features \
+            --fix --allow-dirty --allow-staged --allow-no-vcs \
+            -- -Dwarnings 2>&1 | tee /tmp/autofix.log || true
+          cargo fmt --all
+      - name: Detect changes
+        if: steps.precheck.outcome == 'failure'
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat
+          fi
+      - name: No auto-fixable lints
+        if: steps.precheck.outcome == 'failure' && steps.diff.outputs.changed != 'true'
+        run: |
+          echo "clippy failed but no machine-applicable fixes were produced."
+          echo "The Tier 1 tracking issue will still record this failure."
+          exit 0
+      - name: Verify — clippy clean after fix
+        if: steps.precheck.outcome == 'failure' && steps.diff.outputs.changed == 'true'
+        id: verify_clippy
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --all-features -- -Dwarnings 2>&1 | tee /tmp/verify.log
+      - name: Verify — tests still pass
+        if: steps.precheck.outcome == 'failure' && steps.diff.outputs.changed == 'true' && steps.verify_clippy.outcome == 'success'
+        id: verify_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo test --workspace --all-features --lib 2>&1 | tee /tmp/tests.log
+      - name: Bail out if verification failed
+        if: >-
+          steps.precheck.outcome == 'failure' &&
+          steps.diff.outputs.changed == 'true' &&
+          (steps.verify_clippy.outcome != 'success' || steps.verify_tests.outcome != 'success')
+        run: |
+          echo "Auto-fix produced changes but verification failed."
+          echo "clippy outcome: ${{ steps.verify_clippy.outcome }}"
+          echo "tests outcome: ${{ steps.verify_tests.outcome }}"
+          echo "Not opening a PR. The Tier 1 tracking issue will still record the underlying failure."
+          exit 0
+      - name: Commit and force-push autofix branch
+        if: >-
+          steps.precheck.outcome == 'failure' &&
+          steps.diff.outputs.changed == 'true' &&
+          steps.verify_clippy.outcome == 'success' &&
+          steps.verify_tests.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.CI_DOCTOR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci-doctor/clippy-fix
+          git add -A
+          RUST_VERSION="$(rustc --version | awk '{print $2}')"
+          git commit -m "chore(ci-hygiene): apply clippy suggestions from Rust ${RUST_VERSION}"
+          # Push using the token so the follow-up PR can be created by the same identity.
+          REMOTE_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force "${REMOTE_URL}" HEAD:ci-doctor/clippy-fix
+      - name: Open or update the auto-fix PR
+        if: >-
+          steps.precheck.outcome == 'failure' &&
+          steps.diff.outputs.changed == 'true' &&
+          steps.verify_clippy.outcome == 'success' &&
+          steps.verify_tests.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.CI_DOCTOR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          RUST_VERSION="$(rustc --version | awk '{print $2}')"
+          BODY_FILE="$(mktemp)"
+          {
+            echo "Applied by the **CI Doctor autofix** workflow after \`cargo clippy --fix\` on stable Rust \`${RUST_VERSION}\`."
+            echo
+            echo "- **Command:** \`cargo clippy --workspace --all-targets --all-features --fix -- -Dwarnings\`"
+            echo "- **Verification:** clippy + \`cargo test --workspace --all-features --lib\` both passed on the fixed tree."
+            echo "- **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "### Changed files"
+            echo
+            echo '```'
+            git diff --stat HEAD^ HEAD || true
+            echo '```'
+            echo
+            echo "> This PR was opened automatically. **Please review before merging.**"
+            echo "> If the fix is wrong or scope has drifted, close this PR — the bot will not"
+            echo "> reopen it unless the underlying failure recurs. To disable the bot entirely,"
+            echo "> set the repo variable \`CI_DOCTOR_ENABLED=false\`."
+          } >"${BODY_FILE}"
+
+          if gh pr view ci-doctor/clippy-fix --json state --jq .state >/dev/null 2>&1; then
+            echo "Existing PR found — updating body."
+            gh pr edit ci-doctor/clippy-fix --body-file "${BODY_FILE}"
+          else
+            echo "Opening new PR."
+            gh pr create \
+              --base main \
+              --head ci-doctor/clippy-fix \
+              --title "chore(ci-hygiene): apply clippy suggestions from Rust ${RUST_VERSION}" \
+              --label ci-hygiene \
+              --body-file "${BODY_FILE}"
+          fi
+          rm -f "${BODY_FILE}"

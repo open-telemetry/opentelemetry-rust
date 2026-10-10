@@ -1,0 +1,165 @@
+# CI Doctor — Tier 1 (canary)
+#
+# Runs the checks most likely to break `main` unexpectedly (new stable
+# clippy lints, new RUSTSEC advisories, MSRV drift under a fresh
+# dependency resolve) once a day on a schedule.
+#
+# On failure, a tracking issue is opened (or updated) with a stable
+# signature so that repeat runs do not spam. Passing checks auto-close
+# any matching open issue.
+#
+# See `.github/scripts/ci-doctor-report.sh` for the reporter details.
+#
+# Kill switch: set the repository variable `CI_DOCTOR_ENABLED=false`
+# to skip all jobs without editing this file.
+name: CI Doctor
+env:
+  CI: true
+permissions:
+  contents: read
+  issues: write
+on:
+  schedule:
+    # Every day at 06:00 UTC. Chosen to be well before EU business hours
+    # so a tracking issue exists by the time contributors open PRs.
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+concurrency:
+  group: ci-doctor
+  cancel-in-progress: false
+jobs:
+  clippy:
+    if: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && vars.CI_DOCTOR_ENABLED != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@25435dc8dd3baed7417e0c96d3fe89013a5b2e09 # v2.81.3
+        with:
+          tool: cargo-hack
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refresh dependency graph (mirror PR CI without a lockfile)
+        run: cargo update
+      - name: Clippy (workspace, all features)
+        id: check
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --all-features -- -Dwarnings 2>&1 | tee /tmp/check.log
+      - name: Report outcome
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/ci-doctor-report.sh \
+            --signature clippy-stable \
+            --title "[CI Doctor] clippy failing on stable Rust" \
+            --status "${{ steps.check.outcome }}" \
+            --command "cargo clippy --workspace --all-targets --all-features -- -Dwarnings" \
+            --log /tmp/check.log \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label ci-hygiene \
+            --toolchain stable
+      - name: Surface failure to the workflow
+        if: steps.check.outcome == 'failure'
+        run: exit 1
+
+  cargo-deny:
+    if: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && vars.CI_DOCTOR_ENABLED != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: taiki-e/install-action@25435dc8dd3baed7417e0c96d3fe89013a5b2e09 # v2.81.3
+        with:
+          tool: cargo-deny
+      - name: cargo-deny (advisories, fresh DB)
+        id: check
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          # `cargo deny fetch` refreshes the advisory database so we exercise the same view
+          # PR CI sees on any given day.
+          cargo deny fetch 2>&1 | tee -a /tmp/check.log
+          cargo deny check advisories 2>&1 | tee -a /tmp/check.log
+      - name: Report outcome
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/ci-doctor-report.sh \
+            --signature cargo-deny-advisories \
+            --title "[CI Doctor] cargo-deny advisories failing on main" \
+            --status "${{ steps.check.outcome }}" \
+            --command "cargo deny check advisories" \
+            --log /tmp/check.log \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label ci-hygiene
+      - name: Surface failure to the workflow
+        if: steps.check.outcome == 'failure'
+        run: exit 1
+
+  msrv:
+    if: ${{ github.repository == 'open-telemetry/opentelemetry-rust' && vars.CI_DOCTOR_ENABLED != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: stable
+      - uses: taiki-e/install-action@25435dc8dd3baed7417e0c96d3fe89013a5b2e09 # v2.81.3
+        with:
+          tool: cargo-msrv
+      - uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Refresh dependency graph (mirror PR CI without a lockfile)
+        run: cargo update
+      - name: MSRV verify
+        id: check
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          bash ./scripts/msrv.sh 2>&1 | tee /tmp/check.log
+      - name: Report outcome
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash .github/scripts/ci-doctor-report.sh \
+            --signature msrv \
+            --title "[CI Doctor] MSRV verification failing on main" \
+            --status "${{ steps.check.outcome }}" \
+            --command "bash ./scripts/msrv.sh (after cargo update)" \
+            --log /tmp/check.log \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label ci-hygiene
+      - name: Surface failure to the workflow
+        if: steps.check.outcome == 'failure'
+        run: exit 1
