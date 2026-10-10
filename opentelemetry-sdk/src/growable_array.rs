@@ -87,6 +87,62 @@ impl<
         self.count + self.overflow.as_ref().map_or(0, Vec::len)
     }
 
+    /// Retains only the elements for which `f` returns `true`, and preserves their order.
+    ///
+    /// This function first retains elements in the interal array and then moves items
+    /// from the overflow vector into the internal array to fill any gaps.
+    /// It ensures that the internal array remains full while the overflow vector shrinks.
+    ///
+    /// Elements are moved and not cloned. The closure gets a mutable reference, so it can
+    /// also change the elements that it retains.
+    ///
+    /// # Arguments
+    ///
+    /// - `f`: The predicate. Returns `true` to retain the element, `false` to remove it.
+    ///
+    /// # Returns
+    ///
+    /// - The number of removed elements.
+    ///
+    #[cfg(any(feature = "logs", test))]
+    #[inline]
+    pub(crate) fn retain_mut<F>(&mut self, mut f: F) -> usize
+    where
+        F: FnMut(&mut T) -> bool,
+    {
+        let len_before = self.len();
+
+        let mut kept = 0;
+        for i in 0..self.count {
+            if f(&mut self.inline[i]) {
+                // Slots `kept..i` hold only removed elements, so the swap keeps the order.
+                self.inline.swap(kept, i);
+                kept += 1;
+            } else {
+                self.inline[i] = T::default();
+            }
+        }
+
+        if let Some(overflow) = self.overflow.as_mut() {
+            overflow.retain_mut(&mut f);
+            let moved = (MAX_INLINE_CAPACITY - kept).min(overflow.len());
+            for (slot, value) in self.inline[kept..kept + moved]
+                .iter_mut()
+                .zip(overflow.drain(..moved))
+            {
+                *slot = value;
+            }
+            kept += moved;
+            // `get` expects a full internal array while the overflow vector exists.
+            if overflow.is_empty() {
+                self.overflow = None;
+            }
+        }
+        self.count = kept;
+
+        len_before - self.len()
+    }
+
     /// Returns an iterator over the elements in the `GrowableArray`.
     ///
     /// The iterator yields elements from the internal array (`initial`) first, followed by elements
@@ -365,5 +421,160 @@ mod tests {
             assert_eq!(iter.next(), Some(i as i32));
         }
         assert_eq!(iter.next(), None);
+    }
+
+    fn collection_of(len: usize) -> GrowableArray<i32> {
+        let mut collection = GrowableArray::<i32>::new();
+        for i in 0..len {
+            collection.push(i as i32);
+        }
+        collection
+    }
+
+    #[test]
+    fn test_retain_mut_modify_empty() {
+        let mut collection = GrowableArray::<i32>::new();
+
+        // Try to modify values in an empty list
+        collection.retain_mut(|_| {
+            panic!("This closure should not be called for an empty collection");
+        });
+        assert_eq!(collection.len(), 0);
+        assert_eq!(collection.get(0), None);
+    }
+
+    #[test]
+    fn test_retain_mut_modify_single_element() {
+        let mut collection = GrowableArray::<i32>::new();
+
+        // Add a single element and modify it
+        collection.push(5);
+        collection.retain_mut(|value| {
+            *value *= 2;
+            true
+        });
+        assert_eq!(collection.get(0), Some(&10));
+        assert_eq!(collection.len(), 1);
+    }
+
+    #[test]
+    fn test_retain_mut_modify_all_elements() {
+        // Add more elements and modify them
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 3);
+        let mut i = 0;
+        collection.retain_mut(|value| {
+            *value = i * 3; // Set values to i * 3
+            i += 1;
+            true
+        });
+        for i in 0..(DEFAULT_MAX_INLINE_CAPACITY + 3) {
+            assert_eq!(collection.get(i), Some(&(i as i32 * 3)));
+        }
+    }
+    #[test]
+    fn test_retain_mut_inline() {
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
+
+        // Remove a value from the inline array using retain_mut
+        let removed = collection.retain_mut(|v| *v != 3);
+        assert_eq!(removed, 1);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY - 1);
+
+        // Ensure the array shifted correctly and the value was removed
+        for i in 0..3 {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        for i in 3..collection.len() {
+            assert_eq!(collection.get(i), Some(&((i + 1) as i32)));
+        }
+    }
+
+    #[test]
+    fn test_retain_mut_no_match() {
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY);
+
+        // Try to remove a value that is not in the collection
+        let non_existent = collection.retain_mut(|v| *v != 99);
+        assert_eq!(non_existent, 0);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY);
+    }
+
+    #[test]
+    fn test_retain_mut_overflow() {
+        // Fill inline array and add elements to the overflow
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 5);
+
+        // Remove a value from the overflow vector using retain_mut
+        let removed = collection.retain_mut(|v| *v != 12);
+        assert_eq!(removed, 1);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 4);
+
+        // Ensure the rest of the elements are in order
+        for i in 0..DEFAULT_MAX_INLINE_CAPACITY {
+            assert_eq!(collection.get(i), Some(&(i as i32)));
+        }
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY), Some(&10));
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY + 1), Some(&11));
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY + 2), Some(&13));
+    }
+
+    #[test]
+    fn test_retain_mut_last_element() {
+        let mut collection = GrowableArray::<i32>::new();
+        collection.push(10);
+        assert_eq!(collection.len(), 1);
+
+        // Remove the only element in the collection using retain_mut
+        let removed = collection.retain_mut(|v| *v != 10);
+        assert_eq!(removed, 1);
+        assert_eq!(collection.len(), 0);
+
+        // Ensure it's empty
+        assert_eq!(collection.get(0), None);
+    }
+
+    #[test]
+    fn test_retain_mut_from_inline_and_replace_with_overflow() {
+        // Fill inline array and add overflow elements
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 3);
+
+        // Before removing, ensure that the count is correct
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 3);
+
+        // Remove an inline value and ensure that an overflow value takes its place using retain_mut
+        let removed = collection.retain_mut(|v| *v != 5);
+        assert_eq!(removed, 1);
+        assert_eq!(collection.len(), DEFAULT_MAX_INLINE_CAPACITY + 2);
+
+        // The last inline position should now be filled with the first overflow element
+        assert_eq!(collection.get(DEFAULT_MAX_INLINE_CAPACITY - 1), Some(&10));
+    }
+
+    #[test]
+    fn test_retain_mut_all_elements() {
+        // Fill inline array and add elements to the overflow
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
+
+        // Remove all values from the inline array and the overflow vector using retain_mut
+        let removed = collection.retain_mut(|_| false);
+        assert_eq!(removed, DEFAULT_MAX_INLINE_CAPACITY + 5);
+
+        // Ensure it's empty
+        assert_eq!(collection.len(), 0);
+        assert_eq!(collection.get(0), None);
+    }
+
+    #[test]
+    fn test_retain_mut_push_after_all_elements_removed() {
+        // Fill inline array and add elements to the overflow, then remove all
+        let mut collection = collection_of(DEFAULT_MAX_INLINE_CAPACITY + 5);
+        collection.retain_mut(|_| false);
+
+        // Ensure the collection is usable after it was emptied
+        collection.push(1);
+        assert_eq!(collection.get(0), Some(&1));
+        assert_eq!(collection.len(), 1);
     }
 }

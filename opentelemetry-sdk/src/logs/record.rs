@@ -202,6 +202,77 @@ impl SdkLogRecord {
             .flatten()
             .any(|(k, v)| k == key && v == value)
     }
+
+    /// Sets the value of the attribute with the specified key.
+    ///
+    /// This method searches the `attributes` collection for the given key:
+    ///
+    /// - If the key is found, the first occurrence gets the new value, and all other
+    ///   occurrences of the key are removed. After the call, the key occurs exactly once.
+    /// - If the key is not found, the attribute is added.
+    ///
+    /// A `LogProcessor` can use this method to redact a value: no copy of the old value
+    /// stays on the record.
+    ///
+    /// This method examines all attributes on each call, because it must remove the
+    /// duplicates. Use `add_attribute` if the key is not on the record yet.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: The key of the attribute to set.
+    /// - `value`: The new value for the attribute.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(AnyValue)`: The old value of the first occurrence, if the key was found.
+    /// - `None`: If the key was not found, and a new attribute was added.
+    ///
+    pub fn set_attribute<K, V>(&mut self, key: K, value: V) -> Option<AnyValue>
+    where
+        K: Into<Key>,
+        V: Into<AnyValue>,
+    {
+        let key = key.into();
+        let mut new_value = Some(value.into());
+        let mut old_value = None;
+
+        self.attributes.retain_mut(|attr| match attr {
+            Some((k, v)) if *k == key => match new_value.take() {
+                Some(new_value) => {
+                    old_value = Some(std::mem::replace(v, new_value));
+                    true
+                }
+                None => false,
+            },
+            _ => true,
+        });
+
+        if let Some(new_value) = new_value {
+            self.attributes.push(Some((key, new_value)));
+        }
+        old_value
+    }
+
+    /// Removes all occurrences of the attribute with the specified key.
+    ///
+    /// This method searches for all occurrences of the attribute with the given key
+    /// in the `attributes` collection and removes them. The order of the other
+    /// attributes does not change.
+    ///
+    /// This method examines all attributes on each call.
+    ///
+    /// # Arguments
+    ///
+    /// - `key`: A reference to the key of the attribute to remove.
+    ///
+    /// # Returns
+    ///
+    /// - The number of removed occurrences of the key.
+    ///
+    pub fn remove_attribute(&mut self, key: &Key) -> usize {
+        self.attributes
+            .retain_mut(|attr| !matches!(attr, Some((k, _)) if k == key))
+    }
 }
 
 /// TraceContext stores the trace context for logs that have an associated
@@ -370,5 +441,109 @@ mod tests {
         };
 
         assert_eq!(log_record_borrowed, log_record_owned);
+    }
+
+    #[test]
+    fn test_set_attribute_adds_new_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+
+        // Add a new attribute
+        assert!(log_record
+            .set_attribute(key.clone(), value.clone())
+            .is_none());
+        assert!(log_record.attributes_contains(&key, &value));
+        assert_eq!(log_record.attributes_len(), 1);
+    }
+
+    #[test]
+    fn test_set_attribute_updates_existing_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+        let updated_value = AnyValue::String("updated_value".into());
+        log_record.add_attribute(key.clone(), value.clone());
+
+        // Update the existing attribute
+        assert_eq!(
+            log_record.set_attribute(key.clone(), updated_value.clone()),
+            Some(value)
+        );
+        assert!(log_record.attributes_contains(&key, &updated_value));
+        assert_eq!(log_record.attributes_len(), 1);
+    }
+
+    #[test]
+    fn test_delete_attribute() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let value = AnyValue::String("value1".into());
+
+        // Add an attribute
+        log_record.add_attribute(key.clone(), value.clone());
+        assert!(log_record.attributes_contains(&key, &value));
+
+        // Delete the attribute
+        let del_count = log_record.remove_attribute(&key);
+        assert_eq!(del_count, 1);
+
+        // Ensure it is deleted
+        assert!(!log_record.attributes_contains(&key, &value));
+    }
+
+    #[test]
+    fn test_set_attribute_removes_duplicates() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("secret");
+        // Put the duplicates in the inline array and in the overflow vector.
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY + 3 {
+            if i % 3 == 0 {
+                log_record.add_attribute(key.clone(), format!("secret-{i}"));
+            } else {
+                log_record.add_attribute(format!("key{i}"), i as i64);
+            }
+        }
+
+        // Redact the attribute, the first occurrence returns its old value
+        assert_eq!(
+            log_record.set_attribute(key.clone(), "redacted"),
+            Some(AnyValue::from("secret-0"))
+        );
+
+        // Ensure only the redacted value is left and the duplicates are removed
+        let matches: Vec<_> = log_record
+            .attributes_iter()
+            .filter(|(k, _)| k == &key)
+            .collect();
+        assert_eq!(matches, vec![&(key.clone(), AnyValue::from("redacted"))]);
+        assert_eq!(log_record.attributes_len(), 6);
+    }
+
+    #[test]
+    fn test_remove_attribute_duplicates() {
+        let mut log_record = SdkLogRecord::new();
+        let key = Key::new("key1");
+        let other = Key::new("other");
+
+        // Add attributes in the inline array and in the overflow vector
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY + 3 {
+            if i % 2 == 0 {
+                log_record.add_attribute(key.clone(), i as i64);
+            } else {
+                log_record.add_attribute(other.clone(), i as i64);
+            }
+        }
+
+        // Delete all occurrences of the attribute
+        assert_eq!(log_record.remove_attribute(&key), 4);
+
+        // Ensure it is deleted and the other attributes stay
+        assert!(log_record.attributes_iter().all(|(k, _)| k == &other));
+        assert_eq!(log_record.attributes_len(), 4);
+
+        // Delete it again, nothing is removed
+        assert_eq!(log_record.remove_attribute(&key), 0);
+        assert_eq!(log_record.attributes_len(), 4);
     }
 }

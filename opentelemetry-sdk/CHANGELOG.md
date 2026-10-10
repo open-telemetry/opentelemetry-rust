@@ -2,6 +2,14 @@
 
 ## vNext
 
+- Added `SdkLogRecord::set_attribute` and `SdkLogRecord::remove_attribute`, so a
+  `LogProcessor` can change or redact attributes that are already on a record.
+  `set_attribute` replaces the value of an existing key, removes other
+  occurrences of that key, and returns the old value. If the key is not
+  present, it adds the attribute. `remove_attribute` removes all occurrences of
+  a key and returns the number of removed attributes.
+  ([#1986](https://github.com/open-telemetry/opentelemetry-rust/issues/1986))
+
 ## 0.33.1
 
 Released 2026-Oct-08
