@@ -224,15 +224,14 @@ impl SdkLogRecord {
     ///
     pub fn set_attribute<K, V>(&mut self, key: K, value: V) -> Option<AnyValue>
     where
-        K: Into<Key>,
+        K: AsRef<str> + Into<Key>,
         V: Into<AnyValue>,
     {
-        let key = key.into();
         let mut new_value = Some(value.into());
         let mut old_value = None;
 
         self.attributes.retain_mut(|attr| match attr {
-            Some((k, v)) if *k == key => match new_value.take() {
+            Some((k, v)) if k.as_str() == key.as_ref() => match new_value.take() {
                 Some(new_value) => {
                     old_value = Some(std::mem::replace(v, new_value));
                     true
@@ -243,8 +242,9 @@ impl SdkLogRecord {
         });
 
         if let Some(new_value) = new_value {
-            self.attributes.push(Some((key, new_value)));
+            self.attributes.push(Some((key.into(), new_value)));
         }
+
         old_value
     }
 
