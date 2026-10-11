@@ -1,4 +1,6 @@
 use std::borrow::{Borrow, Cow};
+use std::mem::ManuallyDrop;
+use std::ptr::NonNull;
 use std::sync::Arc;
 use std::{fmt, hash};
 
@@ -31,11 +33,13 @@ impl Key {
     }
 
     /// Create a new const `Key`.
+    #[inline]
     pub const fn from_static_str(value: &'static str) -> Self {
-        Key(OtelString::Static(value))
+        Key(OtelString::from_static(value))
     }
 
     /// Returns a reference to the underlying key name
+    #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -43,22 +47,23 @@ impl Key {
 
 impl From<&'static str> for Key {
     /// Convert a `&str` to a `Key`.
+    #[inline]
     fn from(key_str: &'static str) -> Self {
-        Key(OtelString::Static(key_str))
+        Key(OtelString::from_static(key_str))
     }
 }
 
 impl From<String> for Key {
     /// Convert a `String` to a `Key`.
     fn from(string: String) -> Self {
-        Key(OtelString::Owned(string.into_boxed_str()))
+        Key(OtelString::from_owned(string.into_boxed_str()))
     }
 }
 
 impl From<Arc<str>> for Key {
     /// Convert a `String` to a `Key`.
     fn from(string: Arc<str>) -> Self {
-        Key(OtelString::RefCounted(string))
+        Key(OtelString::from_arc(string))
     }
 }
 
@@ -66,8 +71,8 @@ impl From<Cow<'static, str>> for Key {
     /// Convert a `Cow<'static, str>` to a `Key`
     fn from(string: Cow<'static, str>) -> Self {
         match string {
-            Cow::Borrowed(s) => Key(OtelString::Static(s)),
-            Cow::Owned(s) => Key(OtelString::Owned(s.into_boxed_str())),
+            Cow::Borrowed(s) => Key(OtelString::from_static(s)),
+            Cow::Owned(s) => Key(OtelString::from_owned(s.into_boxed_str())),
         }
     }
 }
@@ -80,21 +85,17 @@ impl fmt::Debug for Key {
 
 impl From<Key> for String {
     fn from(key: Key) -> Self {
-        match key.0 {
-            OtelString::Owned(s) => s.into_string(),
-            OtelString::Static(s) => s.to_owned(),
-            OtelString::RefCounted(s) => s.to_string(),
+        match key.0.into_repr() {
+            OtelStringRepr::Owned(s) => s.into_string(),
+            OtelStringRepr::Static(s) => s.to_owned(),
+            OtelStringRepr::RefCounted(s) => s.to_string(),
         }
     }
 }
 
 impl fmt::Display for Key {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            OtelString::Owned(s) => s.fmt(fmt),
-            OtelString::Static(s) => s.fmt(fmt),
-            OtelString::RefCounted(s) => s.fmt(fmt),
-        }
+        self.0.as_str().fmt(fmt)
     }
 }
 
@@ -110,22 +111,171 @@ impl AsRef<str> for Key {
     }
 }
 
-#[derive(Clone, Debug, Eq)]
-enum OtelString {
+/// The owning representations an [`OtelString`] can be built from.
+#[derive(Clone, Debug)]
+enum OtelStringRepr {
     Owned(Box<str>),
     Static(&'static str),
     RefCounted(Arc<str>),
 }
 
+/// A 16 byte string handle that is either owned, static or reference counted.
+///
+/// The representation tag lives in the top two bits of `len_tag`.
+struct OtelString {
+    ptr: NonNull<u8>,
+    len_tag: usize,
+}
+
+const TAG_SHIFT: u32 = usize::BITS - 2;
+const LEN_MASK: usize = (1 << TAG_SHIFT) - 1;
+const TAG_STATIC: usize = 0;
+const TAG_OWNED: usize = 1;
+const TAG_REF_COUNTED: usize = 2;
+
+// SAFETY: `OtelString` logically owns a `Box<str>`, `&'static str` or `Arc<str>`
+unsafe impl Send for OtelString {}
+// SAFETY: see the `Send` impl above.
+unsafe impl Sync for OtelString {}
+
 impl OtelString {
+    /// Packs `len` and `tag` into `len_tag`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `len` doesn't fit in the length bits
+    #[inline]
+    const fn pack(len: usize, tag: usize) -> usize {
+        assert!(len <= LEN_MASK, "string too long for OtelString");
+        len | (tag << TAG_SHIFT)
+    }
+
+    #[inline]
+    const fn from_static(s: &'static str) -> Self {
+        OtelString {
+            // SAFETY: a `&str` pointer is never null.
+            ptr: unsafe { NonNull::new_unchecked(s.as_ptr() as *mut u8) },
+            len_tag: Self::pack(s.len(), TAG_STATIC),
+        }
+    }
+
+    #[inline]
+    fn from_owned(s: Box<str>) -> Self {
+        let len_tag = Self::pack(s.len(), TAG_OWNED);
+        // SAFETY: `Box::into_raw` never returns null.
+        let ptr = unsafe { NonNull::new_unchecked(Box::into_raw(s) as *mut u8) };
+        OtelString { ptr, len_tag }
+    }
+
+    #[inline]
+    fn from_arc(s: Arc<str>) -> Self {
+        let len_tag = Self::pack(s.len(), TAG_REF_COUNTED);
+        // SAFETY: `Arc::into_raw` never returns null
+        let ptr = unsafe { NonNull::new_unchecked(Arc::into_raw(s) as *const u8 as *mut u8) };
+        OtelString { ptr, len_tag }
+    }
+
+    fn from_repr(repr: OtelStringRepr) -> Self {
+        match repr {
+            OtelStringRepr::Owned(s) => Self::from_owned(s),
+            OtelStringRepr::Static(s) => Self::from_static(s),
+            OtelStringRepr::RefCounted(s) => Self::from_arc(s),
+        }
+    }
+
+    #[inline]
+    fn is_static(&self) -> bool {
+        self.len_tag >> TAG_SHIFT == TAG_STATIC
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.len_tag & LEN_MASK
+    }
+
+    #[inline]
     fn as_str(&self) -> &str {
-        match self {
-            OtelString::Owned(s) => s.as_ref(),
-            OtelString::Static(s) => s,
-            OtelString::RefCounted(s) => s.as_ref(),
+        // SAFETY: `ptr` and `len` always describe the valid UTF-8 bytes
+        unsafe {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.ptr.as_ptr(), self.len()))
+        }
+    }
+
+    /// Reconstructs the owning representation without consuming `self`.
+    ///
+    /// # Safety
+    ///
+    /// For owned and ref-counted strings the returned value shares ownership with `self`,
+    /// the caller must make sure exactly one of the two is dropped.
+    unsafe fn take_repr(&self) -> OtelStringRepr {
+        let raw = std::ptr::slice_from_raw_parts_mut(self.ptr.as_ptr(), self.len()) as *mut str;
+        // SAFETY: the tag records which constructor produced `ptr`
+        unsafe {
+            match self.len_tag >> TAG_SHIFT {
+                TAG_STATIC => OtelStringRepr::Static(&*raw),
+                TAG_OWNED => OtelStringRepr::Owned(Box::from_raw(raw)),
+                _ => OtelStringRepr::RefCounted(Arc::from_raw(raw as *const str)),
+            }
+        }
+    }
+
+    fn into_repr(self) -> OtelStringRepr {
+        let this = ManuallyDrop::new(self);
+        // SAFETY: `this` is never dropped, so the returned value is the only owner.
+        unsafe { this.take_repr() }
+    }
+}
+
+impl Drop for OtelString {
+    // Inlined so callers drop static strings (the common case) without a cross crate call.
+    #[inline]
+    fn drop(&mut self) {
+        if !self.is_static() {
+            self.drop_slow();
         }
     }
 }
+
+impl OtelString {
+    #[cold]
+    #[inline(never)]
+    fn drop_slow(&mut self) {
+        // SAFETY: `self` is being dropped, so the returned value is the only owner.
+        drop(unsafe { self.take_repr() });
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn clone_slow(&self) -> Self {
+        // SAFETY: the borrowed repr is wrapped in `ManuallyDrop` so `self` stays the owner.
+        let repr = ManuallyDrop::new(unsafe { self.take_repr() });
+        Self::from_repr(OtelStringRepr::clone(&repr))
+    }
+}
+
+impl Clone for OtelString {
+    #[inline]
+    fn clone(&self) -> Self {
+        if self.is_static() {
+            OtelString {
+                ptr: self.ptr,
+                len_tag: self.len_tag,
+            }
+        } else {
+            self.clone_slow()
+        }
+    }
+}
+
+impl fmt::Debug for OtelString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // SAFETY: the borrowed repr is wrapped in `ManuallyDrop`, so `self` stays the owner.
+        let repr = ManuallyDrop::new(unsafe { self.take_repr() });
+        OtelStringRepr::fmt(&repr, f)
+    }
+}
+
+impl Eq for OtelString {}
 
 impl PartialOrd for OtelString {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -140,8 +290,12 @@ impl Ord for OtelString {
 }
 
 impl PartialEq for OtelString {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.as_str().eq(other.as_str())
+        let (a, b) = (self.as_str(), other.as_str());
+        // Clones of `Static` and `RefCounted` strings share their buffer, so skip the
+        // byte comparison when both sides point at the same bytes.
+        a.len() == b.len() && (a.as_ptr() == b.as_ptr() || a.as_bytes() == b.as_bytes())
     }
 }
 
@@ -156,13 +310,13 @@ impl hash::Hash for OtelString {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
-    Bool(Vec<bool>),
+    Bool(Box<[bool]>),
     /// Array of integers
-    I64(Vec<i64>),
+    I64(Box<[i64]>),
     /// Array of floats
-    F64(Vec<f64>),
+    F64(Box<[f64]>),
     /// Array of strings
-    String(Vec<StringValue>),
+    String(Box<[StringValue]>),
 }
 
 impl fmt::Display for Array {
@@ -199,9 +353,15 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
 macro_rules! into_array {
     ($(($t:ty, $val:expr),)+) => {
         $(
-            impl From<$t> for Array {
-                fn from(t: $t) -> Self {
+            impl From<Box<[$t]>> for Array {
+                fn from(t: Box<[$t]>) -> Self {
                     $val(t)
+                }
+            }
+
+            impl From<Vec<$t>> for Array {
+                fn from(t: Vec<$t>) -> Self {
+                    $val(t.into_boxed_slice())
                 }
             }
         )+
@@ -209,10 +369,10 @@ macro_rules! into_array {
 }
 
 into_array!(
-    (Vec<bool>, Array::Bool),
-    (Vec<i64>, Array::I64),
-    (Vec<f64>, Array::F64),
-    (Vec<StringValue>, Array::String),
+    (bool, Array::Bool),
+    (i64, Array::I64),
+    (f64, Array::F64),
+    (StringValue, Array::String),
 );
 
 /// The value part of attribute [KeyValue] pairs.
@@ -244,11 +404,7 @@ impl fmt::Debug for StringValue {
 
 impl fmt::Display for StringValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            OtelString::Owned(s) => s.fmt(f),
-            OtelString::Static(s) => s.fmt(f),
-            OtelString::RefCounted(s) => s.fmt(f),
-        }
+        self.0.as_str().fmt(f)
     }
 }
 
@@ -260,6 +416,7 @@ impl AsRef<str> for StringValue {
 
 impl StringValue {
     /// Returns a string slice to this value
+    #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -267,37 +424,38 @@ impl StringValue {
 
 impl From<StringValue> for String {
     fn from(s: StringValue) -> Self {
-        match s.0 {
-            OtelString::Owned(s) => s.into_string(),
-            OtelString::Static(s) => s.to_owned(),
-            OtelString::RefCounted(s) => s.to_string(),
+        match s.0.into_repr() {
+            OtelStringRepr::Owned(s) => s.into_string(),
+            OtelStringRepr::Static(s) => s.to_owned(),
+            OtelStringRepr::RefCounted(s) => s.to_string(),
         }
     }
 }
 
 impl From<&'static str> for StringValue {
+    #[inline]
     fn from(s: &'static str) -> Self {
-        StringValue(OtelString::Static(s))
+        StringValue(OtelString::from_static(s))
     }
 }
 
 impl From<String> for StringValue {
     fn from(s: String) -> Self {
-        StringValue(OtelString::Owned(s.into_boxed_str()))
+        StringValue(OtelString::from_owned(s.into_boxed_str()))
     }
 }
 
 impl From<Arc<str>> for StringValue {
     fn from(s: Arc<str>) -> Self {
-        StringValue(OtelString::RefCounted(s))
+        StringValue(OtelString::from_arc(s))
     }
 }
 
 impl From<Cow<'static, str>> for StringValue {
     fn from(s: Cow<'static, str>) -> Self {
         match s {
-            Cow::Owned(s) => StringValue(OtelString::Owned(s.into_boxed_str())),
-            Cow::Borrowed(s) => StringValue(OtelString::Static(s)),
+            Cow::Owned(s) => StringValue(OtelString::from_owned(s.into_boxed_str())),
+            Cow::Borrowed(s) => StringValue(OtelString::from_static(s)),
         }
     }
 }
@@ -337,6 +495,7 @@ macro_rules! from_values {
     ) => {
         $(
             impl From<$t> for Value {
+                #[inline]
                 fn from(t: $t) -> Self {
                     $val(t)
                 }
@@ -353,6 +512,7 @@ from_values!(
 );
 
 impl From<&'static str> for Value {
+    #[inline]
     fn from(s: &'static str) -> Self {
         Value::String(s.into())
     }
@@ -757,5 +917,88 @@ mod tests {
         let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
         scope2.hash(&mut hasher2);
         assert_ne!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn otel_string_is_two_words() {
+        use super::{Key, StringValue};
+        use std::mem::size_of;
+
+        assert_eq!(size_of::<Key>(), 16);
+        assert_eq!(size_of::<Option<Key>>(), 16);
+        assert_eq!(size_of::<StringValue>(), 16);
+        assert_eq!(size_of::<super::Value>(), 24);
+        assert_eq!(size_of::<KeyValue>(), 40);
+    }
+
+    #[test]
+    fn otel_string_round_trips() {
+        use super::{Key, StringValue};
+        use std::borrow::Cow;
+        use std::sync::Arc;
+
+        for text in ["", "http.request.method"] {
+            let keys = [
+                Key::from_static_str(text),
+                Key::from(text),
+                Key::from(text.to_owned()),
+                Key::from(Arc::<str>::from(text)),
+                Key::from(Cow::Owned(text.to_owned())),
+            ];
+            for key in keys {
+                let cloned = key.clone();
+                assert_eq!(key.as_str(), text);
+                assert_eq!(cloned, key);
+                assert_eq!(format!("{key}"), text);
+                assert_eq!(String::from(cloned), text);
+            }
+
+            let values = [
+                StringValue::from(text),
+                StringValue::from(text.to_owned()),
+                StringValue::from(Arc::<str>::from(text)),
+                StringValue::from(Cow::Borrowed(text)),
+            ];
+            for value in values {
+                let cloned = value.clone();
+                assert_eq!(value.as_str(), text);
+                assert_eq!(cloned, value);
+                assert_eq!(format!("{value}"), text);
+                assert_eq!(String::from(cloned), text);
+            }
+        }
+    }
+
+    #[test]
+    fn otel_string_debug_names_repr() {
+        use super::Key;
+        use std::sync::Arc;
+
+        assert_eq!(format!("{:?}", Key::from("a")), r#"Static("a")"#);
+        assert_eq!(format!("{:?}", Key::from("a".to_owned())), r#"Owned("a")"#);
+        assert_eq!(
+            format!("{:?}", Key::from(Arc::<str>::from("a"))),
+            r#"RefCounted("a")"#
+        );
+    }
+
+    #[test]
+    fn otel_string_shares_arc() {
+        use super::Key;
+        use std::sync::Arc;
+
+        let arc: Arc<str> = Arc::from("shared");
+        let key = Key::from(arc.clone());
+        assert_eq!(Arc::strong_count(&arc), 2);
+        assert_eq!(key.as_str().as_ptr(), arc.as_ptr());
+
+        let cloned = key.clone();
+        assert_eq!(Arc::strong_count(&arc), 3);
+        assert_eq!(cloned.as_str().as_ptr(), arc.as_ptr());
+
+        drop(key);
+        drop(cloned);
+        assert_eq!(Arc::strong_count(&arc), 1);
     }
 }
