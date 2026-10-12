@@ -14,7 +14,7 @@ use crate::trace::{
 };
 use opentelemetry::{
     trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
-    Context, InstrumentationScope, KeyValue,
+    Context, InstrumentationScope, KeyValue, TraceId,
 };
 use std::fmt;
 use std::sync::Arc;
@@ -189,10 +189,10 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
-        // An active-but-invalid parent (e.g. a context carrying an invalid active
-        // span context) is not a usable parent: inheriting its all-zero trace id would
-        // produce a span with an invalid trace id if the sampler decides to record.
-        let parent_span = Some(parent_cx.span()).filter(|span| span.span_context().is_valid());
+        // Inheriting its all-zero trace id would produce a span with an invalid trace id
+        // if the sampler decides to record.
+        let parent_span = Some(parent_cx.span())
+            .filter(|span| span.span_context().trace_id() != TraceId::INVALID);
 
         // Build context for sampling decision
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
