@@ -5,7 +5,8 @@ use opentelemetry::{
 };
 use std::time::Duration;
 use std::{
-    collections::HashMap,
+    collections::{hash_map::RandomState, HashMap},
+    hash::BuildHasher,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -16,8 +17,13 @@ use crate::error::OTelSdkResult;
 use crate::Resource;
 
 use super::{
-    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
-    periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
+    exporter::PushMetricExporter,
+    meter::SdkMeter,
+    noop::NoopMeter,
+    periodic_reader::PeriodicReader,
+    pipeline::{AggregateFactory, BuildHasherFactory, Pipelines},
+    reader::MetricReader,
+    view::View,
     Instrument, Stream,
 };
 
@@ -233,6 +239,7 @@ pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    aggregate_factory: Option<Arc<dyn AggregateFactory>>,
 }
 
 impl MeterProviderBuilder {
@@ -394,6 +401,51 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Sets the hasher used to look up attribute sets when aggregating
+    /// measurements.
+    ///
+    /// Every measurement recorded with attributes hashes its attribute set to
+    /// find the aggregation state for that set. By default, this uses
+    /// [`RandomState`] (SipHash), which resists hash flooding but is relatively
+    /// slow. A faster hasher can noticeably reduce the cost of recording
+    /// measurements.
+    ///
+    /// The hasher applies to all instruments created by the [MeterProvider].
+    /// If this method is called more than once, the last hasher wins.
+    ///
+    /// # Security
+    ///
+    /// If attackers can influence attribute values, they may craft colliding
+    /// values to slow down measurements (HashDoS). Fixed seed hashers (such
+    /// as FxHash or FNV) are the most exposed, since collisions can be
+    /// precomputed. Randomly seeded hashers with minimal DoS resistance (such
+    /// as rapidhash or foldhash) can still be attacked, but only if the
+    /// attacker can observe the hash function's results.
+    ///
+    /// In practice, the cardinality limit bounds the worst case cost of
+    /// collisions, which together with the difficulty of such an attack makes
+    /// randomly seeded hashers relatively safe.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    ///     .with_hasher(rapidhash::fast::RandomState::new())
+    ///     .build();
+    /// # drop(provider);
+    /// ```
+    ///
+    /// [`RandomState`]: std::collections::hash_map::RandomState
+    pub fn with_hasher<S>(mut self, hash_builder: S) -> Self
+    where
+        S: BuildHasher + Clone + Send + Sync + 'static,
+    {
+        self.aggregate_factory = Some(Arc::new(BuildHasherFactory(hash_builder)));
+        self
+    }
+
     /// Construct a new [MeterProvider] with this configuration.
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
@@ -407,6 +459,8 @@ impl MeterProviderBuilder {
                     self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
+                    self.aggregate_factory
+                        .unwrap_or_else(|| Arc::new(BuildHasherFactory(RandomState::new()))),
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
@@ -426,6 +480,14 @@ impl fmt::Debug for MeterProviderBuilder {
             .field("resource", &self.resource)
             .field("readers", &self.readers)
             .field("views", &self.views.len())
+            .field(
+                "hasher",
+                &if self.aggregate_factory.is_some() {
+                    "custom"
+                } else {
+                    "default"
+                },
+            )
             .finish()
     }
 }

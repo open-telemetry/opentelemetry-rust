@@ -8,14 +8,15 @@ mod sum;
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map::RandomState, HashMap, HashSet};
+use std::hash::BuildHasher;
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(target_has_atomic = "64")]
 use std::sync::atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Measure};
+pub(crate) use aggregate::{AggregateBuilder, AggregateFns, ComputeAggregation, Filter, Measure};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
@@ -24,6 +25,8 @@ use opentelemetry::otel_debug;
 use opentelemetry::{otel_warn, KeyValue};
 
 use super::data::{AggregatedMetrics, MetricData};
+use super::error::MetricResult;
+use super::pipeline::{AggregateFactory, AggregateParams};
 
 // TODO Replace it with LazyLock once it is stable
 pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
@@ -78,19 +81,25 @@ impl<A: Aggregator> TrackerEntry<A> {
     }
 }
 
+/// A [`BuildHasher`] usable for hashing attribute sets in [`ValueMap`].
+pub(crate) trait AttributeBuildHasher: BuildHasher + Clone + Send + Sync + 'static {}
+
+impl<S> AttributeBuildHasher for S where S: BuildHasher + Clone + Send + Sync + 'static {}
+
 /// Map from attribute sets to their aggregator tracker entries.
-type TrackerMap<A> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>>;
+type TrackerMap<A, S> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>, S>;
 
 /// The storage for sums.
 ///
 /// This structure is parametrized by an `Operation` that indicates how
-/// updates to the underlying value trackers should be performed.
-pub(crate) struct ValueMap<A>
+/// updates to the underlying value trackers should be performed, and by the
+/// [`BuildHasher`] used to hash attribute sets when looking up trackers.
+pub(crate) struct ValueMap<A, S = RandomState>
 where
     A: Aggregator,
 {
     /// Trackers store the values associated with different attribute sets.
-    trackers: RwLock<TrackerMap<A>>,
+    trackers: RwLock<TrackerMap<A, S>>,
 
     /// Number of different attribute set stored in the `trackers` map.
     count: AtomicUsize,
@@ -101,17 +110,21 @@ where
     cardinality_limit: usize,
 }
 
-impl<A> ValueMap<A>
+impl<A, S> ValueMap<A, S>
 where
     A: Aggregator,
+    S: BuildHasher + Clone,
 {
     pub(crate) fn config(&self) -> &A::InitConfig {
         &self.config
     }
 
-    fn new(config: A::InitConfig, cardinality_limit: usize) -> Self {
+    fn new(config: A::InitConfig, cardinality_limit: usize, hash_builder: S) -> Self {
         ValueMap {
-            trackers: RwLock::new(HashMap::with_capacity(1 + cardinality_limit)),
+            trackers: RwLock::new(HashMap::with_capacity_and_hasher(
+                1 + cardinality_limit,
+                hash_builder,
+            )),
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
@@ -399,7 +412,8 @@ where
                 return;
             };
             self.count.store(0, Ordering::SeqCst);
-            std::mem::take(&mut *trackers)
+            let empty = HashMap::with_hasher(trackers.hasher().clone());
+            std::mem::replace(&mut *trackers, empty)
             // Write lock released here
         };
 
@@ -477,9 +491,22 @@ pub(crate) trait Number:
     fn max() -> Self;
 
     fn into_float(self) -> f64;
+
+    /// Builds aggregate functions for `Self` using the type-erased `factory`.
+    fn build_aggregate(
+        factory: &dyn AggregateFactory,
+        params: AggregateParams<'_>,
+    ) -> MetricResult<Option<AggregateFns<Self>>>;
 }
 
 impl Number for i64 {
+    fn build_aggregate(
+        factory: &dyn AggregateFactory,
+        params: AggregateParams<'_>,
+    ) -> MetricResult<Option<AggregateFns<Self>>> {
+        factory.build_i64(params)
+    }
+
     fn min() -> Self {
         i64::MIN
     }
@@ -494,6 +521,13 @@ impl Number for i64 {
     }
 }
 impl Number for u64 {
+    fn build_aggregate(
+        factory: &dyn AggregateFactory,
+        params: AggregateParams<'_>,
+    ) -> MetricResult<Option<AggregateFns<Self>>> {
+        factory.build_u64(params)
+    }
+
     fn min() -> Self {
         u64::MIN
     }
@@ -508,6 +542,13 @@ impl Number for u64 {
     }
 }
 impl Number for f64 {
+    fn build_aggregate(
+        factory: &dyn AggregateFactory,
+        params: AggregateParams<'_>,
+    ) -> MetricResult<Option<AggregateFns<Self>>> {
+        factory.build_f64(params)
+    }
+
     fn min() -> Self {
         f64::MIN
     }
@@ -835,7 +876,7 @@ mod tests {
         // order and one for the sorted (canonical) order, both pointing to the same
         // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
         // keys so no zombie entries remain in the map.
-        let value_map = ValueMap::<Assign<i64>>::new((), 10);
+        let value_map = ValueMap::<Assign<i64>>::new((), 10, RandomState::new());
 
         // Insert with attributes deliberately in non-sorted order.
         // measure() inserts two keys:
@@ -890,7 +931,7 @@ mod tests {
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     fn bind_returns_none_when_trackers_lock_is_poisoned() {
-        let value_map = ValueMap::<Assign<i64>>::new((), 100);
+        let value_map = ValueMap::<Assign<i64>>::new((), 100, RandomState::new());
 
         // Poison the trackers RwLock by panicking inside a write guard.
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

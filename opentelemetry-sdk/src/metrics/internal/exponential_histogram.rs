@@ -12,12 +12,14 @@ use crate::metrics::{
     Temporality,
 };
 
+use super::AttributeBuildHasher;
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 pub(crate) const EXPO_MAX_SCALE: i8 = 20;
 pub(crate) const EXPO_MIN_SCALE: i8 = -10;
@@ -387,8 +389,8 @@ struct BucketConfig {
 ///
 /// Each histogram is scoped by attributes and the aggregation cycle the
 /// measurements were made in.
-pub(crate) struct ExpoHistogram<T: Number> {
-    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>>,
+pub(crate) struct ExpoHistogram<T: Number, S = RandomState> {
+    value_map: ValueMap<Mutex<ExpoHistogramDataPoint<T>>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -396,8 +398,11 @@ pub(crate) struct ExpoHistogram<T: Number> {
     record_min_max: bool,
 }
 
-impl<T: Number> ExpoHistogram<T> {
+impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
     /// Create a new exponential histogram.
+    // Mirrors the flat argument list of the other aggregator constructors,
+    // which `AggregateBuilder` calls uniformly.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
@@ -406,6 +411,7 @@ impl<T: Number> ExpoHistogram<T> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         ExpoHistogram {
             value_map: ValueMap::new(
@@ -414,6 +420,7 @@ impl<T: Number> ExpoHistogram<T> {
                     max_scale,
                 },
                 cardinality_limit,
+                hash_builder,
             ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
@@ -546,9 +553,10 @@ impl<T: Number> ExpoHistogram<T> {
     }
 }
 
-impl<T> Measure<T> for ExpoHistogram<T>
+impl<T, S> Measure<T> for ExpoHistogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         let f_value = measurement.into_float();
@@ -576,9 +584,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for ExpoHistogram<T>
+impl<T, S> ComputeAggregation for ExpoHistogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -767,6 +776,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                RandomState::new(),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -824,6 +834,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
+                RandomState::new(),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);

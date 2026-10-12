@@ -8,12 +8,14 @@ use std::sync::atomic::Ordering;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
+use super::AttributeBuildHasher;
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 /// Pre-bound gauge/last-value handle: writes go directly to a fixed
 /// `TrackerEntry` without per-call attribute lookup. The `tracker` is either
@@ -77,21 +79,22 @@ where
 }
 
 /// Summarizes a set of measurements as the last one made.
-pub(crate) struct LastValue<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct LastValue<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
 }
 
-impl<T: Number> LastValue<T> {
+impl<T: Number, S: AttributeBuildHasher> LastValue<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         LastValue {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, hash_builder),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -168,9 +171,10 @@ impl<T: Number> LastValue<T> {
     }
 }
 
-impl<T> Measure<T> for LastValue<T>
+impl<T, S> Measure<T> for LastValue<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         // Ignore NaN and infinity: `Assign::update` overwrites unconditionally,
@@ -197,9 +201,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for LastValue<T>
+impl<T, S> ComputeAggregation for LastValue<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -218,8 +223,12 @@ mod nan_guard_tests {
 
     #[test]
     fn nan_and_infinity_are_ignored() {
-        let last_value =
-            LastValue::<f64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 2000);
+        let last_value = LastValue::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            2000,
+            RandomState::new(),
+        );
         Measure::call(&last_value, 1.0, &[]);
         Measure::call(&last_value, f64::NAN, &[]);
         Measure::call(&last_value, f64::INFINITY, &[]);
@@ -254,8 +263,12 @@ mod tests {
     /// the `Measure` / `BoundMeasure` traits to keep the impl honest.
     #[test]
     fn bind_writes_through_bound_handle() {
-        let last_value =
-            LastValue::<u64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 100);
+        let last_value = LastValue::<u64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            100,
+            RandomState::new(),
+        );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&last_value, &attrs);
 
@@ -272,8 +285,12 @@ mod tests {
 
     #[test]
     fn bound_handle_drop_decrements_bound_count() {
-        let last_value =
-            LastValue::<u64>::new(Temporality::Delta, AttributeSetFilter::new(None), 100);
+        let last_value = LastValue::<u64>::new(
+            Temporality::Delta,
+            AttributeSetFilter::new(None),
+            100,
+            RandomState::new(),
+        );
         let attrs = [KeyValue::new("k", "v")];
 
         let bound = Measure::bind(&last_value, &attrs);
@@ -308,8 +325,12 @@ mod tests {
 
     #[test]
     fn bound_nan_and_infinity_are_ignored() {
-        let last_value =
-            LastValue::<f64>::new(Temporality::Cumulative, AttributeSetFilter::new(None), 2000);
+        let last_value = LastValue::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            2000,
+            RandomState::new(),
+        );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&last_value, &attrs);
 

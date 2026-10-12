@@ -10,10 +10,12 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::Aggregator;
+use super::AttributeBuildHasher;
 use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
+use std::collections::hash_map::RandomState;
 use std::{collections::HashMap, sync::Mutex};
 
 /// Pre-bound precomputed-sum handle. Writes go directly to a fixed
@@ -49,8 +51,8 @@ impl<T: Number> Drop for BoundPrecomputedSumHandle<T> {
 }
 
 /// Summarizes a set of pre-computed sums as their arithmetic sum.
-pub(crate) struct PrecomputedSum<T: Number> {
-    value_map: ValueMap<Assign<T>>,
+pub(crate) struct PrecomputedSum<T: Number, S = RandomState> {
+    value_map: ValueMap<Assign<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -58,15 +60,16 @@ pub(crate) struct PrecomputedSum<T: Number> {
     reported: Mutex<HashMap<Vec<KeyValue>, T>>,
 }
 
-impl<T: Number> PrecomputedSum<T> {
+impl<T: Number, S: AttributeBuildHasher> PrecomputedSum<T, S> {
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        hash_builder: S,
     ) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, hash_builder),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -172,9 +175,10 @@ impl<T: Number> PrecomputedSum<T> {
     }
 }
 
-impl<T> Measure<T> for PrecomputedSum<T>
+impl<T, S> Measure<T> for PrecomputedSum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         // Ignore NaN and infinity: a cached NaN in `reported` poisons the delta
@@ -201,9 +205,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for PrecomputedSum<T>
+impl<T, S> ComputeAggregation for PrecomputedSum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -227,6 +232,7 @@ mod nan_guard_tests {
             AttributeSetFilter::new(None),
             true,
             2000,
+            RandomState::new(),
         );
         Measure::call(&pre_sum, 1.0, &[]);
         Measure::call(&pre_sum, f64::NAN, &[]);
@@ -259,6 +265,7 @@ mod nan_guard_tests {
             AttributeSetFilter::new(None),
             true,
             2000,
+            RandomState::new(),
         );
 
         // 1. Initial valid measurement: 100.0
@@ -321,6 +328,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
+            RandomState::new(),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
@@ -342,6 +350,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
+            RandomState::new(),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
@@ -372,6 +381,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             2000,
+            RandomState::new(),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);

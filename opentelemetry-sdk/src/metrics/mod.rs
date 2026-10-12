@@ -4555,6 +4555,23 @@ mod tests {
             }
         }
 
+        fn new_with_builder(
+            temporality: Temporality,
+            configure: impl FnOnce(MeterProviderBuilder) -> MeterProviderBuilder,
+        ) -> Self {
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
+            let exporter = exporter.build();
+            let meter_provider =
+                configure(SdkMeterProvider::builder().with_periodic_exporter(exporter.clone()))
+                    .build();
+
+            TestContext {
+                exporter,
+                meter_provider,
+                resource_metrics: vec![],
+            }
+        }
+
         fn new_with_view<T>(temporality: Temporality, view: T) -> Self
         where
             T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
@@ -6741,5 +6758,62 @@ mod tests {
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
         assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn custom_hasher_aggregates_colliding_attribute_sets() {
+        struct ConstantHasher;
+
+        impl std::hash::Hasher for ConstantHasher {
+            fn finish(&self) -> u64 {
+                0
+            }
+
+            fn write(&mut self, _bytes: &[u8]) {}
+        }
+
+        /// Builds `ConstantHasher`s and counts how many it has built.
+        #[derive(Clone, Default)]
+        struct CollidingBuildHasher(Arc<std::sync::atomic::AtomicUsize>);
+
+        impl std::hash::BuildHasher for CollidingBuildHasher {
+            type Hasher = ConstantHasher;
+
+            fn build_hasher(&self) -> ConstantHasher {
+                self.0.fetch_add(1, Ordering::Relaxed);
+                ConstantHasher
+            }
+        }
+
+        let hash_builder = CollidingBuildHasher::default();
+        let build_count = Arc::clone(&hash_builder.0);
+        let mut test_context =
+            TestContext::new_with_builder(Temporality::Cumulative, |b| b.with_hasher(hash_builder));
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Both attribute orderings must resolve to the same tracker.
+        for i in 0..5u64 {
+            let value = i.to_string();
+            let sorted = [KeyValue::new("k1", value.clone()), KeyValue::new("k2", "x")];
+            let unsorted = [KeyValue::new("k2", "x"), KeyValue::new("k1", value)];
+            counter.add(i + 1, &sorted);
+            counter.add(i + 1, &unsorted);
+        }
+        test_context.flush_metrics();
+
+        assert!(
+            build_count.load(Ordering::Relaxed) > 0,
+            "custom hasher should be used for attribute lookups"
+        );
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 5);
+        for i in 0..5u64 {
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "k1", &i.to_string())
+                    .expect("datapoint expected");
+            assert_eq!(data_point.value, 2 * (i + 1));
+        }
     }
 }
