@@ -196,10 +196,10 @@ fn build_tonic() {
         // metrics
         "metrics.v1.SummaryDataPoint.ValueAtQuantile.value",
         "metrics.v1.SummaryDataPoint.ValueAtQuantile.quantile",
-        "metrics.v1.ExponentialHistogramDataPoint.zeroThreshold",
+        "metrics.v1.ExponentialHistogramDataPoint.zero_threshold",
         "metrics.v1.SummaryDataPoint.sum",
-        "metrics.v1.NumberDataPoint.value",
-        "metrics.v1.Exemplar.value",
+        "metrics.v1.NumberDataPoint.value.as_double",
+        "metrics.v1.Exemplar.value.as_double",
     ] {
         builder = builder.field_attribute(
             path,
@@ -220,9 +220,7 @@ fn build_tonic() {
     }
 
     //Special serializers and deserializers for Vec<f64> floating point fields
-    for path in ["metric.v1.HistogramDataPoint.explicit_bounds"] {
-        builder = builder.field_attribute(path, "#[cfg_attr(feature = \"with-serde\",serde(serialize_with = \"crate::proto::serializers::serialize_vector_f64_special\", deserialize_with=\"crate::proto::serializers::deserialize_vector_f64_special\"))])")
-    }
+    builder = builder.field_attribute("metrics.v1.HistogramDataPoint.explicit_bounds", "#[cfg_attr(feature = \"with-serde\",serde(serialize_with = \"crate::proto::serializers::serialize_vector_f64_special\", deserialize_with=\"crate::proto::serializers::deserialize_vector_f64_special\"))]");
 
     // special serializer and deserializer for value
     // The Value::value field must be hidden

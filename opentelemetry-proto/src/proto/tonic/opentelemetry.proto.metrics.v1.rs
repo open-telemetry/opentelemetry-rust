@@ -887,7 +887,9 @@ pub struct Exemplar {
     /// recorded alongside the original measurement. Only key/value pairs that were
     /// filtered out by the aggregator should be included
     #[prost(message, repeated, tag = "7")]
-    pub filtered_attributes: ::prost::alloc::vec::Vec<super::super::common::v1::KeyValue>,
+    pub filtered_attributes: ::prost::alloc::vec::Vec<
+        super::super::common::v1::KeyValue,
+    >,
     /// time_unix_nano is the exact time when this exemplar was recorded
     ///
     /// Value is UNIX Epoch time in nanoseconds since 00:00:00 UTC on 1 January
