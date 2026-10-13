@@ -11,6 +11,7 @@
     | Counter_Add_Unsorted                                  |  70 ns      |
     | Counter_Add_Sorted_Rapidhash                          |  48 ns      |
     | Counter_Add_Unsorted_Rapidhash                        |  51 ns      |
+    | Counter_Add_Cardinality_1_ConstantHasher              |  29 ns      |
     | Counter_Add_Sorted_With_Non_Static_Values             | 109 ns      |
     | Counter_Overflow                                      | 222 ns      |
     | ThreadLocal_Random_Generator_5                        |   7 ns      |
@@ -63,6 +64,39 @@ fn create_counter_with_rapidhash(name: &'static str) -> Counter<u64> {
     meter.u64_counter(name).build()
 }
 
+/// Hasher that ignores its input and always returns 0.
+struct ConstantHasher;
+
+impl std::hash::Hasher for ConstantHasher {
+    fn finish(&self) -> u64 {
+        0
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {}
+}
+
+#[derive(Clone, Copy, Default)]
+struct ConstantBuildHasher;
+
+impl std::hash::BuildHasher for ConstantBuildHasher {
+    type Hasher = ConstantHasher;
+
+    fn build_hasher(&self) -> ConstantHasher {
+        ConstantHasher
+    }
+}
+
+fn create_counter_with_constant_hasher(name: &'static str) -> Counter<u64> {
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_hasher(|| ConstantBuildHasher)
+        .build();
+    let meter = meter_provider.meter("benchmarks");
+
+    println!("Counter_Created");
+    meter.u64_counter(name).build()
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     counter_add_sorted(c, "Counter_Add_Sorted", create_counter);
     counter_add_unsorted(c, "Counter_Add_Unsorted", create_counter);
@@ -75,6 +109,11 @@ fn criterion_benchmark(c: &mut Criterion) {
         c,
         "Counter_Add_Unsorted_Rapidhash",
         create_counter_with_rapidhash,
+    );
+    counter_add_cardinality_1(
+        c,
+        "Counter_Add_Cardinality_1_ConstantHasher",
+        create_counter_with_constant_hasher,
     );
 
     let attribute_values: [String; 10] = (1..=10)
@@ -166,6 +205,28 @@ fn counter_add_unsorted(
             },
             BatchSize::SmallInput,
         );
+    });
+}
+
+fn counter_add_cardinality_1(
+    c: &mut Criterion,
+    name: &'static str,
+    create_counter: fn(&'static str) -> Counter<u64>,
+) {
+    let counter = create_counter(name);
+    c.bench_function(name, |b| {
+        b.iter(|| {
+            // Same attribute set every time: 1 time series.
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[0]),
+                ],
+            );
+        });
     });
 }
 
