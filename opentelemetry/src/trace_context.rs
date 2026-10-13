@@ -143,12 +143,15 @@ impl TraceId {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "trace")]
+    /// # {
     /// use opentelemetry::trace::TraceId;
     ///
     /// assert!(TraceId::from_hex("42").is_ok());
     /// assert!(TraceId::from_hex("58406520a006649127e371903a2de979").is_ok());
     ///
     /// assert!(TraceId::from_hex("not_hex").is_err());
+    /// # }
     /// ```
     pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
         u128::from_str_radix(hex, 16).map(TraceId)
@@ -204,12 +207,15 @@ impl SpanId {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "trace")]
+    /// # {
     /// use opentelemetry::trace::SpanId;
     ///
     /// assert!(SpanId::from_hex("42").is_ok());
     /// assert!(SpanId::from_hex("58406520a0066491").is_ok());
     ///
     /// assert!(SpanId::from_hex("not_hex").is_err());
+    /// # }
     /// ```
     pub fn from_hex(hex: &str) -> Result<Self, ParseIntError> {
         u64::from_str_radix(hex, 16).map(SpanId)
