@@ -618,6 +618,52 @@ mod tests {
     }
 
     #[test]
+    fn parent_with_invalid_span_id_but_valid_trace_id_inherits_trace_id() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            // Root is AlwaysOn; the local-not-sampled branch would drop instead.
+            .with_sampler(Sampler::parent_based(Sampler::AlwaysOn))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // A parent with a valid trace id but an invalid (all-zero) span id, e.g. a
+        // remote span context from an upstream service that does not create a root
+        // span but wants all downstream operations to share the same trace.
+        let parent_trace_id = TraceId::from(123);
+        let parent_cx = Context::new().with_span(TestSpan(SpanContext::new(
+            parent_trace_id,
+            SpanId::INVALID,
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+
+        let span = tracer.build_with_context(tracer.span_builder("child"), &parent_cx);
+        let span_context = span.span_context().clone();
+        drop(span);
+
+        assert_eq!(
+            span_context.trace_id(),
+            parent_trace_id,
+            "a child must inherit the trace id of a parent that has a valid trace id, \
+             even when the parent's span id is invalid"
+        );
+        assert!(span_context.is_valid());
+
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].span_context.trace_id(), parent_trace_id);
+        assert_eq!(
+            spans[0].parent_span_id,
+            SpanId::INVALID,
+            "an invalid parent span id must not be recorded as the parent span id"
+        );
+    }
+
+    #[test]
     fn invalid_parent_starts_a_new_trace() {
         use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
 
