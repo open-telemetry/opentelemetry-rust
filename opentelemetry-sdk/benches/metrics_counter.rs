@@ -11,6 +11,8 @@
     | Counter_Add_Unsorted                                  |  70 ns      |
     | Counter_Add_Sorted_Rapidhash                          |  48 ns      |
     | Counter_Add_Unsorted_Rapidhash                        |  51 ns      |
+    | Counter_Add_Sorted_FxHash                             |  41 ns      |
+    | Counter_Add_Unsorted_FxHash                           |  42 ns      |
     | Counter_Add_Sorted_ConstantHasher                     | 7.8 µs      |
     | Counter_Add_Cardinality_1_ConstantHasher              |  29 ns      |
     | Counter_Add_Sorted_With_Non_Static_Values             | 109 ns      |
@@ -98,6 +100,17 @@ fn create_counter_with_constant_hasher(name: &'static str) -> Counter<u64> {
     meter.u64_counter(name).build()
 }
 
+fn create_counter_with_fxhash(name: &'static str) -> Counter<u64> {
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_hasher(rustc_hash::FxBuildHasher::default)
+        .build();
+    let meter = meter_provider.meter("benchmarks");
+
+    println!("Counter_Created");
+    meter.u64_counter(name).build()
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
     counter_add_sorted(c, "Counter_Add_Sorted", create_counter);
     counter_add_unsorted(c, "Counter_Add_Unsorted", create_counter);
@@ -111,6 +124,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         "Counter_Add_Unsorted_Rapidhash",
         create_counter_with_rapidhash,
     );
+    counter_add_sorted(c, "Counter_Add_Sorted_FxHash", create_counter_with_fxhash);
+    counter_add_unsorted(c, "Counter_Add_Unsorted_FxHash", create_counter_with_fxhash);
     // Worst case: every one of the 1600 attribute sets collides.
     counter_add_sorted(
         c,
