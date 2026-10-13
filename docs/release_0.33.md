@@ -1,5 +1,7 @@
 # Release Notes 0.33
 
+For the subsequent OTLP Logs and Metrics stability declaration and patch fixes, see the [0.33.1 release notes](release_0.33.1.md).
+
 The OTLP exporters for Logs and Metrics remain in release-candidate (RC) status
 in OpenTelemetry Rust 0.33.0. We intend to declare them stable in 0.33.1,
 approximately two weeks after this release, provided the RC period does not
