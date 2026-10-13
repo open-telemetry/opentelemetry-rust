@@ -11,6 +11,7 @@
     | Counter_Add_Unsorted                                  |  70 ns      |
     | Counter_Add_Sorted_Rapidhash                          |  48 ns      |
     | Counter_Add_Unsorted_Rapidhash                        |  51 ns      |
+    | Counter_Add_Sorted_ConstantHasher                     | 7.8 µs      |
     | Counter_Add_Cardinality_1_ConstantHasher              |  29 ns      |
     | Counter_Add_Sorted_With_Non_Static_Values             | 109 ns      |
     | Counter_Overflow                                      | 222 ns      |
@@ -109,6 +110,12 @@ fn criterion_benchmark(c: &mut Criterion) {
         c,
         "Counter_Add_Unsorted_Rapidhash",
         create_counter_with_rapidhash,
+    );
+    // Worst case: every one of the 1600 attribute sets collides.
+    counter_add_sorted(
+        c,
+        "Counter_Add_Sorted_ConstantHasher",
+        create_counter_with_constant_hasher,
     );
     counter_add_cardinality_1(
         c,
