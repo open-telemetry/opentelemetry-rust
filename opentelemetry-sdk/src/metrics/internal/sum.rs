@@ -7,9 +7,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::AttributeBuildHasher;
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use std::collections::hash_map::RandomState;
@@ -95,10 +95,10 @@ impl<T: Number, S: AttributeBuildHasher> Sum<T, S> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new((), cardinality_limit, hash_builder),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -233,6 +233,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn nan_and_infinity_are_ignored() {
@@ -241,7 +242,7 @@ mod tests {
             AttributeSetFilter::new(None),
             false,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         Measure::call(&sum, 1.0, &[]);
         Measure::call(&sum, f64::NAN, &[]);
@@ -271,7 +272,7 @@ mod bound_tests {
             AttributeSetFilter::new(None),
             false,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&sum, &attrs);

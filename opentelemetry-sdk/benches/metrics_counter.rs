@@ -55,7 +55,7 @@ fn create_counter(name: &'static str) -> Counter<u64> {
 fn create_counter_with_rapidhash(name: &'static str) -> Counter<u64> {
     let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
         .with_reader(ManualReader::builder().build())
-        .with_hasher(rapidhash::fast::RandomState::new())
+        .with_hasher(rapidhash::fast::RandomState::new)
         .build();
     let meter = meter_provider.meter("benchmarks");
 

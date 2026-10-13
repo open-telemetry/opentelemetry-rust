@@ -12,8 +12,8 @@ use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
-use super::AttributeBuildHasher;
 use super::{Aggregator, ComputeAggregation, Measure, Number, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use std::collections::hash_map::RandomState;
@@ -126,7 +126,7 @@ impl<T: Number, S: AttributeBuildHasher> Histogram<T, S> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         let buckets_count = if bounds.is_empty() {
             0
@@ -135,7 +135,7 @@ impl<T: Number, S: AttributeBuildHasher> Histogram<T, S> {
         };
 
         Histogram {
-            value_map: ValueMap::new(buckets_count, cardinality_limit, hash_builder),
+            value_map: ValueMap::new(buckets_count, cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -318,6 +318,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn check_buckets_are_selected_correctly() {
@@ -328,7 +329,7 @@ mod tests {
             false,
             false,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
@@ -356,7 +357,7 @@ mod tests {
             true,
             true,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         Measure::call(&hist, 1.0, &[]);
         Measure::call(&hist, f64::NAN, &[]);
@@ -389,7 +390,7 @@ mod bound_tests {
             true,
             true,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&hist, &attrs);

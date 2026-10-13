@@ -14,7 +14,7 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal::{self, AggregateBuilder, AttributeBuildHasher, Filter, Number},
+        internal::{self, AggregateBuilder, AttributeBuildHasher, Filter, Number, SharedFactory},
         reader::{MetricReader, SdkProducer},
         view::View,
     },
@@ -539,7 +539,7 @@ pub(crate) trait AggregateFactory: Send + Sync {
 }
 
 /// [`AggregateFactory`] building aggregators that hash attribute sets with `S`.
-pub(crate) struct BuildHasherFactory<S>(pub(crate) S);
+pub(crate) struct BuildHasherFactory<S>(pub(crate) SharedFactory<S>);
 
 impl<S: AttributeBuildHasher> BuildHasherFactory<S> {
     fn build<T: Number>(

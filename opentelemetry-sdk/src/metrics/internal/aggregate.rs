@@ -13,7 +13,7 @@ use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, AttributeBuildHasher, Number,
+    precomputed_sum::PrecomputedSum, sum::Sum, AttributeBuildHasher, Number, SharedFactory,
 };
 
 /// Receives measurements to be aggregated.
@@ -160,8 +160,9 @@ pub(crate) struct AggregateBuilder<T, S = RandomState> {
     /// Cardinality limit for the metric stream
     cardinality_limit: usize,
 
-    /// Hash builder used to look up attribute sets in the aggregation's value map
-    hash_builder: S,
+    /// Creates the hasher used to look up attribute sets in each aggregation's
+    /// value map
+    make_hasher: SharedFactory<S>,
 
     _marker: marker::PhantomData<T>,
 }
@@ -173,7 +174,12 @@ impl<T: Number> AggregateBuilder<T> {
         filter: Option<Filter>,
         cardinality_limit: usize,
     ) -> Self {
-        Self::with_hasher(temporality, filter, cardinality_limit, RandomState::new())
+        Self::with_hasher(
+            temporality,
+            filter,
+            cardinality_limit,
+            Arc::new(RandomState::new),
+        )
     }
 }
 
@@ -182,13 +188,13 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
         temporality: Temporality,
         filter: Option<Filter>,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
-            hash_builder,
+            make_hasher,
             _marker: marker::PhantomData,
         }
     }
@@ -199,7 +205,7 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
             overwrite_temporality.unwrap_or(self.temporality),
             self.filter.clone(),
             self.cardinality_limit,
-            self.hash_builder.clone(),
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -211,7 +217,7 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
-            self.hash_builder.clone(),
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -223,7 +229,7 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
-            self.hash_builder.clone(),
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -242,7 +248,7 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
-            self.hash_builder.clone(),
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -263,7 +269,7 @@ impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
-            self.hash_builder.clone(),
+            self.make_hasher.clone(),
         )
         .into()
     }

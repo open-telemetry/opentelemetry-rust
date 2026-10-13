@@ -8,11 +8,11 @@ use std::sync::atomic::Ordering;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 
-use super::AttributeBuildHasher;
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, AtomicTracker, AtomicallyUpdate, ComputeAggregation, Measure, Number, ValueMap,
 };
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use std::collections::hash_map::RandomState;
@@ -91,10 +91,10 @@ impl<T: Number, S: AttributeBuildHasher> LastValue<T, S> {
         temporality: Temporality,
         filter: AttributeSetFilter,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         LastValue {
-            value_map: ValueMap::new((), cardinality_limit, hash_builder),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -220,6 +220,7 @@ where
 mod nan_guard_tests {
     use super::*;
     use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use std::sync::Arc;
 
     #[test]
     fn nan_and_infinity_are_ignored() {
@@ -227,7 +228,7 @@ mod nan_guard_tests {
             Temporality::Cumulative,
             AttributeSetFilter::new(None),
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         Measure::call(&last_value, 1.0, &[]);
         Measure::call(&last_value, f64::NAN, &[]);
@@ -267,7 +268,7 @@ mod tests {
             Temporality::Cumulative,
             AttributeSetFilter::new(None),
             100,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&last_value, &attrs);
@@ -289,7 +290,7 @@ mod tests {
             Temporality::Delta,
             AttributeSetFilter::new(None),
             100,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
 
@@ -329,7 +330,7 @@ mod tests {
             Temporality::Cumulative,
             AttributeSetFilter::new(None),
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&last_value, &attrs);

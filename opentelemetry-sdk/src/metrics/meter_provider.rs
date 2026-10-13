@@ -410,6 +410,10 @@ impl MeterProviderBuilder {
     /// slow. A faster hasher can noticeably reduce the cost of recording
     /// measurements.
     ///
+    /// `make_hasher` is called to create a new [`BuildHasher`] for every
+    /// attribute map: once per metric stream and again each time an
+    /// observable instrument's map is replaced on collection.
+    ///
     /// The hasher applies to all instruments created by the [MeterProvider].
     /// If this method is called more than once, the last hasher wins.
     ///
@@ -432,17 +436,18 @@ impl MeterProviderBuilder {
     /// use opentelemetry_sdk::metrics::SdkMeterProvider;
     ///
     /// let provider = SdkMeterProvider::builder()
-    ///     .with_hasher(rapidhash::fast::RandomState::new())
+    ///     .with_hasher(rapidhash::fast::RandomState::new)
     ///     .build();
     /// # drop(provider);
     /// ```
     ///
     /// [`RandomState`]: std::collections::hash_map::RandomState
-    pub fn with_hasher<S>(mut self, hash_builder: S) -> Self
+    pub fn with_hasher<F, S>(mut self, make_hasher: F) -> Self
     where
-        S: BuildHasher + Clone + Send + Sync + 'static,
+        F: Fn() -> S + Send + Sync + 'static,
+        S: BuildHasher + Send + Sync + 'static,
     {
-        self.aggregate_factory = Some(Arc::new(BuildHasherFactory(hash_builder)));
+        self.aggregate_factory = Some(Arc::new(BuildHasherFactory(Arc::new(make_hasher))));
         self
     }
 
@@ -459,8 +464,9 @@ impl MeterProviderBuilder {
                     self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
-                    self.aggregate_factory
-                        .unwrap_or_else(|| Arc::new(BuildHasherFactory(RandomState::new()))),
+                    self.aggregate_factory.unwrap_or_else(|| {
+                        Arc::new(BuildHasherFactory(Arc::new(RandomState::new)))
+                    }),
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),

@@ -6787,8 +6787,9 @@ mod tests {
 
         let hash_builder = CollidingBuildHasher::default();
         let build_count = Arc::clone(&hash_builder.0);
-        let mut test_context =
-            TestContext::new_with_builder(Temporality::Cumulative, |b| b.with_hasher(hash_builder));
+        let mut test_context = TestContext::new_with_builder(Temporality::Cumulative, |b| {
+            b.with_hasher(move || hash_builder.clone())
+        });
         let counter = test_context.u64_counter("test", "my_counter", None);
 
         // Both attribute orderings must resolve to the same tracker.

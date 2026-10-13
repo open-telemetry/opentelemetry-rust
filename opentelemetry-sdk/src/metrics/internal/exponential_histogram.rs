@@ -12,11 +12,11 @@ use crate::metrics::{
     Temporality,
 };
 
-use super::AttributeBuildHasher;
 use super::{
     aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
 };
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use std::collections::hash_map::RandomState;
@@ -411,7 +411,7 @@ impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
         record_min_max: bool,
         record_sum: bool,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         ExpoHistogram {
             value_map: ValueMap::new(
@@ -420,7 +420,7 @@ impl<T: Number, S: AttributeBuildHasher> ExpoHistogram<T, S> {
                     max_scale,
                 },
                 cardinality_limit,
-                hash_builder,
+                make_hasher,
             ),
             init_time: AggregateTimeInitiator::default(),
             temporality,
@@ -608,6 +608,7 @@ mod tests {
     use crate::metrics::internal::{self, AggregateBuilder};
 
     use super::*;
+    use std::sync::Arc;
 
     const CARDINALITY_LIMIT_DEFAULT: usize = 2000;
 
@@ -776,7 +777,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
-                RandomState::new(),
+                Arc::new(RandomState::new),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);
@@ -834,7 +835,7 @@ mod tests {
                 true,
                 true,
                 CARDINALITY_LIMIT_DEFAULT,
-                RandomState::new(),
+                Arc::new(RandomState::new),
             );
             for v in test.values {
                 Measure::call(&h, v, &[]);

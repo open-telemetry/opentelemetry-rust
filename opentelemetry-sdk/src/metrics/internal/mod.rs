@@ -82,9 +82,15 @@ impl<A: Aggregator> TrackerEntry<A> {
 }
 
 /// A [`BuildHasher`] usable for hashing attribute sets in [`ValueMap`].
-pub(crate) trait AttributeBuildHasher: BuildHasher + Clone + Send + Sync + 'static {}
+pub(crate) trait AttributeBuildHasher: BuildHasher + Send + Sync + 'static {}
 
-impl<S> AttributeBuildHasher for S where S: BuildHasher + Clone + Send + Sync + 'static {}
+impl<S> AttributeBuildHasher for S where S: BuildHasher + Send + Sync + 'static {}
+
+/// A shared, thread-safe factory producing values of `T`.
+///
+/// [`ValueMap`] uses one to create a new [`BuildHasher`] for each attribute
+/// map, so that randomly seeded hashers get a distinct seed per map.
+pub(crate) type SharedFactory<T> = Arc<dyn Fn() -> T + Send + Sync>;
 
 /// Map from attribute sets to their aggregator tracker entries.
 type TrackerMap<A, S> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>, S>;
@@ -108,27 +114,30 @@ where
     /// Configuration for an Aggregator
     config: A::InitConfig,
     cardinality_limit: usize,
+    /// Creates the hasher for each new `trackers` map.
+    make_hasher: SharedFactory<S>,
 }
 
 impl<A, S> ValueMap<A, S>
 where
     A: Aggregator,
-    S: BuildHasher + Clone,
+    S: BuildHasher,
 {
     pub(crate) fn config(&self) -> &A::InitConfig {
         &self.config
     }
 
-    fn new(config: A::InitConfig, cardinality_limit: usize, hash_builder: S) -> Self {
+    fn new(config: A::InitConfig, cardinality_limit: usize, make_hasher: SharedFactory<S>) -> Self {
         ValueMap {
             trackers: RwLock::new(HashMap::with_capacity_and_hasher(
                 1 + cardinality_limit,
-                hash_builder,
+                make_hasher(),
             )),
             no_attribute_tracker: Arc::new(TrackerEntry::new(&config)),
             count: AtomicUsize::new(0),
             config,
             cardinality_limit,
+            make_hasher,
         }
     }
 
@@ -406,13 +415,14 @@ where
             ));
         }
 
+        let empty =
+            HashMap::with_capacity_and_hasher(1 + self.cardinality_limit, (self.make_hasher)());
         let old_trackers = {
             let Ok(mut trackers) = self.trackers.write() else {
                 otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
                 return;
             };
             self.count.store(0, Ordering::SeqCst);
-            let empty = HashMap::with_hasher(trackers.hasher().clone());
             std::mem::replace(&mut *trackers, empty)
             // Write lock released here
         };
@@ -876,7 +886,7 @@ mod tests {
         // order and one for the sorted (canonical) order, both pointing to the same
         // Arc<TrackerEntry>. This test verifies that stale eviction removes *both*
         // keys so no zombie entries remain in the map.
-        let value_map = ValueMap::<Assign<i64>>::new((), 10, RandomState::new());
+        let value_map = ValueMap::<Assign<i64>>::new((), 10, Arc::new(RandomState::new));
 
         // Insert with attributes deliberately in non-sorted order.
         // measure() inserts two keys:
@@ -931,7 +941,7 @@ mod tests {
     #[cfg(feature = "experimental_metrics_bound_instruments")]
     #[test]
     fn bind_returns_none_when_trackers_lock_is_poisoned() {
-        let value_map = ValueMap::<Assign<i64>>::new((), 100, RandomState::new());
+        let value_map = ValueMap::<Assign<i64>>::new((), 100, Arc::new(RandomState::new));
 
         // Poison the trackers RwLock by panicking inside a write guard.
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

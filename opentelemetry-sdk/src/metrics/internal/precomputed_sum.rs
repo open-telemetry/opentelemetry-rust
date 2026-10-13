@@ -10,8 +10,8 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::Aggregator;
-use super::AttributeBuildHasher;
 use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
 use super::{ComputeAggregation, Measure};
@@ -66,10 +66,10 @@ impl<T: Number, S: AttributeBuildHasher> PrecomputedSum<T, S> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
-        hash_builder: S,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         PrecomputedSum {
-            value_map: ValueMap::new((), cardinality_limit, hash_builder),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -224,6 +224,7 @@ where
 mod nan_guard_tests {
     use super::*;
     use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use std::sync::Arc;
 
     #[test]
     fn nan_and_infinity_are_ignored() {
@@ -232,7 +233,7 @@ mod nan_guard_tests {
             AttributeSetFilter::new(None),
             true,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         Measure::call(&pre_sum, 1.0, &[]);
         Measure::call(&pre_sum, f64::NAN, &[]);
@@ -265,7 +266,7 @@ mod nan_guard_tests {
             AttributeSetFilter::new(None),
             true,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
 
         // 1. Initial valid measurement: 100.0
@@ -328,7 +329,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
@@ -350,7 +351,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             100,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
@@ -381,7 +382,7 @@ mod tests {
             AttributeSetFilter::new(None),
             true,
             2000,
-            RandomState::new(),
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&pre_sum, &attrs);
