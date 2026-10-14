@@ -758,7 +758,11 @@ impl BatchSpanProcessor {
             // regardless of the export outcome.
             record_processed_success(count_of_spans as u64);
 
-            result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
+            // Continue draining after errors, but retain the first failure.
+            let batch_result = Self::export_batch_sync(exporter, spans, last_export_time);
+            if result.is_ok() {
+                result = batch_result;
+            }
 
             current_batch_size.fetch_sub(count_of_spans, Ordering::AcqRel);
         }
