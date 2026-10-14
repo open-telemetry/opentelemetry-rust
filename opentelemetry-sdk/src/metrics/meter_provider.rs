@@ -401,47 +401,36 @@ impl MeterProviderBuilder {
         self
     }
 
-    /// Sets the hasher used to look up attribute sets when aggregating
-    /// measurements.
+    /// Sets a custom hasher for internal metric attribute lookups.
     ///
-    /// Every measurement recorded with attributes hashes its attribute set to
-    /// find the aggregation state for that set. By default, this uses
-    /// [`RandomState`] (SipHash), which resists hash flooding but is relatively
-    /// slow. A faster hasher can noticeably reduce the cost of recording
-    /// measurements.
+    /// Most applications should keep the default. It protects against
+    /// deliberately chosen attributes that make metric recording expensive
+    /// and slow down the application.
     ///
-    /// `make_hasher` is called to create a new [`BuildHasher`] for every
-    /// attribute map: once per metric stream and again each time an
-    /// observable instrument's map is replaced on collection.
+    /// A faster hasher reduces attribute lookup cost. Consider one if profiling
+    /// shows that metric recording is a bottleneck. Before choosing a hasher with
+    /// weaker attack resistance, ensure that untrusted callers cannot supply
+    /// arbitrary attribute keys or values to any instrument using this provider.
+    /// Attributes selected from a fixed, application-defined set avoid this concern.
     ///
-    /// The hasher applies to all instruments created by the [MeterProvider].
-    /// If this method is called more than once, the last hasher wins.
-    ///
-    /// # Security
-    ///
-    /// If attackers can influence attribute values, they may craft colliding
-    /// values to slow down measurements (HashDoS). Fixed seed hashers (such
-    /// as FxHash or FNV) are the most exposed, since collisions can be
-    /// precomputed. Randomly seeded hashers with minimal DoS resistance (such
-    /// as rapidhash or foldhash) can still be attacked, but only if the
-    /// attacker can observe the hash function's results.
-    ///
-    /// In practice, the cardinality limit bounds the worst case cost of
-    /// collisions, which together with the difficulty of such an attack makes
-    /// randomly seeded hashers relatively safe.
+    /// This setting applies to all instruments created by this provider.
+    /// The factory may be called multiple times. If this method is called more
+    /// than once, the last one wins.
     ///
     /// # Example
+    ///
+    /// For an application whose metric attributes come from fixed,
+    /// application-defined sets, add rapidhash to its dependencies:
     ///
     /// ```
     /// use opentelemetry_sdk::metrics::SdkMeterProvider;
     ///
     /// let provider = SdkMeterProvider::builder()
-    ///     .with_hasher(rapidhash::fast::RandomState::new)
-    ///     .build();
+    /// .with_hasher(rapidhash::fast::RandomState::new)
+    /// .build();
     /// # drop(provider);
     /// ```
     ///
-    /// [`RandomState`]: std::collections::hash_map::RandomState
     pub fn with_hasher<F, S>(mut self, make_hasher: F) -> Self
     where
         F: Fn() -> S + Send + Sync + 'static,
