@@ -529,7 +529,11 @@ impl BatchLogProcessor {
                         // exporter, regardless of the export outcome.
                         record_processed_success(count_of_logs as u64);
 
-                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+                        // Continue draining after errors, but retain the first failure.
+                        let batch_result = export_batch_sync(exporter, logs, last_export_time);
+                        if result.is_ok() {
+                            result = batch_result;
+                        }
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
@@ -894,7 +898,7 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
@@ -1011,6 +1015,63 @@ mod tests {
         processor.emit(&mut SdkLogRecord::new(), &scope);
         processor.force_flush().unwrap();
         assert!(exporter.export_called.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn batchlogprocessor_drain_preserves_any_batch_error() {
+        #[derive(Debug)]
+        struct FailingBatchExporter {
+            calls: Arc<AtomicUsize>,
+            failing_batch: usize,
+        }
+
+        impl LogExporter for FailingBatchExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                if self.calls.fetch_add(1, Ordering::Relaxed) == self.failing_batch {
+                    Err(OTelSdkError::InternalFailure("batch export failed".into()))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        for failing_batch in 0..3 {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let exporter = FailingBatchExporter {
+                calls: calls.clone(),
+                failing_batch,
+            };
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(3)
+                .with_max_export_batch_size(1)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(exporter, config);
+
+            // Queue records without triggering a size-based export so force_flush
+            // deterministically drains all three batches in a single operation.
+            processor.current_batch_size.store(3, Ordering::Release);
+            for _ in 0..3 {
+                processor
+                    .logs_sender
+                    .send(Box::new((
+                        SdkLogRecord::new(),
+                        InstrumentationScope::default(),
+                    )))
+                    .unwrap();
+            }
+
+            let result = processor.force_flush();
+
+            assert_eq!(calls.load(Ordering::Relaxed), 3);
+            assert_eq!(processor.current_batch_size.load(Ordering::Relaxed), 0);
+            processor.shutdown().unwrap();
+            assert!(
+                matches!(&result, Err(OTelSdkError::InternalFailure(message))
+                    if message == "batch export failed"),
+                "failure in batch {failing_batch} must not be masked: {result:?}"
+            );
+        }
     }
 
     #[test]
