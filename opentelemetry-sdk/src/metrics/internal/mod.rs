@@ -415,8 +415,7 @@ where
             ));
         }
 
-        let empty =
-            HashMap::with_capacity_and_hasher(1 + self.cardinality_limit, (self.make_hasher)());
+        let empty = HashMap::with_hasher((self.make_hasher)());
         let old_trackers = {
             let Ok(mut trackers) = self.trackers.write() else {
                 otel_warn!(name: "MeterProvider.InternalError", message = "Metric collection failed. Report this issue in OpenTelemetry repo.", details ="ValueMap trackers lock poisoned");
