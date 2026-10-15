@@ -758,7 +758,11 @@ impl BatchSpanProcessor {
             // regardless of the export outcome.
             record_processed_success(count_of_spans as u64);
 
-            result = Self::export_batch_sync(exporter, spans, last_export_time); // This method clears the spans vec after exporting
+            // Continue draining after errors, but retain the first failure.
+            let batch_result = Self::export_batch_sync(exporter, spans, last_export_time);
+            if result.is_ok() {
+                result = batch_result;
+            }
 
             current_batch_size.fetch_sub(count_of_spans, Ordering::AcqRel);
         }
@@ -1234,7 +1238,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -1531,6 +1535,66 @@ mod tests {
             "Unexpected number of exported spans"
         );
         assert_eq!(exported_spans[0].name, "force_flush_span");
+    }
+
+    #[test]
+    fn batchspanprocessor_drain_preserves_any_batch_error() {
+        #[derive(Debug)]
+        struct FailingBatchExporter {
+            calls: AtomicUsize,
+            failing_batch: usize,
+        }
+
+        impl SpanExporter for FailingBatchExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                if self.calls.fetch_add(1, Ordering::Relaxed) == self.failing_batch {
+                    Err(OTelSdkError::InternalFailure("batch export failed".into()))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        for failing_batch in 0..3 {
+            let exporter = FailingBatchExporter {
+                calls: AtomicUsize::new(0),
+                failing_batch,
+            };
+            let (sender, receiver) = std::sync::mpsc::sync_channel(3);
+            for _ in 0..3 {
+                sender.send(create_test_span("queued")).unwrap();
+            }
+            let current_batch_size = AtomicUsize::new(3);
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(3)
+                .with_max_export_batch_size(1)
+                .build();
+            let mut spans = Vec::with_capacity(config.max_export_batch_size);
+            let mut last_export_time = Instant::now();
+            let processed = AtomicUsize::new(0);
+
+            let result = BatchSpanProcessor::get_spans_and_export(
+                &receiver,
+                &exporter,
+                &mut spans,
+                &mut last_export_time,
+                &current_batch_size,
+                &config,
+                &|count| {
+                    processed.fetch_add(count as usize, Ordering::Relaxed);
+                },
+            );
+
+            assert_eq!(exporter.calls.load(Ordering::Relaxed), 3);
+            assert_eq!(processed.load(Ordering::Relaxed), 3);
+            assert_eq!(current_batch_size.load(Ordering::Relaxed), 0);
+            assert!(spans.is_empty());
+            assert!(
+                matches!(&result, Err(OTelSdkError::InternalFailure(message))
+                    if message == "batch export failed"),
+                "failure in batch {failing_batch} must not be masked: {result:?}"
+            );
+        }
     }
 
     #[test]

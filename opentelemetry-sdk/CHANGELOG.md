@@ -5,6 +5,11 @@
 - Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
   span id on span creation.
   ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Preserve the first batch export error when `BatchSpanProcessor` or
+  `BatchLogProcessor` drains multiple batches, so a later successful export cannot
+  make `force_flush()` report success. Remaining batches are still exported after
+  an error.
+  ([#3791](https://github.com/open-telemetry/opentelemetry-rust/pull/3791))
 
 ## 0.33.1
 
