@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
+  span id on span creation.
+  ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+
 ## 0.33.1
 
 Released 2026-Oct-08
