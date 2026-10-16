@@ -2,8 +2,6 @@
 
 ## vNext
 
-- Reduce the size of `Key` and `StringValue` from 24 to 16 bytes, `Value` from
-  32 to 24 bytes, and `KeyValue` from 56 to 40 bytes on 64 bit platforms.
 - **Breaking** `Array` variants now hold `Box<[T]>` instead of `Vec<T>`.
   Code that matches on `Array` variants and needs a `Vec` should call `.into_vec()`.
 
