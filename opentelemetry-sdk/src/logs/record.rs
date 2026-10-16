@@ -119,8 +119,8 @@ impl opentelemetry::logs::LogRecord for SdkLogRecord {
 }
 
 impl SdkLogRecord {
-    /// Crate only default constructor
-    pub(crate) fn new() -> Self {
+    /// Creates a new empty `SdkLogRecord`.
+    pub fn new() -> Self {
         SdkLogRecord {
             event_name: None,
             target: None,
@@ -201,6 +201,12 @@ impl SdkLogRecord {
             .iter()
             .flatten()
             .any(|(k, v)| k == key && v == value)
+    }
+}
+
+impl Default for SdkLogRecord {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
