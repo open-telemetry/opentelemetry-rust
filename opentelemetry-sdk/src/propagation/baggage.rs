@@ -113,9 +113,10 @@ impl TextMapPropagator for BaggagePropagator {
             if start > 0 {
                 header.push(',');
             }
-            match serialize_member(&mut header, name, value, metadata) {
-                Ok(()) if header.len() <= MAX_BAGGAGE_LENGTH => continue,
-                Ok(()) => limit_exceeded = true,
+            let budget = MAX_BAGGAGE_LENGTH.saturating_sub(header.len());
+            match serialize_member(&mut header, name, value, metadata, budget) {
+                Ok(()) => continue,
+                Err(SerializeError::TooLarge) => limit_exceeded = true,
                 Err(err) => invalid.record(err),
             }
             header.truncate(start);
@@ -215,14 +216,21 @@ enum SerializeError {
     InvalidName,
     #[error("metadata is not valid W3C property syntax")]
     InvalidMetadata,
+    #[error("entry exceeds the remaining baggage size limit")]
+    TooLarge,
 }
 
 /// Serializes a single `list-member` into `out`. Inverse of [`parse_member`].
+///
+/// At most `budget` bytes are appended to `out`. If the member does not fit,
+/// [`SerializeError::TooLarge`] is returned and `out` may contain a partially
+/// written member, which the caller is expected to roll back.
 fn serialize_member(
     out: &mut String,
     name: &Key,
     value: &StringValue,
     metadata: &BaggageMetadata,
+    budget: usize,
 ) -> Result<(), SerializeError> {
     // `Baggage` does not restrict names or metadata, so both are validated
     // before anything is written.
@@ -234,9 +242,26 @@ fn serialize_member(
         return Err(SerializeError::InvalidMetadata);
     }
 
+    let metadata_len = if metadata.is_empty() {
+        0
+    } else {
+        1 + metadata.len()
+    };
+    // Percent encoding never shrinks a value, so entries whose unencoded size
+    // already exceeds the budget are skipped before anything is written.
+    let mut value_budget = budget
+        .checked_sub(name.as_str().len() + 1 + metadata_len)
+        .filter(|&remaining| value.as_str().len() <= remaining)
+        .ok_or(SerializeError::TooLarge)?;
+
     out.push_str(name.as_str());
     out.push('=');
-    out.extend(utf8_percent_encode(value.as_str(), VALUE_ENCODE_SET));
+    for chunk in utf8_percent_encode(value.as_str(), VALUE_ENCODE_SET) {
+        value_budget = value_budget
+            .checked_sub(chunk.len())
+            .ok_or(SerializeError::TooLarge)?;
+        out.push_str(chunk);
+    }
     if !metadata.is_empty() {
         out.push(';');
         out.push_str(metadata);
@@ -825,6 +850,82 @@ mod tests {
         let header =
             inject([KeyValue::new("big", spaces), KeyValue::new("small", "1")].into()).unwrap();
         assert_eq!(header, "small=1");
+    }
+
+    /// Serializes `name=value;metadata` with the given budget.
+    fn serialize(
+        name: &str,
+        value: &str,
+        metadata: &str,
+        budget: usize,
+    ) -> (Result<(), SerializeError>, String) {
+        let mut out = String::new();
+        let result = serialize_member(
+            &mut out,
+            &Key::from(name.to_owned()),
+            &StringValue::from(value.to_owned()),
+            &BaggageMetadata::from(metadata),
+            budget,
+        );
+        (result, out)
+    }
+
+    #[test]
+    fn serialize_member_skips_raw_values_over_budget() {
+        // 1 MiB of spaces would encode to 3 MiB, nothing is written or allocated
+        let spaces = " ".repeat(1 << 20);
+        let (result, out) = serialize("k", &spaces, "", MAX_BAGGAGE_LENGTH);
+        assert_eq!(result, Err(SerializeError::TooLarge));
+        assert!(out.is_empty());
+        assert_eq!(out.capacity(), 0);
+
+        // name, '=' and metadata count toward the budget
+        assert_eq!(serialize("k", "v", "", 2).0, Err(SerializeError::TooLarge));
+        assert_eq!(serialize("k", "v", "p", 4).0, Err(SerializeError::TooLarge));
+    }
+
+    #[test]
+    fn serialize_member_stops_encoding_at_budget() {
+        // 2731 spaces fit unencoded but encode to 8193 bytes
+        let spaces = " ".repeat(2731);
+        let (result, out) = serialize("k", &spaces, "", MAX_BAGGAGE_LENGTH);
+        assert_eq!(result, Err(SerializeError::TooLarge));
+        assert!(out.len() <= MAX_BAGGAGE_LENGTH);
+
+        // an exact fit is accepted
+        let (result, out) = serialize("k", " ", "p", 7);
+        assert_eq!(result, Ok(()));
+        assert_eq!(out, "k=%20;p");
+        assert_eq!(serialize("k", " ", "p", 6).0, Err(SerializeError::TooLarge));
+    }
+
+    #[test]
+    fn inject_drops_oversized_raw_value_without_retaining_capacity() {
+        let spaces = " ".repeat(1 << 20);
+        let mut injector = HashMap::new();
+        BaggagePropagator::new().inject_context(
+            &Context::new()
+                .with_baggage([KeyValue::new("big", spaces), KeyValue::new("small", "1")]),
+            &mut injector,
+        );
+        let header = &injector[BAGGAGE_HEADER];
+        assert_eq!(header, "small=1");
+        assert!(header.capacity() <= 2 * MAX_BAGGAGE_LENGTH);
+    }
+
+    #[test]
+    fn inject_limit_accounts_for_previous_entries() {
+        // each entry fits on its own, but not both together
+        let value = "x".repeat(MAX_BAGGAGE_LENGTH / 2);
+        let header = inject(
+            [
+                KeyValue::new("a", value.clone()),
+                KeyValue::new("b", value.clone()),
+            ]
+            .into(),
+        )
+        .unwrap();
+        assert!(header == format!("a={value}") || header == format!("b={value}"));
     }
 
     #[test]
