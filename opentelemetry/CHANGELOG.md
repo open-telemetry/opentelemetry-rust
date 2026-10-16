@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Breaking** `Array` variants now hold `Box<[T]>` instead of `Vec<T>`.
+  Code that matches on `Array` variants and needs a `Vec` should call `.into_vec()`.
+
 ## 0.33.1
 
 Released 2026-Oct-08

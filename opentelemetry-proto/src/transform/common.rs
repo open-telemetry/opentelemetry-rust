@@ -140,11 +140,12 @@ pub mod tonic {
         }
     }
 
-    fn array_into_proto<T>(vals: Vec<T>) -> ArrayValue
+    fn array_into_proto<T>(vals: Box<[T]>) -> ArrayValue
     where
         Value: From<T>,
     {
         let values = vals
+            .into_vec()
             .into_iter()
             .map(|val| AnyValue::from(Value::from(val)))
             .collect();
