@@ -5,6 +5,10 @@
 - Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
   span id on span creation.
   ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
+  up attribute sets when aggregating measurements (default remains std's
+  `RandomState`).
+  ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
 
 ## 0.33.1
 
