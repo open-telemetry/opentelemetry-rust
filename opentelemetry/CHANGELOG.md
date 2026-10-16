@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Fix panics when the context stack is full and a rejected value's destructor
+  or a tracing subscriber calls `Context::current()`.
+  ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
 ## 0.33.1
 
 Released 2026-Oct-08
