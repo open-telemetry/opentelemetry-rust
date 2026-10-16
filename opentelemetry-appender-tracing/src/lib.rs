@@ -99,7 +99,7 @@
 //!
 //! | `tracing`             | OpenTelemetry           | Notes                                                                                   |
 //! |-----------------------|-------------------------|-----------------------------------------------------------------------------------------|
-//! | name of the event     | `EventName`             | OpenTelemetry defines logs with name as Events, so every `tracing` Event is actually an OTel Event |
+//! | name of the event     | `EventName`             | Only a name given explicitly (`name: "..."`). The `event <file>:<line>` name `tracing` synthesizes otherwise identifies a source location, not a class of event, and is left out: such a record is a log, not an OTel Event |
 //! | target                | `target`                | Groups logs from the same module/crate. At recording time, `target` is stored in a top-level field. But exporters treat this information as OpenTelemetry `InstrumentationScope` |
 //! | level of the event    | `Severity`, `SeverityText` |                                                                                         |
 //! | Fields                | `Attributes`            | Converted into OpenTelemetry log attributes. Field with "message" as key is specially treated and stored as `LogRecord::Body` |

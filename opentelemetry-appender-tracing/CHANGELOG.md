@@ -2,6 +2,13 @@
 
 ## vNext
 
+- **Breaking** `EventName` is no longer set from the name `tracing` synthesizes
+  for an event whose call site gives none (`event <file>:<line>`): such a name
+  identifies a source location, not a class of event, so those records are now
+  exported as logs without an `EventName`, and `Logger::event_enabled` receives
+  `None` for them. Events named explicitly (`name: "..."`) are unchanged.
+  [#3797](https://github.com/open-telemetry/opentelemetry-rust/issues/3797)
+
 ## 0.33.1
 
 Released 2026-Oct-08
