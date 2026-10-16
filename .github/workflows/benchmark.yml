@@ -27,7 +27,7 @@ jobs:
     permissions:
       pull-requests: write
     container:
-      image: rust:slim-bookworm
+      image: rust:slim-bookworm@sha256:a24e292b4af7bdee351a31d3a6379972a5652f0ea22a1b6d6883324ac4f5097c
     env:
       BRANCH_NAME: ${{ github.base_ref }}
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
@@ -69,7 +69,7 @@ jobs:
     permissions:
       contents: write
     container:
-      image: rust:slim-bookworm
+      image: rust:slim-bookworm@sha256:a24e292b4af7bdee351a31d3a6379972a5652f0ea22a1b6d6883324ac4f5097c
     env:
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
