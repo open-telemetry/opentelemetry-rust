@@ -2615,6 +2615,7 @@ mod json_serde {
                 assert!(data_point.sum.unwrap().is_nan());
                 assert!(data_point.min.unwrap().is_nan());
                 assert!(data_point.max.unwrap().is_nan());
+                assert!(data_point.explicit_bounds[0].is_nan());
 
                 assert_eq!(data_point.exemplars.len(), 1);
                 let exemplar = &data_point.exemplars[0];
