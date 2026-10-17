@@ -8,7 +8,6 @@ pub(crate) mod serializers {
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::borrow::Cow;
     use std::fmt;
 
     pub fn is_default<T>(value: &T) -> bool
@@ -76,7 +75,7 @@ pub(crate) mod serializers {
                 } else if v.is_infinite() {
                     if v.is_sign_positive() {
                         map.serialize_entry("doubleValue", "Infinity")?;
-                    } else if v.is_sign_negative() {
+                    } else v.is_sign_negative() {
                         map.serialize_entry("doubleValue", "-Infinity")?;
                     }
                 } else {
@@ -520,7 +519,7 @@ pub(crate) mod serializers {
             where
                 E: de::Error,
             {
-                Ok(Some((value as f64)))
+                Ok(Some(value))
             }
 
             fn visit_u64<E>(self, value: u64) -> Result<Option<f64>, E>
