@@ -2707,7 +2707,9 @@ mod json_serde {
                 assert_eq!(data_points.flags, 0);
                 match data_points.value {
                     Some(MetricValue::AsDouble(val)) => assert!(val.is_nan()),
-                    Some(MetricValue::AsInt(_val)) => panic!("Expected double value in counter, got int"),
+                    Some(MetricValue::AsInt(_val)) => {
+                        panic!("Expected double value in counter, got int")
+                    }
                     None => panic!("Expected double value in counter"),
                 }
             } else {
@@ -2735,7 +2737,9 @@ mod json_serde {
                 assert_eq!(data_points.flags, 0);
                 match data_points.value {
                     Some(MetricValue::AsDouble(val)) => assert!(val.is_nan()),
-                    Some(MetricValue::AsInt(_val)) => panic!("Expected double value in gauge, got int"),
+                    Some(MetricValue::AsInt(_val)) => {
+                        panic!("Expected double value in gauge, got int")
+                    }
                     None => panic!("Expected double value in gauge"),
                 }
             } else {
