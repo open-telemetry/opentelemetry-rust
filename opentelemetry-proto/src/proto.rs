@@ -75,7 +75,7 @@ pub(crate) mod serializers {
                 } else if v.is_infinite() {
                     if v.is_sign_positive() {
                         map.serialize_entry("doubleValue", "Infinity")?;
-                    } else v.is_sign_negative() {
+                    } else {
                         map.serialize_entry("doubleValue", "-Infinity")?;
                     }
                 } else {
