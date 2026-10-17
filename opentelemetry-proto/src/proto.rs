@@ -515,44 +515,16 @@ pub(crate) mod serializers {
                 Ok(None)
             }
 
-            fn visit_f64<E>(self, value: f64) -> Result<Option<f64>, E>
-            where
-                E: de::Error,
+            fn visit_some<D>(self,deserializer:D)-> Result<Self::Value,D::Error>
+            where 
+                D: Deserializer<'de>,
             {
+                let value = deserialize_f64_special(deserializer)?;
                 Ok(Some(value))
-            }
-
-            fn visit_u64<E>(self, value: u64) -> Result<Option<f64>, E>
-            where
-                E: de::Error,
-            {
-                Ok(Some(value as f64))
-            }
-
-            fn visit_i64<E>(self, value: i64) -> Result<Option<f64>, E>
-            where
-                E: de::Error,
-            {
-                Ok(Some(value as f64))
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Option<f64>, E>
-            where
-                E: de::Error,
-            {
-                match value {
-                    "NaN" => Ok(Some(f64::NAN)),
-                    "Infinity" => Ok(Some(f64::INFINITY)),
-                    "-Infinity" => Ok(Some(f64::NEG_INFINITY)),
-                    _ => return Err(E::custom(format!(
-                            "invalid string for f64: expected a number, NaN, Infinity, or -Infinity but got '{}'",
-                           value
-                    )))
-                }
             }
         }
 
-        deserializer.deserialize_any(OptionF64Visitor)
+        deserializer.deserialize_option(OptionF64Visitor)
     }
 
     // serialize vector f64 special entries
@@ -587,56 +559,7 @@ pub(crate) mod serializers {
     where
         D: Deserializer<'de>,
     {
-        //element of a vecf64
-        struct F64Visitor;
-
-        impl<'de> de::Visitor<'de> for F64Visitor {
-            type Value = f64;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a float or a string representing NaN, Infinity, or -Infinity")
-            }
-
-            fn visit_f64<E>(self, value: f64) -> Result<f64, E>
-            where
-                E: de::Error,
-            {
-                Ok(value)
-            }
-
-            fn visit_u64<E>(self, value: u64) -> Result<f64, E>
-            where
-                E: de::Error,
-            {
-                Ok(value as f64)
-            }
-
-            fn visit_i64<E>(self, value: i64) -> Result<f64, E>
-            where
-                E: de::Error,
-            {
-                Ok(value as f64)
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<f64, E>
-            where
-                E: de::Error,
-            {
-                match value {
-                    "NaN" => Ok(f64::NAN),
-                    "Infinity" => Ok(f64::INFINITY),
-                    "-Infinity" => Ok(f64::NEG_INFINITY),
-                    _ => value.parse::<f64>().map_err(|_| {
-                        E::custom(format!(
-                            "invalid string for f64: expected a number, NaN, Infinity, or -Infinity but got '{}'",
-                            value
-                        ))
-                    }),
-                }
-            }
-        }
-
-        // all vecf64 sequence
+       // all vecf64 sequence
         struct VecF64Visitor;
         impl<'de> de::Visitor<'de> for VecF64Visitor {
             type Value = Vec<f64>;
@@ -668,7 +591,7 @@ pub(crate) mod serializers {
             where
                 D: Deserializer<'de>,
             {
-                deserializer.deserialize_any(F64Visitor)
+                deserialize_f64_special(deserializer)
             }
         }
 
