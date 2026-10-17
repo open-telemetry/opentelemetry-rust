@@ -2871,8 +2871,6 @@ mod json_serde {
                 &dp.data
             {
                 let qv = &summary.data_points[0].quantile_values[0];
-                assert!((qv.quantile - 0.5).abs() < f64::EPSILON);
-                assert!((qv.value - 99.0).abs() < f64::EPSILON);
                 assert_eq!(qv.quantile, 0.5);
                 assert_eq!(qv.value, 99.0);
             } else {
