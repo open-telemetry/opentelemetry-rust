@@ -47,7 +47,7 @@ experimental_context_observer = []
 opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false }
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "=1.53.3", features = ["full"] }
 
 [[bench]]
 name = "metrics"
