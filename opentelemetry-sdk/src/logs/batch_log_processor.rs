@@ -180,34 +180,24 @@ impl Debug for BatchLogProcessor {
 
 #[cfg(test)]
 struct FlushRaceTestHook {
-    target_thread: std::thread::ThreadId,
     enqueued_tx: std::sync::mpsc::Sender<()>,
-    release_rx: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+    release_rx: std::sync::mpsc::Receiver<()>,
 }
 
 #[cfg(test)]
-fn flush_race_test_hook_cell(
-) -> &'static std::sync::Mutex<Option<std::sync::Arc<FlushRaceTestHook>>> {
-    static HOOK: std::sync::OnceLock<std::sync::Mutex<Option<std::sync::Arc<FlushRaceTestHook>>>> =
-        std::sync::OnceLock::new();
-    HOOK.get_or_init(|| std::sync::Mutex::new(None))
+std::thread_local! {
+    static FLUSH_RACE_TEST_HOOK: std::cell::RefCell<Option<FlushRaceTestHook>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
 fn pause_after_enqueue_for_flush_race_test() {
-    let hook = flush_race_test_hook_cell()
-        .lock()
-        .expect("flush race test hook mutex poisoned")
-        .clone();
+    let hook = FLUSH_RACE_TEST_HOOK.with(|hook| hook.borrow_mut().take());
     if let Some(hook) = hook {
-        if std::thread::current().id() == hook.target_thread {
-            hook.enqueued_tx.send(()).expect("test receiver dropped");
-            hook.release_rx
-                .lock()
-                .expect("flush race release mutex poisoned")
-                .recv()
-                .expect("test did not release emitter");
-        }
+        hook.enqueued_tx.send(()).expect("test receiver dropped");
+        hook.release_rx
+            .recv()
+            .expect("test did not release emitter");
     }
 }
 
@@ -1325,12 +1315,9 @@ mod tests {
     fn test_force_flush_includes_successfully_enqueued_log() {
         let (enqueued_tx, enqueued_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
-        let (thread_id_tx, thread_id_rx) = mpsc::channel();
         let (start_tx, start_rx) = mpsc::channel();
 
-        let exporter = InMemoryLogExporterBuilder::default()
-            .keep_records_on_shutdown()
-            .build();
+        let exporter = InMemoryLogExporterBuilder::default().build();
         let config = BatchConfigBuilder::default()
             .with_max_queue_size(4)
             .with_max_export_batch_size(2)
@@ -1340,25 +1327,18 @@ mod tests {
         let emit_processor = Arc::clone(&processor);
 
         let emitter = std::thread::spawn(move || {
-            thread_id_tx
-                .send(std::thread::current().id())
-                .expect("test receiver dropped");
             start_rx.recv().expect("test did not start emitter");
+
+            super::FLUSH_RACE_TEST_HOOK.with(|hook| {
+                *hook.borrow_mut() = Some(super::FlushRaceTestHook {
+                    enqueued_tx,
+                    release_rx,
+                });
+            });
+
             let mut record = SdkLogRecord::new();
             emit_processor.emit(&mut record, &InstrumentationScope::default());
         });
-
-        let target_thread = thread_id_rx
-            .recv_timeout(Duration::from_secs(5))
-            .expect("emitter thread did not start");
-        *super::flush_race_test_hook_cell()
-            .lock()
-            .expect("flush race test hook mutex poisoned") =
-            Some(Arc::new(super::FlushRaceTestHook {
-                target_thread,
-                enqueued_tx,
-                release_rx: Mutex::new(release_rx),
-            }));
 
         start_tx.send(()).expect("emitter thread stopped early");
         let reached_hook = enqueued_rx.recv_timeout(Duration::from_secs(5)).is_ok();
@@ -1370,13 +1350,9 @@ mod tests {
             None
         };
 
-        // Unblock and clean up before asserting so a failed assertion cannot leave
-        // the emitter thread waiting on the test hook.
+        // Unblock and join the emitter before asserting test results.
         let _ = release_tx.send(());
         let emit_result = emitter.join();
-        *super::flush_race_test_hook_cell()
-            .lock()
-            .expect("flush race test hook mutex poisoned") = None;
         let shutdown_result = processor.shutdown();
 
         assert!(reached_hook, "emitter did not reach the post-enqueue hook");
