@@ -191,6 +191,7 @@ pub(crate) mod context;
 pub mod noop;
 mod span;
 mod span_context;
+mod trace_state;
 mod tracer;
 mod tracer_provider;
 
@@ -199,7 +200,8 @@ pub use self::{
         get_active_span, mark_span_as_active, FutureExt, SpanRef, TraceContextExt, WithContext,
     },
     span::{Span, SpanKind, Status},
-    span_context::{SpanContext, TraceState},
+    span_context::SpanContext,
+    trace_state::TraceState,
     tracer::{SpanBuilder, Tracer},
     tracer_provider::TracerProvider,
 };
