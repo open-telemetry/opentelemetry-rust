@@ -9,6 +9,14 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `MetricProducer`, behind the new `experimental_metrics_producer` feature:
+  a source of metrics from outside the SDK, such as a bridge to another metrics
+  library or measurements aggregated elsewhere. Register one with
+  `with_producer` on `ManualReaderBuilder` or `PeriodicReaderBuilder`; each
+  collection appends its output after the SDK's own metrics. The same feature
+  adds `new` constructors (and `with_*` setters for optional fields) to the
+  metric data types, so a producer can build them.
+  ([#2505](https://github.com/open-telemetry/opentelemetry-rust/issues/2505))
 
 ## 0.33.1
 

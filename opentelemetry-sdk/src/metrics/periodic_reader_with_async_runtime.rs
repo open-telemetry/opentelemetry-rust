@@ -16,7 +16,11 @@ use opentelemetry::{otel_debug, otel_error};
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{
+        exporter::PushMetricExporter,
+        producer::{produce_external, MetricProducer},
+        reader::SdkProducer,
+    },
     Resource,
 };
 
@@ -50,6 +54,7 @@ pub struct PeriodicReaderBuilder<E, RT> {
     timeout: Duration,
     exporter: E,
     runtime: RT,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E, RT> PeriodicReaderBuilder<E, RT>
@@ -72,6 +77,7 @@ where
             timeout,
             exporter,
             runtime,
+            producers: Vec::new(),
         }
     }
 
@@ -101,6 +107,14 @@ where
         if !timeout.is_zero() {
             self.timeout = timeout;
         }
+        self
+    }
+
+    /// Registers a [MetricProducer] whose metrics each collection appends after the
+    /// SDK's own.
+    #[cfg(feature = "experimental_metrics_producer")]
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
         self
     }
 
@@ -143,6 +157,7 @@ where
                 message_sender,
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
+                producers: self.producers,
             })),
         }
     }
@@ -220,6 +235,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
     sdk_producer_or_worker: ProducerOrWorker<E>,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 #[derive(Debug)]
@@ -369,6 +385,7 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             ProducerOrWorker::Worker(_) => None,
         } {
             producer.produce(rm)?;
+            produce_external(&inner.producers, rm);
         } else {
             return Err(OTelSdkError::InternalFailure(
                 "reader is not registered".into(),

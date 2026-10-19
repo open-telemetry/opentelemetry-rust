@@ -610,6 +610,269 @@ impl<T> Exemplar<T> {
     }
 }
 
+// Constructors, for [MetricProducer] implementations that hand the SDK metrics
+// aggregated elsewhere.
+//
+// [MetricProducer]: crate::metrics::MetricProducer
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl ScopeMetrics {
+    /// Creates the metrics of one instrumentation scope.
+    pub fn new(scope: InstrumentationScope, metrics: Vec<Metric>) -> Self {
+        Self { scope, metrics }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl Metric {
+    /// Creates a metric from its instrument's name, description and unit, and its
+    /// aggregated data.
+    pub fn new(
+        name: impl Into<Cow<'static, str>>,
+        description: impl Into<Cow<'static, str>>,
+        unit: impl Into<Cow<'static, str>>,
+        data: impl Into<AggregatedMetrics>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            unit: unit.into(),
+            data: data.into(),
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Gauge<T> {
+    /// Creates a gauge from its data points.
+    pub fn new(
+        data_points: Vec<GaugeDataPoint<T>>,
+        start_time: Option<SystemTime>,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> GaugeDataPoint<T> {
+    /// Creates a gauge data point, with no exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Sum<T> {
+    /// Creates a sum from its data points.
+    pub fn new(
+        data_points: Vec<SumDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+        is_monotonic: bool,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+            is_monotonic,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> SumDataPoint<T> {
+    /// Creates a sum data point, with no exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Histogram<T> {
+    /// Creates a histogram from its data points.
+    pub fn new(
+        data_points: Vec<HistogramDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> HistogramDataPoint<T> {
+    /// Creates a histogram data point, with no min, max or exemplars.
+    ///
+    /// `bucket_counts` has one more entry than `bounds`: the last one counts the
+    /// values above the last bound. The count is the sum of `bucket_counts`.
+    pub fn new(
+        attributes: Vec<KeyValue>,
+        bounds: Vec<f64>,
+        bucket_counts: Vec<u64>,
+        sum: T,
+    ) -> Self {
+        debug_assert_eq!(bucket_counts.len(), bounds.len() + 1);
+        Self {
+            attributes,
+            count: bucket_counts.iter().sum(),
+            bounds,
+            bucket_counts,
+            min: None,
+            max: None,
+            sum,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the minimum value recorded.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value recorded.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> ExponentialHistogram<T> {
+    /// Creates an exponential histogram from its data points.
+    pub fn new(
+        data_points: Vec<ExponentialHistogramDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> ExponentialHistogramDataPoint<T> {
+    /// Creates an exponential histogram data point, with no min, max or exemplars.
+    ///
+    /// The count is `zero_count` plus the counts of both buckets.
+    pub fn new(
+        attributes: Vec<KeyValue>,
+        scale: i8,
+        zero_count: u64,
+        zero_threshold: f64,
+        positive_bucket: ExponentialBucket,
+        negative_bucket: ExponentialBucket,
+        sum: T,
+    ) -> Self {
+        let count = zero_count
+            + positive_bucket.counts.iter().sum::<u64>()
+            + negative_bucket.counts.iter().sum::<u64>();
+        Self {
+            attributes,
+            count: count as usize,
+            min: None,
+            max: None,
+            sum,
+            scale,
+            zero_count,
+            positive_bucket,
+            negative_bucket,
+            zero_threshold,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the minimum value recorded.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value recorded.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl ExponentialBucket {
+    /// Creates a bucket range where `counts[i]` is the count of bucket `offset + i`.
+    pub fn new(offset: i32, counts: Vec<u64>) -> Self {
+        Self { offset, counts }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Exemplar<T> {
+    /// Creates an exemplar. Use all-zero IDs when no sampled span was active.
+    pub fn new(
+        filtered_attributes: Vec<KeyValue>,
+        time: SystemTime,
+        value: T,
+        span_id: [u8; 8],
+        trace_id: [u8; 16],
+    ) -> Self {
+        Self {
+            filtered_attributes,
+            time,
+            value,
+            span_id,
+            trace_id,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
