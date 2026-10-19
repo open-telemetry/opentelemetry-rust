@@ -114,7 +114,7 @@ fn benchmark_no_subscriber(c: &mut Criterion) {
     });
 }
 
-fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
+fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, named: bool, bench_name: &str) {
     let processor = NoopProcessor::new(enabled);
     let provider = SdkLoggerProvider::builder()
         .with_resource(
@@ -128,16 +128,30 @@ fn benchmark_with_ot_layer(c: &mut Criterion, enabled: bool, bench_name: &str) {
     let subscriber = Registry::default().with(ot_layer);
 
     tracing::subscriber::with_default(subscriber, || {
-        c.bench_function(bench_name, |b| {
-            b.iter(|| {
-                error!(
-                    name : "CheckoutFailed",
-                    book_id = "12345",
-                    book_title = "Rust Programming Adventures",
-                    message = "Unable to process checkout."
-                );
+        if named {
+            c.bench_function(bench_name, |b| {
+                b.iter(|| {
+                    error!(
+                        name : "CheckoutFailed",
+                        book_id = "12345",
+                        book_title = "Rust Programming Adventures",
+                        message = "Unable to process checkout."
+                    );
+                });
             });
-        });
+        } else {
+            // No `name:`, so `tracing` synthesizes "event <file>:<line>", which the
+            // bridge has to recognise and not export as the EventName.
+            c.bench_function(bench_name, |b| {
+                b.iter(|| {
+                    error!(
+                        book_id = "12345",
+                        book_title = "Rust Programming Adventures",
+                        message = "Unable to process checkout."
+                    );
+                });
+            });
+        }
     });
 }
 
@@ -160,8 +174,10 @@ fn benchmark_with_noop_layer(c: &mut Criterion, enabled: bool, bench_name: &str)
 
 fn criterion_benchmark(c: &mut Criterion) {
     benchmark_no_subscriber(c);
-    benchmark_with_ot_layer(c, true, "ot_layer_enabled");
-    benchmark_with_ot_layer(c, false, "ot_layer_disabled");
+    benchmark_with_ot_layer(c, true, true, "ot_layer_enabled");
+    benchmark_with_ot_layer(c, false, true, "ot_layer_disabled");
+    benchmark_with_ot_layer(c, true, false, "ot_layer_enabled_unnamed");
+    benchmark_with_ot_layer(c, false, false, "ot_layer_disabled_unnamed");
     benchmark_with_noop_layer(c, true, "noop_layer_enabled");
     benchmark_with_noop_layer(c, false, "noop_layer_disabled");
 }

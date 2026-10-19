@@ -6,9 +6,7 @@ use opentelemetry::{
 use std::borrow::Cow;
 #[cfg(feature = "experimental_span_attributes")]
 use std::collections::HashSet;
-use tracing_core::Level;
-#[cfg(feature = "experimental_metadata_attributes")]
-use tracing_core::Metadata;
+use tracing_core::{Level, Metadata};
 #[cfg(feature = "experimental_metadata_attributes")]
 use tracing_log::NormalizeEvent;
 use tracing_subscriber::{registry::LookupSpan, Layer};
@@ -16,6 +14,26 @@ use tracing_subscriber::{registry::LookupSpan, Layer};
 /// Visitor to record the fields from the event record.
 struct EventVisitor<'a, LR: LogRecord> {
     log_record: &'a mut LR,
+}
+
+/// Whether `meta` carries the name `tracing`'s event macros synthesize when the
+/// call site names none: `concat!("event ", file!(), ":", line!())`.
+///
+/// Such a name identifies a source location, not a class of event, so it is not
+/// an OpenTelemetry `EventName`: forwarding it would turn every log into an
+/// event whose name changes whenever a line is added above the call site.
+/// An explicit `name:` that happens to spell the same thing is indistinguishable,
+/// and treated the same way.
+fn is_synthesized_event_name(meta: &Metadata<'_>) -> bool {
+    let (Some(file), Some(line)) = (meta.file(), meta.line()) else {
+        return false;
+    };
+    meta.name()
+        .strip_prefix("event ")
+        .and_then(|rest| rest.strip_prefix(file))
+        .and_then(|rest| rest.strip_prefix(':'))
+        .and_then(|rest| rest.parse::<u32>().ok())
+        == Some(line)
 }
 
 /// Logs from the log crate have duplicated attributes that we removed here.
@@ -480,8 +498,8 @@ where
         let metadata = event.metadata();
         let severity = severity_of_level(metadata.level());
         let target = metadata.target();
-        let name = metadata.name();
-        if !self.logger.event_enabled(severity, target, Some(name)) {
+        let event_name = (!is_synthesized_event_name(metadata)).then(|| metadata.name());
+        if !self.logger.event_enabled(severity, target, event_name) {
             // TODO: See if we need internal logs or track the count.
             return;
         }
@@ -495,7 +513,9 @@ where
         let mut log_record = self.logger.create_log_record();
 
         log_record.set_target(target);
-        log_record.set_event_name(name);
+        if let Some(event_name) = event_name {
+            log_record.set_event_name(event_name);
+        }
         log_record.set_severity_number(severity);
         log_record.set_severity_text(metadata.level().as_str());
 
@@ -815,15 +835,9 @@ mod tests {
             log.record.target().expect("target is expected").to_string(),
             "opentelemetry_appender_tracing::layer::tests"
         );
-        // Validate event name - tracing defaults to event followed source & line number
-        // Assert is doing "contains" check to avoid tests failing when line number changes.
-        // and also account for the fact that the module path is different on different platforms.
-        // Ex.: The path will be different on a Windows and Linux machine.
-        assert!(log
-            .record
-            .event_name()
-            .expect("event_name is expected")
-            .contains("event opentelemetry-appender-tracing"),);
+        // Validate event name - tracing defaults to "event <file>:<line>", which names a
+        // source location rather than a class of event, so no EventName is set.
+        assert_eq!(log.record.event_name(), None);
     }
 
     #[test]
