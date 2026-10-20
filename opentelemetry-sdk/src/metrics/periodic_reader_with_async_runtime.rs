@@ -157,8 +157,8 @@ where
                 message_sender,
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
-                producers: self.producers,
             })),
+            producers: Arc::new(self.producers),
         }
     }
 }
@@ -204,6 +204,7 @@ where
 pub struct PeriodicReader<E: PushMetricExporter> {
     exporter: Arc<E>,
     inner: Arc<Mutex<PeriodicReaderInner<E>>>,
+    producers: Arc<Vec<Box<dyn MetricProducer>>>,
 }
 
 impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
@@ -211,6 +212,7 @@ impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
         Self {
             exporter: Arc::clone(&self.exporter),
             inner: Arc::clone(&self.inner),
+            producers: Arc::clone(&self.producers),
         }
     }
 }
@@ -235,7 +237,6 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     message_sender: mpsc::Sender<Message>,
     is_shutdown: bool,
     sdk_producer_or_worker: ProducerOrWorker<E>,
-    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 #[derive(Debug)]
@@ -385,12 +386,14 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             ProducerOrWorker::Worker(_) => None,
         } {
             producer.produce(rm)?;
-            produce_external(&inner.producers, rm);
         } else {
             return Err(OTelSdkError::InternalFailure(
                 "reader is not registered".into(),
             ));
         }
+        // External producers run integration code: don't hold the lock while they do.
+        drop(inner);
+        produce_external(&self.producers, rm);
 
         Ok(())
     }

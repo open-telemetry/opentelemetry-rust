@@ -8,6 +8,11 @@ use crate::Resource;
 
 use super::Temporality;
 
+#[cfg(feature = "experimental_metrics_producer")]
+use super::instrument::validate_bucket_boundaries;
+#[cfg(feature = "experimental_metrics_producer")]
+use crate::error::OTelSdkError;
+
 /// A collection of [ScopeMetrics] and the associated [Resource] that created them.
 #[derive(Debug)]
 pub struct ResourceMetrics {
@@ -615,6 +620,15 @@ impl<T> Exemplar<T> {
 //
 // [MetricProducer]: crate::metrics::MetricProducer
 
+/// Sums histogram bucket counts, or fails if the total overflows.
+#[cfg(feature = "experimental_metrics_producer")]
+fn total_count(counts: impl IntoIterator<Item = u64>) -> Result<u64, OTelSdkError> {
+    counts
+        .into_iter()
+        .try_fold(0u64, u64::checked_add)
+        .ok_or_else(|| OTelSdkError::InternalFailure("histogram count overflows u64".into()))
+}
+
 #[cfg(feature = "experimental_metrics_producer")]
 impl ScopeMetrics {
     /// Creates the metrics of one instrumentation scope.
@@ -736,25 +750,37 @@ impl<T> Histogram<T> {
 impl<T> HistogramDataPoint<T> {
     /// Creates a histogram data point, with no min, max or exemplars.
     ///
-    /// `bucket_counts` has one more entry than `bounds`: the last one counts the
-    /// values above the last bound. The count is the sum of `bucket_counts`.
+    /// `bounds` must be finite and strictly increasing. `bucket_counts` has one more
+    /// entry than `bounds`: the last one counts the values above the last bound. The
+    /// count is the sum of `bucket_counts`.
+    ///
+    /// Returns an error if `bounds` or the length of `bucket_counts` is invalid, or
+    /// if the count overflows.
     pub fn new(
         attributes: Vec<KeyValue>,
         bounds: Vec<f64>,
         bucket_counts: Vec<u64>,
         sum: T,
-    ) -> Self {
-        debug_assert_eq!(bucket_counts.len(), bounds.len() + 1);
-        Self {
+    ) -> Result<Self, OTelSdkError> {
+        validate_bucket_boundaries(&bounds).map_err(OTelSdkError::InternalFailure)?;
+        if bucket_counts.len() != bounds.len() + 1 {
+            return Err(OTelSdkError::InternalFailure(format!(
+                "histogram has {} bounds, so it needs {} bucket counts, not {}",
+                bounds.len(),
+                bounds.len() + 1,
+                bucket_counts.len()
+            )));
+        }
+        Ok(Self {
             attributes,
-            count: bucket_counts.iter().sum(),
+            count: total_count(bucket_counts.iter().copied())?,
             bounds,
             bucket_counts,
             min: None,
             max: None,
             sum,
             exemplars: Vec::new(),
-        }
+        })
     }
 
     /// Sets the minimum value recorded.
@@ -799,6 +825,8 @@ impl<T> ExponentialHistogramDataPoint<T> {
     /// Creates an exponential histogram data point, with no min, max or exemplars.
     ///
     /// The count is `zero_count` plus the counts of both buckets.
+    ///
+    /// Returns an error if the count overflows `usize`.
     pub fn new(
         attributes: Vec<KeyValue>,
         scale: i8,
@@ -807,13 +835,18 @@ impl<T> ExponentialHistogramDataPoint<T> {
         positive_bucket: ExponentialBucket,
         negative_bucket: ExponentialBucket,
         sum: T,
-    ) -> Self {
-        let count = zero_count
-            + positive_bucket.counts.iter().sum::<u64>()
-            + negative_bucket.counts.iter().sum::<u64>();
-        Self {
+    ) -> Result<Self, OTelSdkError> {
+        let count = total_count(
+            std::iter::once(zero_count)
+                .chain(positive_bucket.counts.iter().copied())
+                .chain(negative_bucket.counts.iter().copied()),
+        )?;
+        let count = usize::try_from(count).map_err(|_| {
+            OTelSdkError::InternalFailure(format!("histogram count {count} overflows usize"))
+        })?;
+        Ok(Self {
             attributes,
-            count: count as usize,
+            count,
             min: None,
             max: None,
             sum,
@@ -823,7 +856,7 @@ impl<T> ExponentialHistogramDataPoint<T> {
             negative_bucket,
             zero_threshold,
             exemplars: Vec::new(),
-        }
+        })
     }
 
     /// Sets the minimum value recorded.
@@ -987,6 +1020,7 @@ mod tests {
         );
 
         let point = HistogramDataPoint::new(attrs.clone(), vec![1.0], vec![2, 3], 9u64)
+            .unwrap()
             .with_min(1)
             .with_max(6)
             .with_exemplars(vec![exemplar.clone()]);
@@ -1014,6 +1048,7 @@ mod tests {
             negative.clone(),
             9u64,
         )
+        .unwrap()
         .with_min(1)
         .with_max(6)
         .with_exemplars(vec![exemplar.clone()]);
@@ -1050,5 +1085,41 @@ mod tests {
         let scope_metrics = ScopeMetrics::new(scope.clone(), vec![metric]);
         assert_eq!(scope_metrics.scope(), &scope);
         assert_eq!(scope_metrics.metrics().count(), 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_producer")]
+    #[test]
+    fn histogram_constructors_reject_invalid_data() {
+        use super::ExponentialBucket;
+
+        let histogram = |bounds: Vec<f64>, bucket_counts: Vec<u64>| {
+            HistogramDataPoint::new(vec![], bounds, bucket_counts, 0u64)
+        };
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2, 3]).is_ok());
+        assert!(histogram(vec![], vec![1]).is_ok());
+        // Bounds that are not finite, or not strictly increasing.
+        assert!(histogram(vec![1.0, f64::NAN], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![1.0, f64::INFINITY], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![2.0, 1.0], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![1.0, 1.0], vec![1, 2, 3]).is_err());
+        // One bucket count too few or too many.
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2]).is_err());
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2, 3, 4]).is_err());
+        // A count that overflows.
+        assert!(histogram(vec![1.0], vec![u64::MAX, 1]).is_err());
+
+        let exponential = |zero_count: u64, counts: Vec<u64>| {
+            ExponentialHistogramDataPoint::new(
+                vec![],
+                0,
+                zero_count,
+                0.0,
+                ExponentialBucket::new(0, counts),
+                ExponentialBucket::new(0, vec![]),
+                0u64,
+            )
+        };
+        assert_eq!(exponential(1, vec![2, 3]).unwrap().count(), 6);
+        assert!(exponential(1, vec![u64::MAX]).is_err());
     }
 }

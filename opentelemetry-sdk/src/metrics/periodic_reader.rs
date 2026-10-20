@@ -408,6 +408,8 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             p.upgrade()
                 .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
+            // External producers run integration code: don't hold the lock while they do.
+            drop(producer);
             produce_external(&self.producers, rm);
             Ok(())
         } else {

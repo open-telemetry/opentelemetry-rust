@@ -15,7 +15,8 @@
   `with_producer` on `ManualReaderBuilder` or `PeriodicReaderBuilder`; each
   collection appends its output after the SDK's own metrics. The same feature
   adds `new` constructors (and `with_*` setters for optional fields) to the
-  metric data types, so a producer can build them.
+  metric data types, so a producer can build them. The histogram data-point
+  constructors validate their input and return a `Result`.
   ([#2505](https://github.com/open-telemetry/opentelemetry-rust/issues/2505))
 
 ## 0.33.1

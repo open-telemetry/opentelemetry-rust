@@ -71,7 +71,7 @@ mod tests {
                 vec![10.0, 100.0],
                 vec![1, 2, 3],
                 1234u64,
-            );
+            )?;
             let histogram = Histogram::new(vec![point], now(), now(), Temporality::Cumulative);
             let metric = Metric::new("latency", "", "us", MetricData::from(histogram));
             let scope = InstrumentationScope::builder("external").build();
@@ -155,6 +155,27 @@ mod tests {
         let exports = exporter.get_finished_metrics().unwrap();
         assert_eq!(exports.len(), 2);
         exports.iter().for_each(assert_sdk_then_external);
+    }
+
+    #[test]
+    fn producer_metrics_export_without_sdk_metrics() {
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone())
+            .with_producer(External)
+            .build();
+        let provider = SdkMeterProvider::builder().with_reader(reader).build();
+
+        // No SDK instrument is recorded: the export must still carry the producer's
+        // metrics, not be skipped as empty.
+        provider.force_flush().unwrap();
+
+        let exports = exporter.get_finished_metrics().unwrap();
+        assert_eq!(exports.len(), 1);
+        let scopes: Vec<_> = exports[0]
+            .scope_metrics()
+            .map(|sm| sm.scope().name())
+            .collect();
+        assert_eq!(scopes, ["external"]);
     }
 
     #[test]

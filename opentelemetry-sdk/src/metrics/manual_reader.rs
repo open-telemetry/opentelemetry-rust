@@ -107,6 +107,8 @@ impl MetricReader for ManualReader {
                 ))
             }
         };
+        // External producers run integration code: don't hold the lock while they do.
+        drop(inner);
         produce_external(&self.producers, rm);
 
         Ok(())
