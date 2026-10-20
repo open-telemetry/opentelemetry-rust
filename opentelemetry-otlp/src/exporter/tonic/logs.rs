@@ -13,7 +13,7 @@ use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scop
 
 use super::BoxInterceptor;
 
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 
 pub(crate) struct TonicLogsClient {
     inner: Mutex<Option<ClientInner>>,

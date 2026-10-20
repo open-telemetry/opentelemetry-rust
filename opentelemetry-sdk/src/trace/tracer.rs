@@ -14,7 +14,7 @@ use crate::trace::{
 };
 use opentelemetry::{
     trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
-    Context, InstrumentationScope, KeyValue,
+    Context, InstrumentationScope, KeyValue, TraceId,
 };
 use std::fmt;
 use std::sync::Arc;
@@ -189,11 +189,10 @@ impl opentelemetry::trace::Tracer for SdkTracer {
         let trace_id;
         let mut psc = &SpanContext::empty_context();
 
-        let parent_span = if parent_cx.has_active_span() {
-            Some(parent_cx.span())
-        } else {
-            None
-        };
+        // Inheriting its all-zero trace id would produce a span with an invalid trace id
+        // if the sampler decides to record.
+        let parent_span = Some(parent_cx.span())
+            .filter(|span| span.span_context().trace_id() != TraceId::INVALID);
 
         // Build context for sampling decision
         if let Some(sc) = parent_span.as_ref().map(|parent| parent.span_context()) {
@@ -212,7 +211,7 @@ impl opentelemetry::trace::Tracer for SdkTracer {
             builder.links.as_deref().unwrap_or(&[]),
         );
 
-        let trace_flags = parent_cx.span().span_context().trace_flags();
+        let trace_flags = psc.trace_flags();
         let trace_state = samplings_result.trace_state;
         let span_limits = config.span_limits;
         // Build optional inner context, `None` if not recording.
@@ -616,5 +615,93 @@ mod tests {
         assert_eq!(child.span_context.trace_id(), provided_trace_id);
         assert_ne!(child.parent_span_id, active_span_id);
         assert_ne!(child.span_context.trace_id(), active_trace_id);
+    }
+
+    #[test]
+    fn parent_with_invalid_span_id_but_valid_trace_id_inherits_trace_id() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            // Root is AlwaysOn; the local-not-sampled branch would drop instead.
+            .with_sampler(Sampler::parent_based(Sampler::AlwaysOn))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // A parent with a valid trace id but an invalid (all-zero) span id, e.g. a
+        // remote span context from an upstream service that does not create a root
+        // span but wants all downstream operations to share the same trace.
+        let parent_trace_id = TraceId::from(123);
+        let parent_cx = Context::new().with_span(TestSpan(SpanContext::new(
+            parent_trace_id,
+            SpanId::INVALID,
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+
+        let span = tracer.build_with_context(tracer.span_builder("child"), &parent_cx);
+        let span_context = span.span_context().clone();
+        drop(span);
+
+        assert_eq!(
+            span_context.trace_id(),
+            parent_trace_id,
+            "a child must inherit the trace id of a parent that has a valid trace id, \
+             even when the parent's span id is invalid"
+        );
+        assert!(span_context.is_valid());
+
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].span_context.trace_id(), parent_trace_id);
+        assert_eq!(
+            spans[0].parent_span_id,
+            SpanId::INVALID,
+            "an invalid parent span id must not be recorded as the parent span id"
+        );
+    }
+
+    #[test]
+    fn invalid_parent_starts_a_new_trace() {
+        use crate::trace::{InMemorySpanExporter, SimpleSpanProcessor};
+
+        let exporter = InMemorySpanExporter::default();
+        let tracer_provider = crate::trace::SdkTracerProvider::builder()
+            // Root is AlwaysOn; the local-not-sampled branch would drop instead.
+            .with_sampler(Sampler::parent_based(Sampler::AlwaysOn))
+            .with_span_processor(SimpleSpanProcessor::new(exporter.clone()))
+            .build();
+        let tracer = tracer_provider.tracer("test");
+
+        // An active parent whose span context is invalid (e.g. a context carrying
+        // an invalid active span context). It must not be inherited as a parent.
+        let parent_cx = Context::current_with_span(TestSpan(SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(7),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        )));
+
+        let span = tracer.build_with_context(tracer.span_builder("child"), &parent_cx);
+        let span_context = span.span_context().clone();
+        drop(span);
+
+        assert!(
+            span_context.trace_id() != TraceId::INVALID,
+            "a recorded span must not inherit an invalid parent's all-zero trace id"
+        );
+        assert!(span_context.is_valid());
+
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].span_context.trace_id(), span_context.trace_id());
+        assert_eq!(
+            spans[0].parent_span_id,
+            SpanId::INVALID,
+            "an invalid parent must not be recorded as the parent"
+        );
     }
 }

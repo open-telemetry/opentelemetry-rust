@@ -1,13 +1,20 @@
 # OpenTelemetry Log Processor Implementation and Composition - Example
 
-This example builds on top of the `logs-basic`, showing how to implement `LogProcessor`s correctly.
+This example builds on top of `logs-basic`, showing how to implement and
+compose `LogProcessor`s correctly.
 
-The `EnrichmentProcessor` simulates a processor adding information
-to the log captured by the OpenTelemetry SDK, which correctly ensures that the
-downstream processor's filtering is captured, avoiding unnecessary work.
+`FilteringLogProcessor` drops records whose `event_id` attribute is `20`.
+`EnrichmentLogProcessor` adds an attribute to records that pass the filter.
+Both wrap and delegate to the next processor, preserving its lifecycle and
+early `event_enabled` decisions. The filter is outermost so dropped records do
+not incur enrichment work.
+
+The stdout exporter therefore receives only the record with `event_id=50`.
+The filter uses an attribute for illustration, but it could use any information
+available to `LogProcessor::emit`.
 
 ## Usage
 
 ```shell
-cargo run
+cargo run -p logs-advanced
 ```

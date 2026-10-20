@@ -49,6 +49,12 @@ JSON) transports.
 OTLP is the recommended way to export telemetry from OpenTelemetry, as it is
 vendor-neutral and supported by most observability backends.
 
+### Stability
+
+The OTLP exporters for Logs and Metrics are stable as of 0.33.1, following the
+0.33.0 release-candidate period. The OTLP exporter for Traces remains in beta.
+Features explicitly marked experimental remain experimental.
+
 ### Related crates
 
 This crate exports telemetry produced via the OpenTelemetry SDK. It is

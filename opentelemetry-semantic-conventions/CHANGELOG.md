@@ -2,6 +2,16 @@
 
 ## vNext
 
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Version aligned with the 0.33.1 release.
+
+## 0.33.0
+
+Released 2026-Sep-18
+
 ## 0.32.1
 
 Released 2026-Jun-26

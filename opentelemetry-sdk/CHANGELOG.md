@@ -2,6 +2,70 @@
 
 ## vNext
 
+- Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
+  span id on span creation.
+  ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
+  up attribute sets when aggregating measurements (default remains std's
+  `RandomState`).
+  ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Emit a one-time internal error diagnostic when the default `PeriodicReader`
+  worker thread panics (such as from an observable metric callback), and document
+  the callback panic contract.
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
+  ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+- `TraceContextPropagator` now follows the W3C Trace Context Level 2 `tracestate` rules.
+  Multiple `tracestate` header fields are combined into a single list, `tracestate` is
+  only parsed once `traceparent` is known to be valid, an invalid `tracestate` (see
+  the stricter `TraceState` parsing in `opentelemetry`) is discarded without
+  affecting `traceparent` and an empty `tracestate` header is no longer injected.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
+  default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
+  `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
+  (`opentelemetry_sdk::metrics`), so downstream configuration systems can read
+  the SDK's spec-defined defaults programmatically instead of duplicating
+  them. As part of this, `PeriodicReader`'s previously-private
+  `DEFAULT_INTERVAL`/`METRIC_EXPORT_INTERVAL_NAME` constants were renamed
+  to `OTEL_METRIC_EXPORT_INTERVAL_DEFAULT`/`OTEL_METRIC_EXPORT_INTERVAL` to
+  match the naming convention already used elsewhere.
+  ([#3623](https://github.com/open-telemetry/opentelemetry-rust/issues/3623))
 - Added SDK self-observability metrics, feature-gated behind
   `experimental_metrics_bound_instruments`: `otel.sdk.log.created` counts log
   records submitted to the SDK; `otel.sdk.processor.log.processed` and

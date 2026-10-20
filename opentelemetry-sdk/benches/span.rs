@@ -4,8 +4,6 @@
     span creation patterns in OpenTelemetry when using On/Off
     sampling strategies.
 
-    TODO: Cover the impact of the presence of ActiveSpan in the context.
-
     The benchmark results:
     criterion = "0.5.1"
     cargo 1.91.1 (ea2d97820 2025-10-10)
@@ -149,6 +147,20 @@ fn criterion_benchmark(c: &mut Criterion) {
             }
         },
     );
+
+    let provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOn)
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let tracer = provider.tracer("active-parent");
+    let parent_cx = Context::new().with_span(tracer.start("parent"));
+
+    c.bench_function("span-creation-with-active-parent", |b| {
+        b.iter(|| {
+            let mut span = tracer.start_with_context("span-name", &parent_cx);
+            span.end();
+        });
+    });
 }
 
 #[derive(Debug)]

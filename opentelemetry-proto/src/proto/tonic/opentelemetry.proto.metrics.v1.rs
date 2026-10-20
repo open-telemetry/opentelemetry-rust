@@ -392,6 +392,13 @@ pub mod number_data_point {
         #[prost(double, tag = "4")]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_i64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_i64"
+            )
+        )]
         AsInt(i64),
     }
 }
@@ -525,6 +532,7 @@ pub struct HistogramDataPoint {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExponentialHistogramDataPoint {
     /// The set of key/value pairs that uniquely identify the timeseries from
@@ -653,6 +661,7 @@ pub mod exponential_histogram_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct Buckets {
         /// The bucket index of the first entry in the bucket_counts array.
@@ -766,6 +775,7 @@ pub mod summary_data_point {
     #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
     #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+    #[cfg_attr(feature = "with-serde", serde(default))]
     #[derive(Clone, Copy, PartialEq, ::prost::Message)]
     pub struct ValueAtQuantile {
         /// The quantile of a distribution. Must be in the interval
@@ -800,6 +810,7 @@ pub mod summary_data_point {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Exemplar {
     /// The set of key/value pairs that were filtered out by the aggregator, but
@@ -850,6 +861,7 @@ pub struct Exemplar {
     /// considered invalid when one of the recognized value fields is not present
     /// inside this oneof.
     #[prost(oneof = "exemplar::Value", tags = "3, 6")]
+    #[cfg_attr(feature = "with-serde", serde(flatten))]
     pub value: ::core::option::Option<exemplar::Value>,
 }
 /// Nested message and enum types in `Exemplar`.
@@ -865,6 +877,13 @@ pub mod exemplar {
         #[prost(double, tag = "3")]
         AsDouble(f64),
         #[prost(sfixed64, tag = "6")]
+        #[cfg_attr(
+            feature = "with-serde",
+            serde(
+                serialize_with = "crate::proto::serializers::serialize_i64_to_string",
+                deserialize_with = "crate::proto::serializers::deserialize_string_to_i64"
+            )
+        )]
         AsInt(i64),
     }
 }

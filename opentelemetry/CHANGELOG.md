@@ -2,6 +2,49 @@
 
 ## vNext
 
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Fix a panic when a value stored with `Context::with_value()` calls
+  `Context::current()` from its `Drop` implementation.
+- Expand tracing documentation on async context propagation and child spans
+  ([#828](https://github.com/open-telemetry/opentelemetry-rust/issues/828)).
+- Document the panic contract for observable metric callbacks (`Callback` and
+  `AsyncInstrumentBuilder::with_callback`).
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
+- Fix `TraceState::from_str` rejecting valid optional whitespace around list members.
+  ([#3757](https://github.com/open-telemetry/opentelemetry-rust/issues/3757))
+- **Breaking** `TraceState` now validates list-members exactly as the
+  [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/#tracestate-header)
+  specification requires. `from_str`, `from_key_value` and `insert` return an `Err` for:
+  - empty keys and empty or whitespace-only values (e.g. `=x`, `a=`),
+  - values containing characters outside printable ASCII (e.g. tabs), `,` or `=`;
+    repeated equals signs (e.g. `a==b`) are no longer silently removed,
+  - values with trailing spaces passed to `from_key_value` or `insert` (trailing
+    spaces in a parsed header are still treated as optional whitespace),
+  - duplicate keys, reported via the new `TraceStateError::DuplicateKey` variant.
+  `TraceState::delete` now returns `TraceState` instead of `Result<TraceState, TraceStateError>`
+  `TraceState`'s `Debug` output changed from `TraceState(None)` / `TraceState(Some([..]))` to `TraceState([])` / `TraceState([("key", "value")])`.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
+- Fix `TraceState` accepting more than the 32 list-members the W3C trace-context
+  specification allows. `from_str`, `from_key_value` and `insert` now keep at most
+  32, dropping members from the end of the list as the specification prescribes, so
+  neither a parsed nor a locally built `tracestate` can exceed the limit.
+- **Added** experimental support for a global context event observer. A
+  `ContextObserver` can be registered via `GlobalContextObserver::set` to be
+  notified of context transitions through the `on_context_enter` and
+  `on_context_exit` callbacks. This feature is primarily intended to publish a
+  different view of the current context (the `ObserverContextView`) through
+  alternative channels that let external readers (e.g. an eBPF profiler) track
+  the current context. See the associated
+  [OTEP](https://github.com/open-telemetry/opentelemetry-specification/pull/4947).
+  Gated behind the `experimental_context_observer` feature flag.
 - `otel_info!`, `otel_warn!`, `otel_debug!`, and `otel_error!` macros now accept quoted-key fields
   (e.g. `"otel.component.type" = "value"`) for dotted attribute names.
 - **Added** `BoundGauge<T>` and `BoundUpDownCounter<T>` types (and the

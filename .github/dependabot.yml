@@ -5,11 +5,34 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      codeql:
+        patterns:
+          - "github/codeql-action/*"
+      minor-and-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github/codeql-action/*"
+        update-types:
+          - "minor"
+          - "patch"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "rust-toolchain"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1

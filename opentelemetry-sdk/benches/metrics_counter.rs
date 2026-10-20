@@ -1,17 +1,23 @@
 /*
     The benchmark results:
     criterion = "0.5.1"
-    rustc 1.83.0 (90b35a623 2024-11-26)
-    OS: Ubuntu 22.04.4 LTS (5.15.167.4-microsoft-standard-WSL2)
-    Hardware: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz   2.79 GHz
-    RAM: 64.0 GB
+    rustc 1.99.0 (b940084d7 2026-09-28)
+    OS: macOS 26.3 (25D2125)
+    Hardware: Apple M5 Pro, 18 cores
+    RAM: 48.0 GB
     | Test                                                  | Average time|
     |-------------------------------------------------------|-------------|
-    | Counter_Add_Sorted                                    | 160 ns      |
-    | Counter_Add_Unsorted                                  | 164 ns      |
-    | Counter_Add_Sorted_With_Non_Static_Values             | 238 ns      |
-    | Counter_Overflow                                      | 562 ns      |
-    | ThreadLocal_Random_Generator_5                        |  37 ns      |
+    | Counter_Add_Sorted                                    |  69 ns      |
+    | Counter_Add_Unsorted                                  |  70 ns      |
+    | Counter_Add_Sorted_Rapidhash                          |  48 ns      |
+    | Counter_Add_Unsorted_Rapidhash                        |  51 ns      |
+    | Counter_Add_Sorted_FxHash                             |  41 ns      |
+    | Counter_Add_Unsorted_FxHash                           |  42 ns      |
+    | Counter_Add_Sorted_ConstantHasher                     | 7.8 µs      |
+    | Counter_Add_Cardinality_1_ConstantHasher              |  29 ns      |
+    | Counter_Add_Sorted_With_Non_Static_Values             | 109 ns      |
+    | Counter_Overflow                                      | 222 ns      |
+    | ThreadLocal_Random_Generator_5                        |   7 ns      |
 */
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
@@ -50,9 +56,87 @@ fn create_counter(name: &'static str) -> Counter<u64> {
     meter.u64_counter(name).build()
 }
 
+fn create_counter_with_rapidhash(name: &'static str) -> Counter<u64> {
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_hasher(rapidhash::fast::RandomState::new)
+        .build();
+    let meter = meter_provider.meter("benchmarks");
+
+    println!("Counter_Created");
+    meter.u64_counter(name).build()
+}
+
+/// Hasher that ignores its input and always returns 0.
+struct ConstantHasher;
+
+impl std::hash::Hasher for ConstantHasher {
+    fn finish(&self) -> u64 {
+        0
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {}
+}
+
+#[derive(Clone, Copy, Default)]
+struct ConstantBuildHasher;
+
+impl std::hash::BuildHasher for ConstantBuildHasher {
+    type Hasher = ConstantHasher;
+
+    fn build_hasher(&self) -> ConstantHasher {
+        ConstantHasher
+    }
+}
+
+fn create_counter_with_constant_hasher(name: &'static str) -> Counter<u64> {
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_hasher(|| ConstantBuildHasher)
+        .build();
+    let meter = meter_provider.meter("benchmarks");
+
+    println!("Counter_Created");
+    meter.u64_counter(name).build()
+}
+
+fn create_counter_with_fxhash(name: &'static str) -> Counter<u64> {
+    let meter_provider: SdkMeterProvider = SdkMeterProvider::builder()
+        .with_reader(ManualReader::builder().build())
+        .with_hasher(rustc_hash::FxBuildHasher::default)
+        .build();
+    let meter = meter_provider.meter("benchmarks");
+
+    println!("Counter_Created");
+    meter.u64_counter(name).build()
+}
+
 fn criterion_benchmark(c: &mut Criterion) {
-    counter_add_sorted(c);
-    counter_add_unsorted(c);
+    counter_add_sorted(c, "Counter_Add_Sorted", create_counter);
+    counter_add_unsorted(c, "Counter_Add_Unsorted", create_counter);
+    counter_add_sorted(
+        c,
+        "Counter_Add_Sorted_Rapidhash",
+        create_counter_with_rapidhash,
+    );
+    counter_add_unsorted(
+        c,
+        "Counter_Add_Unsorted_Rapidhash",
+        create_counter_with_rapidhash,
+    );
+    counter_add_sorted(c, "Counter_Add_Sorted_FxHash", create_counter_with_fxhash);
+    counter_add_unsorted(c, "Counter_Add_Unsorted_FxHash", create_counter_with_fxhash);
+    // Worst case: every one of the 1600 attribute sets collides.
+    counter_add_sorted(
+        c,
+        "Counter_Add_Sorted_ConstantHasher",
+        create_counter_with_constant_hasher,
+    );
+    counter_add_cardinality_1(
+        c,
+        "Counter_Add_Cardinality_1_ConstantHasher",
+        create_counter_with_constant_hasher,
+    );
 
     let attribute_values: [String; 10] = (1..=10)
         .map(|i| format!("value{i}"))
@@ -66,9 +150,13 @@ fn criterion_benchmark(c: &mut Criterion) {
     random_generator(c);
 }
 
-fn counter_add_sorted(c: &mut Criterion) {
-    let counter = create_counter("Counter_Add_Sorted");
-    c.bench_function("Counter_Add_Sorted", |b| {
+fn counter_add_sorted(
+    c: &mut Criterion,
+    name: &'static str,
+    create_counter: fn(&'static str) -> Counter<u64>,
+) {
+    let counter = create_counter(name);
+    c.bench_function(name, |b| {
         b.iter_batched(
             || {
                 // 4*4*10*10 = 1600 time series.
@@ -102,9 +190,13 @@ fn counter_add_sorted(c: &mut Criterion) {
     });
 }
 
-fn counter_add_unsorted(c: &mut Criterion) {
-    let counter = create_counter("Counter_Add_Unsorted");
-    c.bench_function("Counter_Add_Unsorted", |b| {
+fn counter_add_unsorted(
+    c: &mut Criterion,
+    name: &'static str,
+    create_counter: fn(&'static str) -> Counter<u64>,
+) {
+    let counter = create_counter(name);
+    c.bench_function(name, |b| {
         b.iter_batched(
             || {
                 // 4*4*10*10 = 1600 time series.
@@ -135,6 +227,28 @@ fn counter_add_unsorted(c: &mut Criterion) {
             },
             BatchSize::SmallInput,
         );
+    });
+}
+
+fn counter_add_cardinality_1(
+    c: &mut Criterion,
+    name: &'static str,
+    create_counter: fn(&'static str) -> Counter<u64>,
+) {
+    let counter = create_counter(name);
+    c.bench_function(name, |b| {
+        b.iter(|| {
+            // Same attribute set every time: 1 time series.
+            counter.add(
+                1,
+                &[
+                    KeyValue::new("attribute1", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute2", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute3", ATTRIBUTE_VALUES[0]),
+                    KeyValue::new("attribute4", ATTRIBUTE_VALUES[0]),
+                ],
+            );
+        });
     });
 }
 

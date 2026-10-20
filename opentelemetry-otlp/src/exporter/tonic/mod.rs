@@ -9,7 +9,6 @@ use tonic::metadata::{KeyAndValueRef, MetadataMap};
 use tonic::service::Interceptor;
 use tonic::transport::Channel;
 #[cfg(any(
-    feature = "tls",
     feature = "tls-ring",
     feature = "tls-aws-lc",
     feature = "tls-provider-agnostic"
@@ -26,7 +25,7 @@ use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_O
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-use crate::retry::RetryPolicy;
+use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -52,7 +51,6 @@ pub(crate) struct TonicConfig {
     pub(crate) metadata: Option<MetadataMap>,
     /// TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -66,26 +64,24 @@ pub(crate) struct TonicConfig {
     pub(crate) retry_policy: Option<RetryPolicy>,
 }
 
-impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
-    type Error = ExporterBuildError;
-
-    fn try_from(value: Compression) -> Result<Self, ExporterBuildError> {
-        match value {
-            #[cfg(feature = "gzip-tonic")]
-            Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
-            #[cfg(not(feature = "gzip-tonic"))]
-            Compression::Gzip => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "gzip-tonic",
-                Compression::Gzip,
-            )),
-            #[cfg(feature = "zstd-tonic")]
-            Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
-            #[cfg(not(feature = "zstd-tonic"))]
-            Compression::Zstd => Err(ExporterBuildError::FeatureRequiredForCompressionAlgorithm(
-                "zstd-tonic",
-                Compression::Zstd,
-            )),
-        }
+fn to_tonic_compression(
+    compression: Compression,
+) -> Result<tonic::codec::CompressionEncoding, ExporterBuildError> {
+    match compression {
+        #[cfg(feature = "gzip-tonic")]
+        Compression::Gzip => Ok(tonic::codec::CompressionEncoding::Gzip),
+        #[cfg(not(feature = "gzip-tonic"))]
+        Compression::Gzip => Err(ExporterBuildError::invalid_configuration(
+            "compression",
+            "feature 'gzip-tonic' is required to use the compression algorithm 'gzip'",
+        )),
+        #[cfg(feature = "zstd-tonic")]
+        Compression::Zstd => Ok(tonic::codec::CompressionEncoding::Zstd),
+        #[cfg(not(feature = "zstd-tonic"))]
+        Compression::Zstd => Err(ExporterBuildError::invalid_configuration(
+            "compression",
+            "feature 'zstd-tonic' is required to use the compression algorithm 'zstd'",
+        )),
     }
 }
 
@@ -124,7 +120,7 @@ impl TryFrom<Compression> for tonic::codec::CompressionEncoding {
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct TonicExporterBuilder {
+pub(crate) struct TonicExporterBuilder {
     pub(crate) tonic_config: TonicConfig,
     pub(crate) exporter_config: ExportConfig,
 }
@@ -152,7 +148,6 @@ impl Default for TonicExporterBuilder {
                         .expect("Invalid tonic headers"),
                 )),
                 #[cfg(any(
-                    feature = "tls",
                     feature = "tls-ring",
                     feature = "tls-aws-lc",
                     feature = "tls-provider-agnostic"
@@ -214,12 +209,10 @@ impl TonicExporterBuilder {
             let is_http_protocol =
                 is_http_protocol || matches!(protocol, crate::Protocol::HttpJson);
             if is_http_protocol {
-                return Err(ExporterBuildError::InvalidConfig {
-                    name: "protocol".to_string(),
-                    reason:
-                        "HTTP protocol is not compatible with gRPC transport. Use `.with_http()` instead."
-                            .to_string(),
-                });
+                return Err(ExporterBuildError::invalid_configuration(
+                    "protocol",
+                    "HTTP protocol is not compatible with gRPC transport; use `.with_http()` instead",
+                ));
             }
         }
 
@@ -267,16 +260,23 @@ impl TonicExporterBuilder {
 
         let config = self.exporter_config;
 
-        let endpoint_str = apply_insecure_scheme(
-            Self::resolve_endpoint(signal_endpoint_var, config.endpoint),
-            super::resolve_insecure(signal_insecure_var),
-        );
+        let (endpoint_str, endpoint_source) =
+            Self::resolve_endpoint(signal_endpoint_var, config.endpoint)?;
+        let endpoint_str =
+            apply_insecure_scheme(endpoint_str, super::resolve_insecure(signal_insecure_var));
 
         // Used for logging the endpoint
         let endpoint_clone = endpoint_str.clone();
 
-        let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str)
-            .map_err(|op| ExporterBuildError::InvalidUri(endpoint_clone.clone(), op.to_string()))?;
+        let endpoint = tonic::transport::Endpoint::from_shared(endpoint_str).map_err(|error| {
+            ExporterBuildError::invalid_configuration(
+                endpoint_source,
+                format!(
+                    "invalid endpoint '{endpoint_clone}': {}",
+                    render_source_chain(&error)
+                ),
+            )
+        })?;
 
         let is_https = endpoint
             .uri()
@@ -284,41 +284,51 @@ impl TonicExporterBuilder {
             .is_some_and(|s| *s == http::uri::Scheme::HTTPS);
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
         )))]
         if is_https {
-            return Err(ExporterBuildError::InvalidConfig {
-                name: "endpoint".to_string(),
-                reason: format!(
+            return Err(ExporterBuildError::invalid_configuration(
+                endpoint_source,
+                format!(
                     "endpoint '{}' uses HTTPS but no TLS feature is enabled; \
                      enable one of the `tls-ring`, `tls-aws-lc`, or `tls-provider-agnostic` features on `opentelemetry-otlp`",
                     endpoint_clone
                 ),
-            });
+            ));
         }
         #[cfg(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
         ))]
         let channel = match self.tonic_config.tls_config {
-            Some(tls_config) => endpoint
-                .tls_config(tls_config)
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+            Some(tls_config) => endpoint.tls_config(tls_config).map_err(|error| {
+                ExporterBuildError::invalid_configuration(
+                    "tls_config",
+                    render_source_chain(&error),
+                )
+            })?,
             None if is_https => endpoint
                 .tls_config(ClientTlsConfig::new())
-                .map_err(|er| ExporterBuildError::InternalFailure(er.to_string()))?,
+                .map_err(|error| {
+                    ExporterBuildError::invalid_configuration(
+                        endpoint_source,
+                        format!(
+                            "failed to configure default TLS for HTTPS endpoint '{endpoint_clone}': {}; \
+                             ensure an appropriate TLS provider feature is enabled"
+                            ,
+                            render_source_chain(&error)
+                        ),
+                    )
+                })?,
             None => endpoint,
         }
         .timeout(timeout)
         .connect_lazy();
 
         #[cfg(not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -329,7 +339,10 @@ impl TonicExporterBuilder {
         Ok((channel, interceptor, compression, retry_policy, timeout))
     }
 
-    fn resolve_endpoint(default_endpoint_var: &str, provided_endpoint: Option<String>) -> String {
+    fn resolve_endpoint(
+        signal_endpoint_var: &str,
+        provided_endpoint: Option<String>,
+    ) -> Result<(String, &str), ExporterBuildError> {
         // resolving endpoint string
         // grpc doesn't have a "path" like http(See https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
         // the path of grpc calls are based on the protobuf service definition
@@ -338,13 +351,16 @@ impl TonicExporterBuilder {
         //
         // programmatic configuration overrides any value set via environment variables
         if let Some(endpoint) = provided_endpoint.filter(|s| !s.is_empty()) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(default_endpoint_var) {
-            endpoint
-        } else if let Ok(endpoint) = env::var(OTEL_EXPORTER_OTLP_ENDPOINT) {
-            endpoint
+            Ok((endpoint, "endpoint"))
+        } else if let Some(endpoint) = endpoint_from_env(signal_endpoint_var)? {
+            Ok((endpoint, signal_endpoint_var))
+        } else if let Some(endpoint) = endpoint_from_env(OTEL_EXPORTER_OTLP_ENDPOINT)? {
+            Ok((endpoint, OTEL_EXPORTER_OTLP_ENDPOINT))
         } else {
-            OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string()
+            Ok((
+                OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT.to_string(),
+                "endpoint",
+            ))
         }
     }
 
@@ -352,9 +368,11 @@ impl TonicExporterBuilder {
         &self,
         env_override: &str,
     ) -> Result<Option<CompressionEncoding>, ExporterBuildError> {
-        super::resolve_compression_from_env(self.tonic_config.compression, env_override)?
-            .map(|c| c.try_into())
-            .transpose()
+        super::resolve_compression_from_env(
+            self.tonic_config.compression,
+            env_override,
+            to_tonic_compression,
+        )
     }
 
     /// Build a new tonic log exporter
@@ -527,7 +545,6 @@ pub(crate) use handle_tonic_export_error;
 
 /// Render an `std::error::Error` and its `source()` chain into a single
 /// colon-separated string (e.g. `"transport error: invalid URL, scheme is missing"`).
-#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> String {
     use std::fmt::Write;
     let mut out = err.to_string();
@@ -537,6 +554,10 @@ pub(crate) fn render_source_chain(err: &(dyn std::error::Error + 'static)) -> St
         next = cur.source();
     }
     out
+}
+
+fn endpoint_from_env(variable: &str) -> Result<Option<String>, ExporterBuildError> {
+    super::read_env_var(variable)
 }
 
 /// Apply the OTLP `INSECURE` rule to a (possibly schemeless) gRPC endpoint.
@@ -628,10 +649,11 @@ impl HasTonicConfig for TonicExporterBuilder {
 ///     .with_compression(opentelemetry_otlp::Compression::Gzip);
 /// # }
 /// ```
-pub trait WithTonicConfig {
+///
+/// This trait is sealed and cannot be implemented for types outside this crate.
+pub trait WithTonicConfig: super::sealed::WithTonicConfig {
     /// Set the TLS settings for the collector endpoint.
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -746,9 +768,10 @@ pub trait WithTonicConfig {
     fn with_retry_policy(self, policy: RetryPolicy) -> Self;
 }
 
+impl<B: HasTonicConfig> super::sealed::WithTonicConfig for B {}
+
 impl<B: HasTonicConfig> WithTonicConfig for B {
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -803,7 +826,9 @@ mod tests {
     use crate::exporter::tonic::WithTonicConfig;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::{TonicExporterBuilder, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT};
+    use crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+
+    use super::TonicExporterBuilder;
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
     use http::{HeaderMap, HeaderName, HeaderValue};
     use tonic::metadata::{MetadataMap, MetadataValue};
@@ -913,13 +938,13 @@ mod tests {
     #[test]
     fn test_convert_compression() {
         #[cfg(feature = "gzip-tonic")]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_ok());
+        assert!(super::to_tonic_compression(Compression::Gzip).is_ok());
         #[cfg(not(feature = "gzip-tonic"))]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Gzip).is_err());
+        assert!(super::to_tonic_compression(Compression::Gzip).is_err());
         #[cfg(feature = "zstd-tonic")]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_ok());
+        assert!(super::to_tonic_compression(Compression::Zstd).is_ok());
         #[cfg(not(feature = "zstd-tonic"))]
-        assert!(tonic::codec::CompressionEncoding::try_from(Compression::Zstd).is_err());
+        assert!(super::to_tonic_compression(Compression::Zstd).is_err());
     }
 
     #[cfg(feature = "zstd-tonic")]
@@ -1041,8 +1066,15 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     None,
+                )
+                .unwrap();
+                assert_eq!(
+                    url,
+                    (
+                        "http://localhost:1234".to_string(),
+                        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+                    )
                 );
-                assert_eq!(url, "http://localhost:1234");
             },
         );
     }
@@ -1058,8 +1090,9 @@ mod tests {
                 let url = TonicExporterBuilder::resolve_endpoint(
                     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                     Some("http://localhost:3456".to_string()),
-                );
-                assert_eq!(url, "http://localhost:3456");
+                )
+                .unwrap();
+                assert_eq!(url, ("http://localhost:3456".to_string(), "endpoint"));
             },
         );
     }
@@ -1068,8 +1101,9 @@ mod tests {
     fn test_use_default_when_others_missing_for_endpoint() {
         run_env_test(vec![], || {
             let url =
-                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None);
-            assert_eq!(url, "http://localhost:4317");
+                TonicExporterBuilder::resolve_endpoint(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, None)
+                    .unwrap();
+            assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
         });
     }
 
@@ -1079,31 +1113,181 @@ mod tests {
             let url = TonicExporterBuilder::resolve_endpoint(
                 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
                 Some(String::new()),
-            );
-            assert_eq!(url, "http://localhost:4317");
+            )
+            .unwrap();
+            assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
         });
     }
 
     #[test]
+    fn test_empty_endpoint_envs_are_treated_as_unset() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, ""),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(url, ("http://localhost:4317".to_string(), "endpoint"));
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_signal_env_falls_through_to_generic_env() {
+        run_env_test(
+            vec![
+                (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, ""),
+                (super::OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317"),
+            ],
+            || {
+                let url = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(
+                    url,
+                    (
+                        "http://collector:4317".to_string(),
+                        super::OTEL_EXPORTER_OTLP_ENDPOINT
+                    )
+                );
+            },
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_non_unicode_endpoint_env_returns_error() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        temp_env::with_var(
+            OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            Some(OsStr::from_bytes(b"http://example.com/\x80")),
+            || {
+                let result = TonicExporterBuilder::resolve_endpoint(
+                    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+                    None,
+                );
+                assert!(matches!(
+                    result,
+                    Err(crate::exporter::ExporterBuildError::InvalidConfiguration(message))
+                        if message.contains(OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                            && message.contains("not valid Unicode")
+                ));
+            },
+        );
+    }
+
+    #[cfg(feature = "trace")]
+    #[test]
+    fn invalid_endpoint_error_identifies_environment_source() {
+        use crate::{ExporterBuildError, Protocol, SpanExporter, WithExportConfig};
+
+        for (signal_endpoint, expected_source) in [
+            (Some("http://[invalid"), OTEL_EXPORTER_OTLP_TRACES_ENDPOINT),
+            (None, super::OTEL_EXPORTER_OTLP_ENDPOINT),
+        ] {
+            temp_env::with_vars(
+                [
+                    (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, signal_endpoint),
+                    (super::OTEL_EXPORTER_OTLP_ENDPOINT, Some("http://[invalid")),
+                ],
+                || {
+                    let error = SpanExporter::builder()
+                        .with_tonic()
+                        .with_protocol(Protocol::Grpc)
+                        .build()
+                        .unwrap_err();
+                    assert!(
+                        matches!(error, ExporterBuildError::InvalidConfiguration(ref message)
+                            if message.starts_with(&format!("{expected_source}:"))
+                                && message.contains("invalid endpoint")),
+                        "expected endpoint source {expected_source}, got {error}"
+                    );
+                },
+            );
+        }
+    }
+
+    #[cfg(all(
+        feature = "trace",
+        not(any(
+            feature = "tls-ring",
+            feature = "tls-aws-lc",
+            feature = "tls-provider-agnostic"
+        ))
+    ))]
+    #[test]
+    fn missing_tls_error_identifies_environment_source() {
+        use crate::{ExporterBuildError, Protocol, SpanExporter, WithExportConfig};
+
+        for (signal_endpoint, expected_source) in [
+            (
+                Some("https://collector.example.com:4317"),
+                OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+            ),
+            (None, super::OTEL_EXPORTER_OTLP_ENDPOINT),
+        ] {
+            temp_env::with_vars(
+                [
+                    (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, signal_endpoint),
+                    (
+                        super::OTEL_EXPORTER_OTLP_ENDPOINT,
+                        Some("https://collector.example.com:4317"),
+                    ),
+                ],
+                || {
+                    let error = SpanExporter::builder()
+                        .with_tonic()
+                        .with_protocol(Protocol::Grpc)
+                        .build()
+                        .unwrap_err();
+                    assert!(
+                        matches!(error, ExporterBuildError::InvalidConfiguration(ref message)
+                            if message.starts_with(&format!("{expected_source}:"))
+                                && message.contains("no TLS feature")),
+                        "expected endpoint source {expected_source}, got {error}"
+                    );
+                },
+            );
+        }
+    }
+
+    #[test]
     fn test_with_retry_policy() {
-        use crate::retry::RetryPolicy;
+        use crate::RetryPolicy;
         use crate::WithTonicConfig;
 
-        let custom_policy = RetryPolicy {
-            max_retries: 5,
-            initial_delay_ms: 200,
-            max_delay_ms: 3200,
-            jitter_ms: 50,
-        };
+        let custom_policy = RetryPolicy::default()
+            .with_max_retries(5)
+            .with_initial_delay(std::time::Duration::from_millis(200))
+            .with_max_delay(std::time::Duration::from_millis(3200))
+            .with_max_jitter(std::time::Duration::from_millis(50));
 
         let builder = TonicExporterBuilder::default().with_retry_policy(custom_policy);
 
         // Verify the retry policy was set
         let retry_policy = builder.tonic_config.retry_policy.as_ref().unwrap();
         assert_eq!(retry_policy.max_retries, 5);
-        assert_eq!(retry_policy.initial_delay_ms, 200);
-        assert_eq!(retry_policy.max_delay_ms, 3200);
-        assert_eq!(retry_policy.jitter_ms, 50);
+        assert_eq!(
+            retry_policy.initial_delay,
+            std::time::Duration::from_millis(200)
+        );
+        assert_eq!(
+            retry_policy.max_delay,
+            std::time::Duration::from_millis(3200)
+        );
+        assert_eq!(
+            retry_policy.max_jitter,
+            std::time::Duration::from_millis(50)
+        );
     }
 
     #[test]
@@ -1118,7 +1302,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1142,8 +1325,15 @@ mod tests {
                 assert!(result.is_err());
                 let err = result.unwrap_err();
                 assert!(
-                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
-                    "expected InvalidConfig error for schemeless+secure without TLS, got: {err:?}"
+                    matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+                    "expected InvalidConfiguration error for schemeless+secure without TLS, got: {err:?}"
+                );
+                let message = err.to_string();
+                assert!(
+                    message.contains("collector.example.com:4317")
+                        && message.contains("HTTPS")
+                        && message.contains("TLS"),
+                    "error should identify the endpoint and TLS requirement, got: {message}"
                 );
             });
         });
@@ -1153,7 +1343,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1186,7 +1375,6 @@ mod tests {
     #[cfg(all(
         feature = "trace",
         not(any(
-            feature = "tls",
             feature = "tls-ring",
             feature = "tls-aws-lc",
             feature = "tls-provider-agnostic"
@@ -1213,8 +1401,15 @@ mod tests {
                 assert!(result.is_err());
                 let err = result.unwrap_err();
                 assert!(
-                    matches!(err, ExporterBuildError::InvalidConfig { .. }),
+                    matches!(err, ExporterBuildError::InvalidConfiguration(_)),
                     "schemeless endpoint should default to https:// and fail without TLS, got: {err:?}"
+                );
+                let message = err.to_string();
+                assert!(
+                    message.contains("collector.example.com:4317")
+                        && message.contains("HTTPS")
+                        && message.contains("TLS"),
+                    "error should identify the endpoint and TLS requirement, got: {message}"
                 );
             },
         );
@@ -1247,7 +1442,6 @@ mod tests {
 
     #[test]
     #[cfg(not(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -1265,8 +1459,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(err, ExporterBuildError::InvalidConfig { .. }),
-            "expected InvalidConfig error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
@@ -1277,7 +1471,6 @@ mod tests {
 
     #[tokio::test]
     #[cfg(any(
-        feature = "tls",
         feature = "tls-ring",
         feature = "tls-aws-lc",
         feature = "tls-provider-agnostic"
@@ -1330,11 +1523,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(
-                err,
-                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
-            ),
-            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
@@ -1376,11 +1566,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            matches!(
-                err,
-                ExporterBuildError::FeatureRequiredForCompressionAlgorithm(..)
-            ),
-            "expected FeatureRequiredForCompressionAlgorithm error, got: {err:?}"
+            matches!(err, ExporterBuildError::InvalidConfiguration(_)),
+            "expected InvalidConfiguration error, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(

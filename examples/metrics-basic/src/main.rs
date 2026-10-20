@@ -57,10 +57,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .build();
 
-    // Create a UpCounter Instrument.
+    // Create a UpDownCounter Instrument.
     let updown_counter = meter.i64_up_down_counter("my_updown_counter").build();
 
-    // Record measurements using the UpCounter instrument.
+    // Record measurements using the UpDownCounter instrument.
     updown_counter.add(
         -10,
         &[
