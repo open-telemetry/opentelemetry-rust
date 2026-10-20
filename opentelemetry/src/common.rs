@@ -45,6 +45,7 @@ impl Key {
 
 impl From<&'static str> for Key {
     /// Convert a `&str` to a `Key`.
+    #[inline]
     fn from(key_str: &'static str) -> Self {
         Key(OtelString::from_static(key_str))
     }
@@ -187,6 +188,7 @@ impl OtelString {
 }
 
 impl Clone for OtelString {
+    #[inline]
     fn clone(&self) -> Self {
         match self.tag() {
             TAG_OWNED => Self::from_owned(Box::from(self.as_str())),
@@ -207,6 +209,17 @@ impl Clone for OtelString {
 impl Drop for OtelString {
     #[inline]
     fn drop(&mut self) {
+        // Keep the static case inline, owned cases go through a cold path.
+        if self.tag() != TAG_STATIC {
+            self.drop_slow();
+        }
+    }
+}
+
+impl OtelString {
+    #[cold]
+    #[inline(never)]
+    fn drop_slow(&mut self) {
         match self.tag() {
             // SAFETY: the tag says `ptr` came from `Box::into_raw`.
             TAG_OWNED => drop(unsafe { Box::from_raw(self.raw_str()) }),
@@ -231,24 +244,28 @@ impl fmt::Debug for OtelString {
 impl Eq for OtelString {}
 
 impl PartialOrd for OtelString {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for OtelString {
+    #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.as_str().cmp(other.as_str())
     }
 }
 
 impl PartialEq for OtelString {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.as_str().eq(other.as_str())
     }
 }
 
 impl hash::Hash for OtelString {
+    #[inline]
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.as_str().hash(state)
     }
@@ -379,6 +396,7 @@ impl From<StringValue> for String {
 }
 
 impl From<&'static str> for StringValue {
+    #[inline]
     fn from(s: &'static str) -> Self {
         StringValue(OtelString::from_static(s))
     }
@@ -456,6 +474,7 @@ from_values!(
 );
 
 impl From<&'static str> for Value {
+    #[inline]
     fn from(s: &'static str) -> Self {
         Value::String(s.into())
     }
