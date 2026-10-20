@@ -43,13 +43,22 @@ pub(crate) fn produce_external(producers: &[Box<dyn MetricProducer>], rm: &mut R
 #[cfg(all(test, feature = "experimental_metrics_producer"))]
 mod tests {
     use super::*;
+    use crate::error::OTelSdkResult;
     use crate::metrics::data::{
         AggregatedMetrics, Histogram, HistogramDataPoint, Metric, MetricData,
     };
-    use crate::metrics::{InMemoryMetricExporter, PeriodicReader, SdkMeterProvider, Temporality};
+    use crate::metrics::pipeline::Pipeline;
+    use crate::metrics::reader::MetricReader;
+    use crate::metrics::{
+        InMemoryMetricExporter, InstrumentKind, ManualReader, PeriodicReader, SdkMeterProvider,
+        Temporality,
+    };
+    use crate::Resource;
     use opentelemetry::metrics::MeterProvider as _;
     use opentelemetry::time::now;
     use opentelemetry::{InstrumentationScope, KeyValue};
+    use std::sync::{Arc, Weak};
+    use std::time::Duration;
 
     /// A histogram aggregated outside the SDK.
     #[derive(Debug)]
@@ -79,6 +88,55 @@ mod tests {
         }
     }
 
+    /// Lets the test collect from a [ManualReader] that the provider also holds.
+    #[derive(Debug, Clone)]
+    struct SharedReader(Arc<ManualReader>);
+
+    impl MetricReader for SharedReader {
+        fn register_pipeline(&self, pipeline: Weak<Pipeline>) {
+            self.0.register_pipeline(pipeline)
+        }
+
+        fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
+            self.0.collect(rm)
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            self.0.force_flush()
+        }
+
+        fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+            self.0.shutdown_with_timeout(timeout)
+        }
+
+        fn temporality(&self, kind: InstrumentKind) -> Temporality {
+            self.0.temporality(kind)
+        }
+    }
+
+    fn record_sdk_metric(provider: &SdkMeterProvider) {
+        provider
+            .meter("sdk")
+            .u64_counter("requests")
+            .build()
+            .add(1, &[]);
+    }
+
+    /// Checks that `rm` holds the SDK's metrics, then [External]'s and nothing else.
+    fn assert_sdk_then_external(rm: &ResourceMetrics) {
+        let scopes: Vec<_> = rm.scope_metrics().map(|sm| sm.scope().name()).collect();
+        assert_eq!(scopes, ["sdk", "external"]);
+        let metric = rm.scope_metrics().nth(1).unwrap().metrics().next().unwrap();
+        assert_eq!((metric.name(), metric.unit()), ("latency", "us"));
+        let AggregatedMetrics::U64(MetricData::Histogram(histogram)) = metric.data() else {
+            panic!("not a u64 histogram: {:?}", metric.data());
+        };
+        let point = histogram.data_points().next().unwrap();
+        assert_eq!(point.bounds().collect::<Vec<_>>(), [10.0, 100.0]);
+        assert_eq!(point.bucket_counts().collect::<Vec<_>>(), [1, 2, 3]);
+        assert_eq!((point.count(), point.sum()), (6, 1234));
+    }
+
     #[test]
     fn producer_metrics_follow_the_sdk_metrics() {
         let exporter = InMemoryMetricExporter::default();
@@ -87,11 +145,7 @@ mod tests {
             .with_producer(External)
             .build();
         let provider = SdkMeterProvider::builder().with_reader(reader).build();
-        provider
-            .meter("sdk")
-            .u64_counter("requests")
-            .build()
-            .add(1, &[]);
+        record_sdk_metric(&provider);
 
         // The reader reuses its ResourceMetrics: the second export must not carry the
         // first one's producer output too.
@@ -100,18 +154,55 @@ mod tests {
 
         let exports = exporter.get_finished_metrics().unwrap();
         assert_eq!(exports.len(), 2);
-        for rm in &exports {
-            let scopes: Vec<_> = rm.scope_metrics().map(|sm| sm.scope().name()).collect();
-            assert_eq!(scopes, ["sdk", "external"]);
-            let metric = rm.scope_metrics().nth(1).unwrap().metrics().next().unwrap();
-            assert_eq!((metric.name(), metric.unit()), ("latency", "us"));
-            let AggregatedMetrics::U64(MetricData::Histogram(histogram)) = metric.data() else {
-                panic!("not a u64 histogram: {:?}", metric.data());
-            };
-            let point = histogram.data_points().next().unwrap();
-            assert_eq!(point.bounds().collect::<Vec<_>>(), [10.0, 100.0]);
-            assert_eq!(point.bucket_counts().collect::<Vec<_>>(), [1, 2, 3]);
-            assert_eq!((point.count(), point.sum()), (6, 1234));
-        }
+        exports.iter().for_each(assert_sdk_then_external);
+    }
+
+    #[test]
+    fn manual_reader_appends_producer_metrics() {
+        let reader = SharedReader(Arc::new(
+            ManualReader::builder()
+                .with_producer(Failing)
+                .with_producer(External)
+                .build(),
+        ));
+        let provider = SdkMeterProvider::builder()
+            .with_reader(reader.clone())
+            .build();
+        record_sdk_metric(&provider);
+
+        // The same ResourceMetrics collected into twice must not accumulate producer
+        // output.
+        let mut rm = ResourceMetrics {
+            resource: Resource::empty(),
+            scope_metrics: Vec::new(),
+        };
+        reader.collect(&mut rm).unwrap();
+        reader.collect(&mut rm).unwrap();
+        assert_sdk_then_external(&rm);
+    }
+
+    #[cfg(all(
+        feature = "experimental_metrics_periodicreader_with_async_runtime",
+        feature = "rt-tokio-current-thread"
+    ))]
+    #[test]
+    fn async_runtime_periodic_reader_appends_producer_metrics() {
+        use crate::metrics::periodic_reader_with_async_runtime::PeriodicReader;
+        use crate::runtime;
+
+        let exporter = InMemoryMetricExporter::default();
+        let reader = PeriodicReader::builder(exporter.clone(), runtime::TokioCurrentThread)
+            .with_producer(Failing)
+            .with_producer(External)
+            .build();
+        let provider = SdkMeterProvider::builder().with_reader(reader).build();
+        record_sdk_metric(&provider);
+
+        provider.force_flush().unwrap();
+        provider.force_flush().unwrap();
+
+        let exports = exporter.get_finished_metrics().unwrap();
+        assert_eq!(exports.len(), 2);
+        exports.iter().for_each(assert_sdk_then_external);
     }
 }

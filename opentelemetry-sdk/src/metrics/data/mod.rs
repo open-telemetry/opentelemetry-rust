@@ -944,4 +944,111 @@ mod tests {
             exponential_histogram_data_point
         );
     }
+
+    #[cfg(feature = "experimental_metrics_producer")]
+    #[test]
+    fn constructors_set_every_field() {
+        use super::{
+            AggregatedMetrics, ExponentialBucket, ExponentialHistogram, Gauge, GaugeDataPoint,
+            Histogram, Metric, MetricData, ScopeMetrics, Sum,
+        };
+        use crate::metrics::Temporality;
+        use opentelemetry::InstrumentationScope;
+
+        let (start, time) = (now(), now());
+        let attrs = vec![KeyValue::new("key", "value")];
+
+        let exemplar = Exemplar::new(attrs.clone(), time, 5u64, [1; 8], [2; 16]);
+        assert!(exemplar.filtered_attributes().eq(&attrs));
+        assert_eq!((exemplar.time(), exemplar.value), (time, 5));
+        assert_eq!(
+            (exemplar.span_id(), exemplar.trace_id()),
+            (&[1; 8], &[2; 16])
+        );
+
+        let point = GaugeDataPoint::new(attrs.clone(), 5u64).with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(point.value(), 5);
+        let gauge = Gauge::new(vec![point], Some(start), time);
+        assert_eq!(gauge.data_points().count(), 1);
+        assert_eq!((gauge.start_time(), gauge.time()), (Some(start), time));
+
+        let point = SumDataPoint::new(attrs.clone(), 5u64).with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(point.value(), 5);
+        let sum = Sum::new(vec![point], start, time, Temporality::Delta, true);
+        assert_eq!(sum.data_points().count(), 1);
+        assert_eq!((sum.start_time(), sum.time()), (start, time));
+        assert_eq!(
+            (sum.temporality(), sum.is_monotonic()),
+            (Temporality::Delta, true)
+        );
+
+        let point = HistogramDataPoint::new(attrs.clone(), vec![1.0], vec![2, 3], 9u64)
+            .with_min(1)
+            .with_max(6)
+            .with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert!(point.bounds().eq([1.0]));
+        assert!(point.bucket_counts().eq([2, 3]));
+        assert_eq!((point.count(), point.sum()), (5, 9));
+        assert_eq!((point.min(), point.max()), (Some(1), Some(6)));
+        let histogram = Histogram::new(vec![point], start, time, Temporality::Cumulative);
+        assert_eq!(histogram.data_points().count(), 1);
+        assert_eq!((histogram.start_time(), histogram.time()), (start, time));
+        assert_eq!(histogram.temporality(), Temporality::Cumulative);
+
+        let positive = ExponentialBucket::new(-1, vec![1, 2]);
+        assert_eq!(positive.offset(), -1);
+        assert!(positive.counts().eq([1, 2]));
+        let negative = ExponentialBucket::new(0, vec![3]);
+        let point = ExponentialHistogramDataPoint::new(
+            attrs.clone(),
+            2,
+            4,
+            0.5,
+            positive.clone(),
+            negative.clone(),
+            9u64,
+        )
+        .with_min(1)
+        .with_max(6)
+        .with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(
+            (point.scale(), point.zero_count(), point.zero_threshold()),
+            (2, 4, 0.5)
+        );
+        assert_eq!(
+            (point.positive_bucket(), point.negative_bucket()),
+            (&positive, &negative)
+        );
+        assert_eq!((point.count(), point.sum()), (10, 9));
+        assert_eq!((point.min(), point.max()), (Some(1), Some(6)));
+        let exponential = ExponentialHistogram::new(vec![point], start, time, Temporality::Delta);
+        assert_eq!(exponential.data_points().count(), 1);
+        assert_eq!(
+            (exponential.start_time(), exponential.time()),
+            (start, time)
+        );
+        assert_eq!(exponential.temporality(), Temporality::Delta);
+
+        let metric = Metric::new("name", "description", "unit", MetricData::from(sum));
+        assert_eq!(
+            (metric.name(), metric.description(), metric.unit()),
+            ("name", "description", "unit")
+        );
+        assert!(matches!(
+            metric.data(),
+            AggregatedMetrics::U64(MetricData::Sum(_))
+        ));
+        let scope = InstrumentationScope::builder("scope").build();
+        let scope_metrics = ScopeMetrics::new(scope.clone(), vec![metric]);
+        assert_eq!(scope_metrics.scope(), &scope);
+        assert_eq!(scope_metrics.metrics().count(), 1);
+    }
 }
