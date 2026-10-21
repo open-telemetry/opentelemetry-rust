@@ -7,10 +7,12 @@
 ## Summary
 
 This ADR proposes replacing the current "N-3" version-count MSRV policy with a
-12-month trailing window. Under this policy, the MSRV may be raised to any
-stable Rust release whose release date is at least 12 months prior to the date
-the MSRV bump PR is opened. This applies uniformly across all published
-workspace crates. MSRV bumps are not considered semver-breaking changes.
+12-month trailing window for the SDK and implementation components. Their MSRV
+may be raised to any stable Rust release whose release date is at least 12
+months prior to the date the MSRV bump PR is opened.
+
+API and SDK-independent components retain their existing MSRV for as long as
+practical. MSRV bumps are not considered semver-breaking changes.
 
 ## Motivation
 
@@ -41,21 +43,30 @@ A time-based policy addresses this in a few ways:
 
 ### The rule
 
-The MSRV may be raised to any stable Rust version whose release date is at
-least 12 months prior to the date the MSRV bump PR is opened.
+The MSRV of the SDK and implementation components may be raised to any stable
+Rust version whose release date is at least 12 months prior to the date the
+MSRV bump PR is opened. API and SDK-independent components should retain their
+existing MSRV for as long as practical.
 
 ### Scope
 
-A single, uniform MSRV applies to all published crates in the workspace.
-Examples, stress tests, and internal test crates are excluded.
+API and SDK-independent components are published crates that do not have a
+runtime dependency on `opentelemetry_sdk`, such as the `opentelemetry` API and
+`opentelemetry-propagator-b3` crates. These crates may be used by libraries
+that expose OpenTelemetry types without selecting or configuring an SDK.
+
+The SDK implementation group includes `opentelemetry_sdk` and published crates
+with a runtime dependency on it, such as `opentelemetry-otlp` and
+`opentelemetry-stdout`. These crates may use a higher MSRV.
 
 ### Semver treatment
 
 MSRV bumps are not semver-breaking changes. They are shipped in minor releases
 only, never in patch releases.
 
-The `rust-version` field in each crate's `Cargo.toml` is the source of truth
-and must be kept in sync across the workspace.
+The `rust-version` field in each crate's `Cargo.toml` is the source of truth.
+These values may differ between API and SDK-independent components and SDK
+implementation components.
 
 ### CI enforcement
 
@@ -65,9 +76,11 @@ job should use a pinned toolchain (e.g. `+1.85.0`) and run at minimum
 
 ### Process for bumping the MSRV
 
-1. Open a PR that updates the `rust-version` field in all published workspace
-   `Cargo.toml` files.
-2. Verify that the target Rust version was released at least 12 months ago.
+1. Open a PR that updates the `rust-version` field in the affected crates and
+   any crates that inherit the higher requirement through runtime dependencies.
+2. For an SDK or implementation component, verify that the target Rust version
+   was released at least 12 months ago. For an API or SDK-independent
+   component, explain why retaining its existing MSRV is no longer practical.
 3. The PR description should note what the bump enables (dependency removal,
    new std APIs, edition upgrade, etc.). This context is informational and
    helps reviewers — it is not a gate.
@@ -90,11 +103,17 @@ The 12-month window defines what is *permissible*, not what is *expected*.
 Maintainers should exercise judgment and prefer the lowest MSRV that
 satisfies the project's current needs.
 
+The threshold for raising an API or SDK-independent component should be higher
+because of its broader downstream use. Workspace uniformity alone is not a
+reason to raise its MSRV.
+
 ## Practical impact
 
-As an example, if this policy were adopted today, the 12-month window would
-permit raising the MSRV up to 1.85 (February 2025). Some capabilities that
-would become available at various MSRV levels include:
+As an example, this policy would permit raising the SDK MSRV to 1.85
+(February 2025) while API and SDK-independent components such as
+`opentelemetry` and `opentelemetry-propagator-b3` remained on Rust 1.75. Crates
+with a runtime dependency on the SDK would inherit the higher requirement.
+Some capabilities available at various MSRV levels include:
 
 - **1.80+**: `std::sync::LazyLock` — could replace `once_cell` / `lazy_static`
   for internal static initialization.
