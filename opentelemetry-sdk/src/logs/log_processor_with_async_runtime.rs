@@ -280,7 +280,12 @@ where
     }
 }
 
-#[cfg(all(test, feature = "testing", feature = "logs"))]
+#[cfg(all(
+    test,
+    feature = "testing",
+    feature = "logs",
+    any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
+))]
 mod tests {
     use crate::error::OTelSdkResult;
     use crate::logs::batch_log_processor::{
@@ -288,6 +293,8 @@ mod tests {
         OTEL_BLRP_SCHEDULE_DELAY,
     };
     use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
+    #[cfg(feature = "rt-tokio")]
+    use crate::logs::InMemoryLogExporter;
     use crate::logs::InMemoryLogExporterBuilder;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
@@ -298,8 +305,7 @@ mod tests {
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, InMemoryLogExporter, LogProcessor, SdkLoggerProvider,
-            SimpleLogProcessor,
+            BatchConfig, BatchConfigBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
         },
         Resource,
     };
@@ -308,7 +314,10 @@ mod tests {
     use opentelemetry::logs::{Logger, LoggerProvider};
     use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
-    use std::sync::{Arc, Mutex};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
     use std::time::Duration;
 
     #[derive(Debug, Clone)]
@@ -422,6 +431,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn test_build_batch_log_processor_builder() {
         let mut env_vars = vec![
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("500")),
@@ -458,6 +468,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn test_build_batch_log_processor_builder_with_custom_config() {
         let expected = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
@@ -500,6 +511,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "rt-tokio")]
     async fn test_set_resource_batch_processor() {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
@@ -528,6 +540,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_shutdown() {
         // assert we will receive an error
         // setup
@@ -549,6 +562,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_log_processor_shutdown_under_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
@@ -562,6 +576,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
     ) {
         let exporter = InMemoryLogExporterBuilder::default().build();
@@ -578,6 +593,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
@@ -589,6 +605,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor =
@@ -597,6 +614,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_log_processor_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor =
@@ -712,6 +730,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn test_build_batch_log_processor_builder_rt() {
         let mut env_vars = vec![
             (OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, Some("500")),
@@ -748,6 +767,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn test_build_batch_log_processor_builder_rt_with_custom_config() {
         let expected = BatchConfigBuilder::default()
             .with_max_export_batch_size(1)
@@ -767,6 +787,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "rt-tokio")]
     async fn test_set_resource_batch_processor_rt() {
         let exporter = MockLogExporter {
             resource: Arc::new(Mutex::new(None)),
@@ -794,6 +815,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_shutdown_rt() {
         // assert we will receive an error
         // setup
@@ -816,6 +838,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor =
@@ -828,6 +851,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread()
     {
         let exporter = InMemoryLogExporterBuilder::default().build();
@@ -841,6 +865,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_multi_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor =
@@ -850,6 +875,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread() {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(
@@ -859,5 +885,75 @@ mod tests {
         );
 
         processor.shutdown().unwrap();
+    }
+
+    #[derive(Debug, Default)]
+    struct TokioLogExporter {
+        export_count: Arc<AtomicUsize>,
+    }
+
+    impl LogExporter for TokioLogExporter {
+        async fn export(&self, batch: LogBatch<'_>) -> OTelSdkResult {
+            let count = batch.len();
+            let task = tokio::spawn(async {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            });
+            task.await
+                .map_err(|err| crate::error::OTelSdkError::InternalFailure(err.to_string()))?;
+            self.export_count.fetch_add(count, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio")]
+    async fn test_batch_log_processor_tokio_multithread_force_flush_and_shutdown() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioLogExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .build();
+        let processor = BatchLogProcessor::new(exporter, config, runtime::Tokio);
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().expect("force_flush should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+        processor.emit(&mut record, &instrumentation);
+        processor.shutdown().expect("shutdown should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
+    async fn test_batch_log_processor_tokio_current_thread_runtime() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioLogExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .build();
+        let processor = BatchLogProcessor::new(exporter, config, runtime::TokioCurrentThread);
+
+        let mut record = SdkLogRecord::new();
+        let instrumentation = InstrumentationScope::default();
+
+        processor.emit(&mut record, &instrumentation);
+        processor.force_flush().expect("force_flush should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+        processor.emit(&mut record, &instrumentation);
+        processor.shutdown().expect("shutdown should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 2);
     }
 }
