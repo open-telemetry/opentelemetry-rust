@@ -2,11 +2,15 @@
 
 ## vNext
 
+- Raised the minimum supported Rust version from 1.75 to 1.85 to match
+  `opentelemetry_sdk`.
+
 ## 0.33.1
 
 Released 2026-Oct-08
 
 - Update OpenTelemetry dependencies to 0.33.1.
+
 
 ## 0.33.0
 
