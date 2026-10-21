@@ -19,7 +19,7 @@ use opentelemetry::{
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
     rngs::{self},
-    Rng, SeedableRng,
+    RngExt,
 };
 use std::cell::RefCell;
 
@@ -38,7 +38,7 @@ lazy_static! {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rand::make_rng());
 }
 
 fn main() {
