@@ -321,13 +321,13 @@ impl LogProcessor for BatchLogProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
@@ -1169,6 +1169,36 @@ mod tests {
         let exporter = InMemoryLogExporterBuilder::default().build();
         let processor = BatchLogProcessor::new(exporter.clone(), BatchConfig::default());
         processor.shutdown().unwrap();
+    }
+
+    #[test]
+    fn test_batch_log_processor_shutdown_returns_export_error() {
+        #[derive(Debug)]
+        struct FailingLogExporter;
+
+        impl LogExporter for FailingLogExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                Err(crate::error::OTelSdkError::InternalFailure(
+                    "simulated log export failure".into(),
+                ))
+            }
+        }
+
+        let processor = BatchLogProcessor::new(FailingLogExporter, BatchConfig::default());
+        let mut record = SdkLogRecord::new();
+        processor.emit(&mut record, &InstrumentationScope::default());
+
+        let shutdown_result = processor.shutdown();
+        assert!(
+            shutdown_result.is_err(),
+            "shutdown() should return an error if exporting remaining queued telemetry fails"
+        );
+        match shutdown_result {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("simulated log export failure"));
+            }
+            other => panic!("expected InternalFailure, got {:?}", other),
+        }
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -943,13 +943,13 @@ impl SpanProcessor for BatchSpanProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         std::sync::mpsc::RecvTimeoutError::Timeout => {
@@ -1807,6 +1807,42 @@ mod tests {
 
         assert_eq!(1, exporter.get_finished_spans().unwrap().len());
         assert!(exporter.is_shutdown_called());
+    }
+
+    #[test]
+    fn batchspanprocessor_shutdown_returns_export_error() {
+        #[derive(Debug)]
+        struct FailingExporter;
+
+        impl SpanExporter for FailingExporter {
+            async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+                Err(crate::error::OTelSdkError::InternalFailure(
+                    "simulated export failure".into(),
+                ))
+            }
+
+            fn shutdown(&self) -> OTelSdkResult {
+                Ok(())
+            }
+
+            fn set_resource(&mut self, _resource: &Resource) {}
+        }
+
+        let processor = BatchSpanProcessor::new(FailingExporter, BatchConfig::default());
+        let record = create_test_span("test_span");
+        processor.on_end(record);
+
+        let shutdown_result = processor.shutdown();
+        assert!(
+            shutdown_result.is_err(),
+            "shutdown() should return an error if exporting remaining queued telemetry fails"
+        );
+        match shutdown_result {
+            Err(crate::error::OTelSdkError::InternalFailure(msg)) => {
+                assert!(msg.contains("simulated export failure"));
+            }
+            other => panic!("expected InternalFailure, got {:?}", other),
+        }
     }
 
     #[test]
