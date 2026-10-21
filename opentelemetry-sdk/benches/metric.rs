@@ -10,7 +10,7 @@ use opentelemetry_sdk::{
         ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality,
     },
 };
-use rand::Rng;
+use rand::RngExt;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 

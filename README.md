@@ -143,9 +143,11 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 
 ## Supported Rust Versions
 
-OpenTelemetry is built against the latest stable release. The minimum supported
-version is 1.75. The current OpenTelemetry version is not guaranteed to build
-on Rust versions earlier than the minimum supported version.
+OpenTelemetry is built against the latest stable release. Foundational and
+API-only crates support Rust 1.75, while `opentelemetry_sdk` and crates with a
+runtime dependency on it support Rust 1.85. Each crate's `rust-version` field
+is the source of truth. Crates are not guaranteed to build on earlier Rust
+versions.
 
 The current stable Rust compiler and the three most recent minor versions
 before it will always be supported. For example, if the current stable compiler

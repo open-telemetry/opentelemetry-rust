@@ -2,12 +2,16 @@
 
 ## vNext
 
+- Raised the minimum supported Rust version from 1.75 to 1.85 to match
+  `opentelemetry_sdk`.
+
 ## 0.33.1
 
 Released 2026-Oct-08
 
 - Declare the OTLP exporters for Logs and Metrics stable after the 0.33.0 release-candidate period. Tracing remains in beta.
 - Update OpenTelemetry dependencies to 0.33.1, including SDK fixes and OTLP/JSON interoperability fixes in `opentelemetry-proto`.
+
 
 ## 0.33.0
 
