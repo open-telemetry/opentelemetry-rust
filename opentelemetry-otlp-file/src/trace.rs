@@ -118,13 +118,14 @@ impl opentelemetry_sdk::trace::SpanExporter for SpanExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::tests::SharedBuffer;
+    use crate::output::tests::{read_lines, SharedBuffer};
     use futures_executor::block_on;
     use opentelemetry::trace::{
-        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState, Tracer,
-        TracerProvider as _,
+        SpanContext, SpanId, SpanKind, Status, TraceContextExt as _, TraceFlags, TraceId,
+        TraceState, Tracer, TracerProvider as _,
     };
     use opentelemetry::{InstrumentationScope, KeyValue};
+    use opentelemetry_proto::tonic::common::v1::any_value;
     use opentelemetry_sdk::error::OTelSdkError;
     use opentelemetry_sdk::trace::{SdkTracerProvider, SpanEvents, SpanExporter as _, SpanLinks};
     use serde_json::{json, Value};
@@ -313,6 +314,53 @@ mod tests {
         assert_eq!(child.parent_span_id, parent.span_id);
         assert_eq!(child.trace_id, parent.trace_id);
         assert!(parent.parent_span_id.is_empty());
+    }
+
+    #[test]
+    fn exports_spans_to_a_file_through_a_batch_processor() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("traces.jsonl");
+        let provider = SdkTracerProvider::builder()
+            .with_resource(resource())
+            .with_batch_exporter(SpanExporter::builder().with_file(&path).build().unwrap())
+            .build();
+
+        let tracer = provider.tracer("checkout");
+        tracer.in_span("GET /cart", |cx| {
+            cx.span()
+                .set_attribute(KeyValue::new("http.response.status_code", 200));
+            tracer.in_span("SELECT cart", |_| {});
+        });
+        provider.shutdown().unwrap();
+
+        // Each line is a `TracesData` object, and together they hold both spans.
+        let mut spans = Vec::new();
+        for line in read_lines(&path) {
+            let data: TracesData = serde_json::from_str(&line).unwrap();
+            for resource_spans in data.resource_spans {
+                let service = &resource_spans.resource.as_ref().unwrap().attributes[0];
+                assert_eq!(service.key, "service.name");
+                for scope_spans in resource_spans.scope_spans {
+                    assert_eq!(scope_spans.scope.unwrap().name, "checkout");
+                    spans.extend(scope_spans.spans);
+                }
+            }
+        }
+        let [child, parent] = &spans[..] else {
+            panic!("expected two spans, got {spans:?}");
+        };
+        assert_eq!(
+            (child.name.as_str(), parent.name.as_str()),
+            ("SELECT cart", "GET /cart")
+        );
+        assert_eq!(child.parent_span_id, parent.span_id);
+        assert_eq!(child.trace_id, parent.trace_id);
+        let attribute = &parent.attributes[0];
+        assert_eq!(attribute.key, "http.response.status_code");
+        assert_eq!(
+            attribute.value.as_ref().unwrap().value,
+            Some(any_value::Value::IntValue(200))
+        );
     }
 
     #[test]

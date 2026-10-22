@@ -231,7 +231,21 @@ pub(crate) mod tests {
     use serde_json::json;
     use std::fs;
     use std::io::ErrorKind;
+    use std::path::Path;
     use std::sync::Arc;
+
+    /// Returns every line of the file at `path`, checking that each one is complete.
+    pub(crate) fn read_lines(path: &Path) -> Vec<String> {
+        complete_lines(&fs::read_to_string(path).unwrap())
+    }
+
+    fn complete_lines(contents: &str) -> Vec<String> {
+        assert!(
+            contents.is_empty() || contents.ends_with('\n'),
+            "the last line is not terminated: {contents:?}"
+        );
+        contents.lines().map(ToOwned::to_owned).collect()
+    }
 
     /// A cloneable in-memory writer for inspecting what an exporter wrote.
     #[derive(Clone, Debug, Default)]
@@ -244,12 +258,7 @@ pub(crate) mod tests {
 
         /// Returns every line written so far, checking that each one is complete.
         pub(crate) fn lines(&self) -> Vec<String> {
-            let contents = self.contents();
-            assert!(
-                contents.is_empty() || contents.ends_with('\n'),
-                "the last line is not terminated: {contents:?}"
-            );
-            contents.lines().map(ToOwned::to_owned).collect()
+            complete_lines(&self.contents())
         }
     }
 

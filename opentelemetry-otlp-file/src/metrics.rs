@@ -168,7 +168,7 @@ impl PushMetricExporter for MetricExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::tests::SharedBuffer;
+    use crate::output::tests::{read_lines, SharedBuffer};
     use futures_executor::block_on;
     use opentelemetry::metrics::MeterProvider as _;
     use opentelemetry::KeyValue;
@@ -322,6 +322,57 @@ mod tests {
         assert_eq!(
             metric(&line, "order.value")["histogram"]["aggregationTemporality"],
             1
+        );
+    }
+
+    #[test]
+    fn exports_metrics_to_a_file_through_a_periodic_reader() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metrics.jsonl");
+        let exporter = MetricExporter::builder()
+            .with_file(&path)
+            .with_temporality(Temporality::Cumulative)
+            .build()
+            .unwrap();
+        let provider = SdkMeterProvider::builder()
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("checkout")
+                    .build(),
+            )
+            .with_periodic_exporter(exporter)
+            .build();
+        let orders = provider.meter("checkout").u64_counter("orders").build();
+
+        orders.add(3, &[KeyValue::new("payment.method", "card")]);
+        provider.force_flush().unwrap();
+        orders.add(2, &[KeyValue::new("payment.method", "card")]);
+        provider.shutdown().unwrap();
+
+        // The flush and the shutdown each wrote a `MetricsData` line with the running total.
+        let totals: Vec<_> = read_lines(&path)
+            .iter()
+            .map(|line| {
+                let data: MetricsData = serde_json::from_str(line).unwrap();
+                let resource_metrics = &data.resource_metrics[0];
+                let service = &resource_metrics.resource.as_ref().unwrap().attributes[0];
+                assert_eq!(service.key, "service.name");
+                let scope_metrics = &resource_metrics.scope_metrics[0];
+                assert_eq!(scope_metrics.scope.as_ref().unwrap().name, "checkout");
+                let orders = &scope_metrics.metrics[0];
+                assert_eq!(orders.name, "orders");
+                match &orders.data {
+                    Some(metric::Data::Sum(sum)) => sum.data_points[0].value,
+                    other => panic!("unexpected data: {other:?}"),
+                }
+            })
+            .collect();
+        assert_eq!(
+            totals,
+            [
+                Some(number_data_point::Value::AsInt(3)),
+                Some(number_data_point::Value::AsInt(5)),
+            ]
         );
     }
 

@@ -114,9 +114,10 @@ impl opentelemetry_sdk::logs::LogExporter for LogExporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::tests::SharedBuffer;
+    use crate::output::tests::{read_lines, SharedBuffer};
     use futures_executor::block_on;
     use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
+    use opentelemetry_proto::tonic::common::v1::any_value;
     use opentelemetry_sdk::error::OTelSdkError;
     use opentelemetry_sdk::logs::{LogExporter as _, SdkLoggerProvider};
     use serde_json::{json, Value};
@@ -203,6 +204,57 @@ mod tests {
         assert_eq!(record["traceId"], context.trace_id().to_string());
         assert_eq!(record["spanId"], context.span_id().to_string());
         assert_eq!(record["severityNumber"], 13);
+    }
+
+    #[test]
+    fn exports_log_records_to_a_file_through_a_batch_processor() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("logs.jsonl");
+        let provider = SdkLoggerProvider::builder()
+            .with_resource(
+                Resource::builder_empty()
+                    .with_service_name("checkout")
+                    .build(),
+            )
+            .with_batch_exporter(LogExporter::builder().with_file(&path).build().unwrap())
+            .build();
+        let subscriber =
+            tracing_subscriber::registry().with(OpenTelemetryTracingBridge::new(&provider));
+
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::info!(name: "order.placed", target: "checkout", order_id = 42, "order placed");
+            tracing::error!(name: "payment.failed", target: "checkout", "card declined");
+        });
+        provider.shutdown().unwrap();
+
+        // Each line is a `LogsData` object, and together they hold both records.
+        let mut records = Vec::new();
+        for line in read_lines(&path) {
+            let data: LogsData = serde_json::from_str(&line).unwrap();
+            for resource_logs in data.resource_logs {
+                let service = &resource_logs.resource.as_ref().unwrap().attributes[0];
+                assert_eq!(service.key, "service.name");
+                for scope_logs in resource_logs.scope_logs {
+                    assert_eq!(scope_logs.scope.unwrap().name, "checkout");
+                    records.extend(scope_logs.log_records);
+                }
+            }
+        }
+        let summary: Vec<_> = records
+            .iter()
+            .map(|record| {
+                let body = record.body.as_ref().and_then(|body| body.value.clone());
+                (record.event_name.as_str(), record.severity_number, body)
+            })
+            .collect();
+        let text = |body: &str| Some(any_value::Value::StringValue(body.to_owned()));
+        assert_eq!(
+            summary,
+            [
+                ("order.placed", 9, text("order placed")),
+                ("payment.failed", 17, text("card declined")),
+            ]
+        );
     }
 
     #[test]
