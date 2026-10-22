@@ -759,14 +759,18 @@ mod tests {
         let export_count = exporter.export_count.clone();
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
             .build();
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         processor.on_end(new_test_export_span_data());
+        assert_eq!(export_count.load(Ordering::SeqCst), 0);
         processor.force_flush().expect("force_flush should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
         processor.on_end(new_test_export_span_data());
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
         processor.shutdown().expect("shutdown should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 2);
     }
@@ -782,14 +786,18 @@ mod tests {
         let export_count = exporter.export_count.clone();
         let config = BatchConfigBuilder::default()
             .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
             .build();
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
 
         processor.on_end(new_test_export_span_data());
+        assert_eq!(export_count.load(Ordering::SeqCst), 0);
         processor.force_flush().expect("force_flush should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
         processor.on_end(new_test_export_span_data());
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
         processor.shutdown().expect("shutdown should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 2);
     }
