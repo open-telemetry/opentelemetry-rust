@@ -28,7 +28,8 @@ impl LogExporterBuilder {
 
     /// Append log records to the file at `path`, which is created if it does not exist.
     ///
-    /// The file is opened by [`build`](Self::build). The preferred extension is `.jsonl`.
+    /// The file is opened by [`build`](Self::build). The preferred extension is `.jsonl`. Unless
+    /// it is a pipe or a device, the file is synced to disk by `shutdown`.
     pub fn with_file(mut self, path: impl Into<PathBuf>) -> Self {
         self.output_stream = OutputStream::File(path.into());
         self

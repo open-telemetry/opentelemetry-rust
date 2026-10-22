@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
@@ -26,6 +26,10 @@ impl OutputStream {
             OutputStream::Stdout => Sink::Stdout,
             OutputStream::File(path) => {
                 match OpenOptions::new().create(true).append(true).open(&path) {
+                    // Syncing a pipe or a device, such as `/dev/stdout`, fails.
+                    Ok(file) if file.metadata().is_ok_and(|metadata| metadata.is_file()) => {
+                        Sink::File(file)
+                    }
                     Ok(file) => Sink::Writer(Box::new(file)),
                     Err(source) => return Err(ExporterBuildError::OpenFile { path, source }),
                 }
@@ -78,6 +82,8 @@ enum Sink {
     /// Locked for each whole line, including a retried remainder, so that a
     /// line cannot interleave with `println!` output from other threads.
     Stdout,
+    /// A regular file, which `force_flush` and `shutdown` sync to disk.
+    File(File),
     Writer(Box<dyn Write + Send>),
 }
 
@@ -87,6 +93,7 @@ impl Sink {
     fn with_writer<T>(&mut self, f: impl FnOnce(&mut dyn Write) -> T) -> T {
         match self {
             Sink::Stdout => f(&mut io::stdout().lock()),
+            Sink::File(file) => f(file),
             Sink::Writer(writer) => f(writer),
         }
     }
@@ -130,7 +137,8 @@ impl JsonLinesWriter {
         self.with_state(|_| Ok(()))
     }
 
-    /// Completes an unfinished line, if any, and flushes.
+    /// Completes an unfinished line, if any, and flushes, then syncs a regular
+    /// file to disk.
     // `LogExporter` has no `force_flush`.
     #[cfg(any(feature = "trace", feature = "metrics"))]
     pub(crate) fn flush(&self) -> OTelSdkResult {
@@ -180,9 +188,14 @@ impl State {
         })
     }
 
-    /// Writes the unfinished line, if any, then flushes.
+    /// Writes the unfinished line, if any, then flushes and syncs a regular
+    /// file to disk.
     fn flush(&mut self) -> io::Result<()> {
-        self.write(&[])
+        self.write(&[])?;
+        match &self.sink {
+            Sink::File(file) => file.sync_all(),
+            Sink::Stdout | Sink::Writer(_) => Ok(()),
+        }
     }
 }
 
@@ -624,6 +637,45 @@ pub(crate) mod tests {
             }
             other => panic!("unexpected result: {other:?}"),
         }
+    }
+
+    #[cfg(any(feature = "trace", feature = "metrics"))]
+    #[test]
+    fn flush_keeps_a_file_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("traces.jsonl");
+        let output = OutputStream::File(path.clone()).open().unwrap();
+
+        output.write(&json!({"n": 1})).unwrap();
+        output.flush().unwrap();
+        output.write(&json!({"n": 2})).unwrap();
+        output.shutdown().unwrap();
+
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"n\":1}\n{\"n\":2}\n");
+    }
+
+    #[test]
+    fn syncs_a_regular_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = OutputStream::File(dir.path().join("traces.jsonl"))
+            .open()
+            .unwrap();
+
+        let state = output.state.lock().unwrap();
+        assert!(matches!(state.as_ref().unwrap().sink, Sink::File(_)));
+    }
+
+    /// Syncing a device fails, with `EINVAL` on Linux, so a device is written
+    /// to without being synced.
+    #[test]
+    fn does_not_sync_a_device() {
+        let device = if cfg!(windows) { "NUL" } else { "/dev/null" };
+        let output = OutputStream::File(PathBuf::from(device)).open().unwrap();
+
+        output.write(&json!({"n": 1})).unwrap();
+        #[cfg(any(feature = "trace", feature = "metrics"))]
+        output.flush().unwrap();
+        output.shutdown().unwrap();
     }
 
     #[test]

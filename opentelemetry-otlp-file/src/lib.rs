@@ -99,6 +99,13 @@
 //! * Shutting down an exporter flushes and drops its writer, which closes a file opened by the
 //!   exporter. Exports after shutdown fail with
 //!   [`OTelSdkError::AlreadyShutdown`](opentelemetry_sdk::error::OTelSdkError::AlreadyShutdown).
+//! * A line written to a file reaches the operating system before its export returns, so it is
+//!   kept if the process exits or crashes. So that the lines also survive a crash of the
+//!   operating system or a power loss, a file opened with `with_file` is synced to disk
+//!   (`fsync`) when the exporter is shut down and by the `force_flush` of [`SpanExporter`] and
+//!   [`MetricExporter`], unless it is a pipe or a device. The SDK's processors and periodic
+//!   reader do not call `force_flush` on their exporter, so with them the file is synced when
+//!   the provider is shut down.
 //!
 //! ## Processors and short-lived environments
 //!
