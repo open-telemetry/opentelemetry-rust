@@ -9,6 +9,7 @@ packages=(
     "opentelemetry-otlp"
     "opentelemetry-propagator-b3"
     "opentelemetry-appender-tracing"
+    "opentelemetry-otlp-file"
     "opentelemetry-stdout"
     "opentelemetry-appender-log"
     "opentelemetry-prometheus"
