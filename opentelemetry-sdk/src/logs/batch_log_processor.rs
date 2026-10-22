@@ -346,13 +346,13 @@ impl LogProcessor for BatchLogProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
@@ -919,7 +919,7 @@ mod tests {
     };
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
@@ -1036,6 +1036,35 @@ mod tests {
         processor.emit(&mut SdkLogRecord::new(), &scope);
         processor.force_flush().unwrap();
         assert!(exporter.export_called.load(Ordering::SeqCst));
+    }
+
+    #[derive(Debug)]
+    struct FailingLogExporter;
+
+    impl LogExporter for FailingLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "final log export failed".into(),
+            ))
+        }
+    }
+
+    #[test]
+    fn batch_log_processor_shutdown_returns_final_export_error() {
+        let config = BatchConfigBuilder::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(FailingLogExporter, config);
+        let mut record = SdkLogRecord::new();
+
+        processor.emit(&mut record, &InstrumentationScope::default());
+
+        let error = processor.shutdown().unwrap_err();
+        assert!(matches!(
+            error,
+            OTelSdkError::InternalFailure(message) if message == "final log export failed"
+        ));
     }
 
     #[test]
