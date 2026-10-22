@@ -276,13 +276,13 @@ impl hash::Hash for OtelString {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Array {
     /// Array of bools
-    Bool(Box<[bool]>),
+    Bool(Vec<bool>),
     /// Array of integers
-    I64(Box<[i64]>),
+    I64(Vec<i64>),
     /// Array of floats
-    F64(Box<[f64]>),
+    F64(Vec<f64>),
     /// Array of strings
-    String(Box<[StringValue]>),
+    String(Vec<StringValue>),
 }
 
 impl fmt::Display for Array {
@@ -319,17 +319,10 @@ fn display_array_str<T: fmt::Display>(slice: &[T], fmt: &mut fmt::Formatter<'_>)
 macro_rules! into_array {
     ($(($t:ty, $val:expr),)+) => {
         $(
-            impl From<Box<[$t]>> for Array {
+            impl From<$t> for Array {
                 #[inline]
-                fn from(t: Box<[$t]>) -> Self {
+                fn from(t: $t) -> Self {
                     $val(t)
-                }
-            }
-
-            impl From<Vec<$t>> for Array {
-                #[inline]
-                fn from(t: Vec<$t>) -> Self {
-                    $val(t.into_boxed_slice())
                 }
             }
         )+
@@ -337,10 +330,10 @@ macro_rules! into_array {
 }
 
 into_array!(
-    (bool, Array::Bool),
-    (i64, Array::I64),
-    (f64, Array::F64),
-    (StringValue, Array::String),
+    (Vec<bool>, Array::Bool),
+    (Vec<i64>, Array::I64),
+    (Vec<f64>, Array::F64),
+    (Vec<StringValue>, Array::String),
 );
 
 /// The value part of attribute [KeyValue] pairs.
@@ -890,8 +883,8 @@ mod tests {
         assert_eq!(size_of::<Option<Key>>(), size_of::<Key>());
         #[cfg(target_pointer_width = "64")]
         {
-            assert_eq!(size_of::<Value>(), 24);
-            assert_eq!(size_of::<KeyValue>(), 40);
+            assert_eq!(size_of::<Value>(), 32);
+            assert_eq!(size_of::<KeyValue>(), 48);
         }
     }
 

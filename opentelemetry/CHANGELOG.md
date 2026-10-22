@@ -2,8 +2,8 @@
 
 ## vNext
 
-- **Breaking** `Array` variants now hold `Box<[T]>` instead of `Vec<T>`. The
-  size of `KeyValue` has been reduced from 56 to 40 bytes on 64-bit platforms.
+- Reduced the size of `KeyValue` from 56 to 48 bytes on 64-bit platforms by
+  shrinking the internal string representation.
 
 ## 0.33.1
 
