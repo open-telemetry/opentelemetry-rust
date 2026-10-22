@@ -10,19 +10,19 @@ use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::Resource;
 
-use crate::output::{JsonLinesWriter, Output};
+use crate::output::{JsonLinesWriter, OutputStream};
 use crate::ExporterBuildError;
 
 /// Builder for [`LogExporter`].
 #[derive(Debug, Default)]
 pub struct LogExporterBuilder {
-    output: Output,
+    output_stream: OutputStream,
 }
 
 impl LogExporterBuilder {
     /// Write log records to the standard output of the process. This is the default.
     pub fn with_stdout(mut self) -> Self {
-        self.output = Output::Stdout;
+        self.output_stream = OutputStream::Stdout;
         self
     }
 
@@ -30,7 +30,7 @@ impl LogExporterBuilder {
     ///
     /// The file is opened by [`build`](Self::build). The preferred extension is `.jsonl`.
     pub fn with_file(mut self, path: impl Into<PathBuf>) -> Self {
-        self.output = Output::File(path.into());
+        self.output_stream = OutputStream::File(path.into());
         self
     }
 
@@ -39,7 +39,7 @@ impl LogExporterBuilder {
     /// Every batch is written as one line with a single `write_all` call, followed by a
     /// `flush`. The writer is dropped when the exporter is shut down.
     pub fn with_writer(mut self, writer: impl Write + Send + 'static) -> Self {
-        self.output = Output::Writer(Box::new(writer));
+        self.output_stream = OutputStream::Writer(Box::new(writer));
         self
     }
 
@@ -50,7 +50,7 @@ impl LogExporterBuilder {
     /// Returns an error if the file configured with [`with_file`](Self::with_file) cannot be
     /// opened for appending.
     pub fn build(self) -> Result<LogExporter, ExporterBuildError> {
-        Ok(LogExporter::new(self.output.open()?))
+        Ok(LogExporter::new(self.output_stream.open()?))
     }
 }
 

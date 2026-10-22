@@ -9,36 +9,38 @@ use serde::Serialize;
 
 use crate::ExporterBuildError;
 
-/// The destination configured on an exporter builder.
+/// The output stream configured on an exporter builder.
 #[derive(Default)]
-pub(crate) enum Output {
+pub(crate) enum OutputStream {
     #[default]
     Stdout,
     File(PathBuf),
     Writer(Box<dyn Write + Send>),
 }
 
-impl Output {
+impl OutputStream {
     /// Opens the destination. Files are created if missing and always appended to.
     pub(crate) fn open(self) -> Result<JsonLinesWriter, ExporterBuildError> {
         let (destination, sink) = match self {
-            Output::Stdout => (Destination::Stdout, Sink::Stdout(io::stdout())),
-            Output::File(path) => match OpenOptions::new().create(true).append(true).open(&path) {
-                Ok(file) => (Destination::File(path), Sink::Writer(Box::new(file))),
-                Err(source) => return Err(ExporterBuildError::OpenFile { path, source }),
-            },
-            Output::Writer(writer) => (Destination::Writer, Sink::Writer(writer)),
+            OutputStream::Stdout => (Destination::Stdout, Sink::Stdout(io::stdout())),
+            OutputStream::File(path) => {
+                match OpenOptions::new().create(true).append(true).open(&path) {
+                    Ok(file) => (Destination::File(path), Sink::Writer(Box::new(file))),
+                    Err(source) => return Err(ExporterBuildError::OpenFile { path, source }),
+                }
+            }
+            OutputStream::Writer(writer) => (Destination::Writer, Sink::Writer(writer)),
         };
         Ok(JsonLinesWriter::new(destination, sink))
     }
 }
 
-impl fmt::Debug for Output {
+impl fmt::Debug for OutputStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Output::Stdout => f.write_str("Stdout"),
-            Output::File(path) => f.debug_tuple("File").field(path).finish(),
-            Output::Writer(_) => f.write_str("Writer"),
+            OutputStream::Stdout => f.write_str("Stdout"),
+            OutputStream::File(path) => f.debug_tuple("File").field(path).finish(),
+            OutputStream::Writer(_) => f.write_str("Writer"),
         }
     }
 }
@@ -313,7 +315,7 @@ pub(crate) mod tests {
     }
 
     fn open(writer: impl Write + Send + 'static) -> JsonLinesWriter {
-        Output::Writer(Box::new(writer)).open().unwrap()
+        OutputStream::Writer(Box::new(writer)).open().unwrap()
     }
 
     #[test]
@@ -611,7 +613,7 @@ pub(crate) mod tests {
     fn creates_a_missing_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("traces.jsonl");
-        let output = Output::File(path.clone()).open().unwrap();
+        let output = OutputStream::File(path.clone()).open().unwrap();
 
         output.write(&json!({"n": 1})).unwrap();
         output.shutdown().unwrap();
@@ -625,7 +627,7 @@ pub(crate) mod tests {
         let path = dir.path().join("traces.jsonl");
         fs::write(&path, "{\"n\":1}\n").unwrap();
 
-        let output = Output::File(path.clone()).open().unwrap();
+        let output = OutputStream::File(path.clone()).open().unwrap();
         output.write(&json!({"n": 2})).unwrap();
         output.shutdown().unwrap();
 
@@ -637,7 +639,7 @@ pub(crate) mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("missing").join("traces.jsonl");
 
-        match Output::File(path.clone()).open() {
+        match OutputStream::File(path.clone()).open() {
             Err(ExporterBuildError::OpenFile {
                 path: error_path,
                 source,
@@ -656,11 +658,11 @@ pub(crate) mod tests {
             "JsonLinesWriter { destination: Stdout, .. }"
         );
         assert_eq!(
-            format!("{:?}", Output::File(PathBuf::from("traces.jsonl"))),
+            format!("{:?}", OutputStream::File(PathBuf::from("traces.jsonl"))),
             "File(\"traces.jsonl\")"
         );
         assert_eq!(
-            format!("{:?}", Output::Writer(Box::new(io::sink()))),
+            format!("{:?}", OutputStream::Writer(Box::new(io::sink()))),
             "Writer"
         );
     }

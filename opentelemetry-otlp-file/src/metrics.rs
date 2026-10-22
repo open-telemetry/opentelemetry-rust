@@ -12,7 +12,7 @@ use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use opentelemetry_sdk::metrics::exporter::PushMetricExporter;
 use opentelemetry_sdk::metrics::Temporality;
 
-use crate::output::{JsonLinesWriter, Output};
+use crate::output::{JsonLinesWriter, OutputStream};
 use crate::ExporterBuildError;
 
 const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
@@ -21,14 +21,14 @@ const OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: &str =
 /// Builder for [`MetricExporter`].
 #[derive(Debug, Default)]
 pub struct MetricExporterBuilder {
-    output: Output,
+    output_stream: OutputStream,
     temporality: Option<Temporality>,
 }
 
 impl MetricExporterBuilder {
     /// Write metrics to the standard output of the process. This is the default.
     pub fn with_stdout(mut self) -> Self {
-        self.output = Output::Stdout;
+        self.output_stream = OutputStream::Stdout;
         self
     }
 
@@ -36,7 +36,7 @@ impl MetricExporterBuilder {
     ///
     /// The file is opened by [`build`](Self::build). The preferred extension is `.jsonl`.
     pub fn with_file(mut self, path: impl Into<PathBuf>) -> Self {
-        self.output = Output::File(path.into());
+        self.output_stream = OutputStream::File(path.into());
         self
     }
 
@@ -45,7 +45,7 @@ impl MetricExporterBuilder {
     /// Every export is written as one line with a single `write_all` call, followed by a
     /// `flush`. The writer is dropped when the exporter is shut down.
     pub fn with_writer(mut self, writer: impl Write + Send + 'static) -> Self {
-        self.output = Output::Writer(Box::new(writer));
+        self.output_stream = OutputStream::Writer(Box::new(writer));
         self
     }
 
@@ -66,7 +66,7 @@ impl MetricExporterBuilder {
     /// opened for appending.
     pub fn build(self) -> Result<MetricExporter, ExporterBuildError> {
         Ok(MetricExporter {
-            output: self.output.open()?,
+            output: self.output_stream.open()?,
             temporality: resolve_temporality(self.temporality),
         })
     }
