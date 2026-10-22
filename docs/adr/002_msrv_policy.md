@@ -2,7 +2,7 @@
 
 ## Date
 
-20 Feb 2026
+22 Oct 2026
 
 ## Summary
 
@@ -19,8 +19,8 @@ practical. MSRV bumps are not considered semver-breaking changes.
 The current MSRV policy states that "the current stable Rust compiler and the
 three most recent minor versions before it will always be supported." Given
 Rust's 6-week release cadence, N-3 equates to roughly 4.5 months — but the
-actual MSRV (1.75, released December 2023) is over two years old as of this
-writing. The stated policy and practice are misaligned.
+actual MSRV (1.75, released December 2023) is nearly three years old as of
+this writing. The stated policy and practice are misaligned.
 
 A time-based policy addresses this in a few ways:
 
@@ -109,8 +109,8 @@ reason to raise its MSRV.
 
 ## Practical impact
 
-As an example, this policy would permit raising the SDK MSRV to 1.85
-(February 2025) while API and SDK-independent components such as
+As of October 2026, this policy would permit raising the SDK MSRV as high as
+1.90 (September 2025) while API and SDK-independent components such as
 `opentelemetry` and `opentelemetry-propagator-b3` remained on Rust 1.75. Crates
 with a runtime dependency on the SDK would inherit the higher requirement.
 Some capabilities available at various MSRV levels include:
@@ -132,28 +132,29 @@ For reference, here is what the 12-month window looks like over time:
 
 | Date | Current Stable | 12-Month Window Allows |
 |------|---------------|------------------------|
-| Feb 2026 (today) | 1.93 | 1.85 (Feb 2025) |
-| Aug 2026 | ~1.98 | 1.89 (Aug 2025) |
-| Feb 2027 | ~1.102 | 1.93 (Jan 2026) |
+| Oct 2026 (today) | 1.99 | 1.90 (Sep 2025) |
+| Apr 2027 | ~1.103 | 1.95 (Apr 2026) |
+| Oct 2027 | ~1.108 | 1.99 (Oct 2026) |
 
 ## Ecosystem context
 
 ### Rust ecosystem
 
 The most widely-used Rust crates with formal, documented MSRV policies use a
-time-based or version-count approach:
+time-based or version-count approach. The MSRVs below are declared by each
+crate's latest stable published release as of 22 October 2026:
 
-| Project | Documented Policy | Window | Actual MSRV |
-|---------|-------------------|--------|-------------|
-| [tokio](https://github.com/tokio-rs/tokio#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.71 (~2 years) |
-| [hyper](https://github.com/hyperium/hyper/blob/master/docs/MSRV.md) | "A compiler version released within the last 6 months can compile hyper" | 6 months | 1.63 (~3 years) |
-| [tower](https://github.com/tower-rs/tower#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.64 (~3 years) |
-| [tracing](https://github.com/tokio-rs/tracing#supported-rust-versions) | "The current stable Rust compiler and the three most recent minor versions before it will always be supported" | N-3 | — |
+| Project | Documented Policy | Window | Latest Published MSRV |
+|---------|-------------------|--------|-----------------------|
+| [tokio](https://github.com/tokio-rs/tokio#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.85 (~20 months) |
+| [hyper](https://github.com/hyperium/hyper/blob/master/docs/MSRV.md) | "A compiler version released within the last 6 months can compile hyper" | 6 months | 1.63 (>4 years) |
+| [tower](https://github.com/tower-rs/tower#supported-rust-versions) | "The new Rust version must have been released at least six months ago" | 6 months | 1.64 (~4 years) |
+| [tracing](https://github.com/tokio-rs/tracing#supported-rust-versions) | "The current stable Rust compiler and the three most recent minor versions before it will always be supported" | N-3 | 1.65 (~4 years) |
 
 In practice, even projects with aggressive stated policies bump conservatively
-— their actual MSRVs are often years behind what the policy permits. Our
-12-month window is twice as conservative as the 6-month policies above, and the
-[when to bump](#when-to-bump) guidelines ensure the window functions as a
+— their latest published MSRVs are often years behind what the policy permits.
+Our 12-month window is twice as conservative as the 6-month policies above.
+The [when to bump](#when-to-bump) guidelines ensure the window functions as a
 ceiling rather than a schedule.
 
 ### OpenTelemetry language SDKs
@@ -162,9 +163,9 @@ Other OpenTelemetry language SDKs handle minimum version support as follows:
 
 | Language | Minimum | Policy |
 |----------|---------|--------|
-| [Go](https://github.com/open-telemetry/opentelemetry-go#compatibility) | Go 1.24 | Follows upstream Go support: "each major Go release is supported until there are two newer major releases" |
-| [Python](https://github.com/open-telemetry/opentelemetry-python#python-version-support) | Python 3.9 | "We remove support for old Python versions 6 months after they reach their end of life" |
-| [Node.js](https://github.com/open-telemetry/opentelemetry-js#supported-runtimes) | Node.js 18 | "Only Node.js Active or Maintenance LTS versions are supported" |
+| [Go](https://github.com/open-telemetry/opentelemetry-go#compatibility) | Go 1.26 | Follows upstream Go support: "each major Go release is supported until there are two newer major releases" |
+| [Python](https://github.com/open-telemetry/opentelemetry-python#python-version-support) | Python 3.10 | "We remove support for old Python versions 6 months after they reach their end of life" |
+| [Node.js](https://github.com/open-telemetry/opentelemetry-js#supported-runtimes) | Node.js 22 | "Only Node.js Active or Maintenance LTS versions are supported" |
 | [.NET](https://github.com/open-telemetry/opentelemetry-dotnet#supported-net-versions) | net462 | "All the officially supported versions of .NET and .NET Framework (except .NET Framework 3.5)" |
 | [Java](https://github.com/open-telemetry/opentelemetry-java/blob/main/VERSIONING.md#language-version-compatibility) | Java 8 | "Changing requires major version bump" |
 
@@ -198,8 +199,8 @@ There are two problems with keeping this policy:
    old — more aggressive than 6-month policies. In practice, the project has
    been far more conservative, which is exactly the policy-vs-practice
    disconnect this ADR aims to resolve.
-2. The current MSRV (1.75) is over two years old while the N-3 policy would
-   currently allow up to 1.90 (with stable at 1.93). A documented policy that
+2. The current MSRV (1.75) is nearly three years old while the N-3 policy would
+   currently allow up to 1.96 (with stable at 1.99). A documented policy that
    diverges this far from practice provides little value as a guide for
    contributors or consumers.
 
