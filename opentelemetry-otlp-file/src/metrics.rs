@@ -174,7 +174,7 @@ mod tests {
     use opentelemetry::KeyValue;
     use opentelemetry_proto::tonic::metrics::v1::{metric, number_data_point};
     use opentelemetry_sdk::error::OTelSdkError;
-    use opentelemetry_sdk::metrics::SdkMeterProvider;
+    use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
     use opentelemetry_sdk::Resource;
     use serde_json::{json, Value};
 
@@ -234,6 +234,14 @@ mod tests {
         );
     }
 
+    /// A reader whose interval is long enough that metrics are only collected by `force_flush`
+    /// and `shutdown`, whatever `OTEL_METRIC_EXPORT_INTERVAL` is set to.
+    fn manual_reader(exporter: MetricExporter) -> PeriodicReader<MetricExporter> {
+        PeriodicReader::builder(exporter)
+            .with_interval(Duration::from_secs(60 * 60))
+            .build()
+    }
+
     /// Records a counter and a histogram, then returns the first exported line.
     fn export_once(temporality: Temporality) -> String {
         let buffer = SharedBuffer::default();
@@ -248,7 +256,7 @@ mod tests {
                     .with_service_name("checkout")
                     .build(),
             )
-            .with_periodic_exporter(exporter)
+            .with_reader(manual_reader(exporter))
             .build();
         let meter = provider.meter("checkout");
         meter
@@ -340,7 +348,7 @@ mod tests {
                     .with_service_name("checkout")
                     .build(),
             )
-            .with_periodic_exporter(exporter)
+            .with_reader(manual_reader(exporter))
             .build();
         let orders = provider.meter("checkout").u64_counter("orders").build();
 
