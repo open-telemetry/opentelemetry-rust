@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Added `sum_if_recorded` accessors to histogram data points so exporters can
+  distinguish an unrecorded sum from a recorded zero.
+  ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))

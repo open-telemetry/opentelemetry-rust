@@ -220,7 +220,7 @@ pub mod tonic {
                         start_time_unix_nano: to_nanos(hist.start_time()),
                         time_unix_nano: to_nanos(hist.time()),
                         count: dp.count(),
-                        sum: Some(dp.sum().into_f64()),
+                        sum: dp.sum_if_recorded().map(Numeric::into_f64),
                         bucket_counts: dp.bucket_counts().collect(),
                         explicit_bounds: dp.bounds().collect(),
                         exemplars: dp.exemplars().map(Into::into).collect(),
@@ -247,7 +247,7 @@ pub mod tonic {
                         start_time_unix_nano: to_nanos(hist.start_time()),
                         time_unix_nano: to_nanos(hist.time()),
                         count: dp.count() as u64,
-                        sum: Some(dp.sum().into_f64()),
+                        sum: dp.sum_if_recorded().map(Numeric::into_f64),
                         scale: dp.scale().into(),
                         zero_count: dp.zero_count(),
                         positive: Some(TonicBuckets {
@@ -329,6 +329,103 @@ pub mod tonic {
                 trace_id: ex.trace_id().into(),
                 value: Some(ex.value.into()),
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use opentelemetry::metrics::MeterProvider as _;
+        use opentelemetry_sdk::metrics::{
+            Aggregation, InMemoryMetricExporter, Instrument, SdkMeterProvider, Stream,
+        };
+
+        fn exported_histogram(aggregation: Aggregation, record_sum: bool) -> TonicMetricData {
+            let exporter = InMemoryMetricExporter::default();
+            let view = move |instrument: &Instrument| {
+                (instrument.name() == "updown").then(|| {
+                    Stream::builder()
+                        .with_aggregation(aggregation.clone())
+                        .build()
+                        .expect("valid histogram view")
+                })
+            };
+            let provider = SdkMeterProvider::builder()
+                .with_periodic_exporter(exporter.clone())
+                .with_view(view)
+                .build();
+            let meter = provider.meter("test");
+            if record_sum {
+                meter.u64_counter("updown").build().add(1, &[]);
+            } else {
+                meter.i64_up_down_counter("updown").build().add(1, &[]);
+            }
+            provider.force_flush().expect("metric export succeeds");
+
+            let metrics = exporter
+                .get_finished_metrics()
+                .expect("metrics were exported");
+            let request = ExportMetricsServiceRequest::from(&metrics[0]);
+            request.resource_metrics[0].scope_metrics[0].metrics[0]
+                .data
+                .clone()
+                .expect("metric data is present")
+        }
+
+        #[test]
+        fn otlp_omits_unrecorded_histogram_sums() {
+            let explicit = exported_histogram(
+                Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.0, 2.0],
+                    record_min_max: true,
+                },
+                false,
+            );
+            let TonicMetricData::Histogram(explicit) = explicit else {
+                panic!("expected explicit histogram")
+            };
+            assert_eq!(explicit.data_points[0].sum, None);
+
+            let exponential = exported_histogram(
+                Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: 20,
+                    record_min_max: true,
+                },
+                false,
+            );
+            let TonicMetricData::ExponentialHistogram(exponential) = exponential else {
+                panic!("expected exponential histogram")
+            };
+            assert_eq!(exponential.data_points[0].sum, None);
+        }
+
+        #[test]
+        fn otlp_keeps_recorded_histogram_sums() {
+            let explicit = exported_histogram(
+                Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.0, 2.0],
+                    record_min_max: true,
+                },
+                true,
+            );
+            let TonicMetricData::Histogram(explicit) = explicit else {
+                panic!("expected explicit histogram")
+            };
+            assert_eq!(explicit.data_points[0].sum, Some(1.0));
+
+            let exponential = exported_histogram(
+                Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: 20,
+                    record_min_max: true,
+                },
+                true,
+            );
+            let TonicMetricData::ExponentialHistogram(exponential) = exponential else {
+                panic!("expected exponential histogram")
+            };
+            assert_eq!(exponential.data_points[0].sum, Some(1.0));
         }
     }
 }

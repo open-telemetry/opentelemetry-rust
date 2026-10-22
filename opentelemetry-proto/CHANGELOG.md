@@ -2,6 +2,10 @@
 
 ## vNext
 
+- **Bug fix**: Omit OTLP histogram and exponential-histogram sums when the SDK
+  did not record them instead of exporting a fabricated zero.
+  ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
+
 ## 0.33.1
 
 Released 2026-Oct-08
