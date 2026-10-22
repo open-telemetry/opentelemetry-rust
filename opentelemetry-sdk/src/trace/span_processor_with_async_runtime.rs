@@ -43,6 +43,23 @@ use tokio::sync::RwLock;
 /// if you are using that runtime (e.g. users of actix-web), and blocking tasks
 /// will then be scheduled on a different thread.
 ///
+/// With `runtime::Tokio`, calling [`SpanProcessor::force_flush`] or
+/// [`SpanProcessor::shutdown`] from a spawned task blocks a runtime worker.
+/// This can deadlock if no other worker can run the processor and exporter,
+/// for example with `worker_threads = 1`. Offload these calls using
+/// [`tokio::task::spawn_blocking`]:
+///
+/// ```no_run
+/// # use std::sync::Arc;
+/// # use opentelemetry_sdk::trace::SpanProcessor;
+/// # async fn example(processor: Arc<dyn SpanProcessor>) -> Result<(), Box<dyn std::error::Error>> {
+/// let p = Arc::clone(&processor);
+/// tokio::task::spawn_blocking(move || p.force_flush()).await??;
+/// tokio::task::spawn_blocking(move || processor.shutdown()).await??;
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Examples
 ///
 /// This processor can be configured with an [`executor`] of your choice to
@@ -800,5 +817,47 @@ mod tests {
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
         processor.shutdown().expect("shutdown should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_span_processor_single_worker_task_spawn_blocking_workaround() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioSpanExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .build();
+        let processor = Arc::new(BatchSpanProcessor::new(exporter, config, runtime::Tokio));
+
+        let p = processor.clone();
+        let task = tokio::spawn(async move {
+            p.on_end(new_test_export_span_data());
+            assert_eq!(export_count.load(Ordering::SeqCst), 0);
+
+            let p_flush = p.clone();
+            tokio::task::spawn_blocking(move || p_flush.force_flush())
+                .await
+                .expect("spawn_blocking join failed")
+                .expect("force_flush should succeed");
+            assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+            p.on_end(new_test_export_span_data());
+            assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+            let p_shutdown = p.clone();
+            tokio::task::spawn_blocking(move || p_shutdown.shutdown())
+                .await
+                .expect("spawn_blocking join failed")
+                .expect("shutdown should succeed");
+            assert_eq!(export_count.load(Ordering::SeqCst), 2);
+        });
+
+        task.await.expect("task join failed");
     }
 }
