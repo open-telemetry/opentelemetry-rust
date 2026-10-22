@@ -2,6 +2,17 @@
 
 ## vNext
 
+- Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
+  when exporting the final queued telemetry failed.
+  ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
+- Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
+  span id on span creation.
+  ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
+  up attribute sets when aggregating measurements (default remains std's
+  `RandomState`).
+  ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+
 ## 0.33.1
 
 Released 2026-Oct-08
@@ -37,6 +48,12 @@ Released 2026-Oct-08
   failures such as an unreachable collector visible without enabling DEBUG
   logging.
   ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+- `TraceContextPropagator` now follows the W3C Trace Context Level 2 `tracestate` rules.
+  Multiple `tracestate` header fields are combined into a single list, `tracestate` is
+  only parsed once `traceparent` is known to be valid, an invalid `tracestate` (see
+  the stricter `TraceState` parsing in `opentelemetry`) is discarded without
+  affecting `traceparent` and an empty `tracestate` header is no longer injected.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
 
 ## 0.33.0
 

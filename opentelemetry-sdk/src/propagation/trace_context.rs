@@ -103,22 +103,26 @@ impl TraceContextPropagator {
         // as required by https://www.w3.org/TR/trace-context/#other-flags
         let trace_flags = TraceFlags::new(opts) & TraceFlags::SAMPLED;
 
-        let trace_state = match extractor.get(TRACESTATE_HEADER) {
-            Some(trace_state_str) => {
-                TraceState::from_str(trace_state_str).unwrap_or_else(|_| TraceState::default())
-            }
-            None => TraceState::default(),
-        };
-
-        // create context
-        let span_context = SpanContext::new(trace_id, span_id, trace_flags, true, trace_state);
-
-        // Ensure span is valid
-        if !span_context.is_valid() {
+        // Ensure trace id and span id are valid before looking at tracestate, which
+        // must not be parsed when traceparent is invalid.
+        if trace_id == TraceId::INVALID || span_id == SpanId::INVALID {
             return Err(());
         }
 
-        Ok(span_context)
+        // Multiple tracestate header fields are combined into a single list, and an
+        // invalid tracestate is discarded without affecting the traceparent.
+        let trace_state = extractor
+            .get_all(TRACESTATE_HEADER)
+            .and_then(|values| TraceState::from_str(&values.join(",")).ok())
+            .unwrap_or_default();
+
+        Ok(SpanContext::new(
+            trace_id,
+            span_id,
+            trace_flags,
+            true,
+            trace_state,
+        ))
     }
 }
 
@@ -137,7 +141,12 @@ impl TextMapPropagator for TraceContextPropagator {
                 span_context.trace_flags() & TraceFlags::SAMPLED
             );
             injector.set(TRACEPARENT_HEADER, header_value);
-            injector.set(TRACESTATE_HEADER, span_context.trace_state().header());
+
+            // Avoid sending empty tracestate headers.
+            let trace_state = span_context.trace_state().header();
+            if !trace_state.is_empty() {
+                injector.set(TRACESTATE_HEADER, trace_state);
+            }
         }
     }
 
@@ -247,6 +256,107 @@ mod tests {
     }
 
     #[test]
+    fn extract_w3c_discards_invalid_tracestate() {
+        let propagator = TraceContextPropagator::new();
+        let parent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+
+        for state in [
+            "=x",
+            "a=",
+            "a=x\ty",
+            "a==b",
+            "foo=bar,=x",
+            "congo=1,rojo=2,congo=3",
+            "nokeyvalue",
+        ] {
+            let mut extractor = HashMap::new();
+            extractor.insert(TRACEPARENT_HEADER.to_string(), parent.to_string());
+            extractor.insert(TRACESTATE_HEADER.to_string(), state.to_string());
+
+            let cx = propagator.extract(&extractor);
+            let span_context = cx.span().span_context().clone();
+
+            assert!(span_context.is_valid(), "{state:?}");
+            assert_eq!(
+                span_context.trace_state(),
+                &TraceState::default(),
+                "{state:?}"
+            );
+        }
+    }
+
+    /// An extractor that may hold several fields for the same header.
+    struct MultiValueExtractor(HashMap<String, Vec<String>>);
+
+    impl Extractor for MultiValueExtractor {
+        fn get(&self, key: &str) -> Option<&str> {
+            self.0
+                .get(key)
+                .and_then(|values| values.first())
+                .map(String::as_str)
+        }
+
+        fn keys(&self) -> Vec<&str> {
+            self.0.keys().map(String::as_str).collect()
+        }
+
+        fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+            self.0
+                .get(key)
+                .map(|values| values.iter().map(String::as_str).collect())
+        }
+    }
+
+    #[test]
+    fn extract_w3c_combines_multiple_tracestate_fields() {
+        let propagator = TraceContextPropagator::new();
+        let extractor = MultiValueExtractor(HashMap::from([
+            (
+                TRACEPARENT_HEADER.to_string(),
+                vec!["00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string()],
+            ),
+            (
+                TRACESTATE_HEADER.to_string(),
+                vec![
+                    "rojo=00f067aa0ba902b7".to_string(),
+                    "".to_string(),
+                    " congo=t61rcWkgMzE".to_string(),
+                ],
+            ),
+        ]));
+
+        assert_eq!(
+            propagator
+                .extract(&extractor)
+                .span()
+                .span_context()
+                .trace_state()
+                .header(),
+            "rojo=00f067aa0ba902b7,congo=t61rcWkgMzE"
+        );
+    }
+
+    #[test]
+    fn extract_w3c_rejects_duplicate_keys_across_tracestate_fields() {
+        let propagator = TraceContextPropagator::new();
+        let extractor = MultiValueExtractor(HashMap::from([
+            (
+                TRACEPARENT_HEADER.to_string(),
+                vec!["00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string()],
+            ),
+            (
+                TRACESTATE_HEADER.to_string(),
+                vec!["congo=1".to_string(), "congo=2".to_string()],
+            ),
+        ]));
+
+        let cx = propagator.extract(&extractor);
+        let span = cx.span();
+        assert!(span.span_context().is_valid());
+        assert_eq!(span.span_context().trace_state(), &TraceState::default());
+    }
+
+    #[test]
     fn extract_w3c_reject_invalid() {
         let propagator = TraceContextPropagator::new();
 
@@ -283,6 +393,27 @@ mod tests {
                 expected_trace_state
             );
         }
+    }
+
+    #[test]
+    fn inject_w3c_skips_empty_tracestate() {
+        let propagator = TraceContextPropagator::new();
+        let context = SpanContext::new(
+            TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
+            SpanId::from(0x00f0_67aa_0ba9_02b7),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        );
+
+        let mut injector: HashMap<String, String> = HashMap::new();
+        propagator.inject_context(
+            &Context::current_with_span(TestSpan(context)),
+            &mut injector,
+        );
+
+        assert!(Extractor::get(&injector, TRACEPARENT_HEADER).is_some());
+        assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), None);
     }
 
     #[test]

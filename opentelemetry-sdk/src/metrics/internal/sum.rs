@@ -9,8 +9,10 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 struct Increment<T>
 where
@@ -74,15 +76,15 @@ impl<T: Number> Drop for BoundSumHandle<T> {
 }
 
 /// Summarizes a set of measurements made as their arithmetic sum.
-pub(crate) struct Sum<T: Number> {
-    value_map: ValueMap<Increment<T>>,
+pub(crate) struct Sum<T: Number, S = RandomState> {
+    value_map: ValueMap<Increment<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
 }
 
-impl<T: Number> Sum<T> {
+impl<T: Number, S: AttributeBuildHasher> Sum<T, S> {
     /// Returns an aggregator that summarizes a set of measurements as their
     /// arithmetic sum.
     ///
@@ -93,9 +95,10 @@ impl<T: Number> Sum<T> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -180,9 +183,10 @@ impl<T: Number> Sum<T> {
     }
 }
 
-impl<T> Measure<T> for Sum<T>
+impl<T, S> Measure<T> for Sum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         // Ignore NaN and infinity: `F64AtomicTracker::add`'s CAS loop computes
@@ -211,9 +215,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Sum<T>
+impl<T, S> ComputeAggregation for Sum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -228,6 +233,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn nan_and_infinity_are_ignored() {
@@ -236,6 +242,7 @@ mod tests {
             AttributeSetFilter::new(None),
             false,
             2000,
+            Arc::new(RandomState::new),
         );
         Measure::call(&sum, 1.0, &[]);
         Measure::call(&sum, f64::NAN, &[]);
@@ -265,6 +272,7 @@ mod bound_tests {
             AttributeSetFilter::new(None),
             false,
             2000,
+            Arc::new(RandomState::new),
         );
         let attrs = [KeyValue::new("k", "v")];
         let bound = Measure::bind(&sum, &attrs);
