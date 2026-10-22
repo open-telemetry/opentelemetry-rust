@@ -36,8 +36,8 @@ impl LogExporterBuilder {
 
     /// Write log records to `writer`.
     ///
-    /// Every batch is written as one line with a single `write_all` call, followed by a
-    /// `flush`. The writer is dropped when the exporter is shut down.
+    /// Every batch is written as one line, followed by a `flush`. The writer is dropped when the
+    /// exporter is shut down.
     pub fn with_writer(mut self, writer: impl Write + Send + 'static) -> Self {
         self.output_stream = OutputStream::Writer(Box::new(writer));
         self

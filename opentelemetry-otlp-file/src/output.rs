@@ -19,19 +19,31 @@ pub(crate) enum OutputStream {
 }
 
 impl OutputStream {
-    /// Opens the destination. Files are created if missing and always appended to.
+    /// Opens the stream. A file is created if it is missing and always appended to.
     pub(crate) fn open(self) -> Result<JsonLinesWriter, ExporterBuildError> {
-        let (destination, sink) = match self {
-            OutputStream::Stdout => (Destination::Stdout, Sink::Stdout(io::stdout())),
+        let name = self.to_string();
+        let sink = match self {
+            OutputStream::Stdout => Sink::Stdout,
             OutputStream::File(path) => {
                 match OpenOptions::new().create(true).append(true).open(&path) {
-                    Ok(file) => (Destination::File(path), Sink::Writer(Box::new(file))),
+                    Ok(file) => Sink::Writer(Box::new(file)),
                     Err(source) => return Err(ExporterBuildError::OpenFile { path, source }),
                 }
             }
-            OutputStream::Writer(writer) => (Destination::Writer, Sink::Writer(writer)),
+            OutputStream::Writer(writer) => Sink::Writer(writer),
         };
-        Ok(JsonLinesWriter::new(destination, sink))
+        Ok(JsonLinesWriter::new(name, sink))
+    }
+}
+
+/// Names the stream in error messages.
+impl fmt::Display for OutputStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OutputStream::Stdout => f.write_str("stdout"),
+            OutputStream::File(path) => write!(f, "{}", path.display()),
+            OutputStream::Writer(_) => f.write_str("the configured writer"),
+        }
     }
 }
 
@@ -45,49 +57,45 @@ impl fmt::Debug for OutputStream {
     }
 }
 
-#[derive(Debug)]
-enum Destination {
-    Stdout,
-    File(PathBuf),
-    Writer,
-}
-
-impl fmt::Display for Destination {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Destination::Stdout => f.write_str("stdout"),
-            Destination::File(path) => write!(f, "{}", path.display()),
-            Destination::Writer => f.write_str("the configured writer"),
-        }
-    }
-}
-
-/// Writes each exported batch as one line of OTLP JSON.
+/// Writes each export as one line of OTLP JSON to an opened [`OutputStream`].
 pub(crate) struct JsonLinesWriter {
-    destination: Destination,
+    /// The name of the output stream, for error messages and `Debug` output.
+    name: String,
     /// `None` once the exporter has been shut down.
     state: Mutex<Option<State>>,
 }
 
 struct State {
     sink: Sink,
-    /// The bytes of a line that a failed write left unfinished. They are
-    /// written before anything else, so a line is never followed by another
-    /// one before it is complete.
+    /// The rest of a line that a failed write left unfinished. It is written
+    /// before anything else, so a line is never followed by another one
+    /// before it is complete.
     unfinished: Vec<u8>,
 }
 
+/// An opened [`OutputStream`].
 enum Sink {
-    /// Kept apart from other writers so that a whole line, including any
-    /// retried remainder, is written under a single lock of stdout.
-    Stdout(io::Stdout),
+    /// Locked for each whole line, including a retried remainder, so that a
+    /// line cannot interleave with `println!` output from other threads.
+    Stdout,
     Writer(Box<dyn Write + Send>),
 }
 
+impl Sink {
+    /// Calls `f` with the writer, holding the lock of stdout during the call
+    /// when writing there.
+    fn with_writer<T>(&mut self, f: impl FnOnce(&mut dyn Write) -> T) -> T {
+        match self {
+            Sink::Stdout => f(&mut io::stdout().lock()),
+            Sink::Writer(writer) => f(writer),
+        }
+    }
+}
+
 impl JsonLinesWriter {
-    fn new(destination: Destination, sink: Sink) -> Self {
+    fn new(name: String, sink: Sink) -> Self {
         JsonLinesWriter {
-            destination,
+            name,
             state: Mutex::new(Some(State {
                 sink,
                 unfinished: Vec::new(),
@@ -96,7 +104,7 @@ impl JsonLinesWriter {
     }
 
     pub(crate) fn stdout() -> Self {
-        JsonLinesWriter::new(Destination::Stdout, Sink::Stdout(io::stdout()))
+        JsonLinesWriter::new(OutputStream::Stdout.to_string(), Sink::Stdout)
     }
 
     /// Serializes `data` as compact JSON, appends a newline and flushes.
@@ -114,7 +122,7 @@ impl JsonLinesWriter {
             OTelSdkError::InternalFailure(format!("failed to serialize OTLP JSON: {err}"))
         })?;
         line.push(b'\n');
-        self.with_state(|state| state.write_line(&line))
+        self.with_state(|state| state.write(&line))
     }
 
     /// Returns an error if the exporter has been shut down.
@@ -122,14 +130,15 @@ impl JsonLinesWriter {
         self.with_state(|_| Ok(()))
     }
 
+    /// Completes an unfinished line, if any, and flushes.
     // `LogExporter` has no `force_flush`.
     #[cfg(any(feature = "trace", feature = "metrics"))]
     pub(crate) fn flush(&self) -> OTelSdkResult {
         self.with_state(State::flush)
     }
 
-    /// Flushes and drops the writer, which closes a file opened by the
-    /// exporter. The writer is dropped even if the flush fails.
+    /// Flushes like `flush`, then drops the writer, which closes a file
+    /// opened by the exporter. The writer is dropped even if the flush fails.
     pub(crate) fn shutdown(&self) -> OTelSdkResult {
         let mut state = self.lock()?.take().ok_or(OTelSdkError::AlreadyShutdown)?;
         state.flush().map_err(|err| self.io_error(err))
@@ -143,67 +152,43 @@ impl JsonLinesWriter {
 
     fn lock(&self) -> Result<MutexGuard<'_, Option<State>>, OTelSdkError> {
         self.state.lock().map_err(|_| {
-            OTelSdkError::InternalFailure(format!(
-                "a previous write to {} panicked",
-                self.destination
-            ))
+            OTelSdkError::InternalFailure(format!("a previous write to {} panicked", self.name))
         })
     }
 
     fn io_error(&self, err: io::Error) -> OTelSdkError {
-        OTelSdkError::InternalFailure(format!(
-            "failed to write OTLP JSON to {}: {err}",
-            self.destination
-        ))
+        OTelSdkError::InternalFailure(format!("failed to write OTLP JSON to {}: {err}", self.name))
     }
 }
 
 impl State {
-    fn write_line(&mut self, line: &[u8]) -> io::Result<()> {
+    /// Writes the unfinished line, if any, then `bytes`, then flushes.
+    fn write(&mut self, bytes: &[u8]) -> io::Result<()> {
         let State { sink, unfinished } = self;
-        match sink {
-            Sink::Stdout(stdout) => write_line(&mut stdout.lock(), unfinished, line),
-            Sink::Writer(writer) => write_line(writer, unfinished, line),
-        }
+        sink.with_writer(|writer| {
+            let (written, result) = write_fully(writer, unfinished);
+            unfinished.drain(..written);
+            result?;
+            let (written, result) = write_fully(writer, bytes);
+            if result.is_err() && written > 0 {
+                // Keep the rest of the line so that the next write completes
+                // it before starting a new one.
+                unfinished.extend_from_slice(&bytes[written..]);
+            }
+            result?;
+            writer.flush()
+        })
     }
 
+    /// Writes the unfinished line, if any, then flushes.
     fn flush(&mut self) -> io::Result<()> {
-        let State { sink, unfinished } = self;
-        match sink {
-            Sink::Stdout(stdout) => finish_and_flush(&mut stdout.lock(), unfinished),
-            Sink::Writer(writer) => finish_and_flush(writer, unfinished),
-        }
+        self.write(&[])
     }
-}
-
-/// Writes the unfinished line, if any, then `line`, then flushes.
-fn write_line(writer: &mut impl Write, unfinished: &mut Vec<u8>, line: &[u8]) -> io::Result<()> {
-    finish(writer, unfinished)?;
-    let (written, result) = write_fully(writer, line);
-    if result.is_err() && written > 0 {
-        // Keep the rest of the line so that the next write completes it
-        // before starting a new one.
-        unfinished.extend_from_slice(&line[written..]);
-    }
-    result?;
-    writer.flush()
-}
-
-fn finish_and_flush(writer: &mut impl Write, unfinished: &mut Vec<u8>) -> io::Result<()> {
-    finish(writer, unfinished)?;
-    writer.flush()
-}
-
-/// Writes the unfinished line, keeping whatever part of it is still not written.
-fn finish(writer: &mut impl Write, unfinished: &mut Vec<u8>) -> io::Result<()> {
-    let (written, result) = write_fully(writer, unfinished);
-    unfinished.drain(..written);
-    result
 }
 
 /// Writes all of `buf` like [`Write::write_all`], but also returns how many
 /// bytes were written when it fails.
-fn write_fully(writer: &mut impl Write, buf: &[u8]) -> (usize, io::Result<()>) {
+fn write_fully(writer: &mut dyn Write, buf: &[u8]) -> (usize, io::Result<()>) {
     let mut written = 0;
     while written < buf.len() {
         match writer.write(&buf[written..]) {
@@ -222,7 +207,7 @@ fn write_fully(writer: &mut impl Write, buf: &[u8]) -> (usize, io::Result<()>) {
 impl fmt::Debug for JsonLinesWriter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("JsonLinesWriter")
-            .field("destination", &self.destination)
+            .field("name", &self.name)
             .finish_non_exhaustive()
     }
 }
@@ -302,18 +287,6 @@ pub(crate) mod tests {
         }
     }
 
-    struct FailingWriter;
-
-    impl Write for FailingWriter {
-        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
-            Err(io::Error::other("disk full"))
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
     fn open(writer: impl Write + Send + 'static) -> JsonLinesWriter {
         OutputStream::Writer(Box::new(writer)).open().unwrap()
     }
@@ -336,7 +309,7 @@ pub(crate) mod tests {
         );
     }
 
-    /// Accepts at most a few bytes per call, so `write_all` needs many calls per line.
+    /// Accepts at most a few bytes per call, so that writing a line takes many calls.
     struct TrickleWriter(SharedBuffer);
 
     impl Write for TrickleWriter {
@@ -407,21 +380,6 @@ pub(crate) mod tests {
         assert_eq!(recorder.take_calls(), vec![]);
     }
 
-    #[test]
-    fn reports_write_errors() {
-        let output = open(FailingWriter);
-
-        match output.write(&json!({})) {
-            Err(OTelSdkError::InternalFailure(message)) => {
-                assert_eq!(
-                    message,
-                    "failed to write OTLP JSON to the configured writer: disk full"
-                );
-            }
-            other => panic!("unexpected result: {other:?}"),
-        }
-    }
-
     /// Accepts bytes until its budget runs out, then fails every write until
     /// the budget is raised again. `None` means no limit.
     #[derive(Clone, Default)]
@@ -453,6 +411,23 @@ pub(crate) mod tests {
 
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
+        }
+    }
+
+    #[test]
+    fn reports_write_errors() {
+        let writer = LimitedWriter::default();
+        writer.set_budget(Some(0));
+        let output = open(writer);
+
+        match output.write(&json!({})) {
+            Err(OTelSdkError::InternalFailure(message)) => {
+                assert_eq!(
+                    message,
+                    "failed to write OTLP JSON to the configured writer: disk full"
+                );
+            }
+            other => panic!("unexpected result: {other:?}"),
         }
     }
 
@@ -652,10 +627,19 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn debug_output_names_the_destination() {
+    fn debug_output_names_the_output_stream() {
         assert_eq!(
             format!("{:?}", JsonLinesWriter::stdout()),
-            "JsonLinesWriter { destination: Stdout, .. }"
+            "JsonLinesWriter { name: \"stdout\", .. }"
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("traces.jsonl");
+        assert_eq!(
+            format!("{:?}", OutputStream::File(path.clone()).open().unwrap()),
+            format!(
+                "JsonLinesWriter {{ name: {:?}, .. }}",
+                path.display().to_string()
+            )
         );
         assert_eq!(
             format!("{:?}", OutputStream::File(PathBuf::from("traces.jsonl"))),
