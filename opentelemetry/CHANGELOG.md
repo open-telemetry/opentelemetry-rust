@@ -30,6 +30,9 @@
   - `Baggage` accepts any non-empty UTF-8 string as a name, as required by
     the specification. Restrictions are left to propagators.
     `BaggagePropagator` skips names that are not valid W3C tokens.
+  - `Baggage::insert` and `Baggage::insert_with_metadata` now return
+    `Result<Option<_>, InsertError>`. Inserting an empty name returns
+    `Err(InsertError::EmptyName)` instead of silently returning `None`.
   - `BaggageMetadata` is now stored exactly as given without trimming. It is an
     opaque string that must be valid, percent encoded W3C `property` syntax to
     be properly propagated.
