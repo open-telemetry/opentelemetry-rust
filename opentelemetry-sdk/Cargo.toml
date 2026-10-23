@@ -41,7 +41,7 @@ rapidhash = { workspace = true }
 rustc-hash = { workspace = true }
 rstest = { workspace = true }
 temp-env = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }
