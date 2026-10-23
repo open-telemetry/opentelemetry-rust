@@ -29,12 +29,18 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
-- Fix several W3C compliance issues in `BaggagePropagator`:
+- **Breaking:** Fix several W3C compliance issues in `BaggagePropagator`.
+  Entries that were previously propagated may now be skipped, see the
+  `opentelemetry` changelog for migration examples.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Entries accepted by `Baggage` but not propagatable (non-token names,
+    invalid metadata or exceeding the W3C 64 entry / 8192 byte limits) are
+    skipped on injection and reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log.
   - Metadata (properties) are validated against the W3C `property` grammar
     and propagated verbatim in their percent-encoded form, so encoded
     delimiters such as `%2C` are no longer emitted as literal `,`. Empty
     properties (e.g. `;;` or a trailing `;`) make a member invalid.
-  - Entries whose name is not a valid token are skipped on injection.
   - Values containing `=` are no longer truncated.
   - `%` and `\` in values are now percent-encoded on injection.
   - Only optional whitespace (space and tab) around members is trimmed.
