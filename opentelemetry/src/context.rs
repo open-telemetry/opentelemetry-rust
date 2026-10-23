@@ -362,7 +362,30 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self));
+        let cx_id = CURRENT_CONTEXT.with(|cx| {
+            let mut stack = cx.borrow_mut();
+
+            match stack.push(self) {
+                Ok(id) => id,
+                Err(rejected) => {
+                    // Release the borrow before logging or running context destructors.
+                    drop(stack);
+
+                    otel_warn!(
+                        name: "Context.AttachFailed",
+                        message = format!(
+                            "Too many contexts. Max limit is {}. \
+                             Context::current() remains unchanged as this attach failed. \
+                             Dropping the returned ContextGuard will have no impact on Context::current().",
+                            ContextStack::MAX_POS
+                        )
+                    );
+
+                    drop(rejected);
+                    ContextStack::MAX_POS
+                }
+            }
+        });
 
         ContextGuard {
             cx_pos: cx_id,
@@ -620,7 +643,7 @@ impl ContextStack {
     const INITIAL_CAPACITY: usize = 8;
 
     #[inline(always)]
-    fn push(&mut self, cx: Context) -> u16 {
+    fn push(&mut self, cx: Context) -> Result<u16, Box<Context>> {
         // The next id is the length of the `stack`, plus one since we have the
         // top of the [`ContextStack`] as the `current_cx`.
         let next_id = self.stack.len() + 1;
@@ -632,17 +655,9 @@ impl ContextStack {
 
             let current_cx = std::mem::replace(&mut self.current_cx, cx);
             self.stack.push(Some(current_cx));
-            next_id as u16
+            Ok(next_id as u16)
         } else {
-            // This is an overflow, log it and ignore it.
-            otel_warn!(
-                name: "Context.AttachFailed",
-                message = format!("Too many contexts. Max limit is {}. \
-                  Context::current() remains unchanged as this attach failed. \
-                  Dropping the returned ContextGuard will have no impact on Context::current().",
-                  ContextStack::MAX_POS)
-            );
-            ContextStack::MAX_POS
+            Err(Box::new(cx))
         }
     }
 
@@ -889,6 +904,59 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn overflow_warning_can_access_current_context() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use tracing_subscriber::prelude::*;
+
+        struct ReadCurrentContextOnEvent {
+            observed: Arc<AtomicBool>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for ReadCurrentContextOnEvent {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if event.metadata().name() == "Context.AttachFailed" {
+                    assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+                    self.observed.store(true, Ordering::Relaxed);
+                }
+            }
+        }
+
+        // Without this dispatcher, the subscriber can miss the warning when other tests run in parallel.
+        let _other_dispatch = tracing::Dispatch::new(tracing_subscriber::registry());
+        let observed = Arc::new(AtomicBool::new(false));
+        let subscriber = tracing_subscriber::registry().with(ReadCurrentContextOnEvent {
+            observed: observed.clone(),
+        });
+
+        tracing::subscriber::with_default(subscriber, || {
+            let mut guards = Vec::new();
+            let cx = Context::new().with_value(ValueA(42));
+
+            for _ in 1..ContextStack::MAX_POS {
+                guards.push(cx.clone().attach());
+            }
+
+            let rejected_guard = Context::new().attach();
+
+            assert!(observed.load(Ordering::Relaxed));
+            assert_eq!(rejected_guard.cx_pos, ContextStack::MAX_POS);
+
+            drop(rejected_guard);
+
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+            while let Some(guard) = guards.pop() {
+                drop(guard);
+            }
+        });
+    }
+
     #[test]
     fn context_value_drop_can_access_current_context() {
         let guard = Context::new().with_value(ReadCurrentContextOnDrop).attach();
@@ -903,6 +971,29 @@ mod tests {
 
         drop(outer_guard);
         drop(inner_guard);
+    }
+
+    #[test]
+    fn overflow_context_value_drop_can_access_current_context() {
+        let mut guards = Vec::new();
+        let cx = Context::new().with_value(ValueA(42));
+
+        for _ in 1..ContextStack::MAX_POS {
+            guards.push(cx.clone().attach());
+        }
+
+        let rejected_guard = Context::new().with_value(ReadCurrentContextOnDrop).attach();
+
+        assert_eq!(rejected_guard.cx_pos, ContextStack::MAX_POS);
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+        drop(rejected_guard);
+
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+        while let Some(guard) = guards.pop() {
+            drop(guard);
+        }
     }
 
     #[test]
@@ -1084,9 +1175,9 @@ mod tests {
         let cx2 = Context::new().with_value(ValueA(2));
         let cx3 = Context::new().with_value(ValueA(3));
 
-        let id1 = stack.push(cx1);
-        let id2 = stack.push(cx2);
-        let id3 = stack.push(cx3);
+        let id1 = stack.push(cx1).expect("context must fit");
+        let id2 = stack.push(cx2).expect("context must fit");
+        let id3 = stack.push(cx3).expect("context must fit");
 
         // Pop middle context first - should not affect current context
         stack.pop_id(id2);
@@ -1136,19 +1227,20 @@ mod tests {
         let mut stack = ContextStack::default();
         let max_pos = ContextStack::MAX_POS as usize;
 
-        // Fill stack up to max position
-        for i in 0..max_pos {
+        // Fill all available context positions.
+        for i in 0..max_pos - 1 {
             let cx = Context::new().with_value(ValueA(i as u64));
-            let id = stack.push(cx);
+            let id = stack.push(cx).expect("context must fit");
             assert_eq!(id, (i + 1) as u16);
         }
 
-        // Try to push beyond capacity
+        // Return the rejected context when the stack is full.
         let cx = Context::new().with_value(ValueA(max_pos as u64));
-        let id = stack.push(cx);
-        assert_eq!(id, ContextStack::MAX_POS);
+        let rejected = stack.push(cx).expect_err("context stack must be full");
 
-        // Verify current context remains unchanged after overflow
+        assert_eq!(rejected.get::<ValueA>(), Some(&ValueA(max_pos as u64)));
+
+        // The current context must remain unchanged.
         assert_eq!(
             stack.current_cx.get::<ValueA>(),
             Some(&ValueA((max_pos - 2) as u64))
