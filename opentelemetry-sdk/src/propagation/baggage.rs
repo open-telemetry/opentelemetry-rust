@@ -105,8 +105,13 @@ impl TextMapPropagator for BaggagePropagator {
         let mut header = String::new();
         let mut invalid = Dropped::default();
         let mut limit_exceeded = false;
+        let mut members = 0;
 
-        for (name, (value, metadata)) in cx.baggage().iter().take(MAX_BAGGAGE_ITEMS) {
+        for (name, (value, metadata)) in cx.baggage().iter() {
+            if members == MAX_BAGGAGE_ITEMS {
+                limit_exceeded = true;
+                break;
+            }
             // Serialize the member straight into the header and roll back to
             // `start` if it cannot be serialized.
             let start = header.len();
@@ -115,7 +120,10 @@ impl TextMapPropagator for BaggagePropagator {
             }
             let budget = MAX_BAGGAGE_LENGTH.saturating_sub(header.len());
             match serialize_member(&mut header, name, value, metadata, budget) {
-                Ok(()) => continue,
+                Ok(()) => {
+                    members += 1;
+                    continue;
+                }
                 Err(SerializeError::TooLarge) => limit_exceeded = true,
                 Err(err) => invalid.record(err),
             }
@@ -130,6 +138,7 @@ impl TextMapPropagator for BaggagePropagator {
                 first_error = invalid.first_error(),
                 limit_exceeded = limit_exceeded,
                 limit_bytes = MAX_BAGGAGE_LENGTH as i64,
+                limit_members = MAX_BAGGAGE_ITEMS as i64,
             );
         }
 
@@ -730,6 +739,28 @@ mod tests {
         assert_eq!(inject(baggage).as_deref(), Some("ok=4"));
 
         assert_eq!(inject([KeyValue::new("a,b", "1")].into()), None);
+    }
+
+    #[test]
+    fn inject_caps_entry_count_at_max_baggage_items() {
+        let baggage = (0..MAX_BAGGAGE_ITEMS + 10)
+            .map(|i| KeyValue::new(format!("k{i}"), "v"))
+            .collect::<Baggage>();
+        assert_eq!(baggage.len(), MAX_BAGGAGE_ITEMS + 10);
+
+        let header = inject(baggage).unwrap();
+        assert_eq!(header.split(',').count(), MAX_BAGGAGE_ITEMS);
+    }
+
+    #[test]
+    fn inject_entry_limit_counts_only_propagated_members() {
+        let baggage = (0..MAX_BAGGAGE_ITEMS)
+            .map(|i| KeyValue::new(format!("k{i}"), "v"))
+            .chain((0..10).map(|i| KeyValue::new(format!("bad {i}"), "v")))
+            .collect::<Baggage>();
+
+        let header = inject(baggage).unwrap();
+        assert_eq!(header.split(',').count(), MAX_BAGGAGE_ITEMS);
     }
 
     #[test]

@@ -26,8 +26,6 @@ use std::sync::OnceLock;
 
 static DEFAULT_BAGGAGE: OnceLock<Baggage> = OnceLock::new();
 
-const MAX_KEY_VALUE_PAIRS: usize = 64;
-
 /// Returns the default baggage, ensuring it is initialized only once.
 #[inline]
 fn get_default_baggage() -> &'static Baggage {
@@ -54,10 +52,8 @@ fn get_default_baggage() -> &'static Baggage {
 ///
 /// ### Limits
 ///
-/// * Maximum number of name/value pairs: `64`.
-///
-/// The W3C maximum serialized size of `8192` bytes depends on the wire
-/// encoding and is enforced by the baggage propagator, not by this type.
+/// `Baggage` does not limit the number or size of its entries. The W3C
+/// baggage propagator only propagates up to `64` entries and `8192` bytes.
 ///
 /// <https://www.w3.org/TR/baggage/#limits>
 #[derive(Debug, Default)]
@@ -137,9 +133,7 @@ impl Baggage {
     /// Same with `insert`, if the name was not present, [`None`] will be returned.
     /// If the name is present, the old value and metadata will be returned.
     ///
-    /// The pair is not inserted if the name is empty or if the
-    /// name is new and the baggage already holds the maximum number of
-    /// entries (see [limits](https://w3c.github.io/baggage/#limits)).
+    /// The pair is not inserted if the name is empty.
     ///
     /// # Examples
     ///
@@ -163,11 +157,10 @@ impl Baggage {
         S: Into<BaggageMetadata>,
     {
         let (key, value, metadata) = (key.into(), value.into(), metadata.into());
-        let entries_count = self.inner.len();
         match self.inner.entry(key) {
             Entry::Occupied(mut occupied_entry) => Some(occupied_entry.insert((value, metadata))),
             Entry::Vacant(vacant_entry) => {
-                if !vacant_entry.key().as_str().is_empty() && entries_count < MAX_KEY_VALUE_PAIRS {
+                if !vacant_entry.key().as_str().is_empty() {
                     vacant_entry.insert((value, metadata));
                 }
                 None
@@ -442,15 +435,11 @@ mod tests {
     }
 
     #[test]
-    fn insert_too_much_baggage() {
-        // too many key pairs
-        let over_limit = MAX_KEY_VALUE_PAIRS + 1;
-        let mut data = Vec::with_capacity(over_limit);
-        for i in 0..over_limit {
-            data.push(KeyValue::new(format!("key{i}"), format!("key{i}")))
-        }
-        let baggage = data.into_iter().collect::<Baggage>();
-        assert_eq!(baggage.len(), MAX_KEY_VALUE_PAIRS)
+    fn insert_does_not_limit_count() {
+        let baggage = (0..100)
+            .map(|i| KeyValue::new(format!("key{i}"), "v"))
+            .collect::<Baggage>();
+        assert_eq!(baggage.len(), 100);
     }
 
     #[test]
@@ -460,34 +449,6 @@ mod tests {
         baggage.insert("a", large.clone());
         baggage.insert("b", large);
         assert_eq!(baggage.len(), 2);
-    }
-
-    #[test]
-    fn replace_existing_key_at_capacity() {
-        let mut b = (0..MAX_KEY_VALUE_PAIRS)
-            .map(|i| KeyValue::new(format!("key{i}"), "v"))
-            .collect::<Baggage>();
-        assert_eq!(b.len(), MAX_KEY_VALUE_PAIRS);
-
-        assert!(b.insert("other", "v").is_none());
-        assert!(b.get("other").is_none());
-
-        assert_eq!(b.insert("key0", "w"), Some(StringValue::from("v")));
-        assert_eq!(b.get("key0"), Some(&StringValue::from("w")));
-    }
-
-    #[test]
-    fn remove_frees_capacity() {
-        let mut b = (0..MAX_KEY_VALUE_PAIRS)
-            .map(|i| KeyValue::new(format!("key{i}"), "v"))
-            .collect::<Baggage>();
-
-        for _ in 0..3 {
-            assert!(b.remove("key0").is_some());
-            b.insert("key0", "v");
-            assert_eq!(b.get("key0"), Some(&StringValue::from("v")));
-            assert_eq!(b.len(), MAX_KEY_VALUE_PAIRS);
-        }
     }
 
     #[test]
