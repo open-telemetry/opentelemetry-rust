@@ -99,6 +99,11 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores `Span` endings
+    fn end(&mut self) {
+        // Ignored
+    }
+
+    /// Ignores `Span` endings
     fn end_with_timestamp(&mut self, _timestamp: SystemTime) {
         // Ignored
     }

@@ -144,6 +144,10 @@ impl<T: trace::Span> ObjectSafeSpan for T {
         self.add_link(span_context, attributes)
     }
 
+    fn end(&mut self) {
+        self.end()
+    }
+
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
         self.end_with_timestamp(timestamp)
     }
@@ -226,6 +230,11 @@ impl trace::Span for BoxedSpan {
     ///
     fn add_link(&mut self, span_context: trace::SpanContext, attributes: Vec<KeyValue>) {
         self.0.add_link(span_context, attributes)
+    }
+
+    /// Finishes the span.
+    fn end(&mut self) {
+        self.0.end();
     }
 
     /// Finishes the span with given timestamp.

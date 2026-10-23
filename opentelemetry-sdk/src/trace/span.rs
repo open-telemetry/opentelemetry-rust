@@ -192,6 +192,14 @@ impl opentelemetry::trace::Span for Span {
         });
     }
 
+    /// Finishes the span.
+    #[inline]
+    fn end(&mut self) {
+        if self.data.is_some() {
+            self.ensure_ended_and_exported(None);
+        }
+    }
+
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
         self.ensure_ended_and_exported(Some(timestamp));
@@ -243,8 +251,9 @@ impl Span {
 
 impl Drop for Span {
     /// Report span on inner drop
+    #[inline]
     fn drop(&mut self) {
-        self.ensure_ended_and_exported(None);
+        opentelemetry::trace::Span::end(self);
     }
 }
 

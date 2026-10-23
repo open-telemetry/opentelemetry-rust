@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Improved performance of non-recording spans: `NoopSpan` and `BoxedSpan` no
+  longer read the system clock on `end()`
+
 ## 0.33.1
 
 Released 2026-Oct-08
