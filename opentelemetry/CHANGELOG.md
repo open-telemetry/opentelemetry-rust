@@ -4,7 +4,14 @@
 
 - Reduced the size of `KeyValue` from 56 to 48 bytes on 64-bit platforms by
   shrinking the internal string representation.
-
+- Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
+  `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Added `TraceFlags::sanitized()` to retain only recognized trace flags.
+- Fix panics when the context stack is full and a rejected value's destructor
+  or a tracing subscriber calls `Context::current()`.
+  ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
+  
 ## 0.33.1
 
 Released 2026-Oct-08

@@ -943,13 +943,13 @@ impl SpanProcessor for BatchSpanProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         std::sync::mpsc::RecvTimeoutError::Timeout => {
@@ -1234,7 +1234,7 @@ mod tests {
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
         OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::testing::trace::new_test_export_span_data;
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_CONCURRENT_EXPORTS,
@@ -1480,6 +1480,34 @@ mod tests {
             let mut exported_resource = self.exported_resource.lock().unwrap();
             *exported_resource = Some(resource.clone());
         }
+    }
+
+    #[derive(Debug)]
+    struct FailingSpanExporter;
+
+    impl SpanExporter for FailingSpanExporter {
+        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "final span export failed".into(),
+            ))
+        }
+    }
+
+    #[test]
+    fn batch_span_processor_shutdown_returns_final_export_error() {
+        let config = BatchConfigBuilder::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchSpanProcessor::new(FailingSpanExporter, config);
+
+        processor.on_end(new_test_export_span_data());
+
+        let error = processor.shutdown().unwrap_err();
+        assert!(matches!(
+            error,
+            OTelSdkError::InternalFailure(message) if message == "final span export failed"
+        ));
     }
 
     #[test]
