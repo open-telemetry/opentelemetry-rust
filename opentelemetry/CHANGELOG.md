@@ -9,7 +9,54 @@
 - Fix panics when the context stack is full and a rejected value's destructor
   or a tracing subscriber calls `Context::current()`.
   ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
-  
+- **Breaking** Baggage no longer does any wire format processing. Encoding and
+  decoding is handled by `BaggagePropagator` in `opentelemetry-sdk`.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Removed `impl Display for Baggage`. Use `BaggagePropagator` to serialize
+    baggage in W3C format. The result only contains entries that are valid
+    for propagation and respects the W3C limits, so it may differ from the
+    previous `to_string()` output:
+
+    ```diff
+    - let header = baggage.to_string();
+    + use opentelemetry::{baggage::BaggageExt, propagation::TextMapPropagator, Context};
+    + use opentelemetry_sdk::propagation::BaggagePropagator;
+    +
+    + let mut carrier = std::collections::HashMap::<String, String>::new();
+    + BaggagePropagator::new()
+    +     .inject_context(&Context::new().with_baggage(baggage), &mut carrier);
+    + let header = carrier.remove("baggage"); // `None` if nothing can be propagated
+    ```
+
+  - `Baggage` no longer limits the number or total size of its entries. The
+    W3C 64 entry and 8192 byte limits are wire format concerns and are
+    enforced by `BaggagePropagator`.
+  - `Baggage` accepts any non-empty UTF-8 string as a name, as required by
+    the specification. Restrictions are left to propagators.
+    `BaggagePropagator` skips names that are not valid W3C tokens, so an
+    insert can succeed even though the entry is never propagated. Use token
+    names (e.g. `user_id`) for entries that must cross process boundaries.
+    Skipped entries are reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log:
+
+    ```rust
+    // Accepted by `Baggage`...
+    assert_eq!(baggage.insert("user id", "42"), Ok(None));
+    // ...but skipped by `BaggagePropagator` on inject: "user id" is not a W3C token.
+    ```
+
+  - `Baggage::insert` and `Baggage::insert_with_metadata` now return
+    `Result<Option<_>, InsertError>`. Inserting an empty name returns
+    `Err(InsertError::EmptyName)` instead of silently returning `None`.
+  - `BaggageMetadata` is now stored exactly as given without trimming. It is an
+    opaque string that must be valid, percent encoded W3C `property` syntax to
+    be properly propagated. Trim surrounding whitespace yourself if needed:
+
+    ```diff
+    - KeyValueMetadata::new("k", "v", " p=1 ") // stored as "p=1"
+    + KeyValueMetadata::new("k", "v", "p=1")   // stored verbatim
+    ```
+
 ## 0.33.1
 
 Released 2026-Oct-08

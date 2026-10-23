@@ -29,6 +29,33 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- **Breaking:** Fix several W3C compliance issues in `BaggagePropagator`.
+  Entries that were previously propagated may now be skipped, see the
+  `opentelemetry` changelog for migration examples.
+  ([#3785](https://github.com/open-telemetry/opentelemetry-rust/pull/3785))
+  - Entries accepted by `Baggage` but not propagatable (non-token names,
+    invalid metadata or exceeding the W3C 64 entry / 8192 byte limits) are
+    skipped on injection and reported through the
+    `BaggagePropagator.Inject.DroppedEntries` internal log.
+  - Metadata (properties) are validated against the W3C `property` grammar
+    and propagated verbatim in their percent-encoded form, so encoded
+    delimiters such as `%2C` are no longer emitted as literal `,`. Empty
+    properties (e.g. `;;` or a trailing `;`) make a member invalid.
+  - Values containing `=` are no longer truncated.
+  - `%` and `\` in values are now percent-encoded on injection.
+  - Only optional whitespace (space and tab) around members is trimmed.
+  - Names are no longer percent decoded.
+  - All `baggage` headers are read (via `Extractor::get_all`) and limits apply
+    to their combination.
+  - Percent encoded sequences that are not valid UTF-8 are replaced with
+    U+FFFD instead of dropping the member.
+  - Existing baggage in the context is kept when no valid member is extracted.
+  - The 8192 byte limit is enforced on the encoded header during injection.
+    Entries that do not fit  or whose metadata is not valid W3C `property`
+    syntax are skipped.
+  - The 64 entry limit is enforced by the propagator instead of `Baggage`.
+    Only entries that are actually injected count towards it.
+  - Internal logs no longer include the baggage header content.
 
 ## 0.33.1
 
