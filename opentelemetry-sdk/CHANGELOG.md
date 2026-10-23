@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Improved metrics measurement performance by speeding up attribute set
+  lookups (faster `KeyValue` equality and boxed attribute keys).
+  ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))

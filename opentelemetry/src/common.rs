@@ -31,11 +31,13 @@ impl Key {
     }
 
     /// Create a new const `Key`.
+    #[inline]
     pub const fn from_static_str(value: &'static str) -> Self {
         Key(OtelString::Static(value))
     }
 
     /// Returns a reference to the underlying key name
+    #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -43,6 +45,7 @@ impl Key {
 
 impl From<&'static str> for Key {
     /// Convert a `&str` to a `Key`.
+    #[inline]
     fn from(key_str: &'static str) -> Self {
         Key(OtelString::Static(key_str))
     }
@@ -90,11 +93,7 @@ impl From<Key> for String {
 
 impl fmt::Display for Key {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            OtelString::Owned(s) => s.fmt(fmt),
-            OtelString::Static(s) => s.fmt(fmt),
-            OtelString::RefCounted(s) => s.fmt(fmt),
-        }
+        self.0.as_str().fmt(fmt)
     }
 }
 
@@ -118,6 +117,7 @@ enum OtelString {
 }
 
 impl OtelString {
+    #[inline]
     fn as_str(&self) -> &str {
         match self {
             OtelString::Owned(s) => s.as_ref(),
@@ -140,8 +140,12 @@ impl Ord for OtelString {
 }
 
 impl PartialEq for OtelString {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.as_str().eq(other.as_str())
+        let (a, b) = (self.as_str(), other.as_str());
+        // Clones of `Static` and `RefCounted` strings share their buffer, so skip the
+        // byte comparison when both sides point at the same bytes.
+        a.len() == b.len() && (a.as_ptr() == b.as_ptr() || a.as_bytes() == b.as_bytes())
     }
 }
 
@@ -244,11 +248,7 @@ impl fmt::Debug for StringValue {
 
 impl fmt::Display for StringValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            OtelString::Owned(s) => s.fmt(f),
-            OtelString::Static(s) => s.fmt(f),
-            OtelString::RefCounted(s) => s.fmt(f),
-        }
+        self.0.as_str().fmt(f)
     }
 }
 
@@ -260,6 +260,7 @@ impl AsRef<str> for StringValue {
 
 impl StringValue {
     /// Returns a string slice to this value
+    #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -276,6 +277,7 @@ impl From<StringValue> for String {
 }
 
 impl From<&'static str> for StringValue {
+    #[inline]
     fn from(s: &'static str) -> Self {
         StringValue(OtelString::Static(s))
     }
@@ -337,6 +339,7 @@ macro_rules! from_values {
     ) => {
         $(
             impl From<$t> for Value {
+                #[inline]
                 fn from(t: $t) -> Self {
                     $val(t)
                 }
@@ -353,6 +356,7 @@ from_values!(
 );
 
 impl From<&'static str> for Value {
+    #[inline]
     fn from(s: &'static str) -> Self {
         Value::String(s.into())
     }
@@ -757,5 +761,45 @@ mod tests {
         let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
         scope2.hash(&mut hasher2);
         assert_ne!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn otel_string_eq() {
+        use super::Key;
+        use std::sync::Arc;
+
+        let key = Key::from(Arc::<str>::from("shared"));
+        // Same buffer (pointer-equality fast path).
+        assert_eq!(key, key.clone());
+        assert_eq!(Key::from_static_str("shared"), Key::from("shared"));
+        // Different buffers, same contents.
+        assert_eq!(key, Key::from_static_str("shared"));
+        assert_eq!(key, Key::from("shared".to_owned()));
+        // Same length, different contents.
+        assert_ne!(key, Key::from("shares"));
+        // Different lengths.
+        assert_ne!(key, Key::from("share"));
+    }
+
+    #[test]
+    fn otel_string_display() {
+        use super::{Key, StringValue};
+        use std::sync::Arc;
+
+        let text = "http.request.method";
+        for key in [
+            Key::from_static_str(text),
+            Key::from(text.to_owned()),
+            Key::from(Arc::<str>::from(text)),
+        ] {
+            assert_eq!(key.to_string(), text);
+        }
+        for value in [
+            StringValue::from(text),
+            StringValue::from(text.to_owned()),
+            StringValue::from(Arc::<str>::from(text)),
+        ] {
+            assert_eq!(value.to_string(), text);
+        }
     }
 }
