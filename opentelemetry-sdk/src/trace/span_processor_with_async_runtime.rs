@@ -43,6 +43,23 @@ use tokio::sync::RwLock;
 /// if you are using that runtime (e.g. users of actix-web), and blocking tasks
 /// will then be scheduled on a different thread.
 ///
+/// With `runtime::Tokio`, calling [`SpanProcessor::force_flush`] or
+/// [`SpanProcessor::shutdown`] from a spawned task blocks a runtime worker.
+/// This can deadlock if no other worker can run the processor and exporter,
+/// for example with `worker_threads = 1`. Offload these calls using
+/// [`tokio::task::spawn_blocking`]:
+///
+/// ```no_run
+/// # use std::sync::Arc;
+/// # use opentelemetry_sdk::trace::SpanProcessor;
+/// # async fn example(processor: Arc<dyn SpanProcessor>) -> Result<(), Box<dyn std::error::Error>> {
+/// let p = Arc::clone(&processor);
+/// tokio::task::spawn_blocking(move || p.force_flush()).await??;
+/// tokio::task::spawn_blocking(move || processor.shutdown()).await??;
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Examples
 ///
 /// This processor can be configured with an [`executor`] of your choice to
@@ -702,5 +719,106 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    fn run_in_subprocess_watchdog(timeout: Duration) -> bool {
+        use std::{process::Command, thread, time::Instant};
+
+        let name = thread::current()
+            .name()
+            .expect("test thread should be named")
+            .to_owned();
+        if std::env::var("OTEL_SDK_TEST_CHILD").as_deref() == Ok(name.as_str()) {
+            return false;
+        }
+
+        let mut child =
+            Command::new(std::env::current_exe().expect("test executable should exist"))
+                .args(["--exact", &name, "--nocapture", "--test-threads=1"])
+                .env("OTEL_SDK_TEST_CHILD", &name)
+                .stdin(std::process::Stdio::null())
+                .spawn()
+                .expect("test subprocess should start");
+
+        let start = Instant::now();
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    assert!(status.success(), "test subprocess {name} failed: {status}");
+                    return true;
+                }
+                Ok(None) if start.elapsed() < timeout => {
+                    thread::sleep(Duration::from_millis(20));
+                }
+                result => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("DEADLOCK: test subprocess {name} failed to finish within {timeout:?}: {result:?}");
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    #[derive(Debug, Default)]
+    struct TokioProgressSpanExporter {
+        export_count: Arc<AtomicUsize>,
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    impl SpanExporter for TokioProgressSpanExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            let count = batch.len();
+            let task = tokio::spawn(async {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            });
+            task.await
+                .map_err(|err| crate::error::OTelSdkError::InternalFailure(err.to_string()))?;
+            self.export_count.fetch_add(count, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "rt-tokio")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_batch_span_processor_single_worker_task_spawn_blocking_workaround() {
+        if run_in_subprocess_watchdog(Duration::from_secs(3)) {
+            return;
+        }
+
+        let exporter = TokioProgressSpanExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .build();
+        let processor = Arc::new(BatchSpanProcessor::new(exporter, config, runtime::Tokio));
+
+        let p = processor.clone();
+        let task = tokio::spawn(async move {
+            p.on_end(new_test_export_span_data());
+            assert_eq!(export_count.load(Ordering::SeqCst), 0);
+
+            let p_flush = p.clone();
+            tokio::task::spawn_blocking(move || p_flush.force_flush())
+                .await
+                .expect("spawn_blocking join failed")
+                .expect("force_flush should succeed");
+            assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+            p.on_end(new_test_export_span_data());
+            assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+            let p_shutdown = p.clone();
+            tokio::task::spawn_blocking(move || p_shutdown.shutdown())
+                .await
+                .expect("spawn_blocking join failed")
+                .expect("shutdown should succeed");
+            assert_eq!(export_count.load(Ordering::SeqCst), 2);
+        });
+
+        task.await.expect("task join failed");
     }
 }
