@@ -19,6 +19,9 @@
   parent, and local sampling decisions clear private propagator flags while retaining
   `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
+  when exporting the final queued telemetry failed.
+  ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
 - Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
   span id on span creation.
   ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))

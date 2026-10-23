@@ -2,6 +2,13 @@
 
 ## vNext
 
+- Fixes [#3543](https://github.com/open-telemetry/opentelemetry-rust/issues/3543):
+  Event metadata is now always normalized when `experimental_metadata_attributes` 
+  is enabled. In particular, when using the feature the underlying OTEL logger
+  will receive the value of `log.target` as its log event `target` for events 
+  generated from the `log` crate (e.g., via `tracing-log`) instead of the static
+  target value `"log"`.
+
 ## 0.33.1
 
 Released 2026-Oct-08
