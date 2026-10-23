@@ -8,6 +8,11 @@ use crate::Resource;
 
 use super::Temporality;
 
+#[cfg(feature = "experimental_metrics_producer")]
+use super::instrument::validate_bucket_boundaries;
+#[cfg(feature = "experimental_metrics_producer")]
+use crate::error::OTelSdkError;
+
 /// A collection of [ScopeMetrics] and the associated [Resource] that created them.
 #[derive(Debug)]
 pub struct ResourceMetrics {
@@ -610,6 +615,297 @@ impl<T> Exemplar<T> {
     }
 }
 
+// Constructors, for [MetricProducer] implementations that hand the SDK metrics
+// aggregated elsewhere.
+//
+// [MetricProducer]: crate::metrics::MetricProducer
+
+/// Sums histogram bucket counts, or fails if the total overflows.
+#[cfg(feature = "experimental_metrics_producer")]
+fn total_count(counts: impl IntoIterator<Item = u64>) -> Result<u64, OTelSdkError> {
+    counts
+        .into_iter()
+        .try_fold(0u64, u64::checked_add)
+        .ok_or_else(|| OTelSdkError::InternalFailure("histogram count overflows u64".into()))
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl ScopeMetrics {
+    /// Creates the metrics of one instrumentation scope.
+    pub fn new(scope: InstrumentationScope, metrics: Vec<Metric>) -> Self {
+        Self { scope, metrics }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl Metric {
+    /// Creates a metric from its instrument's name, description and unit, and its
+    /// aggregated data.
+    pub fn new(
+        name: impl Into<Cow<'static, str>>,
+        description: impl Into<Cow<'static, str>>,
+        unit: impl Into<Cow<'static, str>>,
+        data: impl Into<AggregatedMetrics>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            unit: unit.into(),
+            data: data.into(),
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Gauge<T> {
+    /// Creates a gauge from its data points.
+    pub fn new(
+        data_points: Vec<GaugeDataPoint<T>>,
+        start_time: Option<SystemTime>,
+        time: SystemTime,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> GaugeDataPoint<T> {
+    /// Creates a gauge data point, with no exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Sum<T> {
+    /// Creates a sum from its data points.
+    pub fn new(
+        data_points: Vec<SumDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+        is_monotonic: bool,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+            is_monotonic,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> SumDataPoint<T> {
+    /// Creates a sum data point, with no exemplars.
+    pub fn new(attributes: Vec<KeyValue>, value: T) -> Self {
+        Self {
+            attributes,
+            value,
+            exemplars: Vec::new(),
+        }
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Histogram<T> {
+    /// Creates a histogram from its data points.
+    pub fn new(
+        data_points: Vec<HistogramDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> HistogramDataPoint<T> {
+    /// Creates a histogram data point, with no min, max or exemplars.
+    ///
+    /// `bounds` must be finite and strictly increasing. `bucket_counts` has one more
+    /// entry than `bounds`: the last one counts the values above the last bound. The
+    /// count is the sum of `bucket_counts`.
+    ///
+    /// Returns an error if `bounds` or the length of `bucket_counts` is invalid, or
+    /// if the count overflows.
+    pub fn new(
+        attributes: Vec<KeyValue>,
+        bounds: Vec<f64>,
+        bucket_counts: Vec<u64>,
+        sum: T,
+    ) -> Result<Self, OTelSdkError> {
+        validate_bucket_boundaries(&bounds).map_err(OTelSdkError::InternalFailure)?;
+        if bucket_counts.len() != bounds.len() + 1 {
+            return Err(OTelSdkError::InternalFailure(format!(
+                "histogram has {} bounds, so it needs {} bucket counts, not {}",
+                bounds.len(),
+                bounds.len() + 1,
+                bucket_counts.len()
+            )));
+        }
+        Ok(Self {
+            attributes,
+            count: total_count(bucket_counts.iter().copied())?,
+            bounds,
+            bucket_counts,
+            min: None,
+            max: None,
+            sum,
+            exemplars: Vec::new(),
+        })
+    }
+
+    /// Sets the minimum value recorded.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value recorded.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> ExponentialHistogram<T> {
+    /// Creates an exponential histogram from its data points.
+    pub fn new(
+        data_points: Vec<ExponentialHistogramDataPoint<T>>,
+        start_time: SystemTime,
+        time: SystemTime,
+        temporality: Temporality,
+    ) -> Self {
+        Self {
+            data_points,
+            start_time,
+            time,
+            temporality,
+        }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> ExponentialHistogramDataPoint<T> {
+    /// Creates an exponential histogram data point, with no min, max or exemplars.
+    ///
+    /// The count is `zero_count` plus the counts of both buckets.
+    ///
+    /// Returns an error if the count overflows `usize`.
+    pub fn new(
+        attributes: Vec<KeyValue>,
+        scale: i8,
+        zero_count: u64,
+        zero_threshold: f64,
+        positive_bucket: ExponentialBucket,
+        negative_bucket: ExponentialBucket,
+        sum: T,
+    ) -> Result<Self, OTelSdkError> {
+        let count = total_count(
+            std::iter::once(zero_count)
+                .chain(positive_bucket.counts.iter().copied())
+                .chain(negative_bucket.counts.iter().copied()),
+        )?;
+        let count = usize::try_from(count).map_err(|_| {
+            OTelSdkError::InternalFailure(format!("histogram count {count} overflows usize"))
+        })?;
+        Ok(Self {
+            attributes,
+            count,
+            min: None,
+            max: None,
+            sum,
+            scale,
+            zero_count,
+            positive_bucket,
+            negative_bucket,
+            zero_threshold,
+            exemplars: Vec::new(),
+        })
+    }
+
+    /// Sets the minimum value recorded.
+    pub fn with_min(mut self, min: T) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    /// Sets the maximum value recorded.
+    pub fn with_max(mut self, max: T) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    /// Sets the exemplars.
+    pub fn with_exemplars(mut self, exemplars: Vec<Exemplar<T>>) -> Self {
+        self.exemplars = exemplars;
+        self
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl ExponentialBucket {
+    /// Creates a bucket range where `counts[i]` is the count of bucket `offset + i`.
+    pub fn new(offset: i32, counts: Vec<u64>) -> Self {
+        Self { offset, counts }
+    }
+}
+
+#[cfg(feature = "experimental_metrics_producer")]
+impl<T> Exemplar<T> {
+    /// Creates an exemplar. Use all-zero IDs when no sampled span was active.
+    pub fn new(
+        filtered_attributes: Vec<KeyValue>,
+        time: SystemTime,
+        value: T,
+        span_id: [u8; 8],
+        trace_id: [u8; 16],
+    ) -> Self {
+        Self {
+            filtered_attributes,
+            time,
+            value,
+            span_id,
+            trace_id,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -680,5 +976,150 @@ mod tests {
             exponential_histogram_data_point.clone(),
             exponential_histogram_data_point
         );
+    }
+
+    #[cfg(feature = "experimental_metrics_producer")]
+    #[test]
+    fn constructors_set_every_field() {
+        use super::{
+            AggregatedMetrics, ExponentialBucket, ExponentialHistogram, Gauge, GaugeDataPoint,
+            Histogram, Metric, MetricData, ScopeMetrics, Sum,
+        };
+        use crate::metrics::Temporality;
+        use opentelemetry::InstrumentationScope;
+
+        let (start, time) = (now(), now());
+        let attrs = vec![KeyValue::new("key", "value")];
+
+        let exemplar = Exemplar::new(attrs.clone(), time, 5u64, [1; 8], [2; 16]);
+        assert!(exemplar.filtered_attributes().eq(&attrs));
+        assert_eq!((exemplar.time(), exemplar.value), (time, 5));
+        assert_eq!(
+            (exemplar.span_id(), exemplar.trace_id()),
+            (&[1; 8], &[2; 16])
+        );
+
+        let point = GaugeDataPoint::new(attrs.clone(), 5u64).with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(point.value(), 5);
+        let gauge = Gauge::new(vec![point], Some(start), time);
+        assert_eq!(gauge.data_points().count(), 1);
+        assert_eq!((gauge.start_time(), gauge.time()), (Some(start), time));
+
+        let point = SumDataPoint::new(attrs.clone(), 5u64).with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(point.value(), 5);
+        let sum = Sum::new(vec![point], start, time, Temporality::Delta, true);
+        assert_eq!(sum.data_points().count(), 1);
+        assert_eq!((sum.start_time(), sum.time()), (start, time));
+        assert_eq!(
+            (sum.temporality(), sum.is_monotonic()),
+            (Temporality::Delta, true)
+        );
+
+        let point = HistogramDataPoint::new(attrs.clone(), vec![1.0], vec![2, 3], 9u64)
+            .unwrap()
+            .with_min(1)
+            .with_max(6)
+            .with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert!(point.bounds().eq([1.0]));
+        assert!(point.bucket_counts().eq([2, 3]));
+        assert_eq!((point.count(), point.sum()), (5, 9));
+        assert_eq!((point.min(), point.max()), (Some(1), Some(6)));
+        let histogram = Histogram::new(vec![point], start, time, Temporality::Cumulative);
+        assert_eq!(histogram.data_points().count(), 1);
+        assert_eq!((histogram.start_time(), histogram.time()), (start, time));
+        assert_eq!(histogram.temporality(), Temporality::Cumulative);
+
+        let positive = ExponentialBucket::new(-1, vec![1, 2]);
+        assert_eq!(positive.offset(), -1);
+        assert!(positive.counts().eq([1, 2]));
+        let negative = ExponentialBucket::new(0, vec![3]);
+        let point = ExponentialHistogramDataPoint::new(
+            attrs.clone(),
+            2,
+            4,
+            0.5,
+            positive.clone(),
+            negative.clone(),
+            9u64,
+        )
+        .unwrap()
+        .with_min(1)
+        .with_max(6)
+        .with_exemplars(vec![exemplar.clone()]);
+        assert!(point.attributes().eq(&attrs));
+        assert!(point.exemplars().eq([&exemplar]));
+        assert_eq!(
+            (point.scale(), point.zero_count(), point.zero_threshold()),
+            (2, 4, 0.5)
+        );
+        assert_eq!(
+            (point.positive_bucket(), point.negative_bucket()),
+            (&positive, &negative)
+        );
+        assert_eq!((point.count(), point.sum()), (10, 9));
+        assert_eq!((point.min(), point.max()), (Some(1), Some(6)));
+        let exponential = ExponentialHistogram::new(vec![point], start, time, Temporality::Delta);
+        assert_eq!(exponential.data_points().count(), 1);
+        assert_eq!(
+            (exponential.start_time(), exponential.time()),
+            (start, time)
+        );
+        assert_eq!(exponential.temporality(), Temporality::Delta);
+
+        let metric = Metric::new("name", "description", "unit", MetricData::from(sum));
+        assert_eq!(
+            (metric.name(), metric.description(), metric.unit()),
+            ("name", "description", "unit")
+        );
+        assert!(matches!(
+            metric.data(),
+            AggregatedMetrics::U64(MetricData::Sum(_))
+        ));
+        let scope = InstrumentationScope::builder("scope").build();
+        let scope_metrics = ScopeMetrics::new(scope.clone(), vec![metric]);
+        assert_eq!(scope_metrics.scope(), &scope);
+        assert_eq!(scope_metrics.metrics().count(), 1);
+    }
+
+    #[cfg(feature = "experimental_metrics_producer")]
+    #[test]
+    fn histogram_constructors_reject_invalid_data() {
+        use super::ExponentialBucket;
+
+        let histogram = |bounds: Vec<f64>, bucket_counts: Vec<u64>| {
+            HistogramDataPoint::new(vec![], bounds, bucket_counts, 0u64)
+        };
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2, 3]).is_ok());
+        assert!(histogram(vec![], vec![1]).is_ok());
+        // Bounds that are not finite, or not strictly increasing.
+        assert!(histogram(vec![1.0, f64::NAN], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![1.0, f64::INFINITY], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![2.0, 1.0], vec![1, 2, 3]).is_err());
+        assert!(histogram(vec![1.0, 1.0], vec![1, 2, 3]).is_err());
+        // One bucket count too few or too many.
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2]).is_err());
+        assert!(histogram(vec![1.0, 2.0], vec![1, 2, 3, 4]).is_err());
+        // A count that overflows.
+        assert!(histogram(vec![1.0], vec![u64::MAX, 1]).is_err());
+
+        let exponential = |zero_count: u64, counts: Vec<u64>| {
+            ExponentialHistogramDataPoint::new(
+                vec![],
+                0,
+                zero_count,
+                0.0,
+                ExponentialBucket::new(0, counts),
+                ExponentialBucket::new(0, vec![]),
+                0u64,
+            )
+        };
+        assert_eq!(exponential(1, vec![2, 3]).unwrap().count(), 6);
+        assert!(exponential(1, vec![u64::MAX]).is_err());
     }
 }

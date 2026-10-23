@@ -13,6 +13,7 @@ use crate::{
 use super::{
     data::ResourceMetrics,
     pipeline::Pipeline,
+    producer::{produce_external, MetricProducer},
     reader::{MetricReader, SdkProducer},
 };
 
@@ -32,6 +33,7 @@ use super::{
 pub struct ManualReader {
     inner: Mutex<ManualReaderInner>,
     temporality: Temporality,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl Default for ManualReader {
@@ -59,13 +61,14 @@ impl ManualReader {
     }
 
     /// A [MetricReader] which is directly called to collect metrics.
-    pub(crate) fn new(temporality: Temporality) -> Self {
+    pub(crate) fn new(temporality: Temporality, producers: Vec<Box<dyn MetricProducer>>) -> Self {
         ManualReader {
             inner: Mutex::new(ManualReaderInner {
                 sdk_producer: None,
                 is_shutdown: false,
             }),
             temporality,
+            producers,
         }
     }
 }
@@ -104,6 +107,9 @@ impl MetricReader for ManualReader {
                 ))
             }
         };
+        // External producers run integration code: don't hold the lock while they do.
+        drop(inner);
+        produce_external(&self.producers, rm);
 
         Ok(())
     }
@@ -136,6 +142,7 @@ impl MetricReader for ManualReader {
 #[derive(Default)]
 pub struct ManualReaderBuilder {
     temporality: Temporality,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl fmt::Debug for ManualReaderBuilder {
@@ -156,8 +163,16 @@ impl ManualReaderBuilder {
         self
     }
 
+    /// Registers a [MetricProducer] whose metrics each collection appends after the
+    /// SDK's own.
+    #[cfg(feature = "experimental_metrics_producer")]
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
+        self
+    }
+
     /// Create a new [ManualReader] from this configuration.
     pub fn build(self) -> ManualReader {
-        ManualReader::new(self.temporality)
+        ManualReader::new(self.temporality, self.producers)
     }
 }

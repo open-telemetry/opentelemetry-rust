@@ -57,6 +57,7 @@ pub(crate) mod periodic_reader;
 /// Module for periodic reader with async runtime.
 pub mod periodic_reader_with_async_runtime;
 pub(crate) mod pipeline;
+pub(crate) mod producer;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub mod reader;
 #[cfg(not(feature = "experimental_metrics_custom_reader"))]
@@ -78,6 +79,8 @@ pub use meter_provider::*;
 pub use periodic_reader::*;
 #[cfg(feature = "experimental_metrics_custom_reader")]
 pub use pipeline::Pipeline;
+#[cfg(feature = "experimental_metrics_producer")]
+pub use producer::MetricProducer;
 
 pub use instrument::{Instrument, InstrumentKind, Stream, StreamBuilder};
 

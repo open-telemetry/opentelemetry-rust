@@ -12,7 +12,11 @@ use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
 
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{
+        exporter::PushMetricExporter,
+        producer::{produce_external, MetricProducer},
+        reader::SdkProducer,
+    },
     Resource,
 };
 
@@ -33,6 +37,7 @@ pub const OTEL_METRIC_EXPORT_INTERVAL_DEFAULT: Duration = Duration::from_secs(60
 pub struct PeriodicReaderBuilder<E> {
     interval: Duration,
     exporter: E,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E> PeriodicReaderBuilder<E>
@@ -45,7 +50,11 @@ where
             .and_then(|v| v.parse().map(Duration::from_millis).ok())
             .unwrap_or(OTEL_METRIC_EXPORT_INTERVAL_DEFAULT);
 
-        PeriodicReaderBuilder { interval, exporter }
+        PeriodicReaderBuilder {
+            interval,
+            exporter,
+            producers: Vec::new(),
+        }
     }
 
     /// Configures the intervening time between exports for a [PeriodicReader].
@@ -62,9 +71,17 @@ where
         self
     }
 
+    /// Registers a [MetricProducer] whose metrics each collection appends after the
+    /// SDK's own.
+    #[cfg(feature = "experimental_metrics_producer")]
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
+        self
+    }
+
     /// Create a [PeriodicReader] with the given config.
     pub fn build(self) -> PeriodicReader<E> {
-        PeriodicReader::new(self.exporter, self.interval)
+        PeriodicReader::new(self.exporter, self.interval, self.producers)
     }
 }
 
@@ -155,7 +172,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
         PeriodicReaderBuilder::new(exporter)
     }
 
-    fn new(exporter: E, interval: Duration) -> Self {
+    fn new(exporter: E, interval: Duration, producers: Vec<Box<dyn MetricProducer>>) -> Self {
         let (message_sender, message_receiver): (Sender<Message>, Receiver<Message>) =
             mpsc::channel();
         let exporter_arc = Arc::new(exporter);
@@ -163,6 +180,7 @@ impl<E: PushMetricExporter> PeriodicReader<E> {
             inner: Arc::new(PeriodicReaderInner {
                 message_sender,
                 producer: Mutex::new(None),
+                producers,
                 exporter: exporter_arc.clone(),
             }),
         };
@@ -371,6 +389,7 @@ struct PeriodicReaderInner<E: PushMetricExporter> {
     exporter: Arc<E>,
     message_sender: mpsc::Sender<Message>,
     producer: Mutex<Option<Weak<dyn SdkProducer>>>,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E: PushMetricExporter> PeriodicReaderInner<E> {
@@ -389,6 +408,9 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             p.upgrade()
                 .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
+            // External producers run integration code: don't hold the lock while they do.
+            drop(producer);
+            produce_external(&self.producers, rm);
             Ok(())
         } else {
             otel_warn!(
