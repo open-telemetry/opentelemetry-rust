@@ -810,6 +810,10 @@ impl SpanProcessor for BatchSpanProcessor {
 
     /// Handles span end.
     fn on_end(&self, span: SpanData) {
+        if !span.span_context.is_sampled() {
+            return;
+        }
+
         // Count the span before enqueueing it so that a concurrent
         // force_flush()/shutdown() drain never observes an
         // enqueued-but-uncounted span and misses it (issue #3453). If the
@@ -1243,7 +1247,9 @@ mod tests {
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder, SpanEvents, SpanLinks};
     use crate::trace::{SpanData, SpanExporter};
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
+    use opentelemetry::trace::{
+        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+    };
     use std::fmt::Debug;
     use std::time::Duration;
 
@@ -1278,6 +1284,31 @@ mod tests {
         };
         processor.on_end(unsampled);
         assert!(exporter.get_finished_spans().unwrap().is_empty());
+    }
+
+    #[test]
+    fn batch_span_processor_on_end_skips_export_if_not_sampled() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = BatchSpanProcessor::builder(exporter.clone()).build();
+        let unsampled = SpanData {
+            span_context: SpanContext::empty_context(),
+            parent_span_id: SpanId::INVALID,
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Internal,
+            name: "opentelemetry".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope: Default::default(),
+        };
+        processor.on_end(unsampled);
+        let _ = processor.force_flush();
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
+        let _ = processor.shutdown();
     }
 
     #[test]
@@ -1424,7 +1455,13 @@ mod tests {
     // Helper function to create a default test span
     fn create_test_span(name: &str) -> SpanData {
         SpanData {
-            span_context: SpanContext::empty_context(),
+            span_context: SpanContext::new(
+                TraceId::from(1),
+                SpanId::from(1),
+                TraceFlags::SAMPLED,
+                false,
+                TraceState::default(),
+            ),
             parent_span_id: SpanId::INVALID,
             parent_span_is_remote: false,
             span_kind: SpanKind::Internal,
