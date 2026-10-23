@@ -28,7 +28,7 @@ fn set_baggage_static_key_value(c: &mut Criterion) {
 
     c.bench_function("set_baggage_static_key_value", move |b| {
         b.iter(|| {
-            baggage.insert("key", "value");
+            let _ = baggage.insert("key", "value");
         })
     });
 }
@@ -38,7 +38,7 @@ fn set_baggage_static_key(c: &mut Criterion) {
 
     c.bench_function("set_baggage_static_key", move |b| {
         b.iter(|| {
-            baggage.insert("key", "value".to_string());
+            let _ = baggage.insert("key", "value".to_string());
         })
     });
 }
@@ -61,7 +61,7 @@ fn set_baggage_dynamic(c: &mut Criterion) {
             || rng.random_range(0..MAX_KEY_VALUE_PAIRS),
             |idx| {
                 let (key, value) = key_value[idx].clone();
-                baggage.insert(key, value);
+                let _ = baggage.insert(key, value);
             },
             BatchSize::SmallInput,
         )
@@ -87,7 +87,7 @@ fn set_baggage_dynamic_with_metadata(c: &mut Criterion) {
             || rng.random_range(0..MAX_KEY_VALUE_PAIRS),
             |idx| {
                 let (key, value, metadata) = key_value_metadata[idx].clone();
-                baggage.insert_with_metadata(key, value, metadata);
+                let _ = baggage.insert_with_metadata(key, value, metadata);
             },
             BatchSize::SmallInput,
         )

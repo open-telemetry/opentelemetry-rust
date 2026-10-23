@@ -19,7 +19,6 @@
 //!
 //! [W3C Baggage]: https://w3c.github.io/baggage
 use crate::{Context, Key, KeyValue, StringValue};
-use std::collections::hash_map::Entry;
 use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::sync::OnceLock;
@@ -106,34 +105,45 @@ impl Baggage {
 
     /// Inserts a name/value pair into the baggage.
     ///
-    /// If the name was not present, [`None`] is returned. If the name was present,
-    /// the value is updated, and the old value is returned.
+    /// If the name was not present, `Ok(None)` is returned. If the name was
+    /// present, the value is updated and the old value is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InsertError::EmptyName`] if the name is empty. The baggage is
+    /// left unchanged.
     ///
     /// # Examples
     ///
     /// ```
-    /// use opentelemetry::{baggage::Baggage, StringValue};
+    /// use opentelemetry::{baggage::{Baggage, InsertError}, StringValue};
     ///
     /// let mut baggage = Baggage::new();
-    /// let _ = baggage.insert("my-name", "my-value");
+    /// assert_eq!(baggage.insert("my-name", "my-value"), Ok(None));
+    /// assert_eq!(baggage.insert("my-name", "new-value"), Ok(Some(StringValue::from("my-value"))));
+    /// assert_eq!(baggage.insert("", "my-value"), Err(InsertError::EmptyName));
     ///
-    /// assert_eq!(baggage.get("my-name"), Some(&StringValue::from("my-value")))
+    /// assert_eq!(baggage.get("my-name"), Some(&StringValue::from("new-value")))
     /// ```
-    pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<StringValue>
+    pub fn insert<K, V>(&mut self, key: K, value: V) -> Result<Option<StringValue>, InsertError>
     where
         K: Into<Key>,
         V: Into<StringValue>,
     {
         self.insert_with_metadata(key, value, BaggageMetadata::default())
-            .map(|pair| pair.0)
+            .map(|old| old.map(|pair| pair.0))
     }
 
     /// Inserts a name/value(+metadata) pair into the baggage.
     ///
-    /// Same with `insert`, if the name was not present, [`None`] will be returned.
-    /// If the name is present, the old value and metadata will be returned.
+    /// Same with `insert`, if the name was not present, `Ok(None)` will be
+    /// returned. If the name is present, the old value and metadata will be
+    /// returned.
     ///
-    /// The pair is not inserted if the name is empty.
+    /// # Errors
+    ///
+    /// Returns [`InsertError::EmptyName`] if the name is empty. The baggage is
+    /// left unchanged.
     ///
     /// # Examples
     ///
@@ -141,7 +151,7 @@ impl Baggage {
     /// use opentelemetry::{baggage::{Baggage, BaggageMetadata}, StringValue};
     ///
     /// let mut baggage = Baggage::new();
-    /// let _ = baggage.insert_with_metadata("my-name", "my-value", "test");
+    /// assert_eq!(baggage.insert_with_metadata("my-name", "my-value", "test"), Ok(None));
     ///
     /// assert_eq!(baggage.get_with_metadata("my-name"), Some(&(StringValue::from("my-value"), BaggageMetadata::from("test"))))
     /// ```
@@ -150,22 +160,17 @@ impl Baggage {
         key: K,
         value: V,
         metadata: S,
-    ) -> Option<(StringValue, BaggageMetadata)>
+    ) -> Result<Option<(StringValue, BaggageMetadata)>, InsertError>
     where
         K: Into<Key>,
         V: Into<StringValue>,
         S: Into<BaggageMetadata>,
     {
-        let (key, value, metadata) = (key.into(), value.into(), metadata.into());
-        match self.inner.entry(key) {
-            Entry::Occupied(mut occupied_entry) => Some(occupied_entry.insert((value, metadata))),
-            Entry::Vacant(vacant_entry) => {
-                if !vacant_entry.key().as_str().is_empty() {
-                    vacant_entry.insert((value, metadata));
-                }
-                None
-            }
+        let key = key.into();
+        if key.as_str().is_empty() {
+            return Err(InsertError::EmptyName);
         }
+        Ok(self.inner.insert(key, (value.into(), metadata.into())))
     }
 
     /// Removes a name from the baggage, returning the value
@@ -189,6 +194,24 @@ impl Baggage {
         self.into_iter()
     }
 }
+
+/// Error returned when an entry cannot be inserted into [`Baggage`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum InsertError {
+    /// The name is empty. Baggage names must be non-empty strings.
+    EmptyName,
+}
+
+impl fmt::Display for InsertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InsertError::EmptyName => f.write_str("baggage name must not be empty"),
+        }
+    }
+}
+
+impl std::error::Error for InsertError {}
 
 /// An iterator over the entries of a [`Baggage`].
 #[derive(Debug)]
@@ -215,7 +238,7 @@ impl FromIterator<(Key, (StringValue, BaggageMetadata))> for Baggage {
     fn from_iter<I: IntoIterator<Item = (Key, (StringValue, BaggageMetadata))>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for (key, (value, metadata)) in iter.into_iter() {
-            baggage.insert_with_metadata(key, value, metadata);
+            let _ = baggage.insert_with_metadata(key, value, metadata);
         }
         baggage
     }
@@ -225,7 +248,7 @@ impl FromIterator<KeyValue> for Baggage {
     fn from_iter<I: IntoIterator<Item = KeyValue>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kv in iter.into_iter() {
-            baggage.insert(kv.key, kv.value);
+            let _ = baggage.insert(kv.key, kv.value);
         }
         baggage
     }
@@ -235,7 +258,7 @@ impl FromIterator<KeyValueMetadata> for Baggage {
     fn from_iter<I: IntoIterator<Item = KeyValueMetadata>>(iter: I) -> Self {
         let mut baggage = Baggage::default();
         for kvm in iter.into_iter() {
-            baggage.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
+            let _ = baggage.insert_with_metadata(kvm.key, kvm.value, kvm.metadata);
         }
         baggage
     }
@@ -430,7 +453,7 @@ mod tests {
     #[test]
     fn insert_non_ascii_key() {
         let mut baggage = Baggage::new();
-        baggage.insert("🚫", "not ascii key");
+        assert_eq!(baggage.insert("🚫", "not ascii key"), Ok(None));
         assert_eq!(baggage.len(), 1, "non-ascii names are allowed");
     }
 
@@ -446,8 +469,8 @@ mod tests {
     fn insert_does_not_limit_size() {
         let large: String = (0..10_000).map(|_| 'x').collect();
         let mut baggage = Baggage::new();
-        baggage.insert("a", large.clone());
-        baggage.insert("b", large);
+        assert_eq!(baggage.insert("a", large.clone()), Ok(None));
+        assert_eq!(baggage.insert("b", large), Ok(None));
         assert_eq!(baggage.len(), 2);
     }
 
@@ -466,14 +489,14 @@ mod tests {
         assert!(baggage.is_empty());
 
         // create
-        baggage.insert("foo", "1");
+        assert_eq!(baggage.insert("foo", "1"), Ok(None));
         assert_eq!(baggage.len(), 1);
 
         // get
         assert_eq!(baggage.get("foo"), Some(&StringValue::from("1")));
 
         // update
-        baggage.insert("foo", "2");
+        assert_eq!(baggage.insert("foo", "2"), Ok(Some(StringValue::from("1"))));
         assert_eq!(baggage.get("foo"), Some(&StringValue::from("2")));
 
         // delete
@@ -486,13 +509,17 @@ mod tests {
         let mut baggage = Baggage::default();
 
         // empty names are rejected
-        baggage.insert("", "1");
+        assert_eq!(baggage.insert("", "1"), Err(InsertError::EmptyName));
+        assert_eq!(
+            baggage.insert_with_metadata("", "1", "p"),
+            Err(InsertError::EmptyName)
+        );
         assert!(baggage.is_empty());
 
         // any other UTF-8 string is allowed, propagators may restrict it
-        baggage.insert("Grüße", "1");
-        baggage.insert("(example)", "1");
-        baggage.insert("a b", "1");
+        assert_eq!(baggage.insert("Grüße", "1"), Ok(None));
+        assert_eq!(baggage.insert("(example)", "1"), Ok(None));
+        assert_eq!(baggage.insert("a b", "1"), Ok(None));
         assert_eq!(baggage.len(), 3);
     }
 

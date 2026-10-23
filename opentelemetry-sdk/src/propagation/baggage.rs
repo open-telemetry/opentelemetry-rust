@@ -186,7 +186,12 @@ impl TextMapPropagator for BaggagePropagator {
                     let value = percent_decode_str(member.value)
                         .decode_utf8_lossy()
                         .into_owned();
-                    baggage.insert_with_metadata(member.name.to_owned(), value, member.metadata);
+                    // Cannot fail, `parse_member` only accepts non-empty tokens as names.
+                    let _ = baggage.insert_with_metadata(
+                        member.name.to_owned(),
+                        value,
+                        member.metadata,
+                    );
                 }
                 Err(err) => invalid.record(err),
             }
