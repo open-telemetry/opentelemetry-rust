@@ -65,6 +65,8 @@
   - The 8192 byte limit is enforced on the encoded header during injection.
     Entries that do not fit  or whose metadata is not valid W3C `property`
     syntax are skipped.
+  - The 64 entry limit is enforced by the propagator instead of `Baggage`.
+    Only entries that are actually injected count towards it.
   - Internal logs no longer include the baggage header content.
 
 ## 0.33.1
