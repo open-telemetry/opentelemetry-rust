@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Added `sum_if_recorded` accessors to histogram data points so exporters can
+  distinguish an unrecorded sum from a recorded zero.
+  ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
