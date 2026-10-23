@@ -947,13 +947,13 @@ impl SpanProcessor for BatchSpanProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         std::sync::mpsc::RecvTimeoutError::Timeout => {
@@ -1486,6 +1486,34 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct FailingSpanExporter;
+
+    impl SpanExporter for FailingSpanExporter {
+        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "final span export failed".into(),
+            ))
+        }
+    }
+
+    #[test]
+    fn batch_span_processor_shutdown_returns_final_export_error() {
+        let config = BatchConfigBuilder::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchSpanProcessor::new(FailingSpanExporter, config);
+
+        processor.on_end(new_test_export_span_data());
+
+        let error = processor.shutdown().unwrap_err();
+        assert!(matches!(
+            error,
+            OTelSdkError::InternalFailure(message) if message == "final span export failed"
+        ));
+    }
+
     #[test]
     fn batchspanprocessor_handles_on_end() {
         let exporter = MockSpanExporter::new();
@@ -1538,27 +1566,30 @@ mod tests {
     }
 
     #[test]
-    fn batchspanprocessor_drain_preserves_any_batch_error() {
+    fn batchspanprocessor_drain_reports_first_batch_error() {
         #[derive(Debug)]
         struct FailingBatchExporter {
             calls: AtomicUsize,
-            failing_batch: usize,
+            failing_batches: &'static [usize],
         }
 
         impl SpanExporter for FailingBatchExporter {
             async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
-                if self.calls.fetch_add(1, Ordering::Relaxed) == self.failing_batch {
-                    Err(OTelSdkError::InternalFailure("batch export failed".into()))
+                let call = self.calls.fetch_add(1, Ordering::Relaxed);
+                if self.failing_batches.contains(&call) {
+                    Err(OTelSdkError::InternalFailure(format!(
+                        "batch {call} export failed"
+                    )))
                 } else {
                     Ok(())
                 }
             }
         }
 
-        for failing_batch in 0..3 {
+        for case in [&[0][..], &[1], &[2], &[0, 2], &[1, 2], &[0, 1, 2]] {
             let exporter = FailingBatchExporter {
                 calls: AtomicUsize::new(0),
-                failing_batch,
+                failing_batches: case,
             };
             let (sender, receiver) = std::sync::mpsc::sync_channel(3);
             for _ in 0..3 {
@@ -1589,10 +1620,11 @@ mod tests {
             assert_eq!(processed.load(Ordering::Relaxed), 3);
             assert_eq!(current_batch_size.load(Ordering::Relaxed), 0);
             assert!(spans.is_empty());
+            let expected_message = format!("batch {} export failed", case[0]);
             assert!(
                 matches!(&result, Err(OTelSdkError::InternalFailure(message))
-                    if message == "batch export failed"),
-                "failure in batch {failing_batch} must not be masked: {result:?}"
+                    if message == &expected_message),
+                "first failing batch {case:?} must be reported: {result:?}"
             );
         }
     }

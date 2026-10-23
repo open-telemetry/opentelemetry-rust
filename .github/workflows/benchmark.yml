@@ -27,13 +27,13 @@ jobs:
     permissions:
       pull-requests: write
     container:
-      image: rust:slim-bookworm
+      image: rust:slim-bookworm@sha256:a24e292b4af7bdee351a31d3a6379972a5652f0ea22a1b6d6883324ac4f5097c
     env:
       BRANCH_NAME: ${{ github.base_ref }}
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -69,12 +69,12 @@ jobs:
     permissions:
       contents: write
     container:
-      image: rust:slim-bookworm
+      image: rust:slim-bookworm@sha256:a24e292b4af7bdee351a31d3a6379972a5652f0ea22a1b6d6883324ac4f5097c
     env:
       GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 

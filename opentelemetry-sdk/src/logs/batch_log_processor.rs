@@ -321,13 +321,13 @@ impl LogProcessor for BatchLogProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|_| {
+                    .map(|result| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        OTelSdkResult::Ok(())
+                        result
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
@@ -1017,29 +1017,61 @@ mod tests {
         assert!(exporter.export_called.load(Ordering::SeqCst));
     }
 
+    #[derive(Debug)]
+    struct FailingLogExporter;
+
+    impl LogExporter for FailingLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "final log export failed".into(),
+            ))
+        }
+    }
+
     #[test]
-    fn batchlogprocessor_drain_preserves_any_batch_error() {
+    fn batch_log_processor_shutdown_returns_final_export_error() {
+        let config = BatchConfigBuilder::default()
+            .with_max_export_batch_size(10)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = BatchLogProcessor::new(FailingLogExporter, config);
+        let mut record = SdkLogRecord::new();
+
+        processor.emit(&mut record, &InstrumentationScope::default());
+
+        let error = processor.shutdown().unwrap_err();
+        assert!(matches!(
+            error,
+            OTelSdkError::InternalFailure(message) if message == "final log export failed"
+        ));
+    }
+
+    #[test]
+    fn batchlogprocessor_drain_reports_first_batch_error() {
         #[derive(Debug)]
         struct FailingBatchExporter {
             calls: Arc<AtomicUsize>,
-            failing_batch: usize,
+            failing_batches: &'static [usize],
         }
 
         impl LogExporter for FailingBatchExporter {
             async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
-                if self.calls.fetch_add(1, Ordering::Relaxed) == self.failing_batch {
-                    Err(OTelSdkError::InternalFailure("batch export failed".into()))
+                let call = self.calls.fetch_add(1, Ordering::Relaxed);
+                if self.failing_batches.contains(&call) {
+                    Err(OTelSdkError::InternalFailure(format!(
+                        "batch {call} export failed"
+                    )))
                 } else {
                     Ok(())
                 }
             }
         }
 
-        for failing_batch in 0..3 {
+        for case in [&[0][..], &[1], &[2], &[0, 2], &[1, 2], &[0, 1, 2]] {
             let calls = Arc::new(AtomicUsize::new(0));
             let exporter = FailingBatchExporter {
                 calls: calls.clone(),
-                failing_batch,
+                failing_batches: case,
             };
             let config = BatchConfigBuilder::default()
                 .with_max_queue_size(3)
@@ -1066,10 +1098,11 @@ mod tests {
             assert_eq!(calls.load(Ordering::Relaxed), 3);
             assert_eq!(processor.current_batch_size.load(Ordering::Relaxed), 0);
             processor.shutdown().unwrap();
+            let expected_message = format!("batch {} export failed", case[0]);
             assert!(
                 matches!(&result, Err(OTelSdkError::InternalFailure(message))
-                    if message == "batch export failed"),
-                "failure in batch {failing_batch} must not be masked: {result:?}"
+                    if message == &expected_message),
+                "first failing batch {case:?} must be reported: {result:?}"
             );
         }
     }
