@@ -89,6 +89,7 @@ pub enum AnyValue {
 macro_rules! impl_trivial_from {
     ($t:ty, $variant:path) => {
         impl From<$t> for AnyValue {
+            #[inline]
             fn from(val: $t) -> AnyValue {
                 $variant(val.into())
             }
