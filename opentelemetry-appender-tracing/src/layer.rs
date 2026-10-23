@@ -897,7 +897,7 @@ mod tests {
         );
         assert_eq!(
             log.record.trace_context().unwrap().trace_flags.unwrap(),
-            TraceFlags::SAMPLED
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
         );
 
         // validate attributes.
@@ -1125,7 +1125,7 @@ mod tests {
         );
         assert_eq!(
             log.record.trace_context().unwrap().trace_flags.unwrap(),
-            TraceFlags::SAMPLED
+            TraceFlags::SAMPLED | TraceFlags::RANDOM
         );
 
         for attribute in log.record.attributes_iter() {
