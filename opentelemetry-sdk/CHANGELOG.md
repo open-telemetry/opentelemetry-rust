@@ -2,6 +2,9 @@
 
 ## vNext
 
+- Improved metrics measurement performance by speeding up attribute set
+  lookups (faster `KeyValue` equality and boxed attribute keys).
+  ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
