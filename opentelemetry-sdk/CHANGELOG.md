@@ -5,6 +5,23 @@
 - Added `sum_if_recorded` accessors to histogram data points so exporters can
   distinguish an unrecorded sum from a recorded zero.
   ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
+- **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
+  custom generators need to add this method to their existing implementation:
+
+  ```diff
+   impl IdGenerator for MyGenerator {
+       // Existing new_trace_id and new_span_id methods.
+  +    fn is_random(&self) -> bool { false }
+   }
+  ```
+
+  Return `true` only if the right-most 7 bytes of every trace ID are generated
+  randomly or pseudo-randomly with uniform distribution.
+  `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
+  configured generator reports random trace IDs, child spans inherit it from their
+  parent, and local sampling decisions clear private propagator flags while retaining
+  `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
