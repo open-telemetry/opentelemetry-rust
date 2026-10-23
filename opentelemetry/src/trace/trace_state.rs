@@ -9,8 +9,19 @@ use thiserror::Error;
 /// Please review the [W3C specification] for details on this field.
 ///
 /// [W3C specification]: https://www.w3.org/TR/trace-context-2/#tracestate-header
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Debug, Default, Eq, PartialEq, Hash)]
 pub struct TraceState(VecDeque<(String, String)>);
+
+impl Clone for TraceState {
+    #[inline]
+    fn clone(&self) -> Self {
+        if self.0.is_empty() {
+            TraceState::NONE
+        } else {
+            self.clone_slow()
+        }
+    }
+}
 
 /// The maximum number of list-members a `TraceState` may hold.
 const MAX_LIST_MEMBERS: usize = 32;
@@ -21,6 +32,12 @@ const MAX_KEY_VALUE_LEN: usize = 256;
 impl TraceState {
     /// The default `TraceState`, as a constant
     pub const NONE: TraceState = TraceState(VecDeque::new());
+
+    #[cold]
+    #[inline(never)]
+    fn clone_slow(&self) -> Self {
+        TraceState(self.0.clone())
+    }
 
     /// Validates that the given `TraceState` list-member key is valid per the [W3 Spec].
     /// 1-256 chars, starting with ASCII lowercase letters or digits. The rest may also
