@@ -341,6 +341,13 @@ The continuous benchmark dashboard is published at
 PRs with the `performance` label will also get a benchmark comparison
 comment showing any regressions or improvements.
 
+### Fuzzing
+
+Fuzz targets live in [`fuzz/`](fuzz/README.md). The crate sits outside the
+workspace and needs a nightly toolchain and `cargo-fuzz`, for example:
+`cd fuzz && cargo +nightly fuzz run tracestate_differential`. See
+[fuzz/README.md](fuzz/README.md) for the available targets and how to add one.
+
 ## FAQ
 
 ### Where should I put third party propagators/exporters, contrib or standalone crates?
