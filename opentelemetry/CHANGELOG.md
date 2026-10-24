@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Improved performance of non-recording spans: `NoopSpan` and `BoxedSpan` no
+  longer read the system clock on `end()`
 - Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
   `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).

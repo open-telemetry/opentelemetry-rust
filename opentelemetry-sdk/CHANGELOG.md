@@ -2,6 +2,8 @@
 
 ## vNext
 
+- Improved performance of non-recording spans: `Span::end()` and dropping a
+  span no longer read the system clock when the span is not recording.
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
