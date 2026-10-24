@@ -447,3 +447,16 @@ where
         otel_error!(name: "TracerProvider.GlobalSetFailed", message = "Setting global tracer provider failed. Traces created using global::tracer() or global::tracer_with_scope() will not function. Report this issue in OpenTelemetry repo.");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::trace::{noop::NoopSpan, Span};
+
+    #[test]
+    fn boxed_span_end_delegates_to_inner_span() {
+        let mut span = BoxedSpan::new(NoopSpan::DEFAULT);
+        Span::end(&mut span);
+        assert!(!Span::is_recording(&span));
+    }
+}
