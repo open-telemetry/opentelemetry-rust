@@ -65,7 +65,7 @@ pub(crate) fn parse_propagator_names(raw: &str) -> PropagatorConfig {
 /// Parses a text map propagator configuration from an environment variable value string.
 ///
 /// If `value` is `None`, empty string, or whitespace-only, the specification default
-/// (`"tracecontext,baggage"`) is used.
+/// (`"tracecontext,baggage"`) is used. The default is also used if no supported propagators remain.
 ///
 /// If `"none"` is specified by itself (or repeated), an empty composite propagator is returned.
 /// If `"none"` is combined with other propagator entries, an internal warning is emitted,
@@ -81,9 +81,7 @@ pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapComposite
         PropagatorConfig::MixedNone(names) => {
             otel_warn!(
                 name: "TextMapPropagator.Config.InvalidCombination",
-                message = format!(
-                    "OTEL_PROPAGATORS contains 'none' combined with other propagators ('{raw}'). The 'none' propagator was skipped. Any other valid values in OTEL_PROPAGATORS will still be used."
-                ),
+                message = "OTEL_PROPAGATORS contains 'none' combined with other propagators. The 'none' propagator was skipped. Any other valid values in OTEL_PROPAGATORS will still be used.",
                 otel_propagators = raw,
             );
             names
@@ -104,13 +102,15 @@ pub(crate) fn propagator_from_env_value(value: Option<&str>) -> TextMapComposite
             _ => {
                 otel_warn!(
                     name: "TextMapPropagator.Config.UnsupportedPropagator",
-                    message = format!(
-                        "Unsupported propagator '{name}' was skipped. Any other valid values in OTEL_PROPAGATORS will still be used. Supported values are: tracecontext, baggage, none."
-                    ),
+                    message = "Unsupported propagator was skipped. Any other valid values in OTEL_PROPAGATORS will still be used. Supported values are: tracecontext, baggage, none.",
                     propagator = name.as_str(),
                 );
             }
         }
+    }
+
+    if propagators.is_empty() {
+        return propagator_from_env_value(None);
     }
 
     TextMapCompositePropagator::new(propagators)
@@ -125,11 +125,9 @@ pub(crate) fn build_propagator_from_env() -> TextMapCompositePropagator {
         Err(std::env::VarError::NotUnicode(err)) => {
             otel_warn!(
                 name: "TextMapPropagator.Config.InvalidEnvVarEncoding",
-                message = format!(
-                    "OTEL_PROPAGATORS environment variable is not valid Unicode: {:?}. Falling back to default: '{}'",
-                    err,
-                    OTEL_PROPAGATORS_DEFAULT
-                ),
+                message = "OTEL_PROPAGATORS environment variable is not valid Unicode. Falling back to the default propagators.",
+                otel_propagators = format!("{err:?}"),
+                default_propagators = OTEL_PROPAGATORS_DEFAULT,
             );
             propagator_from_env_value(None)
         }
@@ -156,6 +154,8 @@ pub(crate) fn build_propagator_from_env() -> TextMapCompositePropagator {
 /// `"none"` is skipped, and the remaining valid propagators are configured.
 ///
 /// Unrecognized or unsupported propagator names are ignored with an internal warning.
+/// If no supported propagators remain, the default `"tracecontext,baggage"` is used,
+/// unless `"none"` was specified by itself (or repeated).
 ///
 /// # Global Side Effect
 ///
@@ -321,10 +321,13 @@ mod tests {
     }
 
     #[test]
-    fn test_none_with_unknown() {
+    fn test_none_with_only_unsupported_propagators_uses_default() {
         let propagator = propagator_from_env_value(Some("none, unknown"));
         let fields = get_fields(&propagator);
-        assert!(fields.is_empty());
+        assert_eq!(
+            fields,
+            HashSet::from(["traceparent", "tracestate", "baggage"])
+        );
     }
 
     #[test]
@@ -406,10 +409,47 @@ mod tests {
     }
 
     #[test]
-    fn test_unknown_propagator_ignored() {
-        let propagator = propagator_from_env_value(Some("unknown_prop, b3, jaeger"));
-        let fields = get_fields(&propagator);
-        assert!(fields.is_empty());
+    fn test_only_unsupported_propagators_uses_default() {
+        for value in ["b3", "unknown_prop, b3, jaeger"] {
+            let propagator = propagator_from_env_value(Some(value));
+            let fields = get_fields(&propagator);
+            assert_eq!(
+                fields,
+                HashSet::from(["traceparent", "tracestate", "baggage"]),
+                "OTEL_PROPAGATORS={value:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_only_separators_uses_default() {
+        for value in [",", ",,", " , \t, "] {
+            let propagator = propagator_from_env_value(Some(value));
+            let fields = get_fields(&propagator);
+            assert_eq!(
+                fields,
+                HashSet::from(["traceparent", "tracestate", "baggage"]),
+                "OTEL_PROPAGATORS={value:?}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_invalid_unicode_env_value_uses_default() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+        temp_env::with_var(
+            OTEL_PROPAGATORS,
+            Some(OsString::from_vec(vec![0xff])),
+            || {
+                let propagator = build_propagator_from_env();
+                assert_eq!(
+                    get_fields(&propagator),
+                    HashSet::from(["traceparent", "tracestate", "baggage"])
+                );
+            },
+        );
     }
 
     #[test]
