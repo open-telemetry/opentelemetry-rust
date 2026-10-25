@@ -98,6 +98,11 @@ name = "span"
 harness = false
 
 [[bench]]
+name = "sampler"
+harness = false
+required-features = ["trace"]
+
+[[bench]]
 name = "log_processor"
 harness = false
 
