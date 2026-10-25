@@ -178,6 +178,29 @@ impl Debug for BatchLogProcessor {
     }
 }
 
+#[cfg(test)]
+struct FlushRaceTestHook {
+    enqueued_tx: std::sync::mpsc::Sender<()>,
+    release_rx: std::sync::mpsc::Receiver<()>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static FLUSH_RACE_TEST_HOOK: std::cell::RefCell<Option<FlushRaceTestHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn pause_after_enqueue_for_flush_race_test() {
+    let hook = FLUSH_RACE_TEST_HOOK.with(|hook| hook.borrow_mut().take());
+    if let Some(hook) = hook {
+        hook.enqueued_tx.send(()).expect("test receiver dropped");
+        hook.release_rx
+            .recv()
+            .expect("test did not release emitter");
+    }
+}
+
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         // Count the log record before enqueueing it so that a concurrent
@@ -192,6 +215,8 @@ impl LogProcessor for BatchLogProcessor {
         // match for result and handle each separately
         match result {
             Ok(_) => {
+                #[cfg(test)]
+                pause_after_enqueue_for_flush_race_test();
                 // Successfully sent the log record to the data channel.
                 // `processed` success is counted when the batch is submitted to
                 // the exporter (in the worker thread), not here at enqueue.
@@ -1313,6 +1338,64 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
             Ok(())
         }
+    }
+
+    #[test]
+    fn test_force_flush_includes_successfully_enqueued_log() {
+        let (enqueued_tx, enqueued_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (start_tx, start_rx) = mpsc::channel();
+
+        let exporter = InMemoryLogExporterBuilder::default().build();
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(2)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = Arc::new(BatchLogProcessor::new(exporter.clone(), config));
+        let emit_processor = Arc::clone(&processor);
+
+        let emitter = std::thread::spawn(move || {
+            start_rx.recv().expect("test did not start emitter");
+
+            super::FLUSH_RACE_TEST_HOOK.with(|hook| {
+                *hook.borrow_mut() = Some(super::FlushRaceTestHook {
+                    enqueued_tx,
+                    release_rx,
+                });
+            });
+
+            let mut record = SdkLogRecord::new();
+            emit_processor.emit(&mut record, &InstrumentationScope::default());
+        });
+
+        start_tx.send(()).expect("emitter thread stopped early");
+        let reached_hook = enqueued_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        let flush_observation = if reached_hook {
+            let flush_result = processor.force_flush();
+            let exported_count = exporter.get_emitted_logs().map(|logs| logs.len());
+            Some((flush_result, exported_count))
+        } else {
+            None
+        };
+
+        // Unblock and join the emitter before asserting test results.
+        let _ = release_tx.send(());
+        let emit_result = emitter.join();
+        let shutdown_result = processor.shutdown();
+
+        assert!(reached_hook, "emitter did not reach the post-enqueue hook");
+        let (flush_result, exported_count) =
+            flush_observation.expect("flush observation missing after reaching hook");
+        flush_result.expect("force_flush returned an error");
+        let exported_count = exported_count.expect("could not inspect exported logs");
+        emit_result.expect("emitter thread panicked");
+        shutdown_result.expect("shutdown returned an error");
+
+        assert_eq!(
+            exported_count, 1,
+            "force_flush returned before the successfully-enqueued log was exported"
+        );
     }
 
     /// Stress test that verifies all logs are accounted for.
