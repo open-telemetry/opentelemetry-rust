@@ -340,7 +340,10 @@ pub mod tonic {
             Aggregation, InMemoryMetricExporter, Instrument, SdkMeterProvider, Stream,
         };
 
-        fn exported_histogram(aggregation: Aggregation, record_sum: bool) -> TonicMetricData {
+        fn exported_histogram(
+            aggregation: Aggregation,
+            recorded_value: Option<u64>,
+        ) -> TonicMetricData {
             let exporter = InMemoryMetricExporter::default();
             let view = move |instrument: &Instrument| {
                 (instrument.name() == "updown").then(|| {
@@ -355,8 +358,8 @@ pub mod tonic {
                 .with_view(view)
                 .build();
             let meter = provider.meter("test");
-            if record_sum {
-                meter.u64_counter("updown").build().add(1, &[]);
+            if let Some(value) = recorded_value {
+                meter.u64_counter("updown").build().add(value, &[]);
             } else {
                 meter.i64_up_down_counter("updown").build().add(1, &[]);
             }
@@ -379,7 +382,7 @@ pub mod tonic {
                     boundaries: vec![0.0, 2.0],
                     record_min_max: true,
                 },
-                false,
+                None,
             );
             let TonicMetricData::Histogram(explicit) = explicit else {
                 panic!("expected explicit histogram")
@@ -392,7 +395,7 @@ pub mod tonic {
                     max_scale: 20,
                     record_min_max: true,
                 },
-                false,
+                None,
             );
             let TonicMetricData::ExponentialHistogram(exponential) = exponential else {
                 panic!("expected exponential histogram")
@@ -407,7 +410,7 @@ pub mod tonic {
                     boundaries: vec![0.0, 2.0],
                     record_min_max: true,
                 },
-                true,
+                Some(1),
             );
             let TonicMetricData::Histogram(explicit) = explicit else {
                 panic!("expected explicit histogram")
@@ -420,12 +423,42 @@ pub mod tonic {
                     max_scale: 20,
                     record_min_max: true,
                 },
-                true,
+                Some(1),
             );
             let TonicMetricData::ExponentialHistogram(exponential) = exponential else {
                 panic!("expected exponential histogram")
             };
             assert_eq!(exponential.data_points[0].sum, Some(1.0));
+        }
+
+        #[test]
+        fn otlp_keeps_recorded_zero_histogram_sums() {
+            let explicit = exported_histogram(
+                Aggregation::ExplicitBucketHistogram {
+                    boundaries: vec![0.0, 2.0],
+                    record_min_max: true,
+                },
+                Some(0),
+            );
+            let TonicMetricData::Histogram(explicit) = explicit else {
+                panic!("expected explicit histogram")
+            };
+            assert_eq!(explicit.data_points.len(), 1);
+            assert_eq!(explicit.data_points[0].sum, Some(0.0));
+
+            let exponential = exported_histogram(
+                Aggregation::Base2ExponentialHistogram {
+                    max_size: 160,
+                    max_scale: 20,
+                    record_min_max: true,
+                },
+                Some(0),
+            );
+            let TonicMetricData::ExponentialHistogram(exponential) = exponential else {
+                panic!("expected exponential histogram")
+            };
+            assert_eq!(exponential.data_points.len(), 1);
+            assert_eq!(exponential.data_points[0].sum, Some(0.0));
         }
     }
 }
