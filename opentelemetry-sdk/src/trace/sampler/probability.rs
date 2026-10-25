@@ -117,44 +117,56 @@ impl ShouldSample for ProbabilitySampler {
         _links: &[Link],
     ) -> SamplingResult {
         let parent_span = parent_context.map(|cx| cx.span());
-        let parent_sc = parent_span.as_ref().map(|s| s.span_context());
+        let parent_sc = parent_span
+            .as_ref()
+            .map(|s| s.span_context())
+            .filter(|sc| sc.is_valid() && sc.trace_id() == trace_id);
         let empty_trace_state = TraceState::default();
         let parent_trace_state = parent_sc
             .map(|sc| sc.trace_state())
             .unwrap_or(&empty_trace_state);
 
-        let existing_otts = parent_trace_state.get("ot");
-        let explicit_rv = existing_otts.and_then(tracestate_randomness);
-
-        let randomness = match explicit_rv {
-            Some(rv) => rv,
-            None => {
-                if let Some(sc) = parent_sc {
-                    if sc.is_valid()
-                        && !sc.trace_flags().is_random()
-                        && !self.warn_non_random.swap(true, Ordering::Relaxed)
-                    {
-                        otel_warn!(
-                            name: "ProbabilitySampler.PresumingRandomTraceId",
-                            message = "The ProbabilitySampler sampler is presuming TraceIDs are random and expects the Trace random flag to be set in confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2."
-                        );
-                    }
-                }
-                let bytes = trace_id.to_bytes();
-                let least_half = u64::from_be_bytes([
-                    bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14],
-                    bytes[15],
-                ]);
-                least_half & RANDOMNESS_MASK
-            }
-        };
-
-        if randomness < self.threshold {
+        if self.threshold == MAX_ADJUSTED_COUNT {
             return SamplingResult {
                 decision: SamplingDecision::Drop,
                 attributes: Vec::new(),
                 trace_state: parent_trace_state.clone(),
             };
+        }
+
+        let existing_otts = parent_trace_state.get("ot");
+
+        if self.threshold > 0 {
+            let explicit_rv = existing_otts.and_then(tracestate_randomness);
+            let randomness = match explicit_rv {
+                Some(rv) => rv,
+                None => {
+                    if let Some(sc) = parent_sc {
+                        if !sc.trace_flags().is_random()
+                            && !self.warn_non_random.swap(true, Ordering::Relaxed)
+                        {
+                            otel_warn!(
+                                name: "ProbabilitySampler.PresumingRandomTraceId",
+                                message = "The ProbabilitySampler sampler is presuming TraceIDs are random and expects the Trace random flag to be set in confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2."
+                            );
+                        }
+                    }
+                    let bytes = trace_id.to_bytes();
+                    let least_half = u64::from_be_bytes([
+                        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14],
+                        bytes[15],
+                    ]);
+                    least_half & RANDOMNESS_MASK
+                }
+            };
+
+            if randomness < self.threshold {
+                return SamplingResult {
+                    decision: SamplingDecision::Drop,
+                    attributes: Vec::new(),
+                    trace_state: parent_trace_state.clone(),
+                };
+            }
         }
 
         let new_otts =
@@ -179,6 +191,8 @@ impl ShouldSample for ProbabilitySampler {
                         insert_or_update_trace_state_th_key_value(existing_otts.unwrap_or(""), "");
                     if existing_otts == Some(without_th.as_str()) {
                         parent_trace_state.clone()
+                    } else if without_th.is_empty() {
+                        parent_trace_state.delete("ot")
                     } else {
                         parent_trace_state
                             .insert("ot", without_th)
@@ -241,9 +255,19 @@ fn calculate_threshold(probability: f64) -> (u64, String) {
     (threshold, format!("th:{tvalue}"))
 }
 
+/// Checks whether the string slice is a valid 14-character lowercase hex randomness value.
+#[inline]
+fn is_valid_rv(value: &str) -> bool {
+    value.len() == 14
+        && value
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
 /// Inserts or updates the threshold (`th`) key-value pair in the OpenTelemetry `ot` TraceState value.
 ///
 /// Existing unrelated sub-keys are preserved. An empty `th_kv` erases thresholds.
+/// Malformed `rv` sub-keys and duplicates are discarded.
 fn insert_or_update_trace_state_th_key_value(existing_otts: &str, th_kv: &str) -> String {
     let mut updated = String::with_capacity(th_kv.len() + 1 + existing_otts.len());
     updated.push_str(th_kv);
@@ -252,13 +276,17 @@ fn insert_or_update_trace_state_th_key_value(existing_otts: &str, th_kv: &str) -
         if field.starts_with("th:") {
             continue;
         }
-        if field.starts_with("rv:") {
+        if let Some(rv_val) = field.strip_prefix("rv:") {
             // Use the first rv, as the Go SDK does, and keep downstream readers
             // from choosing a different value when the input contains duplicates.
+            // Discard malformed rv sub-keys so invalid randomness is not propagated.
             if seen_rv {
                 continue;
             }
             seen_rv = true;
+            if !is_valid_rv(rv_val) {
+                continue;
+            }
         }
         if !field.is_empty() {
             if !updated.is_empty() {
@@ -277,11 +305,7 @@ fn tracestate_randomness(otts: &str) -> Option<u64> {
     let value = otts
         .split(';')
         .find_map(|field| field.strip_prefix("rv:"))?;
-    if value.len() != 14
-        || !value
-            .bytes()
-            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
-    {
+    if !is_valid_rv(value) {
         return None;
     }
     u64::from_str_radix(value, 16).ok()
@@ -568,6 +592,43 @@ mod tests {
                 "th:fedcba98765432",
                 "th:fedcba98765432;path:0;rv:0123456789abcd",
             ),
+            (
+                "discards malformed rv too short",
+                "rv:0123456789abc;foo:bar",
+                "th:8",
+                "th:8;foo:bar",
+            ),
+            (
+                "discards malformed rv too long",
+                "rv:0123456789abcdef;foo:bar",
+                "th:8",
+                "th:8;foo:bar",
+            ),
+            (
+                "discards malformed rv invalid char",
+                "rv:0123456789abcg;foo:bar",
+                "th:8",
+                "th:8;foo:bar",
+            ),
+            (
+                "discards uppercase rv",
+                "rv:0123456789ABCD;foo:bar",
+                "th:8",
+                "th:8;foo:bar",
+            ),
+            ("discards empty rv", "rv:;foo:bar", "th:8", "th:8;foo:bar"),
+            (
+                "discards malformed first rv and ignores second valid rv",
+                "rv:bad;rv:0123456789abcd;foo:bar",
+                "th:8",
+                "th:8;foo:bar",
+            ),
+            (
+                "preserves valid rv and discards duplicate",
+                "rv:0123456789abcd;rv:bad;foo:bar",
+                "th:8",
+                "th:8;rv:0123456789abcd;foo:bar",
+            ),
         ];
 
         for (name, existing, th_kv, want) in cases {
@@ -639,7 +700,7 @@ mod tests {
         let sampler = ProbabilitySampler::new(0.5);
 
         // Trace ID would Drop (R = 0), but explicit rv is above threshold
-        let trace_id = TraceId::from(0u128);
+        let trace_id = TraceId::from(1u128 << 64);
         let ts =
             TraceState::from_key_value([("ot", "rv:80000000000000"), ("vendor", "val")]).unwrap();
         let sc = SpanContext::new(trace_id, SpanId::from(1), TraceFlags::default(), false, ts);
@@ -682,15 +743,19 @@ mod tests {
         let trace_id = TraceId::from(0x0000000000000000_0080000000000000u128);
 
         let cases = [
-            "rv:0123456789abc",    // too short
-            "rv:0123456789abcdef", // too long
-            "rv:0123456789abcg",   // invalid char
-            "rv:80000000000000X",  // malformed
-            "rv:8000000000000A",   // uppercase
+            "rv:0123456789abc",         // too short
+            "rv:0123456789abcdef",      // too long
+            "rv:0123456789abcg",        // invalid char
+            "rv:80000000000000X",       // malformed
+            "rv:8000000000000A",        // uppercase
+            "rv:",                      // empty
+            "rv:bad;rv:0123456789abcd", // malformed first duplicate
         ];
 
         for malformed in cases {
-            let ts = TraceState::from_key_value([("ot", malformed)]).unwrap();
+            let ts =
+                TraceState::from_key_value([("ot", format!("{malformed};vendor:keep").as_str())])
+                    .unwrap();
             let sc = SpanContext::new(trace_id, SpanId::from(1), TraceFlags::default(), false, ts);
             let cx = Context::new().with_remote_span_context(sc);
 
@@ -701,9 +766,10 @@ mod tests {
                 SamplingDecision::RecordAndSample,
                 "malformed rv '{malformed}' should fall back to valid trace_id"
             );
-            assert!(
-                res.trace_state.get("ot").unwrap().starts_with("th:8;"),
-                "outgoing ot must prepend th:8 to malformed ot entry"
+            assert_eq!(
+                res.trace_state.get("ot"),
+                Some("th:8;vendor:keep"),
+                "outgoing ot must discard malformed rv subkey while preserving unrelated keys"
             );
         }
     }
@@ -822,6 +888,18 @@ mod tests {
             );
             assert_eq!(res.decision, SamplingDecision::RecordAndSample);
             assert_eq!(res.trace_state.get("ot"), Some("th:0"));
+
+            // Non-random parent must not trigger compatibility warning for unconditional decision
+            let trace_id = TraceId::from(1u128);
+            let ts = TraceState::from_key_value([("ot", "foo:bar"), ("vendor", "val")]).unwrap();
+            let sc = SpanContext::new(trace_id, SpanId::from(1), TraceFlags::default(), false, ts);
+            let cx = Context::new().with_remote_span_context(sc);
+            let res_parent =
+                sampler.should_sample(Some(&cx), trace_id, "test", &SpanKind::Internal, &[], &[]);
+            assert_eq!(res_parent.decision, SamplingDecision::RecordAndSample);
+            assert_eq!(res_parent.trace_state.get("ot"), Some("th:0;foo:bar"));
+            assert_eq!(res_parent.trace_state.get("vendor"), Some("val"));
+            assert!(!sampler.warn_non_random.load(Ordering::Relaxed));
         }
     }
 
@@ -841,7 +919,115 @@ mod tests {
                 &[],
             );
             assert_eq!(res.decision, SamplingDecision::Drop);
+
+            // Non-random parent must not trigger compatibility warning for unconditional decision
+            let trace_id = TraceId::from(1u128);
+            let ts = TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "val")])
+                .unwrap();
+            let sc = SpanContext::new(
+                trace_id,
+                SpanId::from(1),
+                TraceFlags::default(),
+                false,
+                ts.clone(),
+            );
+            let cx = Context::new().with_remote_span_context(sc);
+            let res_parent =
+                sampler.should_sample(Some(&cx), trace_id, "test", &SpanKind::Internal, &[], &[]);
+            assert_eq!(res_parent.decision, SamplingDecision::Drop);
+            assert_eq!(res_parent.trace_state, ts);
+            assert!(!sampler.warn_non_random.load(Ordering::Relaxed));
         }
+    }
+
+    #[test]
+    fn test_invalid_parent_context_does_not_affect_sampling_or_tracestate() {
+        let sampler = ProbabilitySampler::new(0.5);
+        let new_trace_id_drop = TraceId::from(1u128 << 64);
+        let new_trace_id_sample = TraceId::from((1u128 << 64) | 0x80000000000000);
+
+        // Invalid parent TraceID with valid rv and vendor metadata
+        let ts =
+            TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "stale")]).unwrap();
+        let invalid_sc = SpanContext::new(
+            TraceId::INVALID,
+            SpanId::from(1),
+            TraceFlags::default(),
+            false,
+            ts,
+        );
+        let invalid_cx = Context::new().with_remote_span_context(invalid_sc);
+
+        // Should drop based on new_trace_id_drop (R = 0), NOT sample based on invalid parent rv (R = max)
+        let res_drop = sampler.should_sample(
+            Some(&invalid_cx),
+            new_trace_id_drop,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(res_drop.decision, SamplingDecision::Drop);
+        assert_eq!(res_drop.trace_state, TraceState::default());
+
+        // Should sample based on new_trace_id_sample (R = 0x80000000000000), without inheriting invalid parent tracestate
+        let res_sample = sampler.should_sample(
+            Some(&invalid_cx),
+            new_trace_id_sample,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(res_sample.decision, SamplingDecision::RecordAndSample);
+        assert_eq!(res_sample.trace_state.get("ot"), Some("th:8"));
+        assert_eq!(res_sample.trace_state.get("vendor"), None);
+
+        // Valid parent with rv and matching TraceId
+        let valid_sc = SpanContext::new(
+            new_trace_id_drop,
+            SpanId::from(1),
+            TraceFlags::default(),
+            false,
+            TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "valid")]).unwrap(),
+        );
+        let valid_cx = Context::new().with_remote_span_context(valid_sc);
+        let res_valid = sampler.should_sample(
+            Some(&valid_cx),
+            new_trace_id_drop,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(res_valid.decision, SamplingDecision::RecordAndSample);
+        assert_eq!(
+            res_valid.trace_state.get("ot"),
+            Some("th:8;rv:ffffffffffffff")
+        );
+        assert_eq!(res_valid.trace_state.get("vendor"), Some("valid"));
+
+        // Valid parent with different TraceId
+        let other_trace_id = TraceId::from(2u128 << 64);
+        let valid_other_sc = SpanContext::new(
+            other_trace_id,
+            SpanId::from(1),
+            TraceFlags::default(),
+            false,
+            TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "other")]).unwrap(),
+        );
+        let valid_other_cx = Context::new().with_remote_span_context(valid_other_sc);
+        let res_diff_trace = sampler.should_sample(
+            Some(&valid_other_cx),
+            new_trace_id_drop,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        // Does not inherit rv from a different trace
+        assert_eq!(res_diff_trace.decision, SamplingDecision::Drop);
+        assert_eq!(res_diff_trace.trace_state, TraceState::default());
     }
 
     #[test]

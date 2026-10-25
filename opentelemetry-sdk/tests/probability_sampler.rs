@@ -122,3 +122,41 @@ fn legacy_parent_based_discards_delegate_tracestate() {
     assert!(span.span_context().is_sampled());
     assert_eq!(span.span_context().trace_state().get("ot"), None);
 }
+
+#[test]
+fn invalid_parent_context_does_not_propagate_stale_randomness_or_tracestate() {
+    let invalid_parent = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::INVALID,
+        SpanId::from(1),
+        TraceFlags::default(),
+        true,
+        TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "stale")]).unwrap(),
+    ));
+
+    // When newly generated trace id has randomness < threshold: drops and discards invalid parent tracestate
+    let drop_provider = SdkTracerProvider::builder()
+        .with_id_generator(FixedIdGenerator(TraceId::from(1u128 << 64)))
+        .with_sampler(ProbabilitySampler::new(0.5))
+        .build();
+    let drop_tracer = drop_provider.tracer("probability-test");
+    let drop_span = drop_tracer.start_with_context("new-root-drop", &invalid_parent);
+    assert!(!drop_span.span_context().is_sampled());
+    assert_eq!(drop_span.span_context().trace_state().get("ot"), None);
+    assert_eq!(drop_span.span_context().trace_state().get("vendor"), None);
+
+    // When newly generated trace id has randomness >= threshold: samples and starts with clean tracestate
+    let sample_provider = SdkTracerProvider::builder()
+        .with_id_generator(FixedIdGenerator(TraceId::from(
+            (1u128 << 64) | 0x80000000000000,
+        )))
+        .with_sampler(ProbabilitySampler::new(0.5))
+        .build();
+    let sample_tracer = sample_provider.tracer("probability-test");
+    let sample_span = sample_tracer.start_with_context("new-root-sample", &invalid_parent);
+    assert!(sample_span.span_context().is_sampled());
+    assert_eq!(
+        sample_span.span_context().trace_state().get("ot"),
+        Some("th:8")
+    );
+    assert_eq!(sample_span.span_context().trace_state().get("vendor"), None);
+}
