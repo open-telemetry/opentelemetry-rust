@@ -183,7 +183,7 @@ impl ShouldSample for ProbabilitySampler {
                     if !self.warn_tracestate.swap(true, Ordering::Relaxed) {
                         otel_warn!(
                             name: "ProbabilitySampler.TracestateCombineFailed",
-                            message = "Could not combine tracestate",
+                            message = "The sampling threshold could not be propagated because the updated 'ot' TraceState value exceeds the value length limit. Any previous threshold has been removed. Shorten the 'ot' value to allow the sampling threshold to be propagated.",
                             error = format!("{err}")
                         );
                     }
