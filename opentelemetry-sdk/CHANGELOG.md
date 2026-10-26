@@ -29,9 +29,10 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
-- Added `ProbabilitySampler` implementing the OpenTelemetry Consistent Probability
-  Sampling specification. It evaluates 56-bit rejection thresholds against randomness
-  derived from parent `ot=rv:...` TraceState or the least significant 56 bits of the
+- Added `ProbabilitySampler` behind the `otel_unstable` feature, implementing the
+  OpenTelemetry Consistent Probability Sampling specification. It evaluates 56-bit
+  rejection thresholds against randomness derived from input `ot=rv:...` TraceState
+  (including root spans) or the least significant 56 bits of the
   TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
   a standalone sampler or as a delegate within `ParentBasedSampler`
   (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).

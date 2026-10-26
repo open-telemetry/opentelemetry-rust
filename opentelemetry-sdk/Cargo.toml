@@ -57,6 +57,7 @@ experimental_async_runtime = ["dep:futures-channel", "dep:futures-executor", "de
 rt-tokio = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 rt-tokio-current-thread = ["tokio/rt", "tokio/time", "tokio-stream", "experimental_async_runtime"]
 internal-logs = ["opentelemetry/internal-logs"]
+otel_unstable = ["trace"]
 experimental_metrics_periodicreader_with_async_runtime = ["metrics", "experimental_async_runtime"]
 spec_unstable_metrics_views = ["metrics"]
 experimental_metrics_custom_reader = ["metrics"]
@@ -100,7 +101,7 @@ harness = false
 [[bench]]
 name = "sampler"
 harness = false
-required-features = ["trace"]
+required-features = ["otel_unstable"]
 
 [[bench]]
 name = "log_processor"

@@ -1,4 +1,4 @@
-#![cfg(feature = "trace")]
+#![cfg(feature = "otel_unstable")]
 
 use opentelemetry::{
     trace::{

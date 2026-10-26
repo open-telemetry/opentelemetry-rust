@@ -5,8 +5,10 @@ use opentelemetry::{
 
 #[cfg(feature = "jaeger_remote_sampler")]
 mod jaeger_remote;
+#[cfg(feature = "otel_unstable")]
 mod probability;
 
+#[cfg(feature = "otel_unstable")]
 pub use probability::ProbabilitySampler;
 
 /// The result of sampling logic for a given span.

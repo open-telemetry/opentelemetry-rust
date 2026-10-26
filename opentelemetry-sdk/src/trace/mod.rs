@@ -36,9 +36,10 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
-pub use sampler::{
-    ParentBasedSampler, ProbabilitySampler, Sampler, SamplingDecision, SamplingResult, ShouldSample,
-};
+#[cfg(feature = "otel_unstable")]
+#[cfg_attr(docsrs, doc(cfg(feature = "otel_unstable")))]
+pub use sampler::ProbabilitySampler;
+pub use sampler::{ParentBasedSampler, Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::Span;
 pub use span_limit::SpanLimits;
 pub use span_processor::{

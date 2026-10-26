@@ -55,6 +55,7 @@ const PROBABILITY_ZERO_THRESHOLD: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
 ///
 /// This sampler implements the OpenTelemetry Consistent Probability Sampling specification,
 /// currently in [Development](https://opentelemetry.io/docs/specs/otel/trace/tracestate-probability-sampling/).
+/// Enable the `otel_unstable` feature to use it.
 ///
 /// # Examples
 ///
