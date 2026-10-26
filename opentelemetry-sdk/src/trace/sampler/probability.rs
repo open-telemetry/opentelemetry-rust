@@ -26,14 +26,14 @@ const PROBABILITY_ZERO_THRESHOLD: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
 /// 1. A 56-bit rejection threshold $T$ is calculated from the configured sampling probability $p$
 ///    using adaptive precision encoding: $T = 2^{56} \times (1 - p)$.
 /// 2. For each span, a 56-bit randomness value $R$ is determined:
-///    - If a valid explicit randomness value `rv` is present in the parent's OpenTelemetry
+///    - If a valid explicit randomness value `rv` is present in the input OpenTelemetry
 ///      [`TraceState`] (`ot` key), it is parsed and used.
 ///    - Otherwise, randomness is extracted from the least significant 56 bits (7 bytes) of the [`TraceId`].
 /// 3. The decision rule evaluates $R \ge T$:
 ///    - If $R \ge T$, the span is sampled ([`SamplingDecision::RecordAndSample`]), and the outgoing
 ///      [`TraceState`] is updated to include the sampling threshold `th` under the `ot` key.
 ///      If that would exceed the value length limit, any old threshold is erased.
-///    - If $R < T$, the span is dropped ([`SamplingDecision::Drop`]), leaving the parent's [`TraceState`] unmodified.
+///    - If $R < T$, the span is dropped ([`SamplingDecision::Drop`]), leaving the input [`TraceState`] unmodified.
 ///
 /// ### Standalone vs. Parent-Based Sampling
 ///
@@ -117,10 +117,11 @@ impl ShouldSample for ProbabilitySampler {
         _links: &[Link],
     ) -> SamplingResult {
         let parent_span = parent_context.map(|cx| cx.span());
+        // Root contexts can carry user-provided TraceState even without valid span IDs.
         let parent_sc = parent_span
             .as_ref()
             .map(|s| s.span_context())
-            .filter(|sc| sc.is_valid() && sc.trace_id() == trace_id);
+            .filter(|sc| !sc.is_valid() || sc.trace_id() == trace_id);
         let empty_trace_state = TraceState::default();
         let parent_trace_state = parent_sc
             .map(|sc| sc.trace_state())
@@ -142,7 +143,8 @@ impl ShouldSample for ProbabilitySampler {
                 Some(rv) => rv,
                 None => {
                     if let Some(sc) = parent_sc {
-                        if !sc.trace_flags().is_random()
+                        if sc.is_valid()
+                            && !sc.trace_flags().is_random()
                             && !self.warn_non_random.swap(true, Ordering::Relaxed)
                         {
                             otel_warn!(
@@ -941,71 +943,72 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_parent_context_does_not_affect_sampling_or_tracestate() {
+    fn root_context_preserves_tracestate_and_explicit_randomness() {
+        for (parent_trace_id, parent_span_id) in [
+            (TraceId::INVALID, SpanId::from(1)),
+            (TraceId::from(1), SpanId::INVALID),
+        ] {
+            for (probability, trace_id, rv, decision, expected_ot) in [
+                (
+                    0.5,
+                    1u128 << 64,
+                    "80000000000000",
+                    SamplingDecision::RecordAndSample,
+                    "th:8;rv:80000000000000;foo:bar",
+                ),
+                (
+                    0.5,
+                    0x80000000000000,
+                    "00000000000000",
+                    SamplingDecision::Drop,
+                    "th:0;rv:00000000000000;foo:bar",
+                ),
+                (
+                    0.0,
+                    1u128 << 64,
+                    "80000000000000",
+                    SamplingDecision::Drop,
+                    "th:0;rv:80000000000000;foo:bar",
+                ),
+                (
+                    1.0,
+                    1u128 << 64,
+                    "00000000000000",
+                    SamplingDecision::RecordAndSample,
+                    "th:0;rv:00000000000000;foo:bar",
+                ),
+            ] {
+                let sampler = ProbabilitySampler::new(probability);
+                let ot = format!("th:0;rv:{rv};foo:bar");
+                let state =
+                    TraceState::from_key_value([("ot", ot.as_str()), ("vendor", "value")]).unwrap();
+                let cx = Context::new().with_remote_span_context(SpanContext::new(
+                    parent_trace_id,
+                    parent_span_id,
+                    TraceFlags::default(),
+                    false,
+                    state,
+                ));
+                let result = sampler.should_sample(
+                    Some(&cx),
+                    TraceId::from(trace_id),
+                    "root",
+                    &SpanKind::Internal,
+                    &[],
+                    &[],
+                );
+                assert_eq!(result.decision, decision);
+                assert_eq!(result.trace_state.get("ot"), Some(expected_ot));
+                assert_eq!(result.trace_state.get("vendor"), Some("value"));
+                assert!(!sampler.warn_non_random.load(Ordering::Relaxed));
+            }
+        }
+    }
+
+    #[test]
+    fn parent_from_another_trace_does_not_affect_sampling_or_tracestate() {
         let sampler = ProbabilitySampler::new(0.5);
         let new_trace_id_drop = TraceId::from(1u128 << 64);
-        let new_trace_id_sample = TraceId::from((1u128 << 64) | 0x80000000000000);
-
-        // Invalid parent TraceID with valid rv and vendor metadata
-        let ts =
-            TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "stale")]).unwrap();
-        let invalid_sc = SpanContext::new(
-            TraceId::INVALID,
-            SpanId::from(1),
-            TraceFlags::default(),
-            false,
-            ts,
-        );
-        let invalid_cx = Context::new().with_remote_span_context(invalid_sc);
-
-        // Should drop based on new_trace_id_drop (R = 0), NOT sample based on invalid parent rv (R = max)
-        let res_drop = sampler.should_sample(
-            Some(&invalid_cx),
-            new_trace_id_drop,
-            "test",
-            &SpanKind::Internal,
-            &[],
-            &[],
-        );
-        assert_eq!(res_drop.decision, SamplingDecision::Drop);
-        assert_eq!(res_drop.trace_state, TraceState::default());
-
-        // Should sample based on new_trace_id_sample (R = 0x80000000000000), without inheriting invalid parent tracestate
-        let res_sample = sampler.should_sample(
-            Some(&invalid_cx),
-            new_trace_id_sample,
-            "test",
-            &SpanKind::Internal,
-            &[],
-            &[],
-        );
-        assert_eq!(res_sample.decision, SamplingDecision::RecordAndSample);
-        assert_eq!(res_sample.trace_state.get("ot"), Some("th:8"));
-        assert_eq!(res_sample.trace_state.get("vendor"), None);
-
-        // Valid parent with rv and matching TraceId
-        let valid_sc = SpanContext::new(
-            new_trace_id_drop,
-            SpanId::from(1),
-            TraceFlags::default(),
-            false,
-            TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "valid")]).unwrap(),
-        );
-        let valid_cx = Context::new().with_remote_span_context(valid_sc);
-        let res_valid = sampler.should_sample(
-            Some(&valid_cx),
-            new_trace_id_drop,
-            "test",
-            &SpanKind::Internal,
-            &[],
-            &[],
-        );
-        assert_eq!(res_valid.decision, SamplingDecision::RecordAndSample);
-        assert_eq!(
-            res_valid.trace_state.get("ot"),
-            Some("th:8;rv:ffffffffffffff")
-        );
-        assert_eq!(res_valid.trace_state.get("vendor"), Some("valid"));
 
         // Valid parent with different TraceId
         let other_trace_id = TraceId::from(2u128 << 64);

@@ -124,39 +124,43 @@ fn legacy_parent_based_discards_delegate_tracestate() {
 }
 
 #[test]
-fn invalid_parent_context_does_not_propagate_stale_randomness_or_tracestate() {
-    let invalid_parent = Context::new().with_remote_span_context(SpanContext::new(
-        TraceId::INVALID,
-        SpanId::from(1),
-        TraceFlags::default(),
-        true,
-        TraceState::from_key_value([("ot", "rv:ffffffffffffff"), ("vendor", "stale")]).unwrap(),
-    ));
-
-    // When newly generated trace id has randomness < threshold: drops and discards invalid parent tracestate
-    let drop_provider = SdkTracerProvider::builder()
-        .with_id_generator(FixedIdGenerator(TraceId::from(1u128 << 64)))
-        .with_sampler(ProbabilitySampler::new(0.5))
-        .build();
-    let drop_tracer = drop_provider.tracer("probability-test");
-    let drop_span = drop_tracer.start_with_context("new-root-drop", &invalid_parent);
-    assert!(!drop_span.span_context().is_sampled());
-    assert_eq!(drop_span.span_context().trace_state().get("ot"), None);
-    assert_eq!(drop_span.span_context().trace_state().get("vendor"), None);
-
-    // When newly generated trace id has randomness >= threshold: samples and starts with clean tracestate
-    let sample_provider = SdkTracerProvider::builder()
-        .with_id_generator(FixedIdGenerator(TraceId::from(
-            (1u128 << 64) | 0x80000000000000,
-        )))
-        .with_sampler(ProbabilitySampler::new(0.5))
-        .build();
-    let sample_tracer = sample_provider.tracer("probability-test");
-    let sample_span = sample_tracer.start_with_context("new-root-sample", &invalid_parent);
-    assert!(sample_span.span_context().is_sampled());
-    assert_eq!(
-        sample_span.span_context().trace_state().get("ot"),
-        Some("th:8")
-    );
-    assert_eq!(sample_span.span_context().trace_state().get("vendor"), None);
+fn root_context_explicit_randomness_overrides_generated_trace_id() {
+    for parent_based in [false, true] {
+        for (randomness, rv, sampled) in [
+            (1u128 << 64, "80000000000000", true),
+            (0x80000000000000, "00000000000000", false),
+        ] {
+            let ot = format!("rv:{rv};foo:bar");
+            let state =
+                TraceState::from_key_value([("ot", ot.as_str()), ("vendor", "value")]).unwrap();
+            let cx = Context::new().with_remote_span_context(SpanContext::new(
+                TraceId::INVALID,
+                SpanId::INVALID,
+                TraceFlags::default(),
+                false,
+                state.clone(),
+            ));
+            let sampler = ProbabilitySampler::new(0.5);
+            let sampler: Box<dyn opentelemetry_sdk::trace::ShouldSample> = if parent_based {
+                Box::new(ParentBasedSampler::new(sampler))
+            } else {
+                Box::new(sampler)
+            };
+            let provider = SdkTracerProvider::builder()
+                .with_id_generator(FixedIdGenerator(TraceId::from(randomness)))
+                .with_sampler(sampler)
+                .build();
+            let span = provider
+                .tracer("probability-test")
+                .start_with_context("root", &cx);
+            assert_eq!(span.span_context().trace_id(), TraceId::from(randomness));
+            assert_eq!(span.span_context().is_sampled(), sampled);
+            let expected = if sampled {
+                state.insert("ot", format!("th:8;{ot}")).unwrap()
+            } else {
+                state
+            };
+            assert_eq!(span.span_context().trace_state(), &expected);
+        }
+    }
 }
