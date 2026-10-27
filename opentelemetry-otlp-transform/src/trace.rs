@@ -5,7 +5,7 @@ use opentelemetry_sdk::{trace::SpanData, Resource};
 pub fn export_request(spans: Vec<SpanData>, resource: &Resource) -> ExportTraceServiceRequest {
     let resource = crate::common::tonic::resource_to_attributes_with_schema(resource);
     ExportTraceServiceRequest {
-        resource_spans: tonic::group_spans_by_resource_and_scope(spans, &resource),
+        resource_spans: tonic::group_spans_by_resource_and_scope(spans, resource),
     }
 }
 
@@ -118,7 +118,7 @@ pub(crate) mod tonic {
 
     pub(crate) fn group_spans_by_resource_and_scope(
         spans: Vec<SpanData>,
-        resource: &ResourceAttributesWithSchema,
+        resource: ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
         // Group spans by their instrumentation scope, converting each span as it
         // is consumed. The batch is owned, so spans are moved rather than cloned.
@@ -152,12 +152,12 @@ pub(crate) mod tonic {
         // Wrap ScopeSpans into a single ResourceSpans
         vec![ResourceSpans {
             resource: Some(Resource {
-                attributes: resource.attributes.clone(),
+                attributes: resource.attributes,
                 dropped_attributes_count: 0,
                 entity_refs: vec![],
             }),
             scope_spans,
-            schema_url: resource.schema_url.clone().unwrap_or_default(),
+            schema_url: resource.schema_url.unwrap_or_default(),
         }]
     }
 }

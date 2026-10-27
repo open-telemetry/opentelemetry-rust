@@ -48,7 +48,7 @@ pub(crate) mod tonic {
     use std::borrow::Cow;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
-    #[derive(Debug, Default)]
+    #[derive(Clone, Debug, Default)]
     pub(crate) struct ResourceAttributesWithSchema {
         pub(crate) attributes: Vec<KeyValue>,
         pub(crate) schema_url: Option<String>,
@@ -131,11 +131,14 @@ pub(crate) mod tonic {
 
     #[cfg(any(feature = "trace", feature = "logs"))]
     pub(crate) fn resource_attributes(resource: &Resource) -> Vec<KeyValue> {
-        keyvalues_to_proto(
-            resource
-                .iter()
-                .map(|(k, v)| opentelemetry::KeyValue::new(k.clone(), v.clone())),
-        )
+        resource
+            .iter()
+            .map(|(key, value)| KeyValue {
+                key: key.as_str().to_owned(),
+                value: Some(value_to_any_value(value.clone())),
+                key_strindex: 0,
+            })
+            .collect()
     }
 
     #[cfg(test)]

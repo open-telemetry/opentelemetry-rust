@@ -4,8 +4,7 @@
 //! SDK-to-OTLP request conversions are provided by the stable
 //! `opentelemetry-otlp-transform` crate.
 //!
-//! Based on the build tool needed, users can choose to generate files using [tonic](https://github.com/hyperium/tonic)
-//! or [grpcio](https://github.com/tikv/grpc-rs).
+//! The generated gRPC client and server bindings use [tonic](https://github.com/hyperium/tonic).
 //!
 //!
 //! # Feature flags

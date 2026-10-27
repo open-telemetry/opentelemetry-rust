@@ -5,7 +5,7 @@ use opentelemetry_sdk::{logs::LogBatch, Resource};
 pub fn export_request<'a>(logs: &'a LogBatch<'a>, resource: &Resource) -> ExportLogsServiceRequest {
     let resource = crate::common::tonic::resource_to_attributes_with_schema(resource);
     ExportLogsServiceRequest {
-        resource_logs: tonic::group_logs_by_resource_and_scope(logs, &resource),
+        resource_logs: tonic::group_logs_by_resource_and_scope(logs, resource),
     }
 }
 
@@ -132,7 +132,7 @@ pub(crate) mod tonic {
 
     pub(crate) fn group_logs_by_resource_and_scope<'a>(
         logs: &'a LogBatch<'a>,
-        resource: &ResourceAttributesWithSchema,
+        resource: ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group by the exported scope: target overrides only the name.
         let scope_map = logs.iter().fold(
@@ -176,12 +176,12 @@ pub(crate) mod tonic {
 
         vec![ResourceLogs {
             resource: Some(Resource {
-                attributes: resource.attributes.clone(),
+                attributes: resource.attributes,
                 dropped_attributes_count: 0,
                 entity_refs: vec![],
             }),
             scope_logs,
-            schema_url: resource.schema_url.clone().unwrap_or_default(),
+            schema_url: resource.schema_url.unwrap_or_default(),
         }]
     }
 }
@@ -316,7 +316,7 @@ mod tests {
         let batch = LogBatch::new(&logs);
         let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(
             &batch,
-            &ResourceAttributesWithSchema::default(),
+            ResourceAttributesWithSchema::default(),
         );
 
         // Target still supplies the exported scope name. Version distinguishes groups.
@@ -396,7 +396,8 @@ mod tests {
             let logs = [(&first, &first_scope), (&second, &second_scope)];
             let batch = LogBatch::new(&logs);
             let resource = ResourceAttributesWithSchema::default();
-            let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+            let grouped =
+                crate::logs::tonic::group_logs_by_resource_and_scope(&batch, resource.clone());
             assert_eq!(
                 grouped[0].scope_logs.len(),
                 expected_groups,
@@ -406,8 +407,10 @@ mod tests {
             for (record, scope) in logs {
                 let single_log = [(record, scope)];
                 let single_batch = LogBatch::new(&single_log);
-                let single =
-                    crate::logs::tonic::group_logs_by_resource_and_scope(&single_batch, &resource);
+                let single = crate::logs::tonic::group_logs_by_resource_and_scope(
+                    &single_batch,
+                    resource.clone(),
+                );
                 let expected = &single[0].scope_logs[0];
                 let actual = grouped[0]
                     .scope_logs
@@ -434,7 +437,7 @@ mod tests {
         let batch = LogBatch::new(&logs);
         let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(
             &batch,
-            &ResourceAttributesWithSchema::default(),
+            ResourceAttributesWithSchema::default(),
         );
 
         // Typical appender logs with the same target should remain one group.
@@ -457,7 +460,7 @@ mod tests {
         };
         let logs = [(&record, &scope)];
         let batch = LogBatch::new(&logs);
-        let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+        let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(&batch, resource);
 
         assert_eq!(grouped[0].schema_url, "https://resource.example/schema");
         let group = &grouped[0].scope_logs[0];
