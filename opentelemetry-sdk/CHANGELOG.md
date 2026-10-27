@@ -22,6 +22,8 @@
 - Improved performance of non-recording spans: calling `Span::end()` no longer
   reads the system clock when the span is not recording.
   ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
+- Fixed `TraceContextPropagator` to reject `traceparent` headers that do not
+  conform to [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/#traceparent-header)
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))

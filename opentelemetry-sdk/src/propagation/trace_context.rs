@@ -10,8 +10,16 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 const SUPPORTED_VERSION: u8 = 0;
-const MAX_VERSION: u8 = 254;
+const INVALID_VERSION: u8 = 0xff;
 const TRACEPARENT_HEADER: &str = "traceparent";
+// Length of a version 00 `traceparent`: `vv-<32 hex>-<16 hex>-ff`. Higher versions
+// share this prefix and may only append fields after another `-`.
+const TRACEPARENT_LEN: usize = 55;
+const VERSION_RANGE: std::ops::Range<usize> = 0..2;
+const TRACE_ID_RANGE: std::ops::Range<usize> = 3..35;
+const SPAN_ID_RANGE: std::ops::Range<usize> = 36..52;
+const TRACE_FLAGS_RANGE: std::ops::Range<usize> = 53..55;
+const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 const TRACESTATE_HEADER: &str = "tracestate";
 
 // TODO Replace this with LazyLock once it is stable.
@@ -63,43 +71,44 @@ impl TraceContextPropagator {
     }
 
     /// Extract span context from w3c trace-context header.
+    ///
+    /// Parsing follows <https://www.w3.org/TR/trace-context-2/#traceparent-header>,
+    /// including the rules for parsing higher versions.
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
-        let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
-        // Ensure parts are not out of range.
-        if parts.len() < 4 {
+        // A request carrying several traceparent fields is ambiguous, so restart the trace.
+        let header_value = match extractor.get_all(TRACEPARENT_HEADER).as_deref() {
+            Some([value]) => *value,
+            _ => return Err(()),
+        };
+        let header = header_value
+            .trim_matches(|c| c == ' ' || c == '\t')
+            .as_bytes();
+
+        // Every version starts with the same fixed width, dash separated fields.
+        if header.len() < TRACEPARENT_LEN
+            || header[VERSION_RANGE.end] != b'-'
+            || header[TRACE_ID_RANGE.end] != b'-'
+            || header[SPAN_ID_RANGE.end] != b'-'
+        {
             return Err(());
         }
 
-        // Ensure version is within range, for version 0 there must be 4 parts.
-        let version = u8::from_str_radix(parts[0], 16).map_err(|_| ())?;
-        if version > MAX_VERSION || version == 0 && parts.len() != 4 {
+        let version = decode_lower_hex(&header[VERSION_RANGE]).ok_or(())? as u8;
+        if version == INVALID_VERSION {
             return Err(());
         }
 
-        // Ensure trace id is lowercase
-        if parts[1].chars().any(|c| c.is_ascii_uppercase()) {
+        // Version 00 has exactly four fields, higher versions may only append
+        // fields after another dash.
+        if header.len() > TRACEPARENT_LEN
+            && (version == SUPPORTED_VERSION || header[TRACEPARENT_LEN] != b'-')
+        {
             return Err(());
         }
 
-        // Parse trace id section
-        let trace_id = TraceId::from_hex(parts[1]).map_err(|_| ())?;
-
-        // Ensure span id is lowercase
-        if parts[2].chars().any(|c| c.is_ascii_uppercase()) {
-            return Err(());
-        }
-
-        // Parse span id section
-        let span_id = SpanId::from_hex(parts[2]).map_err(|_| ())?;
-
-        // Ensure trace flags are lowercase
-        if parts[3].chars().any(|c| c.is_ascii_uppercase()) {
-            return Err(());
-        }
-
-        // Parse trace flags section
-        let opts = u8::from_str_radix(parts[3], 16).map_err(|_| ())?;
+        let trace_id = TraceId::from(decode_lower_hex(&header[TRACE_ID_RANGE]).ok_or(())?);
+        let span_id = SpanId::from(decode_lower_hex(&header[SPAN_ID_RANGE]).ok_or(())? as u64);
+        let opts = decode_lower_hex(&header[TRACE_FLAGS_RANGE]).ok_or(())? as u8;
 
         // Build trace flags clearing all flags other than the trace-context
         // defined sampled and random-trace-id bits. Unknown flags are accepted
@@ -137,13 +146,16 @@ impl TextMapPropagator for TraceContextPropagator {
         let span = cx.span();
         let span_context = span.span_context();
         if span_context.is_valid() {
-            let header_value = format!(
-                "{:02x}-{}-{}-{:02x}",
-                SUPPORTED_VERSION,
-                span_context.trace_id(),
-                span_context.span_id(),
-                span_context.trace_flags() & (TraceFlags::SAMPLED | TraceFlags::RANDOM)
-            );
+            let trace_flags =
+                span_context.trace_flags() & (TraceFlags::SAMPLED | TraceFlags::RANDOM);
+            let mut header_value = String::with_capacity(TRACEPARENT_LEN);
+            push_lower_hex(&mut header_value, &[SUPPORTED_VERSION]);
+            header_value.push('-');
+            push_lower_hex(&mut header_value, &span_context.trace_id().to_bytes());
+            header_value.push('-');
+            push_lower_hex(&mut header_value, &span_context.span_id().to_bytes());
+            header_value.push('-');
+            push_lower_hex(&mut header_value, &[trace_flags.to_u8()]);
             injector.set(TRACEPARENT_HEADER, header_value);
 
             // Avoid sending empty tracestate headers.
@@ -169,6 +181,28 @@ impl TextMapPropagator for TraceContextPropagator {
     }
 }
 
+/// Decodes lowercase hex digits (`0-9a-f`), returning `None` on any other byte.
+///
+/// Callers pass at most 32 digits, so the result cannot overflow.
+fn decode_lower_hex(bytes: &[u8]) -> Option<u128> {
+    bytes.iter().try_fold(0u128, |acc, &b| {
+        let nibble = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            _ => return None,
+        };
+        Some(acc << 4 | u128::from(nibble))
+    })
+}
+
+/// Appends `bytes` to `out` as lowercase hex, two digits per byte.
+fn push_lower_hex(out: &mut String, bytes: &[u8]) {
+    for &b in bytes {
+        out.push(HEX_DIGITS[usize::from(b >> 4)] as char);
+        out.push(HEX_DIGITS[usize::from(b & 0x0f)] as char);
+    }
+}
+
 #[cfg(all(test, feature = "testing", feature = "trace"))]
 mod tests {
     use super::*;
@@ -189,8 +223,10 @@ mod tests {
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-08", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::default(), true, TraceState::from_str("foo=bar").unwrap())),
             ("02-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-XYZxsf09", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
-            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
             ("01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-09-", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            ("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            ("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-what-the-future-will-be-like", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
+            (" \t00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\t ", "foo=bar", SpanContext::new(TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736), SpanId::from(0x00f0_67aa_0ba9_02b7), TraceFlags::SAMPLED, true, TraceState::from_str("foo=bar").unwrap())),
         ]
     }
 
@@ -212,6 +248,27 @@ mod tests {
             ("00-00000000000000000000000000000000-0000000000000000-01",   "zero trace ID and span ID"),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",      "missing options"),
             ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-",     "empty options"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-",  "version 00 with trailing dash"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-what-the-future-will-be-like", "version 00 with extra fields"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01.",  "version 00 with trailing data"),
+            ("0000-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "version too long with valid ids"),
+            ("0-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",    "version too short"),
+            ("ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",   "forbidden version ff"),
+            ("+0-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",   "signed version"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e473-600f067aa0ba902b7-01",   "short trace ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b-701",   "short span ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1",    "short trace flags"),
+            ("00-+bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",   "signed trace ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-+0f067aa0ba902b7-01",   "signed span ID"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-+1",   "signed trace flags"),
+            ("00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01",   "zero span ID"),
+            ("00-00000000000000000000000000000000-00f067aa0ba902b7-01",   "zero trace ID"),
+            ("00_4bf92f3577b34da6a3ce929d0e0e4736_00f067aa0ba902b7_01",   "wrong delimiter"),
+            ("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01.what-the-future-will-be-like", "future version without dash after flags"),
+            ("cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0",    "future version too short"),
+            ("\n00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01\n", "non-OWS whitespace"),
+            ("\u{a0}00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", "non-breaking space"),
+            ("",                                                          "empty header"),
         ]
     }
 
@@ -365,6 +422,21 @@ mod tests {
         let span = cx.span();
         assert!(span.span_context().is_valid());
         assert_eq!(span.span_context().trace_state(), &TraceState::default());
+    }
+
+    #[test]
+    fn extract_w3c_rejects_duplicate_traceparent() {
+        let propagator = TraceContextPropagator::new();
+        let header = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_string();
+        let extractor = MultiValueExtractor(HashMap::from([
+            (TRACEPARENT_HEADER.to_string(), vec![header.clone(), header]),
+            (TRACESTATE_HEADER.to_string(), vec!["foo=bar".to_string()]),
+        ]));
+
+        assert_eq!(
+            propagator.extract(&extractor).span().span_context(),
+            &SpanContext::empty_context()
+        );
     }
 
     #[test]
