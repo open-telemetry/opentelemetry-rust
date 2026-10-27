@@ -1,7 +1,7 @@
 use crate::trace::{SamplingDecision, SamplingResult, ShouldSample};
 use opentelemetry::{
     otel_warn,
-    trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
+    trace::{Link, SpanContext, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -105,6 +105,62 @@ impl ProbabilitySampler {
             warn_non_random: Arc::new(AtomicBool::new(false)),
         }
     }
+
+    fn randomness(
+        &self,
+        parent_sc: Option<&SpanContext>,
+        trace_id: TraceId,
+        ot_trace_state: &OtTraceState<'_>,
+    ) -> u64 {
+        if let Some(rv) = ot_trace_state.randomness() {
+            return rv;
+        }
+        if parent_sc.is_some_and(|sc| sc.is_valid() && !sc.trace_flags().is_random())
+            && !self.warn_non_random.swap(true, Ordering::Relaxed)
+        {
+            otel_warn!(
+                name: "ProbabilitySampler.PresumingRandomTraceId",
+                message = "The ProbabilitySampler sampler is presuming TraceIDs are random and expects the Trace random flag to be set in confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2."
+            );
+        }
+        let trace_id = u128::from_be_bytes(trace_id.to_bytes());
+        (trace_id & u128::from(RANDOMNESS_MASK)) as u64
+    }
+
+    fn sampled_trace_state(
+        &self,
+        parent_trace_state: &TraceState,
+        ot_trace_state: &OtTraceState<'_>,
+    ) -> TraceState {
+        let new_otts = ot_trace_state.with_threshold(&self.th_kv);
+        if ot_trace_state.value == Some(new_otts.as_str()) {
+            return parent_trace_state.clone();
+        }
+        match parent_trace_state.insert("ot", new_otts) {
+            Ok(combined) => combined,
+            Err(err) => {
+                if !self.warn_tracestate.swap(true, Ordering::Relaxed) {
+                    otel_warn!(
+                        name: "ProbabilitySampler.TracestateCombineFailed",
+                        message = "The sampling threshold could not be propagated because the updated 'ot' TraceState value exceeds the value length limit. Any previous threshold has been removed. Shorten the 'ot' value to allow the sampling threshold to be propagated.",
+                        error = format!("{err}")
+                    );
+                }
+                // The parent's threshold no longer describes this decision. Keep its
+                // randomness and other concerns, but erase stale probability metadata.
+                let without_th = ot_trace_state.with_threshold("");
+                if ot_trace_state.value == Some(without_th.as_str()) {
+                    parent_trace_state.clone()
+                } else if without_th.is_empty() {
+                    parent_trace_state.delete("ot")
+                } else {
+                    parent_trace_state
+                        .insert("ot", without_th)
+                        .unwrap_or_else(|_| parent_trace_state.delete("ot"))
+                }
+            }
+        }
+    }
 }
 
 impl ShouldSample for ProbabilitySampler {
@@ -127,88 +183,25 @@ impl ShouldSample for ProbabilitySampler {
         let parent_trace_state = parent_sc
             .map(|sc| sc.trace_state())
             .unwrap_or(&empty_trace_state);
-
-        if self.threshold == MAX_ADJUSTED_COUNT {
-            return SamplingResult {
-                decision: SamplingDecision::Drop,
-                attributes: Vec::new(),
-                trace_state: parent_trace_state.clone(),
-            };
-        }
-
-        let existing_otts = parent_trace_state.get("ot");
-
-        if self.threshold > 0 {
-            let explicit_rv = existing_otts.and_then(tracestate_randomness);
-            let randomness = match explicit_rv {
-                Some(rv) => rv,
-                None => {
-                    if let Some(sc) = parent_sc {
-                        if sc.is_valid()
-                            && !sc.trace_flags().is_random()
-                            && !self.warn_non_random.swap(true, Ordering::Relaxed)
-                        {
-                            otel_warn!(
-                                name: "ProbabilitySampler.PresumingRandomTraceId",
-                                message = "The ProbabilitySampler sampler is presuming TraceIDs are random and expects the Trace random flag to be set in confirmation. Please upgrade your caller(s) to use W3C Trace Context Level 2."
-                            );
-                        }
-                    }
-                    let bytes = trace_id.to_bytes();
-                    let least_half = u64::from_be_bytes([
-                        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14],
-                        bytes[15],
-                    ]);
-                    least_half & RANDOMNESS_MASK
-                }
-            };
-
-            if randomness < self.threshold {
-                return SamplingResult {
-                    decision: SamplingDecision::Drop,
-                    attributes: Vec::new(),
-                    trace_state: parent_trace_state.clone(),
-                };
-            }
-        }
-
-        let new_otts =
-            insert_or_update_trace_state_th_key_value(existing_otts.unwrap_or(""), &self.th_kv);
-
-        let trace_state = if existing_otts == Some(new_otts.as_str()) {
-            parent_trace_state.clone()
-        } else {
-            match parent_trace_state.insert("ot", new_otts) {
-                Ok(combined) => combined,
-                Err(err) => {
-                    if !self.warn_tracestate.swap(true, Ordering::Relaxed) {
-                        otel_warn!(
-                            name: "ProbabilitySampler.TracestateCombineFailed",
-                            message = "The sampling threshold could not be propagated because the updated 'ot' TraceState value exceeds the value length limit. Any previous threshold has been removed. Shorten the 'ot' value to allow the sampling threshold to be propagated.",
-                            error = format!("{err}")
-                        );
-                    }
-                    // The parent's threshold no longer describes this decision. Keep its
-                    // randomness and other concerns, but erase stale probability metadata.
-                    let without_th =
-                        insert_or_update_trace_state_th_key_value(existing_otts.unwrap_or(""), "");
-                    if existing_otts == Some(without_th.as_str()) {
-                        parent_trace_state.clone()
-                    } else if without_th.is_empty() {
-                        parent_trace_state.delete("ot")
-                    } else {
-                        parent_trace_state
-                            .insert("ot", without_th)
-                            .unwrap_or_else(|_| parent_trace_state.delete("ot"))
-                    }
-                }
-            }
+        let ot_trace_state = OtTraceState {
+            value: parent_trace_state.get("ot"),
         };
+        let sampled = self.threshold != MAX_ADJUSTED_COUNT
+            && (self.threshold == 0
+                || self.randomness(parent_sc, trace_id, &ot_trace_state) >= self.threshold);
 
         SamplingResult {
-            decision: SamplingDecision::RecordAndSample,
+            decision: if sampled {
+                SamplingDecision::RecordAndSample
+            } else {
+                SamplingDecision::Drop
+            },
             attributes: Vec::new(),
-            trace_state,
+            trace_state: if sampled {
+                self.sampled_trace_state(parent_trace_state, &ot_trace_state)
+            } else {
+                parent_trace_state.clone()
+            },
         }
     }
 }
@@ -267,51 +260,57 @@ fn is_valid_rv(value: &str) -> bool {
             .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-/// Inserts or updates the threshold (`th`) key-value pair in the OpenTelemetry `ot` TraceState value.
-///
-/// Existing unrelated sub-keys are preserved. An empty `th_kv` erases thresholds.
-/// Malformed `rv` sub-keys and duplicates are discarded.
-fn insert_or_update_trace_state_th_key_value(existing_otts: &str, th_kv: &str) -> String {
-    let mut updated = String::with_capacity(th_kv.len() + 1 + existing_otts.len());
-    updated.push_str(th_kv);
-    let mut seen_rv = false;
-    for field in existing_otts.split(';') {
-        if field.starts_with("th:") {
-            continue;
-        }
-        if let Some(rv_val) = field.strip_prefix("rv:") {
-            // Use the first rv, as the Go SDK does, and keep downstream readers
-            // from choosing a different value when the input contains duplicates.
-            // Discard malformed rv sub-keys so invalid randomness is not propagated.
-            if seen_rv {
-                continue;
-            }
-            seen_rv = true;
-            if !is_valid_rv(rv_val) {
-                continue;
-            }
-        }
-        if !field.is_empty() {
-            if !updated.is_empty() {
-                updated.push(';');
-            }
-            updated.push_str(field);
-        }
-    }
-    updated
+/// The OpenTelemetry `ot` entry within a W3C TraceState.
+#[derive(Debug)]
+struct OtTraceState<'a> {
+    value: Option<&'a str>,
 }
 
-/// Extracts the explicit randomness value (`rv`) from the OpenTelemetry `ot` TraceState value if present.
-///
-/// A valid `rv` must be exactly 14 lowercase hexadecimal characters representing a 56-bit unsigned integer.
-fn tracestate_randomness(otts: &str) -> Option<u64> {
-    let value = otts
-        .split(';')
-        .find_map(|field| field.strip_prefix("rv:"))?;
-    if !is_valid_rv(value) {
-        return None;
+impl OtTraceState<'_> {
+    /// Extracts a 56-bit randomness value encoded as 14 lowercase hexadecimal digits.
+    fn randomness(&self) -> Option<u64> {
+        let value = self
+            .value?
+            .split(';')
+            .find_map(|field| field.strip_prefix("rv:"))?;
+        if !is_valid_rv(value) {
+            return None;
+        }
+        u64::from_str_radix(value, 16).ok()
     }
-    u64::from_str_radix(value, 16).ok()
+
+    /// Inserts or updates `th`, preserving unrelated sub-keys. An empty threshold erases `th`.
+    /// Malformed `rv` sub-keys and duplicates are discarded.
+    fn with_threshold(&self, th_kv: &str) -> String {
+        let existing_otts = self.value.unwrap_or("");
+        let mut updated = String::with_capacity(th_kv.len() + 1 + existing_otts.len());
+        updated.push_str(th_kv);
+        let mut seen_rv = false;
+        for field in existing_otts.split(';') {
+            if field.starts_with("th:") {
+                continue;
+            }
+            if let Some(rv_val) = field.strip_prefix("rv:") {
+                // Use the first rv, as the Go SDK does, and keep downstream readers
+                // from choosing a different value when the input contains duplicates.
+                // Discard malformed rv sub-keys so invalid randomness is not propagated.
+                if seen_rv {
+                    continue;
+                }
+                seen_rv = true;
+                if !is_valid_rv(rv_val) {
+                    continue;
+                }
+            }
+            if !field.is_empty() {
+                if !updated.is_empty() {
+                    updated.push(';');
+                }
+                updated.push_str(field);
+            }
+        }
+        updated
+    }
 }
 
 #[cfg(test)]
@@ -534,7 +533,8 @@ mod tests {
         ];
 
         for (name, otts, want) in cases {
-            assert_eq!(tracestate_randomness(&otts), want, "case: {name}");
+            let ot_trace_state = OtTraceState { value: Some(&otts) };
+            assert_eq!(ot_trace_state.randomness(), want, "case: {name}");
         }
     }
 
@@ -635,7 +635,10 @@ mod tests {
         ];
 
         for (name, existing, th_kv, want) in cases {
-            let got = insert_or_update_trace_state_th_key_value(existing, th_kv);
+            let ot_trace_state = OtTraceState {
+                value: Some(existing),
+            };
+            let got = ot_trace_state.with_threshold(th_kv);
             assert_eq!(got, want, "case: {name}");
         }
     }
