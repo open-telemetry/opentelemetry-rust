@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{FinishedSpan, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, BoxFuture, Either},
@@ -105,10 +105,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: FinishedSpan<'_>) {
+        if !span.span_data().span_context.is_sampled() {
             return;
         }
+        let span = span.into_owned();
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
@@ -465,7 +466,7 @@ mod tests {
     #[cfg(feature = "rt-tokio")]
     use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder};
-    use crate::trace::{SpanData, SpanExporter};
+    use crate::trace::{FinishedSpan, SpanData, SpanExporter};
     #[cfg(feature = "rt-tokio-current-thread")]
     use futures_util::Future;
     use std::fmt::Debug;
@@ -598,7 +599,7 @@ mod tests {
             }
         });
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
         let _shutdown_result = processor.shutdown();
@@ -626,7 +627,7 @@ mod tests {
         };
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         let flush_res = processor.force_flush();
         if time_out {
             assert!(flush_res.is_err());
@@ -678,9 +679,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish three spans in rapid succession.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
 
         // Wait until everything has been exported.
         processor.force_flush().expect("force flush failed");
@@ -716,9 +717,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish several spans quickly.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
@@ -764,12 +765,12 @@ mod tests {
             .build();
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         assert_eq!(export_count.load(Ordering::SeqCst), 0);
         processor.force_flush().expect("force_flush should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
         processor.shutdown().expect("shutdown should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 2);
@@ -791,12 +792,12 @@ mod tests {
             .build();
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
 
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         assert_eq!(export_count.load(Ordering::SeqCst), 0);
         processor.force_flush().expect("force_flush should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
 
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         assert_eq!(export_count.load(Ordering::SeqCst), 1);
         processor.shutdown().expect("shutdown should succeed");
         assert_eq!(export_count.load(Ordering::SeqCst), 2);
