@@ -2,6 +2,99 @@
 
 ## vNext
 
+- **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
+  custom generators need to add this method to their existing implementation:
+
+  ```diff
+   impl IdGenerator for MyGenerator {
+       // Existing new_trace_id and new_span_id methods.
+  +    fn is_random(&self) -> bool { false }
+   }
+  ```
+
+  Return `true` only if the right-most 7 bytes of every trace ID are generated
+  randomly or pseudo-randomly with uniform distribution.
+  `RandomIdGenerator` returns `true`. Root spans now carry `TraceFlags::RANDOM` when the
+  configured generator reports random trace IDs, child spans inherit it from their
+  parent, and local sampling decisions clear private propagator flags while retaining
+  `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
+  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
+  when exporting the final queued telemetry failed.
+  ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
+- Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
+  span id on span creation.
+  ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Preserve the first batch export error when `BatchSpanProcessor` or
+  `BatchLogProcessor` drains multiple batches, so a later successful export cannot
+  make `force_flush()` report success. Remaining batches are still exported after
+  an error.
+  ([#3791](https://github.com/open-telemetry/opentelemetry-rust/pull/3791))
+- Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
+  up attribute sets when aggregating measurements (default remains std's
+  `RandomState`).
+  ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added exemplar collection for explicit-bucket histograms, behind the new
+  `spec_unstable_metrics_exemplars` feature. A measurement recorded inside a
+  sampled span is retained alongside the histogram data point together with its
+  trace id and span id, letting a backend link from a bucket to a representative
+  trace. Which measurements are eligible is controlled by the new
+  `ExemplarFilter` (`AlwaysOn`, `AlwaysOff`, `TraceBased`), set via
+  `SdkMeterProvider::builder().with_exemplar_filter(..)` and defaulting to
+  `TraceBased` as the specification requires. Sampling uses the spec's
+  `AlignedHistogramBucketExemplarReservoir`, keeping at most one exemplar per
+  bucket. With the feature disabled the measurement path is unchanged. Note that
+  an exemplar retains the attributes a view's attribute filter removed from its
+  measurement, as the specification requires, so a view is not a way to keep a
+  sensitive attribute value from being exported once exemplars are collected.
+  ([#3369](https://github.com/open-telemetry/opentelemetry-rust/issues/3369))
+
+## 0.33.1
+
+Released 2026-Oct-08
+
+- Emit a one-time internal error diagnostic when the default `PeriodicReader`
+  worker thread panics (such as from an observable metric callback), and document
+  the callback panic contract.
+  ([#3640](https://github.com/open-telemetry/opentelemetry-rust/issues/3640))
+- Added `Sampler::parent_based(root)`, returning a `ParentBasedSampler` that lets
+  all 5 branches of the ParentBased sampler spec be configured independently
+  (root, and remote/local parent that is/isn't sampled) via `with_remote_parent_sampled`,
+  `with_remote_parent_not_sampled`, `with_local_parent_sampled`, and
+  `with_local_parent_not_sampled`. Previously `Sampler::ParentBased` only let you
+  override the root case; the other 4 were fixed to the spec defaults. Unset
+  branches keep those same defaults, so this is purely additive.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Fixed `Histogram`, `Sum`, `LastValue`, and `PrecomputedSum` aggregators (and
+  their bound-instrument handles) silently accepting NaN/Infinity
+  measurements. For `Histogram` and `Sum`, a single NaN measurement
+  permanently corrupted the cumulative `sum`/total for the rest of the
+  process's lifetime (`x + NaN == NaN`); `LastValue` and `PrecomputedSum`
+  self-healed on the next valid measurement but still exported one bad value
+  in the meantime, and `PrecomputedSum` under delta temporality corrupted two
+  export cycles. Non-finite measurements are now dropped before recording,
+  matching `ExponentialHistogram`'s existing behavior.
+  ([#3656](https://github.com/open-telemetry/opentelemetry-rust/issues/3656))
+- Fixed `SdkTracer` inheriting an invalid parent span context (e.g. a context
+  carrying an invalid active span context). Such a parent is now treated as no
+  parent: the span gets a freshly generated trace id instead of the parent's
+  all-zero one, and is not recorded as a child of it.
+  ([#3657](https://github.com/open-telemetry/opentelemetry-rust/issues/3657))
+- Log metric export failures at ERROR level in `PeriodicReader`, making
+  failures such as an unreachable collector visible without enabling DEBUG
+  logging.
+  ([#3754](https://github.com/open-telemetry/opentelemetry-rust/issues/3754))
+- `TraceContextPropagator` now follows the W3C Trace Context Level 2 `tracestate` rules.
+  Multiple `tracestate` header fields are combined into a single list, `tracestate` is
+  only parsed once `traceparent` is known to be valid, an invalid `tracestate` (see
+  the stricter `TraceState` parsing in `opentelemetry`) is discarded without
+  affecting `traceparent` and an empty `tracestate` header is no longer injected.
+  ([#3778](https://github.com/open-telemetry/opentelemetry-rust/issues/3778))
+
+## 0.33.0
+
+Released 2026-Sep-18
+
 - Publicly export the `OTEL_*`/`OTEL_*_DEFAULT` environment variable name and
   default value constants for `BatchSpanProcessor` (`opentelemetry_sdk::trace`),
   `BatchLogProcessor` (`opentelemetry_sdk::logs`), and `PeriodicReader`
@@ -23,20 +116,6 @@
   [#3608](https://github.com/open-telemetry/opentelemetry-rust/pull/3608),
   [#3609](https://github.com/open-telemetry/opentelemetry-rust/pull/3609),
   [#3611](https://github.com/open-telemetry/opentelemetry-rust/pull/3611))
-- Added exemplar collection for explicit-bucket histograms, behind the new
-  `spec_unstable_metrics_exemplars` feature. A measurement recorded inside a
-  sampled span is retained alongside the histogram data point together with its
-  trace id and span id, letting a backend link from a bucket to a representative
-  trace. Which measurements are eligible is controlled by the new
-  `ExemplarFilter` (`AlwaysOn`, `AlwaysOff`, `TraceBased`), set via
-  `SdkMeterProvider::builder().with_exemplar_filter(..)` and defaulting to
-  `TraceBased` as the specification requires. Sampling uses the spec's
-  `AlignedHistogramBucketExemplarReservoir`, keeping at most one exemplar per
-  bucket. With the feature disabled the measurement path is unchanged. Note that
-  an exemplar retains the attributes a view's attribute filter removed from its
-  measurement, as the specification requires, so a view is not a way to keep a
-  sensitive attribute value from being exported once exemplars are collected.
-  ([#3369](https://github.com/open-telemetry/opentelemetry-rust/issues/3369))
 - Made `futures-channel`, `futures-executor`, `futures-util`, and `thiserror`
   optional, enabling a minimal SDK build. With `default-features = false`, the
   SDK's only dependency is the `opentelemetry` API crate.
@@ -58,6 +137,17 @@
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `SpanData`.
+  - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
+  - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
+  - Live `Span` instances provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, use `span.span_data()` for read-only access, and call `span.into_owned()` only when they need an owned `SpanData`.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+- Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
+  instead of silently overwriting with the current time.
 
 ## 0.32.1
 

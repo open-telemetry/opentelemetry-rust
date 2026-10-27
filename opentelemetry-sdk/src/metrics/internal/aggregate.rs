@@ -1,4 +1,5 @@
 use std::{
+    collections::hash_map::RandomState,
     marker,
     mem::replace,
     ops::DerefMut,
@@ -12,7 +13,8 @@ use opentelemetry::KeyValue;
 
 use super::{
     exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, ExemplarSampler, Number,
+    precomputed_sum::PrecomputedSum, sum::Sum, AttributeBuildHasher, ExemplarSampler, Number,
+    SharedFactory,
 };
 
 /// Receives measurements to be aggregated.
@@ -122,7 +124,7 @@ impl Default for AggregateTimeInitiator {
     }
 }
 
-type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
+pub(crate) type Filter = Arc<dyn Fn(&KeyValue) -> bool + Send + Sync>;
 
 /// Applies filter on provided attribute set
 /// No-op, if filter is not set
@@ -161,7 +163,7 @@ impl AttributeSetFilter {
 }
 
 /// Builds aggregate functions
-pub(crate) struct AggregateBuilder<T> {
+pub(crate) struct AggregateBuilder<T, S = RandomState> {
     /// The temporality used for the returned aggregate functions.
     temporality: Temporality,
 
@@ -178,9 +180,14 @@ pub(crate) struct AggregateBuilder<T> {
     /// aggregations still emit empty exemplar lists.
     exemplars: ExemplarSampler,
 
+    /// Creates the hasher used to look up attribute sets in each aggregation's
+    /// value map
+    make_hasher: SharedFactory<S>,
+
     _marker: marker::PhantomData<T>,
 }
 
+#[cfg(test)]
 impl<T: Number> AggregateBuilder<T> {
     pub(crate) fn new(
         temporality: Temporality,
@@ -188,11 +195,30 @@ impl<T: Number> AggregateBuilder<T> {
         cardinality_limit: usize,
         exemplars: ExemplarSampler,
     ) -> Self {
+        Self::with_hasher(
+            temporality,
+            filter,
+            cardinality_limit,
+            exemplars,
+            Arc::new(RandomState::new),
+        )
+    }
+}
+
+impl<T: Number, S: AttributeBuildHasher> AggregateBuilder<T, S> {
+    pub(crate) fn with_hasher(
+        temporality: Temporality,
+        filter: Option<Filter>,
+        cardinality_limit: usize,
+        exemplars: ExemplarSampler,
+        make_hasher: SharedFactory<S>,
+    ) -> Self {
         AggregateBuilder {
             temporality,
             filter: AttributeSetFilter::new(filter),
             cardinality_limit,
             exemplars,
+            make_hasher,
             _marker: marker::PhantomData,
         }
     }
@@ -203,6 +229,7 @@ impl<T: Number> AggregateBuilder<T> {
             overwrite_temporality.unwrap_or(self.temporality),
             self.filter.clone(),
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -214,6 +241,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -225,6 +253,7 @@ impl<T: Number> AggregateBuilder<T> {
             self.filter.clone(),
             monotonic,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -244,6 +273,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_sum,
             self.cardinality_limit,
             self.exemplars,
+            self.make_hasher.clone(),
         )
         .into()
     }
@@ -264,6 +294,7 @@ impl<T: Number> AggregateBuilder<T> {
             record_min_max,
             record_sum,
             self.cardinality_limit,
+            self.make_hasher.clone(),
         )
         .into()
     }

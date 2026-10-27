@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry_sdk"
-version = "0.32.1"
+version = "0.33.1"
 description = "The SDK for the OpenTelemetry metrics collection and distributed tracing framework"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
@@ -34,10 +34,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
+tracing = { workspace = true, features = ["std"] }
+tracing-subscriber = { workspace = true, features = ["registry", "std"] }
 criterion = { workspace = true, features = ["html_reports"] }
+rapidhash = { workspace = true }
+rustc-hash = { workspace = true }
 rstest = { workspace = true }
 temp-env = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }
@@ -129,6 +133,10 @@ required-features = ["logs"]
 name = "bound_instruments"
 harness = false
 required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]
+
+[[bench]]
+name = "span_processor_api"
+harness = false
 
 [lib]
 bench = false

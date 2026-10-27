@@ -302,16 +302,12 @@ impl prometheus::core::Collector for Collector {
             .get_or_init(|| self.resource_selector.select(metrics.resource()));
 
         for scope_metrics in metrics.scope_metrics() {
-            let scope_labels = if self.scope_info_enabled {
-                let mut labels = get_scope_labels(scope_metrics.scope());
-
-                if !resource_labels.is_empty() {
-                    labels.extend(resource_labels.iter().cloned());
-                }
-                labels
+            let mut scope_labels = if self.scope_info_enabled {
+                get_scope_labels(scope_metrics.scope())
             } else {
                 Vec::new()
             };
+            scope_labels.extend(resource_labels.iter().cloned());
 
             for metrics in scope_metrics.metrics() {
                 let (metric_type, name) = match self.metric_type_and_name(metrics) {

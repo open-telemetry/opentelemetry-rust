@@ -362,7 +362,30 @@ impl Context {
     /// assert_eq!(Context::current().get::<ValueA>(), None);
     /// ```
     pub fn attach(self) -> ContextGuard {
-        let cx_id = CURRENT_CONTEXT.with(|cx| cx.borrow_mut().push(self));
+        let cx_id = CURRENT_CONTEXT.with(|cx| {
+            let mut stack = cx.borrow_mut();
+
+            match stack.push(self) {
+                Ok(id) => id,
+                Err(rejected) => {
+                    // Release the borrow before logging or running context destructors.
+                    drop(stack);
+
+                    otel_warn!(
+                        name: "Context.AttachFailed",
+                        message = format!(
+                            "Too many contexts. Max limit is {}. \
+                             Context::current() remains unchanged as this attach failed. \
+                             Dropping the returned ContextGuard will have no impact on Context::current().",
+                            ContextStack::MAX_POS
+                        )
+                    );
+
+                    drop(rejected);
+                    ContextStack::MAX_POS
+                }
+            }
+        });
 
         ContextGuard {
             cx_pos: cx_id,
@@ -537,14 +560,10 @@ impl Drop for ContextGuard {
     fn drop(&mut self) {
         let id = self.cx_pos;
         if id > ContextStack::BASE_POS && id < ContextStack::MAX_POS {
-            // Extract only the span to drop outside of borrow_mut to avoid panic
-            // when the span's drop implementation calls Context::current()
-            #[cfg(feature = "trace")]
+            // Defer destructors that may call back into Context until after
+            // the mutable borrow of CURRENT_CONTEXT has been released.
             let _to_drop =
                 CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
-            #[cfg(not(feature = "trace"))]
-            CURRENT_CONTEXT.with(|context_stack| context_stack.borrow_mut().pop_id(id));
-            // Span (if any) is automatically dropped here, outside of borrow_mut scope
         }
     }
 }
@@ -595,11 +614,28 @@ struct ContextStack {
     _marker: PhantomData<*const ()>,
 }
 
-// Type alias for what pop_id returns - only return the span when trace feature is enabled
-#[cfg(feature = "trace")]
-type PopIdReturn = Option<Arc<SynchronizedSpan>>;
-#[cfg(not(feature = "trace"))]
-type PopIdReturn = ();
+// Fields whose destructors must run after releasing the mutable
+// borrow of CURRENT_CONTEXT.
+#[derive(Default)]
+struct ContextToDrop {
+    #[cfg(feature = "trace")]
+    _span: Option<Arc<SynchronizedSpan>>,
+    _entries: Option<Arc<EntryMap>>,
+    #[cfg(feature = "experimental_context_observer")]
+    _observer_view: Option<Arc<dyn ObserverContextView>>,
+}
+
+impl From<Context> for ContextToDrop {
+    fn from(context: Context) -> Self {
+        Self {
+            #[cfg(feature = "trace")]
+            _span: context.span,
+            _entries: context.entries,
+            #[cfg(feature = "experimental_context_observer")]
+            _observer_view: context.observer_view,
+        }
+    }
+}
 
 impl ContextStack {
     const BASE_POS: u16 = 0;
@@ -607,7 +643,7 @@ impl ContextStack {
     const INITIAL_CAPACITY: usize = 8;
 
     #[inline(always)]
-    fn push(&mut self, cx: Context) -> u16 {
+    fn push(&mut self, cx: Context) -> Result<u16, Box<Context>> {
         // The next id is the length of the `stack`, plus one since we have the
         // top of the [`ContextStack`] as the `current_cx`.
         let next_id = self.stack.len() + 1;
@@ -619,22 +655,14 @@ impl ContextStack {
 
             let current_cx = std::mem::replace(&mut self.current_cx, cx);
             self.stack.push(Some(current_cx));
-            next_id as u16
+            Ok(next_id as u16)
         } else {
-            // This is an overflow, log it and ignore it.
-            otel_warn!(
-                name: "Context.AttachFailed",
-                message = format!("Too many contexts. Max limit is {}. \
-                  Context::current() remains unchanged as this attach failed. \
-                  Dropping the returned ContextGuard will have no impact on Context::current().",
-                  ContextStack::MAX_POS)
-            );
-            ContextStack::MAX_POS
+            Err(Box::new(cx))
         }
     }
 
     #[inline(always)]
-    fn pop_id(&mut self, pos: u16) -> PopIdReturn {
+    fn pop_id(&mut self, pos: u16) -> ContextToDrop {
         if pos == ContextStack::BASE_POS || pos == ContextStack::MAX_POS {
             // The empty context is always at the bottom of the [`ContextStack`]
             // and cannot be popped, and the overflow position is invalid, so do
@@ -648,8 +676,8 @@ impl ContextStack {
                     "Attempted to pop the overflow position which is not allowed"
                 }
             );
-            #[cfg(feature = "trace")]
-            return None;
+
+            return ContextToDrop::default();
         }
         let len: u16 = self.stack.len() as u16;
         // Are we at the top of the [`ContextStack`]?
@@ -667,19 +695,12 @@ impl ContextStack {
                     observer.on_context_exit(&self.current_cx, &next_cx);
                 }
 
-                // Extract and return only the span to avoid cloning the entire Context
-                #[cfg(feature = "trace")]
-                {
-                    let old_cx = std::mem::replace(&mut self.current_cx, next_cx);
-                    return old_cx.span;
-                }
-                #[cfg(not(feature = "trace"))]
-                {
-                    self.current_cx = next_cx;
-                }
+                // Move fields with potentially reentrant destructors out of the borrow.
+                let old_cx = std::mem::replace(&mut self.current_cx, next_cx);
+                return old_cx.into();
             }
-            #[cfg(feature = "trace")]
-            return None;
+
+            ContextToDrop::default()
         } else {
             // This is an out of order pop.
             if pos >= len {
@@ -690,16 +711,13 @@ impl ContextStack {
                     stack_length = len,
                     message = "Attempted to pop beyond the end of the context stack"
                 );
-                #[cfg(feature = "trace")]
-                return None;
+                return ContextToDrop::default();
             }
-            // Clear out the entry at the given id and extract its span
-            #[cfg(feature = "trace")]
-            return self.stack[pos as usize].take().and_then(|cx| cx.span);
-            #[cfg(not(feature = "trace"))]
-            {
-                self.stack[pos as usize] = None;
-            }
+            // Remove the context and defer dropping its owned fields.
+            self.stack[pos as usize]
+                .take()
+                .map(ContextToDrop::from)
+                .unwrap_or_default()
         }
     }
 
@@ -868,13 +886,115 @@ mod context_observer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "futures")]
     use std::time::Duration;
+    #[cfg(feature = "futures")]
     use tokio::time::sleep;
 
     #[derive(Debug, PartialEq)]
     struct ValueA(u64);
     #[derive(Debug, PartialEq)]
     struct ValueB(u64);
+
+    struct ReadCurrentContextOnDrop;
+
+    impl Drop for ReadCurrentContextOnDrop {
+        fn drop(&mut self) {
+            let _ = Context::current();
+        }
+    }
+
+    #[cfg(feature = "internal-logs")]
+    #[test]
+    fn overflow_warning_can_access_current_context() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use tracing_subscriber::prelude::*;
+
+        struct ReadCurrentContextOnEvent {
+            observed: Arc<AtomicBool>,
+        }
+
+        impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for ReadCurrentContextOnEvent {
+            fn on_event(
+                &self,
+                event: &tracing::Event<'_>,
+                _ctx: tracing_subscriber::layer::Context<'_, S>,
+            ) {
+                if event.metadata().name() == "Context.AttachFailed" {
+                    assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+                    self.observed.store(true, Ordering::Relaxed);
+                }
+            }
+        }
+
+        // Without this dispatcher, the subscriber can miss the warning when other tests run in parallel.
+        let _other_dispatch = tracing::Dispatch::new(tracing_subscriber::registry());
+        let observed = Arc::new(AtomicBool::new(false));
+        let subscriber = tracing_subscriber::registry().with(ReadCurrentContextOnEvent {
+            observed: observed.clone(),
+        });
+
+        tracing::subscriber::with_default(subscriber, || {
+            let mut guards = Vec::new();
+            let cx = Context::new().with_value(ValueA(42));
+
+            for _ in 1..ContextStack::MAX_POS {
+                guards.push(cx.clone().attach());
+            }
+
+            let rejected_guard = Context::new().attach();
+
+            assert!(observed.load(Ordering::Relaxed));
+            assert_eq!(rejected_guard.cx_pos, ContextStack::MAX_POS);
+
+            drop(rejected_guard);
+
+            assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+            while let Some(guard) = guards.pop() {
+                drop(guard);
+            }
+        });
+    }
+
+    #[test]
+    fn context_value_drop_can_access_current_context() {
+        let guard = Context::new().with_value(ReadCurrentContextOnDrop).attach();
+
+        drop(guard);
+    }
+
+    #[test]
+    fn out_of_order_context_value_drop_can_access_current_context() {
+        let outer_guard = Context::new().with_value(ReadCurrentContextOnDrop).attach();
+        let inner_guard = Context::new().attach();
+
+        drop(outer_guard);
+        drop(inner_guard);
+    }
+
+    #[test]
+    fn overflow_context_value_drop_can_access_current_context() {
+        let mut guards = Vec::new();
+        let cx = Context::new().with_value(ValueA(42));
+
+        for _ in 1..ContextStack::MAX_POS {
+            guards.push(cx.clone().attach());
+        }
+
+        let rejected_guard = Context::new().with_value(ReadCurrentContextOnDrop).attach();
+
+        assert_eq!(rejected_guard.cx_pos, ContextStack::MAX_POS);
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+        drop(rejected_guard);
+
+        assert_eq!(Context::current().get::<ValueA>(), Some(&ValueA(42)));
+
+        while let Some(guard) = guards.pop() {
+            drop(guard);
+        }
+    }
 
     #[test]
     fn context_immutable() {
@@ -1055,9 +1175,9 @@ mod tests {
         let cx2 = Context::new().with_value(ValueA(2));
         let cx3 = Context::new().with_value(ValueA(3));
 
-        let id1 = stack.push(cx1);
-        let id2 = stack.push(cx2);
-        let id3 = stack.push(cx3);
+        let id1 = stack.push(cx1).expect("context must fit");
+        let id2 = stack.push(cx2).expect("context must fit");
+        let id3 = stack.push(cx3).expect("context must fit");
 
         // Pop middle context first - should not affect current context
         stack.pop_id(id2);
@@ -1107,19 +1227,20 @@ mod tests {
         let mut stack = ContextStack::default();
         let max_pos = ContextStack::MAX_POS as usize;
 
-        // Fill stack up to max position
-        for i in 0..max_pos {
+        // Fill all available context positions.
+        for i in 0..max_pos - 1 {
             let cx = Context::new().with_value(ValueA(i as u64));
-            let id = stack.push(cx);
+            let id = stack.push(cx).expect("context must fit");
             assert_eq!(id, (i + 1) as u16);
         }
 
-        // Try to push beyond capacity
+        // Return the rejected context when the stack is full.
         let cx = Context::new().with_value(ValueA(max_pos as u64));
-        let id = stack.push(cx);
-        assert_eq!(id, ContextStack::MAX_POS);
+        let rejected = stack.push(cx).expect_err("context stack must be full");
 
-        // Verify current context remains unchanged after overflow
+        assert_eq!(rejected.get::<ValueA>(), Some(&ValueA(max_pos as u64)));
+
+        // The current context must remain unchanged.
         assert_eq!(
             stack.current_cx.get::<ValueA>(),
             Some(&ValueA((max_pos - 2) as u64))
@@ -1129,6 +1250,7 @@ mod tests {
     /// Tests that:
     /// 1. Parent context values are properly propagated to async operations
     /// 2. Values added during async operations do not affect parent context
+    #[cfg(feature = "futures")]
     #[tokio::test]
     async fn test_async_context_propagation() {
         // A nested async operation we'll use to test propagation
@@ -1214,6 +1336,7 @@ mod tests {
     /// Tests that unnatural parent->child relationships in nested async
     /// operations behave properly.
     ///
+    #[cfg(feature = "futures")]
     #[tokio::test]
     async fn test_out_of_order_context_detachment_futures() {
         // This function returns a future, but doesn't await it
@@ -1352,6 +1475,7 @@ mod tests {
         assert!(!Context::is_current_telemetry_suppressed());
     }
 
+    #[cfg(feature = "futures")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_async_suppression() {
         async fn nested_operation() {

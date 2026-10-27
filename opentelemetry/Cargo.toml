@@ -1,6 +1,6 @@
 [package]
 name = "opentelemetry"
-version = "0.32.0"
+version = "0.33.1"
 description = "OpenTelemetry API for Rust"
 homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry"
@@ -43,10 +43,13 @@ experimental_metrics_bound_instruments = ["metrics"]
 experimental_context_observer = []
 
 [dev-dependencies]
-opentelemetry_sdk = { path = "../opentelemetry-sdk"} # for documentation tests
+# for documentation tests
+opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false }
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "=1.53.3", features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["registry"] }
+tracing = { workspace = true, features = ["std"] }
 
 [[bench]]
 name = "metrics"

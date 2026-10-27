@@ -58,6 +58,17 @@ log guidance.
    express these concepts, but these are a workaround, not the recommended
    path for edge spans.
 
+## Async spans and context
+
+OpenTelemetry `Context` carries request-scoped information, including the
+active span. It does not propagate across async boundaries automatically. Use
+`FutureExt::with_context` to propagate context through a future. For common
+HTTP, database, and messaging libraries, use OpenTelemetry instrumentation when
+available; it can also propagate context into outgoing calls.
+
+See [Async context propagation] in the tracing API docs for a short example of
+creating a child span.
+
 ## Filtering spans
 
 Processor filtering is one option for controlling which spans are exported.
@@ -125,6 +136,7 @@ to the depth in [metrics.md](metrics.md):
 [`tracing`]: https://crates.io/crates/tracing
 [`tracing-opentelemetry`]: https://crates.io/crates/tracing-opentelemetry
 [`SpanProcessor`]: https://docs.rs/opentelemetry_sdk/latest/opentelemetry_sdk/trace/trait.SpanProcessor.html
+[Async context propagation]: https://docs.rs/opentelemetry/latest/opentelemetry/trace/index.html#async-context-propagation
 [tail-based sampling]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
 [`SpanProcessor::on_end` example]: ../opentelemetry-sdk/src/trace/span_processor.rs
 [opentelemetry-rust-contrib]: https://github.com/open-telemetry/opentelemetry-rust-contrib

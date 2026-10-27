@@ -14,7 +14,10 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal::{self, AggregateBuilder, ExemplarSampler, Number},
+        internal::{
+            self, AggregateBuilder, AttributeBuildHasher, ExemplarSampler, Filter, Number,
+            SharedFactory,
+        },
         reader::{MetricReader, SdkProducer},
         view::View,
     },
@@ -40,6 +43,7 @@ pub struct Pipeline {
     views: Vec<Arc<dyn View>>,
     #[cfg(feature = "spec_unstable_metrics_exemplars")]
     exemplar_filter: crate::metrics::ExemplarFilter,
+    aggregate_factory: Arc<dyn AggregateFactory>,
     inner: Mutex<PipelineInner>,
 }
 
@@ -438,13 +442,16 @@ where
             #[cfg(not(feature = "spec_unstable_metrics_exemplars"))]
             let exemplars = ExemplarSampler::new();
 
-            let b = AggregateBuilder::new(
-                self.pipeline.reader.temporality(kind),
+            let params = AggregateParams {
+                temporality: self.pipeline.reader.temporality(kind),
                 filter,
                 cardinality_limit,
                 exemplars,
-            );
-            let AggregateFns { measure, collect } = match aggregate_fn(b, &agg, kind) {
+                aggregation: &agg,
+                kind,
+            };
+            let built = T::build_aggregate(&*self.pipeline.aggregate_factory, params);
+            let AggregateFns { measure, collect } = match built {
                 Ok(Some(inst)) => inst,
                 other => return other.map(|fs| fs.map(|inst| inst.measure)), // Drop aggregator or error
             };
@@ -541,11 +548,61 @@ fn default_aggregation_selector(kind: InstrumentKind) -> Aggregation {
     }
 }
 
+/// Parameters for building the aggregate functions of a single metric stream.
+pub(crate) struct AggregateParams<'a> {
+    pub(crate) temporality: Temporality,
+    pub(crate) filter: Option<Filter>,
+    pub(crate) cardinality_limit: usize,
+    pub(crate) exemplars: ExemplarSampler,
+    pub(crate) aggregation: &'a Aggregation,
+    pub(crate) kind: InstrumentKind,
+}
+
+/// Builds aggregate functions for a pipeline.
+pub(crate) trait AggregateFactory: Send + Sync {
+    fn build_u64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<u64>>>;
+    fn build_i64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<i64>>>;
+    fn build_f64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<f64>>>;
+}
+
+/// [`AggregateFactory`] building aggregators that hash attribute sets with `S`.
+pub(crate) struct BuildHasherFactory<S>(pub(crate) SharedFactory<S>);
+
+impl<S: AttributeBuildHasher> BuildHasherFactory<S> {
+    fn build<T: Number>(
+        &self,
+        params: AggregateParams<'_>,
+    ) -> MetricResult<Option<AggregateFns<T>>> {
+        let b = AggregateBuilder::with_hasher(
+            params.temporality,
+            params.filter,
+            params.cardinality_limit,
+            params.exemplars,
+            self.0.clone(),
+        );
+        aggregate_fn(b, params.aggregation, params.kind)
+    }
+}
+
+impl<S: AttributeBuildHasher> AggregateFactory for BuildHasherFactory<S> {
+    fn build_u64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<u64>>> {
+        self.build(params)
+    }
+
+    fn build_i64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<i64>>> {
+        self.build(params)
+    }
+
+    fn build_f64(&self, params: AggregateParams<'_>) -> MetricResult<Option<AggregateFns<f64>>> {
+        self.build(params)
+    }
+}
+
 /// Returns new aggregate functions for the given params.
 ///
 /// If the aggregation is unknown or temporality is invalid, an error is returned.
-fn aggregate_fn<T: Number>(
-    b: AggregateBuilder<T>,
+fn aggregate_fn<T: Number, S: AttributeBuildHasher>(
+    b: AggregateBuilder<T, S>,
     agg: &aggregation::Aggregation,
     kind: InstrumentKind,
 ) -> MetricResult<Option<AggregateFns<T>>> {
@@ -686,6 +743,7 @@ impl Pipelines {
         views: Vec<Arc<dyn View>>,
         #[cfg(feature = "spec_unstable_metrics_exemplars")]
         exemplar_filter: crate::metrics::ExemplarFilter,
+        aggregate_factory: Arc<dyn AggregateFactory>,
     ) -> Self {
         let mut pipes = Vec::with_capacity(readers.len());
         for r in readers {
@@ -695,6 +753,7 @@ impl Pipelines {
                 views: views.clone(),
                 #[cfg(feature = "spec_unstable_metrics_exemplars")]
                 exemplar_filter,
+                aggregate_factory: Arc::clone(&aggregate_factory),
                 inner: Default::default(),
             });
             p.reader.register_pipeline(Arc::downgrade(&p));

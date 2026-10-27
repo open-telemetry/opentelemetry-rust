@@ -11,6 +11,12 @@
 //! - gRPC
 //! - HTTP (binary protobuf or JSON)
 //!
+//! ## Stability
+//!
+//! The OTLP exporters for Logs and Metrics are stable as of 0.33.1. The OTLP
+//! exporter for Traces remains in beta. Features explicitly marked experimental
+//! remain experimental.
+//!
 //! ## Quickstart with OpenTelemetry Collector
 //!
 //! The examples below show traces, but the same pattern applies to metrics
@@ -223,7 +229,7 @@
 //! | `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol. Valid values: `grpc`, `http/protobuf`, `http/json`. Requires the corresponding crate feature. | Feature-dependent |
 //! | `OTEL_EXPORTER_OTLP_TIMEOUT` | Maximum wait time (in milliseconds) for the backend to process each batch. | `10000` |
 //! | `OTEL_EXPORTER_OTLP_HEADERS` | Key-value pairs for request headers. Format: `key1=value1,key2=value2`. Values are URL-decoded. | (none) |
-//! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`. | (none) |
+//! | `OTEL_EXPORTER_OTLP_COMPRESSION` | Compression algorithm. Valid values: `gzip`, `zstd`, `none`. | `none` |
 //! | `OTEL_EXPORTER_OTLP_INSECURE` | Whether to disable TLS for gRPC connections. Only applies to gRPC; HTTP security is determined by URL scheme. Valid values: `true`, `false` (case-insensitive). | `false` |
 //!
 //! ## Traces
@@ -685,6 +691,7 @@ mod retry_policy;
 
 pub use crate::exporter::Compression;
 pub use crate::exporter::ExporterBuildError;
+pub use crate::exporter::ParseConfigError;
 #[cfg(feature = "trace")]
 #[cfg(any(feature = "http-proto", feature = "http-json", feature = "grpc-tonic"))]
 pub use crate::span::{
@@ -777,20 +784,16 @@ impl Protocol {
     }
 
     /// Attempts to parse a protocol from the given environment variable.
-    ///
-    /// Returns `None` if:
-    /// - The environment variable is not set
-    /// - The value doesn't match a known protocol
-    /// - The specified protocol's feature is not enabled
     pub(crate) fn parse_from_env_var(env_var: &str) -> Option<Self> {
         use crate::exporter::{
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC, OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON,
             OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF,
         };
 
-        let protocol = std::env::var(env_var).ok()?;
+        let protocol = crate::exporter::read_enum_env_var(env_var)?;
+        let normalized = protocol.to_ascii_lowercase();
 
-        match protocol.as_str() {
+        match normalized.as_str() {
             OTEL_EXPORTER_OTLP_PROTOCOL_GRPC => {
                 #[cfg(feature = "grpc-tonic")]
                 {
@@ -798,9 +801,10 @@ impl Protocol {
                 }
                 #[cfg(not(feature = "grpc-tonic"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'grpc-tonic' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_GRPC)
+                    crate::exporter::warn_missing_protocol_feature(
+                        env_var,
+                        &protocol,
+                        "grpc-tonic",
                     );
                     None
                 }
@@ -812,9 +816,10 @@ impl Protocol {
                 }
                 #[cfg(not(feature = "http-proto"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'http-proto' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_PROTOBUF)
+                    crate::exporter::warn_missing_protocol_feature(
+                        env_var,
+                        &protocol,
+                        "http-proto",
                     );
                     None
                 }
@@ -826,14 +831,18 @@ impl Protocol {
                 }
                 #[cfg(not(feature = "http-json"))]
                 {
-                    opentelemetry::otel_warn!(
-                        name: "Protocol.InvalidFeatureCombination",
-                        message = format!("Protocol '{}' requested but 'http-json' feature is not enabled", OTEL_EXPORTER_OTLP_PROTOCOL_HTTP_JSON)
-                    );
+                    crate::exporter::warn_missing_protocol_feature(env_var, &protocol, "http-json");
                     None
                 }
             }
-            _ => None,
+            _ => {
+                crate::exporter::warn_ignored_enum_env_var(
+                    env_var,
+                    &protocol,
+                    "expected 'grpc', 'http/protobuf', or 'http/json'",
+                );
+                None
+            }
         }
     }
 

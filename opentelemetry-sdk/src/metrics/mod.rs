@@ -4560,6 +4560,23 @@ mod tests {
             }
         }
 
+        fn new_with_builder(
+            temporality: Temporality,
+            configure: impl FnOnce(MeterProviderBuilder) -> MeterProviderBuilder,
+        ) -> Self {
+            let exporter = InMemoryMetricExporterBuilder::new().with_temporality(temporality);
+            let exporter = exporter.build();
+            let meter_provider =
+                configure(SdkMeterProvider::builder().with_periodic_exporter(exporter.clone()))
+                    .build();
+
+            TestContext {
+                exporter,
+                meter_provider,
+                resource_metrics: vec![],
+            }
+        }
+
         fn new_with_view<T>(temporality: Temporality, view: T) -> Self
         where
             T: Fn(&Instrument) -> Option<Stream> + Send + Sync + 'static,
@@ -6746,6 +6763,148 @@ mod tests {
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k1"));
         assert!(attrs.iter().any(|kv| kv.key.as_str() == "k2"));
         assert!(!attrs.iter().any(|kv| kv.key.as_str() == "k3"));
+    }
+
+    struct ConstantHasher;
+
+    impl std::hash::Hasher for ConstantHasher {
+        fn finish(&self) -> u64 {
+            0
+        }
+
+        fn write(&mut self, _bytes: &[u8]) {}
+    }
+
+    /// Builds `ConstantHasher`s and counts how many it has built.
+    #[derive(Clone, Default)]
+    struct CollidingBuildHasher(Arc<std::sync::atomic::AtomicUsize>);
+
+    impl std::hash::BuildHasher for CollidingBuildHasher {
+        type Hasher = ConstantHasher;
+
+        fn build_hasher(&self) -> ConstantHasher {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            ConstantHasher
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn custom_hasher_aggregates_colliding_attribute_sets() {
+        let hash_builder = CollidingBuildHasher::default();
+        let build_count = Arc::clone(&hash_builder.0);
+        let mut test_context = TestContext::new_with_builder(Temporality::Cumulative, |b| {
+            b.with_hasher(move || hash_builder.clone())
+        });
+        let counter = test_context.u64_counter("test", "my_counter", None);
+
+        // Both attribute orderings must resolve to the same tracker.
+        for i in 0..5u64 {
+            let value = i.to_string();
+            let sorted = [KeyValue::new("k1", value.clone()), KeyValue::new("k2", "x")];
+            let unsorted = [KeyValue::new("k2", "x"), KeyValue::new("k1", value)];
+            counter.add(i + 1, &sorted);
+            counter.add(i + 1, &unsorted);
+        }
+        test_context.flush_metrics();
+
+        assert!(
+            build_count.load(Ordering::Relaxed) > 0,
+            "custom hasher should be used for attribute lookups"
+        );
+        let MetricData::Sum(sum) = test_context.get_aggregation::<u64>("my_counter", None) else {
+            unreachable!()
+        };
+        assert_eq!(sum.data_points.len(), 5);
+        for i in 0..5u64 {
+            let data_point =
+                find_sum_datapoint_with_key_value(&sum.data_points, "k1", &i.to_string())
+                    .expect("datapoint expected");
+            assert_eq!(data_point.value, 2 * (i + 1));
+        }
+    }
+
+    #[rstest]
+    #[case(Temporality::Cumulative)]
+    #[case(Temporality::Delta)]
+    fn custom_hasher_observable_counter_across_collections(#[case] temporality: Temporality) {
+        let hashers: Arc<Mutex<Vec<Arc<std::sync::atomic::AtomicUsize>>>> = Arc::default();
+        let factory_hashers = Arc::clone(&hashers);
+        let mut test_context = TestContext::new_with_builder(temporality, |b| {
+            b.with_hasher(move || {
+                let hash_builder = CollidingBuildHasher::default();
+                factory_hashers
+                    .lock()
+                    .unwrap()
+                    .push(Arc::clone(&hash_builder.0));
+                hash_builder
+            })
+        });
+
+        let cycle = Arc::new(std::sync::atomic::AtomicU64::new(1));
+        let callback_cycle = Arc::clone(&cycle);
+        let _observable_counter = test_context
+            .meter()
+            .u64_observable_counter("my_observable_counter")
+            .with_callback(move |observer| {
+                let cycle = callback_cycle.load(Ordering::Relaxed);
+                for i in 0..3u64 {
+                    let k1 = KeyValue::new("k1", i.to_string());
+                    let k2 = KeyValue::new("k2", "x");
+                    let attrs = if cycle % 2 == 1 { [k1, k2] } else { [k2, k1] };
+                    observer.observe(10 * cycle * (i + 1), &attrs);
+                }
+            })
+            .build();
+
+        let build_counts = |hashers: &[Arc<std::sync::atomic::AtomicUsize>]| -> Vec<usize> {
+            hashers.iter().map(|c| c.load(Ordering::Relaxed)).collect()
+        };
+
+        for current_cycle in 1..=2u64 {
+            cycle.store(current_cycle, Ordering::Relaxed);
+            let (active, before) = {
+                let hashers = hashers.lock().unwrap();
+                (hashers.len() - 1, build_counts(&hashers))
+            };
+
+            test_context.flush_metrics();
+
+            let hashers_snapshot: Vec<_> = hashers.lock().unwrap().clone();
+            let after = build_counts(&hashers_snapshot);
+            assert!(
+                after[active] > before[active],
+                "cycle {current_cycle}: the active hasher should be used for attribute lookups"
+            );
+            assert_eq!(
+                after[..active],
+                before[..active],
+                "cycle {current_cycle}: replaced hashers should no longer be used"
+            );
+            assert_eq!(
+                hashers_snapshot.len(),
+                active + 2,
+                "cycle {current_cycle}: collection should install a new hasher"
+            );
+
+            let MetricData::Sum(sum) =
+                test_context.get_aggregation::<u64>("my_observable_counter", None)
+            else {
+                unreachable!()
+            };
+            assert_eq!(sum.data_points.len(), 3);
+            for i in 0..3u64 {
+                let data_point =
+                    find_sum_datapoint_with_key_value(&sum.data_points, "k1", &i.to_string())
+                        .expect("datapoint expected");
+                let expected = match temporality {
+                    Temporality::Delta => 10 * (i + 1),
+                    _ => 10 * current_cycle * (i + 1),
+                };
+                assert_eq!(data_point.value, expected, "cycle {current_cycle}, k1={i}");
+            }
+
+            test_context.reset_metrics();
+        }
     }
 }
 

@@ -12,6 +12,9 @@ cargo test --workspace --all-features --lib
 echo "Running OTLP JSON serialization tests"
 cargo test -p opentelemetry-proto --all-features --test json_serde
 
+echo "Running grpc_build test for opentelemetry-proto"
+cargo test -p opentelemetry-proto --test grpc_build
+
 echo "Running doctests for all packages in workspace with --all-features"
 cargo test --workspace --all-features --doc --exclude opentelemetry-proto
 
@@ -65,3 +68,4 @@ EOF
 echo "Running ignored tests for opentelemetry-appender-tracing package (global logger tests)"
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_inside_tracing_context_with_tracing_log -- --ignored --exact
+cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact

@@ -5,7 +5,8 @@ use opentelemetry::{
 };
 use std::time::Duration;
 use std::{
-    collections::HashMap,
+    collections::{hash_map::RandomState, HashMap},
+    hash::BuildHasher,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -16,8 +17,13 @@ use crate::error::OTelSdkResult;
 use crate::Resource;
 
 use super::{
-    exporter::PushMetricExporter, meter::SdkMeter, noop::NoopMeter,
-    periodic_reader::PeriodicReader, pipeline::Pipelines, reader::MetricReader, view::View,
+    exporter::PushMetricExporter,
+    meter::SdkMeter,
+    noop::NoopMeter,
+    periodic_reader::PeriodicReader,
+    pipeline::{AggregateFactory, BuildHasherFactory, Pipelines},
+    reader::MetricReader,
+    view::View,
     Instrument, Stream,
 };
 
@@ -235,6 +241,7 @@ pub struct MeterProviderBuilder {
     views: Vec<Arc<dyn View>>,
     #[cfg(feature = "spec_unstable_metrics_exemplars")]
     exemplar_filter: crate::metrics::ExemplarFilter,
+    aggregate_factory: Option<Arc<dyn AggregateFactory>>,
 }
 
 impl MeterProviderBuilder {
@@ -418,6 +425,45 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Sets a custom hasher for internal metric attribute lookups.
+    ///
+    /// Most applications should keep the default. It protects against
+    /// deliberately chosen attributes that make metric recording expensive
+    /// and slow down the application.
+    ///
+    /// A faster hasher reduces attribute lookup cost. Consider one if profiling
+    /// shows that metric recording is a bottleneck. Before choosing a hasher with
+    /// weaker attack resistance, ensure that untrusted callers cannot supply
+    /// arbitrary attribute keys or values to any instrument using this provider.
+    /// Attributes selected from a fixed, application-defined set avoid this concern.
+    ///
+    /// This setting applies to all instruments created by this provider.
+    /// The factory may be called multiple times. If this method is called more
+    /// than once, the last one wins.
+    ///
+    /// # Example
+    ///
+    /// For an application whose metric attributes come from fixed,
+    /// application-defined sets, add rapidhash to its dependencies:
+    ///
+    /// ```
+    /// use opentelemetry_sdk::metrics::SdkMeterProvider;
+    ///
+    /// let provider = SdkMeterProvider::builder()
+    /// .with_hasher(rapidhash::fast::RandomState::new)
+    /// .build();
+    /// # drop(provider);
+    /// ```
+    ///
+    pub fn with_hasher<F, S>(mut self, make_hasher: F) -> Self
+    where
+        F: Fn() -> S + Send + Sync + 'static,
+        S: BuildHasher + Send + Sync + 'static,
+    {
+        self.aggregate_factory = Some(Arc::new(BuildHasherFactory(Arc::new(make_hasher))));
+        self
+    }
+
     /// Construct a new [MeterProvider] with this configuration.
     pub fn build(self) -> SdkMeterProvider {
         otel_debug!(
@@ -433,6 +479,9 @@ impl MeterProviderBuilder {
                     self.views,
                     #[cfg(feature = "spec_unstable_metrics_exemplars")]
                     self.exemplar_filter,
+                    self.aggregate_factory.unwrap_or_else(|| {
+                        Arc::new(BuildHasherFactory(Arc::new(RandomState::new)))
+                    }),
                 )),
                 meters: Default::default(),
                 shutdown_invoked: AtomicBool::new(false),
@@ -452,7 +501,15 @@ impl fmt::Debug for MeterProviderBuilder {
         let debug = debug
             .field("resource", &self.resource)
             .field("readers", &self.readers)
-            .field("views", &self.views.len());
+            .field("views", &self.views.len())
+            .field(
+                "hasher",
+                &if self.aggregate_factory.is_some() {
+                    "custom"
+                } else {
+                    "default"
+                },
+            );
         #[cfg(feature = "spec_unstable_metrics_exemplars")]
         let debug = debug.field("exemplar_filter", &self.exemplar_filter);
         debug.finish()

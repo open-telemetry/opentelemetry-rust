@@ -119,9 +119,9 @@ Signal builders read **signal-specific env vars** (e.g. `OTEL_EXPORTER_OTLP_TRAC
 ---
 
 ## 7. Error Handling Strategy
-`ExporterBuildError` is a non-exhaustive enum covering:
-* Builder-time validation (URI parse, missing client)
-* Feature gating errors (compression requested w/o feature)
+`ExporterBuildError` is an exhaustive enum distinguishing:
+* Invalid exporter configuration that users can correct
+* Internal exporter initialization failures
 * Runtime errors are wrapped in `OTelSdkError` from the SDK.
 
 Builder fails fast, runtime exporter surfaces errors through `export()` futures so processors (or Retry logic) can decide whether to back-off, drop, or escalate.

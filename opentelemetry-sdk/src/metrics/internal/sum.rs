@@ -9,8 +9,10 @@ use std::sync::Arc;
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};
 use super::{AtomicallyUpdate, ValueMap};
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 struct Increment<T>
 where
@@ -56,6 +58,11 @@ struct BoundSumHandle<T: Number> {
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 impl<T: Number> BoundMeasure<T> for BoundSumHandle<T> {
     fn call(&self, measurement: T) {
+        // Mirror unbound Sum::call: ignore NaN and infinity so the cumulative
+        // total can't be permanently corrupted (`x + NaN == NaN`).
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.tracker.aggregator.update(measurement);
         self.tracker.has_been_updated.store(true, Ordering::Release);
     }
@@ -69,15 +76,15 @@ impl<T: Number> Drop for BoundSumHandle<T> {
 }
 
 /// Summarizes a set of measurements made as their arithmetic sum.
-pub(crate) struct Sum<T: Number> {
-    value_map: ValueMap<Increment<T>>,
+pub(crate) struct Sum<T: Number, S = RandomState> {
+    value_map: ValueMap<Increment<T>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
     monotonic: bool,
 }
 
-impl<T: Number> Sum<T> {
+impl<T: Number, S: AttributeBuildHasher> Sum<T, S> {
     /// Returns an aggregator that summarizes a set of measurements as their
     /// arithmetic sum.
     ///
@@ -88,9 +95,10 @@ impl<T: Number> Sum<T> {
         filter: AttributeSetFilter,
         monotonic: bool,
         cardinality_limit: usize,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         Sum {
-            value_map: ValueMap::new((), cardinality_limit),
+            value_map: ValueMap::new((), cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -175,11 +183,18 @@ impl<T: Number> Sum<T> {
     }
 }
 
-impl<T> Measure<T> for Sum<T>
+impl<T, S> Measure<T> for Sum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
+        // Ignore NaN and infinity: `F64AtomicTracker::add`'s CAS loop computes
+        // `current + NaN == NaN`, which would permanently poison the cumulative
+        // total for the rest of the process's lifetime.
+        if !measurement.into_float().is_finite() {
+            return;
+        }
         self.filter.apply(attrs, |filtered| {
             self.value_map.measure(measurement, filtered);
         })
@@ -200,9 +215,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Sum<T>
+impl<T, S> ComputeAggregation for Sum<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -211,5 +227,70 @@ where
             _ => self.cumulative(data),
         };
         (len, new.map(T::make_aggregated_metrics))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            false,
+            2000,
+            Arc::new(RandomState::new),
+        );
+        Measure::call(&sum, 1.0, &[]);
+        Measure::call(&sum, f64::NAN, &[]);
+        Measure::call(&sum, f64::INFINITY, &[]);
+        Measure::call(&sum, f64::NEG_INFINITY, &[]);
+        Measure::call(&sum, 2.0, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 3.0);
+        assert!(!dp.data_points[0].value.is_nan());
+    }
+}
+
+#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+mod bound_tests {
+    use super::*;
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let sum = Sum::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            false,
+            2000,
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&sum, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+        bound.call(2.0);
+
+        let (count, dp) = ComputeAggregation::call(&sum, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Sum(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].value, 3.0);
+        assert!(!dp.data_points[0].value.is_nan());
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
     }
 }

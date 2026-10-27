@@ -102,9 +102,11 @@ prepare for stabilization, alongside several quality-of-life improvements:
 
 ### Deprecations
 
-- `opentelemetry-zipkin` is deprecated. Use the OTLP exporter
+- `opentelemetry-zipkin` is deprecated. For span export, use the OTLP exporter
   (`opentelemetry-otlp`) — Zipkin supports native OTLP ingestion. The crate
-  will be removed in a future release.
+  will be removed in a future release. B3 propagation is not deprecated and
+  is independent of the exporter. For its standalone replacement, added after
+  this release, see the [B3 migration guide](../opentelemetry-propagator-b3/README.md#migrating-from-opentelemetry-zipkin).
 - `opentelemetry-jaeger-propagator` is deprecated. The Jaeger propagation
   format is deprecated per the OpenTelemetry specification. Use W3C
   TraceContext propagation instead. The crate will be removed in a future

@@ -16,8 +16,10 @@ use super::{
     Aggregator, AlignedHistogramBucketReservoir, ComputeAggregation, DroppedAttributes,
     ExemplarOffer, ExemplarSampler, Measure, Number, OfferRef, ValueMap,
 };
+use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};
+use std::collections::hash_map::RandomState;
 
 impl<T> Aggregator for Mutex<Buckets<T>>
 where
@@ -107,6 +109,11 @@ struct BoundHistogramHandle<T: Number> {
 impl<T: Number> BoundMeasure<T> for BoundHistogramHandle<T> {
     fn call(&self, measurement: T) {
         let f = measurement.into_float();
+        // Mirror unbound Histogram::call: ignore NaN and infinity so `sum` and
+        // bucket counts can't be permanently corrupted.
+        if !f.is_finite() {
+            return;
+        }
         let index = self.bounds.partition_point(|&x| x < f);
         let offer = self
             .exemplars
@@ -127,8 +134,8 @@ impl<T: Number> Drop for BoundHistogramHandle<T> {
 
 /// Summarizes a set of measurements as a histogram with explicitly defined
 /// buckets.
-pub(crate) struct Histogram<T: Number> {
-    value_map: ValueMap<Mutex<Buckets<T>>>,
+pub(crate) struct Histogram<T: Number, S = RandomState> {
+    value_map: ValueMap<Mutex<Buckets<T>>, S>,
     init_time: AggregateTimeInitiator,
     temporality: Temporality,
     filter: AttributeSetFilter,
@@ -138,7 +145,10 @@ pub(crate) struct Histogram<T: Number> {
     exemplars: ExemplarSampler,
 }
 
-impl<T: Number> Histogram<T> {
+impl<T: Number, S: AttributeBuildHasher> Histogram<T, S> {
+    // Mirrors the flat argument list of the other aggregator constructors,
+    // which `AggregateBuilder` calls uniformly.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         temporality: Temporality,
         filter: AttributeSetFilter,
@@ -147,6 +157,7 @@ impl<T: Number> Histogram<T> {
         record_sum: bool,
         cardinality_limit: usize,
         exemplars: ExemplarSampler,
+        make_hasher: SharedFactory<S>,
     ) -> Self {
         let buckets_count = if bounds.is_empty() {
             0
@@ -155,7 +166,7 @@ impl<T: Number> Histogram<T> {
         };
 
         Histogram {
-            value_map: ValueMap::new(buckets_count, cardinality_limit),
+            value_map: ValueMap::new(buckets_count, cardinality_limit, make_hasher),
             init_time: AggregateTimeInitiator::default(),
             temporality,
             filter,
@@ -281,12 +292,19 @@ impl<T: Number> Histogram<T> {
     }
 }
 
-impl<T> Measure<T> for Histogram<T>
+impl<T, S> Measure<T> for Histogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, measurement: T, attrs: &[KeyValue]) {
         let f = measurement.into_float();
+        // Ignore NaN and infinity: `x < NaN` is always false, so NaN would land
+        // in bucket 0 and, via `Buckets::total += value`, permanently corrupt
+        // `sum` since `x + NaN == NaN` for any `x`.
+        if !f.is_finite() {
+            return;
+        }
         // This search will return an index in the range `[0, bounds.len()]`, where
         // it will return `bounds.len()` if value is greater than the last element
         // of `bounds`. This aligns with the buckets in that the length of buckets
@@ -334,9 +352,10 @@ where
     }
 }
 
-impl<T> ComputeAggregation for Histogram<T>
+impl<T, S> ComputeAggregation for Histogram<T, S>
 where
     T: Number,
+    S: AttributeBuildHasher,
 {
     fn call(&self, dest: Option<&mut AggregatedMetrics>) -> (usize, Option<AggregatedMetrics>) {
         let data = dest.and_then(|d| T::extract_metrics_data_mut(d));
@@ -351,6 +370,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn check_buckets_are_selected_correctly() {
@@ -362,6 +382,7 @@ mod tests {
             false,
             2000,
             ExemplarSampler::default(),
+            Arc::new(RandomState::new),
         );
         for v in 1..11 {
             Measure::call(&hist, v, &[]);
@@ -378,6 +399,73 @@ mod tests {
         assert_eq!(dp.data_points[0].bucket_counts[1], 2); // 2, 3
         assert_eq!(dp.data_points[0].bucket_counts[2], 3); // 4, 5, 6
         assert_eq!(dp.data_points[0].bucket_counts[3], 4); // 7, 8, 9, 10
+    }
+
+    #[test]
+    fn nan_and_infinity_are_ignored() {
+        let hist = Histogram::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            vec![1.0, 3.0, 6.0],
+            true,
+            true,
+            2000,
+            ExemplarSampler::default(),
+            Arc::new(RandomState::new),
+        );
+        Measure::call(&hist, 1.0, &[]);
+        Measure::call(&hist, f64::NAN, &[]);
+        Measure::call(&hist, f64::INFINITY, &[]);
+        Measure::call(&hist, f64::NEG_INFINITY, &[]);
+        Measure::call(&hist, 2.0, &[]);
+
+        let (count, dp) = ComputeAggregation::call(&hist, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Histogram(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].count, 2);
+        assert_eq!(dp.data_points[0].sum, 3.0);
+        assert!(!dp.data_points[0].sum.is_nan());
+    }
+}
+
+#[cfg(all(test, feature = "experimental_metrics_bound_instruments"))]
+mod bound_tests {
+    use super::*;
+
+    #[test]
+    fn bound_nan_and_infinity_are_ignored() {
+        let hist = Histogram::<f64>::new(
+            Temporality::Cumulative,
+            AttributeSetFilter::new(None),
+            vec![1.0, 3.0, 6.0],
+            true,
+            true,
+            2000,
+            ExemplarSampler::default(),
+            Arc::new(RandomState::new),
+        );
+        let attrs = [KeyValue::new("k", "v")];
+        let bound = Measure::bind(&hist, &attrs);
+
+        bound.call(1.0);
+        bound.call(f64::NAN);
+        bound.call(f64::INFINITY);
+        bound.call(f64::NEG_INFINITY);
+        bound.call(2.0);
+
+        let (count, dp) = ComputeAggregation::call(&hist, None);
+        let dp = dp.unwrap();
+        let AggregatedMetrics::F64(MetricData::Histogram(dp)) = dp else {
+            unreachable!()
+        };
+        assert_eq!(count, 1);
+        assert_eq!(dp.data_points[0].count, 2);
+        assert_eq!(dp.data_points[0].sum, 3.0);
+        assert!(!dp.data_points[0].sum.is_nan());
+        assert_eq!(dp.data_points[0].attributes, attrs.to_vec());
     }
 }
 
@@ -404,6 +492,7 @@ mod exemplar_tests {
             false,
             2000,
             ExemplarSampler::new(filter),
+            Arc::new(RandomState::new),
         )
     }
 
@@ -475,6 +564,7 @@ mod exemplar_tests {
             false,
             2000,
             ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+            Arc::new(RandomState::new),
         );
         let retained = KeyValue::new("retained", "metric");
         let filtered = KeyValue::new("filtered", "exemplar");
@@ -511,6 +601,7 @@ mod exemplar_tests {
             false,
             2000,
             ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+            Arc::new(RandomState::new),
         );
         let retained = KeyValue::new("retained", "metric");
         let filtered = KeyValue::new("filtered", "exemplar");
@@ -728,6 +819,7 @@ mod exemplar_tests {
             false,
             2000,
             ExemplarSampler::new(ExemplarFilter::AlwaysOn),
+            Arc::new(RandomState::new),
         );
         Measure::call(&hist, 2, &[]);
         assert_eq!(collect(&hist).len(), 1);
