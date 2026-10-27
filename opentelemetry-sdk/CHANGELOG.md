@@ -21,6 +21,7 @@
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Improved performance of non-recording spans: `Span::end()` and dropping a
   span no longer read the system clock when the span is not recording.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))

@@ -11,7 +11,8 @@
   ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
   
 - Improved performance of non-recording spans: `NoopSpan` and `BoxedSpan` no
-  longer read the system clock on `end()`
+  longer read the system clock on `end()`.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 
 ## 0.33.1
 
