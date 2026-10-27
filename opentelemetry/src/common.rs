@@ -142,10 +142,13 @@ impl Ord for OtelString {
 impl PartialEq for OtelString {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let (a, b) = (self.as_str(), other.as_str());
-        // Clones of `Static` and `RefCounted` strings share their buffer, so skip the
-        // byte comparison when both sides point at the same bytes.
-        a.len() == b.len() && (a.as_ptr() == b.as_ptr() || a.as_bytes() == b.as_bytes())
+        match (self, other) {
+            (Self::RefCounted(a), Self::RefCounted(b)) => a == b,
+            // Copies of the same `&'static str` share their buffer, so compare the
+            // pointer (address and length) before falling back to the contents.
+            (Self::Static(a), Self::Static(b)) => std::ptr::eq::<str>(*a, *b) || a == b,
+            _ => self.as_str() == other.as_str(),
+        }
     }
 }
 
