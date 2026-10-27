@@ -2,6 +2,7 @@
 
 ## vNext
 
+- Avoid retaining tracer providers for non-recording spans ([#3774](https://github.com/open-telemetry/opentelemetry-rust/pull/3774)).
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 

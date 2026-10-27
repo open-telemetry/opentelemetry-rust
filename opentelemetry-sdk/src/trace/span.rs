@@ -8,19 +8,33 @@
 //! start time is set to the current time on span creation. After the `Span` is created, it
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
-use crate::trace::SpanLimits;
+use crate::trace::{SdkTracer, SpanLimits};
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
+use std::sync::Arc;
 use std::time::SystemTime;
 
 /// Single operation within a trace.
-#[derive(Debug)]
 pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
-    tracer: crate::trace::SdkTracer,
+    scope: Arc<opentelemetry::InstrumentationScope>,
+    // Keep shutdown out of SpanRef's lock by retaining the provider until drop.
+    provider: Option<crate::trace::SdkTracerProvider>,
     span_limits: SpanLimits,
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The provider's processors may hold references to spans.
+        f.debug_struct("Span")
+            .field("span_context", &self.span_context)
+            .field("scope", &self.scope)
+            .field("data", &self.data)
+            .field("span_limits", &self.span_limits)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,17 +67,28 @@ pub(crate) struct SpanData {
 }
 
 impl Span {
-    pub(crate) fn new(
+    pub(crate) fn new_recording(
         span_context: SpanContext,
-        data: Option<SpanData>,
-        tracer: crate::trace::SdkTracer,
-        span_limit: SpanLimits,
+        data: SpanData,
+        tracer: &SdkTracer,
+        span_limits: SpanLimits,
     ) -> Self {
         Span {
             span_context,
-            data,
-            tracer,
-            span_limits: span_limit,
+            data: Some(data),
+            scope: Arc::clone(&tracer.scope),
+            provider: Some(tracer.provider().clone()),
+            span_limits,
+        }
+    }
+
+    pub(crate) fn new_non_recording(span_context: SpanContext, tracer: &SdkTracer) -> Self {
+        Span {
+            span_context,
+            data: None,
+            scope: Arc::clone(&tracer.scope),
+            provider: None,
+            span_limits: SpanLimits::default(),
         }
     }
 
@@ -81,11 +106,13 @@ impl Span {
     /// in `on_start`, prefer using the clone-free inherent read methods (`attributes()`,
     /// `name()`, `span_kind()`, etc.) instead.
     pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
-        let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-
-        self.data
-            .as_ref()
-            .map(|data| build_export_data(data.clone(), span_context, tracer))
+        self.data.as_ref().map(|data| {
+            build_export_data(
+                data.clone(),
+                self.span_context.clone(),
+                self.instrumentation_scope(),
+            )
+        })
     }
 
     /// Returns the `SpanId` of the parent span.
@@ -188,7 +215,7 @@ impl Span {
 
     /// Returns the instrumentation scope of the span.
     pub fn instrumentation_scope(&self) -> &opentelemetry::InstrumentationScope {
-        self.tracer.instrumentation_scope()
+        &self.scope
     }
 }
 
@@ -329,7 +356,12 @@ impl Span {
             None => return,
         };
 
-        let provider = self.tracer.provider();
+        // Recording spans always have a provider; debug_assert verifies this invariant
+        // while avoiding panics on drop in release builds.
+        debug_assert!(self.provider.is_some(), "recording span missing provider");
+        let Some(provider) = self.provider.as_ref() else {
+            return;
+        };
         if provider.is_shutdown() {
             return;
         }
@@ -351,7 +383,7 @@ impl Span {
         // https://opentelemetry.io/docs/specs/otel/trace/api/#get-context
         let span_context = self.span_context.clone();
 
-        let mut span_data = Some(build_export_data(data, span_context, &self.tracer));
+        let mut span_data = Some(build_export_data(data, span_context, &self.scope));
 
         if let Some((last, processors)) = span_processors.split_last() {
             for processor in processors {
@@ -463,7 +495,7 @@ impl std::fmt::Debug for FinishedSpan<'_> {
 fn build_export_data(
     data: SpanData,
     span_context: SpanContext,
-    tracer: &crate::trace::SdkTracer,
+    scope: &opentelemetry::InstrumentationScope,
 ) -> crate::trace::SpanData {
     crate::trace::SpanData {
         span_context,
@@ -478,7 +510,7 @@ fn build_export_data(
         events: data.events,
         links: data.links,
         status: data.status,
-        instrumentation_scope: tracer.instrumentation_scope().clone(),
+        instrumentation_scope: scope.clone(),
     }
 }
 
@@ -520,10 +552,10 @@ mod tests {
 
     fn create_span() -> Span {
         let (tracer, data) = init();
-        Span::new(
+        Span::new_recording(
             SpanContext::empty_context(),
-            Some(data),
-            tracer,
+            data,
+            &tracer,
             Default::default(),
         )
     }
@@ -531,22 +563,17 @@ mod tests {
     #[test]
     fn create_span_without_data() {
         let (tracer, _) = init();
-        let mut span = Span::new(
-            SpanContext::empty_context(),
-            None,
-            tracer,
-            Default::default(),
-        );
+        let mut span = Span::new_non_recording(SpanContext::empty_context(), &tracer);
         span.with_data(|_data| panic!("there are data"));
     }
 
     #[test]
     fn create_span_with_data_mut() {
         let (tracer, data) = init();
-        let mut span = Span::new(
+        let mut span = Span::new_recording(
             SpanContext::empty_context(),
-            Some(data.clone()),
-            tracer,
+            data.clone(),
+            &tracer,
             Default::default(),
         );
         span.with_data(|d| assert_eq!(*d, data));
@@ -802,17 +829,14 @@ mod tests {
             vec![KeyValue::new("foo", "1"), KeyValue::new("bar", "2")];
         span.set_attributes(span_attributes_after_creation);
 
-        let actual_span = span
-            .data
-            .clone()
-            .expect("span data should not be empty as we already set it before");
         assert_eq!(
-            actual_span.attributes.len(),
+            span.attributes().len(),
             DEFAULT_MAX_ATTRIBUTES_PER_SPAN as usize,
             "Span attributes should be truncated to the max limit"
         );
         assert_eq!(
-            actual_span.dropped_attributes_count, expected_dropped_count,
+            span.dropped_attributes_count(),
+            expected_dropped_count,
             "Dropped count should match the actual count of attributes dropped"
         );
     }
@@ -840,17 +864,9 @@ mod tests {
         // add event after build
         span.add_event("another test event", event2.attributes);
 
-        let event_queue = span
-            .data
-            .clone()
-            .expect("span data should not be empty as we already set it before")
-            .events;
-        let event_vec: Vec<_> = event_queue.iter().take(2).collect();
-        #[allow(clippy::get_first)] // we want to extract first two elements
-        let processed_event_1 = event_vec.get(0).expect("should have at least two events");
-        let processed_event_2 = event_vec.get(1).expect("should have at least two events");
-        assert_eq!(processed_event_1.attributes.len(), 128);
-        assert_eq!(processed_event_2.attributes.len(), 128);
+        let events = span.events();
+        assert_eq!(events[0].attributes.len(), 128);
+        assert_eq!(events[1].attributes.len(), 128);
     }
 
     #[test]
@@ -875,13 +891,8 @@ mod tests {
 
         let span_builder = tracer.span_builder("test").with_links(vec![link]);
         let span = tracer.build(span_builder);
-        let link_queue = span
-            .data
-            .clone()
-            .expect("span data should not be empty as we already set it before")
-            .links;
-        let link_vec: Vec<_> = link_queue.links;
-        let processed_link = link_vec.first().expect("should have at least one link");
+        let links = span.links();
+        let processed_link = links.first().expect("should have at least one link");
         assert_eq!(processed_link.attributes.len(), 128);
     }
 
@@ -918,13 +929,7 @@ mod tests {
             ),
             vec![],
         );
-        let link_queue = span
-            .data
-            .clone()
-            .expect("span data should not be empty as we already set it before")
-            .links;
-        let link_vec: Vec<_> = link_queue.links;
-        assert_eq!(link_vec.len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
+        assert_eq!(span.links().len(), DEFAULT_MAX_LINKS_PER_SPAN as usize);
     }
 
     #[test]
@@ -947,13 +952,7 @@ mod tests {
         // add events using span api after building the span
         span.add_event("test event again, after span builder", Vec::new());
         span.add_event("test event once again, after span builder", Vec::new());
-        let span_events = span
-            .data
-            .clone()
-            .expect("span data should not be empty as we already set it before")
-            .events;
-        let event_vec: Vec<_> = span_events.events;
-        assert_eq!(event_vec.len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
+        assert_eq!(span.events().len(), DEFAULT_MAX_EVENT_PER_SPAN as usize);
     }
 
     fn make_test_span(tracer: &SdkTracer) -> Span {
@@ -1568,7 +1567,7 @@ mod tests {
         let tracer = provider.tracer("test");
 
         let mut span = tracer.start("test_span");
-        let start_time = span.data.as_ref().unwrap().start_time;
+        let start_time = span.start_time().unwrap();
 
         // Ensure the refactored end path preserves an explicitly supplied
         // zero-duration timestamp where end_time == start_time.
@@ -1606,5 +1605,319 @@ mod tests {
         span.end();
         drop(span);
         assert_eq!(exporter.get_finished_spans().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn non_recording_span_mutations_are_noops() {
+        let span_context = SpanContext::new(
+            TraceId::from_bytes([1; 16]),
+            SpanId::from_bytes([2; 8]),
+            TraceFlags::default(),
+            false,
+            opentelemetry::trace::TraceState::default(),
+        );
+        let tracer = crate::trace::SdkTracerProvider::default().tracer("test");
+        let mut span = Span::new_non_recording(span_context.clone(), &tracer);
+
+        assert!(!span.is_recording());
+        assert_eq!(span.span_context(), &span_context);
+        assert_eq!(span.instrumentation_scope().name(), "test");
+        assert!(span.exported_data().is_none());
+
+        span.set_attribute(KeyValue::new("k", "v"));
+        span.set_attributes([KeyValue::new("k1", "v1"), KeyValue::new("k2", "v2")]);
+        span.add_event("event", vec![KeyValue::new("k", "v")]);
+        span.add_event_with_timestamp(
+            "event_with_time",
+            opentelemetry::time::now(),
+            vec![KeyValue::new("k", "v")],
+        );
+        let err = std::io::Error::from(std::io::ErrorKind::Other);
+        span.record_error(&err);
+        span.set_status(Status::error("boom"));
+        span.update_name("new_name");
+        span.add_link(SpanContext::empty_context(), vec![KeyValue::new("k", "v")]);
+
+        assert!(!span.is_recording());
+        assert_eq!(span.span_context(), &span_context);
+        assert_eq!(span.instrumentation_scope().name(), "test");
+        assert!(span.exported_data().is_none());
+
+        span.end();
+        assert!(!span.is_recording());
+        assert_eq!(span.span_context(), &span_context);
+        assert_eq!(span.instrumentation_scope().name(), "test");
+        assert!(span.exported_data().is_none());
+    }
+
+    #[test]
+    fn sampling_decision_drop_returns_valid_non_recording_span() {
+        use opentelemetry::trace::TraceContextExt;
+
+        let exporter = crate::trace::InMemorySpanExporterBuilder::new().build();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOff)
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let tracer = provider.tracer("test_tracer");
+
+        let parent_trace_id = TraceId::from_bytes([42; 16]);
+        let parent_span_id = SpanId::from_bytes([7; 8]);
+        let trace_state =
+            opentelemetry::trace::TraceState::from_key_value([("rojo", "1")]).unwrap();
+        let parent_sc = SpanContext::new(
+            parent_trace_id,
+            parent_span_id,
+            TraceFlags::default(),
+            true,
+            trace_state.clone(),
+        );
+        let parent_cx = opentelemetry::Context::new().with_remote_span_context(parent_sc);
+
+        let mut span = tracer.start_with_context("dropped_span", &parent_cx);
+
+        assert!(!span.is_recording());
+
+        let sc = span.span_context();
+        assert!(sc.is_valid());
+        assert_eq!(sc.trace_id(), parent_trace_id);
+        assert_ne!(sc.span_id(), SpanId::INVALID);
+        assert_ne!(sc.span_id(), parent_span_id);
+        assert!(!sc.is_sampled());
+        assert_eq!(sc.trace_state(), &trace_state);
+        assert_eq!(span.instrumentation_scope(), tracer.instrumentation_scope());
+
+        drop(tracer);
+        drop(provider);
+        assert!(exporter.is_shutdown_called());
+
+        span.set_attribute(KeyValue::new("dropped_key", "value"));
+        span.add_event("dropped_event", vec![]);
+        span.set_status(Status::error("error"));
+
+        span.end();
+
+        let finished_spans = exporter.get_finished_spans().unwrap();
+        assert!(finished_spans.is_empty());
+    }
+
+    #[test]
+    fn span_processors_not_invoked_for_dropped_span() {
+        use crate::error::OTelSdkResult;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        #[derive(Debug)]
+        struct CountingProcessor {
+            starts: Arc<AtomicUsize>,
+            ends: Arc<AtomicUsize>,
+        }
+
+        impl crate::trace::SpanProcessor for CountingProcessor {
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {
+                self.starts.fetch_add(1, Ordering::SeqCst);
+            }
+            fn on_end(&self, _span: crate::trace::FinishedSpan<'_>) {
+                self.ends.fetch_add(1, Ordering::SeqCst);
+            }
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let starts = Arc::new(AtomicUsize::new(0));
+        let ends = Arc::new(AtomicUsize::new(0));
+
+        let processor = CountingProcessor {
+            starts: Arc::clone(&starts),
+            ends: Arc::clone(&ends),
+        };
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOff)
+            .with_span_processor(processor)
+            .build();
+        let tracer = provider.tracer("counting");
+
+        {
+            let mut span = tracer.start("test_dropped");
+            span.set_attribute(KeyValue::new("foo", "bar"));
+            span.end();
+        }
+
+        assert_eq!(starts.load(Ordering::SeqCst), 0);
+        assert_eq!(ends.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn recording_span_exports_once_and_keeps_provider_until_drop() {
+        let exporter = crate::trace::InMemorySpanExporterBuilder::new()
+            .keep_records_on_shutdown()
+            .build();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOn)
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let tracer = provider.tracer("recording_test");
+
+        let mut span = tracer.start("recording_span");
+        let span_context = span.span_context().clone();
+        assert!(span.is_recording());
+        assert_eq!(span.instrumentation_scope(), tracer.instrumentation_scope());
+
+        span.set_attribute(KeyValue::new("attr1", "val1"));
+        span.set_status(Status::Ok);
+
+        assert!(span.is_recording());
+        assert!(span.exported_data().is_some());
+
+        drop(tracer);
+        drop(provider);
+        assert!(!exporter.is_shutdown_called());
+
+        span.end();
+
+        assert!(!exporter.is_shutdown_called());
+        assert!(!span.is_recording());
+        assert_eq!(span.span_context(), &span_context);
+        assert_eq!(span.instrumentation_scope().name(), "recording_test");
+        assert!(span.exported_data().is_none());
+
+        span.set_attribute(KeyValue::new("attr2", "val2"));
+        span.end();
+        drop(span);
+
+        assert!(exporter.is_shutdown_called());
+
+        let finished = exporter.get_finished_spans().unwrap();
+        assert_eq!(finished.len(), 1);
+        assert_eq!(finished[0].name, "recording_span");
+        assert_eq!(finished[0].status, Status::Ok);
+        assert_eq!(finished[0].attributes.len(), 1);
+        assert_eq!(finished[0].attributes[0].key.as_str(), "attr1");
+    }
+
+    #[test]
+    fn ending_attached_span_keeps_provider_until_context_is_dropped() {
+        use crate::error::OTelSdkResult;
+        use opentelemetry::{trace::TraceContextExt, Context};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::mpsc;
+
+        #[derive(Debug)]
+        struct ContextReadingProcessor(Arc<AtomicUsize>);
+
+        impl SpanProcessor for ContextReadingProcessor {
+            fn on_start(&self, _span: &mut Span, _cx: &Context) {}
+            fn on_end(&self, _span: FinishedSpan<'_>) {}
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                assert!(!Context::map_current(|cx| cx.span().is_recording()));
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            }
+        }
+
+        let (sender, receiver) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let shutdowns = Arc::new(AtomicUsize::new(0));
+            let provider = crate::trace::SdkTracerProvider::builder()
+                .with_span_processor(ContextReadingProcessor(Arc::clone(&shutdowns)))
+                .build();
+            let tracer = provider.tracer("test");
+            let cx = Context::new().with_span(tracer.start("attached"));
+            let guard = cx.clone().attach();
+            drop(tracer);
+            drop(provider);
+
+            // A shutdown callback must not run while end holds the span's mutex.
+            cx.span().end();
+            assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
+
+            drop(guard);
+            drop(cx);
+            sender.send(shutdowns.load(Ordering::SeqCst)).unwrap();
+        });
+
+        assert_eq!(receiver.recv_timeout(Duration::from_secs(5)).unwrap(), 1);
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn span_debug_does_not_format_processors() {
+        use crate::error::OTelSdkResult;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct FormattingProcessor(Arc<AtomicUsize>);
+
+        impl std::fmt::Debug for FormattingProcessor {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                f.write_str("FormattingProcessor")
+            }
+        }
+
+        impl SpanProcessor for FormattingProcessor {
+            fn on_start(&self, _span: &mut Span, _cx: &opentelemetry::Context) {}
+            fn on_end(&self, _span: FinishedSpan<'_>) {}
+            fn force_flush(&self) -> OTelSdkResult {
+                Ok(())
+            }
+            fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+                Ok(())
+            }
+        }
+
+        let formats = Arc::new(AtomicUsize::new(0));
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(FormattingProcessor(Arc::clone(&formats)))
+            .build();
+        let tracer = provider.tracer("test");
+        let span = tracer.start("debug-span");
+
+        assert!(format!("{span:?}").contains("debug-span"));
+        assert_eq!(formats.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn telemetry_suppressed_and_shutdown_produce_non_recording_spans() {
+        let exporter = crate::trace::InMemorySpanExporterBuilder::new().build();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(crate::trace::Sampler::AlwaysOn)
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let tracer = provider.tracer("suppressed_test");
+
+        let suppressed_cx = opentelemetry::Context::new().with_telemetry_suppressed();
+        let mut suppressed_span = tracer.start_with_context("suppressed", &suppressed_cx);
+        assert!(!suppressed_span.is_recording());
+        assert_eq!(
+            suppressed_span.span_context(),
+            &SpanContext::empty_context()
+        );
+        assert_eq!(
+            suppressed_span.instrumentation_scope(),
+            tracer.instrumentation_scope()
+        );
+        suppressed_span.set_attribute(KeyValue::new("a", "b"));
+        suppressed_span.end();
+
+        assert!(provider.shutdown().is_ok());
+        let mut shutdown_span = tracer.start("after_shutdown");
+        assert!(!shutdown_span.is_recording());
+        assert_eq!(shutdown_span.span_context(), &SpanContext::empty_context());
+        assert_eq!(
+            shutdown_span.instrumentation_scope(),
+            tracer.instrumentation_scope()
+        );
+        shutdown_span.set_attribute(KeyValue::new("a", "b"));
+        shutdown_span.end();
+
+        let finished = exporter.get_finished_spans().unwrap();
+        assert!(finished.is_empty());
     }
 }
