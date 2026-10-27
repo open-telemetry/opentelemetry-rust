@@ -17,7 +17,7 @@ const RANDOMNESS_MASK: u64 = MAX_ADJUSTED_COUNT - 1;
 const DEFAULT_SAMPLING_PRECISION: i32 = 4;
 
 /// Smallest representable probability: 1 / 2^56.
-const PROBABILITY_ZERO_THRESHOLD: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
+const MIN_SAMPLING_PROBABILITY: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
 
 /// Standalone consistent probability sampler according to the OpenTelemetry specification.
 ///
@@ -132,7 +132,7 @@ impl ProbabilitySampler {
         parent_trace_state: &TraceState,
         ot_trace_state: &OtTraceState<'_>,
     ) -> TraceState {
-        let new_otts = ot_trace_state.with_threshold(&self.th_kv);
+        let new_otts = ot_trace_state.encode_with_threshold(&self.th_kv);
         if ot_trace_state.value == Some(new_otts.as_str()) {
             return parent_trace_state.clone();
         }
@@ -148,7 +148,7 @@ impl ProbabilitySampler {
                 }
                 // The parent's threshold no longer describes this decision. Keep its
                 // randomness and other concerns, but erase stale probability metadata.
-                let without_th = ot_trace_state.with_threshold("");
+                let without_th = ot_trace_state.encode_with_threshold("");
                 if ot_trace_state.value == Some(without_th.as_str()) {
                     parent_trace_state.clone()
                 } else if without_th.is_empty() {
@@ -222,7 +222,7 @@ fn calculate_threshold(probability: f64) -> (u64, String) {
     if probability >= 1.0 {
         return (0, "th:0".to_string());
     }
-    if probability.is_nan() || probability < PROBABILITY_ZERO_THRESHOLD {
+    if probability.is_nan() || probability < MIN_SAMPLING_PROBABILITY {
         return (MAX_ADJUSTED_COUNT, String::new());
     }
 
@@ -282,7 +282,7 @@ impl OtTraceState<'_> {
     /// Inserts or updates `th`, preserving valid unrelated sub-fields.
     /// An empty threshold erases `th`. Malformed sub-fields and duplicate `rv` entries are discarded.
     /// `th_kv` must be empty or a valid encoded `th:<hex>` field.
-    fn with_threshold(&self, th_kv: &str) -> String {
+    fn encode_with_threshold(&self, th_kv: &str) -> String {
         let existing_otts = self.value.unwrap_or("");
         let mut updated = String::with_capacity(th_kv.len() + 1 + existing_otts.len());
         updated.push_str(th_kv);
@@ -347,17 +347,17 @@ mod tests {
             (1.0, 0, "th:0"),
             (1.5, 0, "th:0"),
             (
-                PROBABILITY_ZERO_THRESHOLD,
+                MIN_SAMPLING_PROBABILITY,
                 RANDOMNESS_MASK,
                 "th:ffffffffffffff",
             ),
             (
-                f64::from_bits(PROBABILITY_ZERO_THRESHOLD.to_bits() - 1),
+                f64::from_bits(MIN_SAMPLING_PROBABILITY.to_bits() - 1),
                 MAX_ADJUSTED_COUNT,
                 "",
             ),
             (
-                f64::from_bits(PROBABILITY_ZERO_THRESHOLD.to_bits() + 1),
+                f64::from_bits(MIN_SAMPLING_PROBABILITY.to_bits() + 1),
                 RANDOMNESS_MASK,
                 "th:ffffffffffffff",
             ),
@@ -659,7 +659,7 @@ mod tests {
             let ot_trace_state = OtTraceState {
                 value: Some(existing),
             };
-            let got = ot_trace_state.with_threshold(th_kv);
+            let got = ot_trace_state.encode_with_threshold(th_kv);
             assert_eq!(got, want, "case: {name}");
         }
     }
@@ -1121,7 +1121,7 @@ mod tests {
                 false,
             ),
             (
-                PROBABILITY_ZERO_THRESHOLD,
+                MIN_SAMPLING_PROBABILITY,
                 format!("{prefix}{padding}{suffix}"),
                 format!("{prefix}{padding}"),
                 true,
