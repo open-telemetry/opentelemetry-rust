@@ -37,10 +37,10 @@ const PROBABILITY_ZERO_THRESHOLD: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
 ///
 /// ### Standalone vs. Parent-Based Sampling
 ///
-/// Unlike [`ParentBasedSampler`](crate::trace::ParentBasedSampler), `ProbabilitySampler` makes its decision
-/// independently of the parent span's sampled flag. To respect incoming sampled decisions from upstream
-/// services while using consistent probability sampling for root spans, configure `ProbabilitySampler`
-/// as the root delegate of a [`ParentBasedSampler`](crate::trace::ParentBasedSampler).
+/// A standalone `ProbabilitySampler` does not respect the parent span's sampling decision.
+/// To preserve parent sampling decisions while using probability sampling for root spans,
+/// use [`ParentBasedSampler`](crate::trace::ParentBasedSampler) with `ProbabilitySampler`
+/// as its root delegate.
 /// The legacy [`Sampler::ParentBased`](crate::trace::Sampler::ParentBased) variant
 /// forwards only the delegate's decision, discarding its attributes and modified TraceState.
 ///
