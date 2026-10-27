@@ -24,6 +24,7 @@
   ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 - Fixed `TraceContextPropagator` to reject `traceparent` headers that do not
   conform to [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/#traceparent-header)
+  ([#3821](https://github.com/open-telemetry/opentelemetry-rust/pull/3821))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
