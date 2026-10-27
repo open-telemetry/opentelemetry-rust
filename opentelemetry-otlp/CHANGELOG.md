@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Update `zstd` dependency version to 0.14.3, which addresses
+  [RUSTSEC-2026-0391](https://rustsec.org/advisories/RUSTSEC-2026-0391).
+  The `zstd-http` feature does not use the affected functions.
+
 ## 0.33.1
 
 Released 2026-Oct-08
