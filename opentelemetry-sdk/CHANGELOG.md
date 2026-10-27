@@ -35,7 +35,9 @@
   rejection thresholds against randomness derived from input `ot=rv:...` TraceState
   (including root spans) or the least significant 56 bits of the
   TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
-  a standalone sampler or as a delegate within `ParentBasedSampler`
+  a standalone sampler or as a delegate within `ParentBasedSampler`.
+  Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
+  valid explicit randomness is preserved
   (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
 
 ## 0.33.1

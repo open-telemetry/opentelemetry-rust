@@ -279,8 +279,9 @@ impl OtTraceState<'_> {
         u64::from_str_radix(value, 16).ok()
     }
 
-    /// Inserts or updates `th`, preserving unrelated sub-keys. An empty threshold erases `th`.
-    /// Malformed `rv` sub-keys and duplicates are discarded.
+    /// Inserts or updates `th`, preserving valid unrelated sub-fields.
+    /// An empty threshold erases `th`. Malformed sub-fields and duplicate `rv` entries are discarded.
+    /// `th_kv` must be empty or a valid encoded `th:<hex>` field.
     fn with_threshold(&self, th_kv: &str) -> String {
         let existing_otts = self.value.unwrap_or("");
         let mut updated = String::with_capacity(th_kv.len() + 1 + existing_otts.len());
@@ -301,15 +302,29 @@ impl OtTraceState<'_> {
                 if !is_valid_rv(rv_val) {
                     continue;
                 }
+            } else if !Self::is_valid_subfield(field) {
+                continue;
             }
-            if !field.is_empty() {
-                if !updated.is_empty() {
-                    updated.push(';');
-                }
-                updated.push_str(field);
+            if !updated.is_empty() {
+                updated.push(';');
             }
+            updated.push_str(field);
         }
         updated
+    }
+
+    // W3C TraceState permits a wider character set than OTel sub-fields.
+    fn is_valid_subfield(field: &str) -> bool {
+        let Some((key, value)) = field.split_once(':') else {
+            return false;
+        };
+        key.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
+            && key
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
     }
 }
 
@@ -558,6 +573,12 @@ mod tests {
                 "newkey:ABC_-.;th:bad",
                 "th:8",
                 "th:8;newkey:ABC_-.",
+            ),
+            (
+                "discards malformed unrelated subfields",
+                "foo:bar ;bad_key:value;Upper:value;9key:value;missingcolon;multi:bad:value;good1:ABC_-.;empty:",
+                "th:8",
+                "th:8;good1:ABC_-.;empty:",
             ),
             (
                 "empty existing adds th at front",
@@ -1085,6 +1106,57 @@ mod tests {
         assert_eq!(res.trace_state, ts);
         // Warning flag was set
         assert!(sampler.warn_tracestate.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn malformed_subfields_do_not_discard_explicit_randomness() {
+        let prefix = "rv:ffffffffffffff;custom:";
+        let suffix = ";bad:ends ;th:0";
+        let padding = "a".repeat(256 - prefix.len() - suffix.len());
+        for (probability, incoming_ot, expected_ot, overflow) in [
+            (
+                0.5,
+                "rv:80000000000000;keep:value;foo:bar ;th:0".to_string(),
+                "th:8;rv:80000000000000;keep:value".to_string(),
+                false,
+            ),
+            (
+                PROBABILITY_ZERO_THRESHOLD,
+                format!("{prefix}{padding}{suffix}"),
+                format!("{prefix}{padding}"),
+                true,
+            ),
+        ] {
+            let sampler = ProbabilitySampler::new(probability);
+            let trace_id = TraceId::from(1_u128 << 64);
+            let state =
+                TraceState::from_key_value([("ot", incoming_ot.as_str()), ("vendor", "keep")])
+                    .unwrap();
+            let cx = Context::new().with_remote_span_context(SpanContext::new(
+                trace_id,
+                SpanId::from(1),
+                TraceFlags::default(),
+                true,
+                state.clone(),
+            ));
+            let result =
+                sampler.should_sample(Some(&cx), trace_id, "test", &SpanKind::Internal, &[], &[]);
+            assert_eq!(result.decision, SamplingDecision::RecordAndSample);
+            assert_eq!(result.trace_state.get("ot"), Some(expected_ot.as_str()));
+            assert_eq!(result.trace_state.get("vendor"), Some("keep"));
+            assert_eq!(sampler.warn_tracestate.load(Ordering::Relaxed), overflow);
+
+            let dropped = ProbabilitySampler::new(0.0).should_sample(
+                Some(&cx),
+                trace_id,
+                "test",
+                &SpanKind::Internal,
+                &[],
+                &[],
+            );
+            assert_eq!(dropped.decision, SamplingDecision::Drop);
+            assert_eq!(dropped.trace_state, state);
+        }
     }
 
     #[test]
