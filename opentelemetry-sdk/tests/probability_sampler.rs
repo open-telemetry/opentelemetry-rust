@@ -1,4 +1,4 @@
-#![cfg(feature = "otel_unstable")]
+#![cfg(feature = "experimental_trace_probability_sampler")]
 
 use opentelemetry::{
     trace::{
