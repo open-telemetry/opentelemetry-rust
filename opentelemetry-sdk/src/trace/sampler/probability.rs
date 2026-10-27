@@ -84,7 +84,7 @@ const PROBABILITY_ZERO_THRESHOLD: f64 = 1.0 / (MAX_ADJUSTED_COUNT as f64);
 #[derive(Clone, Debug)]
 pub struct ProbabilitySampler {
     threshold: u64,
-    th_kv: String,
+    th_kv: Box<str>,
     warn_tracestate: Arc<AtomicBool>,
     warn_non_random: Arc<AtomicBool>,
 }
@@ -100,7 +100,7 @@ impl ProbabilitySampler {
         let (threshold, th_kv) = calculate_threshold(probability);
         Self {
             threshold,
-            th_kv,
+            th_kv: th_kv.into_boxed_str(),
             warn_tracestate: Arc::new(AtomicBool::new(false)),
             warn_non_random: Arc::new(AtomicBool::new(false)),
         }
@@ -365,7 +365,7 @@ mod tests {
         for (prob, want_th, want_th_kv) in cases {
             let sampler = ProbabilitySampler::new(prob);
             assert_eq!(sampler.threshold, want_th, "threshold for prob {prob}");
-            assert_eq!(sampler.th_kv, want_th_kv, "th_kv for prob {prob}");
+            assert_eq!(sampler.th_kv.as_ref(), want_th_kv, "th_kv for prob {prob}");
         }
     }
 
