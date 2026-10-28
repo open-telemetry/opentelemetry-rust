@@ -4,7 +4,7 @@ use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
-use crate::trace::{SpanData, SpanExporter};
+use crate::trace::{FinishedSpan, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, BoxFuture, Either},
@@ -105,10 +105,11 @@ impl<R: RuntimeChannel> SpanProcessor for BatchSpanProcessor<R> {
         // Ignored
     }
 
-    fn on_end(&self, span: SpanData) {
-        if !span.span_context.is_sampled() {
+    fn on_end(&self, span: FinishedSpan<'_>) {
+        if !span.span_data().span_context.is_sampled() {
             return;
         }
+        let span = span.into_owned();
 
         let result = self.message_sender.try_send(BatchMessage::ExportSpan(span));
 
@@ -443,30 +444,45 @@ where
     }
 }
 
-#[cfg(all(test, feature = "testing", feature = "trace"))]
+#[cfg(all(
+    test,
+    feature = "testing",
+    feature = "trace",
+    any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
+))]
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{BatchSpanProcessor, SpanProcessor};
     use crate::error::OTelSdkResult;
     use crate::runtime;
-    use crate::testing::trace::{new_test_export_span_data, new_test_exporter};
+    use crate::testing::trace::new_test_export_span_data;
+    #[cfg(feature = "rt-tokio-current-thread")]
+    use crate::testing::trace::new_test_exporter;
+    #[cfg(feature = "rt-tokio")]
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    use crate::trace::{BatchConfig, BatchConfigBuilder, InMemorySpanExporterBuilder};
-    use crate::trace::{SpanData, SpanExporter};
+    #[cfg(feature = "rt-tokio")]
+    use crate::trace::InMemorySpanExporterBuilder;
+    use crate::trace::{BatchConfig, BatchConfigBuilder};
+    use crate::trace::{FinishedSpan, SpanData, SpanExporter};
+    #[cfg(feature = "rt-tokio-current-thread")]
     use futures_util::Future;
     use std::fmt::Debug;
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    #[cfg(feature = "rt-tokio")]
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
 
+    #[cfg(feature = "rt-tokio-current-thread")]
     struct BlockingExporter<D> {
         delay_for: Duration,
         delay_fn: D,
     }
 
+    #[cfg(feature = "rt-tokio-current-thread")]
     impl<D, DS> Debug for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,
@@ -477,6 +493,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "rt-tokio-current-thread")]
     impl<D, DS> SpanExporter for BlockingExporter<D>
     where
         D: Fn(Duration) -> DS + 'static + Send + Sync,
@@ -489,6 +506,7 @@ mod tests {
     }
 
     /// Exporter that records whether two exports overlap in time.
+    #[cfg(feature = "rt-tokio")]
     struct TrackingExporter {
         /// Artificial delay to keep each export alive for a while.
         delay: Duration,
@@ -498,12 +516,14 @@ mod tests {
         concurrent_seen: Arc<AtomicBool>,
     }
 
+    #[cfg(feature = "rt-tokio")]
     impl Debug for TrackingExporter {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str("tracking exporter")
         }
     }
 
+    #[cfg(feature = "rt-tokio")]
     impl SpanExporter for TrackingExporter {
         async fn export(&self, _batch: Vec<SpanData>) -> crate::error::OTelSdkResult {
             // Increment in-flight counter and note any overlap.
@@ -522,6 +542,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn test_build_batch_span_processor_builder() {
         let mut env_vars = vec![
             (OTEL_BSP_MAX_EXPORT_BATCH_SIZE, Some("500")),
@@ -562,6 +583,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_batch_span_processor() {
         let (exporter, mut export_receiver, _shutdown_receiver) = new_test_exporter();
         let config = BatchConfigBuilder::default()
@@ -577,7 +599,7 @@ mod tests {
             }
         });
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         let flush_res = processor.force_flush();
         assert!(flush_res.is_ok());
         let _shutdown_result = processor.shutdown();
@@ -592,6 +614,7 @@ mod tests {
 
     // If `time_out` is `true`, then the export should fail with a timeout.
     // Else, the exporter should be able to export within the timeout duration.
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn timeout_test_tokio(time_out: bool) {
         let config = BatchConfig {
             max_export_timeout: Duration::from_millis(if time_out { 5 } else { 60 }),
@@ -604,7 +627,7 @@ mod tests {
         };
         let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
         tokio::time::sleep(Duration::from_secs(1)).await; // skip the first
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
         let flush_res = processor.force_flush();
         if time_out {
             assert!(flush_res.is_err());
@@ -616,6 +639,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_timeout_tokio_timeout() {
         // If time_out is true, then we ask exporter to block for 60s and set timeout to 5s.
         // If time_out is false, then we ask the exporter to block for 5s and set timeout to 60s.
@@ -624,11 +648,13 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_timeout_tokio_not_timeout() {
         timeout_test_tokio(false).await;
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(feature = "rt-tokio")]
     async fn test_concurrent_exports_expected() {
         // Shared state for the exporter.
         let active = Arc::new(AtomicUsize::new(0));
@@ -653,9 +679,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish three spans in rapid succession.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
 
         // Wait until everything has been exported.
         processor.force_flush().expect("force flush failed");
@@ -669,6 +695,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio")]
     async fn test_exports_serial_when_max_concurrent_exports_1() {
         let active = Arc::new(AtomicUsize::new(0));
         let concurrent_seen = Arc::new(AtomicBool::new(false));
@@ -690,9 +717,9 @@ mod tests {
         let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
 
         // Finish several spans quickly.
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
-        processor.on_end(new_test_export_span_data());
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
 
         processor.force_flush().expect("force flush failed");
         processor.shutdown().expect("shutdown failed");
@@ -702,5 +729,77 @@ mod tests {
             !concurrent_seen.load(Ordering::SeqCst),
             "exports overlapped even though max_concurrent_exports was 1"
         );
+    }
+
+    #[derive(Debug, Default)]
+    struct TokioSpanExporter {
+        export_count: Arc<AtomicUsize>,
+    }
+
+    impl SpanExporter for TokioSpanExporter {
+        async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
+            let count = batch.len();
+            let task = tokio::spawn(async {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            });
+            task.await
+                .map_err(|err| crate::error::OTelSdkError::InternalFailure(err.to_string()))?;
+            self.export_count.fetch_add(count, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio")]
+    async fn test_batch_span_processor_tokio_multithread_force_flush_and_shutdown() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioSpanExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::Tokio);
+
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        assert_eq!(export_count.load(Ordering::SeqCst), 0);
+        processor.force_flush().expect("force_flush should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+        processor.shutdown().expect("shutdown should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
+    async fn test_batch_span_processor_tokio_current_thread_runtime() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioSpanExporter::default();
+        let export_count = exporter.export_count.clone();
+        let config = BatchConfigBuilder::default()
+            .with_scheduled_delay(Duration::from_secs(3600))
+            .with_max_queue_size(2048)
+            .with_max_export_batch_size(512)
+            .build();
+        let processor = BatchSpanProcessor::new(exporter, config, runtime::TokioCurrentThread);
+
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        assert_eq!(export_count.load(Ordering::SeqCst), 0);
+        processor.force_flush().expect("force_flush should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+
+        processor.on_end(FinishedSpan::borrowed(&new_test_export_span_data()));
+        assert_eq!(export_count.load(Ordering::SeqCst), 1);
+        processor.shutdown().expect("shutdown should succeed");
+        assert_eq!(export_count.load(Ordering::SeqCst), 2);
     }
 }
