@@ -317,6 +317,9 @@ mod tests {
 
     #[test]
     fn test_trace_state() {
+        assert_eq!(TraceState::NONE.clone(), TraceState::NONE);
+        assert_eq!(TraceState::default().clone(), TraceState::NONE);
+
         for test_case in trace_state_test_data() {
             assert_eq!(test_case.0.clone().header(), test_case.1);
 

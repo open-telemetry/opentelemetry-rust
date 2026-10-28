@@ -451,12 +451,45 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trace::{noop::NoopSpan, Span};
+    use crate::trace::Span;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct EndSpan(Arc<AtomicBool>);
+
+    impl Span for EndSpan {
+        fn add_event_with_timestamp<T>(&mut self, _: T, _: SystemTime, _: Vec<KeyValue>)
+        where
+            T: Into<Cow<'static, str>>,
+        {
+        }
+        fn span_context(&self) -> &SpanContext {
+            static CX: SpanContext = SpanContext::NONE;
+            &CX
+        }
+        fn is_recording(&self) -> bool {
+            true
+        }
+        fn set_attribute(&mut self, _: KeyValue) {}
+        fn set_status(&mut self, _: Status) {}
+        fn update_name<T>(&mut self, _: T)
+        where
+            T: Into<Cow<'static, str>>,
+        {
+        }
+        fn add_link(&mut self, _: SpanContext, _: Vec<KeyValue>) {}
+        fn end(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+        fn end_with_timestamp(&mut self, _: SystemTime) {
+            panic!("end() should not call end_with_timestamp()");
+        }
+    }
 
     #[test]
     fn boxed_span_end_delegates_to_inner_span() {
-        let mut span = BoxedSpan::new(NoopSpan::DEFAULT);
+        let ended = Arc::new(AtomicBool::new(false));
+        let mut span = BoxedSpan::new(EndSpan(ended.clone()));
         Span::end(&mut span);
-        assert!(!Span::is_recording(&span));
+        assert!(ended.load(Ordering::Relaxed));
     }
 }
