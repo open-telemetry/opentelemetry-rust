@@ -12,6 +12,7 @@ use crate::trace::SpanLimits;
 use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
 use std::borrow::Cow;
+use std::sync::OnceLock;
 use std::time::SystemTime;
 
 /// Single operation within a trace.
@@ -19,7 +20,7 @@ use std::time::SystemTime;
 pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
-    tracer: crate::trace::SdkTracer,
+    tracer: Option<crate::trace::SdkTracer>,
     span_limits: SpanLimits,
 }
 
@@ -55,15 +56,27 @@ pub(crate) struct SpanData {
 impl Span {
     pub(crate) fn new(
         span_context: SpanContext,
-        data: Option<SpanData>,
+        data: SpanData,
         tracer: crate::trace::SdkTracer,
         span_limit: SpanLimits,
     ) -> Self {
         Span {
             span_context,
-            data,
-            tracer,
+            data: Some(data),
+            tracer: Some(tracer),
             span_limits: span_limit,
+        }
+    }
+
+    /// Creates a non-recording span (no data, no tracer). Used for spans that
+    /// are dropped by sampling, suppressed, or produced by a disabled/shutdown
+    /// provider, avoiding an unnecessary clone of the tracer's `Arc`s.
+    pub(crate) fn new_noop(span_context: SpanContext) -> Self {
+        Span {
+            span_context,
+            data: None,
+            tracer: None,
+            span_limits: SpanLimits::default(),
         }
     }
 
@@ -81,11 +94,13 @@ impl Span {
     /// in `on_start`, prefer using the clone-free inherent read methods (`attributes()`,
     /// `name()`, `span_kind()`, etc.) instead.
     pub fn exported_data(&self) -> Option<crate::trace::SpanData> {
-        let (span_context, tracer) = (self.span_context.clone(), &self.tracer);
-
-        self.data
-            .as_ref()
-            .map(|data| build_export_data(data.clone(), span_context, tracer))
+        let data = self.data.as_ref()?;
+        let tracer = self.tracer.as_ref()?;
+        Some(build_export_data(
+            data.clone(),
+            self.span_context.clone(),
+            tracer,
+        ))
     }
 
     /// Returns the `SpanId` of the parent span.
@@ -187,8 +202,16 @@ impl Span {
     }
 
     /// Returns the instrumentation scope of the span.
+    ///
+    /// Returns an empty scope if the span is not recording.
     pub fn instrumentation_scope(&self) -> &opentelemetry::InstrumentationScope {
-        self.tracer.instrumentation_scope()
+        static EMPTY_SCOPE: OnceLock<opentelemetry::InstrumentationScope> = OnceLock::new();
+        match self.tracer.as_ref() {
+            Some(tracer) => tracer.instrumentation_scope(),
+            None => {
+                EMPTY_SCOPE.get_or_init(|| opentelemetry::InstrumentationScope::builder("").build())
+            }
+        }
     }
 }
 
@@ -321,7 +344,12 @@ impl Span {
             None => return,
         };
 
-        let provider = self.tracer.provider();
+        // a recording span (data is `Some`) always carries its tracer
+        let Some(tracer) = self.tracer.as_ref() else {
+            return;
+        };
+        let provider = tracer.provider();
+        // skip if provider has been shut down
         if provider.is_shutdown() {
             return;
         }
@@ -343,7 +371,7 @@ impl Span {
         // https://opentelemetry.io/docs/specs/otel/trace/api/#get-context
         let span_context = self.span_context.clone();
 
-        let mut span_data = Some(build_export_data(data, span_context, &self.tracer));
+        let mut span_data = Some(build_export_data(data, span_context, tracer));
 
         if let Some((last, processors)) = span_processors.split_last() {
             for processor in processors {
@@ -513,7 +541,7 @@ mod tests {
         let (tracer, data) = init();
         Span::new(
             SpanContext::empty_context(),
-            Some(data),
+            data,
             tracer,
             Default::default(),
         )
@@ -521,13 +549,7 @@ mod tests {
 
     #[test]
     fn create_span_without_data() {
-        let (tracer, _) = init();
-        let mut span = Span::new(
-            SpanContext::empty_context(),
-            None,
-            tracer,
-            Default::default(),
-        );
+        let mut span = Span::new_noop(SpanContext::empty_context());
         span.with_data(|_data| panic!("there are data"));
     }
 
@@ -536,7 +558,7 @@ mod tests {
         let (tracer, data) = init();
         let mut span = Span::new(
             SpanContext::empty_context(),
-            Some(data.clone()),
+            data.clone(),
             tracer,
             Default::default(),
         );
