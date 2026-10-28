@@ -13,6 +13,15 @@ const MAX_ADJUSTED_COUNT: u64 = 1 << 56;
 /// Mask for the least significant 56 bits (7 bytes) of a TraceId.
 const RANDOMNESS_MASK: u64 = MAX_ADJUSTED_COUNT - 1;
 
+/// Threshold value that never samples (equal to 2^56).
+const NEVER_SAMPLE_THRESHOLD: u64 = MAX_ADJUSTED_COUNT;
+
+// Avoid cacheline contention on hot paths by checking before swapping.
+#[inline]
+fn should_warn(flag: &AtomicBool) -> bool {
+    !flag.load(Ordering::Relaxed) && !flag.swap(true, Ordering::Relaxed)
+}
+
 /// Default precision for threshold encoding (4 hex digits).
 const DEFAULT_SAMPLING_PRECISION: i32 = 4;
 
@@ -116,7 +125,7 @@ impl ProbabilitySampler {
             return rv;
         }
         if parent_sc.is_some_and(|sc| sc.is_valid() && !sc.trace_flags().is_random())
-            && !self.warn_non_random.swap(true, Ordering::Relaxed)
+            && should_warn(&self.warn_non_random)
         {
             otel_warn!(
                 name: "ProbabilitySampler.PresumingRandomTraceId",
@@ -139,7 +148,7 @@ impl ProbabilitySampler {
         match parent_trace_state.insert("ot", new_otts) {
             Ok(combined) => combined,
             Err(err) => {
-                if !self.warn_tracestate.swap(true, Ordering::Relaxed) {
+                if should_warn(&self.warn_tracestate) {
                     otel_warn!(
                         name: "ProbabilitySampler.TracestateCombineFailed",
                         message = "The sampling threshold could not be propagated because the updated 'ot' TraceState value exceeds the value length limit. Any previous threshold has been removed. Shorten the 'ot' value to allow the sampling threshold to be propagated.",
@@ -186,9 +195,11 @@ impl ShouldSample for ProbabilitySampler {
         let ot_trace_state = OtTraceState {
             value: parent_trace_state.get("ot"),
         };
-        let sampled = self.threshold != MAX_ADJUSTED_COUNT
-            && (self.threshold == 0
-                || self.randomness(parent_sc, trace_id, &ot_trace_state) >= self.threshold);
+        let sampled = match self.threshold {
+            NEVER_SAMPLE_THRESHOLD => false,
+            0 => true,
+            threshold => self.randomness(parent_sc, trace_id, &ot_trace_state) >= threshold,
+        };
 
         SamplingResult {
             decision: if sampled {
@@ -223,7 +234,7 @@ fn calculate_threshold(probability: f64) -> (u64, String) {
         return (0, "th:0".to_string());
     }
     if probability.is_nan() || probability < MIN_SAMPLING_PROBABILITY {
-        return (MAX_ADJUSTED_COUNT, String::new());
+        return (NEVER_SAMPLE_THRESHOLD, String::new());
     }
 
     let exp_f = frexp_exp(probability);
@@ -934,7 +945,7 @@ mod tests {
     fn test_probability_zero_never_samples() {
         for prob in [0.0, -1.0, f64::NAN, f64::NEG_INFINITY, 1e-18] {
             let sampler = ProbabilitySampler::new(prob);
-            assert_eq!(sampler.threshold, MAX_ADJUSTED_COUNT);
+            assert_eq!(sampler.threshold, NEVER_SAMPLE_THRESHOLD);
 
             // Even for max randomness
             let res = sampler.should_sample(
