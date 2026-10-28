@@ -2,6 +2,13 @@
 
 ## vNext
 
+- `SdkLogRecord::attributes_iter()` now returns each attribute key at most
+  once. If the same key was added more than once, only the value added last is
+  returned (last-write-wins), so exported log records have unique attribute
+  keys as the OpenTelemetry specification requires. `add_attribute` is
+  unchanged, so emitting a log costs the same as before; duplicates are
+  resolved when the attributes are read.
+  ([#3497](https://github.com/open-telemetry/opentelemetry-rust/issues/3497))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 

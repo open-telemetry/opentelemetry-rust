@@ -183,9 +183,26 @@ impl SdkLogRecord {
     }
 
     /// Provides an iterator over the attributes.
+    ///
+    /// Attribute keys are unique, as required by the OpenTelemetry
+    /// specification: if the same key was added more than once, only the value
+    /// added last is returned (last-write-wins).
     #[inline]
     pub fn attributes_iter(&self) -> impl Iterator<Item = &(Key, AnyValue)> {
-        self.attributes.iter().filter_map(|opt| opt.as_ref())
+        self.attributes
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, attribute)| {
+                let attribute = attribute.as_ref()?;
+                // Skip this attribute if the same key was added again later.
+                let overwritten = self
+                    .attributes
+                    .iter()
+                    .skip(index + 1)
+                    .flatten()
+                    .any(|(key, _)| *key == attribute.0);
+                (!overwritten).then_some(attribute)
+            })
     }
 
     #[allow(dead_code)]
@@ -305,6 +322,73 @@ mod tests {
         let key = Key::new("key");
         let value = AnyValue::String("value".into());
         assert!(log_record.attributes_contains(&key, &value));
+    }
+
+    fn collect_attributes(log_record: &SdkLogRecord) -> Vec<(Key, AnyValue)> {
+        log_record.attributes_iter().cloned().collect()
+    }
+
+    #[test]
+    fn test_attributes_iter_unique_keys_unchanged() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attribute("a", 1);
+        log_record.add_attribute("b", 2);
+        log_record.add_attribute("c", 3);
+        assert_eq!(
+            collect_attributes(&log_record),
+            vec![
+                (Key::new("a"), AnyValue::Int(1)),
+                (Key::new("b"), AnyValue::Int(2)),
+                (Key::new("c"), AnyValue::Int(3)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_attributes_iter_last_write_wins() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("other", 1);
+        log_record.add_attribute("key", "second");
+        assert_eq!(
+            collect_attributes(&log_record),
+            vec![
+                (Key::new("other"), AnyValue::Int(1)),
+                (Key::new("key"), AnyValue::String("second".into())),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_attributes_iter_deduplicates_add_attributes_batch() {
+        let mut log_record = SdkLogRecord::new();
+        log_record.add_attributes([("key", "first"), ("key", "second")]);
+        assert_eq!(
+            collect_attributes(&log_record),
+            vec![(Key::new("key"), AnyValue::String("second".into()))]
+        );
+    }
+
+    #[test]
+    fn test_attributes_iter_deduplicates_beyond_inline_capacity() {
+        let mut log_record = SdkLogRecord::new();
+        for i in 0..PREALLOCATED_ATTRIBUTE_CAPACITY + 2 {
+            log_record.add_attribute(format!("key{i}"), i as i64);
+        }
+        // Overwrite one key stored inline and one stored in the overflow.
+        log_record.add_attribute("key0", "updated inline");
+        log_record.add_attribute(
+            format!("key{}", PREALLOCATED_ATTRIBUTE_CAPACITY),
+            "updated overflow",
+        );
+
+        let attributes = collect_attributes(&log_record);
+        assert_eq!(attributes.len(), PREALLOCATED_ATTRIBUTE_CAPACITY + 2);
+        assert!(attributes.contains(&(Key::new("key0"), AnyValue::String("updated inline".into()))));
+        assert!(attributes.contains(&(
+            Key::new(format!("key{}", PREALLOCATED_ATTRIBUTE_CAPACITY)),
+            AnyValue::String("updated overflow".into())
+        )));
     }
 
     #[test]
