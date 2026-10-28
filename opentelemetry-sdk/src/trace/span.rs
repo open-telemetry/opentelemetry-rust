@@ -214,6 +214,8 @@ impl Span {
     }
 
     /// Returns the instrumentation scope of the span.
+    ///
+    /// Returns an empty scope if the span is not recording.
     pub fn instrumentation_scope(&self) -> &opentelemetry::InstrumentationScope {
         &self.scope
     }
