@@ -10,9 +10,14 @@
   or a tracing subscriber calls `Context::current()`.
   ([#3753](https://github.com/open-telemetry/opentelemetry-rust/issues/3753))
   
-- Improved performance of non-recording spans: `NoopSpan` and `BoxedSpan` no
-  longer read the system clock on `end()`.
-  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
+- Improved performance of non-recording spans
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814)):
+  - `NoopSpan` and `BoxedSpan` no longer read the system clock on `end()`.
+  - `BoxedSpan::end()` now delegates to the wrapped span's `end()` instead of
+    calling `end_with_timestamp()`, so custom `Span::end()` implementations are
+    no longer bypassed when the span is boxed (e.g. via the global tracer).
+  - `TraceState::clone()` is faster when the trace state is empty, which is the
+    common case for spans without vendor trace state.
 
 ## 0.33.1
 
