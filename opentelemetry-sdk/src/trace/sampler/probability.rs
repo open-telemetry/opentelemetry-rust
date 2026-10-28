@@ -141,6 +141,9 @@ impl ProbabilitySampler {
         parent_trace_state: &TraceState,
         ot_trace_state: &OtTraceState<'_>,
     ) -> TraceState {
+        if ot_trace_state.value == Some(self.th_kv.as_ref()) {
+            return parent_trace_state.clone();
+        }
         let new_otts = ot_trace_state.encode_with_threshold(&self.th_kv);
         if ot_trace_state.value == Some(new_otts.as_str()) {
             return parent_trace_state.clone();
@@ -291,7 +294,7 @@ impl OtTraceState<'_> {
     }
 
     /// Inserts or updates `th`, preserving valid unrelated sub-fields.
-    /// An empty threshold erases `th`. Malformed sub-fields and duplicate `rv` entries are discarded.
+    /// An empty threshold erases `th`. Malformed sub-fields and duplicate subkeys are discarded.
     /// `th_kv` must be empty or a valid encoded `th:<hex>` field.
     fn encode_with_threshold(&self, th_kv: &str) -> String {
         let existing_otts = self.value.unwrap_or("");
@@ -313,7 +316,11 @@ impl OtTraceState<'_> {
                 if !is_valid_rv(rv_val) {
                     continue;
                 }
-            } else if !Self::is_valid_subfield(field) {
+            } else if !Self::is_valid_subfield(field)
+                || updated.split(';').any(|f| {
+                    f.split_once(':').map(|(k, _)| k) == field.split_once(':').map(|(k, _)| k)
+                })
+            {
                 continue;
             }
             if !updated.is_empty() {
@@ -664,6 +671,18 @@ mod tests {
                 "th:8",
                 "th:8;rv:0123456789abcd;foo:bar",
             ),
+            (
+                "discards duplicate unrelated subkeys retaining first valid occurrence",
+                "foo:a;bar:1;foo:b;bar:2",
+                "th:8",
+                "th:8;foo:a;bar:1",
+            ),
+            (
+                "malformed first unrelated subkey does not block subsequent valid occurrence",
+                "foo:bad*val;foo:good;foo:dup",
+                "th:8",
+                "th:8;foo:good",
+            ),
         ];
 
         for (name, existing, th_kv, want) in cases {
@@ -862,6 +881,26 @@ mod tests {
             Some("th:8;rv:8123456789abcd;foo:bar")
         );
         assert_eq!(res.trace_state.get("vendor"), Some("value"));
+
+        // Unchanged threshold fast-path returns parent trace state untouched
+        let unchanged_ts =
+            TraceState::from_key_value([("ot", "th:8"), ("vendor", "value")]).unwrap();
+        let unchanged_cx = Context::new().with_remote_span_context(SpanContext::new(
+            trace_id,
+            SpanId::from(1),
+            TraceFlags::default(),
+            false,
+            unchanged_ts.clone(),
+        ));
+        let unchanged_res = sampler.should_sample(
+            Some(&unchanged_cx),
+            trace_id,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(unchanged_res.trace_state, unchanged_ts);
     }
 
     #[test]
@@ -1216,12 +1255,12 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_sampling_keys_are_not_propagated_on_sampled_spans() {
+    fn duplicate_keys_are_not_propagated_on_sampled_spans() {
         let sampler = ProbabilitySampler::new(0.5);
         let trace_id = TraceId::from(1);
         let ts = TraceState::from_key_value([(
             "ot",
-            "th:0;rv:80000000000000;th:f;rv:00000000000000;foo:bar",
+            "th:0;rv:80000000000000;th:f;rv:00000000000000;foo:bar;foo:baz",
         )])
         .unwrap();
         let cx = Context::new().with_remote_span_context(SpanContext::new(
@@ -1229,14 +1268,23 @@ mod tests {
             SpanId::from(1),
             TraceFlags::RANDOM,
             true,
-            ts,
+            ts.clone(),
         ));
         let result =
             sampler.should_sample(Some(&cx), trace_id, "test", &SpanKind::Internal, &[], &[]);
-        assert_eq!(result.decision, SamplingDecision::RecordAndSample);
         assert_eq!(
             result.trace_state.get("ot"),
             Some("th:8;rv:80000000000000;foo:bar")
         );
+
+        let dropped = ProbabilitySampler::new(0.0).should_sample(
+            Some(&cx),
+            trace_id,
+            "test",
+            &SpanKind::Internal,
+            &[],
+            &[],
+        );
+        assert_eq!(dropped.trace_state, ts);
     }
 }
