@@ -34,6 +34,10 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Improved metric recording after cardinality overflow by updating the existing
+  overflow bucket under a shared read lock instead of acquiring an exclusive
+  write lock for every measurement.
+  ([#3833](https://github.com/open-telemetry/opentelemetry-rust/pull/3833))
 
 ## 0.33.1
 
