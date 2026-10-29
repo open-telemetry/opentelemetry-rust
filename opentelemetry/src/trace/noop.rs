@@ -99,6 +99,11 @@ impl trace::Span for NoopSpan {
     }
 
     /// Ignores `Span` endings
+    fn end(&mut self) {
+        // Ignored
+    }
+
+    /// Ignores `Span` endings
     fn end_with_timestamp(&mut self, _timestamp: SystemTime) {
         // Ignored
     }
@@ -181,6 +186,13 @@ mod tests {
         let tracer = NoopTracer::new();
         let span = tracer.start_with_context("foo", &Context::new());
         assert!(!span.span_context().is_valid());
+    }
+
+    #[test]
+    fn noop_span_end_is_ignored() {
+        let mut span = NoopSpan::DEFAULT;
+        span.end();
+        assert!(!span.is_recording());
     }
 
     #[test]
