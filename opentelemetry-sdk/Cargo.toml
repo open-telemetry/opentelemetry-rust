@@ -6,7 +6,7 @@ homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opent
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 readme = "README.md"
 license = "Apache-2.0"
-edition = "2021"
+edition = "2024"
 rust-version = "1.85.0"
 autobenches = false
 
