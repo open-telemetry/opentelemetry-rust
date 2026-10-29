@@ -174,6 +174,17 @@ where
             return;
         }
 
+        // Once the cardinality limit and overflow bucket exist, update the
+        // overflow bucket while retaining the read lock. The bucket cannot be
+        // removed while this guard is held, so no write lock is needed.
+        if !self.is_under_cardinality_limit() {
+            if let Some(overflow) = trackers.get(stream_overflow_attributes().as_slice()) {
+                overflow.aggregator.update(value);
+                overflow.has_been_updated.store(true, Ordering::Release);
+                return;
+            }
+        }
+
         // Give up the read lock before acquiring the write lock.
         drop(trackers);
 
@@ -967,6 +978,66 @@ mod tests {
         assert!(
             result.is_none(),
             "bind() with non-empty attrs must return None on poisoned lock"
+        );
+    }
+
+    struct TestSum {
+        value: AtomicU64,
+    }
+
+    impl Aggregator for TestSum {
+        type InitConfig = ();
+        type PreComputedValue = u64;
+
+        fn create(_init: &Self::InitConfig) -> Self {
+            Self {
+                value: AtomicU64::new(0),
+            }
+        }
+
+        fn update(&self, value: Self::PreComputedValue) {
+            self.value.fetch_add(value, Ordering::Relaxed);
+        }
+
+        fn clone_and_reset(&self, _init: &Self::InitConfig) -> Self {
+            Self {
+                value: AtomicU64::new(self.value.swap(0, Ordering::Relaxed)),
+            }
+        }
+    }
+
+    #[test]
+    fn concurrent_overflow_measurements_are_accumulated() {
+        const NUM_THREADS: u64 = 8;
+        const OPS_PER_THREAD: u64 = 200;
+
+        let value_map = Arc::new(ValueMap::<TestSum>::new((), 1, Arc::new(RandomState::new)));
+        value_map.measure(1, &[KeyValue::new("series", "first")]);
+        value_map.measure(1, &[KeyValue::new("series", "overflow")]);
+
+        let handles: Vec<_> = (0..NUM_THREADS)
+            .map(|thread_id| {
+                let value_map = Arc::clone(&value_map);
+                std::thread::spawn(move || {
+                    let attributes = [KeyValue::new("overflow-thread", thread_id as i64)];
+                    for _ in 0..OPS_PER_THREAD {
+                        value_map.measure(1, &attributes);
+                    }
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().expect("overflow thread panicked");
+        }
+
+        let trackers = value_map.trackers.read().unwrap();
+        let overflow = trackers
+            .get(stream_overflow_attributes().as_slice())
+            .expect("overflow tracker should exist");
+        assert_eq!(
+            overflow.aggregator.value.load(Ordering::Relaxed),
+            1 + NUM_THREADS * OPS_PER_THREAD
         );
     }
 }
