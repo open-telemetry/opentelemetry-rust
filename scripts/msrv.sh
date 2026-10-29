@@ -39,7 +39,7 @@ if [ -n "$unknown" ]; then
 fi
 
 if [ "$requested_class" = "all" ]; then
-  classes=$(jq -r '.classes | keys[]' "$config_file")
+  classes=$(jq -r '.classes | keys[]' "$config_file" | tr -d '\r')
 elif jq -e --arg class "$requested_class" '.classes[$class] != null' "$config_file" >/dev/null; then
   classes=$requested_class
 else
@@ -48,13 +48,13 @@ else
 fi
 
 for class in $classes; do
-  expected_version=$(jq -r --arg class "$class" '.classes[$class].rust_version' "$config_file")
-  packages=$(jq -r --arg class "$class" '.classes[$class].packages[]' "$config_file")
+  expected_version=$(jq -r --arg class "$class" '.classes[$class].rust_version' "$config_file" | tr -d '\r')
+  packages=$(jq -r --arg class "$class" '.classes[$class].packages[]' "$config_file" | tr -d '\r')
 
   echo "Verifying $class packages against Rust $expected_version"
   for package in $packages; do
     manifest=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .manifest_path' "$metadata_file" | tr -d '\r')
-    declared_version=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .rust_version' "$metadata_file")
+    declared_version=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .rust_version' "$metadata_file" | tr -d '\r')
 
     if [ "$declared_version" != "$expected_version" ]; then
       echo "$package declares rust-version $declared_version; expected $expected_version for the $class class." >&2
