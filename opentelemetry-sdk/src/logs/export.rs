@@ -1,9 +1,9 @@
 //! Log exporters
+use crate::Resource;
 use crate::error::OTelSdkResult;
 use crate::logs::SdkLogRecord;
-use crate::Resource;
-use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
+use opentelemetry::logs::Severity;
 use std::fmt::Debug;
 use std::time;
 

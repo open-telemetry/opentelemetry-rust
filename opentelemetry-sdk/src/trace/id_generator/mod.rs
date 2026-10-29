@@ -1,5 +1,5 @@
 use opentelemetry::trace::{SpanId, TraceId};
-use rand::{rngs, RngExt};
+use rand::{RngExt, rngs};
 use std::cell::RefCell;
 use std::fmt;
 

@@ -5,7 +5,7 @@
 //!
 //! [Tokio]: https://crates.io/crates/tokio
 
-use futures_util::stream::{unfold, Stream};
+use futures_util::stream::{Stream, unfold};
 use std::{fmt::Debug, future::Future, time::Duration};
 use thiserror::Error;
 

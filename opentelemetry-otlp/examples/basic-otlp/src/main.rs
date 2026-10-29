@@ -1,17 +1,17 @@
-use opentelemetry::trace::{TraceContextExt, Tracer};
 use opentelemetry::KeyValue;
-use opentelemetry::{global, InstrumentationScope};
+use opentelemetry::trace::{TraceContextExt, Tracer};
+use opentelemetry::{InstrumentationScope, global};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::{LogExporter, MetricExporter, SpanExporter};
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::Resource;
 use std::error::Error;
 use std::sync::OnceLock;
 use tracing::info;
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 
 fn get_resource() -> Resource {
     static RESOURCE: OnceLock<Resource> = OnceLock::new();

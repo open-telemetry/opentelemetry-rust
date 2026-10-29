@@ -14,9 +14,9 @@ use opentelemetry::trace::Tracer;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::fmt::Debug;
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
-use std::sync::atomic::{AtomicUsize, Ordering};
-#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 use std::sync::Arc;
+#[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug)]
 #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
 struct SpanCountExporter {

@@ -15,17 +15,17 @@ use tonic::transport::Channel;
 ))]
 use tonic::transport::ClientTlsConfig;
 
-use super::{default_headers, parse_header_string, OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT};
-use super::{resolve_timeout, ExporterBuildError};
+use super::{ExporterBuildError, resolve_timeout};
+use super::{OTEL_EXPORTER_OTLP_GRPC_ENDPOINT_DEFAULT, default_headers, parse_header_string};
 use crate::exporter::Compression;
-use crate::{exporter::ExportConfig, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS};
+use crate::{OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS, exporter::ExportConfig};
 
+use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-use crate::RetryPolicy;
 #[cfg(all(
     feature = "grpc-tonic",
     any(feature = "trace", feature = "metrics", feature = "logs")
@@ -822,11 +822,11 @@ impl<B: HasTonicConfig> WithTonicConfig for B {
 
 #[cfg(test)]
 mod tests {
-    use crate::exporter::tests::run_env_test;
-    use crate::exporter::tonic::WithTonicConfig;
+    use crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
     #[cfg(feature = "grpc-tonic")]
     use crate::exporter::Compression;
-    use crate::OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+    use crate::exporter::tests::run_env_test;
+    use crate::exporter::tonic::WithTonicConfig;
 
     use super::TonicExporterBuilder;
     use crate::{OTEL_EXPORTER_OTLP_HEADERS, OTEL_EXPORTER_OTLP_TRACES_HEADERS};
@@ -1308,10 +1308,10 @@ mod tests {
         ))
     ))]
     async fn test_schemeless_endpoint_insecure_false_errors_without_tls() {
-        use crate::exporter::tests::run_env_test;
-        use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithExportConfig;
+        use crate::exporter::ExporterBuildError;
+        use crate::exporter::tests::run_env_test;
 
         // INSECURE=false (default) + schemeless endpoint → https:// prepended → error (no TLS)
         // Unset signal-specific var to ensure generic takes effect
@@ -1349,9 +1349,9 @@ mod tests {
         ))
     ))]
     async fn test_schemeless_endpoint_insecure_true_succeeds_without_tls() {
-        use crate::exporter::tests::run_env_test;
         use crate::SpanExporter;
         use crate::WithExportConfig;
+        use crate::exporter::tests::run_env_test;
 
         // INSECURE=true + schemeless endpoint → http:// prepended → no TLS needed
         // Unset signal-specific var to ensure generic takes effect
@@ -1381,9 +1381,9 @@ mod tests {
         ))
     ))]
     async fn test_schemeless_endpoint_defaults_to_https() {
-        use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithExportConfig;
+        use crate::exporter::ExporterBuildError;
 
         // No INSECURE env var set → defaults to secure (https://) → error without TLS
         // This verifies the behavioral change: schemeless endpoints now get https:// prepended
@@ -1418,9 +1418,9 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "trace")]
     async fn test_explicit_http_scheme_ignores_insecure_env() {
-        use crate::exporter::tests::run_env_test;
         use crate::SpanExporter;
         use crate::WithExportConfig;
+        use crate::exporter::tests::run_env_test;
 
         // Explicit http:// scheme should succeed regardless of INSECURE value
         // Unset signal-specific var to ensure generic takes effect
@@ -1447,9 +1447,9 @@ mod tests {
         feature = "tls-provider-agnostic"
     )))]
     fn test_https_endpoint_errors_without_tls_feature() {
-        use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithExportConfig;
+        use crate::exporter::ExporterBuildError;
 
         let result = SpanExporter::builder()
             .with_tonic()
@@ -1511,9 +1511,9 @@ mod tests {
     #[test]
     #[cfg(not(feature = "gzip-tonic"))]
     fn test_gzip_compression_errors_without_feature() {
-        use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithTonicConfig;
+        use crate::exporter::ExporterBuildError;
 
         let result = SpanExporter::builder()
             .with_tonic()
@@ -1554,9 +1554,9 @@ mod tests {
     #[test]
     #[cfg(not(feature = "zstd-tonic"))]
     fn test_zstd_compression_errors_without_feature() {
-        use crate::exporter::ExporterBuildError;
         use crate::SpanExporter;
         use crate::WithTonicConfig;
+        use crate::exporter::ExporterBuildError;
 
         let result = SpanExporter::builder()
             .with_tonic()

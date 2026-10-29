@@ -1,6 +1,6 @@
 //! Trace exporters
-use crate::error::OTelSdkResult;
 use crate::Resource;
+use crate::error::OTelSdkResult;
 use opentelemetry::trace::{SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::{InstrumentationScope, KeyValue};
 use std::borrow::Cow;

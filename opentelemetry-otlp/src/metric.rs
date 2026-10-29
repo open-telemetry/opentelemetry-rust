@@ -8,14 +8,14 @@ use crate::exporter::HasExportConfig;
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{
-    exporter::http::{HasHttpConfig, HttpExporterBuilder},
     HttpExporterBuilderSet,
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
 };
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{
-    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
     TonicExporterBuilderSet,
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
 };
 
 use crate::{ExporterBuildError, NoExporterBuilderSet};
@@ -24,7 +24,7 @@ use core::fmt;
 use opentelemetry_sdk::error::OTelSdkResult;
 
 use opentelemetry_sdk::metrics::{
-    data::ResourceMetrics, exporter::PushMetricExporter, Temporality,
+    Temporality, data::ResourceMetrics, exporter::PushMetricExporter,
 };
 use std::fmt::{Debug, Formatter};
 use std::time::Duration;

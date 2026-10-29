@@ -1,6 +1,6 @@
 use opentelemetry::{
-    trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
     Context, KeyValue,
+    trace::{Link, SpanKind, TraceContextExt, TraceId, TraceState},
 };
 
 #[cfg(feature = "jaeger_remote_sampler")]

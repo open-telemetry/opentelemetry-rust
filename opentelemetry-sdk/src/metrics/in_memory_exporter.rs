@@ -1,9 +1,9 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
+use crate::metrics::Temporality;
 use crate::metrics::data::{
     ExponentialHistogram, Gauge, Histogram, MetricData, ResourceMetrics, Sum,
 };
 use crate::metrics::exporter::PushMetricExporter;
-use crate::metrics::Temporality;
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};

@@ -1,4 +1,5 @@
 use super::IdGenerator;
+use crate::Resource;
 use crate::error::{OTelSdkError, OTelSdkResult};
 /// # Trace Provider SDK
 ///
@@ -68,10 +69,9 @@ use crate::trace::{
     BatchSpanProcessor, Config, RandomIdGenerator, Sampler, SdkTracer, SimpleSpanProcessor,
     SpanLimits,
 };
-use crate::Resource;
 use crate::{trace::SpanExporter, trace::SpanProcessor};
 use opentelemetry::otel_debug;
-use opentelemetry::{otel_info, InstrumentationScope};
+use opentelemetry::{InstrumentationScope, otel_info};
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -505,20 +505,20 @@ impl TracerProviderBuilder {
 
 #[cfg(test)]
 mod tests {
+    use crate::Resource;
     use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
-    use crate::trace::provider::TracerProviderInner;
     use crate::trace::SdkTracerProvider;
+    use crate::trace::provider::TracerProviderInner;
     use crate::trace::{Config, FinishedSpan, Span, SpanProcessor};
-    use crate::Resource;
     use opentelemetry::trace::{Tracer, TracerProvider};
     use opentelemetry::{Context, Key, KeyValue, Value};
 
     use std::env;
-    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::time::Duration;
 
     // fields below is wrapped with Arc so we can assert it

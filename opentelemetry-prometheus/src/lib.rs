@@ -87,15 +87,15 @@
 #![cfg_attr(test, deny(warnings))]
 
 use once_cell::sync::OnceCell;
-use opentelemetry::{otel_error, otel_warn, InstrumentationScope, Key, Value};
+use opentelemetry::{InstrumentationScope, Key, Value, otel_error, otel_warn};
 use opentelemetry_sdk::{
+    Resource,
     error::OTelSdkResult,
     metrics::{
+        InstrumentKind, ManualReader, Pipeline, Temporality,
         data::{self, ResourceMetrics},
         reader::MetricReader,
-        InstrumentKind, ManualReader, Pipeline, Temporality,
     },
-    Resource,
 };
 use prometheus::{
     core::Desc,

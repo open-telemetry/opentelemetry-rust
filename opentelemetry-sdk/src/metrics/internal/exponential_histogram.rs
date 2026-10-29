@@ -1,20 +1,20 @@
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use std::sync::atomic::Ordering;
-#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
 use std::{f64::consts::LOG2_E, mem::replace, ops::DerefMut, sync::Mutex};
 
-use opentelemetry::{otel_debug, KeyValue};
+use opentelemetry::{KeyValue, otel_debug};
 use std::sync::OnceLock;
 
 use crate::metrics::{
-    data::{self, AggregatedMetrics, MetricData},
     Temporality,
+    data::{self, AggregatedMetrics, MetricData},
 };
 
 use super::{
-    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
     Aggregator, ComputeAggregation, Measure, Number, ValueMap,
+    aggregate::{AggregateTimeInitiator, AttributeSetFilter},
 };
 use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -1357,10 +1357,12 @@ mod tests {
                             record_sum,
                         )
                 }),
-                input: vec![vec![4, 4, 4, 2, 16, 1]
-                    .into_iter()
-                    .map(Into::into)
-                    .collect()],
+                input: vec![
+                    vec![4, 4, 4, 2, 16, 1]
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                ],
                 want: data::ExponentialHistogram {
                     temporality: Temporality::Delta,
                     data_points: vec![data::ExponentialHistogramDataPoint {
@@ -1402,10 +1404,12 @@ mod tests {
                         record_sum,
                     )
                 }),
-                input: vec![vec![4, 4, 4, 2, 16, 1]
-                    .into_iter()
-                    .map(Into::into)
-                    .collect()],
+                input: vec![
+                    vec![4, 4, 4, 2, 16, 1]
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                ],
                 want: data::ExponentialHistogram {
                     temporality: Temporality::Cumulative,
                     data_points: vec![data::ExponentialHistogramDataPoint {

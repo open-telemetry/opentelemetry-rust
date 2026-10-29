@@ -1,7 +1,7 @@
+use crate::Resource;
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::SdkLogRecord;
 use crate::logs::{LogBatch, LogExporter};
-use crate::Resource;
 use opentelemetry::InstrumentationScope;
 use std::borrow::Cow;
 use std::sync::atomic::AtomicBool;

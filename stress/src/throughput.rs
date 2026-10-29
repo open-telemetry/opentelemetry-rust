@@ -1,8 +1,8 @@
 use num_format::{Locale, ToFormattedString};
 use std::cell::UnsafeCell;
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 #[cfg(feature = "stats")]
@@ -37,7 +37,9 @@ where
         let arg = arg_str.parse::<usize>();
 
         if arg.is_err() {
-            eprintln!("Invalid command line argument '{arg_str}' as number of threads. Make sure the value is a positive integer.");
+            eprintln!(
+                "Invalid command line argument '{arg_str}' as number of threads. Make sure the value is a positive integer."
+            );
             std::process::exit(1);
         }
 
@@ -51,7 +53,9 @@ where
             }
             num_threads = arg_num;
         } else {
-            eprintln!("Invalid command line argument {arg_num} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({num_threads}).");
+            eprintln!(
+                "Invalid command line argument {arg_num} as number of threads. Make sure the value is above 0 and less than or equal to number of available logical cores ({num_threads})."
+            );
             std::process::exit(1);
         }
     }
@@ -93,19 +97,25 @@ where
                     #[cfg(feature = "stats")]
                     {
                         system.refresh_all();
-                        match system.process(pid) { Some(process) => {
-                            println!(
-                                "Memory usage: {:.2} MB",
-                                process.memory() as f64 / (1024.0 * 1024.0)
-                            );
-                            println!("CPU usage: {}%", process.cpu_usage() / num_threads as f32);
-                            println!(
-                                "Virtual memory usage: {:.2} MB",
-                                process.virtual_memory() as f64 / (1024.0 * 1024.0)
-                            );
-                        } _ => {
-                            println!("Process not found");
-                        }}
+                        match system.process(pid) {
+                            Some(process) => {
+                                println!(
+                                    "Memory usage: {:.2} MB",
+                                    process.memory() as f64 / (1024.0 * 1024.0)
+                                );
+                                println!(
+                                    "CPU usage: {}%",
+                                    process.cpu_usage() / num_threads as f32
+                                );
+                                println!(
+                                    "Virtual memory usage: {:.2} MB",
+                                    process.virtual_memory() as f64 / (1024.0 * 1024.0)
+                                );
+                            }
+                            _ => {
+                                println!("Process not found");
+                            }
+                        }
                     }
 
                     println!("\n");
@@ -121,13 +131,15 @@ where
 
         for thread_index in 0..num_threads {
             let func_arc_clone = Arc::clone(&func_arc);
-            s.spawn(move || loop {
-                func_arc_clone();
-                unsafe {
-                    shared_mutable_stats_slice.increment(thread_index);
-                }
-                if STOP.load(Ordering::SeqCst) {
-                    break;
+            s.spawn(move || {
+                loop {
+                    func_arc_clone();
+                    unsafe {
+                        shared_mutable_stats_slice.increment(thread_index);
+                    }
+                    if STOP.load(Ordering::SeqCst) {
+                        break;
+                    }
                 }
             });
         }

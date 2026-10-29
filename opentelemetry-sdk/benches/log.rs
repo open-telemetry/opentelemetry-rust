@@ -18,7 +18,7 @@ RAM: 64.0 GB
 use opentelemetry::time::now;
 use std::collections::HashMap;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::trace::Tracer;

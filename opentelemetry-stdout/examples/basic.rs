@@ -1,7 +1,7 @@
 //! run with `$ cargo run --example basic
 
 use once_cell::sync::Lazy;
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 
 #[cfg(feature = "trace")]
 use opentelemetry::trace::Tracer;
@@ -9,9 +9,9 @@ use opentelemetry::trace::Tracer;
 #[cfg(feature = "metrics")]
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 
+use opentelemetry_sdk::Resource;
 #[cfg(feature = "trace")]
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::Resource;
 
 static RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::builder()
@@ -59,7 +59,7 @@ fn init_logs() -> opentelemetry_sdk::logs::SdkLoggerProvider {
 
 #[cfg(feature = "trace")]
 fn emit_span() {
-    use opentelemetry::{trace::TraceContextExt, InstrumentationScope};
+    use opentelemetry::{InstrumentationScope, trace::TraceContextExt};
 
     let scope = InstrumentationScope::builder("stdout-example")
         .with_version("v1")

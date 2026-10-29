@@ -1,6 +1,6 @@
-use opentelemetry::{global, KeyValue};
-use opentelemetry_sdk::metrics::SdkMeterProvider;
+use opentelemetry::{KeyValue, global};
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::error::Error;
 use std::vec;
 

@@ -1,7 +1,7 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
 use crate::trace::{SpanData, SpanExporter};
-use std::sync::{atomic::AtomicBool, Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic::AtomicBool};
 use std::time::Duration;
 
 /// An in-memory span exporter that stores span data in memory.

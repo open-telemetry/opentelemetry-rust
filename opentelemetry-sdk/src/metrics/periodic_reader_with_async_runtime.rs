@@ -6,18 +6,18 @@ use std::{
 
 use futures_channel::{mpsc, oneshot};
 use futures_util::{
+    StreamExt,
     future::{self, Either},
     pin_mut,
     stream::{self, FusedStream},
-    StreamExt,
 };
 use opentelemetry::{otel_debug, otel_error};
 
-use crate::runtime::{to_interval_stream, Runtime};
+use crate::runtime::{Runtime, to_interval_stream};
 use crate::{
+    Resource,
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
-    Resource,
 };
 
 use super::{
@@ -367,13 +367,16 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
         match match &inner.sdk_producer_or_worker {
             ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
             ProducerOrWorker::Worker(_) => None,
-        } { Some(producer) => {
-            producer.produce(rm)?;
-        } _ => {
-            return Err(OTelSdkError::InternalFailure(
-                "reader is not registered".into(),
-            ));
-        }}
+        } {
+            Some(producer) => {
+                producer.produce(rm)?;
+            }
+            _ => {
+                return Err(OTelSdkError::InternalFailure(
+                    "reader is not registered".into(),
+                ));
+            }
+        }
 
         Ok(())
     }
@@ -447,16 +450,16 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
 ))]
 mod tests {
     use super::PeriodicReader;
+    #[cfg(feature = "rt-tokio")]
+    use crate::Resource;
     use crate::error::{OTelSdkError, OTelSdkResult};
+    use crate::metrics::Temporality;
     use crate::metrics::data::{AggregatedMetrics, MetricData};
     use crate::metrics::exporter::PushMetricExporter;
     #[cfg(feature = "rt-tokio")]
     use crate::metrics::reader::MetricReader;
-    use crate::metrics::Temporality;
-    #[cfg(feature = "rt-tokio")]
-    use crate::Resource;
     use crate::{
-        metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
+        metrics::InMemoryMetricExporter, metrics::SdkMeterProvider, metrics::data::ResourceMetrics,
         runtime,
     };
     use opentelemetry::metrics::MeterProvider;

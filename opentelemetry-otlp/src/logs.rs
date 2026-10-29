@@ -8,18 +8,18 @@ use opentelemetry_sdk::{error::OTelSdkResult, logs::LogBatch};
 use std::fmt::Debug;
 use std::time;
 
-use crate::{exporter::HasExportConfig, ExporterBuildError, NoExporterBuilderSet};
+use crate::{ExporterBuildError, NoExporterBuilderSet, exporter::HasExportConfig};
 
 #[cfg(feature = "grpc-tonic")]
 use crate::{
-    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
     TonicExporterBuilderSet,
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{
-    exporter::http::{HasHttpConfig, HttpExporterBuilder},
     HttpExporterBuilderSet,
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
 };
 
 /// Compression algorithm to use, defaults to none.

@@ -32,7 +32,7 @@ pub use telemetry::TelemetryResourceDetector;
 
 use opentelemetry::{Key, KeyValue, Value};
 use std::borrow::Cow;
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::ops::Deref;
 use std::sync::Arc;
 

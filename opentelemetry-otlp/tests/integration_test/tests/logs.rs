@@ -6,7 +6,7 @@ use integration_test_runner::test_utils;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_otlp::LogExporter;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
-use opentelemetry_sdk::{logs as sdklogs, Resource};
+use opentelemetry_sdk::{Resource, logs as sdklogs};
 use std::fs::File;
 use std::io::Read;
 use std::time::Duration;
@@ -150,7 +150,7 @@ mod logtests {
     // Exporter did work!
 
     use super::*;
-    use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
+    use integration_test_runner::logs_asserter::{LogsAsserter, read_logs_from_json};
     use std::fs::File;
 
     #[test]

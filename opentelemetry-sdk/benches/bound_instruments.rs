@@ -1,5 +1,5 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use opentelemetry::{metrics::MeterProvider as _, Key, KeyValue};
+use criterion::{Criterion, criterion_group, criterion_main};
+use opentelemetry::{Key, KeyValue, metrics::MeterProvider as _};
 use opentelemetry_sdk::metrics::{Instrument, ManualReader, SdkMeterProvider, Stream, Temporality};
 
 // Run this benchmark with:

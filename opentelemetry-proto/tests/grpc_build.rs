@@ -284,7 +284,9 @@ fn ensure_files_are_same(
     }
 
     if std::env::var("CI").is_ok() {
-        panic!("generated file has changed but it's a CI environment, please rerun this test locally and commit the changes");
+        panic!(
+            "generated file has changed but it's a CI environment, please rerun this test locally and commit the changes"
+        );
     }
 
     // if there is at least one changes we will just copy the whole directory over

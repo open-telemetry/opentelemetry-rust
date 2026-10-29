@@ -19,7 +19,7 @@ use serde_json::Value;
 #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
 mod metrictests_roundtrip {
     use integration_test_runner::metric_helpers::{
-        self, validate_metrics_against_results, SLEEP_DURATION,
+        self, SLEEP_DURATION, validate_metrics_against_results,
     };
     use opentelemetry::metrics::MeterProvider;
 

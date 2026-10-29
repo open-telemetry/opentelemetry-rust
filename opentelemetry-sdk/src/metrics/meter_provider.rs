@@ -1,22 +1,24 @@
 use core::fmt;
 use opentelemetry::{
+    InstrumentationScope,
     metrics::{Meter, MeterProvider},
-    otel_debug, otel_error, otel_info, InstrumentationScope,
+    otel_debug, otel_error, otel_info,
 };
 use std::time::Duration;
 use std::{
-    collections::{hash_map::RandomState, HashMap},
+    collections::{HashMap, hash_map::RandomState},
     hash::BuildHasher,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
-use crate::error::OTelSdkResult;
 use crate::Resource;
+use crate::error::OTelSdkResult;
 
 use super::{
+    Instrument, Stream,
     exporter::PushMetricExporter,
     meter::SdkMeter,
     noop::NoopMeter,
@@ -24,7 +26,6 @@ use super::{
     pipeline::{AggregateFactory, BuildHasherFactory, Pipelines},
     reader::MetricReader,
     view::View,
-    Instrument, Stream,
 };
 
 /// Handles the creation and coordination of [Meter]s.
@@ -207,29 +208,34 @@ impl MeterProvider for SdkMeterProvider {
             otel_info!(name: "MeterNameEmpty", message = "Meter name is empty; consider providing a meaningful name. Meter will function normally and the provided name will be used as-is.");
         };
 
-        match self.inner.meters.lock() { Ok(mut meters) => {
-            match meters.get(&scope) { Some(existing_meter) => {
+        match self.inner.meters.lock() {
+            Ok(mut meters) => match meters.get(&scope) {
+                Some(existing_meter) => {
+                    otel_debug!(
+                        name: "MeterProvider.ExistingMeterReturned",
+                        meter_name = scope.name(),
+                    );
+                    Meter::new(existing_meter.clone())
+                }
+                _ => {
+                    let new_meter =
+                        Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
+                    meters.insert(scope.clone(), new_meter.clone());
+                    otel_debug!(
+                        name: "MeterProvider.NewMeterCreated",
+                        meter_name = scope.name(),
+                    );
+                    Meter::new(new_meter)
+                }
+            },
+            _ => {
                 otel_debug!(
-                    name: "MeterProvider.ExistingMeterReturned",
+                    name: "MeterProvider.NoOpMeterReturned",
                     meter_name = scope.name(),
                 );
-                Meter::new(existing_meter.clone())
-            } _ => {
-                let new_meter = Arc::new(SdkMeter::new(scope.clone(), self.inner.pipes.clone()));
-                meters.insert(scope.clone(), new_meter.clone());
-                otel_debug!(
-                    name: "MeterProvider.NewMeterCreated",
-                    meter_name = scope.name(),
-                );
-                Meter::new(new_meter)
-            }}
-        } _ => {
-            otel_debug!(
-                name: "MeterProvider.NoOpMeterReturned",
-                meter_name = scope.name(),
-            );
-            Meter::new(Arc::new(NoopMeter::new()))
-        }}
+                Meter::new(Arc::new(NoopMeter::new()))
+            }
+        }
     }
 }
 
@@ -488,15 +494,15 @@ impl fmt::Debug for MeterProviderBuilder {
 }
 #[cfg(all(test, feature = "testing"))]
 mod tests {
+    use crate::Resource;
     use crate::error::OTelSdkError;
     use crate::metrics::SdkMeterProvider;
     use crate::resource::{
         SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
     };
     use crate::testing::metrics::metric_reader::TestMetricReader;
-    use crate::Resource;
     use opentelemetry::metrics::MeterProvider;
-    use opentelemetry::{global, InstrumentationScope};
+    use opentelemetry::{InstrumentationScope, global};
     use opentelemetry::{Key, KeyValue, Value};
     use std::env;
 

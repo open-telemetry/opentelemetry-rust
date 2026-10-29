@@ -3,12 +3,13 @@ use core::fmt;
 use std::{borrow::Cow, sync::Arc};
 
 use opentelemetry::{
+    InstrumentationScope,
     metrics::{
         AsyncInstrumentBuilder, Counter, Gauge, Histogram, HistogramBuilder, InstrumentBuilder,
         InstrumentProvider, ObservableCounter, ObservableGauge, ObservableUpDownCounter,
         UpDownCounter,
     },
-    otel_error, InstrumentationScope,
+    otel_error,
 };
 
 use crate::metrics::{
@@ -30,8 +31,7 @@ pub(crate) const INSTRUMENT_NAME_ALLOWED_NON_ALPHANUMERIC_CHARS: [char; 4] = ['_
 // name validation error strings
 pub(crate) const INSTRUMENT_NAME_EMPTY: &str = "name must be non-empty";
 pub(crate) const INSTRUMENT_NAME_LENGTH: &str = "name must be less than 256 characters";
-pub(crate) const INSTRUMENT_NAME_INVALID_CHAR: &str =
-    "characters in name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
+pub(crate) const INSTRUMENT_NAME_INVALID_CHAR: &str = "characters in name must be ASCII and belong to the alphanumeric characters, '_', '.', '-' and '/'";
 pub(crate) const INSTRUMENT_NAME_FIRST_ALPHABETIC: &str =
     "name must start with an alphabetic character";
 
@@ -687,9 +687,9 @@ mod tests {
     use crate::metrics::error::MetricError;
 
     use super::{
-        validate_instrument_name, validate_instrument_unit, INSTRUMENT_NAME_EMPTY,
-        INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR, INSTRUMENT_NAME_LENGTH,
-        INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+        INSTRUMENT_NAME_EMPTY, INSTRUMENT_NAME_FIRST_ALPHABETIC, INSTRUMENT_NAME_INVALID_CHAR,
+        INSTRUMENT_NAME_LENGTH, INSTRUMENT_UNIT_INVALID_CHAR, INSTRUMENT_UNIT_LENGTH,
+        validate_instrument_name, validate_instrument_unit,
     };
 
     #[test]

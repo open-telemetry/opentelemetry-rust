@@ -1,5 +1,5 @@
-use crate::resource::ResourceDetector;
 use crate::Resource;
+use crate::resource::ResourceDetector;
 use opentelemetry::KeyValue;
 
 /// Detect the telemetry SDK information used to capture data recorded by the instrumentation libraries.

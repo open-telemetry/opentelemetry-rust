@@ -35,13 +35,13 @@ pub mod log_processor_with_async_runtime;
 #[cfg(all(test, feature = "testing"))]
 mod tests {
     use super::*;
-    use crate::error::OTelSdkResult;
     use crate::Resource;
+    use crate::error::OTelSdkResult;
     use opentelemetry::baggage::BaggageExt;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider, Severity};
-    use opentelemetry::{logs::AnyValue, Key, KeyValue};
     use opentelemetry::{Context, InstrumentationScope};
+    use opentelemetry::{Key, KeyValue, logs::AnyValue};
     use std::borrow::Borrow;
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
@@ -150,9 +150,11 @@ mod tests {
             instrumentation_scope.schema_url(),
             Some("https://opentelemetry.io/schemas/1.0.0")
         );
-        assert!(instrumentation_scope
-            .attributes()
-            .eq(&[KeyValue::new("test_k", "test_v")]));
+        assert!(
+            instrumentation_scope
+                .attributes()
+                .eq(&[KeyValue::new("test_k", "test_v")])
+        );
     }
 
     #[derive(Debug)]
@@ -205,9 +207,10 @@ mod tests {
 
         // Assert that the log record contains the baggage attribute
         // and the attribute added to the log record.
-        assert!(log
-            .record
-            .attributes_contains(&Key::new("key"), &AnyValue::String("value".into())));
+        assert!(
+            log.record
+                .attributes_contains(&Key::new("key"), &AnyValue::String("value".into()))
+        );
         assert!(log.record.attributes_contains(
             &Key::new("key-from-bag"),
             &AnyValue::String("value-from-bag".into())

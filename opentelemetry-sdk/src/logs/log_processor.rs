@@ -27,10 +27,10 @@
 //! ```
 
 use crate::error::OTelSdkResult;
-use crate::{logs::SdkLogRecord, Resource};
+use crate::{Resource, logs::SdkLogRecord};
 
 use opentelemetry::logs::Severity;
-use opentelemetry::{otel_warn, InstrumentationScope};
+use opentelemetry::{InstrumentationScope, otel_warn};
 
 use std::fmt::Debug;
 use std::time::Duration;
@@ -91,8 +91,8 @@ pub trait LogProcessor: Send + Sync + Debug {
 
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 pub(crate) mod tests {
-    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
     use crate::Resource;
+    use crate::logs::{LogBatch, LogExporter, SdkLogRecord};
     use crate::{
         error::OTelSdkResult,
         logs::{LogProcessor, SdkLoggerProvider},

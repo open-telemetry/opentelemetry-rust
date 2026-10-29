@@ -24,14 +24,14 @@ mod json_serde {
     use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
     #[cfg(feature = "metrics")]
     use opentelemetry_proto::tonic::metrics::v1::{
-        metric::Data, number_data_point::Value as MetricValue, Gauge, Histogram,
-        HistogramDataPoint, Metric, NumberDataPoint, ResourceMetrics, ScopeMetrics, Sum,
+        Gauge, Histogram, HistogramDataPoint, Metric, NumberDataPoint, ResourceMetrics,
+        ScopeMetrics, Sum, metric::Data, number_data_point::Value as MetricValue,
     };
     use opentelemetry_proto::tonic::resource::v1::Resource;
     #[cfg(feature = "trace")]
     use opentelemetry_proto::tonic::trace::v1::{
-        span::{Event, Link},
         ResourceSpans, ScopeSpans, Span, Status,
+        span::{Event, Link},
     };
 
     #[cfg(feature = "profiles")]
@@ -1989,9 +1989,9 @@ mod json_serde {
     #[cfg(feature = "metrics")]
     mod metrics_with_nan {
         use super::*;
-        use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
         use opentelemetry_proto::tonic::metrics::v1::Summary;
         use opentelemetry_proto::tonic::metrics::v1::SummaryDataPoint;
+        use opentelemetry_proto::tonic::metrics::v1::summary_data_point::ValueAtQuantile;
 
         fn value_with_nan() -> ExportMetricsServiceRequest {
             ExportMetricsServiceRequest {
@@ -2133,9 +2133,11 @@ mod json_serde {
                 resource_metric.resource.as_ref().unwrap().attributes[0].key,
                 "service.name"
             );
-            assert!(resource_metric.resource.as_ref().unwrap().attributes[0]
-                .value
-                .is_none());
+            assert!(
+                resource_metric.resource.as_ref().unwrap().attributes[0]
+                    .value
+                    .is_none()
+            );
 
             assert_eq!(resource_metric.scope_metrics.len(), 1);
 
@@ -2358,7 +2360,7 @@ mod json_serde {
 
     #[cfg(feature = "metrics")]
     mod exemplar_value {
-        use opentelemetry_proto::tonic::metrics::v1::{exemplar, Exemplar};
+        use opentelemetry_proto::tonic::metrics::v1::{Exemplar, exemplar};
 
         #[test]
         fn is_written_on_the_exemplar() {

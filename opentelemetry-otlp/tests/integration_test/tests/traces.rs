@@ -2,13 +2,13 @@
 
 use std::{fs::File, os::unix::fs::MetadataExt};
 
-use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
+use integration_test_runner::trace_asserter::{TraceAsserter, read_spans_from_json};
 use opentelemetry_otlp::{ExporterBuildError, SpanExporter};
 
 use anyhow::Result;
 use ctor::dtor;
 use integration_test_runner::test_utils;
-use opentelemetry_sdk::{trace as sdktrace, Resource};
+use opentelemetry_sdk::{Resource, trace as sdktrace};
 
 fn init_tracer_provider() -> Result<sdktrace::SdkTracerProvider, ExporterBuildError> {
     let exporter_builder = SpanExporter::builder();
@@ -52,12 +52,11 @@ mod tracetests {
     use anyhow::Ok;
     use anyhow::Result;
     use integration_test_runner::test_utils;
-    use integration_test_runner::trace_asserter::{read_spans_from_json, TraceAsserter};
+    use integration_test_runner::trace_asserter::{TraceAsserter, read_spans_from_json};
     use opentelemetry::Key;
     use opentelemetry::{
-        global,
+        KeyValue, global,
         trace::{TraceContextExt, Tracer},
-        KeyValue,
     };
     use opentelemetry_proto::tonic::trace::v1::TracesData;
     use std::fs::File;
@@ -74,9 +73,8 @@ mod tracetests {
     #[cfg(any(feature = "tonic-client", feature = "reqwest-blocking-client"))]
     pub async fn traces() -> Result<()> {
         use opentelemetry::{
-            global,
+            KeyValue, global,
             trace::{TraceContextExt, Tracer},
-            KeyValue,
         };
 
         use crate::{assert_traces_results, init_tracer_provider};

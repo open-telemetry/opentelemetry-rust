@@ -1,10 +1,10 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
-    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
+    logs::{LogBatch, LogExporter, SdkLogRecord},
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_warn, InstrumentationScope};
+use opentelemetry::{InstrumentationScope, otel_debug, otel_error, otel_warn};
 
 use std::{
     fmt::{self, Debug, Formatter},
@@ -17,11 +17,11 @@ use std::{
 
 use super::{BatchConfig, LogProcessor};
 #[cfg(feature = "experimental_async_runtime")]
-use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
+use crate::runtime::{RuntimeChannel, TrySend, to_interval_stream};
 use futures_channel::oneshot;
 use futures_util::{
     future::{self, Either},
-    {pin_mut, stream, StreamExt as _},
+    {StreamExt as _, pin_mut, stream},
 };
 
 #[allow(clippy::large_enum_variant)]
@@ -283,26 +283,26 @@ where
 #[cfg(all(test, feature = "testing", feature = "logs"))]
 mod tests {
     use crate::error::OTelSdkResult;
+    use crate::logs::SdkLogRecord;
     use crate::logs::batch_log_processor::{
         OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE, OTEL_BLRP_MAX_QUEUE_SIZE,
         OTEL_BLRP_SCHEDULE_DELAY,
     };
-    use crate::logs::SdkLogRecord;
     use crate::logs::{LogBatch, LogExporter};
     use crate::{
+        Resource,
         logs::{
+            BatchConfig, BatchConfigBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
             batch_log_processor::{
                 OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT, OTEL_BLRP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
                 OTEL_BLRP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BLRP_SCHEDULE_DELAY_DEFAULT,
             },
-            BatchConfig, BatchConfigBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
         },
-        Resource,
     };
+    use opentelemetry::KeyValue;
     use opentelemetry::logs::AnyValue;
     use opentelemetry::logs::LogRecord;
     use opentelemetry::logs::{Logger, LoggerProvider};
-    use opentelemetry::KeyValue;
     use opentelemetry::{InstrumentationScope, Key};
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
@@ -807,8 +807,8 @@ mod tests {
 
         #[tokio::test(flavor = "current_thread")]
         #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_multi_thread(
-        ) {
+        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_multi_thread()
+         {
             let exporter = InMemoryLogExporterBuilder::default().build();
             let processor =
                 BatchLogProcessor::new(exporter.clone(), BatchConfig::default(), runtime::Tokio);
@@ -862,8 +862,8 @@ mod tests {
     #[cfg(feature = "rt-tokio-current-thread")]
     mod rt_tokio_current_thread {
         use super::*;
-        use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
         use crate::logs::InMemoryLogExporterBuilder;
+        use crate::logs::log_processor_with_async_runtime::BatchLogProcessor;
         use crate::runtime;
 
         #[tokio::test(flavor = "current_thread")]
@@ -881,8 +881,8 @@ mod tests {
 
         #[tokio::test(flavor = "current_thread")]
         #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/1968"]
-        async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread(
-        ) {
+        async fn test_batch_log_processor_with_async_runtime_shutdown_under_async_runtime_current_flavor_multi_thread()
+         {
             let exporter = InMemoryLogExporterBuilder::default().build();
             let processor = BatchLogProcessor::new(
                 exporter.clone(),
@@ -897,8 +897,8 @@ mod tests {
         }
 
         #[tokio::test(flavor = "current_thread")]
-        async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread(
-        ) {
+        async fn test_batch_log_processor_shutdown_with_async_runtime_current_flavor_current_thread()
+         {
             let exporter = InMemoryLogExporterBuilder::default().build();
             let processor = BatchLogProcessor::new(
                 exporter.clone(),
@@ -909,8 +909,8 @@ mod tests {
         }
 
         #[tokio::test(flavor = "current_thread")]
-        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread(
-        ) {
+        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_current_flavor_current_thread()
+         {
             let exporter = InMemoryLogExporterBuilder::default().build();
             let processor = BatchLogProcessor::new(
                 exporter.clone(),
@@ -922,8 +922,8 @@ mod tests {
         }
 
         #[tokio::test(flavor = "multi_thread")]
-        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread(
-        ) {
+        async fn test_batch_log_processor_rt_shutdown_with_async_runtime_multi_flavor_current_thread()
+         {
             let exporter = InMemoryLogExporterBuilder::default().build();
             let processor = BatchLogProcessor::new(
                 exporter.clone(),

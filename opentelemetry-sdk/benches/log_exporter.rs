@@ -14,10 +14,10 @@ use opentelemetry::time::now;
 use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
-use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::InstrumentationScope;
+use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::SdkLogRecord;

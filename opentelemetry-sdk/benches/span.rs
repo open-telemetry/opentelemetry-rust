@@ -18,10 +18,10 @@
     | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
     Context, KeyValue,
+    trace::{Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider, mark_span_as_active},
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,

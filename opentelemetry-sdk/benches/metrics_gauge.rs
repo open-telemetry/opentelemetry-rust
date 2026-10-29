@@ -10,15 +10,15 @@
     | Gauge_Add                      | 187.49 ns   |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    metrics::{Gauge, MeterProvider as _},
     KeyValue,
+    metrics::{Gauge, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
-    rngs::{self},
     RngExt,
+    rngs::{self},
 };
 use std::cell::RefCell;
 

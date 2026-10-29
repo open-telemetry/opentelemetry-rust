@@ -3,8 +3,8 @@ use opentelemetry::global;
 use opentelemetry::trace::{Span, SpanKind, Tracer};
 use opentelemetry_otlp::{WithExportConfig, WithTonicConfig};
 use opentelemetry_proto::tonic::collector::trace::v1::{
-    trace_service_server::{TraceService, TraceServiceServer},
     ExportTraceServiceRequest, ExportTraceServiceResponse,
+    trace_service_server::{TraceService, TraceServiceServer},
 };
 use std::{net::SocketAddr, sync::Mutex};
 use tokio::sync::mpsc;

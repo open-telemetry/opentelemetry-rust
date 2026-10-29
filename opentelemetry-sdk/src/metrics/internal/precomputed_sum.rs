@@ -1,16 +1,16 @@
 use opentelemetry::KeyValue;
 
-use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
-#[cfg(feature = "experimental_metrics_bound_instruments")]
-use std::sync::atomic::Ordering;
+use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
 
-use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::Aggregator;
-use super::{last_value::Assign, sort_and_dedup, AtomicTracker, Number, ValueMap};
+use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
+use super::{AtomicTracker, Number, ValueMap, last_value::Assign, sort_and_dedup};
 use super::{AttributeBuildHasher, SharedFactory};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use super::{BoundMeasure, NoopBoundMeasure, TrackerEntry};

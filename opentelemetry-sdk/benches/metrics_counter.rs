@@ -20,17 +20,17 @@
     | ThreadLocal_Random_Generator_5                        |   7 ns      |
 */
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    metrics::{Counter, MeterProvider as _},
     KeyValue,
+    metrics::{Counter, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
-    rngs::{self},
     RngExt,
+    rngs::{self},
 };
 use std::cell::RefCell;
 

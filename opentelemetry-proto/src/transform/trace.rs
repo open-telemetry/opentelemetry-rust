@@ -14,7 +14,7 @@ pub(crate) fn build_span_flags(parent_span_is_remote: bool, base_flags: u32) -> 
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::resource::v1::Resource;
-    use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
+    use crate::proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Status, span, status};
     use crate::transform::common::{
         to_nanos,
         tonic::{Attributes, ResourceAttributesWithSchema},
@@ -221,8 +221,8 @@ pub mod tonic {
 #[cfg(all(test, feature = "gen-tonic-messages"))]
 mod span_flags_tests {
     use crate::proto::tonic::trace::v1::{Span, SpanFlags};
-    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState};
     use opentelemetry::InstrumentationScope;
+    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState};
     use opentelemetry_sdk::trace::SpanData;
     use std::borrow::Cow;
 
@@ -351,19 +351,19 @@ mod span_flags_tests {
 #[cfg(test)]
 mod tests {
     use crate::tonic::common::v1::{
-        any_value::Value, AnyValue, InstrumentationScope as ProtoScope, KeyValue as ProtoKeyValue,
+        AnyValue, InstrumentationScope as ProtoScope, KeyValue as ProtoKeyValue, any_value::Value,
     };
     use crate::tonic::resource::v1::Resource as ProtoResource;
     use crate::tonic::trace::v1::{
-        span, status, ResourceSpans, ScopeSpans, Span, Status as ProtoStatus,
+        ResourceSpans, ScopeSpans, Span, Status as ProtoStatus, span, status,
     };
     use crate::transform::common::tonic::ResourceAttributesWithSchema;
+    use opentelemetry::InstrumentationScope;
+    use opentelemetry::KeyValue;
     use opentelemetry::time::now;
     use opentelemetry::trace::{
         Event, Link, SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
-    use opentelemetry::InstrumentationScope;
-    use opentelemetry::KeyValue;
     use opentelemetry_sdk::resource::Resource;
     use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
     use std::borrow::Cow;

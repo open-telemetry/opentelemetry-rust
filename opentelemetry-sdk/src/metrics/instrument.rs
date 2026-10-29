@@ -3,8 +3,8 @@ use std::{borrow::Cow, collections::HashSet, error::Error, sync::Arc};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::metrics::BoundSyncInstrument;
 use opentelemetry::{
-    metrics::{AsyncInstrument, SyncInstrument},
     InstrumentationScope, Key, KeyValue,
+    metrics::{AsyncInstrument, SyncInstrument},
 };
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]

@@ -7,13 +7,13 @@ use std::{
     time::SystemTime,
 };
 
-use crate::metrics::{data::AggregatedMetrics, Temporality};
-use opentelemetry::time::now;
+use crate::metrics::{Temporality, data::AggregatedMetrics};
 use opentelemetry::KeyValue;
+use opentelemetry::time::now;
 
 use super::{
-    exponential_histogram::ExpoHistogram, histogram::Histogram, last_value::LastValue,
-    precomputed_sum::PrecomputedSum, sum::Sum, AttributeBuildHasher, Number, SharedFactory,
+    AttributeBuildHasher, Number, SharedFactory, exponential_histogram::ExpoHistogram,
+    histogram::Histogram, last_value::LastValue, precomputed_sum::PrecomputedSum, sum::Sum,
 };
 
 /// Receives measurements to be aggregated.
@@ -138,13 +138,16 @@ impl AttributeSetFilter {
     }
 
     pub(crate) fn apply(&self, attrs: &[KeyValue], run: impl FnOnce(&[KeyValue])) {
-        match &self.filter { Some(filter) => {
-            let filtered_attrs: Vec<KeyValue> =
-                attrs.iter().filter(|kv| filter(kv)).cloned().collect();
-            run(&filtered_attrs);
-        } _ => {
-            run(attrs);
-        }};
+        match &self.filter {
+            Some(filter) => {
+                let filtered_attrs: Vec<KeyValue> =
+                    attrs.iter().filter(|kv| filter(kv)).cloned().collect();
+                run(&filtered_attrs);
+            }
+            _ => {
+                run(attrs);
+            }
+        };
     }
 }
 

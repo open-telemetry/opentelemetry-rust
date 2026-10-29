@@ -7,8 +7,8 @@
 */
 
 use rand::{
-    rngs::{self},
     RngExt,
+    rngs::{self},
 };
 
 mod throughput;

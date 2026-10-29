@@ -8,7 +8,7 @@ mod sum;
 use core::fmt;
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicI64, AtomicU64};
-use std::collections::{hash_map::RandomState, HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map::RandomState};
 use std::hash::BuildHasher;
 use std::ops::{Add, AddAssign, Sub};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -22,7 +22,7 @@ pub(crate) use aggregate::{BoundMeasure, NoopBoundMeasure};
 pub(crate) use exponential_histogram::{EXPO_MAX_SCALE, EXPO_MIN_SCALE};
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::otel_debug;
-use opentelemetry::{otel_warn, KeyValue};
+use opentelemetry::{KeyValue, otel_warn};
 
 use super::data::{AggregatedMetrics, MetricData};
 use super::error::MetricResult;
@@ -183,33 +183,51 @@ where
 
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
-        match trackers.get(attributes) { Some(tracker) => {
-            tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Release);
-        } _ => { match trackers.get(sorted_attrs.as_slice()) { Some(tracker) => {
-            tracker.aggregator.update(value);
-            tracker.has_been_updated.store(true, Ordering::Release);
-        } _ => if self.is_under_cardinality_limit() {
-            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
-            new_tracker.aggregator.update(value);
-            new_tracker.has_been_updated.store(true, Ordering::Release);
+        match trackers.get(attributes) {
+            Some(tracker) => {
+                tracker.aggregator.update(value);
+                tracker.has_been_updated.store(true, Ordering::Release);
+            }
+            _ => {
+                match trackers.get(sorted_attrs.as_slice()) {
+                    Some(tracker) => {
+                        tracker.aggregator.update(value);
+                        tracker.has_been_updated.store(true, Ordering::Release);
+                    }
+                    _ => {
+                        if self.is_under_cardinality_limit() {
+                            let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
+                            new_tracker.aggregator.update(value);
+                            new_tracker.has_been_updated.store(true, Ordering::Release);
 
-            // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
-            trackers.insert(sorted_attrs, new_tracker);
+                            // Insert tracker with the attributes in the provided and sorted orders
+                            trackers.insert(attributes.to_vec(), new_tracker.clone());
+                            trackers.insert(sorted_attrs, new_tracker);
 
-            self.count.fetch_add(1, Ordering::SeqCst);
-        } else { match trackers.get(stream_overflow_attributes().as_slice()) { Some(overflow_value) => {
-            overflow_value.aggregator.update(value);
-            overflow_value
-                .has_been_updated
-                .store(true, Ordering::Release);
-        } _ => {
-            let new_tracker = TrackerEntry::<A>::new(&self.config);
-            new_tracker.aggregator.update(value);
-            new_tracker.has_been_updated.store(true, Ordering::Release);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
-        }}}}}}
+                            self.count.fetch_add(1, Ordering::SeqCst);
+                        } else {
+                            match trackers.get(stream_overflow_attributes().as_slice()) {
+                                Some(overflow_value) => {
+                                    overflow_value.aggregator.update(value);
+                                    overflow_value
+                                        .has_been_updated
+                                        .store(true, Ordering::Release);
+                                }
+                                _ => {
+                                    let new_tracker = TrackerEntry::<A>::new(&self.config);
+                                    new_tracker.aggregator.update(value);
+                                    new_tracker.has_been_updated.store(true, Ordering::Release);
+                                    trackers.insert(
+                                        stream_overflow_attributes().clone(),
+                                        Arc::new(new_tracker),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.

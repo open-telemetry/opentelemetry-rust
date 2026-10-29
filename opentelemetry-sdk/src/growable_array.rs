@@ -22,10 +22,10 @@ pub(crate) struct GrowableArray<
 }
 
 impl<
-        T: Default + Clone + PartialEq,
-        const MAX_INLINE_CAPACITY: usize,
-        const INITIAL_OVERFLOW_CAPACITY: usize,
-    > Default for GrowableArray<T, MAX_INLINE_CAPACITY, INITIAL_OVERFLOW_CAPACITY>
+    T: Default + Clone + PartialEq,
+    const MAX_INLINE_CAPACITY: usize,
+    const INITIAL_OVERFLOW_CAPACITY: usize,
+> Default for GrowableArray<T, MAX_INLINE_CAPACITY, INITIAL_OVERFLOW_CAPACITY>
 {
     fn default() -> Self {
         Self {
@@ -37,10 +37,10 @@ impl<
 }
 
 impl<
-        T: Default + Clone + PartialEq,
-        const MAX_INLINE_CAPACITY: usize,
-        const INITIAL_OVERFLOW_CAPACITY: usize,
-    > GrowableArray<T, MAX_INLINE_CAPACITY, INITIAL_OVERFLOW_CAPACITY>
+    T: Default + Clone + PartialEq,
+    const MAX_INLINE_CAPACITY: usize,
+    const INITIAL_OVERFLOW_CAPACITY: usize,
+> GrowableArray<T, MAX_INLINE_CAPACITY, INITIAL_OVERFLOW_CAPACITY>
 {
     /// Creates a new `GrowableArray` with the default initial capacity.
     #[allow(dead_code)]
@@ -73,11 +73,12 @@ impl<
     pub(crate) fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.inline[index])
-        } else { match self.overflow { Some(ref overflow) => {
-            overflow.get(index - MAX_INLINE_CAPACITY)
-        } _ => {
-            None
-        }}}
+        } else {
+            match self.overflow {
+                Some(ref overflow) => overflow.get(index - MAX_INLINE_CAPACITY),
+                _ => None,
+            }
+        }
     }
 
     /// Returns the number of elements in the `GrowableArray`.
@@ -172,10 +173,10 @@ impl<T: Default + Clone + PartialEq, const INITIAL_CAPACITY: usize> Iterator
 #[cfg(test)]
 mod tests {
     use crate::growable_array::{
-        GrowableArray, DEFAULT_INITIAL_OVERFLOW_CAPACITY, DEFAULT_MAX_INLINE_CAPACITY,
+        DEFAULT_INITIAL_OVERFLOW_CAPACITY, DEFAULT_MAX_INLINE_CAPACITY, GrowableArray,
     };
-    use opentelemetry::logs::AnyValue;
     use opentelemetry::Key;
+    use opentelemetry::logs::AnyValue;
 
     type KeyValuePair = Option<(Key, AnyValue)>;
 

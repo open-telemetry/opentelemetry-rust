@@ -12,13 +12,13 @@ use opentelemetry::trace::{Span, Tracer, TracerProvider};
 use opentelemetry_otlp::{
     LogExporter, MetricExporter, RetryPolicy, SpanExporter, WithExportConfig, WithHttpConfig,
 };
-use opentelemetry_sdk::logs::log_processor_with_async_runtime::BatchLogProcessor;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::logs::log_processor_with_async_runtime::BatchLogProcessor;
 use opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader;
 use opentelemetry_sdk::metrics::{SdkMeterProvider, Temporality};
 use opentelemetry_sdk::runtime::Tokio;
-use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use prost::Message;
 
 #[derive(Clone, Copy, Debug)]

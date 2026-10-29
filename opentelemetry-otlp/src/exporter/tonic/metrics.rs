@@ -3,11 +3,11 @@ use std::sync::Mutex;
 
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::metrics::v1::{
-    metrics_service_client::MetricsServiceClient, ExportMetricsServiceRequest,
+    ExportMetricsServiceRequest, metrics_service_client::MetricsServiceClient,
 };
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
-use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
+use tonic::{Request, codegen::CompressionEncoding, service::Interceptor, transport::Channel};
 
 use super::BoxInterceptor;
 use crate::metric::MetricsClient;

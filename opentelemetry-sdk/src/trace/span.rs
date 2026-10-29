@@ -9,8 +9,8 @@
 //! is possible to change its name, set its `Attributes`, and add `Links` and `Events`.
 //! These cannot be changed after the `Span`'s end time has been set.
 use crate::trace::SpanLimits;
-use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use opentelemetry::KeyValue;
+use opentelemetry::trace::{Event, Link, SpanContext, SpanId, SpanKind, Status};
 use std::borrow::Cow;
 use std::time::SystemTime;
 
@@ -1491,10 +1491,11 @@ mod tests {
                 // Mutate live span
                 span.set_attribute(KeyValue::new("added_in_start", "yes"));
                 // Immediately read mutated attributes
-                assert!(span
-                    .attributes()
-                    .iter()
-                    .any(|kv| kv.key.as_str() == "added_in_start"));
+                assert!(
+                    span.attributes()
+                        .iter()
+                        .any(|kv| kv.key.as_str() == "added_in_start")
+                );
             }
 
             fn on_end(&self, span: FinishedSpan<'_>) {

@@ -7,24 +7,20 @@
 pub mod tonic {
     use std::fmt::Debug;
 
-    use opentelemetry::{otel_debug, Key, Value};
+    use opentelemetry::{Key, Value, otel_debug};
+    use opentelemetry_sdk::Resource as SdkResource;
+    use opentelemetry_sdk::metrics::Temporality;
     use opentelemetry_sdk::metrics::data::{
         AggregatedMetrics, Exemplar as SdkExemplar,
         ExponentialHistogram as SdkExponentialHistogram, Gauge as SdkGauge,
         Histogram as SdkHistogram, Metric as SdkMetric, MetricData, ResourceMetrics,
         ScopeMetrics as SdkScopeMetrics, Sum as SdkSum,
     };
-    use opentelemetry_sdk::metrics::Temporality;
-    use opentelemetry_sdk::Resource as SdkResource;
 
     use crate::proto::tonic::{
         collector::metrics::v1::ExportMetricsServiceRequest,
         common::v1::KeyValue,
         metrics::v1::{
-            exemplar, exemplar::Value as TonicExemplarValue,
-            exponential_histogram_data_point::Buckets as TonicBuckets,
-            metric::Data as TonicMetricData, number_data_point,
-            number_data_point::Value as TonicDataPointValue,
             AggregationTemporality as TonicTemporality, AggregationTemporality,
             DataPointFlags as TonicDataPointFlags, Exemplar as TonicExemplar,
             ExponentialHistogram as TonicExponentialHistogram,
@@ -32,7 +28,11 @@ pub mod tonic {
             Gauge as TonicGauge, Histogram as TonicHistogram,
             HistogramDataPoint as TonicHistogramDataPoint, Metric as TonicMetric,
             NumberDataPoint as TonicNumberDataPoint, ResourceMetrics as TonicResourceMetrics,
-            ScopeMetrics as TonicScopeMetrics, Sum as TonicSum,
+            ScopeMetrics as TonicScopeMetrics, Sum as TonicSum, exemplar,
+            exemplar::Value as TonicExemplarValue,
+            exponential_histogram_data_point::Buckets as TonicBuckets,
+            metric::Data as TonicMetricData, number_data_point,
+            number_data_point::Value as TonicDataPointValue,
         },
         resource::v1::Resource as TonicResource,
     };

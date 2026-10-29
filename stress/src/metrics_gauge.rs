@@ -13,13 +13,13 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{Gauge, MeterProvider as _},
     KeyValue,
+    metrics::{Gauge, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
-    rngs::{self},
     RngExt,
+    rngs::{self},
 };
 use std::cell::RefCell;
 

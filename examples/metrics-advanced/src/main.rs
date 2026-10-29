@@ -1,7 +1,7 @@
-use opentelemetry::global;
 use opentelemetry::KeyValue;
-use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
+use opentelemetry::global;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::{Aggregation, Instrument, SdkMeterProvider, Stream, Temporality};
 use std::error::Error;
 
 fn init_meter_provider() -> opentelemetry_sdk::metrics::SdkMeterProvider {

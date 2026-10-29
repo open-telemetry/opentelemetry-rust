@@ -1,9 +1,8 @@
 use http_body_util::Full;
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use opentelemetry::{
-    global,
+    Context, global,
     trace::{SpanKind, TraceContextExt, Tracer},
-    Context,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_http::{Bytes, HeaderInjector};

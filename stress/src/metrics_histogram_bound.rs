@@ -14,8 +14,8 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{BoundHistogram, Histogram, MeterProvider as _},
     KeyValue,
+    metrics::{BoundHistogram, Histogram, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 

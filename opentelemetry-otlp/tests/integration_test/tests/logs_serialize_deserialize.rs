@@ -2,12 +2,12 @@
 
 use anyhow::Result;
 use ctor::dtor;
-use integration_test_runner::logs_asserter::{read_logs_from_json, LogsAsserter};
+use integration_test_runner::logs_asserter::{LogsAsserter, read_logs_from_json};
 use integration_test_runner::test_utils;
 use opentelemetry_appender_tracing::layer;
 use opentelemetry_otlp::LogExporter;
-use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use std::fs::File;
 use std::os::unix::fs::MetadataExt;
 use tracing::info;

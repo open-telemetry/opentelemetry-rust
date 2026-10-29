@@ -1,13 +1,13 @@
-use criterion::{criterion_group, criterion_main, Bencher, Criterion};
+use criterion::{Bencher, Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _},
     Key, KeyValue,
+    metrics::{Counter, Histogram, MeterProvider as _},
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{
-        data::ResourceMetrics, reader::MetricReader, Aggregation, Instrument, InstrumentKind,
-        ManualReader, Pipeline, SdkMeterProvider, Stream, Temporality,
+        Aggregation, Instrument, InstrumentKind, ManualReader, Pipeline, SdkMeterProvider, Stream,
+        Temporality, data::ResourceMetrics, reader::MetricReader,
     },
 };
 use rand::RngExt;

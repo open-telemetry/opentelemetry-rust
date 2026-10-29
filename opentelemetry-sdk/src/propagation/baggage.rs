@@ -1,10 +1,10 @@
 use opentelemetry::{
+    Context,
     baggage::{BaggageExt, KeyValueMetadata},
     otel_warn,
-    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    Context,
+    propagation::{Extractor, Injector, TextMapPropagator, text_map_propagator::FieldIter},
 };
-use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 use std::iter;
 use std::sync::OnceLock;
 
@@ -188,7 +188,7 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opentelemetry::{baggage::BaggageMetadata, Key, KeyValue, StringValue, Value};
+    use opentelemetry::{Key, KeyValue, StringValue, Value, baggage::BaggageMetadata};
     use std::collections::HashMap;
 
     #[rustfmt::skip]

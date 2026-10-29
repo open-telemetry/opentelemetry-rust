@@ -1,14 +1,14 @@
 use super::{BatchLogProcessor, LogProcessor, SdkLogger, SimpleLogProcessor};
+use crate::Resource;
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::LogExporter;
-use crate::Resource;
-use opentelemetry::{otel_debug, otel_info, InstrumentationScope};
+use opentelemetry::{InstrumentationScope, otel_debug, otel_info};
 use std::time::Duration;
 use std::{
     borrow::Cow,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, OnceLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -316,11 +316,11 @@ mod tests {
     #[cfg(feature = "trace")]
     use crate::trace::SdkTracerProvider;
     use crate::{
+        Resource,
         logs::{InMemoryLogExporter, LogBatch, SdkLogRecord},
         resource::{
             SERVICE_NAME, TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
         },
-        Resource,
     };
 
     use super::*;
@@ -331,8 +331,8 @@ mod tests {
     use opentelemetry::trace::{SpanId, TraceId, Tracer as _, TracerProvider};
     use opentelemetry::{Key, KeyValue, Value};
     use std::fmt::{Debug, Formatter};
-    use std::sync::atomic::AtomicU64;
     use std::sync::Mutex;
+    use std::sync::atomic::AtomicU64;
     use std::{thread, time};
 
     struct ShutdownTestLogProcessor {
