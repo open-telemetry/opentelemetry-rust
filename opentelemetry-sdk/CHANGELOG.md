@@ -34,6 +34,15 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `SdkLogRecord::set_attribute`, `SdkLogRecord::remove_attribute`, 
+  and `SdkLogRecord::retain_attributes` so a
+  `LogProcessor` can change or redact attributes that are already on a record.
+  `set_attribute` replaces the value of an existing key, removes other
+  occurrences of that key, and returns the old value. If the key is not
+  present, it adds the attribute. `remove_attribute` removes all occurrences of
+  a key and returns the number of removed attributes.
+  `retain_attribute` allows predicates to remove pairs and mutate values.
+  ([#1986](https://github.com/open-telemetry/opentelemetry-rust/issues/1986))
 
 ## 0.33.1
 
