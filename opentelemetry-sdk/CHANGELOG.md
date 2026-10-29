@@ -2,6 +2,10 @@
 
 ## vNext
 
+- Fixed `BatchSpanProcessor` to drop unsampled spans in `on_end`, preventing spans
+  recorded under `RecordOnly` from being queued and exported.
+  ([#3815](https://github.com/open-telemetry/opentelemetry-rust/pull/3815))
+
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
