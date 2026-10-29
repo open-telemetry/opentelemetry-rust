@@ -91,7 +91,7 @@ async fn router(
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     // Extract the context from the incoming request headers
     let parent_cx = extract_context_from_request(&req);
-    let response = {
+    {
         // Create a span parenting the remote client span.
         let tracer = get_tracer();
         let route = route_template(req.method(), req.uri().path());
@@ -115,9 +115,7 @@ async fn router(
                 Ok(not_found)
             }
         }
-    };
-
-    response
+    }
 }
 
 #[cfg(test)]

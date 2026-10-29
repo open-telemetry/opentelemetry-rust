@@ -4714,8 +4714,7 @@ mod tests {
                 "Expected collect to be called {invocation_count} times"
             );
 
-            let result = self
-                .resource_metrics
+            self.resource_metrics
                 .iter()
                 .map(|resource_metric| {
                     assert!(
@@ -4732,13 +4731,10 @@ mod tests {
                         assert_eq!(metric.unit, expected_unit);
                     }
 
-                    let aggregation = T::extract_metrics_data_ref(&metric.data)
-                        .expect("Failed to cast aggregation to expected type");
-                    aggregation
+                    T::extract_metrics_data_ref(&metric.data)
+                        .expect("Failed to cast aggregation to expected type")
                 })
-                .collect::<Vec<_>>();
-
-            result
+                .collect::<Vec<_>>()
         }
     }
 

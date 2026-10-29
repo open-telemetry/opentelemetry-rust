@@ -153,12 +153,10 @@ impl InMemorySpanExporter {
 
 impl SpanExporter for InMemorySpanExporter {
     async fn export(&self, batch: Vec<SpanData>) -> OTelSdkResult {
-        let result = self
-            .spans
+        self.spans
             .lock()
             .map(|mut spans_guard| spans_guard.append(&mut batch.clone()))
-            .map_err(|err| OTelSdkError::InternalFailure(format!("Failed to lock spans: {err:?}")));
-        result
+            .map_err(|err| OTelSdkError::InternalFailure(format!("Failed to lock spans: {err:?}")))
     }
 
     fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {

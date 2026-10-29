@@ -29,7 +29,7 @@ use std::fmt::Debug;
 // Run this benchmark with:
 // cargo bench --bench log_exporter
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    fn export(&mut self, batch: LogBatch<'_>) -> impl std::future::Future<Output = ()> + Send;
+    fn export(&mut self, batch: LogBatch<'_>) -> impl Future<Output = ()> + Send;
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {

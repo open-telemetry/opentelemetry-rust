@@ -16,10 +16,7 @@ pub trait PushMetricExporter: Send + Sync + 'static {
     /// All retry logic must be contained in this function. The SDK does not
     /// implement any retry logic. All errors returned by this function are
     /// considered unrecoverable and will be logged.
-    fn export(
-        &self,
-        metrics: &ResourceMetrics,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+    fn export(&self, metrics: &ResourceMetrics) -> impl Future<Output = OTelSdkResult> + Send;
 
     /// Flushes any metric data held by an exporter.
     fn force_flush(&self) -> OTelSdkResult;

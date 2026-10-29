@@ -197,10 +197,7 @@ impl HasHttpConfig for MetricExporterBuilder<HttpExporterBuilderSet> {
 
 /// An interface for OTLP metrics clients
 pub(crate) trait MetricsClient: fmt::Debug + Send + Sync + 'static {
-    fn export(
-        &self,
-        metrics: &ResourceMetrics,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+    fn export(&self, metrics: &ResourceMetrics) -> impl Future<Output = OTelSdkResult> + Send;
     fn shutdown(&self) -> OTelSdkResult;
 }
 

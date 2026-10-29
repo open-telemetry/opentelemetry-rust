@@ -472,8 +472,6 @@ mod tests {
     };
     use crate::trace::{BatchConfig, BatchConfigBuilder};
     use crate::trace::{FinishedSpan, SpanData, SpanExporter};
-    #[cfg(feature = "rt-tokio-current-thread")]
-    use futures_util::Future;
     use std::fmt::Debug;
     use std::sync::Arc;
     #[cfg(feature = "rt-tokio")]

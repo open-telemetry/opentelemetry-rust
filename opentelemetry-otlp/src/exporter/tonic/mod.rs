@@ -26,12 +26,6 @@ use crate::RetryPolicy;
     any(feature = "trace", feature = "metrics", feature = "logs")
 ))]
 use crate::retry::retry_with_backoff;
-#[cfg(all(
-    feature = "grpc-tonic",
-    any(feature = "trace", feature = "metrics", feature = "logs")
-))]
-use std::future::Future;
-
 #[cfg(feature = "logs")]
 pub(crate) mod logs;
 

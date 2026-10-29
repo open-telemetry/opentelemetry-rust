@@ -3,7 +3,6 @@
 use crate::retry_policy::RetryPolicy;
 use opentelemetry::{otel_debug, otel_info, otel_warn};
 use std::collections::hash_map::DefaultHasher;
-use std::future::Future;
 use std::hash::Hasher;
 use std::time::{Duration, Instant, SystemTime};
 
