@@ -12,7 +12,8 @@ may be raised to any stable Rust release whose release date is at least 12
 months prior to the date the MSRV bump PR is opened.
 
 API and SDK-independent components retain their existing MSRV for as long as
-practical. MSRV bumps are not considered semver-breaking changes.
+practical. MSRV bumps are not considered semver-breaking changes and are
+shipped only in minor releases, never in patch releases.
 
 ## Motivation
 
@@ -70,9 +71,10 @@ implementation components.
 
 ### CI enforcement
 
-CI must verify compilation against the declared MSRV on every PR. The MSRV CI
-job should use a pinned toolchain (e.g. `+1.85.0`) and run at minimum
-`cargo check --all-features` against all published crates.
+CI must verify every published crate against its own declared `rust-version`
+on every PR. The MSRV CI job should run `cargo msrv verify` for each crate and,
+using a toolchain pinned to that crate's declared version (e.g. `+1.85.0`), run
+at minimum `cargo check --all-features`.
 
 ### Process for bumping the MSRV
 
