@@ -1581,4 +1581,30 @@ mod tests {
             "end_with_timestamp should preserve the explicit timestamp even when equal to start_time"
         );
     }
+
+    #[test]
+    fn test_end_exports_once_with_current_timestamp() {
+        use crate::trace::InMemorySpanExporter;
+
+        let exporter = InMemorySpanExporter::default();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span = tracer.start("test_span");
+        let before = opentelemetry::time::now();
+        span.end();
+        let after = opentelemetry::time::now();
+
+        assert!(!span.is_recording());
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert!(before <= spans[0].end_time && spans[0].end_time <= after);
+
+        // Ending again and dropping must not export a second time.
+        span.end();
+        drop(span);
+        assert_eq!(exporter.get_finished_spans().unwrap().len(), 1);
+    }
 }

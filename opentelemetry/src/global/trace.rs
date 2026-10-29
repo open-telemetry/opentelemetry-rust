@@ -471,11 +471,7 @@ mod tests {
         }
         fn set_attribute(&mut self, _: KeyValue) {}
         fn set_status(&mut self, _: Status) {}
-        fn update_name<T>(&mut self, _: T)
-        where
-            T: Into<Cow<'static, str>>,
-        {
-        }
+        fn update_name<T: Into<Cow<'static, str>>>(&mut self, _: T) {}
         fn add_link(&mut self, _: SpanContext, _: Vec<KeyValue>) {}
         fn end(&mut self) {
             self.0.store(true, Ordering::Relaxed);
@@ -486,10 +482,22 @@ mod tests {
     }
 
     #[test]
-    fn boxed_span_end_delegates_to_inner_span() {
+    fn test_boxed_span_end_delegates_to_inner_span() {
         let ended = Arc::new(AtomicBool::new(false));
         let mut span = BoxedSpan::new(EndSpan(ended.clone()));
         Span::end(&mut span);
+        assert!(ended.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn test_span_ref_end_delegates_to_inner_span() {
+        use crate::trace::TraceContextExt;
+
+        let ended = Arc::new(AtomicBool::new(false));
+        let cx = Context::new().with_span(EndSpan(ended.clone()));
+        assert!(cx.span().is_recording());
+        cx.span().add_event("event", vec![]);
+        cx.span().end();
         assert!(ended.load(Ordering::Relaxed));
     }
 }

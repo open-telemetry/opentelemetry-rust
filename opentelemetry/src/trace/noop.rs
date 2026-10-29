@@ -189,6 +189,13 @@ mod tests {
     }
 
     #[test]
+    fn noop_span_end_is_ignored() {
+        let mut span = NoopSpan::DEFAULT;
+        span.end();
+        assert!(!span.is_recording());
+    }
+
+    #[test]
     fn noop_tracer_propagates_valid_span_context_from_builder() {
         let tracer = NoopTracer::new();
         let builder = tracer.span_builder("foo");

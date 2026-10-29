@@ -12,10 +12,12 @@
   
 - Improved performance of non-recording spans
   ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814)):
-  - `NoopSpan` and `BoxedSpan` no longer read the system clock on `end()`.
-  - `BoxedSpan::end()` now delegates to the wrapped span's `end()` instead of
-    calling `end_with_timestamp()`, so custom `Span::end()` implementations are
-    no longer bypassed when the span is boxed (e.g. via the global tracer).
+  - `NoopSpan`, `BoxedSpan` and `SpanRef` no longer read the system clock on
+    `end()`.
+  - `BoxedSpan::end()` and `SpanRef::end()` now delegate to the wrapped span's
+    `end()` instead of calling `end_with_timestamp()`, so custom `Span::end()`
+    implementations are no longer bypassed when the span is boxed (e.g. via the
+    global tracer) or ended through a `Context` (`cx.span().end()`).
   - `TraceState::clone()` is faster when the trace state is empty, which is the
     common case for spans without vendor trace state.
 
