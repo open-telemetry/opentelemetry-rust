@@ -56,6 +56,9 @@ ignore = [
     { id = "RUSTSEC-2026-0009", reason = "currently dev-only via test infra" },
     { id = "RUSTSEC-2026-0194", reason = "quick-xml only used to write SVG flamegraphs via pprof/inferno (dev-only)" },
     { id = "RUSTSEC-2026-0195", reason = "quick-xml only used to write SVG flamegraphs via pprof/inferno (dev-only)" },
+    { id = "RUSTSEC-2026-0391", reason = "tonic creates fresh read encoders and decoders instead of reusing contexts; remove when tonic can be upgraded with the MSRV" },
+    { id = "RUSTSEC-2026-0398", reason = "tonic does not enable zstd's seekable feature; remove when tonic can be upgraded with the MSRV" },
+    { id = "RUSTSEC-2026-0403", reason = "tonic uses stream::read::Decoder, which is not affected; remove when tonic can be upgraded with the MSRV" },
 ]
 
 # This section is considered when running `cargo deny check bans`.
