@@ -281,7 +281,7 @@ impl StreamBuilder {
     }
 }
 
-fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
+pub(crate) fn validate_bucket_boundaries(boundaries: &[f64]) -> Result<(), String> {
     // Validate boundaries do not contain f64::NAN, f64::INFINITY, or f64::NEG_INFINITY
     for boundary in boundaries {
         if boundary.is_nan() || boundary.is_infinite() {

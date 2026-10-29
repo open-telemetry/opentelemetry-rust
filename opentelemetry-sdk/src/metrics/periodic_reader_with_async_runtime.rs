@@ -16,7 +16,11 @@ use opentelemetry::{otel_debug, otel_error};
 use crate::runtime::{to_interval_stream, Runtime};
 use crate::{
     error::{OTelSdkError, OTelSdkResult},
-    metrics::{exporter::PushMetricExporter, reader::SdkProducer},
+    metrics::{
+        exporter::PushMetricExporter,
+        producer::{produce_external, MetricProducer},
+        reader::SdkProducer,
+    },
     Resource,
 };
 
@@ -50,6 +54,7 @@ pub struct PeriodicReaderBuilder<E, RT> {
     timeout: Duration,
     exporter: E,
     runtime: RT,
+    producers: Vec<Box<dyn MetricProducer>>,
 }
 
 impl<E, RT> PeriodicReaderBuilder<E, RT>
@@ -72,6 +77,7 @@ where
             timeout,
             exporter,
             runtime,
+            producers: Vec::new(),
         }
     }
 
@@ -101,6 +107,14 @@ where
         if !timeout.is_zero() {
             self.timeout = timeout;
         }
+        self
+    }
+
+    /// Registers a [MetricProducer] whose metrics each collection appends after the
+    /// SDK's own.
+    #[cfg(feature = "experimental_metrics_producer")]
+    pub fn with_producer(mut self, producer: impl MetricProducer + 'static) -> Self {
+        self.producers.push(Box::new(producer));
         self
     }
 
@@ -144,6 +158,7 @@ where
                 is_shutdown: false,
                 sdk_producer_or_worker: ProducerOrWorker::Worker(Box::new(worker)),
             })),
+            producers: Arc::new(self.producers),
         }
     }
 }
@@ -189,6 +204,7 @@ where
 pub struct PeriodicReader<E: PushMetricExporter> {
     exporter: Arc<E>,
     inner: Arc<Mutex<PeriodicReaderInner<E>>>,
+    producers: Arc<Vec<Box<dyn MetricProducer>>>,
 }
 
 impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
@@ -196,6 +212,7 @@ impl<E: PushMetricExporter> Clone for PeriodicReader<E> {
         Self {
             exporter: Arc::clone(&self.exporter),
             inner: Arc::clone(&self.inner),
+            producers: Arc::clone(&self.producers),
         }
     }
 }
@@ -374,6 +391,9 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
                 "reader is not registered".into(),
             ));
         }
+        // External producers run integration code: don't hold the lock while they do.
+        drop(inner);
+        produce_external(&self.producers, rm);
 
         Ok(())
     }
