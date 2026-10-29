@@ -19,7 +19,6 @@ const VERSION_RANGE: std::ops::Range<usize> = 0..2;
 const TRACE_ID_RANGE: std::ops::Range<usize> = 3..35;
 const SPAN_ID_RANGE: std::ops::Range<usize> = 36..52;
 const TRACE_FLAGS_RANGE: std::ops::Range<usize> = 53..55;
-const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
 const TRACESTATE_HEADER: &str = "tracestate";
 
 // TODO Replace this with LazyLock once it is stable.
@@ -146,16 +145,13 @@ impl TextMapPropagator for TraceContextPropagator {
         let span = cx.span();
         let span_context = span.span_context();
         if span_context.is_valid() {
-            let trace_flags =
-                span_context.trace_flags() & (TraceFlags::SAMPLED | TraceFlags::RANDOM);
-            let mut header_value = String::with_capacity(TRACEPARENT_LEN);
-            push_lower_hex(&mut header_value, &[SUPPORTED_VERSION]);
-            header_value.push('-');
-            push_lower_hex(&mut header_value, &span_context.trace_id().to_bytes());
-            header_value.push('-');
-            push_lower_hex(&mut header_value, &span_context.span_id().to_bytes());
-            header_value.push('-');
-            push_lower_hex(&mut header_value, &[trace_flags.to_u8()]);
+            let header_value = format!(
+                "{:02x}-{}-{}-{:02x}",
+                SUPPORTED_VERSION,
+                span_context.trace_id(),
+                span_context.span_id(),
+                span_context.trace_flags() & (TraceFlags::SAMPLED | TraceFlags::RANDOM)
+            );
             injector.set(TRACEPARENT_HEADER, header_value);
 
             // Avoid sending empty tracestate headers.
@@ -193,14 +189,6 @@ fn decode_lower_hex(bytes: &[u8]) -> Option<u128> {
         };
         Some(acc << 4 | u128::from(nibble))
     })
-}
-
-/// Appends `bytes` to `out` as lowercase hex, two digits per byte.
-fn push_lower_hex(out: &mut String, bytes: &[u8]) {
-    for &b in bytes {
-        out.push(HEX_DIGITS[usize::from(b >> 4)] as char);
-        out.push(HEX_DIGITS[usize::from(b & 0x0f)] as char);
-    }
 }
 
 #[cfg(all(test, feature = "testing", feature = "trace"))]

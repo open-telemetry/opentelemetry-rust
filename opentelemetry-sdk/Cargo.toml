@@ -75,11 +75,6 @@ name = "span_builder"
 harness = false
 
 [[bench]]
-name = "propagator"
-harness = false
-required-features = ["trace"]
-
-[[bench]]
 name = "metrics_counter"
 harness = false
 required-features = ["experimental_metrics_custom_reader"]
