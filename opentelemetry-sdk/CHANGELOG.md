@@ -34,6 +34,20 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added exemplar collection for explicit-bucket histograms, behind the new
+  `spec_unstable_metrics_exemplars` feature. A measurement recorded inside a
+  sampled span is retained alongside the histogram data point together with its
+  trace id and span id, letting a backend link from a bucket to a representative
+  trace. Which measurements are eligible is controlled by the new
+  `ExemplarFilter` (`AlwaysOn`, `AlwaysOff`, `TraceBased`), set via
+  `SdkMeterProvider::builder().with_exemplar_filter(..)` and defaulting to
+  `TraceBased` as the specification requires. Sampling uses the spec's
+  `AlignedHistogramBucketExemplarReservoir`, keeping at most one exemplar per
+  bucket. With the feature disabled the measurement path is unchanged. Note that
+  an exemplar retains the attributes a view's attribute filter removed from its
+  measurement, as the specification requires, so a view is not a way to keep a
+  sensitive attribute value from being exported once exemplars are collected.
+  ([#3369](https://github.com/open-telemetry/opentelemetry-rust/issues/3369))
 
 ## 0.33.1
 

@@ -59,7 +59,7 @@ where
     T: Number,
 {
     type InitConfig = ();
-    type PreComputedValue = T;
+    type PreComputedValue<'a> = T;
 
     fn create(_init: &()) -> Self {
         Self {

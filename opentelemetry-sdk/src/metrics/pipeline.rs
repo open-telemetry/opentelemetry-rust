@@ -14,7 +14,10 @@ use crate::{
         data::{Metric, ResourceMetrics, ScopeMetrics},
         error::{MetricError, MetricResult},
         instrument::{Instrument, InstrumentId, InstrumentKind, Stream},
-        internal::{self, AggregateBuilder, AttributeBuildHasher, Filter, Number, SharedFactory},
+        internal::{
+            self, AggregateBuilder, AttributeBuildHasher, ExemplarSampler, Filter, Number,
+            SharedFactory,
+        },
         reader::{MetricReader, SdkProducer},
         view::View,
     },
@@ -38,6 +41,8 @@ pub struct Pipeline {
     pub(crate) resource: Resource,
     reader: Box<dyn MetricReader>,
     views: Vec<Arc<dyn View>>,
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    exemplar_filter: crate::metrics::ExemplarFilter,
     aggregate_factory: Arc<dyn AggregateFactory>,
     inner: Mutex<PipelineInner>,
 }
@@ -417,10 +422,31 @@ where
             let cardinality_limit = stream
                 .cardinality_limit
                 .unwrap_or(DEFAULT_CARDINALITY_LIMIT);
+            #[cfg(feature = "spec_unstable_metrics_exemplars")]
+            let exemplars = ExemplarSampler::new(
+                if matches!(
+                    kind,
+                    InstrumentKind::ObservableCounter
+                        | InstrumentKind::ObservableUpDownCounter
+                        | InstrumentKind::ObservableGauge
+                ) {
+                    // Asynchronous observations run during collection and do
+                    // not carry the API-call context required for trace/span
+                    // correlation. Avoid capturing the collector's context;
+                    // asynchronous exemplars remain outside this PR's scope.
+                    crate::metrics::ExemplarFilter::AlwaysOff
+                } else {
+                    self.pipeline.exemplar_filter
+                },
+            );
+            #[cfg(not(feature = "spec_unstable_metrics_exemplars"))]
+            let exemplars = ExemplarSampler::new();
+
             let params = AggregateParams {
                 temporality: self.pipeline.reader.temporality(kind),
                 filter,
                 cardinality_limit,
+                exemplars,
                 aggregation: &agg,
                 kind,
             };
@@ -527,6 +553,7 @@ pub(crate) struct AggregateParams<'a> {
     pub(crate) temporality: Temporality,
     pub(crate) filter: Option<Filter>,
     pub(crate) cardinality_limit: usize,
+    pub(crate) exemplars: ExemplarSampler,
     pub(crate) aggregation: &'a Aggregation,
     pub(crate) kind: InstrumentKind,
 }
@@ -550,6 +577,7 @@ impl<S: AttributeBuildHasher> BuildHasherFactory<S> {
             params.temporality,
             params.filter,
             params.cardinality_limit,
+            params.exemplars,
             self.0.clone(),
         );
         aggregate_fn(b, params.aggregation, params.kind)
@@ -713,6 +741,8 @@ impl Pipelines {
         res: Resource,
         readers: Vec<Box<dyn MetricReader>>,
         views: Vec<Arc<dyn View>>,
+        #[cfg(feature = "spec_unstable_metrics_exemplars")]
+        exemplar_filter: crate::metrics::ExemplarFilter,
         aggregate_factory: Arc<dyn AggregateFactory>,
     ) -> Self {
         let mut pipes = Vec::with_capacity(readers.len());
@@ -721,6 +751,8 @@ impl Pipelines {
                 resource: res.clone(),
                 reader: r,
                 views: views.clone(),
+                #[cfg(feature = "spec_unstable_metrics_exemplars")]
+                exemplar_filter,
                 aggregate_factory: Arc::clone(&aggregate_factory),
                 inner: Default::default(),
             });

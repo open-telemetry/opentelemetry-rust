@@ -239,6 +239,8 @@ pub struct MeterProviderBuilder {
     resource: Option<Resource>,
     readers: Vec<Box<dyn MetricReader>>,
     views: Vec<Arc<dyn View>>,
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    exemplar_filter: crate::metrics::ExemplarFilter,
     aggregate_factory: Option<Arc<dyn AggregateFactory>>,
 }
 
@@ -401,6 +403,28 @@ impl MeterProviderBuilder {
         self
     }
 
+    /// Sets the [`ExemplarFilter`] deciding which measurements may be retained
+    /// as exemplars.
+    ///
+    /// Defaults to [`ExemplarFilter::TraceBased`], so only measurements
+    /// recorded inside a sampled span produce exemplars. Use
+    /// [`ExemplarFilter::AlwaysOff`] to remove exemplar collection from the
+    /// measurement path entirely.
+    ///
+    /// An exemplar retains the attributes a view's attribute filter removed
+    /// from its measurement, so such a filter does not keep a sensitive value
+    /// from being exported. See [`ExemplarFilter`] for details.
+    ///
+    /// [`ExemplarFilter`]: crate::metrics::ExemplarFilter
+    /// [`ExemplarFilter::TraceBased`]: crate::metrics::ExemplarFilter::TraceBased
+    /// [`ExemplarFilter::AlwaysOff`]: crate::metrics::ExemplarFilter::AlwaysOff
+    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "spec_unstable_metrics_exemplars")))]
+    pub fn with_exemplar_filter(mut self, filter: crate::metrics::ExemplarFilter) -> Self {
+        self.exemplar_filter = filter;
+        self
+    }
+
     /// Sets a custom hasher for internal metric attribute lookups.
     ///
     /// Most applications should keep the default. It protects against
@@ -453,6 +477,8 @@ impl MeterProviderBuilder {
                     self.resource.unwrap_or(Resource::builder().build()),
                     self.readers,
                     self.views,
+                    #[cfg(feature = "spec_unstable_metrics_exemplars")]
+                    self.exemplar_filter,
                     self.aggregate_factory.unwrap_or_else(|| {
                         Arc::new(BuildHasherFactory(Arc::new(RandomState::new)))
                     }),
@@ -471,7 +497,8 @@ impl MeterProviderBuilder {
 
 impl fmt::Debug for MeterProviderBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MeterProviderBuilder")
+        let mut debug = f.debug_struct("MeterProviderBuilder");
+        let debug = debug
             .field("resource", &self.resource)
             .field("readers", &self.readers)
             .field("views", &self.views.len())
@@ -482,8 +509,10 @@ impl fmt::Debug for MeterProviderBuilder {
                 } else {
                     "default"
                 },
-            )
-            .finish()
+            );
+        #[cfg(feature = "spec_unstable_metrics_exemplars")]
+        let debug = debug.field("exemplar_filter", &self.exemplar_filter);
+        debug.finish()
     }
 }
 #[cfg(all(test, feature = "testing"))]
