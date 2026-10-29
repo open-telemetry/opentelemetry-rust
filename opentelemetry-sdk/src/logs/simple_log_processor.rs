@@ -186,13 +186,13 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(exporter) = self.exporter.lock() {
+        match self.exporter.lock() { Ok(exporter) => {
             exporter.shutdown_with_timeout(timeout)
-        } else {
+        } _ => {
             Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
             ))
-        }
+        }}
     }
 
     fn set_resource(&mut self, resource: &Resource) {
@@ -208,11 +208,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         target: &str,
         name: Option<&str>,
     ) -> bool {
-        if let Ok(exporter) = self.exporter.lock() {
+        match self.exporter.lock() { Ok(exporter) => {
             exporter.event_enabled(level, target, name)
-        } else {
+        } _ => {
             true
-        }
+        }}
     }
 }
 

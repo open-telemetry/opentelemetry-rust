@@ -208,7 +208,7 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
         )
         .await;
         let task = Box::pin(async move {
-            if let Some(channel) = res_channel {
+            match res_channel { Some(channel) => {
                 // If a response channel is provided, attempt to send the export result through it.
                 if let Err(result) = channel.send(export_result) {
                     otel_debug!(
@@ -216,7 +216,7 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                         reason = format!("{:?}", result)
                     );
                 }
-            } else if let Err(err) = export_result {
+            } _ => if let Err(err) = export_result {
                 // If no channel is provided and the export operation encountered an error,
                 // log the error directly here.
                 // TODO: Consider returning the status instead of logging it.
@@ -225,7 +225,7 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
                     reason = format!("{:?}", err),
                     message = "Failed during the export process"
                 );
-            }
+            }}
 
             Ok(())
         });

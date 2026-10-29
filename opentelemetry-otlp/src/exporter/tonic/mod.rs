@@ -487,7 +487,7 @@ where
 /// `$client_name` must be a string literal so that `concat!` can produce
 /// compile-time event names consistent with the codebase naming convention.
 macro_rules! handle_tonic_export_error {
-    ($client_name:literal, $tonic_status:expr) => {{
+    ($client_name:literal, $tonic_status:expr_2021) => {{
         let status = &$tonic_status;
         let code = status.code();
         otel_debug!(
@@ -519,7 +519,7 @@ macro_rules! handle_tonic_export_error {
 /// gRPC code is included in the returned status message; the original message
 /// and details are logged at DEBUG level only.
 macro_rules! handle_interceptor_error {
-    ($client_name:literal, $e:expr) => {{
+    ($client_name:literal, $e:expr_2021) => {{
         let status = &$e;
         otel_debug!(
             name: concat!($client_name, ".InterceptorFailed"),

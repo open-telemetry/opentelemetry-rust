@@ -183,13 +183,13 @@ where
 
         // Recheck both the provided and sorted orders after acquiring the write lock
         // in case another thread has pushed an update in the meantime.
-        if let Some(tracker) = trackers.get(attributes) {
+        match trackers.get(attributes) { Some(tracker) => {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
-        } else if let Some(tracker) = trackers.get(sorted_attrs.as_slice()) {
+        } _ => { match trackers.get(sorted_attrs.as_slice()) { Some(tracker) => {
             tracker.aggregator.update(value);
             tracker.has_been_updated.store(true, Ordering::Release);
-        } else if self.is_under_cardinality_limit() {
+        } _ => if self.is_under_cardinality_limit() {
             let new_tracker = Arc::new(TrackerEntry::<A>::new(&self.config));
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
@@ -199,17 +199,17 @@ where
             trackers.insert(sorted_attrs, new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else { match trackers.get(stream_overflow_attributes().as_slice()) { Some(overflow_value) => {
             overflow_value.aggregator.update(value);
             overflow_value
                 .has_been_updated
                 .store(true, Ordering::Release);
-        } else {
+        } _ => {
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
             trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
-        }
+        }}}}}}
     }
 
     /// Resolves attributes and returns a cached Arc<TrackerEntry> for bound instruments.

@@ -73,11 +73,11 @@ impl<
     pub(crate) fn get(&self, index: usize) -> Option<&T> {
         if index < self.count {
             Some(&self.inline[index])
-        } else if let Some(ref overflow) = self.overflow {
+        } else { match self.overflow { Some(ref overflow) => {
             overflow.get(index - MAX_INLINE_CAPACITY)
-        } else {
+        } _ => {
             None
-        }
+        }}}
     }
 
     /// Returns the number of elements in the `GrowableArray`.

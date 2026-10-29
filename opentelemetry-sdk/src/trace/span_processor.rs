@@ -389,13 +389,13 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, Ordering::Relaxed);
-        if let Ok(exporter) = self.exporter.lock() {
+        match self.exporter.lock() { Ok(exporter) => {
             exporter.shutdown_with_timeout(timeout)
-        } else {
+        } _ => {
             Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
             ))
-        }
+        }}
     }
 
     fn set_resource(&mut self, resource: &Resource) {

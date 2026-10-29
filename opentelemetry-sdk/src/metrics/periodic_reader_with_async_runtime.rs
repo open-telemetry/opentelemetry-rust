@@ -364,16 +364,16 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
             return Err(OTelSdkError::AlreadyShutdown);
         }
 
-        if let Some(producer) = match &inner.sdk_producer_or_worker {
+        match match &inner.sdk_producer_or_worker {
             ProducerOrWorker::Producer(sdk_producer) => sdk_producer.upgrade(),
             ProducerOrWorker::Worker(_) => None,
-        } {
+        } { Some(producer) => {
             producer.produce(rm)?;
-        } else {
+        } _ => {
             return Err(OTelSdkError::InternalFailure(
                 "reader is not registered".into(),
             ));
-        }
+        }}
 
         Ok(())
     }

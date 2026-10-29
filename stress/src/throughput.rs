@@ -93,7 +93,7 @@ where
                     #[cfg(feature = "stats")]
                     {
                         system.refresh_all();
-                        if let Some(process) = system.process(pid) {
+                        match system.process(pid) { Some(process) => {
                             println!(
                                 "Memory usage: {:.2} MB",
                                 process.memory() as f64 / (1024.0 * 1024.0)
@@ -103,9 +103,9 @@ where
                                 "Virtual memory usage: {:.2} MB",
                                 process.virtual_memory() as f64 / (1024.0 * 1024.0)
                             );
-                        } else {
+                        } _ => {
                             println!("Process not found");
-                        }
+                        }}
                     }
 
                     println!("\n");

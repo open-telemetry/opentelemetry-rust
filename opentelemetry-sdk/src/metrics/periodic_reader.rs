@@ -385,12 +385,12 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         let producer = self.producer.lock().expect("lock poisoned");
-        if let Some(p) = producer.as_ref() {
+        match producer.as_ref() { Some(p) => {
             p.upgrade()
                 .ok_or(OTelSdkError::AlreadyShutdown)?
                 .produce(rm)?;
             Ok(())
-        } else {
+        } _ => {
             otel_warn!(
             name: "PeriodReader.MeterProviderNotRegistered",
             message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
@@ -400,7 +400,7 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             Err(OTelSdkError::InternalFailure(
                 "MeterProvider is not registered".into(),
             ))
-        }
+        }}
     }
 
     fn collect_and_export(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
@@ -460,16 +460,16 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             .send(Message::Flush(response_tx))
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
+        match response_rx.recv() { Ok(response) => {
             // TODO: call exporter's force_flush method.
             if response {
                 Ok(())
             } else {
                 Err(OTelSdkError::InternalFailure("Failed to flush".into()))
             }
-        } else {
+        } _ => {
             Err(OTelSdkError::InternalFailure("Failed to flush".into()))
-        }
+        }}
     }
 
     fn shutdown(&self) -> OTelSdkResult {
