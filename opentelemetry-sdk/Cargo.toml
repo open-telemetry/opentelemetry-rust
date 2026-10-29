@@ -41,7 +41,7 @@ rapidhash = { workspace = true }
 rustc-hash = { workspace = true }
 rstest = { workspace = true }
 temp-env = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }
@@ -132,6 +132,10 @@ required-features = ["logs"]
 name = "bound_instruments"
 harness = false
 required-features = ["metrics", "experimental_metrics_custom_reader", "experimental_metrics_bound_instruments", "spec_unstable_metrics_views"]
+
+[[bench]]
+name = "span_processor_api"
+harness = false
 
 [lib]
 bench = false
