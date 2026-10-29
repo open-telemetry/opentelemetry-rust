@@ -154,7 +154,7 @@ impl Propagator {
         }
     }
 
-    /// Extract the debug flag from the `X-B3-Flags` header. Only "1" means debug;
+    /// Extract the debug flag from the `X-B3-Flags` header. Only "1" means debug,
     /// absent or other values are ignored.
     fn extract_debug_flag(&self, debug: Option<&str>) -> Option<TraceFlags> {
         match debug {

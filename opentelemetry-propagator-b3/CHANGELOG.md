@@ -4,11 +4,11 @@
 
 - The B3 propagator's internal "deferred" marker no longer overlaps the W3C
   `random-trace-id` trace flag; span contexts carrying that flag now inject their
-  sampling state correctly. The debug marker likewise moved to a high bit so
-  neither overlaps future W3C trace flags
+  sampling state correctly
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - Fix several deviations from the [B3 specification](https://github.com/openzipkin/b3-propagation)
-  and the [OpenTelemetry B3 requirements](https://opentelemetry.io/docs/specs/otel/context/api-propagators/#b3-requirements):
+  and the [OpenTelemetry B3 requirements](https://opentelemetry.io/docs/specs/otel/context/api-propagators/#b3-requirements)
+  ([#3828](https://github.com/open-telemetry/opentelemetry-rust/pull/3828)):
   - **Breaking**: `Propagator::new()`, `Propagator::default()` and
     `B3Encoding::UnSpecified` now inject the single `b3` header and `fields()`
     returns `b3`. Use `Propagator::with_encoding(B3Encoding::MultipleHeader)` to
@@ -17,6 +17,8 @@
   - Injected sampling state is derived only from the sampled and debug flags; the
     W3C `random-trace-id` flag and other unknown bits are ignored, and debug takes
     precedence over a deferred decision.
+  - The internal debug marker moved to a high bit so it doesn't overlap future
+    W3C trace flags.
   - `X-B3-Flags` values other than `1` are ignored instead of overriding `X-B3-Sampled`.
   - An invalid `X-B3-ParentSpanId` now rejects the extracted context, matching the
     single header behavior.
