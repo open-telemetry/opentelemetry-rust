@@ -34,6 +34,11 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added support for the `OTEL_SDK_DISABLED` environment variable.
+  ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
+- Spans from a shutdown or disabled `SdkTracerProvider` now carry the parent's
+  span context instead of an empty one, so an incoming trace keeps propagating.
+  ([#3088](https://github.com/open-telemetry/opentelemetry-rust/pull/3088))
 
 ## 0.33.1
 

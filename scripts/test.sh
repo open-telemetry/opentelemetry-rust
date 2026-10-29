@@ -69,3 +69,7 @@ echo "Running ignored tests for opentelemetry-appender-tracing package (global l
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml --all-features layer::tests::tracing_appender_inside_tracing_context_with_tracing_log -- --ignored --exact
 cargo test --manifest-path=opentelemetry-appender-tracing/Cargo.toml layer::tests::tracing_appender_standalone_with_tracing_log -- --ignored --exact
+
+# Run the tests that set the `OTEL_SDK_DISABLED` environment variable.
+echo "Running ignored tests for opentelemetry-sdk package with OTEL_SDK_DISABLED environment variable set"
+cargo test --package opentelemetry_sdk --lib --all-features -- otel_sdk_disabled_env --ignored --test-threads=1
