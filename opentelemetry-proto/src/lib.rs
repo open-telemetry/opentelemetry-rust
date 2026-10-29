@@ -1,8 +1,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //! Generated Rust types for the [OpenTelemetry Protocol (OTLP)](https://github.com/open-telemetry/opentelemetry-proto).
 //!
-//! SDK-to-OTLP request conversions are provided by the stable
-//! `opentelemetry-otlp-transform` crate.
+//! SDK-to-OTLP request conversions are provided by the experimental
+//! `opentelemetry-otlp-transform` crate. Its public API may change before
+//! stabilisation.
 //!
 //! The generated gRPC client and server bindings use [tonic](https://github.com/hyperium/tonic).
 //!

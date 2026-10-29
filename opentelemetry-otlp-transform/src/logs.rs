@@ -2,7 +2,8 @@ use crate::ResourceAttributesWithSchema;
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_sdk::logs::LogBatch;
 
-/// Converts a batch of log records into an OTLP export request.
+/// Converts a batch of log records and a prepared resource into an OTLP export
+/// request.
 pub fn export_request<'a>(
     logs: &'a LogBatch<'a>,
     resource: &ResourceAttributesWithSchema,

@@ -41,10 +41,10 @@ This crate provides auto-generated Protobuf types from the [OpenTelemetry
 protocol specification](https://github.com/open-telemetry/opentelemetry-proto).
 It can be used independently by applications that need OTLP wire-format types.
 
-The stable
+The experimental
 [opentelemetry-otlp-transform](https://crates.io/crates/opentelemetry-otlp-transform)
 crate provides conversions from OpenTelemetry SDK telemetry into OTLP export
-requests. Exporters such as
+requests. Its public API may change before stabilisation. Exporters such as
 [opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) use both crates.
 
 ## Getting started

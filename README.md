@@ -110,8 +110,9 @@ The following crates are maintained in this repo:
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
 * [`opentelemetry-proto`] provides generated OTLP protobuf types without a
   dependency on the OpenTelemetry API or SDK.
-* [`opentelemetry-otlp-transform`] provides stable conversions from SDK
-  telemetry into OTLP protobuf export requests.
+* [`opentelemetry-otlp-transform`] provides experimental conversions from SDK
+  telemetry into OTLP protobuf export requests and optional zPages trace data.
+  Its public API may change before stabilisation.
 * [`opentelemetry-stdout`] exporter for sending logs, metrics and traces to
   stdout, for learning/debugging purposes.  
 * [`opentelemetry-http`] This crate contains utility functions to help with

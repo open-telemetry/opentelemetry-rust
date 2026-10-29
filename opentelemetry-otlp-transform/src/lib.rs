@@ -1,16 +1,19 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//! Stable conversion of OpenTelemetry SDK data into OTLP protobuf export requests.
+//! Experimental conversion of OpenTelemetry SDK data into OTLP protobuf export
+//! requests and zPages trace data.
 //!
 //! This crate contains the protocol-specific transformation layer between
 //! [`opentelemetry_sdk`] data and the generated types in [`opentelemetry_proto`].
-//! It does not provide an exporter or transport.
+//! It does not provide an exporter or transport. Its public API may change before
+//! stabilisation.
 
 #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 mod common;
 
 /// OTLP-encoded resource attributes and their schema URL.
 ///
-/// Prepare this value once and reuse it across trace and log export requests.
+/// Prepare this value once from an [`opentelemetry_sdk::Resource`] and reuse it
+/// across trace and log export requests.
 #[cfg(any(feature = "trace", feature = "logs"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "trace", feature = "logs"))))]
 pub use common::tonic::ResourceAttributesWithSchema;

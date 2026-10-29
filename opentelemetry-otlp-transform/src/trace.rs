@@ -2,7 +2,8 @@ use crate::ResourceAttributesWithSchema;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 use opentelemetry_sdk::trace::SpanData;
 
-/// Converts a batch of completed spans into an OTLP export request.
+/// Converts a batch of completed spans and a prepared resource into an OTLP
+/// export request.
 pub fn export_request(
     spans: Vec<SpanData>,
     resource: &ResourceAttributesWithSchema,

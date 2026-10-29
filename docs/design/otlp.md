@@ -37,7 +37,7 @@ Important details:
 
 * `opentelemetry-sdk` owns batching, aggregation, and lifecycle.
 * `opentelemetry-proto` contains generated OTLP types and has no API or SDK dependency.
-* The stable `opentelemetry-otlp-transform` crate converts SDK data into OTLP export requests. Its public API has one entry point per signal and keeps grouping and field-level helpers private.
+* The experimental `opentelemetry-otlp-transform` crate converts SDK data into OTLP export requests. Its public API may change before stabilisation. It has one request conversion entry point per signal and keeps grouping and field-level helpers private.
 * Exporters handle wire serialization, transport, and retry policy. Each signal has its own exporter type but they share common builder and transport modules.
 
 ---
@@ -46,7 +46,7 @@ Important details:
 ```text
 opentelemetry-proto/             # Generated OTLP protobuf types only
 opentelemetry-otlp-transform/    # SDK data to OTLP request conversion
-  src/trace.rs | metrics.rs | logs.rs
+  src/trace.rs | metrics.rs | logs.rs | tracez.rs
 opentelemetry-otlp/
   src/
     lib.rs                       # Re-exports + feature flags + protocol enum
@@ -102,8 +102,10 @@ sequenceDiagram
     participant Collector as OTLP Collector
     App->>SDK: span.start / span.end
     SDK-->>SDK: BatchSpanProcessor collects SpanData
+    SDK->>Exp: set_resource(resource)
+    Exp->>Transform: prepare resource once
     SDK->>Exp: export(batch)
-    Exp->>Transform: trace::export_request(batch, resource)
+    Exp->>Transform: trace::export_request(batch, prepared_resource)
     Transform-->>Exp: ExportTraceServiceRequest
     Exp->>Tx: encode + send
     Tx--)Collector: OTLP request
@@ -115,7 +117,9 @@ Notes:
 
 * OTLP request construction happens in `opentelemetry-otlp-transform`; protobuf or JSON wire encoding happens inside the transport client.
 * `export` methods return futures, surfaced via signal exporters implementing their respective exporter traits (`SpanExporter`, `PushMetricExporter`, `LogExporter`).
-* Resource attributes are injected once per exporter via `set_resource()` before first export.
+* Resource attributes are converted once per exporter via `set_resource()` before
+  the first export. Trace and log requests clone the prepared protobuf resource
+  instead of converting the SDK resource again.
 
 ---
 

@@ -4,8 +4,9 @@
 
 - **Breaking:** Removed the public `transform` module and the dependencies on
   `opentelemetry` and `opentelemetry_sdk`. This crate now contains generated OTLP
-  protobuf types only. Use the stable `opentelemetry-otlp-transform` crate to
-  convert SDK telemetry into OTLP export requests:
+  protobuf types only. Use the experimental `opentelemetry-otlp-transform` crate
+  to convert complete SDK signal batches into OTLP export requests. Its public
+  API may change before stabilisation:
 
   ```rust
   // Before: traces
@@ -19,11 +20,14 @@
   };
 
   // After
+  let resource =
+      opentelemetry_otlp_transform::ResourceAttributesWithSchema::from(&resource);
   let request = opentelemetry_otlp_transform::trace::export_request(spans, &resource);
   ```
 
   Equivalent `logs::export_request` and `metrics::export_request` functions are
-  available for logs and metrics. The zPages conversions moved behind the
+  available for logs and metrics. The removed field-level OTLP conversions have
+  no standalone replacements. The zPages conversions moved behind the
   `opentelemetry-otlp-transform/zpages` feature as free functions:
 
   ```rust
@@ -37,7 +41,7 @@
 
   Equivalent `span_to_error_data`, `span_to_running_data`, and
   `event_to_span_event` functions replace the old error, running, and event
-  conversions. The now-unused `testing` and `internal-logs` features were also
+  conversions. The now-unused `testing` and `internal-logs` features were
   removed.
 
 ## 0.33.1
