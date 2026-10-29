@@ -7,7 +7,9 @@
   propagator's deferred marker are no longer exported
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
 - **Bug fix**: Accept OTLP/JSON `arrayValue` and `kvlistValue` objects that omit an empty
-  `values` list (`{"arrayValue":{}}`) instead of rejecting the entire request.
+  `values` list (`{"arrayValue":{}}`) instead of rejecting the entire request
+  ([#3831](https://github.com/open-telemetry/opentelemetry-rust/issues/3831)).
+
 ## 0.33.1
 
 Released 2026-Oct-08
