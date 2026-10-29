@@ -6,7 +6,7 @@
 //!
 //! Both single and multiple headers are accepted when extracting context, with
 //! a valid single header taking precedence. [`Propagator::new`] injects the
-//! single `b3` header, as required by the OpenTelemetry specification; use
+//! single `b3` header, as required by the OpenTelemetry specification. Use
 //! [`Propagator::with_encoding`] with [`B3Encoding::MultipleHeader`] to inject
 //! the multiple `x-b3-*` headers instead.
 //!
@@ -326,7 +326,7 @@ impl TextMapPropagator for Propagator {
         } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
             B3_MULTI_FIELDS.as_ref()
         } else {
-            // SingleHeader, or Unspecified which defaults to the single header.
+            // SingleHeader or Unspecified which defaults to the single header.
             B3_SINGLE_FIELDS.as_ref()
         };
 
