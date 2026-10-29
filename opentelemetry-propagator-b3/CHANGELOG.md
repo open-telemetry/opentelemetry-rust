@@ -14,16 +14,12 @@
     returns `b3`. Use `Propagator::with_encoding(B3Encoding::MultipleHeader)` to
     keep the previous behavior.
   - `B3Encoding::SingleHeader` no longer also injects the multiple `x-b3-*` headers.
-  - Injected sampling state is derived only from the sampled and debug flags; the
-    W3C `random-trace-id` flag and other unknown bits are ignored, and debug takes
-    precedence over a deferred decision.
   - The internal debug marker moved to a high bit so it doesn't overlap future
     W3C trace flags.
   - `X-B3-Flags` values other than `1` are ignored instead of overriding `X-B3-Sampled`.
   - An invalid `X-B3-ParentSpanId` now rejects the extracted context, matching the
     single header behavior.
-  - The single header debug flag `d` now also marks the span context as sampled,
-    since debug implies an accept decision.
+  - The single header debug flag `d` now correctly marks the span context as sampled
 
 ## 0.33.1
 
