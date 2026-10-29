@@ -49,7 +49,7 @@ pub(crate) mod tonic {
 
     #[cfg(any(feature = "trace", feature = "logs"))]
     #[derive(Clone, Debug, Default)]
-    pub(crate) struct ResourceAttributesWithSchema {
+    pub struct ResourceAttributesWithSchema {
         pub(crate) attributes: Vec<KeyValue>,
         pub(crate) schema_url: Option<String>,
     }
@@ -58,9 +58,7 @@ pub(crate) mod tonic {
     use opentelemetry_sdk::Resource;
 
     #[cfg(any(feature = "trace", feature = "logs"))]
-    pub(crate) fn resource_to_attributes_with_schema(
-        resource: &Resource,
-    ) -> ResourceAttributesWithSchema {
+    fn resource_to_attributes_with_schema(resource: &Resource) -> ResourceAttributesWithSchema {
         ResourceAttributesWithSchema {
             attributes: resource_attributes(resource),
             schema_url: resource.schema_url().map(ToString::to_string),

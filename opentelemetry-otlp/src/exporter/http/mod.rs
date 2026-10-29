@@ -14,6 +14,8 @@ use opentelemetry_otlp_transform::logs::export_request as logs_export_request;
 use opentelemetry_otlp_transform::metrics::export_request as metrics_export_request;
 #[cfg(feature = "trace")]
 use opentelemetry_otlp_transform::trace::export_request as trace_export_request;
+#[cfg(any(feature = "trace", feature = "logs"))]
+use opentelemetry_otlp_transform::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -417,7 +419,7 @@ pub(crate) struct OtlpHttpClient {
     max_request_body_size: usize,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_sdk::Resource,
+    resource: ResourceAttributesWithSchema,
 }
 
 impl OtlpHttpClient {
@@ -644,7 +646,7 @@ impl OtlpHttpClient {
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
-            resource: opentelemetry_sdk::Resource::builder_empty().build(),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 
@@ -1569,6 +1571,35 @@ mod tests {
             assert_eq!(content_encoding, None);
         }
 
+        #[cfg(all(feature = "trace", feature = "http-proto"))]
+        #[test]
+        fn trace_export_body_reuses_resource_prepared_by_set_resource() {
+            use opentelemetry::KeyValue;
+            use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+            use opentelemetry_sdk::{trace::SpanExporter, Resource};
+            use prost::Message;
+
+            let mut client = create_test_client(crate::Protocol::HttpBinary, None);
+            let resource = Resource::builder_empty()
+                .with_attribute(KeyValue::new("service.name", "checkout"))
+                .with_schema_url(vec![], "https://example.com/resource")
+                .build();
+            SpanExporter::set_resource(&mut client, &resource);
+
+            for _ in 0..2 {
+                let (body, _, _) = client
+                    .build_trace_export_body(vec![create_test_span_data()])
+                    .unwrap();
+                let request = ExportTraceServiceRequest::decode(body.as_slice()).unwrap();
+                let resource_spans = &request.resource_spans[0];
+                assert_eq!(resource_spans.schema_url, "https://example.com/resource");
+                assert_eq!(
+                    resource_spans.resource.as_ref().unwrap().attributes[0].key,
+                    "service.name"
+                );
+            }
+        }
+
         #[cfg(all(feature = "trace", feature = "http-json"))]
         #[test]
         fn test_build_trace_export_body_json_protocol() {
@@ -1615,6 +1646,35 @@ mod tests {
 
             assert_eq!(content_type, "application/x-protobuf");
             assert_eq!(content_encoding, None);
+        }
+
+        #[cfg(all(feature = "logs", feature = "http-proto"))]
+        #[test]
+        fn logs_export_body_reuses_resource_prepared_by_set_resource() {
+            use opentelemetry::KeyValue;
+            use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+            use opentelemetry_sdk::{logs::LogExporter, Resource};
+            use prost::Message;
+
+            let mut client = create_test_client(crate::Protocol::HttpBinary, None);
+            let resource = Resource::builder_empty()
+                .with_attribute(KeyValue::new("service.name", "checkout"))
+                .with_schema_url(vec![], "https://example.com/resource")
+                .build();
+            LogExporter::set_resource(&mut client, &resource);
+
+            for _ in 0..2 {
+                let (body, _, _) = client
+                    .build_logs_export_body(create_test_log_batch())
+                    .unwrap();
+                let request = ExportLogsServiceRequest::decode(body.as_slice()).unwrap();
+                let resource_logs = &request.resource_logs[0];
+                assert_eq!(resource_logs.schema_url, "https://example.com/resource");
+                assert_eq!(
+                    resource_logs.resource.as_ref().unwrap().attributes[0].key,
+                    "service.name"
+                );
+            }
         }
 
         #[cfg(all(feature = "logs", feature = "http-json"))]

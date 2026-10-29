@@ -1,11 +1,14 @@
+use crate::ResourceAttributesWithSchema;
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-use opentelemetry_sdk::{logs::LogBatch, Resource};
+use opentelemetry_sdk::logs::LogBatch;
 
 /// Converts a batch of log records into an OTLP export request.
-pub fn export_request<'a>(logs: &'a LogBatch<'a>, resource: &Resource) -> ExportLogsServiceRequest {
-    let resource = crate::common::tonic::resource_to_attributes_with_schema(resource);
+pub fn export_request<'a>(
+    logs: &'a LogBatch<'a>,
+    resource: &ResourceAttributesWithSchema,
+) -> ExportLogsServiceRequest {
     ExportLogsServiceRequest {
-        resource_logs: tonic::group_logs_by_resource_and_scope(logs, resource),
+        resource_logs: tonic::group_logs_by_resource_and_scope(logs, resource.clone()),
     }
 }
 
@@ -261,6 +264,7 @@ mod tests {
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
@@ -279,6 +283,7 @@ mod tests {
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
@@ -489,6 +494,7 @@ mod tests {
 
         let logs = [(&logrecord, &instrumentation)];
         let log_batch = LogBatch::new(&logs);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
@@ -500,5 +506,28 @@ mod tests {
         assert_eq!(scope.version, "1.0.0");
         assert_eq!(scope.attributes.len(), 1);
         assert_eq!(scope.attributes[0].key, "feature");
+    }
+
+    #[test]
+    fn prepared_resource_can_be_reused_across_log_requests() {
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("service.name", "checkout"))
+            .with_schema_url(vec![], "https://example.com/resource")
+            .build();
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+        let batch = LogBatch::new(&[]);
+
+        let first = crate::logs::export_request(&batch, &resource);
+        let second = crate::logs::export_request(&batch, &resource);
+
+        assert_eq!(first, second);
+        assert_eq!(
+            first.resource_logs[0].schema_url,
+            "https://example.com/resource"
+        );
+        assert_eq!(
+            first.resource_logs[0].resource.as_ref().unwrap().attributes[0].key,
+            "service.name"
+        );
     }
 }

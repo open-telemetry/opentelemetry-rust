@@ -1,11 +1,14 @@
+use crate::ResourceAttributesWithSchema;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-use opentelemetry_sdk::{trace::SpanData, Resource};
+use opentelemetry_sdk::trace::SpanData;
 
 /// Converts a batch of completed spans into an OTLP export request.
-pub fn export_request(spans: Vec<SpanData>, resource: &Resource) -> ExportTraceServiceRequest {
-    let resource = crate::common::tonic::resource_to_attributes_with_schema(resource);
+pub fn export_request(
+    spans: Vec<SpanData>,
+    resource: &ResourceAttributesWithSchema,
+) -> ExportTraceServiceRequest {
     ExportTraceServiceRequest {
-        resource_spans: tonic::group_spans_by_resource_and_scope(spans, resource),
+        resource_spans: tonic::group_spans_by_resource_and_scope(spans, resource.clone()),
     }
 }
 
@@ -384,6 +387,7 @@ mod tests {
                 "https://example.com/resource/1",
             )
             .build();
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let actual = crate::trace::export_request(vec![span_data], &resource).resource_spans;
         let expected = vec![ResourceSpans {
             resource: Some(ProtoResource {
@@ -536,6 +540,7 @@ mod tests {
                 "https://example.com/resource/1",
             )
             .build();
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let mut actual = crate::trace::export_request(batch, &resource).resource_spans;
 
         let expected_span = |id: u64| Span {
@@ -682,6 +687,7 @@ mod tests {
             instrumentation_scope,
         };
 
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
         let grouped_spans = crate::trace::export_request(vec![span_data], &resource).resource_spans;
 
         assert_eq!(grouped_spans.len(), 1);
@@ -691,5 +697,32 @@ mod tests {
         let scope_spans = &resource_spans.scope_spans;
         assert_eq!(scope_spans.len(), 1);
         assert_eq!(scope_spans[0].schema_url, "http://instrumentation-schema");
+    }
+
+    #[test]
+    fn prepared_resource_can_be_reused_across_trace_requests() {
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("service.name", "checkout"))
+            .with_schema_url(vec![], "https://example.com/resource")
+            .build();
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+
+        let first = crate::trace::export_request(Vec::new(), &resource);
+        let second = crate::trace::export_request(Vec::new(), &resource);
+
+        assert_eq!(first, second);
+        assert_eq!(
+            first.resource_spans[0].schema_url,
+            "https://example.com/resource"
+        );
+        assert_eq!(
+            first.resource_spans[0]
+                .resource
+                .as_ref()
+                .unwrap()
+                .attributes[0]
+                .key,
+            "service.name"
+        );
     }
 }

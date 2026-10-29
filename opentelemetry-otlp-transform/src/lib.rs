@@ -8,6 +8,13 @@
 #[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
 mod common;
 
+/// OTLP-encoded resource attributes and their schema URL.
+///
+/// Prepare this value once and reuse it across trace and log export requests.
+#[cfg(any(feature = "trace", feature = "logs"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "trace", feature = "logs"))))]
+pub use common::tonic::ResourceAttributesWithSchema;
+
 /// Trace export request conversion.
 #[cfg(feature = "trace")]
 #[cfg_attr(docsrs, doc(cfg(feature = "trace")))]

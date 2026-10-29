@@ -1,6 +1,6 @@
 use core::fmt;
 use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry_otlp_transform::logs::export_request;
+use opentelemetry_otlp_transform::{logs::export_request, ResourceAttributesWithSchema};
 use opentelemetry_proto::tonic::collector::logs::v1::logs_service_client::LogsServiceClient;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
@@ -18,7 +18,7 @@ pub(crate) struct TonicLogsClient {
     timeout: std::time::Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_sdk::Resource,
+    resource: ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -56,7 +56,7 @@ impl TonicLogsClient {
             })),
             retry_policy: retry_policy.unwrap_or_default(),
             timeout,
-            resource: opentelemetry_sdk::Resource::builder_empty().build(),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 }
@@ -138,6 +138,6 @@ impl LogExporter for TonicLogsClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = resource.clone();
+        self.resource = resource.into();
     }
 }

@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::{Arc, Mutex};
 
 use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry_otlp_transform::trace::export_request;
+use opentelemetry_otlp_transform::{trace::export_request, ResourceAttributesWithSchema};
 use opentelemetry_proto::tonic::collector::trace::v1::trace_service_client::TraceServiceClient;
 use opentelemetry_sdk::error::OTelSdkError;
 use opentelemetry_sdk::{
@@ -21,7 +21,7 @@ pub(crate) struct TonicTracesClient {
     timeout: std::time::Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_sdk::Resource,
+    resource: ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -59,7 +59,7 @@ impl TonicTracesClient {
             })),
             retry_policy: retry_policy.unwrap_or_default(),
             timeout,
-            resource: opentelemetry_sdk::Resource::builder_empty().build(),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 }
@@ -143,6 +143,6 @@ impl SpanExporter for TonicTracesClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = resource.clone();
+        self.resource = resource.into();
     }
 }
