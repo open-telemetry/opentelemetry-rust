@@ -5,7 +5,7 @@ use crate::trace::sampler::jaeger_remote::remote::{
 use crate::trace::sampler::sample_based_on_probability;
 use crate::trace::{SamplingDecision, SamplingResult};
 use opentelemetry::trace::{TraceContextExt, TraceId, TraceState};
-use opentelemetry::{otel_warn, Context};
+use opentelemetry::{Context, otel_warn};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;

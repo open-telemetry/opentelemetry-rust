@@ -1,0 +1,26 @@
+{
+  "classes": {
+    "core": {
+      "rust_version": "1.75.0",
+      "verify_packaged": true,
+      "packages": [
+        "opentelemetry",
+        "opentelemetry-appender-log",
+        "opentelemetry-appender-tracing",
+        "opentelemetry-http",
+        "opentelemetry-propagator-b3",
+        "opentelemetry-semantic-conventions"
+      ]
+    },
+    "sdk": {
+      "rust_version": "1.85.0",
+      "packages": [
+        "opentelemetry_sdk",
+        "opentelemetry-otlp",
+        "opentelemetry-prometheus",
+        "opentelemetry-proto",
+        "opentelemetry-stdout"
+      ]
+    }
+  }
+}

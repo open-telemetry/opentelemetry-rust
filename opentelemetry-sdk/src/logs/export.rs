@@ -1,9 +1,9 @@
 //! Log exporters
+use crate::Resource;
 use crate::error::OTelSdkResult;
 use crate::logs::SdkLogRecord;
-use crate::Resource;
-use opentelemetry::logs::Severity;
 use opentelemetry::InstrumentationScope;
+use opentelemetry::logs::Severity;
 use std::fmt::Debug;
 use std::time;
 
@@ -139,10 +139,7 @@ pub trait LogExporter: Send + Sync + Debug {
     /// A `LogResult<()>`, which is a result type indicating either a successful export (with
     /// `Ok(())`) or an error (`Err(LogError)`) if the export operation failed.
     ///
-    fn export(
-        &self,
-        batch: LogBatch<'_>,
-    ) -> impl std::future::Future<Output = OTelSdkResult> + Send;
+    fn export(&self, batch: LogBatch<'_>) -> impl Future<Output = OTelSdkResult> + Send;
     /// Shuts down the exporter.
     fn shutdown_with_timeout(&self, _timeout: time::Duration) -> OTelSdkResult {
         Ok(())

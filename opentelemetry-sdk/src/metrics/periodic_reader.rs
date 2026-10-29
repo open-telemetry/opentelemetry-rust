@@ -1,24 +1,24 @@
 use std::{
     env, fmt,
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc, Mutex, Weak,
+        mpsc::{self, Receiver, Sender},
     },
     thread,
     time::{Duration, Instant},
 };
 
-use opentelemetry::{otel_debug, otel_error, otel_info, otel_warn, Context};
+use opentelemetry::{Context, otel_debug, otel_error, otel_info, otel_warn};
 
 use crate::{
+    Resource,
     error::{OTelSdkError, OTelSdkResult},
     metrics::{exporter::PushMetricExporter, reader::SdkProducer},
-    Resource,
 };
 
 use super::{
-    data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline, reader::MetricReader,
-    Temporality,
+    Temporality, data::ResourceMetrics, instrument::InstrumentKind, pipeline::Pipeline,
+    reader::MetricReader,
 };
 
 /// Environment variable for configuring the delay interval (in milliseconds)
@@ -385,21 +385,24 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
 
     fn collect(&self, rm: &mut ResourceMetrics) -> OTelSdkResult {
         let producer = self.producer.lock().expect("lock poisoned");
-        if let Some(p) = producer.as_ref() {
-            p.upgrade()
-                .ok_or(OTelSdkError::AlreadyShutdown)?
-                .produce(rm)?;
-            Ok(())
-        } else {
-            otel_warn!(
-            name: "PeriodReader.MeterProviderNotRegistered",
-            message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
-                   This occurs when a periodic reader is created but not associated with a MeterProvider \
-                   by calling `.with_reader(reader)` on MeterProviderBuilder."
-            );
-            Err(OTelSdkError::InternalFailure(
-                "MeterProvider is not registered".into(),
-            ))
+        match producer.as_ref() {
+            Some(p) => {
+                p.upgrade()
+                    .ok_or(OTelSdkError::AlreadyShutdown)?
+                    .produce(rm)?;
+                Ok(())
+            }
+            _ => {
+                otel_warn!(
+                name: "PeriodReader.MeterProviderNotRegistered",
+                message = "PeriodicReader is not registered with MeterProvider. Metrics will not be collected. \
+                       This occurs when a periodic reader is created but not associated with a MeterProvider \
+                       by calling `.with_reader(reader)` on MeterProviderBuilder."
+                );
+                Err(OTelSdkError::InternalFailure(
+                    "MeterProvider is not registered".into(),
+                ))
+            }
         }
     }
 
@@ -460,15 +463,16 @@ impl<E: PushMetricExporter> PeriodicReaderInner<E> {
             .send(Message::Flush(response_tx))
             .map_err(|e| OTelSdkError::InternalFailure(e.to_string()))?;
 
-        if let Ok(response) = response_rx.recv() {
-            // TODO: call exporter's force_flush method.
-            if response {
-                Ok(())
-            } else {
-                Err(OTelSdkError::InternalFailure("Failed to flush".into()))
+        match response_rx.recv() {
+            Ok(response) => {
+                // TODO: call exporter's force_flush method.
+                if response {
+                    Ok(())
+                } else {
+                    Err(OTelSdkError::InternalFailure("Failed to flush".into()))
+                }
             }
-        } else {
-            Err(OTelSdkError::InternalFailure("Failed to flush".into()))
+            _ => Err(OTelSdkError::InternalFailure("Failed to flush".into())),
         }
     }
 
@@ -568,18 +572,19 @@ impl Drop for WorkerTerminationGuard {
 mod tests {
     use super::PeriodicReader;
     use crate::{
+        Resource,
         error::{OTelSdkError, OTelSdkResult},
         metrics::{
-            data::ResourceMetrics, exporter::PushMetricExporter, reader::MetricReader,
-            InMemoryMetricExporter, SdkMeterProvider, Temporality,
+            InMemoryMetricExporter, SdkMeterProvider, Temporality, data::ResourceMetrics,
+            exporter::PushMetricExporter, reader::MetricReader,
         },
-        Resource,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::{
         sync::{
+            Arc,
             atomic::{AtomicBool, AtomicUsize, Ordering},
-            mpsc, Arc,
+            mpsc,
         },
         time::Duration,
     };

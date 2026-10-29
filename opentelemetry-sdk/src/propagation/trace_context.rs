@@ -2,9 +2,9 @@
 //!
 
 use opentelemetry::{
-    propagation::{text_map_propagator::FieldIter, Extractor, Injector, TextMapPropagator},
-    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
     Context,
+    propagation::{Extractor, Injector, TextMapPropagator, text_map_propagator::FieldIter},
+    trace::{SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState},
 };
 use std::str::FromStr;
 use std::sync::OnceLock;

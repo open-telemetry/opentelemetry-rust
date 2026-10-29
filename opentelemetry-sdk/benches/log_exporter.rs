@@ -14,10 +14,10 @@ use opentelemetry::time::now;
 use opentelemetry_sdk::error::OTelSdkResult;
 use std::sync::Mutex;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
-use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry::InstrumentationScope;
+use opentelemetry::logs::{LogRecord as _, Logger, LoggerProvider, Severity};
 use opentelemetry_sdk::logs::LogBatch;
 use opentelemetry_sdk::logs::LogProcessor;
 use opentelemetry_sdk::logs::SdkLogRecord;
@@ -29,7 +29,7 @@ use std::fmt::Debug;
 // Run this benchmark with:
 // cargo bench --bench log_exporter
 pub trait LogExporterWithFuture: Send + Sync + Debug {
-    fn export(&mut self, batch: LogBatch<'_>) -> impl std::future::Future<Output = ()> + Send;
+    fn export(&mut self, batch: LogBatch<'_>) -> impl Future<Output = ()> + Send;
 }
 
 pub trait LogExporterWithoutFuture: Send + Sync + Debug {

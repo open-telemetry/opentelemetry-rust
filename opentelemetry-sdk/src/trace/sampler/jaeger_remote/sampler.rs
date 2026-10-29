@@ -1,11 +1,11 @@
-use crate::runtime::{to_interval_stream, RuntimeChannel};
+use crate::runtime::{RuntimeChannel, to_interval_stream};
 use crate::trace::sampler::jaeger_remote::remote::SamplingStrategyResponse;
 use crate::trace::sampler::jaeger_remote::sampling_strategy::Inner;
 use crate::trace::{Sampler, SamplingResult, ShouldSample};
-use futures_util::{stream, StreamExt as _};
+use futures_util::{StreamExt as _, stream};
 use http::Uri;
 use opentelemetry::trace::{Link, SpanKind, TraceId};
-use opentelemetry::{otel_warn, Context, KeyValue};
+use opentelemetry::{Context, KeyValue, otel_warn};
 use opentelemetry_http::HttpClient;
 use std::str::FromStr;
 use std::sync::Arc;

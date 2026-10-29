@@ -18,12 +18,12 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::log_processor::LogProcessor;
 use crate::{
-    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
+    logs::{LogBatch, LogExporter, SdkLogRecord},
 };
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 
-use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
+use opentelemetry::{Context, InstrumentationScope, otel_debug, otel_error, otel_warn};
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::KeyValue;
@@ -346,13 +346,12 @@ impl LogProcessor for BatchLogProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|result| {
+                    .inspect(|_| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        result
                     })
                     .map_err(|err| match err {
                         RecvTimeoutError::Timeout => {
@@ -924,16 +923,16 @@ mod tests {
     #[cfg(feature = "experimental_logs_batch_log_processor_with_async_runtime")]
     use super::{OTEL_BLRP_EXPORT_TIMEOUT, OTEL_BLRP_EXPORT_TIMEOUT_DEFAULT};
     use crate::error::{OTelSdkError, OTelSdkResult};
-    use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::SdkLogRecord;
+    use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::{LogBatch, LogExporter};
     use crate::{
-        logs::{InMemoryLogExporter, InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider},
         Resource,
+        logs::{InMemoryLogExporter, InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider},
     };
-    use opentelemetry::logs::LogRecord;
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
+    use opentelemetry::logs::LogRecord;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::mpsc;
     use std::sync::{Arc, Mutex};

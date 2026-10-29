@@ -127,16 +127,16 @@ mod tests {
     use self::data::{HistogramDataPoint, MetricData, ScopeMetrics, SumDataPoint};
     use super::internal::Number;
     use super::*;
-    use crate::metrics::data::ResourceMetrics;
-    use crate::metrics::internal::AggregatedMetricsAccess;
     use crate::metrics::InMemoryMetricExporter;
     use crate::metrics::InMemoryMetricExporterBuilder;
+    use crate::metrics::data::ResourceMetrics;
+    use crate::metrics::internal::AggregatedMetricsAccess;
     use data::GaugeDataPoint;
-    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::Value;
-    use opentelemetry::{metrics::MeterProvider as _, KeyValue};
-    use rand::{rngs, Rng, SeedableRng};
+    use opentelemetry::metrics::{Counter, Meter, UpDownCounter};
+    use opentelemetry::{KeyValue, metrics::MeterProvider as _};
+    use rand::RngExt;
     use std::cmp::{max, min};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
@@ -639,18 +639,24 @@ mod tests {
 
             let data_point = &sum.data_points[0];
             assert_eq!(data_point.attributes.len(), 3);
-            assert!(data_point
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == "A" && kv.value.as_str() == "a"));
-            assert!(data_point
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == "B" && kv.value.as_str() == "b"));
-            assert!(data_point
-                .attributes
-                .iter()
-                .any(|kv| kv.key.as_str() == "C" && kv.value.as_str() == "c"));
+            assert!(
+                data_point
+                    .attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "A" && kv.value.as_str() == "a")
+            );
+            assert!(
+                data_point
+                    .attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "B" && kv.value.as_str() == "b")
+            );
+            assert!(
+                data_point
+                    .attributes
+                    .iter()
+                    .any(|kv| kv.key.as_str() == "C" && kv.value.as_str() == "c")
+            );
             assert_eq!(data_point.value, expected);
 
             test_context.reset_metrics();
@@ -1769,7 +1775,9 @@ mod tests {
             u64::extract_metrics_data_ref(&metric.data)
                 .expect("ExponentialHistogram aggregation expected when view specifies it")
         else {
-            panic!("Expected ExponentialHistogram aggregation for Counter with ExponentialHistogram view");
+            panic!(
+                "Expected ExponentialHistogram aggregation for Counter with ExponentialHistogram view"
+            );
         };
         assert_eq!(exp_hist.data_points.len(), 1);
         let dp = &exp_hist.data_points[0];
@@ -1831,7 +1839,9 @@ mod tests {
             f64::extract_metrics_data_ref(&metric.data)
                 .expect("ExponentialHistogram aggregation expected when view specifies it")
         else {
-            panic!("Expected ExponentialHistogram aggregation for Gauge with ExponentialHistogram view");
+            panic!(
+                "Expected ExponentialHistogram aggregation for Gauge with ExponentialHistogram view"
+            );
         };
         assert_eq!(exp_hist.data_points.len(), 1);
         let dp = &exp_hist.data_points[0];
@@ -2368,7 +2378,10 @@ mod tests {
             .get_finished_metrics()
             .expect("metrics are expected to be exported.");
         println!("resource_metrics: {resource_metrics:?}");
-        assert!(resource_metrics.is_empty(), "No metrics should be exported as no new measurements were recorded since last collect.");
+        assert!(
+            resource_metrics.is_empty(),
+            "No metrics should be exported as no new measurements were recorded since last collect."
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -3411,7 +3424,7 @@ mod tests {
         let histogram = test_context.meter().u64_histogram("my_histogram").build();
 
         // Act
-        let mut rand = rngs::SmallRng::from_os_rng();
+        let mut rand: rand::rngs::SmallRng = rand::make_rng();
         let values_kv1 = (0..50)
             .map(|_| rand.random_range(0..100))
             .collect::<Vec<u64>>();
@@ -4701,8 +4714,7 @@ mod tests {
                 "Expected collect to be called {invocation_count} times"
             );
 
-            let result = self
-                .resource_metrics
+            self.resource_metrics
                 .iter()
                 .map(|resource_metric| {
                     assert!(
@@ -4719,13 +4731,10 @@ mod tests {
                         assert_eq!(metric.unit, expected_unit);
                     }
 
-                    let aggregation = T::extract_metrics_data_ref(&metric.data)
-                        .expect("Failed to cast aggregation to expected type");
-                    aggregation
+                    T::extract_metrics_data_ref(&metric.data)
+                        .expect("Failed to cast aggregation to expected type")
                 })
-                .collect::<Vec<_>>();
-
-            result
+                .collect::<Vec<_>>()
         }
     }
 

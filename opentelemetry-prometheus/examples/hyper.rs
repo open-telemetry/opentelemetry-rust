@@ -1,16 +1,16 @@
 use http_body_util::Full;
 use hyper::{
+    Method, Request, Response,
     body::{Bytes, Incoming},
     header::CONTENT_TYPE,
     service::service_fn,
-    Method, Request, Response,
 };
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use once_cell::sync::Lazy;
 use opentelemetry::time::now;
 use opentelemetry::{
-    metrics::{Counter, Histogram, MeterProvider as _},
     KeyValue,
+    metrics::{Counter, Histogram, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};

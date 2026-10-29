@@ -8,13 +8,13 @@
     | exporter_disabled_simple_processor          |  5.3 ns     |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use opentelemetry::logs::{Logger, LoggerProvider};
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{
     LogBatch, LogExporter, LogProcessor, SdkLoggerProvider, SimpleLogProcessor,
 };
-use opentelemetry_sdk::Resource;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 

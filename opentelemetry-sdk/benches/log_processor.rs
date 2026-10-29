@@ -17,10 +17,10 @@ use std::{
     thread::sleep,
 };
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    logs::{LogRecord as _, Logger, LoggerProvider, Severity},
     InstrumentationScope,
+    logs::{LogRecord as _, Logger, LoggerProvider, Severity},
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,
@@ -90,15 +90,17 @@ impl SendToChannelProcessor {
             receiver: Arc::new(Mutex::new(receiver)),
         };
         let receiver_cloned = s.receiver.clone();
-        let _ = std::thread::spawn(move || loop {
-            sleep(std::time::Duration::from_millis(10));
-            let data = receiver_cloned.lock().unwrap().recv();
-            if data.is_err() {
-                println!(
-                    "Error receiving log data from channel {0}",
-                    data.err().unwrap()
-                );
-                break;
+        let _ = std::thread::spawn(move || {
+            loop {
+                sleep(std::time::Duration::from_millis(10));
+                let data = receiver_cloned.lock().unwrap().recv();
+                if data.is_err() {
+                    println!(
+                        "Error receiving log data from channel {0}",
+                        data.err().unwrap()
+                    );
+                    break;
+                }
             }
         });
         s

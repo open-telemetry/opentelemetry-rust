@@ -2,8 +2,8 @@ use crate::growable_array::GrowableArray;
 #[cfg(feature = "trace")]
 use opentelemetry::trace::SpanContext;
 use opentelemetry::{
-    logs::{AnyValue, Severity},
     Key, SpanId, TraceFlags, TraceId,
+    logs::{AnyValue, Severity},
 };
 use std::{borrow::Cow, time::SystemTime};
 

@@ -9,6 +9,9 @@ members = [
 ]
 # Retain migration documentation for the removed crate.
 exclude = ["opentelemetry-zipkin"]
+# Resolver 3 requires Cargo 1.84 and would prevent checking the foundational
+# crates with their Rust 1.75 MSRV. Resolver 2 plus the MSRV fallback in
+# .cargo/config.toml preserves the split-MSRV workspace.
 resolver = "2"
 
 [profile.bench]
@@ -32,7 +35,7 @@ log = "0.4.21"
 once_cell = "1.13"
 pin-project-lite = "0.2"
 prost = "0.14"
-rand = { version = "0.9", default-features = false }
+rand = { version = "0.10", default-features = false }
 rapidhash = "4"
 rustc-hash = "2"
 reqwest = { version = "0.13.1", default-features = false }
@@ -91,7 +94,11 @@ opentelemetry-stdout = { path = "opentelemetry-stdout" }
 
 [workspace.lints.rust]
 rust_2024_compatibility = { level = "warn", priority = -1 }
-# No need to enable those, because it either not needed or results in ugly syntax
+unsafe_op_in_unsafe_fn = "warn"
+# Foundational crates remain on Edition 2021 and Rust 1.75. Keep these migration
+# lints allowed because preserving the old semantics produces noisy rewrites or,
+# for expr_2021, syntax newer than their MSRV. Edition 2024 crates use the new
+# semantics directly.
 edition_2024_expr_fragment_specifier = "allow"
 if_let_rescope = "allow"
 tail_expr_drop_order = "allow"

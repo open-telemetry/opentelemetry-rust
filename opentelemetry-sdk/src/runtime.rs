@@ -5,8 +5,8 @@
 //!
 //! [Tokio]: https://crates.io/crates/tokio
 
-use futures_util::stream::{unfold, Stream};
-use std::{fmt::Debug, future::Future, time::Duration};
+use futures_util::stream::{Stream, unfold};
+use std::{fmt::Debug, time::Duration};
 use thiserror::Error;
 
 /// A runtime is an abstraction of an async runtime like [Tokio]. It allows

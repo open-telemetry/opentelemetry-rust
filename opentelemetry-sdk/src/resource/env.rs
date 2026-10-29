@@ -113,7 +113,7 @@ impl ResourceDetector for SdkProvidedResourceDetector {
 #[cfg(test)]
 mod tests {
     use crate::resource::env::{
-        SdkProvidedResourceDetector, OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME,
+        OTEL_RESOURCE_ATTRIBUTES, OTEL_SERVICE_NAME, SdkProvidedResourceDetector,
     };
     use crate::resource::{EnvResourceDetector, Resource, ResourceDetector};
     use opentelemetry::{Key, KeyValue, Value};

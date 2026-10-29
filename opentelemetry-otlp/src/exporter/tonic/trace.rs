@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_proto::tonic::collector::trace::v1::{
-    trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
+    ExportTraceServiceRequest, trace_service_client::TraceServiceClient,
 };
 use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
 use opentelemetry_sdk::error::OTelSdkError;
@@ -11,7 +11,7 @@ use opentelemetry_sdk::{
     error::OTelSdkResult,
     trace::{SpanData, SpanExporter},
 };
-use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
+use tonic::{Request, codegen::CompressionEncoding, service::Interceptor, transport::Channel};
 
 use super::BoxInterceptor;
 

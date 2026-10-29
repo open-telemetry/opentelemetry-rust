@@ -13,13 +13,13 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{Gauge, MeterProvider as _},
     KeyValue,
+    metrics::{Gauge, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 use rand::{
+    RngExt,
     rngs::{self},
-    Rng, SeedableRng,
 };
 use std::cell::RefCell;
 
@@ -38,7 +38,7 @@ lazy_static! {
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rand::make_rng());
 }
 
 fn main() {

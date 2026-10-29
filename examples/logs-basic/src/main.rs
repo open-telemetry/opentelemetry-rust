@@ -1,8 +1,8 @@
 use opentelemetry_appender_tracing::layer;
-use opentelemetry_sdk::logs::SdkLoggerProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::logs::SdkLoggerProvider;
 use tracing::error;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();

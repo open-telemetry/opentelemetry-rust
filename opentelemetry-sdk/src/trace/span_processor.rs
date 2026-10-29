@@ -389,12 +389,11 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown.store(true, Ordering::Relaxed);
-        if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown_with_timeout(timeout)
-        } else {
-            Err(OTelSdkError::InternalFailure(
+        match self.exporter.lock() {
+            Ok(exporter) => exporter.shutdown_with_timeout(timeout),
+            _ => Err(OTelSdkError::InternalFailure(
                 "SimpleSpanProcessor mutex poison at shutdown".into(),
-            ))
+            )),
         }
     }
 
@@ -405,6 +404,9 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 }
 
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::RecvTimeoutError;
+use std::sync::mpsc::SyncSender;
 /// The `BatchSpanProcessor` collects finished spans in a buffer and exports them
 /// in batches to the configured `SpanExporter`. This processor is ideal for
 /// high-throughput environments, as it minimizes the overhead of exporting spans
@@ -471,9 +473,6 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
 /// # }
 /// ```
 use std::sync::mpsc::sync_channel;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvTimeoutError;
-use std::sync::mpsc::SyncSender;
 
 use super::span::FinishedSpan;
 
@@ -990,13 +989,12 @@ impl SpanProcessor for BatchSpanProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|result| {
+                    .inspect(|_| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        result
                     })
                     .map_err(|err| match err {
                         std::sync::mpsc::RecvTimeoutError::Timeout => {
@@ -1277,9 +1275,9 @@ impl BatchConfigBuilder {
 mod tests {
     // cargo test trace::span_processor::tests:: --features=testing
     use super::{
-        BatchSpanProcessor, SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT,
-        OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT,
-        OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
+        BatchSpanProcessor, OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+        OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY,
+        OTEL_BSP_SCHEDULE_DELAY_DEFAULT, SimpleSpanProcessor, SpanProcessor,
     };
     use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::testing::trace::new_test_export_span_data;
@@ -1491,8 +1489,8 @@ mod tests {
     use opentelemetry::{Key, KeyValue, Value};
     use std::{
         sync::{
-            atomic::{AtomicUsize, Ordering},
             Arc, Mutex,
+            atomic::{AtomicUsize, Ordering},
         },
         time::Instant,
     };
@@ -2104,12 +2102,16 @@ mod tests {
         let exported_spans = exporter_shared.lock().unwrap();
         assert_eq!(exported_spans.len(), 1);
         let exported_span = &exported_spans[0];
-        assert!(exported_span
-            .attributes
-            .contains(&KeyValue::new("key1", "value1")));
-        assert!(exported_span
-            .attributes
-            .contains(&KeyValue::new("key2", "value2")));
+        assert!(
+            exported_span
+                .attributes
+                .contains(&KeyValue::new("key1", "value1"))
+        );
+        assert!(
+            exported_span
+                .attributes
+                .contains(&KeyValue::new("key2", "value2"))
+        );
     }
 
     #[test]

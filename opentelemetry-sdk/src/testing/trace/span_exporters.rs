@@ -1,13 +1,13 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::{
+    ExportError,
     trace::{SpanData, SpanExporter},
     trace::{SpanEvents, SpanLinks},
-    ExportError,
 };
 pub use opentelemetry::testing::trace::TestSpan;
 use opentelemetry::{
-    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
     InstrumentationScope,
+    trace::{SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState},
 };
 use std::fmt::{Display, Formatter};
 

@@ -41,10 +41,10 @@ pub use span::{FinishedSpan, Span};
 pub use span_limit::SpanLimits;
 pub use span_processor::{
     BatchConfig, BatchConfigBuilder, BatchSpanProcessor, BatchSpanProcessorBuilder,
-    SimpleSpanProcessor, SpanProcessor, OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT,
-    OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT,
-    OTEL_BSP_MAX_QUEUE_SIZE, OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY,
-    OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
+    OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_EXPORT_TIMEOUT_DEFAULT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+    OTEL_BSP_MAX_EXPORT_BATCH_SIZE_DEFAULT, OTEL_BSP_MAX_QUEUE_SIZE,
+    OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
+    SimpleSpanProcessor, SpanProcessor,
 };
 
 pub use tracer::SdkTracer;
@@ -67,16 +67,16 @@ mod tests {
         trace::{InMemorySpanExporter, InMemorySpanExporterBuilder},
     };
     use opentelemetry::{
-        baggage::BaggageExt,
-        trace::{get_active_span, SpanKind, Status, TraceContextExt, TraceState},
-    };
-    use opentelemetry::{testing::trace::TestSpan, InstrumentationScope};
-    use opentelemetry::{
+        Context, KeyValue,
         trace::{
             Event, Link, Span, SpanBuilder, SpanContext, SpanId, TraceFlags, TraceId, Tracer,
             TracerProvider,
         },
-        Context, KeyValue,
+    };
+    use opentelemetry::{InstrumentationScope, testing::trace::TestSpan};
+    use opentelemetry::{
+        baggage::BaggageExt,
+        trace::{SpanKind, Status, TraceContextExt, TraceState, get_active_span},
     };
     use std::time::Duration;
 
@@ -545,9 +545,11 @@ mod tests {
 
         let tracer = provider.tracer_with_scope(scope);
         let instrumentation_scope = tracer.instrumentation_scope();
-        assert!(instrumentation_scope
-            .attributes()
-            .eq(&[KeyValue::new("test_k", "test_v")]));
+        assert!(
+            instrumentation_scope
+                .attributes()
+                .eq(&[KeyValue::new("test_k", "test_v")])
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

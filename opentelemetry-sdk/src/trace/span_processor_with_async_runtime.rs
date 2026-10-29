@@ -1,23 +1,23 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::resource::Resource;
-use crate::runtime::{to_interval_stream, RuntimeChannel, TrySend};
+use crate::runtime::{RuntimeChannel, TrySend, to_interval_stream};
 use crate::trace::BatchConfig;
 use crate::trace::Span;
 use crate::trace::SpanProcessor;
 use crate::trace::{FinishedSpan, SpanData, SpanExporter};
 use futures_channel::oneshot;
 use futures_util::{
+    StreamExt as _,
     future::{self, BoxFuture, Either},
     pin_mut, select,
     stream::{self, FusedStream, FuturesUnordered},
-    StreamExt as _,
 };
 use opentelemetry::Context;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::fmt;
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -208,23 +208,28 @@ impl<E: SpanExporter + 'static, R: RuntimeChannel> BatchSpanProcessorInternal<E,
         )
         .await;
         let task = Box::pin(async move {
-            if let Some(channel) = res_channel {
-                // If a response channel is provided, attempt to send the export result through it.
-                if let Err(result) = channel.send(export_result) {
-                    otel_debug!(
-                        name: "BatchSpanProcessor.Flush.SendResultError",
-                        reason = format!("{:?}", result)
-                    );
+            match res_channel {
+                Some(channel) => {
+                    // If a response channel is provided, attempt to send the export result through it.
+                    if let Err(result) = channel.send(export_result) {
+                        otel_debug!(
+                            name: "BatchSpanProcessor.Flush.SendResultError",
+                            reason = format!("{:?}", result)
+                        );
+                    }
                 }
-            } else if let Err(err) = export_result {
-                // If no channel is provided and the export operation encountered an error,
-                // log the error directly here.
-                // TODO: Consider returning the status instead of logging it.
-                otel_error!(
-                    name: "BatchSpanProcessor.Flush.ExportError",
-                    reason = format!("{:?}", err),
-                    message = "Failed during the export process"
-                );
+                _ => {
+                    if let Err(err) = export_result {
+                        // If no channel is provided and the export operation encountered an error,
+                        // log the error directly here.
+                        // TODO: Consider returning the status instead of logging it.
+                        otel_error!(
+                            name: "BatchSpanProcessor.Flush.ExportError",
+                            reason = format!("{:?}", err),
+                            message = "Failed during the export process"
+                        );
+                    }
+                }
             }
 
             Ok(())
@@ -459,21 +464,19 @@ mod tests {
     #[cfg(feature = "rt-tokio-current-thread")]
     use crate::testing::trace::new_test_exporter;
     #[cfg(feature = "rt-tokio")]
+    use crate::trace::InMemorySpanExporterBuilder;
+    #[cfg(feature = "rt-tokio")]
     use crate::trace::span_processor::{
         OTEL_BSP_EXPORT_TIMEOUT, OTEL_BSP_MAX_EXPORT_BATCH_SIZE, OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_QUEUE_SIZE_DEFAULT, OTEL_BSP_SCHEDULE_DELAY, OTEL_BSP_SCHEDULE_DELAY_DEFAULT,
     };
-    #[cfg(feature = "rt-tokio")]
-    use crate::trace::InMemorySpanExporterBuilder;
     use crate::trace::{BatchConfig, BatchConfigBuilder};
     use crate::trace::{FinishedSpan, SpanData, SpanExporter};
-    #[cfg(feature = "rt-tokio-current-thread")]
-    use futures_util::Future;
     use std::fmt::Debug;
+    use std::sync::Arc;
     #[cfg(feature = "rt-tokio")]
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
     use std::time::Duration;
 
     #[cfg(feature = "rt-tokio-current-thread")]

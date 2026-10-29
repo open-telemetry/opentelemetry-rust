@@ -8,13 +8,13 @@
 //!
 //! Docs: <https://github.com/open-telemetry/opentelemetry-specification/blob/v1.3.0/specification/trace/api.md#tracer>
 use crate::trace::{
+    SamplingDecision, SpanEvents, SpanLimits, SpanLinks,
     provider::SdkTracerProvider,
     span::{Span, SpanData},
-    SamplingDecision, SpanEvents, SpanLimits, SpanLinks,
 };
 use opentelemetry::{
-    trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
     Context, InstrumentationScope, KeyValue, TraceId,
+    trace::{Span as _, SpanBuilder, SpanContext, SpanKind, Status, TraceContextExt, TraceFlags},
 };
 use std::fmt;
 use std::sync::Arc;
@@ -283,12 +283,12 @@ mod tests {
         trace::{IdGenerator, Sampler, SamplingDecision, SamplingResult, ShouldSample},
     };
     use opentelemetry::{
+        Context, KeyValue,
         propagation::{Extractor, TextMapPropagator},
         trace::{
             Link, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
             TraceState, Tracer, TracerProvider,
         },
-        Context, KeyValue,
     };
     use std::collections::HashMap;
 

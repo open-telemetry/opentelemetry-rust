@@ -1,11 +1,11 @@
-use opentelemetry::logs::{AnyValue, LogRecord, Severity};
 use opentelemetry::InstrumentationScope;
+use opentelemetry::logs::{AnyValue, LogRecord, Severity};
 use opentelemetry_appender_tracing::layer;
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::logs::{LogProcessor, SdkLogRecord, SdkLoggerProvider, SimpleLogProcessor};
-use opentelemetry_sdk::Resource;
 use tracing::{error, info};
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
 fn main() {
     let exporter = opentelemetry_stdout::LogExporter::default();

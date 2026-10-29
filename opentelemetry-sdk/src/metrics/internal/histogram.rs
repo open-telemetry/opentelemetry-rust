@@ -1,14 +1,14 @@
 use std::mem::replace;
 use std::ops::DerefMut;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use std::sync::atomic::Ordering;
-#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
 use std::sync::Mutex;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
 
+use crate::metrics::Temporality;
 use crate::metrics::data::{self, MetricData};
 use crate::metrics::data::{AggregatedMetrics, HistogramDataPoint};
-use crate::metrics::Temporality;
 use opentelemetry::KeyValue;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};

@@ -2,8 +2,8 @@
 //!
 //! Configuration represents the global tracing configuration, overrides
 //! can be set for the default OpenTelemetry limits and Sampler.
-use crate::trace::{span_limit::SpanLimits, IdGenerator, RandomIdGenerator, Sampler, ShouldSample};
 use crate::Resource;
+use crate::trace::{IdGenerator, RandomIdGenerator, Sampler, ShouldSample, span_limit::SpanLimits};
 use opentelemetry::otel_warn;
 use std::borrow::Cow;
 use std::env;

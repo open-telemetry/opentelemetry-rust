@@ -10,17 +10,17 @@ use opentelemetry_sdk::trace::SpanData;
 use crate::ExporterBuildError;
 #[cfg(feature = "grpc-tonic")]
 use crate::{
-    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
     TonicExporterBuilderSet,
+    exporter::tonic::{HasTonicConfig, TonicExporterBuilder},
 };
 
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::{
-    exporter::http::{HasHttpConfig, HttpExporterBuilder},
     HttpExporterBuilderSet,
+    exporter::http::{HasHttpConfig, HttpExporterBuilder},
 };
 
-use crate::{exporter::HasExportConfig, NoExporterBuilderSet};
+use crate::{NoExporterBuilderSet, exporter::HasExportConfig};
 
 /// Target to which the exporter is going to send spans, defaults to https://localhost:4317/v1/traces.
 /// Learn about the relationship between this constant and default/metrics/logs at

@@ -2,11 +2,11 @@
 //!
 //! OTLP supports sending data via different protocols and formats.
 
+use crate::Protocol;
 #[cfg(any(feature = "http-proto", feature = "http-json"))]
 use crate::exporter::http::HttpExporterBuilder;
 #[cfg(feature = "grpc-tonic")]
 use crate::exporter::tonic::TonicExporterBuilder;
-use crate::Protocol;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::time::Duration;
@@ -493,8 +493,8 @@ fn parse_header_key_value_string(key_value_string: &str) -> Option<(&str, String
 #[cfg(any(feature = "grpc-tonic", feature = "http-proto", feature = "http-json"))]
 mod tests {
     use super::{
-        resolve_compression_from_env, Compression, ExporterBuildError,
-        OTEL_EXPORTER_OTLP_COMPRESSION,
+        Compression, ExporterBuildError, OTEL_EXPORTER_OTLP_COMPRESSION,
+        resolve_compression_from_env,
     };
 
     pub(crate) fn run_env_test<T, F>(env_vars: T, f: F)
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn test_protocol_from_env() {
-        use crate::{Protocol, OTEL_EXPORTER_OTLP_PROTOCOL};
+        use crate::{OTEL_EXPORTER_OTLP_PROTOCOL, Protocol};
 
         // Test with no env var set - should return None
         temp_env::with_var_unset(OTEL_EXPORTER_OTLP_PROTOCOL, || {
@@ -976,12 +976,14 @@ mod tests {
                         .unwrap(),
                     Some(Compression::Zstd)
                 );
-                assert!(resolve_compression_from_env(
-                    Some(Compression::Gzip),
-                    "MY_CUSTOM_COMPRESSION_VAR",
-                    convert
-                )
-                .is_err());
+                assert!(
+                    resolve_compression_from_env(
+                        Some(Compression::Gzip),
+                        "MY_CUSTOM_COMPRESSION_VAR",
+                        convert
+                    )
+                    .is_err()
+                );
             },
         );
     }

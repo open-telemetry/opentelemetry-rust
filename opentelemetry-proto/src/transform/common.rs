@@ -58,7 +58,7 @@ mod w3c_trace_flags_tests {
 #[cfg(feature = "gen-tonic-messages")]
 pub mod tonic {
     use crate::proto::tonic::common::v1::{
-        any_value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
+        AnyValue, ArrayValue, InstrumentationScope, KeyValue, any_value,
     };
     use opentelemetry::{Array, Value};
     use std::borrow::Cow;

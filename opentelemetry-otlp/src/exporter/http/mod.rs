@@ -1,9 +1,9 @@
 use super::{
-    default_headers, parse_header_string, read_env_var, resolve_timeout, ExporterBuildError,
-    OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT,
+    ExporterBuildError, OTEL_EXPORTER_OTLP_HTTP_ENDPOINT_DEFAULT, default_headers,
+    parse_header_string, read_env_var, resolve_timeout,
 };
 use crate::{
-    exporter::ExportConfig, Protocol, OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_HEADERS, Protocol, exporter::ExportConfig,
 };
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
@@ -25,9 +25,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::RetryPolicy;
 use crate::retry::RetryErrorType;
 use crate::retry_classification::http::classify_http_error;
-use crate::RetryPolicy;
 
 // Recommended by the OTLP/HTTP specification:
 // https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md#otlphttp-request
@@ -575,7 +575,7 @@ impl OtlpHttpClient {
         let (processed_body, content_encoding) = match self.compression {
             #[cfg(feature = "gzip-http")]
             Some(crate::Compression::Gzip) => {
-                use flate2::{write::GzEncoder, Compression};
+                use flate2::{Compression, write::GzEncoder};
                 use std::io::Write;
 
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -618,7 +618,8 @@ impl OtlpHttpClient {
         if body.len() > self.max_request_body_size {
             return Err(format!(
                 "OTLP HTTP {representation} request body is {} bytes, exceeding the configured limit of {} bytes; request will not be sent and telemetry data will be discarded; reduce the batch size, telemetry item size, or configure a larger limit",
-                body.len(), self.max_request_body_size
+                body.len(),
+                self.max_request_body_size
             ));
         }
         Ok(())
@@ -903,11 +904,11 @@ mod tests {
     use crate::exporter::http::HttpConfig;
     use crate::exporter::tests::run_env_test;
     use crate::{
-        WithExportConfig, WithHttpConfig, OTEL_EXPORTER_OTLP_ENDPOINT,
-        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+        OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, WithExportConfig,
+        WithHttpConfig,
     };
 
-    use super::{build_endpoint_uri, resolve_http_endpoint, HttpExporterBuilder};
+    use super::{HttpExporterBuilder, build_endpoint_uri, resolve_http_endpoint};
 
     #[test]
     fn test_append_signal_path_to_generic_env() {
@@ -1263,8 +1264,8 @@ mod tests {
     #[test]
     fn should_ensure_http_client_can_be_assigned_raw_or_arc() {
         use super::{HttpExporterBuilder, WithHttpConfig};
-        use crate::exporter::http::HttpConfig;
         use crate::exporter::ExportConfig;
+        use crate::exporter::http::HttpConfig;
         use export_body_tests::MockHttpClient;
 
         let _ = HttpExporterBuilder {
@@ -1410,9 +1411,11 @@ mod tests {
 
             // Should return error when gzip requested but feature not enabled
             assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .contains("gzip-http feature not enabled"));
+            assert!(
+                result
+                    .unwrap_err()
+                    .contains("gzip-http feature not enabled")
+            );
         }
 
         #[cfg(all(feature = "http-proto", not(feature = "zstd-http")))]
@@ -1433,9 +1436,11 @@ mod tests {
 
             // Should return error when zstd requested but feature not enabled
             assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .contains("zstd-http feature not enabled"));
+            assert!(
+                result
+                    .unwrap_err()
+                    .contains("zstd-http feature not enabled")
+            );
         }
 
         // Mock HTTP client for testing
@@ -1853,8 +1858,8 @@ mod tests {
         use crate::RetryPolicy;
         use opentelemetry_http::{Bytes, HttpClient};
         use std::collections::HashMap;
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::time::Duration;
 
         /// Mock HTTP client that returns a sequence of responses controlled by an attempt counter.
@@ -1997,10 +2002,12 @@ mod tests {
 
         #[test]
         fn oversized_request_is_not_sent_or_retried() {
-            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
-                .status(200)
-                .body(Bytes::new())
-                .unwrap()]));
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(200)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
             let mut client = make_client(mock.clone(), retry_policy());
             client.max_request_body_size = 2;
 
@@ -2041,10 +2048,12 @@ mod tests {
 
         #[test]
         fn does_not_retry_on_400() {
-            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
-                .status(400)
-                .body(Bytes::new())
-                .unwrap()]));
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(400)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
             let client = make_client(mock.clone(), retry_policy());
 
             let result = futures_executor::block_on(client.export_http_with_retry(
@@ -2070,17 +2079,21 @@ mod tests {
             .unwrap_err();
 
             assert_eq!(mock.attempt_count(), 1);
-            assert!(error
-                .to_string()
-                .contains("response body exceeded maximum allowed 4 MiB limit"));
+            assert!(
+                error
+                    .to_string()
+                    .contains("response body exceeded maximum allowed 4 MiB limit")
+            );
         }
 
         #[test]
         fn does_not_retry_on_unlisted_server_error() {
-            let mock = Arc::new(SequencedMockClient::new(vec![http::Response::builder()
-                .status(500)
-                .body(Bytes::new())
-                .unwrap()]));
+            let mock = Arc::new(SequencedMockClient::new(vec![
+                http::Response::builder()
+                    .status(500)
+                    .body(Bytes::new())
+                    .unwrap(),
+            ]));
             let client = make_client(mock.clone(), retry_policy());
 
             let result = futures_executor::block_on(client.export_http_with_retry(

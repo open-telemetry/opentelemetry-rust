@@ -101,7 +101,7 @@ impl MetricReader for ManualReader {
             None => {
                 return Err(OTelSdkError::InternalFailure(
                     "reader is shut down or not registered".into(),
-                ))
+                ));
             }
         };
 

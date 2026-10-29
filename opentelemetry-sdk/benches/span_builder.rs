@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    trace::{Span, Tracer, TracerProvider},
     KeyValue,
+    trace::{Span, Tracer, TracerProvider},
 };
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::{

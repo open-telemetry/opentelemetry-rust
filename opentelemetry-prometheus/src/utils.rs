@@ -158,7 +158,6 @@ mod tests {
                 r##"! "#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWKYZ[]\^_abcdefghijklmnopqrstuvwkyz{|}~"##,
                 "________________0123456789:______ABCDEFGHIJKLMNOPQRSTUVWKYZ_____abcdefghijklmnopqrstuvwkyz____",
             ),
-
             ("Avalid_23name", "Avalid_23name"),
             ("_Avalid_23name", "_Avalid_23name"),
             ("1valid_23name", "_1valid_23name"),

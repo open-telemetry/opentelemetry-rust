@@ -19,19 +19,19 @@
 use crate::error::{OTelSdkError, OTelSdkResult};
 use crate::logs::log_processor::LogProcessor;
 use crate::{
-    logs::{LogBatch, LogExporter, SdkLogRecord},
     Resource,
+    logs::{LogBatch, LogExporter, SdkLogRecord},
 };
 
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use opentelemetry::KeyValue;
-use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
+use opentelemetry::{Context, InstrumentationScope, otel_debug, otel_error, otel_warn};
 
 use std::fmt::Debug;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::AtomicUsize;
-use std::sync::Mutex;
 use std::time::Duration;
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
@@ -186,12 +186,11 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
         self.is_shutdown
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(exporter) = self.exporter.lock() {
-            exporter.shutdown_with_timeout(timeout)
-        } else {
-            Err(OTelSdkError::InternalFailure(
+        match self.exporter.lock() {
+            Ok(exporter) => exporter.shutdown_with_timeout(timeout),
+            _ => Err(OTelSdkError::InternalFailure(
                 "SimpleLogProcessor mutex poison at shutdown".into(),
-            ))
+            )),
         }
     }
 
@@ -208,10 +207,9 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         target: &str,
         name: Option<&str>,
     ) -> bool {
-        if let Ok(exporter) = self.exporter.lock() {
-            exporter.event_enabled(level, target, name)
-        } else {
-            true
+        match self.exporter.lock() {
+            Ok(exporter) => exporter.event_enabled(level, target, name),
+            _ => true,
         }
     }
 }
@@ -221,13 +219,13 @@ mod tests {
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLogger};
     use crate::{
+        Resource,
         error::OTelSdkResult,
         logs::{InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor},
-        Resource,
     };
-    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
+    use opentelemetry::logs::{LogRecord, Logger, LoggerProvider};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time;

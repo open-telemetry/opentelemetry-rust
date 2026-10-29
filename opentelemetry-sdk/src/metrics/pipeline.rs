@@ -5,9 +5,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use opentelemetry::{otel_debug, otel_warn, InstrumentationScope, KeyValue};
+use opentelemetry::{InstrumentationScope, KeyValue, otel_debug, otel_warn};
 
 use crate::{
+    Resource,
     error::{OTelSdkError, OTelSdkResult},
     metrics::{
         aggregation,
@@ -18,12 +19,11 @@ use crate::{
         reader::{MetricReader, SdkProducer},
         view::View,
     },
-    Resource,
 };
 
 use self::internal::AggregateFns;
 
-use super::{aggregation::Aggregation, Temporality};
+use super::{Temporality, aggregation::Aggregation};
 
 /// Connects all of the instruments created by a meter provider to a [MetricReader].
 ///
@@ -587,7 +587,9 @@ fn aggregate_fn<T: Number, S: AttributeBuildHasher>(
                 // temporality for LastValue only affects how data points are reported, so we can always use
                 // delta temporality, because observable instruments should report data points only since previous collection
                 InstrumentKind::ObservableGauge => Ok(Some(b.last_value(Some(Temporality::Delta)))),
-                _ => Err(MetricError::Other(format!("LastValue aggregation is only available for Gauge or ObservableGauge, but not for {kind:?}")))
+                _ => Err(MetricError::Other(format!(
+                    "LastValue aggregation is only available for Gauge or ObservableGauge, but not for {kind:?}"
+                ))),
             }
         }
         Aggregation::Sum => {

@@ -615,8 +615,8 @@ mod tests {
 
     use super::{Exemplar, ExponentialHistogramDataPoint, HistogramDataPoint, SumDataPoint};
 
-    use opentelemetry::time::now;
     use opentelemetry::KeyValue;
+    use opentelemetry::time::now;
 
     #[test]
     fn validate_cloning_data_points() {

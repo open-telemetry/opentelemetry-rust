@@ -1,13 +1,13 @@
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
-use hyper::{body::Incoming, service::service_fn, Request, Response, StatusCode};
+use http_body_util::{BodyExt, Full, combinators::BoxBody};
+use hyper::{Request, Response, StatusCode, body::Incoming, service::service_fn};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use opentelemetry::{
+    Context, InstrumentationScope, KeyValue,
     baggage::BaggageExt,
     global::{self, BoxedTracer},
     logs::LogRecord,
     propagation::TextMapCompositePropagator,
     trace::{FutureExt, Span, SpanKind, TraceContextExt, Tracer},
-    Context, InstrumentationScope, KeyValue,
 };
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_http::{Bytes, HeaderExtractor};
@@ -91,7 +91,7 @@ async fn router(
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
     // Extract the context from the incoming request headers
     let parent_cx = extract_context_from_request(&req);
-    let response = {
+    {
         // Create a span parenting the remote client span.
         let tracer = get_tracer();
         let route = route_template(req.method(), req.uri().path());
@@ -115,9 +115,7 @@ async fn router(
                 Ok(not_found)
             }
         }
-    };
-
-    response
+    }
 }
 
 #[cfg(test)]

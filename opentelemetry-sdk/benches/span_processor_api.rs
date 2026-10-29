@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use opentelemetry::{
-    trace::{Span, Tracer, TracerProvider},
     Context, KeyValue,
+    trace::{Span, Tracer, TracerProvider},
 };
 use opentelemetry_sdk::trace as sdktrace;
 

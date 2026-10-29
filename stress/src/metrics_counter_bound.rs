@@ -14,8 +14,8 @@
 
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{BoundCounter, Counter, MeterProvider as _},
     KeyValue,
+    metrics::{BoundCounter, Counter, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 

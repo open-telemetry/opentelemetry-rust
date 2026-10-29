@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::LogBatch;
-use opentelemetry_sdk::Resource;
 use std::sync::atomic;
 use std::sync::atomic::Ordering;
 use std::time;

@@ -1,12 +1,12 @@
-use hello_world::greeter_client::GreeterClient;
 use hello_world::HelloRequest;
+use hello_world::greeter_client::GreeterClient;
 use opentelemetry::{global, propagation::Injector};
 use opentelemetry_sdk::{propagation::TraceContextPropagator, trace as sdktrace};
 use opentelemetry_stdout::SpanExporter;
 
 use opentelemetry::{
-    trace::{SpanKind, TraceContextExt, Tracer},
     Context, KeyValue,
+    trace::{SpanKind, TraceContextExt, Tracer},
 };
 
 fn init_tracer() -> sdktrace::SdkTracerProvider {

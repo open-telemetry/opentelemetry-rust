@@ -3,7 +3,6 @@
 use crate::retry_policy::RetryPolicy;
 use opentelemetry::{otel_debug, otel_info, otel_warn};
 use std::collections::hash_map::DefaultHasher;
-use std::future::Future;
 use std::hash::Hasher;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -432,13 +431,7 @@ mod tests {
             "test_operation",
             || {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 1 {
-                        Err(())
-                    } else {
-                        Ok("success")
-                    }
-                })
+                Box::pin(async move { if attempt < 1 { Err(()) } else { Ok("success") } })
             },
         )
         .await;
@@ -621,7 +614,7 @@ mod tests {
     #[tokio::test]
     async fn test_retry_deadline_exceeded() {
         let policy = policy(100, 50, 200, 0); // many retries allowed
-                                              // Very short deadline
+        // Very short deadline
         let deadline = Duration::from_millis(120);
         let attempts = AtomicUsize::new(0);
 
@@ -747,13 +740,7 @@ mod tests {
             "test_operation",
             || {
                 let attempt = attempts.fetch_add(1, Ordering::SeqCst);
-                Box::pin(async move {
-                    if attempt < 1 {
-                        Err(())
-                    } else {
-                        Ok("success")
-                    }
-                })
+                Box::pin(async move { if attempt < 1 { Err(()) } else { Ok("success") } })
             },
         ));
 

@@ -53,7 +53,9 @@ pub(crate) fn run_in_subprocess() -> bool {
             result => {
                 let kill_result = child.kill();
                 let wait_result = child.wait();
-                panic!("test subprocess {name} failed to finish within 30s: {result:?}; kill: {kill_result:?}; wait: {wait_result:?}");
+                panic!(
+                    "test subprocess {name} failed to finish within 30s: {result:?}; kill: {kill_result:?}; wait: {wait_result:?}"
+                );
             }
         }
     }

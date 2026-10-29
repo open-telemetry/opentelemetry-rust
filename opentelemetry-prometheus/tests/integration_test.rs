@@ -2,12 +2,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::KeyValue;
+use opentelemetry::metrics::{Meter, MeterProvider as _};
 use opentelemetry::{InstrumentationScope, Key};
 use opentelemetry_prometheus::{ExporterBuilder, ResourceSelector};
-use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_semantic_conventions::resource::{SERVICE_NAME, TELEMETRY_SDK_VERSION};
 use prometheus::{Encoder, TextEncoder};
 

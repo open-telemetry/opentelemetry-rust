@@ -1,7 +1,7 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    global::{self, BoxedTracer},
     InstrumentationScope, KeyValue,
+    global::{self, BoxedTracer},
 };
 use opentelemetry_sdk::trace as sdktrace;
 use std::hint::black_box;

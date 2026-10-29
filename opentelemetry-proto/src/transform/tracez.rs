@@ -4,7 +4,7 @@ mod tonic {
     use opentelemetry_sdk::trace::SpanData;
 
     use crate::proto::tonic::{
-        trace::v1::{span::Event as SpanEvent, Status as SpanStatus},
+        trace::v1::{Status as SpanStatus, span::Event as SpanEvent},
         tracez::v1::{ErrorData, LatencyData, RunningData},
     };
     use crate::transform::common::{to_nanos, tonic::Attributes};

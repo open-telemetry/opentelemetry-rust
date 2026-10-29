@@ -6,8 +6,8 @@ homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opent
 repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk"
 readme = "README.md"
 license = "Apache-2.0"
-edition = "2021"
-rust-version = "1.75.0"
+edition = "2024"
+rust-version = "1.85.0"
 autobenches = false
 
 [dependencies]
@@ -17,7 +17,7 @@ futures-channel = { workspace = true, optional = true }
 futures-executor = { workspace = true, optional = true }
 futures-util = { workspace = true, features = ["std", "sink", "async-await-macro"], optional = true }
 percent-encoding = { workspace = true, optional = true }
-rand = { workspace = true, features = ["std", "std_rng", "small_rng", "os_rng", "thread_rng"], optional = true }
+rand = { workspace = true, features = ["std", "std_rng", "sys_rng", "thread_rng"], optional = true }
 serde = { workspace = true, features = ["derive", "rc"], optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }

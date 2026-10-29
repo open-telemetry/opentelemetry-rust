@@ -1,5 +1,5 @@
-use crate::metric::MetricsClient;
 use crate::Protocol;
+use crate::metric::MetricsClient;
 use opentelemetry::{otel_debug, otel_warn};
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::metrics::data::ResourceMetrics;

@@ -1,10 +1,10 @@
-use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use crate::metrics::Temporality;
+use crate::metrics::data::{self, AggregatedMetrics, MetricData, SumDataPoint};
 use opentelemetry::KeyValue;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
-use std::sync::atomic::Ordering;
-#[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::Arc;
+#[cfg(feature = "experimental_metrics_bound_instruments")]
+use std::sync::atomic::Ordering;
 
 use super::aggregate::{AggregateTimeInitiator, AttributeSetFilter};
 use super::{Aggregator, AtomicTracker, ComputeAggregation, Measure, Number};

@@ -3,8 +3,8 @@ pub mod tonic {
     use crate::{
         tonic::{
             common::v1::{
-                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
-                KeyValueList,
+                AnyValue, ArrayValue, InstrumentationScope, KeyValue, KeyValueList,
+                any_value::Value,
             },
             logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
             resource::v1::Resource,
@@ -231,7 +231,7 @@ mod tests {
     use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
-    use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
+    use opentelemetry_sdk::{Resource, logs::LogBatch, logs::SdkLogRecord};
     use std::borrow::Cow;
 
     #[derive(Debug)]

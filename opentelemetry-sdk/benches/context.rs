@@ -1,11 +1,11 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use opentelemetry::{
+    Context, ContextGuard,
     global::BoxedTracer,
     trace::{
-        noop::NoopTracer, SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
-        TracerProvider,
+        SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState, TracerProvider,
+        noop::NoopTracer,
     },
-    Context, ContextGuard,
 };
 use opentelemetry_sdk::{
     error::OTelSdkResult,

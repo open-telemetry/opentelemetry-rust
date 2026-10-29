@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use core::fmt;
-use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
 use opentelemetry_sdk::metrics::Temporality;
+use opentelemetry_sdk::metrics::data::{AggregatedMetrics, MetricData};
 use opentelemetry_sdk::{
     error::OTelSdkResult,
     metrics::{

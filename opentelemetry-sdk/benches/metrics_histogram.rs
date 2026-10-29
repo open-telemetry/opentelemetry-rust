@@ -12,23 +12,23 @@
 
 */
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use opentelemetry::{
-    metrics::{Histogram, MeterProvider as _},
     KeyValue,
+    metrics::{Histogram, MeterProvider as _},
 };
 use opentelemetry_sdk::metrics::{ManualReader, SdkMeterProvider};
 #[cfg(all(not(target_os = "windows"), feature = "bench_profiling"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::{
+    RngExt,
     rngs::{self},
-    Rng, SeedableRng,
 };
 use std::cell::RefCell;
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rand::make_rng());
 }
 
 static ATTRIBUTE_VALUES: [&str; 10] = [
