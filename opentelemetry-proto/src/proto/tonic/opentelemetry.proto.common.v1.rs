@@ -62,6 +62,7 @@ pub mod any_value {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ArrayValue {
     /// Array of values. The array may be empty (contain 0 elements).
@@ -76,6 +77,7 @@ pub struct ArrayValue {
 #[cfg_attr(feature = "with-schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "with-serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "with-serde", serde(default))]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyValueList {
     /// A collection of key/value pairs of key-value pairs. The list may be empty (may

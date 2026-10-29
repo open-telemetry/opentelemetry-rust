@@ -797,6 +797,55 @@ mod json_serde {
             };
             assert_eq!(body.values[0].value, Some(AnyValue { value: None }));
         }
+
+        #[test]
+        fn deserialize_omitted_repeated_values_as_empty() {
+            let array: AnyValue = serde_json::from_str(r#"{"arrayValue":{}}"#)
+                .expect("arrayValue without values must deserialize");
+            assert_eq!(
+                array.value,
+                Some(Value::ArrayValue(ArrayValue { values: vec![] }))
+            );
+
+            let kvlist: AnyValue = serde_json::from_str(r#"{"kvlistValue":{}}"#)
+                .expect("kvlistValue without values must deserialize");
+            assert_eq!(
+                kvlist.value,
+                Some(Value::KvlistValue(KeyValueList { values: vec![] }))
+            );
+        }
+
+        #[cfg(feature = "trace")]
+        #[test]
+        fn deserialize_span_attribute_with_omitted_array_values() {
+            let json = r#"{
+                "resourceSpans": [{
+                    "scopeSpans": [{
+                        "spans": [{
+                            "traceId": "00000000000000000000000000000001",
+                            "spanId": "0000000000000001",
+                            "name": "span",
+                            "attributes": [
+                                {"key": "empty.array", "value": {"arrayValue": {}}},
+                                {"key": "empty.map", "value": {"kvlistValue": {}}}
+                            ]
+                        }]
+                    }]
+                }]
+            }"#;
+
+            let request: ExportTraceServiceRequest =
+                serde_json::from_str(json).expect("trace request must deserialize");
+            let attributes = &request.resource_spans[0].scope_spans[0].spans[0].attributes;
+            assert_eq!(
+                attributes[0].value.as_ref().and_then(|v| v.value.as_ref()),
+                Some(&Value::ArrayValue(ArrayValue { values: vec![] }))
+            );
+            assert_eq!(
+                attributes[1].value.as_ref().and_then(|v| v.value.as_ref()),
+                Some(&Value::KvlistValue(KeyValueList { values: vec![] }))
+            );
+        }
     }
 
     mod key_value {
