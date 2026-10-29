@@ -2,6 +2,7 @@
   "classes": {
     "core": {
       "rust_version": "1.75.0",
+      "verify_packaged": true,
       "packages": [
         "opentelemetry",
         "opentelemetry-appender-log",

@@ -7,7 +7,8 @@ repo_root=$(cd "$script_dir/.." && pwd)
 config_file="$script_dir/msrv_config.json"
 requested_class=${1:-all}
 metadata_file=$(mktemp)
-trap 'rm -f "$metadata_file"' EXIT
+package_dir=$(mktemp -d)
+trap 'rm -f "$metadata_file"; rm -rf "$package_dir"' EXIT
 
 cd "$repo_root"
 cargo metadata -q --no-deps --format-version 1 > "$metadata_file"
@@ -49,16 +50,33 @@ fi
 
 for class in $classes; do
   expected_version=$(jq -r --arg class "$class" '.classes[$class].rust_version' "$config_file" | tr -d '\r')
+  verify_packaged=$(jq -r --arg class "$class" '.classes[$class].verify_packaged // false' "$config_file" | tr -d '\r')
   packages=$(jq -r --arg class "$class" '.classes[$class].packages[]' "$config_file" | tr -d '\r')
 
   echo "Verifying $class packages against Rust $expected_version"
   for package in $packages; do
-    manifest=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .manifest_path' "$metadata_file" | tr -d '\r')
+    source_manifest=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .manifest_path' "$metadata_file" | tr -d '\r')
     declared_version=$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .rust_version' "$metadata_file" | tr -d '\r')
 
     if [ "$declared_version" != "$expected_version" ]; then
       echo "$package declares rust-version $declared_version; expected $expected_version for the $class class." >&2
       exit 1
+    fi
+
+    manifest=$source_manifest
+    if [ "$verify_packaged" = "true" ]; then
+      target_dir="$package_dir/$package"
+      unpack_dir="$target_dir/unpacked"
+      mkdir -p "$unpack_dir"
+      cargo package \
+        --manifest-path "$source_manifest" \
+        --allow-dirty \
+        --no-verify \
+        --target-dir "$target_dir" \
+        --quiet
+      crate_file=$(find "$target_dir/package" -maxdepth 1 -name '*.crate' -print -quit)
+      tar -xzf "$crate_file" -C "$unpack_dir"
+      manifest=$(find "$unpack_dir" -mindepth 2 -maxdepth 2 -name Cargo.toml -print -quit)
     fi
 
     echo "Verifying $package ($manifest)"
