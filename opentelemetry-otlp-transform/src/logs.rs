@@ -193,16 +193,15 @@ pub(crate) mod tonic {
 #[cfg(test)]
 mod tests {
     use crate::common::tonic::ResourceAttributesWithSchema;
-    use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::Logger;
-    use opentelemetry::logs::LoggerProvider;
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
     use opentelemetry::time::now;
-    use opentelemetry::{InstrumentationScope, KeyValue};
+    use opentelemetry::{InstrumentationScope, Key, KeyValue};
     use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
     use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
     use std::borrow::Cow;
+    use std::collections::HashMap;
 
     #[derive(Debug)]
     struct MockProcessor;
@@ -255,6 +254,73 @@ mod tests {
             assert_eq!(otlp.trace_id, TraceId::from(1).to_bytes().to_vec());
             assert_eq!(otlp.span_id, SpanId::from(2).to_bytes().to_vec());
         }
+    }
+
+    #[test]
+    fn converts_every_log_severity() {
+        let severities = [
+            Severity::Trace,
+            Severity::Trace2,
+            Severity::Trace3,
+            Severity::Trace4,
+            Severity::Debug,
+            Severity::Debug2,
+            Severity::Debug3,
+            Severity::Debug4,
+            Severity::Info,
+            Severity::Info2,
+            Severity::Info3,
+            Severity::Info4,
+            Severity::Warn,
+            Severity::Warn2,
+            Severity::Warn3,
+            Severity::Warn4,
+            Severity::Error,
+            Severity::Error2,
+            Severity::Error3,
+            Severity::Error4,
+            Severity::Fatal,
+            Severity::Fatal2,
+            Severity::Fatal3,
+            Severity::Fatal4,
+        ];
+
+        for (index, severity) in severities.into_iter().enumerate() {
+            let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+            record.set_severity_number(severity);
+            let otlp = crate::logs::tonic::log_record_to_proto(&record);
+            assert_eq!(otlp.severity_number, index as i32 + 1);
+        }
+    }
+
+    #[test]
+    fn converts_every_log_any_value_variant() {
+        let mut map = HashMap::new();
+        map.insert(Key::new("nested"), AnyValue::Int(1));
+        let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+        record.set_event_name("checkout.completed");
+        record.set_severity_text("INFO");
+        record.add_attribute("int", AnyValue::Int(1));
+        record.add_attribute("double", AnyValue::Double(2.5));
+        record.add_attribute("string", AnyValue::String("value".into()));
+        record.add_attribute("bool", AnyValue::Boolean(true));
+        record.add_attribute("bytes", AnyValue::Bytes(Box::new(vec![1, 2, 3])));
+        record.add_attribute(
+            "list",
+            AnyValue::ListAny(Box::new(vec![AnyValue::Boolean(true)])),
+        );
+        record.add_attribute("map", AnyValue::Map(Box::new(map.clone())));
+        record.set_body(AnyValue::Map(Box::new(map)));
+
+        let otlp = crate::logs::tonic::log_record_to_proto(&record);
+        assert_eq!(otlp.event_name, "checkout.completed");
+        assert_eq!(otlp.severity_text, "INFO");
+        assert_eq!(otlp.attributes.len(), 7);
+        assert!(otlp
+            .attributes
+            .iter()
+            .all(|attribute| attribute.value.is_some()));
+        assert!(otlp.body.and_then(|body| body.value).is_some());
     }
 
     #[test]

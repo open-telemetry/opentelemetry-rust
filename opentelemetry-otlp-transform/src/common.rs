@@ -181,5 +181,32 @@ pub(crate) mod tonic {
 
             assert_scope_fields(&converted, "my-lib", "1.0.0", "feature");
         }
+
+        #[test]
+        fn converts_every_api_value_variant() {
+            let scalar_values = [
+                Value::Bool(true),
+                Value::I64(42),
+                Value::F64(3.5),
+                Value::String("value".into()),
+            ];
+            for value in scalar_values {
+                assert!(value_to_any_value(value).value.is_some());
+            }
+
+            let array_values = [
+                Value::Array(Array::Bool(vec![true])),
+                Value::Array(Array::I64(vec![42])),
+                Value::Array(Array::F64(vec![3.5])),
+                Value::Array(Array::String(vec!["value".into()])),
+            ];
+            for value in array_values {
+                let converted = value_to_any_value(value);
+                let Some(any_value::Value::ArrayValue(array)) = converted.value else {
+                    panic!("expected array value");
+                };
+                assert_eq!(array.values.len(), 1);
+            }
+        }
     }
 }

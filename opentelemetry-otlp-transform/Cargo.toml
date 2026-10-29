@@ -33,6 +33,9 @@ opentelemetry = { workspace = true, default-features = false }
 opentelemetry_sdk = { workspace = true, default-features = false }
 opentelemetry-proto = { workspace = true, default-features = false, features = ["gen-tonic-messages"] }
 
+[dev-dependencies]
+opentelemetry_sdk = { workspace = true, default-features = false, features = ["metrics", "testing"] }
+
 [lints]
 workspace = true
 

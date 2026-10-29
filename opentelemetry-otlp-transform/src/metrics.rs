@@ -325,3 +325,169 @@ pub(crate) mod tonic {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use opentelemetry::metrics::MeterProvider as _;
+    use opentelemetry::{InstrumentationScope, KeyValue};
+    use opentelemetry_proto::tonic::metrics::v1::{
+        exemplar::Value as ExemplarValue, metric::Data, number_data_point::Value as NumberValue,
+        AggregationTemporality,
+    };
+    use opentelemetry_sdk::metrics::{
+        Aggregation, InMemoryMetricExporter, SdkMeterProvider, Stream,
+    };
+    use opentelemetry_sdk::Resource;
+
+    #[test]
+    fn numeric_values_and_temporalities_convert_to_otlp() {
+        use super::tonic::{
+            f64_to_data_point_value, f64_to_exemplar_value, i64_to_data_point_value,
+            i64_to_exemplar_value, temporality_to_proto, u64_to_data_point_value,
+            u64_to_exemplar_value,
+        };
+        use opentelemetry_sdk::metrics::Temporality;
+
+        assert_eq!(u64_to_exemplar_value(7), ExemplarValue::AsInt(7));
+        assert_eq!(i64_to_exemplar_value(-7), ExemplarValue::AsInt(-7));
+        assert_eq!(f64_to_exemplar_value(7.5), ExemplarValue::AsDouble(7.5));
+        assert_eq!(u64_to_data_point_value(8), NumberValue::AsInt(8));
+        assert_eq!(i64_to_data_point_value(-8), NumberValue::AsInt(-8));
+        assert_eq!(f64_to_data_point_value(8.5), NumberValue::AsDouble(8.5));
+        assert_eq!(
+            temporality_to_proto(Temporality::Delta),
+            AggregationTemporality::Delta
+        );
+        assert_eq!(
+            temporality_to_proto(Temporality::LowMemory),
+            AggregationTemporality::Cumulative
+        );
+    }
+
+    #[test]
+    fn public_export_request_converts_all_metric_aggregations() {
+        let exporter = InMemoryMetricExporter::default();
+        let provider = SdkMeterProvider::builder()
+            .with_resource(
+                Resource::builder_empty()
+                    .with_schema_url(
+                        [KeyValue::new("service.name", "checkout")],
+                        "https://example.com/resource",
+                    )
+                    .build(),
+            )
+            .with_view(|instrument| {
+                (instrument.name() == "exponential").then(|| {
+                    Stream::builder()
+                        .with_aggregation(Aggregation::Base2ExponentialHistogram {
+                            max_size: 160,
+                            max_scale: 20,
+                            record_min_max: true,
+                        })
+                        .build()
+                        .expect("exponential histogram stream should be valid")
+                })
+            })
+            .with_periodic_exporter(exporter.clone())
+            .build();
+        let scope = InstrumentationScope::builder("test-meter")
+            .with_version("1.2.3")
+            .with_schema_url("https://example.com/scope")
+            .with_attributes([KeyValue::new("scope.attribute", "value")])
+            .build();
+        let meter = provider.meter_with_scope(scope);
+        let attributes = [KeyValue::new("route", "/checkout")];
+
+        meter
+            .u64_gauge("gauge")
+            .with_description("current value")
+            .with_unit("1")
+            .build()
+            .record(7, &attributes);
+        meter.u64_counter("sum").build().add(3, &attributes);
+        meter
+            .i64_up_down_counter("signed-sum")
+            .build()
+            .add(-2, &attributes);
+        let histogram = meter.f64_histogram("histogram").build();
+        histogram.record(1.0, &attributes);
+        histogram.record(2.0, &attributes);
+        meter.u64_counter("exponential").build().add(4, &attributes);
+
+        provider.force_flush().unwrap();
+        let collected = exporter.get_finished_metrics().unwrap();
+        assert_eq!(collected.len(), 1);
+
+        let request = super::export_request(&collected[0]);
+        let resource_metrics = &request.resource_metrics[0];
+        assert_eq!(resource_metrics.schema_url, "https://example.com/resource");
+        assert_eq!(
+            resource_metrics.resource.as_ref().unwrap().attributes[0].key,
+            "service.name"
+        );
+
+        let scope_metrics = &resource_metrics.scope_metrics[0];
+        assert_eq!(scope_metrics.schema_url, "https://example.com/scope");
+        let exported_scope = scope_metrics.scope.as_ref().unwrap();
+        assert_eq!(exported_scope.name, "test-meter");
+        assert_eq!(exported_scope.version, "1.2.3");
+        assert_eq!(exported_scope.attributes[0].key, "scope.attribute");
+
+        let metric = |name: &str| {
+            scope_metrics
+                .metrics
+                .iter()
+                .find(|metric| metric.name == name)
+                .unwrap_or_else(|| panic!("missing metric {name}"))
+        };
+
+        let gauge = metric("gauge");
+        assert_eq!(gauge.description, "current value");
+        assert_eq!(gauge.unit, "1");
+        let Some(Data::Gauge(gauge)) = &gauge.data else {
+            panic!("expected gauge data");
+        };
+        assert_eq!(gauge.data_points.len(), 1);
+        assert_eq!(gauge.data_points[0].value, Some(NumberValue::AsInt(7)));
+        assert_eq!(gauge.data_points[0].attributes[0].key, "route");
+        assert!(gauge.data_points[0].exemplars.is_empty());
+
+        let Some(Data::Sum(sum)) = &metric("sum").data else {
+            panic!("expected sum data");
+        };
+        assert!(sum.is_monotonic);
+        assert_eq!(
+            sum.aggregation_temporality,
+            AggregationTemporality::Cumulative as i32
+        );
+        assert_eq!(sum.data_points[0].value, Some(NumberValue::AsInt(3)));
+        assert!(sum.data_points[0].exemplars.is_empty());
+
+        let Some(Data::Sum(sum)) = &metric("signed-sum").data else {
+            panic!("expected signed sum data");
+        };
+        assert!(!sum.is_monotonic);
+        assert_eq!(sum.data_points[0].value, Some(NumberValue::AsInt(-2)));
+
+        let Some(Data::Histogram(histogram)) = &metric("histogram").data else {
+            panic!("expected histogram data");
+        };
+        let point = &histogram.data_points[0];
+        assert_eq!(point.count, 2);
+        assert_eq!(point.sum, Some(3.0));
+        assert_eq!(point.min, Some(1.0));
+        assert_eq!(point.max, Some(2.0));
+        assert!(point.exemplars.is_empty());
+
+        let Some(Data::ExponentialHistogram(histogram)) = &metric("exponential").data else {
+            panic!("expected exponential histogram data");
+        };
+        let point = &histogram.data_points[0];
+        assert_eq!(point.count, 1);
+        assert_eq!(point.sum, Some(4.0));
+        assert_eq!(point.min, Some(4.0));
+        assert_eq!(point.max, Some(4.0));
+        assert!(point.positive.is_some());
+        assert!(point.exemplars.is_empty());
+    }
+}
