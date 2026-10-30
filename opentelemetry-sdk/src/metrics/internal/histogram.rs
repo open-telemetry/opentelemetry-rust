@@ -185,6 +185,7 @@ impl<T: Number, S: AttributeBuildHasher> Histogram<T, S> {
                     } else {
                         T::default()
                     },
+                    sum_recorded: self.record_sum,
                     min: if self.record_min_max {
                         Some(b.min)
                     } else {
@@ -239,6 +240,7 @@ impl<T: Number, S: AttributeBuildHasher> Histogram<T, S> {
                     } else {
                         T::default()
                     },
+                    sum_recorded: self.record_sum,
                     min: if self.record_min_max {
                         Some(b.min)
                     } else {

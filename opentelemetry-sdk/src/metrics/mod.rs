@@ -1714,7 +1714,7 @@ mod tests {
         assert_eq!(histogram.data_points.len(), 1);
         let dp = &histogram.data_points[0];
         assert_eq!(dp.count, 3);
-        // Note: Sum is not recorded for UpDownCounter histogram per the spec
+        assert_eq!(dp.sum_if_recorded(), None);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

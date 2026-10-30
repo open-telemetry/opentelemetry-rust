@@ -353,6 +353,8 @@ pub struct HistogramDataPoint<T> {
     pub(crate) max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
+    /// Whether the sum was recorded.
+    pub(crate) sum_recorded: bool,
 
     /// The sampled [Exemplar]s collected during the time series.
     pub(crate) exemplars: Vec<Exemplar<T>>,
@@ -399,6 +401,15 @@ impl<T: Copy> HistogramDataPoint<T> {
     /// Returns the sum of the values recorded.
     pub fn sum(&self) -> T {
         self.sum
+    }
+
+    /// Returns the sum when it was recorded.
+    ///
+    /// Some instruments, such as `UpDownCounter`, can produce histograms whose
+    /// sum is intentionally not recorded. [`Self::sum`] retains its existing
+    /// zero-value behavior for those data points.
+    pub fn sum_if_recorded(&self) -> Option<T> {
+        self.sum_recorded.then_some(self.sum)
     }
 }
 
@@ -453,6 +464,8 @@ pub struct ExponentialHistogramDataPoint<T> {
     pub(crate) max: Option<T>,
     /// The sum of the values recorded.
     pub(crate) sum: T,
+    /// Whether the sum was recorded.
+    pub(crate) sum_recorded: bool,
 
     /// Describes the resolution of the histogram.
     ///
@@ -540,6 +553,15 @@ impl<T: Copy> ExponentialHistogramDataPoint<T> {
     /// Returns the sum of the values recorded.
     pub fn sum(&self) -> T {
         self.sum
+    }
+
+    /// Returns the sum when it was recorded.
+    ///
+    /// Some instruments, such as `UpDownCounter`, can produce histograms whose
+    /// sum is intentionally not recorded. [`Self::sum`] retains its existing
+    /// zero-value behavior for those data points.
+    pub fn sum_if_recorded(&self) -> Option<T> {
+        self.sum_recorded.then_some(self.sum)
     }
 }
 
@@ -641,6 +663,7 @@ mod tests {
             min: None,
             max: None,
             sum: 0u32,
+            sum_recorded: true,
             exemplars: vec![Exemplar {
                 filtered_attributes: vec![],
                 time: now(),
@@ -657,6 +680,7 @@ mod tests {
             min: None,
             max: None,
             sum: 0u32,
+            sum_recorded: true,
             scale: 0,
             zero_count: 0,
             positive_bucket: super::ExponentialBucket {
