@@ -5,8 +5,10 @@
 //! `opentelemetry_propagator_b3::{B3Encoding, Propagator}`.
 //!
 //! Both single and multiple headers are accepted when extracting context, with
-//! a valid single header taking precedence. [`Propagator::new`] retains the
-//! existing multiple-header injection default.
+//! a valid single header taking precedence. [`Propagator::new`] injects the
+//! single `b3` header, as required by the OpenTelemetry specification. Use
+//! [`Propagator::with_encoding`] with [`B3Encoding::MultipleHeader`] to inject
+//! the multiple `x-b3-*` headers instead.
 //!
 //! ```
 //! use opentelemetry::global;
@@ -36,8 +38,10 @@ const B3_SPAN_ID_HEADER: &str = "x-b3-spanid";
 const B3_SAMPLED_HEADER: &str = "x-b3-sampled";
 const B3_PARENT_SPAN_ID_HEADER: &str = "x-b3-parentspanid";
 
+// B3 private markers use the high bits so they don't collide with W3C trace
+// flags, which are assigned from the low bits.
 const TRACE_FLAG_DEFERRED: TraceFlags = TraceFlags::new(0x80);
-const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x04);
+const TRACE_FLAG_DEBUG: TraceFlags = TraceFlags::new(0x40);
 
 static B3_SINGLE_FIELDS: Lazy<[String; 1]> = Lazy::new(|| [B3_SINGLE_HEADER.to_owned()]);
 static B3_MULTI_FIELDS: Lazy<[String; 4]> = Lazy::new(|| {
@@ -61,7 +65,7 @@ static B3_SINGLE_AND_MULTI_FIELDS: Lazy<[String; 5]> = Lazy::new(|| {
 /// B3Encoding is a bitmask to represent B3 encoding type
 #[derive(Clone, Debug)]
 pub enum B3Encoding {
-    /// Unspecified is an unspecified B3 encoding
+    /// Unspecified is an unspecified B3 encoding, which injects the single header
     UnSpecified = 0,
     /// MultipleHeader is a B3 encoding that uses multiple headers
     /// to transmit tracing information prefixed with `X-B3-`
@@ -91,13 +95,13 @@ pub struct Propagator {
 impl Default for Propagator {
     fn default() -> Self {
         Propagator {
-            inject_encoding: B3Encoding::MultipleHeader,
+            inject_encoding: B3Encoding::SingleHeader,
         }
     }
 }
 
 impl Propagator {
-    /// Create a new `HttpB3Propagator` that uses multiple headers.
+    /// Create a new `HttpB3Propagator` that uses the single header.
     pub fn new() -> Self {
         Propagator::default()
     }
@@ -112,7 +116,7 @@ impl Propagator {
     /// Extract trace id from hex encoded &str value.
     fn extract_trace_id(&self, trace_id: &str) -> Result<TraceId, ()> {
         // Only allow lower case hex string
-        if trace_id.to_lowercase() != trace_id || (trace_id.len() != 16 && trace_id.len() != 32) {
+        if !is_lower_hex(trace_id) || (trace_id.len() != 16 && trace_id.len() != 32) {
             Err(())
         } else {
             TraceId::from_hex(trace_id).map_err(|_| ())
@@ -122,56 +126,63 @@ impl Propagator {
     /// Extract span id from hex encoded &str value.
     fn extract_span_id(&self, span_id: &str) -> Result<SpanId, ()> {
         // Only allow lower case hex string
-        if span_id.to_lowercase() != span_id || span_id.len() != 16 {
+        if !is_lower_hex(span_id) || span_id.len() != 16 {
             Err(())
         } else {
             SpanId::from_hex(span_id).map_err(|_| ())
         }
     }
 
-    /// Extract sampled state from encoded &str value
-    /// For legacy support and  being lenient to other tracing implementations we
-    /// allow "true" and "false" as inputs for interop purposes.
-    fn extract_sampled_state(&self, sampled: &str) -> Result<TraceFlags, ()> {
+    /// Extract sampled state from the sampling field of the single `b3` header.
+    fn extract_single_sampled_state(&self, sampled: &str) -> Result<TraceFlags, ()> {
         match sampled {
-            "0" | "false" => Ok(TraceFlags::default()),
+            "0" => Ok(TraceFlags::default()),
             "1" => Ok(TraceFlags::SAMPLED),
-            "true" if !self.inject_encoding.support(&B3Encoding::SingleHeader) => {
-                Ok(TraceFlags::SAMPLED)
-            }
-            "d" if self.inject_encoding.support(&B3Encoding::SingleHeader) => Ok(TRACE_FLAG_DEBUG),
+            "d" => Ok(TRACE_FLAG_DEBUG | TraceFlags::SAMPLED), // debug implies sampled
             _ => Err(()),
         }
     }
 
-    fn extract_debug_flag(&self, debug: &str) -> Result<TraceFlags, ()> {
-        match debug {
-            "0" => Ok(TraceFlags::default()),
-            "1" => Ok(TRACE_FLAG_DEBUG | TraceFlags::SAMPLED), // debug implies sampled
+    /// Extract sampled state from the `X-B3-Sampled` header.
+    /// For legacy support and being lenient to other tracing implementations we
+    /// allow "true" and "false" as inputs for interop purposes.
+    fn extract_multi_sampled_state(&self, sampled: &str) -> Result<TraceFlags, ()> {
+        match sampled {
+            "0" | "false" => Ok(TraceFlags::default()),
+            "1" | "true" => Ok(TraceFlags::SAMPLED),
             _ => Err(()),
+        }
+    }
+
+    /// Extract the debug flag from the `X-B3-Flags` header. Only "1" means debug,
+    /// absent or other values are ignored.
+    fn extract_debug_flag(&self, debug: Option<&str>) -> Option<TraceFlags> {
+        match debug {
+            Some("1") => Some(TRACE_FLAG_DEBUG | TraceFlags::SAMPLED), // debug implies sampled
+            _ => None,
         }
     }
 
     /// Extract a `SpanContext` from a single B3 header.
     fn extract_single_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
-        let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
-        // Ensure length is within range.
-        if parts.len() > 4 || parts.len() < 2 {
-            return Err(());
-        }
+        let mut parts = header_value.split('-');
 
-        let trace_id = self.extract_trace_id(parts[0])?;
-        let span_id = self.extract_span_id(parts[1])?;
-        let trace_flags = if parts.len() > 2 {
-            self.extract_sampled_state(parts[2])?
-        } else {
-            TRACE_FLAG_DEFERRED
+        let trace_id = self.extract_trace_id(parts.next().ok_or(())?)?;
+        let span_id = self.extract_span_id(parts.next().ok_or(())?)?;
+        let trace_flags = match parts.next() {
+            Some(sampled) => self.extract_single_sampled_state(sampled)?,
+            None => TRACE_FLAG_DEFERRED,
         };
 
         // Ensure parent id was valid
-        if parts.len() == 4 {
-            let _ = self.extract_span_id(parts[3])?;
+        if let Some(parent) = parts.next() {
+            let _ = self.extract_span_id(parent)?;
+        }
+
+        // Ensure there are no more than 4 parts.
+        if parts.next().is_some() {
+            return Err(());
         }
 
         let span_context =
@@ -195,19 +206,19 @@ impl Propagator {
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
         if let Some(parent) = extractor.get(B3_PARENT_SPAN_ID_HEADER) {
-            let _ = self.extract_span_id(parent).map_err(|_| ());
+            let _ = self.extract_span_id(parent)?;
         }
 
-        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
+        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER));
         let sampled_opt = extractor.get(B3_SAMPLED_HEADER);
 
-        let flag = if let Ok(debug_flag) = debug {
+        let flag = if let Some(debug_flag) = debug {
             // if debug is set, then X-B3-Sampled should not be sent. Will ignore
             debug_flag
         } else if let Some(sampled) = sampled_opt {
             // if debug is not set and X-B3-Sampled is not set, then deferred
             // if sample value is invalid, then return empty context.
-            self.extract_sampled_state(sampled)?
+            self.extract_multi_sampled_state(sampled)?
         } else {
             TRACE_FLAG_DEFERRED
         };
@@ -220,6 +231,33 @@ impl Propagator {
             Err(())
         }
     }
+
+    /// Whether the single header should be injected. If inject_encoding is
+    /// Unspecified, default to the single header.
+    fn injects_single_header(&self) -> bool {
+        matches!(self.inject_encoding, B3Encoding::UnSpecified)
+            || self.inject_encoding.support(&B3Encoding::SingleHeader)
+    }
+}
+
+/// Whether `s` only contains lower case hex characters.
+fn is_lower_hex(s: &str) -> bool {
+    s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// B3 sampling state for `flags`: `"d"` (debug), `"1"` (sampled), `"0"`
+/// (not sampled), or `None` when the decision is deferred. Bits that B3 has no
+/// encoding for, such as the W3C random-trace-id flag, are ignored.
+fn b3_sampling_state(flags: TraceFlags) -> Option<&'static str> {
+    if flags & TRACE_FLAG_DEBUG == TRACE_FLAG_DEBUG {
+        Some("d")
+    } else if flags & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED {
+        None
+    } else if flags.is_sampled() {
+        Some("1")
+    } else {
+        Some("0")
+    }
 }
 
 impl TextMapPropagator for Propagator {
@@ -229,46 +267,35 @@ impl TextMapPropagator for Propagator {
         let span = context.span();
         let span_context = span.span_context();
         if span_context.is_valid() {
-            let is_deferred =
-                span_context.trace_flags() & TRACE_FLAG_DEFERRED == TRACE_FLAG_DEFERRED;
-            let is_debug = span_context.trace_flags() & TRACE_FLAG_DEBUG == TRACE_FLAG_DEBUG;
-            if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-                let mut value = format!("{}-{}", span_context.trace_id(), span_context.span_id());
-                if !is_deferred {
-                    let flag = if is_debug {
-                        "d"
-                    } else if span_context.is_sampled() {
-                        "1"
-                    } else {
-                        "0"
-                    };
-                    value = format!("{value}-{flag:01}")
-                }
+            let sampling_state = b3_sampling_state(span_context.trace_flags());
+            if self.injects_single_header() {
+                let value = match sampling_state {
+                    Some(state) => format!(
+                        "{}-{}-{state}",
+                        span_context.trace_id(),
+                        span_context.span_id()
+                    ),
+                    None => format!("{}-{}", span_context.trace_id(), span_context.span_id()),
+                };
 
                 injector.set(B3_SINGLE_HEADER, value);
             }
-            if self.inject_encoding.support(&B3Encoding::MultipleHeader)
-                || self.inject_encoding.support(&B3Encoding::UnSpecified)
-            {
-                // if inject_encoding is Unspecified, default to use MultipleHeader
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
                 injector.set(B3_TRACE_ID_HEADER, span_context.trace_id().to_string());
                 injector.set(B3_SPAN_ID_HEADER, span_context.span_id().to_string());
 
-                if is_debug {
-                    injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string());
-                } else if !is_deferred {
-                    let sampled = if span_context.is_sampled() { "1" } else { "0" };
-                    injector.set(B3_SAMPLED_HEADER, sampled.to_string());
+                match sampling_state {
+                    Some("d") => injector.set(B3_DEBUG_FLAG_HEADER, "1".to_string()),
+                    Some(sampled) => injector.set(B3_SAMPLED_HEADER, sampled.to_string()),
+                    None => {}
                 }
             }
         } else {
             let flag = if span_context.is_sampled() { "1" } else { "0" };
-            if self.inject_encoding.support(&B3Encoding::SingleHeader) {
+            if self.injects_single_header() {
                 injector.set(B3_SINGLE_HEADER, flag.to_string())
             }
-            if self.inject_encoding.support(&B3Encoding::MultipleHeader)
-                || self.inject_encoding.support(&B3Encoding::UnSpecified)
-            {
+            if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
                 injector.set(B3_SAMPLED_HEADER, flag.to_string())
             }
         }
@@ -298,10 +325,9 @@ impl TextMapPropagator for Propagator {
             B3_SINGLE_AND_MULTI_FIELDS.as_ref()
         } else if self.inject_encoding.support(&B3Encoding::MultipleHeader) {
             B3_MULTI_FIELDS.as_ref()
-        } else if self.inject_encoding.support(&B3Encoding::SingleHeader) {
-            B3_SINGLE_FIELDS.as_ref()
         } else {
-            B3_MULTI_FIELDS.as_ref()
+            // SingleHeader or Unspecified which defaults to the single header.
+            B3_SINGLE_FIELDS.as_ref()
         };
 
         FieldIter::new(field_slice)
@@ -326,7 +352,7 @@ mod tests {
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // deferred
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())), // not sampled
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // sampled
-            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG, true, TraceState::default())), // debug
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED, true, TraceState::default())), // debug implies sampled
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // with parent span id
             ("a3ce929d0e0e4736-00f067aa0ba902b7-1-00000000000000cd", SpanContext::new(TraceId::from(0x0000_0000_0000_0000_a3ce_929d_0e0e_4736), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // padding 64 bit traceID
             ("0", SpanContext::empty_context()),
@@ -347,6 +373,8 @@ mod tests {
             ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), None), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED, true, TraceState::default())), // debug
             ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), Some("1"), Some("00f067aa0ba90200")), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED, true, TraceState::default())),  // debug flag should override sample flag
             ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), Some("2"), Some("00f067aa0ba90200")), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // invalid debug flag, should ignore
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), Some("0"), None), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::SAMPLED, true, TraceState::default())), // debug flag 0 should not override sample flag
+            ((Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("0"), None), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())), // debug flag 0 without sample flag is deferred
             ((None, None, Some("0"), None, None), SpanContext::empty_context()),
         ]
     }
@@ -366,6 +394,13 @@ mod tests {
             "ab000000000000000000000000000000-CD00000000000000-1", // upper case span id
             "ab000000000000000000000000000000-cd00000000000000-1-EF00000000000000", // upper case parent span id
             "ab000000000000000000000000000000-cd00000000000000-true", // invalid sample flag(set to true)
+            "ab000000000000000000000000000000-cd00000000000000-false", // invalid sample flag(set to false)
+            "ab000000000000000000000000000000-cd00000000000000-", // trailing separator
+            "ab000000000000000000000000000000-cd00000000000000-1-", // trailing separator after sample flag
+            "+b000000000000000000000000000000-cd00000000000000-1", // trace id with sign prefix
+            "ab000000000000000000000000000000-+d00000000000000-1", // span id with sign prefix
+            "ab000000000000000000000000000000-cd00000000000000-1-ef00000000000000-ef00000000000000", // too many parts
+            "ab000000000000000000000000000000", // missing span id
         ]
     }
 
@@ -385,6 +420,10 @@ mod tests {
             (Some("4bf92f3577b34da6a3ce929d0e0e4hhh"), Some(SPAN_ID_STR), Some("1"), None, None), // hex contains illegal char
             (Some("4BF92F3577B34DA6A3CE929D0E0E4736"), Some(SPAN_ID_STR), Some("1"), None, None), // trace id is upper case hex string
             (Some(TRACE_ID_STR), Some("00F067AA0BA902B7"), Some("1"), None, None), // span id is upper case hex string
+            (Some("+bf92f3577b34da6a3ce929d0e0e4736"), Some(SPAN_ID_STR), Some("1"), None, None), // trace id with sign prefix
+            (Some(TRACE_ID_STR), Some("+0f067aa0ba902b7"), Some("1"), None, None), // span id with sign prefix
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, Some("00f067aa0ba9020")), // parent span id length is wrong
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("1"), None, Some("00F067AA0BA90200")), // parent span id is upper case hex string
         ]
     }
 
@@ -409,7 +448,11 @@ mod tests {
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
             ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::RANDOM, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED | TraceFlags::RANDOM, true, TraceState::default())),
+            ("4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-d", SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED | TRACE_FLAG_DEBUG, true, TraceState::default())),
             ("1", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
+            ("1", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default())),
             ("0", SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::default(), true, TraceState::default())),
         ]
     }
@@ -425,8 +468,12 @@ mod tests {
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED, true, TraceState::default())),
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::default(), true, TraceState::default())),
             (Some(TRACE_ID_STR), Some(SPAN_ID_STR), Some("0"), None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TraceFlags::RANDOM, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEBUG | TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, None, SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED | TraceFlags::RANDOM, true, TraceState::default())),
+            (Some(TRACE_ID_STR), Some(SPAN_ID_STR), None, Some("1"), SpanContext::new(TraceId::from(TRACE_ID_HEX), SpanId::from(SPAN_ID_HEX), TRACE_FLAG_DEFERRED | TRACE_FLAG_DEBUG, true, TraceState::default())),
             (None, None, Some("0"), None, SpanContext::empty_context()),
-            (None, None, Some("1"), None, SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default()))
+            (None, None, Some("1"), None, SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED, true, TraceState::default())),
+            (None, None, Some("1"), None, SpanContext::new(TraceId::INVALID, SpanId::INVALID, TraceFlags::SAMPLED | TraceFlags::RANDOM, true, TraceState::default()))
         ]
     }
 
@@ -491,25 +538,24 @@ mod tests {
             )
         }
 
+        // Extraction must not depend on the inject encoding.
+        let all_propagators = [
+            &single_header_propagator,
+            &multi_header_propagator,
+            &single_multi_propagator,
+            &unspecific_header_propagator,
+        ];
+
         for ((trace, span, sampled, debug, parent), expected_context) in multi_header_extract_data()
         {
             let extractor = extract_extrator_from_test_data(trace, span, sampled, debug, parent);
-            assert_eq!(
-                multi_header_propagator
-                    .extract(&extractor)
-                    .span()
-                    .span_context()
-                    .clone(),
-                expected_context
-            );
-            assert_eq!(
-                unspecific_header_propagator
-                    .extract(&extractor)
-                    .span()
-                    .span_context()
-                    .clone(),
-                expected_context
-            )
+            for propagator in all_propagators {
+                assert_eq!(
+                    propagator.extract(&extractor).span().span_context().clone(),
+                    expected_context,
+                    "{propagator:?} {extractor:?}"
+                );
+            }
         }
 
         for ((trace, span, sampled, debug, parent), single_header, expected_context) in
@@ -554,13 +600,13 @@ mod tests {
         // Test invalid multiple headers
         for (trace, span, sampled, debug, parent) in multi_header_extract_invalid_data() {
             let extractor = extract_extrator_from_test_data(trace, span, sampled, debug, parent);
-            assert_eq!(
-                multi_header_propagator
-                    .extract(&extractor)
-                    .span()
-                    .span_context(),
-                &SpanContext::empty_context(),
-            )
+            for propagator in all_propagators {
+                assert_eq!(
+                    propagator.extract(&extractor).span().span_context(),
+                    &SpanContext::empty_context(),
+                    "{propagator:?} {extractor:?}"
+                );
+            }
         }
     }
 
@@ -574,30 +620,31 @@ mod tests {
 
         for (expected_header, context) in single_header_inject_data() {
             let mut injector = HashMap::new();
-            single_header_propagator.inject_context(
-                &Context::current_with_span(TestSpan(context)),
-                &mut injector,
-            );
-
-            assert_eq!(
-                injector.get(B3_SINGLE_HEADER),
-                Some(&expected_header.to_owned())
-            )
-        }
-
-        for (trace_id, span_id, sampled, flag, context) in multi_header_inject_data() {
-            let mut injector_multi_header = HashMap::new();
             let mut injector_unspecific = HashMap::new();
-            multi_header_propagator.inject_context(
+            single_header_propagator.inject_context(
                 &Context::current_with_span(TestSpan(context.clone())),
-                &mut injector_multi_header,
+                &mut injector,
             );
             unspecified_header_propagator.inject_context(
                 &Context::current_with_span(TestSpan(context)),
                 &mut injector_unspecific,
             );
 
-            assert_eq!(injector_multi_header, injector_unspecific);
+            assert_eq!(injector, injector_unspecific);
+            assert_eq!(
+                injector.get(B3_SINGLE_HEADER),
+                Some(&expected_header.to_owned())
+            );
+            // Single header encoding must not inject multiple headers.
+            assert_eq!(injector.len(), 1, "{injector:?}");
+        }
+
+        for (trace_id, span_id, sampled, flag, context) in multi_header_inject_data() {
+            let mut injector_multi_header = HashMap::new();
+            multi_header_propagator.inject_context(
+                &Context::current_with_span(TestSpan(context)),
+                &mut injector_multi_header,
+            );
 
             assert_eq!(
                 injector_multi_header
@@ -658,16 +705,49 @@ mod tests {
     }
 
     #[test]
+    fn default_injects_single_header() {
+        let context = SpanContext::new(
+            TraceId::from(TRACE_ID_HEX),
+            SpanId::from(SPAN_ID_HEX),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        );
+
+        for propagator in [Propagator::new(), Propagator::default()] {
+            let mut injector = HashMap::new();
+            propagator.inject_context(
+                &Context::current_with_span(TestSpan(context.clone())),
+                &mut injector,
+            );
+
+            assert_eq!(
+                injector,
+                HashMap::from([(
+                    B3_SINGLE_HEADER.to_string(),
+                    format!("{TRACE_ID_STR}-{SPAN_ID_STR}-1")
+                )])
+            );
+        }
+    }
+
+    #[test]
     fn test_get_fields() {
         let single_header_propagator = Propagator::with_encoding(B3Encoding::SingleHeader);
         let multi_header_propagator = Propagator::with_encoding(B3Encoding::MultipleHeader);
         let single_multi_header_propagator =
             Propagator::with_encoding(B3Encoding::SingleAndMultiHeader);
 
-        assert_eq!(
-            single_header_propagator.fields().collect::<Vec<&str>>(),
-            vec![B3_SINGLE_HEADER]
-        );
+        for propagator in [
+            single_header_propagator,
+            Propagator::with_encoding(B3Encoding::UnSpecified),
+            Propagator::new(),
+        ] {
+            assert_eq!(
+                propagator.fields().collect::<Vec<&str>>(),
+                vec![B3_SINGLE_HEADER]
+            );
+        }
         assert_eq!(
             multi_header_propagator.fields().collect::<Vec<&str>>(),
             vec![
