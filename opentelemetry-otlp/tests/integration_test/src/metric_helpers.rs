@@ -43,12 +43,10 @@ fn init_meter_provider() -> SdkMeterProvider {
     let resource = Resource::builder_empty()
         .with_service_name("metrics-integration-test")
         .build();
-    let meter_provider = MeterProviderBuilder::default()
+    MeterProviderBuilder::default()
         .with_resource(resource)
         .with_periodic_exporter(exporter)
-        .build();
-    opentelemetry::global::set_meter_provider(meter_provider.clone());
-    meter_provider
+        .build()
 }
 
 ///
