@@ -338,6 +338,30 @@ impl<T: SpanExporter> SimpleSpanProcessor<T> {
             processed_after_shutdown,
         }
     }
+
+    fn export_with_lock(&self, span: SpanData) -> OTelSdkResult {
+        match self.exporter.lock() {
+            Ok(exporter) => {
+                // Shutdown may have started after the fast-path check above but
+                // before this lock was acquired. Recheck while holding the same
+                // lock used by shutdown so export and shutdown are linearized.
+                if self.is_shutdown.load(Ordering::Acquire) {
+                    #[cfg(feature = "experimental_metrics_bound_instruments")]
+                    self.processed_after_shutdown.add(1);
+                    return Ok(());
+                }
+
+                // Count the span as processed right before submitting it to the
+                // exporter, independent of the export outcome, per semconv.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_success.add(1);
+                futures_executor::block_on(exporter.export(vec![span]))
+            }
+            Err(_) => Err(OTelSdkError::InternalFailure(
+                "SimpleSpanProcessor mutex poison".into(),
+            )),
+        }
+    }
 }
 
 impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
@@ -363,18 +387,7 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
             return;
         }
 
-        let result = match self.exporter.lock() {
-            Ok(exporter) => {
-                // Count the span as processed right before submitting it to the
-                // exporter, independent of the export outcome, per semconv.
-                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                self.processed_success.add(1);
-                futures_executor::block_on(exporter.export(vec![span]))
-            }
-            Err(_) => Err(OTelSdkError::InternalFailure(
-                "SimpleSpanProcessor mutex poison".into(),
-            )),
-        };
+        let result = self.export_with_lock(span);
 
         if let Err(err) = result {
             // TODO: check error type, and log `error` only if the error is user-actionable, else log `debug`
@@ -391,7 +404,9 @@ impl<T: SpanExporter> SpanProcessor for SimpleSpanProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        self.is_shutdown.store(true, Ordering::Relaxed);
+        if self.is_shutdown.swap(true, Ordering::AcqRel) {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
         if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown_with_timeout(timeout)
         } else {
@@ -1462,8 +1477,25 @@ mod tests {
         let span_data = new_test_export_span_data();
         processor.on_end(FinishedSpan::borrowed(&span_data));
         assert!(!exporter.get_finished_spans().unwrap().is_empty());
-        let _result = processor.shutdown();
+        processor.shutdown().unwrap();
+        assert!(matches!(
+            processor.shutdown(),
+            Err(OTelSdkError::AlreadyShutdown)
+        ));
         // Assume shutdown is called by ensuring spans are empty in the exporter
+        assert!(exporter.get_finished_spans().unwrap().is_empty());
+    }
+
+    #[test]
+    fn export_with_lock_rechecks_shutdown() {
+        let exporter = InMemorySpanExporterBuilder::new().build();
+        let processor = SimpleSpanProcessor::new(exporter.clone());
+        processor.is_shutdown.store(true, Ordering::Relaxed);
+
+        processor
+            .export_with_lock(new_test_export_span_data())
+            .unwrap();
+
         assert!(exporter.get_finished_spans().unwrap().is_empty());
     }
 

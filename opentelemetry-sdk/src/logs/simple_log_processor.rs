@@ -132,6 +132,36 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
             processed_after_shutdown,
         }
     }
+
+    fn export_with_lock(
+        &self,
+        record: &SdkLogRecord,
+        instrumentation: &InstrumentationScope,
+    ) -> OTelSdkResult {
+        match self.exporter.lock() {
+            Ok(exporter) => {
+                // Shutdown may have started after the fast-path check above but
+                // before this lock was acquired. Recheck while holding the same
+                // lock used by shutdown so export and shutdown are linearized.
+                if self.is_shutdown.load(std::sync::atomic::Ordering::Acquire) {
+                    #[cfg(feature = "experimental_metrics_bound_instruments")]
+                    self.processed_after_shutdown.add(1);
+                    return Ok(());
+                }
+
+                let log_tuple = &[(record, instrumentation)];
+                // Count the record as processed right before submitting it to
+                // the exporter, independent of the export outcome, per semconv.
+                // Matches BatchLogProcessor, which records success before export.
+                #[cfg(feature = "experimental_metrics_bound_instruments")]
+                self.processed_success.add(1);
+                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
+            }
+            Err(_) => Err(OTelSdkError::InternalFailure(
+                "SimpleLogProcessor mutex poison".into(),
+            )),
+        }
+    }
 }
 
 impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
@@ -150,20 +180,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
             return;
         }
 
-        let result = match self.exporter.lock() {
-            Ok(exporter) => {
-                let log_tuple = &[(record as &SdkLogRecord, instrumentation)];
-                // Count the record as processed right before submitting it to
-                // the exporter, independent of the export outcome, per semconv.
-                // Matches BatchLogProcessor, which records success before export.
-                #[cfg(feature = "experimental_metrics_bound_instruments")]
-                self.processed_success.add(1);
-                futures_executor::block_on(exporter.export(LogBatch::new(log_tuple)))
-            }
-            Err(_) => Err(OTelSdkError::InternalFailure(
-                "SimpleLogProcessor mutex poison".into(),
-            )),
-        };
+        let result = self.export_with_lock(record, instrumentation);
         // Handle errors with specific static names
         match result {
             Err(OTelSdkError::InternalFailure(_)) => {
@@ -187,8 +204,12 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        self.is_shutdown
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        if self
+            .is_shutdown
+            .swap(true, std::sync::atomic::Ordering::AcqRel)
+        {
+            return Err(OTelSdkError::AlreadyShutdown);
+        }
         if let Ok(exporter) = self.exporter.lock() {
             exporter.shutdown_with_timeout(timeout)
         } else {
@@ -323,7 +344,7 @@ mod tests {
     use crate::logs::log_processor::tests::MockLogExporter;
     use crate::logs::{LogBatch, LogExporter, SdkLogRecord, SdkLogger};
     use crate::{
-        error::OTelSdkResult,
+        error::{OTelSdkError, OTelSdkResult},
         logs::{InMemoryLogExporterBuilder, LogProcessor, SdkLoggerProvider, SimpleLogProcessor},
         Resource,
     };
@@ -405,6 +426,10 @@ mod tests {
         processor.emit(&mut record, &instrumentation);
 
         processor.shutdown().unwrap();
+        assert!(matches!(
+            processor.shutdown(),
+            Err(OTelSdkError::AlreadyShutdown)
+        ));
 
         let is_shutdown = processor
             .is_shutdown
@@ -415,6 +440,22 @@ mod tests {
 
         assert_eq!(1, exporter.get_emitted_logs().unwrap().len());
         assert!(exporter.is_shutdown_called());
+    }
+
+    #[test]
+    fn export_with_lock_rechecks_shutdown() {
+        let exporter = InMemoryLogExporterBuilder::default().build();
+        let processor = SimpleLogProcessor::new(exporter.clone());
+        processor
+            .is_shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
+        let record = SdkLogRecord::new();
+        processor
+            .export_with_lock(&record, &InstrumentationScope::default())
+            .unwrap();
+
+        assert!(exporter.get_emitted_logs().unwrap().is_empty());
     }
 
     #[test]
