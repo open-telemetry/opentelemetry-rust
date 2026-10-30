@@ -16,12 +16,19 @@
 //! `Propagator`s uses [`Injector`] and [`Extractor`] to read and write context data to and from messages.
 //! Each specific Propagator type defines its expected carrier type, such as a string map or a byte array.
 //!
+//! With the `experimental_propagation_env_carrier` feature, the `env` module provides
+//! carriers that propagate context to and from child processes through environment variables.
+//!
 //! [`Baggage`]: crate::baggage::Baggage
 //! [`Context`]: crate::Context
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub mod composite;
+#[cfg(feature = "experimental_propagation_env_carrier")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_propagation_env_carrier")))]
+pub mod env;
 pub mod text_map_propagator;
 
 pub use composite::TextMapCompositePropagator;
@@ -40,13 +47,16 @@ pub trait Injector {
 /// Extractor provides an interface for removing fields from an underlying struct like `HashMap`
 pub trait Extractor {
     /// Get a value from a key from the underlying data.
-    fn get(&self, key: &str) -> Option<&str>;
+    ///
+    /// Carriers that hold the value return [`Cow::Borrowed`], carriers that have
+    /// to produce it on demand return [`Cow::Owned`].
+    fn get(&self, key: &str) -> Option<Cow<'_, str>>;
 
     /// Collect all the keys from the underlying data.
-    fn keys(&self) -> Vec<&str>;
+    fn keys(&self) -> Vec<Cow<'_, str>>;
 
     /// Get all values from a key from the underlying data.
-    fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+    fn get_all(&self, key: &str) -> Option<Vec<Cow<'_, str>>> {
         self.get(key).map(|value| vec![value])
     }
 }
@@ -65,13 +75,16 @@ impl<S: std::hash::BuildHasher> Injector for HashMap<String, String, S> {
 
 impl<S: std::hash::BuildHasher> Extractor for HashMap<String, String, S> {
     /// Get a value for a key from the HashMap.
-    fn get(&self, key: &str) -> Option<&str> {
-        self.get(&key.to_lowercase()).map(|v| v.as_str())
+    fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+        self.get(&key.to_lowercase())
+            .map(|v| Cow::Borrowed(v.as_str()))
     }
 
     /// Collect all the keys from the HashMap.
-    fn keys(&self) -> Vec<&str> {
-        self.keys().map(|k| k.as_str()).collect::<Vec<_>>()
+    fn keys(&self) -> Vec<Cow<'_, str>> {
+        self.keys()
+            .map(|k| Cow::Borrowed(k.as_str()))
+            .collect::<Vec<_>>()
     }
 }
 
@@ -85,7 +98,7 @@ mod tests {
         carrier.set("headerName", "value".to_string());
 
         assert_eq!(
-            Extractor::get(&carrier, "HEADERNAME"),
+            Extractor::get(&carrier, "HEADERNAME").as_deref(),
             Some("value"),
             "case insensitive extraction"
         );
@@ -98,7 +111,7 @@ mod tests {
 
         assert_eq!(
             Extractor::get_all(&carrier, "HEADERNAME"),
-            Some(vec!["value"]),
+            Some(vec![Cow::Borrowed("value")]),
             "case insensitive get_all extraction"
         );
     }
@@ -123,8 +136,8 @@ mod tests {
 
         let got = Extractor::keys(&carrier);
         assert_eq!(got.len(), 2);
-        assert!(got.contains(&"headername1"));
-        assert!(got.contains(&"headername2"));
+        assert!(got.contains(&Cow::Borrowed("headername1")));
+        assert!(got.contains(&Cow::Borrowed("headername2")));
     }
 
     #[test]
@@ -136,13 +149,16 @@ mod tests {
 
         // Verify the HashMap still works after reserve
         Injector::set(&mut carrier, "test_key", "test_value".to_string());
-        assert_eq!(Extractor::get(&carrier, "test_key"), Some("test_value"));
+        assert_eq!(
+            Extractor::get(&carrier, "test_key").as_deref(),
+            Some("test_value")
+        );
 
         // Test reserve with zero capacity
         Injector::reserve(&mut carrier, 0);
         Injector::set(&mut carrier, "another_key", "another_value".to_string());
         assert_eq!(
-            Extractor::get(&carrier, "another_key"),
+            Extractor::get(&carrier, "another_key").as_deref(),
             Some("another_value")
         );
 

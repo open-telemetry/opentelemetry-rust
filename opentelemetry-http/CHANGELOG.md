@@ -2,6 +2,9 @@
 
 ## vNext
 
+- **Breaking** `HeaderExtractor`'s `Extractor` methods now return `Cow<'_, str>`
+  values, following the `Extractor` trait change in `opentelemetry`.
+
 ## 0.33.1
 
 Released 2026-Oct-08

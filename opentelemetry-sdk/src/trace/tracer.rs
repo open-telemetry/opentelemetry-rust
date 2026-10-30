@@ -777,7 +777,7 @@ mod tests {
         TraceContextPropagator::new()
             .inject_context(&Context::current_with_span(child), &mut injector);
         assert_eq!(
-            Extractor::get(&injector, "traceparent"),
+            Extractor::get(&injector, "traceparent").as_deref(),
             Some(expected.as_str())
         );
     }

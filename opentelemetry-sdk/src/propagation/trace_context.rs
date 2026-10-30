@@ -64,8 +64,11 @@ impl TraceContextPropagator {
 
     /// Extract span context from w3c trace-context header.
     fn extract_span_context(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or("").trim();
-        let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
+        let header_value = extractor.get(TRACEPARENT_HEADER).unwrap_or_default();
+        let parts = header_value
+            .trim()
+            .split_terminator('-')
+            .collect::<Vec<&str>>();
         // Ensure parts are not out of range.
         if parts.len() < 4 {
             return Err(());
@@ -173,6 +176,8 @@ impl TextMapPropagator for TraceContextPropagator {
 mod tests {
     use super::*;
     use crate::testing::trace::TestSpan;
+    use opentelemetry::propagation::env::{inject_into_command, EnvExtractor, EnvInjector};
+    use std::borrow::Cow;
     use std::collections::HashMap;
 
     #[rustfmt::skip]
@@ -300,21 +305,27 @@ mod tests {
     struct MultiValueExtractor(HashMap<String, Vec<String>>);
 
     impl Extractor for MultiValueExtractor {
-        fn get(&self, key: &str) -> Option<&str> {
+        fn get(&self, key: &str) -> Option<Cow<'_, str>> {
             self.0
                 .get(key)
                 .and_then(|values| values.first())
-                .map(String::as_str)
+                .map(|value| Cow::Borrowed(value.as_str()))
         }
 
-        fn keys(&self) -> Vec<&str> {
-            self.0.keys().map(String::as_str).collect()
-        }
-
-        fn get_all(&self, key: &str) -> Option<Vec<&str>> {
+        fn keys(&self) -> Vec<Cow<'_, str>> {
             self.0
-                .get(key)
-                .map(|values| values.iter().map(String::as_str).collect())
+                .keys()
+                .map(|key| Cow::Borrowed(key.as_str()))
+                .collect()
+        }
+
+        fn get_all(&self, key: &str) -> Option<Vec<Cow<'_, str>>> {
+            self.0.get(key).map(|values| {
+                values
+                    .iter()
+                    .map(|value| Cow::Borrowed(value.as_str()))
+                    .collect()
+            })
         }
     }
 
@@ -395,12 +406,12 @@ mod tests {
             );
 
             assert_eq!(
-                Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or(""),
+                Extractor::get(&injector, TRACEPARENT_HEADER).unwrap_or_default(),
                 expected_trace_parent
             );
 
             assert_eq!(
-                Extractor::get(&injector, TRACESTATE_HEADER).unwrap_or(""),
+                Extractor::get(&injector, TRACESTATE_HEADER).unwrap_or_default(),
                 expected_trace_state
             );
         }
@@ -437,7 +448,10 @@ mod tests {
 
         Context::map_current(|cx| propagator.inject_context(cx, &mut injector));
 
-        assert_eq!(Extractor::get(&injector, TRACESTATE_HEADER), Some(state))
+        assert_eq!(
+            Extractor::get(&injector, TRACESTATE_HEADER).as_deref(),
+            Some(state)
+        )
     }
 
     #[test]
@@ -454,9 +468,93 @@ mod tests {
             let mut injector = HashMap::new();
             propagator.inject_context(&cx, &mut injector);
             assert_eq!(
-                Extractor::get(&injector, TRACEPARENT_HEADER),
+                Extractor::get(&injector, TRACEPARENT_HEADER).as_deref(),
                 Some(header.as_str())
             );
         }
+    }
+
+    #[test]
+    fn env_carriers_round_trip() {
+        let propagator = TraceContextPropagator::new();
+        let span_context = SpanContext::new(
+            TraceId::from(0x4bf9_2f35_77b3_4da6_a3ce_929d_0e0e_4736),
+            SpanId::from(0x00f0_67aa_0ba9_02b7),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::from_str("foo=bar").unwrap(),
+        );
+        let cx = Context::new().with_remote_span_context(span_context.clone());
+
+        let mut vars = HashMap::new();
+        propagator.inject_context(&cx, &mut EnvInjector(&mut vars));
+        assert_eq!(
+            vars.get("TRACEPARENT").map(String::as_str),
+            Some("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+        );
+        assert_eq!(vars.get("TRACESTATE").map(String::as_str), Some("foo=bar"));
+
+        let child_env: Vec<_> = vars
+            .iter()
+            .map(|(k, v)| (k.as_str(), Some(v.as_str())))
+            .collect();
+        temp_env::with_vars(child_env, || {
+            let extracted = propagator.extract_with_context(&Context::new(), &EnvExtractor);
+            assert_eq!(extracted.span().span_context(), &span_context);
+        });
+    }
+
+    #[test]
+    fn inject_into_command_removes_stale_tracestate() {
+        let propagator = TraceContextPropagator::new();
+        let cx = Context::new().with_remote_span_context(SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        ));
+
+        let mut command = std::process::Command::new("unused");
+        inject_into_command(&propagator, &cx, &mut command);
+
+        let envs: HashMap<_, _> = command.get_envs().collect();
+        assert!(envs[std::ffi::OsStr::new("TRACEPARENT")].is_some());
+        assert_eq!(envs[std::ffi::OsStr::new("TRACESTATE")], None);
+    }
+
+    // Runs a real child process, to cover what it inherits from this process.
+    #[cfg(unix)]
+    #[test]
+    fn child_process_does_not_inherit_stale_tracestate() {
+        let propagator = TraceContextPropagator::new();
+        let cx = Context::new().with_remote_span_context(SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        ));
+
+        temp_env::with_vars(
+            [
+                ("TRACEPARENT", Some("stale")),
+                ("TRACESTATE", Some("stale=value")),
+                ("ENV_CARRIER_TEST_INHERITED", Some("kept")),
+            ],
+            || {
+                let mut command = std::process::Command::new("env");
+                inject_into_command(&propagator, &cx, &mut command);
+                let output = command.output().expect("env should run");
+                let output = String::from_utf8(output.stdout).unwrap();
+                let vars: Vec<&str> = output.lines().collect();
+
+                assert!(vars.contains(
+                    &"TRACEPARENT=00-00000000000000000000000000000001-0000000000000001-01"
+                ));
+                assert!(vars.contains(&"ENV_CARRIER_TEST_INHERITED=kept"));
+                assert!(!vars.iter().any(|var| var.starts_with("TRACESTATE=")));
+            },
+        );
     }
 }

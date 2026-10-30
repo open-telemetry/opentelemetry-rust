@@ -2,6 +2,30 @@
 
 ## vNext
 
+- Added experimental `propagation::env` behind the
+  `experimental_propagation_env_carrier` feature, with `EnvExtractor`,
+  `EnvInjector`, `normalize_key` and `inject_into_command` for propagating context
+  through environment variables, as defined by the
+  [environment carrier specification](https://opentelemetry.io/docs/specs/otel/context/env-carriers/).
+- **Breaking** `Extractor::get`, `Extractor::keys` and `Extractor::get_all` now
+  return `Cow<'_, str>` values instead of `&str`, so carriers can produce both
+  owned and borrowed types. Implementations that hold their data can wrap it 
+  in `Cow::Borrowed`:
+
+  ```rust
+  // Before
+  fn get(&self, key: &str) -> Option<&str> {
+      self.0.get(key).map(String::as_str)
+  }
+
+  // After
+  fn get(&self, key: &str) -> Option<Cow<'_, str>> {
+      self.0.get(key).map(|value| Cow::Borrowed(value.as_str()))
+  }
+  ```
+
+  Callers can use `.as_deref()` to get an `Option<&str>` or replace
+  `.unwrap_or("")` with `.unwrap_or_default()`.
 - Added `TraceFlags::RANDOM`, `TraceFlags::is_random`, `TraceFlags::with_random`, and
   `SpanContext::is_random` for the W3C Trace Context Level 2 `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).

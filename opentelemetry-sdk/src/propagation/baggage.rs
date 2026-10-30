@@ -106,6 +106,7 @@ impl TextMapPropagator for BaggagePropagator {
     /// Extracts a `Context` with baggage values from a `Extractor`.
     fn extract_with_context(&self, cx: &Context, extractor: &dyn Extractor) -> Context {
         if let Some(header_value) = extractor.get(BAGGAGE_HEADER) {
+            let header_value: &str = &header_value;
             // Enforce the W3C Baggage maximum header length up-front so a
             // single oversize header cannot drive per-entry allocation work
             // before the entries are dropped on insert. See
@@ -188,6 +189,14 @@ impl TextMapPropagator for BaggagePropagator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::propagation::TraceContextPropagator;
+    use opentelemetry::propagation::{
+        env::{inject_into_command, EnvExtractor, EnvInjector},
+        TextMapCompositePropagator,
+    };
+    use opentelemetry::trace::{
+        SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState,
+    };
     use opentelemetry::{baggage::BaggageMetadata, Key, KeyValue, StringValue, Value};
     use std::collections::HashMap;
 
@@ -392,5 +401,71 @@ mod tests {
         // additionally stops parsing at MAX_BAGGAGE_ITEMS so allocator work
         // does not grow with attacker-supplied entry counts.
         assert_eq!(context.baggage().len(), MAX_BAGGAGE_ITEMS);
+    }
+
+    #[test]
+    fn env_carriers_round_trip() {
+        let propagator = BaggagePropagator::new();
+        let cx = Context::new().with_baggage(vec![KeyValue::new("key", "a value")]);
+
+        let mut vars = HashMap::new();
+        propagator.inject_context(&cx, &mut EnvInjector(&mut vars));
+        assert_eq!(
+            vars.get("BAGGAGE").map(String::as_str),
+            Some("key=a%20value")
+        );
+
+        temp_env::with_var("BAGGAGE", Some(&vars["BAGGAGE"]), || {
+            let extracted = propagator.extract_with_context(&Context::new(), &EnvExtractor);
+            assert_eq!(
+                extracted.baggage().get("key"),
+                Some(&StringValue::from("a value"))
+            );
+        });
+    }
+
+    #[test]
+    fn inject_into_command_removes_stale_baggage() {
+        let mut command = std::process::Command::new("unused");
+        inject_into_command(&BaggagePropagator::new(), &Context::new(), &mut command);
+
+        let envs: HashMap<_, _> = command.get_envs().collect();
+        assert_eq!(envs[std::ffi::OsStr::new("BAGGAGE")], None);
+    }
+
+    #[test]
+    fn env_carriers_with_composite_propagator() {
+        let propagator = TextMapCompositePropagator::new(vec![
+            Box::new(TraceContextPropagator::new()),
+            Box::new(BaggagePropagator::new()),
+        ]);
+        let span_context = SpanContext::new(
+            TraceId::from(1),
+            SpanId::from(1),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        );
+        let cx = Context::new()
+            .with_remote_span_context(span_context.clone())
+            .with_baggage(vec![KeyValue::new("key", "value")]);
+
+        let mut vars = HashMap::new();
+        propagator.inject_context(&cx, &mut EnvInjector(&mut vars));
+        assert!(vars.contains_key("TRACEPARENT"));
+        assert!(vars.contains_key("BAGGAGE"));
+
+        let child_env: Vec<_> = vars
+            .iter()
+            .map(|(k, v)| (k.as_str(), Some(v.as_str())))
+            .collect();
+        temp_env::with_vars(child_env, || {
+            let extracted = propagator.extract_with_context(&Context::new(), &EnvExtractor);
+            assert_eq!(extracted.span().span_context(), &span_context);
+            assert_eq!(
+                extracted.baggage().get("key"),
+                Some(&StringValue::from("value"))
+            );
+        });
     }
 }

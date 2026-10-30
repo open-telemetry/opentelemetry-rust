@@ -155,7 +155,7 @@ mod tests {
             match (self.header, extractor.get(self.header)) {
                 ("span-id", Some(val)) => cx.with_remote_span_context(SpanContext::new(
                     TraceId::from(1),
-                    SpanId::from(u64::from_str_radix(val, 16).unwrap()),
+                    SpanId::from(u64::from_str_radix(&val, 16).unwrap()),
                     TraceFlags::default(),
                     false,
                     TraceState::default(),

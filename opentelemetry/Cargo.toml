@@ -41,6 +41,7 @@ logs = []
 internal-logs = ["tracing"]
 experimental_metrics_bound_instruments = ["metrics"]
 experimental_context_observer = []
+experimental_propagation_env_carrier = []
 
 [dev-dependencies]
 # for documentation tests
@@ -48,6 +49,7 @@ opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false }
 criterion = { workspace = true }
 rand = { workspace = true, features = ["os_rng", "thread_rng"] }
 tokio = { version = "=1.53.3", features = ["full"] }
+temp-env = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["registry"] }
 tracing = { workspace = true, features = ["std"] }
 

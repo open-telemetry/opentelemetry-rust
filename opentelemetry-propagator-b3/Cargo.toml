@@ -20,8 +20,9 @@ once_cell = { workspace = true }
 opentelemetry = { workspace = true, features = ["trace"] }
 
 [dev-dependencies]
-opentelemetry = { workspace = true, features = ["testing"] }
+opentelemetry = { workspace = true, features = ["experimental_propagation_env_carrier", "testing"] }
 opentelemetry_sdk = { workspace = true, features = ["trace"] }
+temp-env = { workspace = true }
 
 [lints]
 workspace = true

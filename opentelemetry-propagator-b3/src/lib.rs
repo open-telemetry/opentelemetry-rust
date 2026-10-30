@@ -154,7 +154,7 @@ impl Propagator {
 
     /// Extract a `SpanContext` from a single B3 header.
     fn extract_single_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
-        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or("");
+        let header_value = extractor.get(B3_SINGLE_HEADER).unwrap_or_default();
         let parts = header_value.split_terminator('-').collect::<Vec<&str>>();
         // Ensure length is within range.
         if parts.len() > 4 || parts.len() < 2 {
@@ -188,17 +188,18 @@ impl Propagator {
     /// Extract a `SpanContext` from multiple B3 headers.
     fn extract_multi_header(&self, extractor: &dyn Extractor) -> Result<SpanContext, ()> {
         let trace_id = self
-            .extract_trace_id(extractor.get(B3_TRACE_ID_HEADER).unwrap_or(""))
+            .extract_trace_id(&extractor.get(B3_TRACE_ID_HEADER).unwrap_or_default())
             .map_err(|_| ())?;
         let span_id = self
-            .extract_span_id(extractor.get(B3_SPAN_ID_HEADER).unwrap_or(""))
+            .extract_span_id(&extractor.get(B3_SPAN_ID_HEADER).unwrap_or_default())
             .map_err(|_| ())?;
         // Only ensure valid parent span header if present.
         if let Some(parent) = extractor.get(B3_PARENT_SPAN_ID_HEADER) {
-            let _ = self.extract_span_id(parent).map_err(|_| ());
+            let _ = self.extract_span_id(&parent).map_err(|_| ());
         }
 
-        let debug = self.extract_debug_flag(extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or(""));
+        let debug =
+            self.extract_debug_flag(&extractor.get(B3_DEBUG_FLAG_HEADER).unwrap_or_default());
         let sampled_opt = extractor.get(B3_SAMPLED_HEADER);
 
         let flag = if let Ok(debug_flag) = debug {
@@ -207,7 +208,7 @@ impl Propagator {
         } else if let Some(sampled) = sampled_opt {
             // if debug is not set and X-B3-Sampled is not set, then deferred
             // if sample value is invalid, then return empty context.
-            self.extract_sampled_state(sampled)?
+            self.extract_sampled_state(&sampled)?
         } else {
             TRACE_FLAG_DEFERRED
         };
@@ -311,6 +312,7 @@ impl TextMapPropagator for Propagator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opentelemetry::propagation::env::{EnvExtractor, EnvInjector};
     use opentelemetry::testing::trace::TestSpan;
     use opentelemetry_sdk::propagation::TraceContextPropagator;
     use std::collections::HashMap;
@@ -792,5 +794,38 @@ mod tests {
             out.get("traceparent"),
             Some(&"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01".to_owned())
         );
+    }
+
+    #[test]
+    fn env_carriers_use_normalized_multiple_header_names() {
+        let propagator = Propagator::with_encoding(B3Encoding::MultipleHeader);
+        let span_context = SpanContext::new(
+            TraceId::from(TRACE_ID_HEX),
+            SpanId::from(SPAN_ID_HEX),
+            TraceFlags::SAMPLED,
+            true,
+            TraceState::default(),
+        );
+        let cx = Context::current_with_span(TestSpan(span_context.clone()));
+
+        let mut vars = HashMap::new();
+        propagator.inject_context(&cx, &mut EnvInjector(&mut vars));
+        assert_eq!(
+            vars.get("X_B3_TRACEID").map(String::as_str),
+            Some(TRACE_ID_STR)
+        );
+        assert_eq!(
+            vars.get("X_B3_SPANID").map(String::as_str),
+            Some(SPAN_ID_STR)
+        );
+
+        let child_env: Vec<_> = vars
+            .iter()
+            .map(|(k, v)| (k.as_str(), Some(v.as_str())))
+            .collect();
+        temp_env::with_vars(child_env, || {
+            let extracted = propagator.extract(&EnvExtractor);
+            assert_eq!(extracted.span().span_context(), &span_context);
+        });
     }
 }
