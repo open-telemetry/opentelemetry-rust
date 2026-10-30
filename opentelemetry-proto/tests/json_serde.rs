@@ -2869,7 +2869,7 @@ mod json_serde {
   ]
 }"#;
             let result: ExportMetricsServiceRequest =
-                serde_json::from_str(json).expect("quoted f64 numbers must deserialize");
+                serde_json::from_str(json).expect("bare f64 numbers must deserialize");
             let dp = &result.resource_metrics[0].scope_metrics[0].metrics[0];
             if let Some(opentelemetry_proto::tonic::metrics::v1::metric::Data::Summary(summary)) =
                 &dp.data
@@ -3083,6 +3083,32 @@ mod json_serde {
             } else {
                 panic!("Expected Histogram data");
             }
+        }
+    }
+
+    #[cfg(feature = "metrics")]
+    mod option_f64_none_round_trip {
+        use opentelemetry_proto::tonic::metrics::v1::HistogramDataPoint;
+
+        #[test]
+        fn histogram_data_point_with_none_min_max_sum_round_trips() {
+            let dp = HistogramDataPoint {
+                count: 0,
+                sum: None,
+                min: None,
+                max: None,
+                ..Default::default()
+            };
+
+            let json = serde_json::to_value(&dp).expect("serialize should succeed");
+            assert!(json["sum"].is_null());
+            assert!(json["min"].is_null());
+            assert!(json["max"].is_null());
+
+            let back: HistogramDataPoint = serde_json::from_value(json)
+                .expect("deserializing the library's own output should succeed");
+
+            assert_eq!(back, dp);
         }
     }
 }
