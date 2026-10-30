@@ -178,6 +178,29 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut span = tracer.start_with_context("span-name", &tracestate_parent_cx);
         span.end();
     });
+
+    let parent_based_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::ParentBased(Box::new(
+            sdktrace::Sampler::AlwaysOn,
+        )))
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let parent_based_tracer = parent_based_provider.tracer("parent-based");
+    let unsampled_parent_cx = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::from_bytes([1; 16]),
+        SpanId::from_bytes([1; 8]),
+        TraceFlags::default(),
+        true,
+        Default::default(),
+    ));
+
+    c.bench_function("span-creation-dropped-child-under-unsampled-parent", |b| {
+        b.iter(|| {
+            let mut span =
+                parent_based_tracer.start_with_context("span-name", &unsampled_parent_cx);
+            span.end();
+        });
+    });
 }
 
 #[derive(Debug)]
