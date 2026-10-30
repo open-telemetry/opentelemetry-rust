@@ -1,16 +1,29 @@
-pub mod common;
+#![cfg_attr(docsrs, feature(doc_cfg))]
+//! Stable conversion of OpenTelemetry SDK data into OTLP protobuf export requests.
+//!
+//! This crate contains the protocol-specific transformation layer between
+//! [`opentelemetry_sdk`] data and the generated types in [`opentelemetry_proto`].
+//! It does not provide an exporter or transport.
 
-#[cfg(feature = "metrics")]
-pub mod metrics;
+#[cfg(any(feature = "trace", feature = "metrics", feature = "logs"))]
+mod common;
 
+/// Trace export request conversion.
 #[cfg(feature = "trace")]
+#[cfg_attr(docsrs, doc(cfg(feature = "trace")))]
 pub mod trace;
 
+/// Metrics export request conversion.
+#[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
+pub mod metrics;
+
+/// Log export request conversion.
 #[cfg(feature = "logs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logs")))]
 pub mod logs;
 
+/// zPages trace data conversion.
 #[cfg(feature = "zpages")]
+#[cfg_attr(docsrs, doc(cfg(feature = "zpages")))]
 pub mod tracez;
-
-#[cfg(feature = "profiles")]
-pub mod profiles;

@@ -2,10 +2,44 @@
 
 ## vNext
 
-- **Bug fix**: OTLP span, link, and log record `flags` now carry only the W3C-defined
-  trace flags (`sampled`, `random-trace-id`); propagator-private bits such as the B3
-  propagator's deferred marker are no longer exported
-  ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- **Breaking:** Removed the public `transform` module and the dependencies on
+  `opentelemetry` and `opentelemetry_sdk`. This crate now contains generated OTLP
+  protobuf types only. Use the stable `opentelemetry-otlp-transform` crate to
+  convert SDK telemetry into OTLP export requests:
+
+  ```rust
+  // Before: traces
+  use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
+  use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+  use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+
+  let resource = ResourceAttributesWithSchema::from(&resource);
+  let request = ExportTraceServiceRequest {
+      resource_spans: group_spans_by_resource_and_scope(spans, &resource),
+  };
+
+  // After
+  let request = opentelemetry_otlp_transform::trace::export_request(spans, &resource);
+  ```
+
+  Equivalent `logs::export_request` and `metrics::export_request` functions are
+  available for logs and metrics. The zPages conversions moved behind the
+  `opentelemetry-otlp-transform/zpages` feature as free functions:
+
+  ```rust
+  // Before
+  let latency = opentelemetry_proto::tonic::tracez::v1::LatencyData::from(span);
+
+  // After
+  let latency =
+      opentelemetry_otlp_transform::tracez::span_to_latency_data(span);
+  ```
+
+  Equivalent `span_to_error_data`, `span_to_running_data`, and
+  `event_to_span_event` functions replace the old error, running, and event
+  conversions. The now-unused `testing` and `internal-logs` features were also
+  removed.
+
 ## 0.33.1
 
 Released 2026-Oct-08

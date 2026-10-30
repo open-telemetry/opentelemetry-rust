@@ -1,6 +1,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//! This crate contains generated files from [opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
-//! repository and transformation between types from generated files and types defined in [opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry)
+//! Generated Rust types for the [OpenTelemetry Protocol (OTLP)](https://github.com/open-telemetry/opentelemetry-proto).
+//!
+//! SDK-to-OTLP request conversions are provided by the stable
+//! `opentelemetry-otlp-transform` crate.
 //!
 //! Based on the build tool needed, users can choose to generate files using [tonic](https://github.com/hyperium/tonic)
 //! or [grpcio](https://github.com/tikv/grpc-rs).
@@ -34,8 +36,6 @@ mod proto;
 
 #[cfg(feature = "gen-tonic-messages")]
 pub use proto::tonic;
-
-pub mod transform;
 
 /// Contains the bytes of the file descriptors generated for the proto files.
 #[cfg(feature = "file-descriptors")]

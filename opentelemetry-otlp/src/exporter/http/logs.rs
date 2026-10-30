@@ -34,7 +34,7 @@ impl LogExporter for OtlpHttpClient {
     }
 
     fn set_resource(&mut self, resource: &opentelemetry_sdk::Resource) {
-        self.resource = resource.into();
+        self.resource = resource.clone();
     }
 }
 

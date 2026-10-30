@@ -1,8 +1,18 @@
-#[cfg(feature = "gen-tonic-messages")]
+use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
+use opentelemetry_sdk::{trace::SpanData, Resource};
+
+/// Converts a batch of completed spans into an OTLP export request.
+pub fn export_request(spans: Vec<SpanData>, resource: &Resource) -> ExportTraceServiceRequest {
+    let resource = crate::common::tonic::resource_to_attributes_with_schema(resource);
+    ExportTraceServiceRequest {
+        resource_spans: tonic::group_spans_by_resource_and_scope(spans, &resource),
+    }
+}
+
 /// Builds span flags based on the parent span's remote property.
 /// This follows the OTLP specification for span flags.
 pub(crate) fn build_span_flags(parent_span_is_remote: bool, base_flags: u32) -> u32 {
-    use crate::proto::tonic::trace::v1::SpanFlags;
+    use opentelemetry_proto::tonic::trace::v1::SpanFlags;
     let mut flags = base_flags;
     flags |= SpanFlags::ContextHasIsRemoteMask as u32;
     if parent_span_is_remote {
@@ -11,170 +21,102 @@ pub(crate) fn build_span_flags(parent_span_is_remote: bool, base_flags: u32) -> 
     flags
 }
 
-#[cfg(feature = "gen-tonic-messages")]
-pub mod tonic {
-    use crate::proto::tonic::resource::v1::Resource;
-    use crate::proto::tonic::trace::v1::{span, status, ResourceSpans, ScopeSpans, Span, Status};
-    use crate::transform::common::{
+pub(crate) mod tonic {
+    use crate::common::{
         to_nanos,
-        tonic::{Attributes, ResourceAttributesWithSchema},
+        tonic::{
+            instrumentation_scope_ref_to_proto, keyvalues_to_proto, ResourceAttributesWithSchema,
+        },
         w3c_trace_flags,
     };
     use opentelemetry::trace;
     use opentelemetry::trace::{Link, SpanId, SpanKind};
+    use opentelemetry_proto::tonic::resource::v1::Resource;
+    use opentelemetry_proto::tonic::trace::v1::{
+        span, status, ResourceSpans, ScopeSpans, Span, Status,
+    };
     use opentelemetry_sdk::trace::SpanData;
     use std::collections::HashMap;
 
-    impl From<SpanKind> for span::SpanKind {
-        fn from(span_kind: SpanKind) -> Self {
-            match span_kind {
-                SpanKind::Client => span::SpanKind::Client,
-                SpanKind::Consumer => span::SpanKind::Consumer,
-                SpanKind::Internal => span::SpanKind::Internal,
-                SpanKind::Producer => span::SpanKind::Producer,
-                SpanKind::Server => span::SpanKind::Server,
-            }
+    pub(crate) fn span_kind_to_proto(span_kind: SpanKind) -> span::SpanKind {
+        match span_kind {
+            SpanKind::Client => span::SpanKind::Client,
+            SpanKind::Consumer => span::SpanKind::Consumer,
+            SpanKind::Internal => span::SpanKind::Internal,
+            SpanKind::Producer => span::SpanKind::Producer,
+            SpanKind::Server => span::SpanKind::Server,
         }
     }
 
-    impl From<&trace::Status> for status::StatusCode {
-        fn from(status: &trace::Status) -> Self {
-            match status {
-                trace::Status::Ok => status::StatusCode::Ok,
-                trace::Status::Unset => status::StatusCode::Unset,
-                trace::Status::Error { .. } => status::StatusCode::Error,
-            }
+    pub(crate) fn status_to_proto_code(status: &trace::Status) -> status::StatusCode {
+        match status {
+            trace::Status::Ok => status::StatusCode::Ok,
+            trace::Status::Unset => status::StatusCode::Unset,
+            trace::Status::Error { .. } => status::StatusCode::Error,
         }
     }
 
-    impl From<Link> for span::Link {
-        fn from(link: Link) -> Self {
-            span::Link {
-                trace_id: link.span_context.trace_id().to_bytes().to_vec(),
-                span_id: link.span_context.span_id().to_bytes().to_vec(),
-                trace_state: link.span_context.trace_state().header(),
-                attributes: Attributes::from(link.attributes).0,
-                dropped_attributes_count: link.dropped_attributes_count,
-                flags: super::build_span_flags(
-                    link.span_context.is_remote(),
-                    w3c_trace_flags(link.span_context.trace_flags()),
-                ),
-            }
+    pub(crate) fn link_to_proto(link: Link) -> span::Link {
+        span::Link {
+            trace_id: link.span_context.trace_id().to_bytes().to_vec(),
+            span_id: link.span_context.span_id().to_bytes().to_vec(),
+            trace_state: link.span_context.trace_state().header(),
+            attributes: keyvalues_to_proto(link.attributes),
+            dropped_attributes_count: link.dropped_attributes_count,
+            flags: super::build_span_flags(
+                link.span_context.is_remote(),
+                w3c_trace_flags(link.span_context.trace_flags()),
+            ),
         }
     }
-    impl From<opentelemetry_sdk::trace::SpanData> for Span {
-        fn from(source_span: opentelemetry_sdk::trace::SpanData) -> Self {
-            let span_kind: span::SpanKind = source_span.span_kind.into();
-            Span {
-                trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
-                span_id: source_span.span_context.span_id().to_bytes().to_vec(),
-                trace_state: source_span.span_context.trace_state().header(),
-                parent_span_id: {
-                    if source_span.parent_span_id != SpanId::INVALID {
-                        source_span.parent_span_id.to_bytes().to_vec()
-                    } else {
-                        vec![]
-                    }
+
+    pub(crate) fn span_data_to_proto(source_span: SpanData) -> Span {
+        let span_kind = span_kind_to_proto(source_span.span_kind);
+        Span {
+            trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
+            span_id: source_span.span_context.span_id().to_bytes().to_vec(),
+            trace_state: source_span.span_context.trace_state().header(),
+            parent_span_id: {
+                if source_span.parent_span_id != SpanId::INVALID {
+                    source_span.parent_span_id.to_bytes().to_vec()
+                } else {
+                    vec![]
+                }
+            },
+            flags: super::build_span_flags(
+                source_span.parent_span_is_remote,
+                w3c_trace_flags(source_span.span_context.trace_flags()),
+            ),
+            name: source_span.name.into_owned(),
+            kind: span_kind as i32,
+            start_time_unix_nano: to_nanos(source_span.start_time),
+            end_time_unix_nano: to_nanos(source_span.end_time),
+            dropped_attributes_count: source_span.dropped_attributes_count,
+            attributes: keyvalues_to_proto(source_span.attributes),
+            dropped_events_count: source_span.events.dropped_count,
+            events: source_span
+                .events
+                .into_iter()
+                .map(|event| span::Event {
+                    time_unix_nano: to_nanos(event.timestamp),
+                    name: event.name.into(),
+                    attributes: keyvalues_to_proto(event.attributes),
+                    dropped_attributes_count: event.dropped_attributes_count,
+                })
+                .collect(),
+            dropped_links_count: source_span.links.dropped_count,
+            links: source_span.links.into_iter().map(link_to_proto).collect(),
+            status: Some(Status {
+                code: status_to_proto_code(&source_span.status).into(),
+                message: match source_span.status {
+                    trace::Status::Error { description } => description.to_string(),
+                    _ => Default::default(),
                 },
-                flags: super::build_span_flags(
-                    source_span.parent_span_is_remote,
-                    w3c_trace_flags(source_span.span_context.trace_flags()),
-                ),
-                name: source_span.name.into_owned(),
-                kind: span_kind as i32,
-                start_time_unix_nano: to_nanos(source_span.start_time),
-                end_time_unix_nano: to_nanos(source_span.end_time),
-                dropped_attributes_count: source_span.dropped_attributes_count,
-                attributes: Attributes::from(source_span.attributes).0,
-                dropped_events_count: source_span.events.dropped_count,
-                events: source_span
-                    .events
-                    .into_iter()
-                    .map(|event| span::Event {
-                        time_unix_nano: to_nanos(event.timestamp),
-                        name: event.name.into(),
-                        attributes: Attributes::from(event.attributes).0,
-                        dropped_attributes_count: event.dropped_attributes_count,
-                    })
-                    .collect(),
-                dropped_links_count: source_span.links.dropped_count,
-                links: source_span.links.into_iter().map(Into::into).collect(),
-                status: Some(Status {
-                    code: status::StatusCode::from(&source_span.status).into(),
-                    message: match source_span.status {
-                        trace::Status::Error { description } => description.to_string(),
-                        _ => Default::default(),
-                    },
-                }),
-            }
+            }),
         }
     }
 
-    impl ResourceSpans {
-        pub fn new(source_span: SpanData, resource: &ResourceAttributesWithSchema) -> Self {
-            let span_kind: span::SpanKind = source_span.span_kind.into();
-            ResourceSpans {
-                resource: Some(Resource {
-                    attributes: resource.attributes.0.clone(),
-                    dropped_attributes_count: 0,
-                    entity_refs: vec![],
-                }),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
-                scope_spans: vec![ScopeSpans {
-                    schema_url: source_span
-                        .instrumentation_scope
-                        .schema_url()
-                        .map(ToOwned::to_owned)
-                        .unwrap_or_default(),
-                    scope: Some((source_span.instrumentation_scope, None).into()),
-                    spans: vec![Span {
-                        trace_id: source_span.span_context.trace_id().to_bytes().to_vec(),
-                        span_id: source_span.span_context.span_id().to_bytes().to_vec(),
-                        trace_state: source_span.span_context.trace_state().header(),
-                        parent_span_id: {
-                            if source_span.parent_span_id != SpanId::INVALID {
-                                source_span.parent_span_id.to_bytes().to_vec()
-                            } else {
-                                vec![]
-                            }
-                        },
-                        flags: super::build_span_flags(
-                            source_span.parent_span_is_remote,
-                            w3c_trace_flags(source_span.span_context.trace_flags()),
-                        ),
-                        name: source_span.name.into_owned(),
-                        kind: span_kind as i32,
-                        start_time_unix_nano: to_nanos(source_span.start_time),
-                        end_time_unix_nano: to_nanos(source_span.end_time),
-                        dropped_attributes_count: source_span.dropped_attributes_count,
-                        attributes: Attributes::from(source_span.attributes).0,
-                        dropped_events_count: source_span.events.dropped_count,
-                        events: source_span
-                            .events
-                            .into_iter()
-                            .map(|event| span::Event {
-                                time_unix_nano: to_nanos(event.timestamp),
-                                name: event.name.into(),
-                                attributes: Attributes::from(event.attributes).0,
-                                dropped_attributes_count: event.dropped_attributes_count,
-                            })
-                            .collect(),
-                        dropped_links_count: source_span.links.dropped_count,
-                        links: source_span.links.into_iter().map(Into::into).collect(),
-                        status: Some(Status {
-                            code: status::StatusCode::from(&source_span.status).into(),
-                            message: match source_span.status {
-                                trace::Status::Error { description } => description.to_string(),
-                                _ => Default::default(),
-                            },
-                        }),
-                    }],
-                }],
-            }
-        }
-    }
-
-    pub fn group_spans_by_resource_and_scope(
+    pub(crate) fn group_spans_by_resource_and_scope(
         spans: Vec<SpanData>,
         resource: &ResourceAttributesWithSchema,
     ) -> Vec<ResourceSpans> {
@@ -190,7 +132,7 @@ pub mod tonic {
                     let instrumentation = span.instrumentation_scope.clone();
                     let scope_index = scope_spans.len();
                     scope_spans.push(ScopeSpans {
-                        scope: Some((&instrumentation, None).into()),
+                        scope: Some(instrumentation_scope_ref_to_proto(&instrumentation, None)),
                         schema_url: instrumentation
                             .schema_url()
                             .map(ToOwned::to_owned)
@@ -202,13 +144,15 @@ pub mod tonic {
                 }
             };
 
-            scope_spans[scope_index].spans.push(span.into());
+            scope_spans[scope_index]
+                .spans
+                .push(span_data_to_proto(span));
         }
 
         // Wrap ScopeSpans into a single ResourceSpans
         vec![ResourceSpans {
             resource: Some(Resource {
-                attributes: resource.attributes.0.clone(),
+                attributes: resource.attributes.clone(),
                 dropped_attributes_count: 0,
                 entity_refs: vec![],
             }),
@@ -218,11 +162,12 @@ pub mod tonic {
     }
 }
 
-#[cfg(all(test, feature = "gen-tonic-messages"))]
+#[cfg(test)]
 mod span_flags_tests {
-    use crate::proto::tonic::trace::v1::{Span, SpanFlags};
-    use opentelemetry::trace::{SpanContext, SpanId, TraceFlags, TraceId, TraceState};
+    use crate::trace::tonic::{link_to_proto, span_data_to_proto};
+    use opentelemetry::trace::{Link, SpanContext, SpanId, TraceFlags, TraceId, TraceState};
     use opentelemetry::InstrumentationScope;
+    use opentelemetry_proto::tonic::trace::v1::{Span, SpanFlags};
     use opentelemetry_sdk::trace::SpanData;
     use std::borrow::Cow;
 
@@ -255,8 +200,6 @@ mod span_flags_tests {
 
     #[test]
     fn test_span_transformation_with_flags() {
-        use crate::proto::tonic::trace::v1::ResourceSpans;
-
         for (flags, expected) in [
             (TraceFlags::default(), 0x100),
             (TraceFlags::new(0x80) | TraceFlags::RANDOM, 0x102),
@@ -282,19 +225,14 @@ mod span_flags_tests {
                 status: opentelemetry::trace::Status::Unset,
                 instrumentation_scope: InstrumentationScope::builder("test").build(),
             };
-            let otlp_span: Span = span_data.clone().into();
-            assert_eq!(otlp_span.flags, expected);
 
-            let resource_spans = ResourceSpans::new(span_data, &Default::default());
-            assert_eq!(resource_spans.scope_spans[0].spans[0].flags, expected);
+            let otlp_span: Span = span_data_to_proto(span_data);
+            assert_eq!(otlp_span.flags, expected);
         }
     }
 
     #[test]
     fn test_link_flags_drop_propagator_private_bits() {
-        use crate::proto::tonic::trace::v1::span;
-        use opentelemetry::trace::Link;
-
         for (flags, remote, expected) in [
             (TraceFlags::new(0x80), false, 0x100),
             (TraceFlags::new(0x80) | TraceFlags::SAMPLED, true, 0x301),
@@ -311,7 +249,7 @@ mod span_flags_tests {
                 vec![],
                 0,
             );
-            let otlp_link: span::Link = link.into();
+            let otlp_link = link_to_proto(link);
             assert_eq!(otlp_link.flags, expected, "flags {:#04x}", flags.to_u8());
         }
     }
@@ -340,7 +278,7 @@ mod span_flags_tests {
             instrumentation_scope: InstrumentationScope::builder("test").build(),
         };
 
-        let otlp_span: Span = span_data.into();
+        let otlp_span: Span = span_data_to_proto(span_data);
         assert_eq!(
             otlp_span.flags,
             (SpanFlags::ContextHasIsRemoteMask as u32) | (SpanFlags::ContextIsRemoteMask as u32)
@@ -350,20 +288,19 @@ mod span_flags_tests {
 
 #[cfg(test)]
 mod tests {
-    use crate::tonic::common::v1::{
-        any_value::Value, AnyValue, InstrumentationScope as ProtoScope, KeyValue as ProtoKeyValue,
-    };
-    use crate::tonic::resource::v1::Resource as ProtoResource;
-    use crate::tonic::trace::v1::{
-        span, status, ResourceSpans, ScopeSpans, Span, Status as ProtoStatus,
-    };
-    use crate::transform::common::tonic::ResourceAttributesWithSchema;
     use opentelemetry::time::now;
     use opentelemetry::trace::{
         Event, Link, SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
     };
     use opentelemetry::InstrumentationScope;
     use opentelemetry::KeyValue;
+    use opentelemetry_proto::tonic::common::v1::{
+        any_value::Value, AnyValue, InstrumentationScope as ProtoScope, KeyValue as ProtoKeyValue,
+    };
+    use opentelemetry_proto::tonic::resource::v1::Resource as ProtoResource;
+    use opentelemetry_proto::tonic::trace::v1::{
+        span, status, ResourceSpans, ScopeSpans, Span, Status as ProtoStatus,
+    };
     use opentelemetry_sdk::resource::Resource;
     use opentelemetry_sdk::trace::{SpanData, SpanEvents, SpanLinks};
     use std::borrow::Cow;
@@ -447,12 +384,7 @@ mod tests {
                 "https://example.com/resource/1",
             )
             .build();
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-
-        let actual = crate::transform::trace::tonic::group_spans_by_resource_and_scope(
-            vec![span_data],
-            &resource,
-        );
+        let actual = crate::trace::export_request(vec![span_data], &resource).resource_spans;
         let expected = vec![ResourceSpans {
             resource: Some(ProtoResource {
                 attributes: vec![proto_attribute(
@@ -604,9 +536,7 @@ mod tests {
                 "https://example.com/resource/1",
             )
             .build();
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-        let mut actual =
-            crate::transform::trace::tonic::group_spans_by_resource_and_scope(batch, &resource);
+        let mut actual = crate::trace::export_request(batch, &resource).resource_spans;
 
         let expected_span = |id: u64| Span {
             trace_id: vec![1; 16],
@@ -752,11 +682,7 @@ mod tests {
             instrumentation_scope,
         };
 
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-        let grouped_spans = crate::transform::trace::tonic::group_spans_by_resource_and_scope(
-            vec![span_data],
-            &resource,
-        );
+        let grouped_spans = crate::trace::export_request(vec![span_data], &resource).resource_spans;
 
         assert_eq!(grouped_spans.len(), 1);
         let resource_spans = &grouped_spans[0];

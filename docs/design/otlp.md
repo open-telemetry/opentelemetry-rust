@@ -1,7 +1,7 @@
 # OpenTelemetry Rust – OTLP Architecture
 
 > Status:Development 
-> Last Updated: 2025-07-16
+> Last Updated: 2026-10-27
 
 This document describes how the **OTLP exporters** are organised and how they integrate with the wider OpenTelemetry Rust SDK.  
 
@@ -22,30 +22,39 @@ OpenTelemetry Protocol (OTLP) is the vendor-agnostic wire format used by OpenTel
 ## 2. Overall Structure of `opentelemetry-rust` and OTLP
 ```mermaid
 graph TD
-    A[Application code] --> B[opentelemetry-api]
+    A[Application code] --> B[opentelemetry API]
     B --> C[opentelemetry-sdk processors]
-    C --> D[opentelemetry-otlp exporters]
+    C --> T[opentelemetry-otlp-transform]
+    P[opentelemetry-proto generated types] --> T
+    T --> D[opentelemetry-otlp exporters]
     D -->|gRPC / HTTP| E[OTel Collector / Backend]
     %% Auxiliary exporters
     C --> F[custom exporters]
+    T --> F
 ```
 
 Important details:
 
-* `opentelemetry-sdk` owns batching, aggregation, lifecycle; **exporters handle serialization, transport, and may implement retry policy**.
-* Each signal (trace/metric/log) has its own exporter type but they share common builder + transport modules.
+* `opentelemetry-sdk` owns batching, aggregation, and lifecycle.
+* `opentelemetry-proto` contains generated OTLP types and has no API or SDK dependency.
+* The stable `opentelemetry-otlp-transform` crate converts SDK data into OTLP export requests. Its public API has one entry point per signal and keeps grouping and field-level helpers private.
+* Exporters handle wire serialization, transport, and retry policy. Each signal has its own exporter type but they share common builder and transport modules.
 
 ---
 
 ## 3. Crate Layout
 ```text
-src/
-  lib.rs                 # Re-exports + feature flags + protocol enum
-  span.rs | metric.rs | logs.rs   # Signal-specific builders/exporters
-  exporter/
-     ├── mod.rs          # Common builder traits, env var parsing, compression
-     ├── http/           # Reqwest blocking/async clients, body encoder
-     └── tonic/          # Tonic client, TLS/compression helpers
+opentelemetry-proto/             # Generated OTLP protobuf types only
+opentelemetry-otlp-transform/    # SDK data to OTLP request conversion
+  src/trace.rs | metrics.rs | logs.rs
+opentelemetry-otlp/
+  src/
+    lib.rs                       # Re-exports + feature flags + protocol enum
+    span.rs | metric.rs | logs.rs
+    exporter/
+       ├── mod.rs                # Common builder traits, env var parsing, compression
+       ├── http/                 # HTTP clients and protobuf/JSON body encoding
+       └── tonic/                # Tonic client, TLS/compression helpers
 ```
 ### 3.1 Common Interfaces
 * **`HasExportConfig` / `WithExportConfig`** – traits mixed into builders to expose shared config (`endpoint`, `timeout`, `protocol`).
@@ -88,12 +97,15 @@ sequenceDiagram
     participant App as Application code
     participant SDK as opentelemetry-sdk
     participant Exp as SpanExporter
+    participant Transform as opentelemetry-otlp-transform
     participant Tx as Transport Client (HTTP/Reqwest or gRPC/Tonic)
     participant Collector as OTLP Collector
     App->>SDK: span.start / span.end
     SDK-->>SDK: BatchSpanProcessor collects SpanData
     SDK->>Exp: export(batch)
-    Exp->>Tx: serialize + send
+    Exp->>Transform: trace::export_request(batch, resource)
+    Transform-->>Exp: ExportTraceServiceRequest
+    Exp->>Tx: encode + send
     Tx--)Collector: OTLP request
     note right of Collector: 2xx = success,<br/>non-2xx → error handling
     Tx--)Exp: Future resolves
@@ -101,7 +113,7 @@ sequenceDiagram
 ```
 Notes: 
 
-* Serialization happens **inside the transport client** module to keep exporters thin.
+* OTLP request construction happens in `opentelemetry-otlp-transform`; protobuf or JSON wire encoding happens inside the transport client.
 * `export` methods return futures, surfaced via signal exporters implementing their respective exporter traits (`SpanExporter`, `PushMetricExporter`, `LogExporter`).
 * Resource attributes are injected once per exporter via `set_resource()` before first export.
 
@@ -142,10 +154,13 @@ Builder fails fast, runtime exporter surfaces errors through `export()` futures 
 |----------|-----------|
 | *Builder pattern with marker types* | Compile-time guarantee that exactly one transport is chosen. |
 | *Transport-specific modules* | Keep heavy deps (`tonic`, `reqwest`) behind feature-flags to minimise compile times. |
+| *Separate generated types and SDK conversion* | Keep `opentelemetry-proto` independent of the API and SDK while allowing OTLP exporters and custom consumers to share conversion logic. |
 
 ---
 
 ### Source References
+* Public conversion API – [`opentelemetry-otlp-transform`](../../opentelemetry-otlp-transform/src/lib.rs)
+* Generated OTLP types – [`opentelemetry-proto`](../../opentelemetry-proto/src/lib.rs)
 * Builder traits – [`exporter/mod.rs`](../../opentelemetry-otlp/src/exporter/mod.rs)
 * HTTP transport – [`exporter/http/mod.rs`](../../opentelemetry-otlp/src/exporter/http/mod.rs)
 * gRPC transport – [`exporter/tonic/mod.rs`](../../opentelemetry-otlp/src/exporter/tonic/mod.rs)

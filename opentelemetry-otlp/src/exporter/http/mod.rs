@@ -8,11 +8,12 @@ use crate::{
 use http::{HeaderName, HeaderValue, Uri};
 use opentelemetry::otel_debug;
 use opentelemetry_http::{Bytes, HttpClient, ResponseBodyTooLarge};
-use opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema;
 #[cfg(feature = "logs")]
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
+use opentelemetry_otlp_transform::logs::export_request as logs_export_request;
+#[cfg(feature = "metrics")]
+use opentelemetry_otlp_transform::metrics::export_request as metrics_export_request;
 #[cfg(feature = "trace")]
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use opentelemetry_otlp_transform::trace::export_request as trace_export_request;
 #[cfg(feature = "logs")]
 use opentelemetry_sdk::logs::LogBatch;
 #[cfg(feature = "trace")]
@@ -416,7 +417,7 @@ pub(crate) struct OtlpHttpClient {
     max_request_body_size: usize,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics and traces.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: opentelemetry_sdk::Resource,
 }
 
 impl OtlpHttpClient {
@@ -643,7 +644,7 @@ impl OtlpHttpClient {
             compression,
             retry_policy: retry_policy.unwrap_or_default(),
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
-            resource: ResourceAttributesWithSchema::default(),
+            resource: opentelemetry_sdk::Resource::builder_empty().build(),
         }
     }
 
@@ -652,10 +653,7 @@ impl OtlpHttpClient {
         &self,
         spans: Vec<SpanData>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
-        let resource_spans = group_spans_by_resource_and_scope(spans, &self.resource);
-
-        let req = ExportTraceServiceRequest { resource_spans };
+        let req = trace_export_request(spans, &self.resource);
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
             Protocol::HttpJson => match serde_json::to_string_pretty(&req) {
@@ -681,9 +679,7 @@ impl OtlpHttpClient {
         &self,
         logs: LogBatch<'_>,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
-        let resource_logs = group_logs_by_resource_and_scope(&logs, &self.resource);
-        let req = ExportLogsServiceRequest { resource_logs };
+        let req = logs_export_request(&logs, &self.resource);
 
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
@@ -710,9 +706,7 @@ impl OtlpHttpClient {
         &self,
         metrics: &ResourceMetrics,
     ) -> Result<(Vec<u8>, &'static str, Option<&'static str>), String> {
-        use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
-
-        let req: ExportMetricsServiceRequest = metrics.into();
+        let req = metrics_export_request(metrics);
 
         let (body, content_type) = match self.protocol {
             #[cfg(feature = "http-json")]
