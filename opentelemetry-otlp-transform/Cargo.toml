@@ -1,0 +1,40 @@
+[package]
+name = "opentelemetry-otlp-transform"
+version = "0.33.1"
+description = "Transformation of OpenTelemetry SDK data into OTLP protobuf requests"
+homepage = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp-transform"
+repository = "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp-transform"
+readme = "README.md"
+categories = [
+    "development-tools::debugging",
+    "development-tools::profiling",
+]
+keywords = ["opentelemetry", "otlp", "logging", "tracing", "metrics"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.75.0"
+autotests = false
+autobenches = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+default = ["trace", "metrics", "logs", "internal-logs"]
+trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
+metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
+zpages = ["trace", "opentelemetry-proto/zpages"]
+internal-logs = ["opentelemetry/internal-logs"]
+
+[dependencies]
+opentelemetry = { workspace = true, default-features = false }
+opentelemetry_sdk = { workspace = true, default-features = false }
+opentelemetry-proto = { workspace = true, default-features = false, features = ["gen-tonic-messages"] }
+
+[lints]
+workspace = true
+
+[lib]
+bench = false
