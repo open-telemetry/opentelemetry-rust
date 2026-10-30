@@ -108,6 +108,11 @@ The following crates are maintained in this repo:
   telemetry backends like [Jaeger](https://www.jaegertracing.io/),
   [Prometheus](https://prometheus.io/docs/prometheus/latest/feature_flags/#otlp-receiver)
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
+* [`opentelemetry-proto`] provides generated OTLP protobuf types without a
+  dependency on the OpenTelemetry API or SDK.
+* [`opentelemetry-otlp-transform`] provides experimental conversions from SDK
+  telemetry into OTLP protobuf export requests and optional zPages trace data.
+  Its public API may change before stabilisation.
 * [`opentelemetry-stdout`] exporter for sending logs, metrics and traces to
   stdout, for learning/debugging purposes.  
 * [`opentelemetry-http`] This crate contains utility functions to help with
@@ -135,6 +140,8 @@ Registry](https://opentelemetry.io/ecosystem/registry/?language=rust).
 [`opentelemetry-appender-tracing`]: https://crates.io/crates/opentelemetry-appender-tracing
 [`opentelemetry-http`]: https://crates.io/crates/opentelemetry-http
 [`opentelemetry-otlp`]: https://crates.io/crates/opentelemetry-otlp
+[`opentelemetry-otlp-transform`]: https://crates.io/crates/opentelemetry-otlp-transform
+[`opentelemetry-proto`]: https://crates.io/crates/opentelemetry-proto
 [`opentelemetry-stdout`]: https://crates.io/crates/opentelemetry-stdout
 [`opentelemetry-prometheus`]: https://crates.io/crates/opentelemetry-prometheus
 [`Prometheus`]: https://prometheus.io

@@ -6,6 +6,7 @@ packages=(
     "opentelemetry-sdk"
     "opentelemetry-semantic-conventions"
     "opentelemetry-proto"
+    "opentelemetry-otlp-transform"
     "opentelemetry-otlp"
     "opentelemetry-propagator-b3"
     "opentelemetry-appender-tracing"

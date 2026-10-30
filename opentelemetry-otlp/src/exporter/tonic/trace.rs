@@ -2,10 +2,8 @@ use core::fmt;
 use std::sync::{Arc, Mutex};
 
 use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry_proto::tonic::collector::trace::v1::{
-    trace_service_client::TraceServiceClient, ExportTraceServiceRequest,
-};
-use opentelemetry_proto::transform::trace::tonic::group_spans_by_resource_and_scope;
+use opentelemetry_otlp_transform::{trace::export_request, ResourceAttributesWithSchema};
+use opentelemetry_proto::tonic::collector::trace::v1::trace_service_client::TraceServiceClient;
 use opentelemetry_sdk::error::OTelSdkError;
 use opentelemetry_sdk::{
     error::OTelSdkResult,
@@ -23,7 +21,7 @@ pub(crate) struct TonicTracesClient {
     timeout: std::time::Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -61,7 +59,7 @@ impl TonicTracesClient {
             })),
             retry_policy: retry_policy.unwrap_or_default(),
             timeout,
-            resource: Default::default(),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 }
@@ -99,17 +97,12 @@ impl SpanExporter for TonicTracesClient {
                         )),
                     })?;
 
-                let resource_spans =
-                    group_spans_by_resource_and_scope((*batch_clone).clone(), &self.resource);
+                let request = export_request((*batch_clone).clone(), &self.resource);
 
                 otel_debug!(name: "TonicTracesClient.ExportStarted");
 
                 client
-                    .export(Request::from_parts(
-                        metadata,
-                        extensions,
-                        ExportTraceServiceRequest { resource_spans },
-                    ))
+                    .export(Request::from_parts(metadata, extensions, request))
                     .await
                     .map(|response| {
                         otel_debug!(name: "TonicTracesClient.ExportSucceeded");

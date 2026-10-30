@@ -1,15 +1,12 @@
 use core::fmt;
 use opentelemetry::{otel_debug, otel_warn};
-use opentelemetry_proto::tonic::collector::logs::v1::{
-    logs_service_client::LogsServiceClient, ExportLogsServiceRequest,
-};
+use opentelemetry_otlp_transform::{logs::export_request, ResourceAttributesWithSchema};
+use opentelemetry_proto::tonic::collector::logs::v1::logs_service_client::LogsServiceClient;
 use opentelemetry_sdk::error::{OTelSdkError, OTelSdkResult};
 use opentelemetry_sdk::logs::{LogBatch, LogExporter};
 use std::sync::{Arc, Mutex};
 use std::time;
 use tonic::{codegen::CompressionEncoding, service::Interceptor, transport::Channel, Request};
-
-use opentelemetry_proto::transform::logs::tonic::group_logs_by_resource_and_scope;
 
 use super::BoxInterceptor;
 
@@ -21,7 +18,7 @@ pub(crate) struct TonicLogsClient {
     timeout: std::time::Duration,
     #[allow(dead_code)]
     // <allow dead> would be removed once we support set_resource for metrics.
-    resource: opentelemetry_proto::transform::common::tonic::ResourceAttributesWithSchema,
+    resource: ResourceAttributesWithSchema,
 }
 
 struct ClientInner {
@@ -59,7 +56,7 @@ impl TonicLogsClient {
             })),
             retry_policy: retry_policy.unwrap_or_default(),
             timeout,
-            resource: Default::default(),
+            resource: ResourceAttributesWithSchema::default(),
         }
     }
 }
@@ -97,16 +94,12 @@ impl LogExporter for TonicLogsClient {
                         )),
                     })?;
 
-                let resource_logs = group_logs_by_resource_and_scope(&batch_clone, &self.resource);
+                let request = export_request(&batch_clone, &self.resource);
 
                 otel_debug!(name: "TonicLogsClient.ExportStarted");
 
                 client
-                    .export(Request::from_parts(
-                        metadata,
-                        extensions,
-                        ExportLogsServiceRequest { resource_logs },
-                    ))
+                    .export(Request::from_parts(metadata, extensions, request))
                     .await
                     .map(|response| {
                         otel_debug!(name: "TonicLogsClient.ExportSucceeded");

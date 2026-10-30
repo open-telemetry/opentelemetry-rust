@@ -511,6 +511,4 @@ pub mod tonic {
         #[path = "opentelemetry.proto.profiles.v1development.rs"]
         pub mod v1development;
     }
-
-    pub use crate::transform::common::tonic::Attributes;
 }
