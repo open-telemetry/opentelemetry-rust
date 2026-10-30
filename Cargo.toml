@@ -91,6 +91,7 @@ opentelemetry-stdout = { path = "opentelemetry-stdout" }
 
 [workspace.lints.rust]
 rust_2024_compatibility = { level = "warn", priority = -1 }
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(loom)"] }
 # No need to enable those, because it either not needed or results in ugly syntax
 edition_2024_expr_fragment_specifier = "allow"
 if_let_rescope = "allow"
