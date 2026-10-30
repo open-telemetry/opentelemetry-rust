@@ -36,6 +36,9 @@ pub use in_memory_exporter::{InMemorySpanExporter, InMemorySpanExporterBuilder};
 pub use id_generator::{IdGenerator, RandomIdGenerator};
 pub use links::SpanLinks;
 pub use provider::{SdkTracerProvider, TracerProviderBuilder};
+#[cfg(feature = "experimental_trace_probability_sampler")]
+#[cfg_attr(docsrs, doc(cfg(feature = "experimental_trace_probability_sampler")))]
+pub use sampler::ProbabilitySampler;
 pub use sampler::{ParentBasedSampler, Sampler, SamplingDecision, SamplingResult, ShouldSample};
 pub use span::{FinishedSpan, Span};
 pub use span_limit::SpanLimits;
