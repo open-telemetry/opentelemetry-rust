@@ -66,6 +66,23 @@ crates, such as
 [opentelemetry-stdout](https://crates.io/crates/opentelemetry-stdout),
 [opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) etc.
 
+### Sampling
+
+A standalone `ProbabilitySampler` (behind `experimental_trace_probability_sampler`)
+does not respect parent sampling decisions. To preserve upstream sampling decisions
+while using probability sampling for root spans, wrap it in `ParentBasedSampler`:
+
+```rust
+use opentelemetry_sdk::trace::{ParentBasedSampler, ProbabilitySampler, SdkTracerProvider};
+
+let provider = SdkTracerProvider::builder()
+    .with_sampler(ParentBasedSampler::new(ProbabilitySampler::new(0.05)))
+    .build();
+```
+
+> **Note**: Use `ParentBasedSampler` instead of the legacy `Sampler::ParentBased`
+> variant, which forwards only sampling decisions and drops modified `TraceState`.
+
 ### Related crates
 
 Unless you are a plugin (custom Samplers, Processors etc.) author, you will almost always need to use additional
