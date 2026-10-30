@@ -18,3 +18,10 @@ members = ["."]
 
 [profile.release]
 debug = "line-tables-only"
+
+[[bin]]
+name = "context_stack_model"
+path = "fuzz_targets/context_stack_model.rs"
+test = false
+doc = false
+bench = false

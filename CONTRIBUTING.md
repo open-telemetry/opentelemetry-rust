@@ -363,6 +363,9 @@ Run an API crate target from the repository root with:
 cargo +nightly fuzz run --fuzz-dir opentelemetry/fuzz <target>
 ```
 
+Pull requests carrying the `fuzz` label run every fuzz target in CI. The same
+workflow runs after every push to `main`.
+
 ## FAQ
 
 ### Where should I put third party propagators/exporters, contrib or standalone crates?
