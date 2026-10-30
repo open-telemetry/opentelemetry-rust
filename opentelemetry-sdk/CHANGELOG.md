@@ -22,6 +22,9 @@
   parent, and local sampling decisions clear private propagator flags while retaining
   `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Improved performance of non-recording spans: calling `Span::end()` no longer
+  reads the system clock when the span is not recording.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
@@ -37,6 +40,16 @@
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `ProbabilitySampler` behind the `experimental_trace_probability_sampler`
+  feature, implementing the OpenTelemetry Consistent Probability Sampling
+  specification. It evaluates 56-bit
+  rejection thresholds against randomness derived from input `ot=rv:...` TraceState
+  (including root spans) or the least significant 56 bits of the
+  TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
+  a standalone sampler or as a delegate within `ParentBasedSampler`.
+  Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
+  valid explicit randomness is preserved
+  (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
 
 ## 0.33.1
 

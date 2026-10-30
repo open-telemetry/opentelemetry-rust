@@ -299,6 +299,14 @@ impl opentelemetry::trace::Span for Span {
         });
     }
 
+    /// Finishes the span.
+    #[inline]
+    fn end(&mut self) {
+        if self.data.is_some() {
+            self.end_and_export();
+        }
+    }
+
     /// Finishes the span with given timestamp.
     fn end_with_timestamp(&mut self, timestamp: SystemTime) {
         if let Some(ref mut data) = self.data {
@@ -360,8 +368,9 @@ impl Span {
 
 impl Drop for Span {
     /// Report span on inner drop
+    #[inline]
     fn drop(&mut self) {
-        self.end_and_export();
+        opentelemetry::trace::Span::end(self);
     }
 }
 
@@ -1571,5 +1580,31 @@ mod tests {
             spans[0].end_time, start_time,
             "end_with_timestamp should preserve the explicit timestamp even when equal to start_time"
         );
+    }
+
+    #[test]
+    fn test_end_exports_once_with_current_timestamp() {
+        use crate::trace::InMemorySpanExporter;
+
+        let exporter = InMemorySpanExporter::default();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let tracer = provider.tracer("test");
+
+        let mut span = tracer.start("test_span");
+        let before = opentelemetry::time::now();
+        span.end();
+        let after = opentelemetry::time::now();
+
+        assert!(!span.is_recording());
+        let spans = exporter.get_finished_spans().unwrap();
+        assert_eq!(spans.len(), 1);
+        assert!(before <= spans[0].end_time && spans[0].end_time <= after);
+
+        // Ending again and dropping must not export a second time.
+        span.end();
+        drop(span);
+        assert_eq!(exporter.get_finished_spans().unwrap().len(), 1);
     }
 }

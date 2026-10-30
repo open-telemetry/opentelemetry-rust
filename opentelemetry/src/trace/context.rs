@@ -211,7 +211,7 @@ impl SpanRef<'_> {
 
     /// Signals that the operation described by this span has now ended.
     pub fn end(&self) {
-        self.end_with_timestamp(crate::time::now());
+        self.with_inner_mut(|inner| inner.end())
     }
 
     /// Signals that the operation described by this span ended at the given time.
