@@ -62,6 +62,8 @@ fn build_tonic() {
         "trace.v1.ScopeSpans",
         "trace.v1.ResourceSpans",
         "common.v1.InstrumentationScope",
+        "common.v1.ArrayValue",
+        "common.v1.KeyValueList",
         "resource.v1.Resource",
         "trace.v1.Span.Event",
         "trace.v1.Status",
