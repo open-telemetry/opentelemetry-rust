@@ -22,6 +22,11 @@ cargo test --workspace --all-features --doc --exclude opentelemetry-proto
 echo "Running tests for opentelemetry package with --no-default-features"
 cargo test --manifest-path=opentelemetry/Cargo.toml --no-default-features --lib
 
+echo "Running Loom models for opentelemetry-sdk"
+RUSTFLAGS="${RUSTFLAGS:-} --cfg loom" cargo test \
+  --manifest-path=opentelemetry-sdk/Cargo.toml \
+  --no-default-features --features testing --lib loom_
+
 # opentelemetry-otlp has a large feature matrix. The --all-features run above
 # does NOT exercise test code that is compiled out when a TLS feature is
 # enabled (e.g. the no-TLS gRPC scheme-handling paths), and it never catches

@@ -46,6 +46,9 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 [target.'cfg(not(target_os = "windows"))'.dev-dependencies]
 pprof = { workspace = true }
 
+[target.'cfg(loom)'.dev-dependencies]
+loom = "0.7"
+
 [features]
 default = ["trace", "metrics", "logs", "internal-logs"]
 trace = ["opentelemetry/trace", "rand", "percent-encoding", "dep:futures-channel", "dep:futures-executor", "dep:futures-util", "dep:thiserror"]

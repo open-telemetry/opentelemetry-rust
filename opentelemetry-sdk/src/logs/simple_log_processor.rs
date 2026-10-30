@@ -28,11 +28,14 @@ use opentelemetry::KeyValue;
 use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationScope};
 
 use std::fmt::Debug;
-use std::sync::atomic::AtomicBool;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::AtomicUsize;
-use std::sync::Mutex;
 use std::time::Duration;
+
+#[cfg(all(test, loom))]
+use loom::sync::{atomic::AtomicBool, Mutex};
+#[cfg(not(all(test, loom)))]
+use std::sync::{atomic::AtomicBool, Mutex};
 
 /// A [`LogProcessor`] designed for testing and debugging purpose, that immediately
 /// exports log records as they are emitted. Log records are exported synchronously
@@ -213,6 +216,105 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
         } else {
             true
         }
+    }
+}
+
+#[cfg(all(test, loom))]
+mod loom_tests {
+    use super::SimpleLogProcessor;
+    use crate::error::OTelSdkResult;
+    use crate::logs::{LogBatch, LogExporter, LogProcessor, SdkLogRecord};
+    use loom::sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    };
+    use opentelemetry::InstrumentationScope;
+    use std::time::Duration;
+
+    #[derive(Debug)]
+    struct ExporterState {
+        is_shutdown: AtomicBool,
+        exports: AtomicUsize,
+        shutdowns: AtomicUsize,
+    }
+
+    impl ExporterState {
+        fn new() -> Self {
+            Self {
+                is_shutdown: AtomicBool::new(false),
+                exports: AtomicUsize::new(0),
+                shutdowns: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct LoomLogExporter {
+        state: Arc<ExporterState>,
+    }
+
+    impl LogExporter for LoomLogExporter {
+        async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+            assert!(
+                !self.state.is_shutdown.load(Ordering::Acquire),
+                "export started after exporter shutdown"
+            );
+            self.state.exports.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            assert!(
+                !self.state.is_shutdown.swap(true, Ordering::AcqRel),
+                "exporter shutdown called more than once"
+            );
+            self.state.shutdowns.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn loom_simple_log_processor_export_and_shutdown_are_linearized() {
+        loom::model(|| {
+            let state = Arc::new(ExporterState::new());
+            let processor = Arc::new(SimpleLogProcessor::new(LoomLogExporter {
+                state: state.clone(),
+            }));
+
+            let exporting_processor = processor.clone();
+            let export_thread = loom::thread::spawn(move || {
+                let mut record = SdkLogRecord::new();
+                exporting_processor.emit(&mut record, &InstrumentationScope::default());
+            });
+
+            let shutdown_processor = processor.clone();
+            let shutdown_thread = loom::thread::spawn(move || shutdown_processor.shutdown());
+
+            export_thread.join().unwrap();
+            assert!(shutdown_thread.join().unwrap().is_ok());
+            assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
+            assert!(state.exports.load(Ordering::Relaxed) <= 1);
+        });
+    }
+
+    #[test]
+    fn loom_simple_log_processor_shuts_exporter_down_once() {
+        loom::model(|| {
+            let state = Arc::new(ExporterState::new());
+            let processor = Arc::new(SimpleLogProcessor::new(LoomLogExporter {
+                state: state.clone(),
+            }));
+
+            let first_processor = processor.clone();
+            let first = loom::thread::spawn(move || first_processor.shutdown());
+            let second_processor = processor.clone();
+            let second = loom::thread::spawn(move || second_processor.shutdown());
+
+            let first_result = first.join().unwrap();
+            let second_result = second.join().unwrap();
+            assert_ne!(first_result.is_ok(), second_result.is_ok());
+            assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
+        });
     }
 }
 

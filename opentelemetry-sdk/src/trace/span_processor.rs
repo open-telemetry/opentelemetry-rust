@@ -43,11 +43,14 @@ use opentelemetry::Context;
 use opentelemetry::KeyValue;
 use opentelemetry::{otel_debug, otel_error, otel_warn};
 use std::cmp::min;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{env, str::FromStr, time::Duration};
 
-use std::sync::atomic::AtomicBool;
+#[cfg(all(test, loom))]
+use loom::sync::{atomic::AtomicBool as SimpleProcessorAtomicBool, Mutex as SimpleProcessorMutex};
+#[cfg(not(all(test, loom)))]
+use std::sync::{atomic::AtomicBool as SimpleProcessorAtomicBool, Mutex as SimpleProcessorMutex};
 use std::thread;
 use std::time::Instant;
 
@@ -275,8 +278,8 @@ pub trait SpanProcessor: Send + Sync + std::fmt::Debug {
 /// only used from a thread where those clients can run.
 #[derive(Debug)]
 pub struct SimpleSpanProcessor<T: SpanExporter> {
-    exporter: Mutex<T>,
-    is_shutdown: AtomicBool,
+    exporter: SimpleProcessorMutex<T>,
+    is_shutdown: SimpleProcessorAtomicBool,
 
     // Self-diagnostics: otel.sdk.processor.span.processed counter, gated behind
     // experimental_metrics_bound_instruments. The SimpleSpanProcessor exports
@@ -327,8 +330,8 @@ impl<T: SpanExporter> SimpleSpanProcessor<T> {
         };
 
         Self {
-            exporter: Mutex::new(exporter),
-            is_shutdown: AtomicBool::new(false),
+            exporter: SimpleProcessorMutex::new(exporter),
+            is_shutdown: SimpleProcessorAtomicBool::new(false),
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             processed_success,
             #[cfg(feature = "experimental_metrics_bound_instruments")]
@@ -1270,6 +1273,131 @@ impl BatchConfigBuilder {
         }
 
         self
+    }
+}
+
+#[cfg(all(test, loom))]
+mod loom_tests {
+    use super::{SimpleSpanProcessor, SpanProcessor};
+    use crate::error::OTelSdkResult;
+    use crate::trace::{FinishedSpan, SpanData, SpanEvents, SpanExporter, SpanLinks};
+    use loom::sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    };
+    use opentelemetry::trace::{
+        SpanContext, SpanId, SpanKind, Status, TraceFlags, TraceId, TraceState,
+    };
+    use std::time::Duration;
+
+    #[derive(Debug)]
+    struct ExporterState {
+        is_shutdown: AtomicBool,
+        exports: AtomicUsize,
+        shutdowns: AtomicUsize,
+    }
+
+    impl ExporterState {
+        fn new() -> Self {
+            Self {
+                is_shutdown: AtomicBool::new(false),
+                exports: AtomicUsize::new(0),
+                shutdowns: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct LoomSpanExporter {
+        state: Arc<ExporterState>,
+    }
+
+    impl SpanExporter for LoomSpanExporter {
+        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            assert!(
+                !self.state.is_shutdown.load(Ordering::Acquire),
+                "export started after exporter shutdown"
+            );
+            self.state.exports.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> OTelSdkResult {
+            assert!(
+                !self.state.is_shutdown.swap(true, Ordering::AcqRel),
+                "exporter shutdown called more than once"
+            );
+            self.state.shutdowns.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+    }
+
+    fn sampled_span() -> SpanData {
+        SpanData {
+            span_context: SpanContext::new(
+                TraceId::from_bytes([1; 16]),
+                SpanId::from_bytes([1; 8]),
+                TraceFlags::SAMPLED,
+                false,
+                TraceState::default(),
+            ),
+            parent_span_id: SpanId::INVALID,
+            parent_span_is_remote: false,
+            span_kind: SpanKind::Internal,
+            name: "loom-span".into(),
+            start_time: opentelemetry::time::now(),
+            end_time: opentelemetry::time::now(),
+            attributes: Vec::new(),
+            dropped_attributes_count: 0,
+            events: SpanEvents::default(),
+            links: SpanLinks::default(),
+            status: Status::Unset,
+            instrumentation_scope: Default::default(),
+        }
+    }
+
+    #[test]
+    fn loom_simple_span_processor_export_and_shutdown_are_linearized() {
+        loom::model(|| {
+            let state = Arc::new(ExporterState::new());
+            let processor = Arc::new(SimpleSpanProcessor::new(LoomSpanExporter {
+                state: state.clone(),
+            }));
+
+            let exporting_processor = processor.clone();
+            let export_thread = loom::thread::spawn(move || {
+                let span = sampled_span();
+                exporting_processor.on_end(FinishedSpan::borrowed(&span));
+            });
+
+            let shutdown_processor = processor.clone();
+            let shutdown_thread = loom::thread::spawn(move || shutdown_processor.shutdown());
+
+            export_thread.join().unwrap();
+            assert!(shutdown_thread.join().unwrap().is_ok());
+            assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
+            assert!(state.exports.load(Ordering::Relaxed) <= 1);
+        });
+    }
+
+    #[test]
+    fn loom_simple_span_processor_shuts_exporter_down_once() {
+        loom::model(|| {
+            let state = Arc::new(ExporterState::new());
+            let processor = Arc::new(SimpleSpanProcessor::new(LoomSpanExporter {
+                state: state.clone(),
+            }));
+
+            let first_processor = processor.clone();
+            let first = loom::thread::spawn(move || first_processor.shutdown());
+            let second_processor = processor.clone();
+            let second = loom::thread::spawn(move || second_processor.shutdown());
+
+            let first_result = first.join().unwrap();
+            let second_result = second.join().unwrap();
+            assert_ne!(first_result.is_ok(), second_result.is_ok());
+            assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
+        });
     }
 }
 
