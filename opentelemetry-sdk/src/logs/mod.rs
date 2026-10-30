@@ -119,6 +119,36 @@ mod tests {
     }
 
     #[test]
+    fn exported_log_attributes_have_unique_keys() {
+        let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
+        let provider = SdkLoggerProvider::builder()
+            .with_log_processor(SimpleLogProcessor::new(exporter.clone()))
+            .build();
+
+        let logger = provider.logger("test-logger");
+        let mut log_record = logger.create_log_record();
+        log_record.add_attribute("key", "first");
+        log_record.add_attribute("other", "value");
+        log_record.add_attribute("key", "second");
+        logger.emit(log_record);
+
+        let exported_logs = exporter
+            .get_emitted_logs()
+            .expect("Logs are expected to be exported.");
+        let log = exported_logs
+            .first()
+            .expect("Atleast one log is expected to be present.");
+        let attributes: Vec<_> = log.record.attributes_iter().cloned().collect();
+        assert_eq!(
+            attributes,
+            vec![
+                (Key::new("other"), AnyValue::from("value")),
+                (Key::new("key"), AnyValue::from("second")),
+            ]
+        );
+    }
+
+    #[test]
     fn logger_attributes() {
         let exporter: InMemoryLogExporter = InMemoryLogExporter::default();
         let provider = SdkLoggerProvider::builder()
