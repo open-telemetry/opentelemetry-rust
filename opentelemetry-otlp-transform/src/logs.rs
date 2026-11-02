@@ -1,172 +1,142 @@
-#[cfg(feature = "gen-tonic-messages")]
-pub mod tonic {
-    use crate::{
-        tonic::{
-            common::v1::{
-                any_value::Value, AnyValue, ArrayValue, InstrumentationScope, KeyValue,
-                KeyValueList,
-            },
-            logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
-            resource::v1::Resource,
-        },
-        transform::common::{to_nanos, tonic::ResourceAttributesWithSchema, w3c_trace_flags},
+use crate::ResourceAttributesWithSchema;
+use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
+use opentelemetry_sdk::logs::LogBatch;
+
+/// Converts a batch of log records and a prepared resource into an OTLP export
+/// request.
+pub fn export_request<'a>(
+    logs: &'a LogBatch<'a>,
+    resource: &ResourceAttributesWithSchema,
+) -> ExportLogsServiceRequest {
+    ExportLogsServiceRequest {
+        resource_logs: tonic::group_logs_by_resource_and_scope(logs, resource.clone()),
+    }
+}
+
+pub(crate) mod tonic {
+    use crate::common::{
+        to_nanos,
+        tonic::{instrumentation_scope_ref_to_proto, ResourceAttributesWithSchema},
+        w3c_trace_flags,
     };
     use opentelemetry::logs::{AnyValue as LogsAnyValue, Severity};
+    use opentelemetry_proto::tonic::{
+        common::v1::{any_value::Value, AnyValue, ArrayValue, KeyValue, KeyValueList},
+        logs::v1::{LogRecord, ResourceLogs, ScopeLogs, SeverityNumber},
+        resource::v1::Resource,
+    };
     use opentelemetry_sdk::logs::LogBatch;
     use std::borrow::Cow;
     use std::collections::HashMap;
 
-    impl From<LogsAnyValue> for AnyValue {
-        fn from(value: LogsAnyValue) -> Self {
-            AnyValue {
-                value: Some(value.into()),
-            }
+    pub(crate) fn logs_any_value_to_any_value(value: LogsAnyValue) -> AnyValue {
+        AnyValue {
+            value: Some(logs_any_value_to_value(value)),
         }
     }
 
-    impl From<LogsAnyValue> for Value {
-        fn from(value: LogsAnyValue) -> Self {
-            match value {
-                LogsAnyValue::Double(f) => Value::DoubleValue(f),
-                LogsAnyValue::Int(i) => Value::IntValue(i),
-                LogsAnyValue::String(s) => Value::StringValue(s.into()),
-                LogsAnyValue::Boolean(b) => Value::BoolValue(b),
-                LogsAnyValue::ListAny(v) => Value::ArrayValue(ArrayValue {
-                    values: v
-                        .into_iter()
-                        .map(|v| AnyValue {
-                            value: Some(v.into()),
-                        })
-                        .collect(),
-                }),
-                LogsAnyValue::Map(m) => Value::KvlistValue(KeyValueList {
-                    values: m
-                        .into_iter()
-                        .map(|(key, value)| KeyValue {
-                            key: key.into(),
-                            value: Some(AnyValue {
-                                value: Some(value.into()),
-                            }),
-                            key_strindex: 0,
-                        })
-                        .collect(),
-                }),
-                LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
-                _ => unreachable!("Nonexistent value type"),
-            }
+    pub(crate) fn logs_any_value_to_value(value: LogsAnyValue) -> Value {
+        match value {
+            LogsAnyValue::Double(f) => Value::DoubleValue(f),
+            LogsAnyValue::Int(i) => Value::IntValue(i),
+            LogsAnyValue::String(s) => Value::StringValue(s.into()),
+            LogsAnyValue::Boolean(b) => Value::BoolValue(b),
+            LogsAnyValue::ListAny(v) => Value::ArrayValue(ArrayValue {
+                values: v
+                    .into_iter()
+                    .map(|v| AnyValue {
+                        value: Some(logs_any_value_to_value(v)),
+                    })
+                    .collect(),
+            }),
+            LogsAnyValue::Map(m) => Value::KvlistValue(KeyValueList {
+                values: m
+                    .into_iter()
+                    .map(|(key, value)| KeyValue {
+                        key: key.into(),
+                        value: Some(AnyValue {
+                            value: Some(logs_any_value_to_value(value)),
+                        }),
+                        key_strindex: 0,
+                    })
+                    .collect(),
+            }),
+            LogsAnyValue::Bytes(v) => Value::BytesValue(*v),
+            _ => unreachable!("Nonexistent value type"),
         }
     }
 
-    impl From<&opentelemetry_sdk::logs::SdkLogRecord> for LogRecord {
-        fn from(log_record: &opentelemetry_sdk::logs::SdkLogRecord) -> Self {
-            let trace_context = log_record.trace_context();
-            let severity_number = match log_record.severity_number() {
-                Some(Severity::Trace) => SeverityNumber::Trace,
-                Some(Severity::Trace2) => SeverityNumber::Trace2,
-                Some(Severity::Trace3) => SeverityNumber::Trace3,
-                Some(Severity::Trace4) => SeverityNumber::Trace4,
-                Some(Severity::Debug) => SeverityNumber::Debug,
-                Some(Severity::Debug2) => SeverityNumber::Debug2,
-                Some(Severity::Debug3) => SeverityNumber::Debug3,
-                Some(Severity::Debug4) => SeverityNumber::Debug4,
-                Some(Severity::Info) => SeverityNumber::Info,
-                Some(Severity::Info2) => SeverityNumber::Info2,
-                Some(Severity::Info3) => SeverityNumber::Info3,
-                Some(Severity::Info4) => SeverityNumber::Info4,
-                Some(Severity::Warn) => SeverityNumber::Warn,
-                Some(Severity::Warn2) => SeverityNumber::Warn2,
-                Some(Severity::Warn3) => SeverityNumber::Warn3,
-                Some(Severity::Warn4) => SeverityNumber::Warn4,
-                Some(Severity::Error) => SeverityNumber::Error,
-                Some(Severity::Error2) => SeverityNumber::Error2,
-                Some(Severity::Error3) => SeverityNumber::Error3,
-                Some(Severity::Error4) => SeverityNumber::Error4,
-                Some(Severity::Fatal) => SeverityNumber::Fatal,
-                Some(Severity::Fatal2) => SeverityNumber::Fatal2,
-                Some(Severity::Fatal3) => SeverityNumber::Fatal3,
-                Some(Severity::Fatal4) => SeverityNumber::Fatal4,
-                None => SeverityNumber::Unspecified,
-            };
+    pub(crate) fn log_record_to_proto(
+        log_record: &opentelemetry_sdk::logs::SdkLogRecord,
+    ) -> LogRecord {
+        let trace_context = log_record.trace_context();
+        let severity_number = match log_record.severity_number() {
+            Some(Severity::Trace) => SeverityNumber::Trace,
+            Some(Severity::Trace2) => SeverityNumber::Trace2,
+            Some(Severity::Trace3) => SeverityNumber::Trace3,
+            Some(Severity::Trace4) => SeverityNumber::Trace4,
+            Some(Severity::Debug) => SeverityNumber::Debug,
+            Some(Severity::Debug2) => SeverityNumber::Debug2,
+            Some(Severity::Debug3) => SeverityNumber::Debug3,
+            Some(Severity::Debug4) => SeverityNumber::Debug4,
+            Some(Severity::Info) => SeverityNumber::Info,
+            Some(Severity::Info2) => SeverityNumber::Info2,
+            Some(Severity::Info3) => SeverityNumber::Info3,
+            Some(Severity::Info4) => SeverityNumber::Info4,
+            Some(Severity::Warn) => SeverityNumber::Warn,
+            Some(Severity::Warn2) => SeverityNumber::Warn2,
+            Some(Severity::Warn3) => SeverityNumber::Warn3,
+            Some(Severity::Warn4) => SeverityNumber::Warn4,
+            Some(Severity::Error) => SeverityNumber::Error,
+            Some(Severity::Error2) => SeverityNumber::Error2,
+            Some(Severity::Error3) => SeverityNumber::Error3,
+            Some(Severity::Error4) => SeverityNumber::Error4,
+            Some(Severity::Fatal) => SeverityNumber::Fatal,
+            Some(Severity::Fatal2) => SeverityNumber::Fatal2,
+            Some(Severity::Fatal3) => SeverityNumber::Fatal3,
+            Some(Severity::Fatal4) => SeverityNumber::Fatal4,
+            None => SeverityNumber::Unspecified,
+        };
 
-            LogRecord {
-                time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
-                observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
-                attributes: {
-                    log_record
-                        .attributes_iter()
-                        .map(|kv| KeyValue {
-                            key: kv.0.to_string(),
-                            value: Some(AnyValue {
-                                value: Some(kv.1.clone().into()),
-                            }),
-                            key_strindex: 0,
-                        })
-                        .collect()
-                },
-                event_name: log_record.event_name().unwrap_or_default().into(),
-                severity_number: severity_number.into(),
-                severity_text: log_record
-                    .severity_text()
-                    .map(Into::into)
-                    .unwrap_or_default(),
-                body: log_record.body().cloned().map(Into::into),
-                dropped_attributes_count: 0,
-                flags: trace_context
-                    .and_then(|ctx| ctx.trace_flags)
-                    .map(w3c_trace_flags)
-                    .unwrap_or_default(),
-                span_id: trace_context
-                    .map(|ctx| ctx.span_id.to_bytes().to_vec())
-                    .unwrap_or_default(),
-                trace_id: trace_context
-                    .map(|ctx| ctx.trace_id.to_bytes().to_vec())
-                    .unwrap_or_default(),
-            }
+        LogRecord {
+            time_unix_nano: log_record.timestamp().map(to_nanos).unwrap_or_default(),
+            observed_time_unix_nano: to_nanos(log_record.observed_timestamp().unwrap()),
+            attributes: {
+                log_record
+                    .attributes_iter()
+                    .map(|kv| KeyValue {
+                        key: kv.0.to_string(),
+                        value: Some(AnyValue {
+                            value: Some(logs_any_value_to_value(kv.1.clone())),
+                        }),
+                        key_strindex: 0,
+                    })
+                    .collect()
+            },
+            event_name: log_record.event_name().unwrap_or_default().into(),
+            severity_number: severity_number.into(),
+            severity_text: log_record
+                .severity_text()
+                .map(Into::into)
+                .unwrap_or_default(),
+            body: log_record.body().cloned().map(logs_any_value_to_any_value),
+            dropped_attributes_count: 0,
+            flags: trace_context
+                .and_then(|ctx| ctx.trace_flags)
+                .map(w3c_trace_flags)
+                .unwrap_or_default(),
+            span_id: trace_context
+                .map(|ctx| ctx.span_id.to_bytes().to_vec())
+                .unwrap_or_default(),
+            trace_id: trace_context
+                .map(|ctx| ctx.trace_id.to_bytes().to_vec())
+                .unwrap_or_default(),
         }
     }
 
-    impl
-        From<(
-            (
-                &opentelemetry_sdk::logs::SdkLogRecord,
-                &opentelemetry::InstrumentationScope,
-            ),
-            &ResourceAttributesWithSchema,
-        )> for ResourceLogs
-    {
-        fn from(
-            data: (
-                (
-                    &opentelemetry_sdk::logs::SdkLogRecord,
-                    &opentelemetry::InstrumentationScope,
-                ),
-                &ResourceAttributesWithSchema,
-            ),
-        ) -> Self {
-            let ((log_record, instrumentation), resource) = data;
-
-            ResourceLogs {
-                resource: Some(Resource {
-                    attributes: resource.attributes.0.clone(),
-                    dropped_attributes_count: 0,
-                    entity_refs: vec![],
-                }),
-                schema_url: resource.schema_url.clone().unwrap_or_default(),
-                scope_logs: vec![ScopeLogs {
-                    schema_url: instrumentation
-                        .schema_url()
-                        .map(ToOwned::to_owned)
-                        .unwrap_or_default(),
-                    scope: Some((instrumentation, log_record.target().cloned()).into()),
-                    log_records: vec![log_record.into()],
-                }],
-            }
-        }
-    }
-
-    pub fn group_logs_by_resource_and_scope<'a>(
+    pub(crate) fn group_logs_by_resource_and_scope<'a>(
         logs: &'a LogBatch<'a>,
-        resource: &ResourceAttributesWithSchema,
+        resource: ResourceAttributesWithSchema,
     ) -> Vec<ResourceLogs> {
         // Group by the exported scope: target overrides only the name.
         let scope_map = logs.iter().fold(
@@ -199,40 +169,39 @@ pub mod tonic {
         let scope_logs = scope_map
             .into_iter()
             .map(|(key, log_data)| ScopeLogs {
-                scope: Some(InstrumentationScope::from((&key, None))),
+                scope: Some(instrumentation_scope_ref_to_proto(&key, None)),
                 schema_url: key.schema_url().unwrap_or_default().to_owned(),
                 log_records: log_data
                     .into_iter()
-                    .map(|(log_record, _)| log_record.into())
+                    .map(|(log_record, _)| log_record_to_proto(log_record))
                     .collect(),
             })
             .collect();
 
         vec![ResourceLogs {
             resource: Some(Resource {
-                attributes: resource.attributes.0.clone(),
+                attributes: resource.attributes,
                 dropped_attributes_count: 0,
                 entity_refs: vec![],
             }),
             scope_logs,
-            schema_url: resource.schema_url.clone().unwrap_or_default(),
+            schema_url: resource.schema_url.unwrap_or_default(),
         }]
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::transform::common::tonic::ResourceAttributesWithSchema;
-    use opentelemetry::logs::LogRecord as _;
-    use opentelemetry::logs::Logger;
-    use opentelemetry::logs::LoggerProvider;
+    use crate::common::tonic::ResourceAttributesWithSchema;
+    use opentelemetry::logs::{AnyValue, LogRecord as _, Logger, LoggerProvider, Severity};
     use opentelemetry::time::now;
-    use opentelemetry::{InstrumentationScope, KeyValue};
+    use opentelemetry::{InstrumentationScope, Key, KeyValue};
     use opentelemetry_sdk::error::OTelSdkResult;
     use opentelemetry_sdk::logs::LogProcessor;
     use opentelemetry_sdk::logs::SdkLoggerProvider;
     use opentelemetry_sdk::{logs::LogBatch, logs::SdkLogRecord, Resource};
     use std::borrow::Cow;
+    use std::collections::HashMap;
 
     #[derive(Debug)]
     struct MockProcessor;
@@ -267,6 +236,94 @@ mod tests {
     }
 
     #[test]
+    fn log_record_flags_only_carry_w3c_trace_flags() {
+        use opentelemetry::trace::{SpanId, TraceFlags, TraceId};
+
+        // 0x80 is B3's private "deferred" marker; OTLP must only see W3C bits.
+        for (flags, expected) in [
+            (TraceFlags::new(0x80), 0x00),
+            (TraceFlags::new(0x80) | TraceFlags::RANDOM, 0x02),
+            (TraceFlags::new(0x80) | TraceFlags::SAMPLED, 0x01),
+            (TraceFlags::SAMPLED | TraceFlags::RANDOM, 0x03),
+        ] {
+            let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+            record.set_trace_context(TraceId::from(1), SpanId::from(2), Some(flags));
+
+            let otlp = crate::logs::tonic::log_record_to_proto(&record);
+            assert_eq!(otlp.flags, expected, "flags {:#04x}", flags.to_u8());
+            assert_eq!(otlp.trace_id, TraceId::from(1).to_bytes().to_vec());
+            assert_eq!(otlp.span_id, SpanId::from(2).to_bytes().to_vec());
+        }
+    }
+
+    #[test]
+    fn converts_every_log_severity() {
+        let severities = [
+            Severity::Trace,
+            Severity::Trace2,
+            Severity::Trace3,
+            Severity::Trace4,
+            Severity::Debug,
+            Severity::Debug2,
+            Severity::Debug3,
+            Severity::Debug4,
+            Severity::Info,
+            Severity::Info2,
+            Severity::Info3,
+            Severity::Info4,
+            Severity::Warn,
+            Severity::Warn2,
+            Severity::Warn3,
+            Severity::Warn4,
+            Severity::Error,
+            Severity::Error2,
+            Severity::Error3,
+            Severity::Error4,
+            Severity::Fatal,
+            Severity::Fatal2,
+            Severity::Fatal3,
+            Severity::Fatal4,
+        ];
+
+        for (index, severity) in severities.into_iter().enumerate() {
+            let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+            record.set_severity_number(severity);
+            let otlp = crate::logs::tonic::log_record_to_proto(&record);
+            assert_eq!(otlp.severity_number, index as i32 + 1);
+        }
+    }
+
+    #[test]
+    fn converts_every_log_any_value_variant() {
+        let mut map = HashMap::new();
+        map.insert(Key::new("nested"), AnyValue::Int(1));
+        let (mut record, _scope) = create_test_log_data("test-lib", "Log");
+        record.set_event_name("checkout.completed");
+        record.set_severity_text("INFO");
+        record.add_attribute("int", AnyValue::Int(1));
+        record.add_attribute("double", AnyValue::Double(2.5));
+        record.add_attribute("string", AnyValue::String("value".into()));
+        record.add_attribute("bool", AnyValue::Boolean(true));
+        record.add_attribute("bytes", AnyValue::Bytes(Box::new(vec![1, 2, 3])));
+        record.add_attribute(
+            "list",
+            AnyValue::ListAny(Box::new(vec![AnyValue::Boolean(true)])),
+        );
+        record.add_attribute("map", AnyValue::Map(Box::new(map.clone())));
+        record.set_body(AnyValue::Map(Box::new(map)));
+
+        let otlp = crate::logs::tonic::log_record_to_proto(&record);
+        assert_eq!(otlp.event_name, "checkout.completed");
+        assert_eq!(otlp.severity_text, "INFO");
+        assert_eq!(otlp.attributes.len(), 7);
+        assert!(otlp
+            .attributes
+            .iter()
+            .all(|attribute| attribute.value.is_some()));
+        assert!(otlp.body.and_then(|body| body.value).is_some());
+    }
+
+    #[test]
     fn test_group_logs_by_resource_and_scope_single_scope() {
         let resource = Resource::builder().build();
         let (log_record1, instrum_lib1) = create_test_log_data("test-lib", "Log 1");
@@ -274,10 +331,8 @@ mod tests {
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
-        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
-
-        let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+        let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -295,9 +350,8 @@ mod tests {
 
         let logs = [(&log_record1, &instrum_lib1), (&log_record2, &instrum_lib2)];
         let log_batch = LogBatch::new(&logs);
-        let resource: ResourceAttributesWithSchema = (&resource).into(); // Convert Resource to ResourceAttributesWithSchema
-        let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+        let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -319,28 +373,6 @@ mod tests {
     }
 
     #[test]
-    fn log_record_flags_only_carry_w3c_trace_flags() {
-        use crate::tonic::logs::v1::LogRecord;
-        use opentelemetry::trace::{SpanId, TraceFlags, TraceId};
-
-        // 0x80 is B3's private "deferred" marker; OTLP must only see W3C bits.
-        for (flags, expected) in [
-            (TraceFlags::new(0x80), 0x00),
-            (TraceFlags::new(0x80) | TraceFlags::RANDOM, 0x02),
-            (TraceFlags::new(0x80) | TraceFlags::SAMPLED, 0x01),
-            (TraceFlags::SAMPLED | TraceFlags::RANDOM, 0x03),
-        ] {
-            let (mut record, _scope) = create_test_log_data("test-lib", "Log");
-            record.set_trace_context(TraceId::from(1), SpanId::from(2), Some(flags));
-
-            let otlp: LogRecord = (&record).into();
-            assert_eq!(otlp.flags, expected, "flags {:#04x}", flags.to_u8());
-            assert_eq!(otlp.trace_id, TraceId::from(1).to_bytes().to_vec());
-            assert_eq!(otlp.span_id, SpanId::from(2).to_bytes().to_vec());
-        }
-    }
-
-    #[test]
     fn scope_grouping_same_target_preserves_distinct_versions() {
         let (mut first, _) = create_test_log_data("bridge", "first");
         let (mut second, _) = create_test_log_data("bridge", "second");
@@ -354,9 +386,9 @@ mod tests {
             .build();
         let logs = [(&first, &first_scope), (&second, &second_scope)];
         let batch = LogBatch::new(&logs);
-        let grouped = crate::transform::logs::tonic::group_logs_by_resource_and_scope(
+        let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(
             &batch,
-            &ResourceAttributesWithSchema::default(),
+            ResourceAttributesWithSchema::default(),
         );
 
         // Target still supplies the exported scope name. Version distinguishes groups.
@@ -437,7 +469,7 @@ mod tests {
             let batch = LogBatch::new(&logs);
             let resource = ResourceAttributesWithSchema::default();
             let grouped =
-                crate::transform::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+                crate::logs::tonic::group_logs_by_resource_and_scope(&batch, resource.clone());
             assert_eq!(
                 grouped[0].scope_logs.len(),
                 expected_groups,
@@ -445,9 +477,13 @@ mod tests {
             );
             // Every record must retain the same metadata as when exported alone.
             for (record, scope) in logs {
-                let single =
-                    crate::tonic::logs::v1::ResourceLogs::from(((record, scope), &resource));
-                let expected = &single.scope_logs[0];
+                let single_log = [(record, scope)];
+                let single_batch = LogBatch::new(&single_log);
+                let single = crate::logs::tonic::group_logs_by_resource_and_scope(
+                    &single_batch,
+                    resource.clone(),
+                );
+                let expected = &single[0].scope_logs[0];
                 let actual = grouped[0]
                     .scope_logs
                     .iter()
@@ -471,9 +507,9 @@ mod tests {
         second.set_target(Cow::Borrowed("my_app::handlers"));
         let logs = [(&first, &first_scope), (&second, &second_scope)];
         let batch = LogBatch::new(&logs);
-        let grouped = crate::transform::logs::tonic::group_logs_by_resource_and_scope(
+        let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(
             &batch,
-            &ResourceAttributesWithSchema::default(),
+            ResourceAttributesWithSchema::default(),
         );
 
         // Typical appender logs with the same target should remain one group.
@@ -496,8 +532,7 @@ mod tests {
         };
         let logs = [(&record, &scope)];
         let batch = LogBatch::new(&logs);
-        let grouped =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&batch, &resource);
+        let grouped = crate::logs::tonic::group_logs_by_resource_and_scope(&batch, resource);
 
         assert_eq!(grouped[0].schema_url, "https://resource.example/schema");
         let group = &grouped[0].scope_logs[0];
@@ -526,10 +561,8 @@ mod tests {
 
         let logs = [(&logrecord, &instrumentation)];
         let log_batch = LogBatch::new(&logs);
-        let resource: ResourceAttributesWithSchema = (&resource).into();
-
-        let grouped_logs =
-            crate::transform::logs::tonic::group_logs_by_resource_and_scope(&log_batch, &resource);
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+        let grouped_logs = crate::logs::export_request(&log_batch, &resource).resource_logs;
 
         assert_eq!(grouped_logs.len(), 1);
         let resource_logs = &grouped_logs[0];
@@ -540,5 +573,28 @@ mod tests {
         assert_eq!(scope.version, "1.0.0");
         assert_eq!(scope.attributes.len(), 1);
         assert_eq!(scope.attributes[0].key, "feature");
+    }
+
+    #[test]
+    fn prepared_resource_can_be_reused_across_log_requests() {
+        let resource = Resource::builder_empty()
+            .with_attribute(KeyValue::new("service.name", "checkout"))
+            .with_schema_url(vec![], "https://example.com/resource")
+            .build();
+        let resource = crate::ResourceAttributesWithSchema::from(&resource);
+        let batch = LogBatch::new(&[]);
+
+        let first = crate::logs::export_request(&batch, &resource);
+        let second = crate::logs::export_request(&batch, &resource);
+
+        assert_eq!(first, second);
+        assert_eq!(
+            first.resource_logs[0].schema_url,
+            "https://example.com/resource"
+        );
+        assert_eq!(
+            first.resource_logs[0].resource.as_ref().unwrap().attributes[0].key,
+            "service.name"
+        );
     }
 }
