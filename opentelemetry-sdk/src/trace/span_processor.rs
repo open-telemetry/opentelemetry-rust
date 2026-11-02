@@ -1294,7 +1294,7 @@ impl BatchConfigBuilder {
 #[cfg(all(test, loom))]
 mod loom_tests {
     use super::{SimpleSpanProcessor, SpanProcessor};
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::trace::{FinishedSpan, SpanData, SpanEvents, SpanExporter, SpanLinks};
     use loom::sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -1410,7 +1410,11 @@ mod loom_tests {
 
             let first_result = first.join().unwrap();
             let second_result = second.join().unwrap();
-            assert_ne!(first_result.is_ok(), second_result.is_ok());
+            assert!(matches!(
+                (first_result, second_result),
+                (Ok(()), Err(OTelSdkError::AlreadyShutdown))
+                    | (Err(OTelSdkError::AlreadyShutdown), Ok(()))
+            ));
             assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
         });
     }

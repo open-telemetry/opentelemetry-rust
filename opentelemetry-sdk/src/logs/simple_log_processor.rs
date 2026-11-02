@@ -30,6 +30,7 @@ use opentelemetry::{otel_debug, otel_error, otel_warn, Context, InstrumentationS
 use std::fmt::Debug;
 #[cfg(feature = "experimental_metrics_bound_instruments")]
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 #[cfg(all(test, loom))]
@@ -91,7 +92,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
         #[cfg(feature = "experimental_metrics_bound_instruments")]
         let (processed_success, processed_after_shutdown) = {
             static INSTANCE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-            let instance_id = INSTANCE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let instance_id = INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
             let component_name = format!("simple_log_processor/{instance_id}");
 
             let meter = opentelemetry::global::meter("otel.sdk");
@@ -143,7 +144,7 @@ impl<T: LogExporter> SimpleLogProcessor<T> {
                 // Shutdown may have started after the fast-path check above but
                 // before this lock was acquired. Recheck while holding the same
                 // lock used by shutdown so export and shutdown are linearized.
-                if self.is_shutdown.load(std::sync::atomic::Ordering::Acquire) {
+                if self.is_shutdown.load(Ordering::Acquire) {
                     #[cfg(feature = "experimental_metrics_bound_instruments")]
                     self.processed_after_shutdown.add(1);
                     return Ok(());
@@ -168,7 +169,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         let _suppress_guard = Context::enter_telemetry_suppressed_scope();
         // noop after shutdown
-        if self.is_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+        if self.is_shutdown.load(Ordering::Relaxed) {
             // Record the post-shutdown drop in self-diagnostics before returning.
             #[cfg(feature = "experimental_metrics_bound_instruments")]
             self.processed_after_shutdown.add(1);
@@ -204,10 +205,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
     }
 
     fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        if self
-            .is_shutdown
-            .swap(true, std::sync::atomic::Ordering::AcqRel)
-        {
+        if self.is_shutdown.swap(true, Ordering::AcqRel) {
             return Err(OTelSdkError::AlreadyShutdown);
         }
         if let Ok(exporter) = self.exporter.lock() {
@@ -243,7 +241,7 @@ impl<T: LogExporter> LogProcessor for SimpleLogProcessor<T> {
 #[cfg(all(test, loom))]
 mod loom_tests {
     use super::SimpleLogProcessor;
-    use crate::error::OTelSdkResult;
+    use crate::error::{OTelSdkError, OTelSdkResult};
     use crate::logs::{LogBatch, LogExporter, LogProcessor, SdkLogRecord};
     use loom::sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -333,7 +331,11 @@ mod loom_tests {
 
             let first_result = first.join().unwrap();
             let second_result = second.join().unwrap();
-            assert_ne!(first_result.is_ok(), second_result.is_ok());
+            assert!(matches!(
+                (first_result, second_result),
+                (Ok(()), Err(OTelSdkError::AlreadyShutdown))
+                    | (Err(OTelSdkError::AlreadyShutdown), Ok(()))
+            ));
             assert_eq!(state.shutdowns.load(Ordering::Relaxed), 1);
         });
     }
