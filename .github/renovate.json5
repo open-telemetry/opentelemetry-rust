@@ -5,6 +5,7 @@
     "helpers:pinGitHubActionDigestsToSemver",
     ":separateMultipleMajorReleases",
   ],
+  prHourlyLimit: 10,
   packageRules: [
     {
       groupName: "all [patches]",
