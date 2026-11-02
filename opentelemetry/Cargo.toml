@@ -46,7 +46,7 @@ experimental_context_observer = []
 # for documentation tests
 opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false }
 criterion = { workspace = true }
-rand = { workspace = true, features = ["os_rng", "thread_rng"] }
+rand = { workspace = true, features = ["sys_rng", "thread_rng"] }
 tokio = { version = "=1.53.3", features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["registry"] }
 tracing = { workspace = true, features = ["std"] }

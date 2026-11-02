@@ -8,7 +8,7 @@
 
 use rand::{
     rngs::{self},
-    Rng, SeedableRng,
+    RngExt,
 };
 
 mod throughput;
@@ -17,7 +17,7 @@ use std::cell::RefCell;
 
 thread_local! {
     /// Store random number generator for each thread
-    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rngs::SmallRng::from_os_rng());
+    static CURRENT_RNG: RefCell<rngs::SmallRng> = RefCell::new(rand::make_rng());
 }
 
 fn main() {

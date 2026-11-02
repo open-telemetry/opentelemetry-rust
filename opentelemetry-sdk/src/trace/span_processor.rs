@@ -990,13 +990,12 @@ impl SpanProcessor for BatchSpanProcessor {
             Ok(_) => {
                 receiver
                     .recv_timeout(timeout)
-                    .map(|result| {
+                    .inspect(|_| {
                         // join the background thread after receiving back the
                         // shutdown signal
                         if let Some(handle) = self.handle.lock().unwrap().take() {
                             handle.join().unwrap();
                         }
-                        result
                     })
                     .map_err(|err| match err {
                         std::sync::mpsc::RecvTimeoutError::Timeout => {

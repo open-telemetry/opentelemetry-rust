@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use opentelemetry::baggage::Baggage;
 use rand::distr::{Alphanumeric, SampleString};
-use rand::Rng;
+use rand::RngExt;
 
 const MAX_KEY_VALUE_PAIRS: usize = 64;
 
