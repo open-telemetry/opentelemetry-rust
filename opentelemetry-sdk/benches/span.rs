@@ -18,7 +18,7 @@
     | span-creation-span-builder-context-activation         | 328.84 ns     | 78.021 ns    |
 */
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use opentelemetry::{
     trace::{
         mark_span_as_active, Span, SpanBuilder, SpanContext, SpanId, TraceContextExt, TraceFlags,
@@ -178,6 +178,136 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut span = tracer.start_with_context("span-name", &tracestate_parent_cx);
         span.end();
     });
+
+    let mut group = c.benchmark_group("span-is-recording");
+    let recording_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOn)
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let recording_tracer = recording_provider.tracer("is-recording-always");
+    let recording_span = recording_tracer.start("span-name");
+
+    let non_recording_provider = sdktrace::SdkTracerProvider::builder()
+        .with_sampler(sdktrace::Sampler::AlwaysOff)
+        .with_simple_exporter(VoidExporter)
+        .build();
+    let non_recording_tracer = non_recording_provider.tracer("is-recording-never");
+    let non_recording_span = non_recording_tracer.start("span-name");
+
+    group.bench_function(BenchmarkId::new("direct", "always-sample"), |b| {
+        b.iter(|| black_box(black_box(&recording_span).is_recording()));
+    });
+    group.bench_function(BenchmarkId::new("direct", "never-sample"), |b| {
+        b.iter(|| black_box(black_box(&non_recording_span).is_recording()));
+    });
+
+    {
+        let _guard = Context::new().attach();
+        group.bench_function(BenchmarkId::new("context", "no-active-span"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        group.bench_function(BenchmarkId::new("context", "always-sample"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = non_recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        group.bench_function(BenchmarkId::new("context", "never-sample"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    {
+        let span = recording_tracer.start("span-name");
+        let _guard = Context::new().with_span(span).attach();
+        Context::map_current(|cx| cx.span().end());
+        group.bench_function(BenchmarkId::new("context", "ended"), |b| {
+            b.iter(|| Context::map_current(|cx| black_box(cx.span().is_recording())));
+        });
+    }
+
+    group.finish();
+
+    let mut controlled_group = c.benchmark_group("context-with-custom-span");
+    controlled_group.bench_function("recording", |b| {
+        b.iter(|| {
+            let span = BenchSpan {
+                recording: black_box(true),
+                span_context: opentelemetry::trace::SpanContext::NONE,
+            };
+            black_box(Context::new().with_span(span))
+        });
+    });
+    controlled_group.bench_function("non-recording", |b| {
+        b.iter(|| {
+            let span = BenchSpan {
+                recording: black_box(false),
+                span_context: opentelemetry::trace::SpanContext::NONE,
+            };
+            black_box(Context::new().with_span(span))
+        });
+    });
+    controlled_group.finish();
+
+    let mut e2e_group = c.benchmark_group("context-with-sdk-span-end-to-end");
+    e2e_group.bench_function("recording", |b| {
+        b.iter(|| {
+            let span = recording_tracer.start("span-name");
+            black_box(Context::new().with_span(span))
+        });
+    });
+    e2e_group.bench_function("non-recording", |b| {
+        b.iter(|| {
+            let span = non_recording_tracer.start("span-name");
+            black_box(Context::new().with_span(span))
+        });
+    });
+    e2e_group.finish();
+}
+
+#[derive(Debug)]
+struct BenchSpan {
+    recording: bool,
+    span_context: opentelemetry::trace::SpanContext,
+}
+
+impl Span for BenchSpan {
+    fn add_event_with_timestamp<T>(
+        &mut self,
+        _name: T,
+        _timestamp: std::time::SystemTime,
+        _attributes: Vec<KeyValue>,
+    ) where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
+    }
+    fn span_context(&self) -> &opentelemetry::trace::SpanContext {
+        &self.span_context
+    }
+    fn is_recording(&self) -> bool {
+        self.recording
+    }
+    fn set_attribute(&mut self, _attribute: KeyValue) {}
+    fn set_status(&mut self, _status: opentelemetry::trace::Status) {}
+    fn update_name<T>(&mut self, _new_name: T)
+    where
+        T: Into<std::borrow::Cow<'static, str>>,
+    {
+    }
+    fn add_link(
+        &mut self,
+        _span_context: opentelemetry::trace::SpanContext,
+        _attributes: Vec<KeyValue>,
+    ) {
+    }
+    fn end_with_timestamp(&mut self, _timestamp: std::time::SystemTime) {}
 }
 
 #[derive(Debug)]

@@ -99,6 +99,12 @@ pub trait Span {
     ///
     /// Spans will not be recording information after they have ended.
     ///
+    /// Note: `Context` may cache an initial `false` return value, assuming that
+    /// non-recording spans do not transition into recording spans per the
+    /// [OpenTelemetry specification].
+    ///
+    /// [OpenTelemetry specification]: https://opentelemetry.io/docs/specs/otel/trace/api/#isrecording
+    ///
     /// This flag may be `true` despite the entire trace being sampled out. This
     /// allows recording and processing of information about the individual
     /// spans without sending it to the backend. An example of this scenario may
