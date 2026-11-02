@@ -667,3 +667,45 @@ impl Numeric for f64 {
         *self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use prometheus::{
+        proto::{Bucket, Histogram, Metric, MetricFamily, MetricType},
+        Encoder, TextEncoder,
+    };
+
+    // The text format always has a `_sum` line for a histogram, so an absent
+    // OpenTelemetry sum can't be exported by skipping `set_sample_sum`:
+    // `TextEncoder` writes `_sum 0` instead. See #3816.
+    #[test]
+    fn text_encoder_writes_zero_sum_when_sample_sum_is_unset() {
+        let mut bucket = Bucket::default();
+        bucket.set_upper_bound(10.0);
+        bucket.set_cumulative_count(2);
+
+        let mut histogram = Histogram::default();
+        histogram.set_sample_count(2);
+        histogram.set_bucket(vec![bucket]);
+
+        let mut metric = Metric::default();
+        metric.set_histogram(histogram);
+
+        let mut family = MetricFamily::default();
+        family.set_name("histogram_without_sum".to_string());
+        family.set_help("a histogram whose sum was never set".to_string());
+        family.set_field_type(MetricType::HISTOGRAM);
+        family.set_metric(vec![metric]);
+
+        let mut output = Vec::new();
+        TextEncoder::new().encode(&[family], &mut output).unwrap();
+        let output = String::from_utf8(output).unwrap();
+
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "histogram_without_sum_sum 0"),
+            "{output}"
+        );
+    }
+}
