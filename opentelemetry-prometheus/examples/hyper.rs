@@ -13,7 +13,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_sdk::metrics::SdkMeterProvider;
-use prometheus::{Encoder, Registry, TextEncoder};
+use prometheus_client::{encoding::text::encode, registry::Registry};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -31,17 +31,18 @@ async fn serve_req(
 
     let response = match (req.method(), req.uri().path()) {
         (&Method::GET, "/metrics") => {
-            let mut buffer = vec![];
-            let encoder = TextEncoder::new();
-            let metric_families = state.registry.gather();
-            encoder.encode(&metric_families, &mut buffer).unwrap();
+            let mut buffer = String::new();
+            encode(&mut buffer, &state.registry).unwrap();
             state
                 .http_body_gauge
                 .record(buffer.len() as u64, HANDLER_ALL.as_ref());
 
             Response::builder()
                 .status(200)
-                .header(CONTENT_TYPE, encoder.format_type())
+                .header(
+                    CONTENT_TYPE,
+                    "application/openmetrics-text; version=1.0.0; charset=utf-8",
+                )
                 .body(Full::new(Bytes::from(buffer)))
                 .unwrap()
         }
@@ -73,10 +74,8 @@ struct AppState {
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use hyper_util::server::conn::auto::Builder;
 
-    let registry = Registry::new();
-    let exporter = opentelemetry_prometheus::exporter()
-        .with_registry(registry.clone())
-        .build()?;
+    let mut registry = Registry::default();
+    let exporter = opentelemetry_prometheus::exporter().build(&mut registry)?;
     let provider = SdkMeterProvider::builder().with_reader(exporter).build();
 
     let meter = provider.meter("hyper-example");
