@@ -5,8 +5,9 @@
 - **Breaking** Switch from the [`prometheus`](https://crates.io/crates/prometheus) crate to the official
   Prometheus client library, [`prometheus-client`](https://crates.io/crates/prometheus-client), as
   recommended by the [OpenTelemetry specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/sdk_exporters/prometheus.md#client-libraries).
+  [#3855](https://github.com/open-telemetry/opentelemetry-rust/pull/3855)
   - Metrics are now exposed in the [OpenMetrics text format](https://prometheus.io/docs/specs/om/open_metrics_spec/):
-    counter families are named without `_total` (the suffix is added to samples), units are emitted
+    counter families are named without `_total` (the suffix is added to samples) units are emitted
     as `# UNIT` metadata, float values are written as e.g. `1.0`, and the output ends with `# EOF`.
   - `ExporterBuilder::with_registry` has been removed. `ExporterBuilder::build` now takes the
     `&mut prometheus_client::registry::Registry` to register the exporter with.
