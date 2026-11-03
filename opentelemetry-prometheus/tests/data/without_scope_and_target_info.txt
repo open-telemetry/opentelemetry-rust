@@ -1,3 +1,5 @@
-# HELP bar_bytes_total a fun little counter
-# TYPE bar_bytes_total counter
-bar_bytes_total{A="B",C="D"} 3
+# HELP bar_bytes a fun little counter
+# TYPE bar_bytes counter
+# UNIT bar_bytes bytes
+bar_bytes_total{A="B",C="D"} 3.0
+# EOF
