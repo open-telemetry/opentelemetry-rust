@@ -1,0 +1,47 @@
+[package]
+name = "opentelemetry-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary = { version = "1", features = ["derive"] }
+libfuzzer-sys = "0.4"
+opentelemetry = { path = "../opentelemetry", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { path = "../opentelemetry-sdk", default-features = false, features = ["trace"] }
+pest = "2"
+pest_derive = "2"
+
+[dev-dependencies]
+rand = { version = "0.9", default-features = false, features = ["std", "std_rng"] }
+
+# Keep this crate out of the root workspace: it needs a nightly toolchain to build.
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "tracestate_parse_raw"
+path = "fuzz_targets/tracestate_parse_raw.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tracestate_differential"
+path = "fuzz_targets/tracestate_differential.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "trace_context_extract"
+path = "fuzz_targets/trace_context_extract.rs"
+test = false
+doc = false
+bench = false

@@ -10,6 +10,8 @@ green and reviews short.
 This is a Cargo workspace. Each top-level `opentelemetry-*` directory is a
 separately published crate. `opentelemetry-prometheus` is intentionally
 **outside** the workspace and must be linted/tested via its own manifest.
+`fuzz/` holds the cargo-fuzz targets. It is also outside the workspace and
+needs a nightly toolchain (see [fuzz/README.md](fuzz/README.md)).
 See [docs/design/architecture.md](docs/design/architecture.md) for the
 API/SDK split and crate responsibilities.
 
@@ -36,6 +38,16 @@ directory:
 ```sh
 (cd opentelemetry-prometheus && cargo clippy --all-targets --all-features -- -Dwarnings)
 (cd opentelemetry-prometheus && cargo test --all-features --lib)
+```
+
+For changes inside `fuzz/` (non-workspace, nightly only), run from that
+directory:
+
+```sh
+(cd fuzz && cargo fmt)
+(cd fuzz && cargo +nightly clippy --all-targets -- -Dwarnings)
+(cd fuzz && cargo +nightly test --lib)
+(cd fuzz && cargo +nightly fuzz build)
 ```
 
 ### When to Run the Full Precommit

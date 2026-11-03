@@ -1,0 +1,28 @@
+// W3C Trace Context Level 2 `tracestate` header.
+// https://www.w3.org/TR/trace-context-2/#tracestate-header-field-values
+
+tracestate = { SOI ~ list ~ EOI }
+
+// Empty and whitespace only list members are allowed.
+list        = _{ member_slot ~ ("," ~ member_slot)* }
+member_slot = _{ ows ~ list_member? ~ ows }
+list_member =  { key ~ "=" ~ value }
+
+// https://www.w3.org/TR/trace-context-2/#key
+key     = @{ (lcalpha | ASCII_DIGIT) ~ key_chr* }
+key_chr = _{ lcalpha | ASCII_DIGIT | "_" | "-" | "*" | "/" | "@" }
+lcalpha = _{ 'a'..'z' }
+
+// https://www.w3.org/TR/trace-context-2/#value
+// The ABNF reads `0*255(chr) nblk-chr`. A greedy PEG would swallow the final non-blank char with
+// `chr*`, so spaces are only consumed when a non-blank char follows them.
+value    = @{ (" "* ~ nblk_chr)+ }
+nblk_chr = _{ '\u{21}'..'\u{2B}' | '\u{2D}'..'\u{3C}' | '\u{3E}'..'\u{7E}' }
+
+// Optional whitespace, https://httpwg.org/specs/rfc9110.html#whitespace
+ows = _{ (" " | "\t")* }
+
+// Entry points for the oracle in `src/oracle.rs`.
+single_member_slot = { SOI ~ member_slot ~ EOI }
+single_key         = { SOI ~ key ~ EOI }
+single_value       = { SOI ~ value ~ EOI }
