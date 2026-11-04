@@ -6,6 +6,21 @@
   `random-trace-id` trace flag; span contexts carrying that flag now inject their
   sampling state correctly
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Fix several deviations from the [B3 specification](https://github.com/openzipkin/b3-propagation)
+  and the [OpenTelemetry B3 requirements](https://opentelemetry.io/docs/specs/otel/context/api-propagators/#b3-requirements)
+  ([#3828](https://github.com/open-telemetry/opentelemetry-rust/pull/3828)):
+  - **Breaking**: `Propagator::new()`, `Propagator::default()` and
+    `B3Encoding::UnSpecified` now inject the single `b3` header and `fields()`
+    returns `b3`. Use `Propagator::with_encoding(B3Encoding::MultipleHeader)` to
+    keep the previous behavior.
+  - `B3Encoding::SingleHeader` no longer also injects the multiple `x-b3-*` headers.
+  - The internal debug marker moved to a high bit so it doesn't overlap future
+    W3C trace flags.
+  - `X-B3-Flags` values other than `1` are ignored instead of overriding `X-B3-Sampled`.
+  - An invalid `X-B3-ParentSpanId` now rejects the extracted context, matching the
+    single header behavior.
+  - The single header debug flag `d` now correctly marks the span context as sampled
+
 ## 0.33.1
 
 Released 2026-Oct-08
