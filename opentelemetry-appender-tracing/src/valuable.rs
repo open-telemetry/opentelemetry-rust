@@ -118,6 +118,9 @@ impl Visit for ListVisitor {
         self.0.extend(to_any_value(value));
     }
 
+    /// NOTE: `AnyValue` does not have an equivalent to represent `None`,
+    /// this matches appender-log thus empty values will be filtered,
+    /// changing order in anonymous structs and reducing size of lists
     fn visit_unnamed_fields(&mut self, values: &[Value<'_>]) {
         self.0
             .extend(values.iter().copied().filter_map(to_any_value));
