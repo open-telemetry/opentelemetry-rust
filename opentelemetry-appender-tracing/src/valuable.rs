@@ -183,6 +183,12 @@ mod tests {
         Guest(u64),
     }
 
+    #[derive(Valuable)]
+    struct Node {
+        value: i64,
+        child: Option<Box<Node>>,
+    }
+
     fn map<const N: usize>(entries: [(&'static str, AnyValue); N]) -> AnyValue {
         AnyValue::Map(Box::new(
             entries
@@ -264,5 +270,20 @@ mod tests {
             ),
         ]);
         assert_eq!(to_any_value(user.as_value()), Some(expected));
+    }
+
+    #[test]
+    fn nested() {
+        let node = (1..=64)
+            .rev()
+            .fold(None, |child, value| Some(Box::new(Node { value, child })));
+        let expected = (1..=64).rev().fold(None, |child, value| {
+            let value = ("value", AnyValue::Int(value));
+            Some(match child {
+                Some(child) => map([value, ("child", child)]),
+                None => map([value]),
+            })
+        });
+        assert_eq!(to_any_value(node.as_value()), expected);
     }
 }
