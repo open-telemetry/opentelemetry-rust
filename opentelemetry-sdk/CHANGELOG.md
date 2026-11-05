@@ -50,6 +50,10 @@
   Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
   valid explicit randomness is preserved
   (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
+- Fixed `BatchSpanProcessor` exporting spans that were recorded but not sampled
+  (e.g. `SamplingDecision::RecordOnly`). It now drops them in `on_end`, matching
+  `SimpleSpanProcessor` and the specification.
+  ([#3812](https://github.com/open-telemetry/opentelemetry-rust/issues/3812))
 
 ## 0.33.1
 
