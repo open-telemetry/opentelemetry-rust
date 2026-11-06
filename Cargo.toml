@@ -55,7 +55,7 @@ tracing-core = { version = ">=0.1.33", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false }
 url = { version = "2.5", default-features = false }
 anyhow = "1.0.94"
-base64 = "0.22.1"
+base64 = "0.23.0"
 chrono = { version = "0.4.34", default-features = false }
 ctor = "0.2.9"
 ctrlc = "3.2.5"
