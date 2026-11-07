@@ -147,11 +147,11 @@ impl Visit for MapVisitor {
     }
 
     fn visit_entry(&mut self, key: Value<'_>, value: Value<'_>) {
-        let key = match key {
-            Value::String(key) => key.to_owned(),
-            key => format!("{key:?}"),
-        };
         if let Some(value) = to_any_value(value) {
+            let key = match key {
+                Value::String(key) => key.to_owned(),
+                key => format!("{key:?}"),
+            };
             self.0.insert(Key::new(key), value);
         }
     }
