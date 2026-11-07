@@ -1624,7 +1624,13 @@ mod tests {
         let exporter = InMemorySpanExporterBuilder::new().build();
         let processor = BatchSpanProcessor::builder(exporter.clone()).build();
         let mut unsampled = create_test_span("unsampled");
-        unsampled.span_context = SpanContext::empty_context();
+        unsampled.span_context = SpanContext::new(
+            TraceId::from(2),
+            SpanId::from(2),
+            TraceFlags::default(),
+            false,
+            TraceState::default(),
+        );
         let sampled = new_test_export_span_data();
         processor.on_end(FinishedSpan::borrowed(&unsampled));
         processor.on_end(FinishedSpan::borrowed(&sampled));
