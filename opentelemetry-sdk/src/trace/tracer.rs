@@ -17,13 +17,18 @@ use opentelemetry::{
     Context, InstrumentationScope, KeyValue, TraceId,
 };
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 /// `Tracer` implementation to create and manage spans
 #[derive(Clone)]
 pub struct SdkTracer {
-    pub(crate) scope: Arc<InstrumentationScope>,
+    inner: Arc<SdkTracerInner>,
+}
+
+struct SdkTracerInner {
+    scope: InstrumentationScope,
     provider: SdkTracerProvider,
+    non_recording_scope: OnceLock<Arc<InstrumentationScope>>,
 }
 
 impl fmt::Debug for SdkTracer {
@@ -31,8 +36,8 @@ impl fmt::Debug for SdkTracer {
     /// Omitting `provider` here is necessary to avoid cycles.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tracer")
-            .field("name", &self.scope.name())
-            .field("version", &self.scope.version())
+            .field("name", &self.inner.scope.name())
+            .field("version", &self.inner.scope.version())
             .finish()
     }
 }
@@ -41,20 +46,37 @@ impl SdkTracer {
     /// Create a new tracer (used internally by `TracerProvider`s).
     pub(crate) fn new(scope: InstrumentationScope, provider: SdkTracerProvider) -> Self {
         SdkTracer {
-            scope: Arc::new(scope),
-            provider,
+            inner: Arc::new(SdkTracerInner {
+                scope,
+                provider,
+                non_recording_scope: OnceLock::new(),
+            }),
         }
     }
 
     /// TracerProvider associated with this tracer.
     pub(crate) fn provider(&self) -> &SdkTracerProvider {
-        &self.provider
+        &self.inner.provider
     }
 
     /// Instrumentation scope of this tracer.
-    #[cfg(all(test, feature = "testing"))]
+    #[inline]
     pub(crate) fn instrumentation_scope(&self) -> &InstrumentationScope {
-        &self.scope
+        &self.inner.scope
+    }
+
+    /// Detached instrumentation scope for non-recording spans.
+    ///
+    /// Non-recording spans must not retain the provider, allowing automatic provider
+    /// shutdown when all recording spans and tracers are dropped. This allocates and
+    /// caches a detached `Arc<InstrumentationScope>` on first non-recording span creation.
+    #[inline]
+    pub(crate) fn non_recording_scope(&self) -> Arc<InstrumentationScope> {
+        Arc::clone(
+            self.inner
+                .non_recording_scope
+                .get_or_init(|| Arc::new(self.inner.scope.clone())),
+        )
     }
 
     fn build_recording_span(

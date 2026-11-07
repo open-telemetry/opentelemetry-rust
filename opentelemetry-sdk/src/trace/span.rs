@@ -15,13 +15,27 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+#[derive(Debug)]
+enum SpanOwner {
+    Recording(SdkTracer),
+    NonRecording(Arc<opentelemetry::InstrumentationScope>),
+}
+
+impl SpanOwner {
+    #[inline]
+    fn instrumentation_scope(&self) -> &opentelemetry::InstrumentationScope {
+        match self {
+            SpanOwner::Recording(tracer) => tracer.instrumentation_scope(),
+            SpanOwner::NonRecording(scope) => scope,
+        }
+    }
+}
+
 /// Single operation within a trace.
 pub struct Span {
     span_context: SpanContext,
     data: Option<SpanData>,
-    scope: Arc<opentelemetry::InstrumentationScope>,
-    // Keep shutdown out of SpanRef's lock by retaining the provider until drop.
-    provider: Option<crate::trace::SdkTracerProvider>,
+    owner: SpanOwner,
     span_limits: SpanLimits,
 }
 
@@ -30,7 +44,7 @@ impl std::fmt::Debug for Span {
         // The provider's processors may hold references to spans.
         f.debug_struct("Span")
             .field("span_context", &self.span_context)
-            .field("scope", &self.scope)
+            .field("scope", self.instrumentation_scope())
             .field("data", &self.data)
             .field("span_limits", &self.span_limits)
             .finish_non_exhaustive()
@@ -76,18 +90,17 @@ impl Span {
         Span {
             span_context,
             data: Some(data),
-            scope: Arc::clone(&tracer.scope),
-            provider: Some(tracer.provider().clone()),
+            owner: SpanOwner::Recording(tracer.clone()),
             span_limits,
         }
     }
 
+    #[inline]
     pub(crate) fn new_non_recording(span_context: SpanContext, tracer: &SdkTracer) -> Self {
         Span {
             span_context,
             data: None,
-            scope: Arc::clone(&tracer.scope),
-            provider: None,
+            owner: SpanOwner::NonRecording(tracer.non_recording_scope()),
             span_limits: SpanLimits::default(),
         }
     }
@@ -214,8 +227,9 @@ impl Span {
     }
 
     /// Returns the instrumentation scope of the span.
+    #[inline]
     pub fn instrumentation_scope(&self) -> &opentelemetry::InstrumentationScope {
-        &self.scope
+        self.owner.instrumentation_scope()
     }
 }
 
@@ -356,11 +370,9 @@ impl Span {
             None => return,
         };
 
-        // Recording spans always have a provider; debug_assert verifies this invariant
-        // while avoiding panics on drop in release builds.
-        debug_assert!(self.provider.is_some(), "recording span missing provider");
-        let Some(provider) = self.provider.as_ref() else {
-            return;
+        let provider = match &self.owner {
+            SpanOwner::Recording(tracer) => tracer.provider(),
+            SpanOwner::NonRecording(_) => return,
         };
         if provider.is_shutdown() {
             return;
@@ -383,7 +395,11 @@ impl Span {
         // https://opentelemetry.io/docs/specs/otel/trace/api/#get-context
         let span_context = self.span_context.clone();
 
-        let mut span_data = Some(build_export_data(data, span_context, &self.scope));
+        let mut span_data = Some(build_export_data(
+            data,
+            span_context,
+            self.owner.instrumentation_scope(),
+        ));
 
         if let Some((last, processors)) = span_processors.split_last() {
             for processor in processors {
@@ -526,6 +542,7 @@ mod tests {
     use opentelemetry::trace::{
         Span as _, SpanBuilder, SpanKind, TraceFlags, TraceId, Tracer, TracerProvider,
     };
+    use opentelemetry::Context;
     use std::sync::Arc;
     use std::time::Duration;
     use std::vec;
@@ -1919,5 +1936,230 @@ mod tests {
 
         let finished = exporter.get_finished_spans().unwrap();
         assert!(finished.is_empty());
+    }
+
+    #[derive(Debug, Clone)]
+    struct ShutdownCountingProcessor(Arc<std::sync::atomic::AtomicUsize>);
+
+    impl SpanProcessor for ShutdownCountingProcessor {
+        fn on_start(&self, _span: &mut Span, _cx: &Context) {}
+        fn on_end(&self, _span: FinishedSpan<'_>) {}
+        fn force_flush(&self) -> crate::error::OTelSdkResult {
+            Ok(())
+        }
+        fn shutdown_with_timeout(&self, _timeout: Duration) -> crate::error::OTelSdkResult {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn mixed_recording_and_non_recording_spans_lifecycle() {
+        use opentelemetry::InstrumentationScope;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let shutdowns = Arc::new(AtomicUsize::new(0));
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(ShutdownCountingProcessor(Arc::clone(&shutdowns)))
+            .build();
+        let scope = InstrumentationScope::builder("mixed_test")
+            .with_version("1.2.3")
+            .build();
+        let tracer = provider.tracer_with_scope(scope);
+
+        // 1. Create both recording and non-recording spans from the same tracer.
+        let mut rec_span = tracer.start("recording");
+        let non_rec_cx = Context::new().with_telemetry_suppressed();
+        let mut non_rec_span = tracer.start_with_context("non_recording", &non_rec_cx);
+
+        assert!(rec_span.is_recording());
+        assert!(!non_rec_span.is_recording());
+        assert_eq!(
+            rec_span.instrumentation_scope(),
+            non_rec_span.instrumentation_scope()
+        );
+
+        // 2. Drop original tracer and provider handles.
+        drop(tracer);
+        drop(provider);
+
+        // 3. Verify shutdown has not occurred while the recording span lives.
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
+
+        // 4. Calling end() on the recording span must not prematurely release the provider.
+        rec_span.end();
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
+
+        // Dropping the recording span releases the last tracer reference and triggers shutdown.
+        drop(rec_span);
+
+        // 5. Automatic shutdown occurs even though the non-recording span is still alive.
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
+
+        // 6. Surviving non-recording span retains full instrumentation scope after provider shutdown.
+        assert_eq!(non_rec_span.instrumentation_scope().name(), "mixed_test");
+        assert_eq!(
+            non_rec_span.instrumentation_scope().version(),
+            Some("1.2.3")
+        );
+
+        // 7. Ending and dropping the non-recording span causes no duplicate shutdown.
+        non_rec_span.end();
+        drop(non_rec_span);
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn cross_thread_span_ownership_and_shutdown() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::mpsc;
+
+        let shutdowns = Arc::new(AtomicUsize::new(0));
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_span_processor(ShutdownCountingProcessor(Arc::clone(&shutdowns)))
+            .build();
+        let tracer = provider.tracer("cross_thread");
+
+        let rec_span = tracer.start("rec");
+        let non_rec_cx = Context::new().with_telemetry_suppressed();
+        let non_rec_span = tracer.start_with_context("non_rec", &non_rec_cx);
+
+        drop(tracer);
+        drop(provider);
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 0);
+
+        let (tx, rx) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let (mut rec, non_rec): (Span, Span) = rx.recv().unwrap();
+            assert!(!non_rec.is_recording());
+            assert!(rec.is_recording());
+
+            drop(non_rec);
+            rec.end();
+            drop(rec);
+        });
+
+        tx.send((rec_span, non_rec_span)).unwrap();
+        worker.join().unwrap();
+
+        assert_eq!(shutdowns.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn concurrent_lazy_scope_initialization() {
+        use crate::trace::Sampler;
+        use opentelemetry::InstrumentationScope;
+        use std::sync::Barrier;
+
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOff)
+            .build();
+        let scope = InstrumentationScope::builder("concurrent_test")
+            .with_version("2.0.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.25.0")
+            .with_attributes(vec![KeyValue::new("env", "test")])
+            .build();
+        let tracer = provider.tracer_with_scope(scope);
+
+        let barrier = Arc::new(Barrier::new(16));
+        let mut handles = Vec::new();
+        for _ in 0..16 {
+            let tracer_clone = tracer.clone();
+            let b = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                b.wait();
+                for _ in 0..100 {
+                    let span = tracer_clone.start("test_non_rec");
+                    assert!(!span.is_recording());
+                    let scope = span.instrumentation_scope();
+                    assert_eq!(scope.name(), "concurrent_test");
+                    assert_eq!(scope.version(), Some("2.0.0"));
+                    assert_eq!(
+                        scope.schema_url(),
+                        Some("https://opentelemetry.io/schemas/1.25.0")
+                    );
+                }
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn scope_metadata_complete_preservation() {
+        use crate::trace::InMemorySpanExporter;
+        use opentelemetry::{Context, InstrumentationScope};
+
+        let exporter = InMemorySpanExporter::default();
+        let provider = crate::trace::SdkTracerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+
+        let scope = InstrumentationScope::builder("full_metadata_scope")
+            .with_version("3.14.0")
+            .with_schema_url("https://opentelemetry.io/schemas/1.26.0")
+            .with_attributes(vec![
+                KeyValue::new("service.namespace", "telemetry"),
+                KeyValue::new("tier", 1),
+            ])
+            .build();
+        let tracer = provider.tracer_with_scope(scope);
+
+        let mut rec_span = tracer.start("rec");
+        let non_rec_cx = Context::new().with_telemetry_suppressed();
+        let non_rec_span = tracer.start_with_context("non_rec", &non_rec_cx);
+
+        for scope in [
+            rec_span.instrumentation_scope(),
+            non_rec_span.instrumentation_scope(),
+        ] {
+            assert_eq!(scope.name(), "full_metadata_scope");
+            assert_eq!(scope.version(), Some("3.14.0"));
+            assert_eq!(
+                scope.schema_url(),
+                Some("https://opentelemetry.io/schemas/1.26.0")
+            );
+            let attrs: Vec<KeyValue> = scope.attributes().cloned().collect();
+            assert_eq!(attrs.len(), 2);
+            assert_eq!(attrs[0], KeyValue::new("service.namespace", "telemetry"));
+            assert_eq!(attrs[1], KeyValue::new("tier", 1));
+        }
+
+        rec_span.end();
+        drop(rec_span);
+
+        let exported = exporter.get_finished_spans().unwrap();
+        assert_eq!(exported.len(), 1);
+        assert_eq!(
+            exported[0].instrumentation_scope.name(),
+            "full_metadata_scope"
+        );
+        assert_eq!(exported[0].instrumentation_scope.version(), Some("3.14.0"));
+        assert_eq!(
+            exported[0].instrumentation_scope.schema_url(),
+            Some("https://opentelemetry.io/schemas/1.26.0")
+        );
+        let exp_attrs: Vec<KeyValue> = exported[0]
+            .instrumentation_scope
+            .attributes()
+            .cloned()
+            .collect();
+        assert_eq!(exp_attrs.len(), 2);
+    }
+
+    #[test]
+    fn tracer_and_span_memory_layout() {
+        assert_eq!(
+            std::mem::size_of::<SdkTracer>(),
+            std::mem::size_of::<Arc<()>>(),
+            "SdkTracer must be exactly 1 pointer in size (single Arc)"
+        );
+        assert_eq!(
+            std::mem::size_of::<SpanOwner>(),
+            std::mem::size_of::<usize>() * 2,
+            "SpanOwner enum must be 2 words (1 word pointer + 1 word discriminant)"
+        );
     }
 }
