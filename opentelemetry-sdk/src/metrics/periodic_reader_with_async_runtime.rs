@@ -440,40 +440,56 @@ impl<E: PushMetricExporter> MetricReader for PeriodicReader<E> {
     }
 }
 
-#[cfg(all(test, feature = "testing"))]
+#[cfg(all(
+    test,
+    feature = "testing",
+    any(feature = "rt-tokio", feature = "rt-tokio-current-thread")
+))]
 mod tests {
     use super::PeriodicReader;
-    use crate::error::OTelSdkError;
+    use crate::error::{OTelSdkError, OTelSdkResult};
+    use crate::metrics::data::{AggregatedMetrics, MetricData};
+    use crate::metrics::exporter::PushMetricExporter;
+    #[cfg(feature = "rt-tokio")]
     use crate::metrics::reader::MetricReader;
+    use crate::metrics::Temporality;
+    #[cfg(feature = "rt-tokio")]
+    use crate::Resource;
     use crate::{
         metrics::data::ResourceMetrics, metrics::InMemoryMetricExporter, metrics::SdkMeterProvider,
-        runtime, Resource,
+        runtime,
     };
     use opentelemetry::metrics::MeterProvider;
     use std::sync::mpsc;
+    use std::time::Duration;
 
     #[test]
+    #[cfg(feature = "rt-tokio-current-thread")]
     fn collection_triggered_by_interval_tokio_current() {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "rt-tokio")]
     async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio() {
         collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio")]
     async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio() {
         collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn collection_triggered_by_interval_from_tokio_multi_one_thread_on_runtime_tokio_current()
     {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn collection_triggered_by_interval_from_tokio_multi_two_thread_on_runtime_tokio_current()
     {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
@@ -481,16 +497,19 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     #[ignore = "See issue https://github.com/open-telemetry/opentelemetry-rust/issues/2056"]
+    #[cfg(feature = "rt-tokio")]
     async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio() {
         collection_triggered_by_interval_helper(runtime::Tokio);
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn collection_triggered_by_interval_from_tokio_current_on_runtime_tokio_current() {
         collection_triggered_by_interval_helper(runtime::TokioCurrentThread);
     }
 
     #[test]
+    #[cfg(feature = "rt-tokio")]
     fn unregistered_collect() {
         // Arrange
         let exporter = InMemoryMetricExporter::default();
@@ -534,5 +553,107 @@ mod tests {
         receiver
             .recv()
             .expect("message should be available in channel, indicating a collection occurred");
+    }
+
+    #[derive(Debug, Default)]
+    struct TokioMetricExporter {
+        inner: InMemoryMetricExporter,
+    }
+
+    impl PushMetricExporter for TokioMetricExporter {
+        async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
+            tokio::spawn(async {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            })
+            .await
+            .map_err(|err| OTelSdkError::InternalFailure(err.to_string()))?;
+            self.inner.export(metrics).await
+        }
+
+        fn force_flush(&self) -> OTelSdkResult {
+            self.inner.force_flush()
+        }
+
+        fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
+            self.inner.shutdown_with_timeout(timeout)
+        }
+
+        fn temporality(&self) -> Temporality {
+            self.inner.temporality()
+        }
+    }
+
+    fn assert_exported_counter_values(exporter: &InMemoryMetricExporter, expected: &[u64]) {
+        let exported = exporter.get_finished_metrics().unwrap();
+        assert_eq!(exported.len(), expected.len());
+        for (metrics, expected_value) in exported.iter().zip(expected) {
+            let [scope] = metrics.scope_metrics.as_slice() else {
+                panic!("expected one metric scope");
+            };
+            let [metric] = scope.metrics.as_slice() else {
+                panic!("expected one counter metric");
+            };
+            assert_eq!(metric.name(), "test_counter");
+            let AggregatedMetrics::U64(MetricData::Sum(sum)) = metric.data() else {
+                panic!("expected a u64 sum");
+            };
+            assert_eq!(sum.temporality(), Temporality::Cumulative);
+            let values: Vec<_> = sum.data_points().map(|point| point.value()).collect();
+            assert_eq!(values, [*expected_value]);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg(feature = "rt-tokio")]
+    async fn test_periodic_reader_tokio_multithread_explicit_flush_and_shutdown() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioMetricExporter::default();
+        let exported_metrics = exporter.inner.clone();
+        let reader = PeriodicReader::builder(exporter, runtime::Tokio)
+            .with_interval(Duration::from_secs(3600))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test_counter").build();
+
+        counter.add(1, &[]);
+        meter_provider
+            .force_flush()
+            .expect("force_flush should succeed");
+        assert_exported_counter_values(&exported_metrics, &[1]);
+
+        counter.add(2, &[]);
+        meter_provider.shutdown().expect("shutdown should succeed");
+        assert_exported_counter_values(&exported_metrics, &[1, 3]);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[cfg(feature = "rt-tokio-current-thread")]
+    async fn test_periodic_reader_tokio_current_thread_runtime() {
+        if crate::testing::run_in_subprocess() {
+            return;
+        }
+
+        let exporter = TokioMetricExporter::default();
+        let exported_metrics = exporter.inner.clone();
+        let reader = PeriodicReader::builder(exporter, runtime::TokioCurrentThread)
+            .with_interval(Duration::from_secs(3600))
+            .build();
+        let meter_provider = SdkMeterProvider::builder().with_reader(reader).build();
+        let meter = meter_provider.meter("test");
+        let counter = meter.u64_counter("test_counter").build();
+
+        counter.add(1, &[]);
+        meter_provider
+            .force_flush()
+            .expect("force_flush should succeed");
+        assert_exported_counter_values(&exported_metrics, &[1]);
+
+        counter.add(2, &[]);
+        meter_provider.shutdown().expect("shutdown should succeed");
+        assert_exported_counter_values(&exported_metrics, &[1, 3]);
     }
 }

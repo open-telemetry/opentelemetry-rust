@@ -178,6 +178,29 @@ impl Debug for BatchLogProcessor {
     }
 }
 
+#[cfg(test)]
+struct FlushRaceTestHook {
+    enqueued_tx: std::sync::mpsc::Sender<()>,
+    release_rx: std::sync::mpsc::Receiver<()>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static FLUSH_RACE_TEST_HOOK: std::cell::RefCell<Option<FlushRaceTestHook>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn pause_after_enqueue_for_flush_race_test() {
+    let hook = FLUSH_RACE_TEST_HOOK.with(|hook| hook.borrow_mut().take());
+    if let Some(hook) = hook {
+        hook.enqueued_tx.send(()).expect("test receiver dropped");
+        hook.release_rx
+            .recv()
+            .expect("test did not release emitter");
+    }
+}
+
 impl LogProcessor for BatchLogProcessor {
     fn emit(&self, record: &mut SdkLogRecord, instrumentation: &InstrumentationScope) {
         // Count the log record before enqueueing it so that a concurrent
@@ -192,6 +215,8 @@ impl LogProcessor for BatchLogProcessor {
         // match for result and handle each separately
         match result {
             Ok(_) => {
+                #[cfg(test)]
+                pause_after_enqueue_for_flush_race_test();
                 // Successfully sent the log record to the data channel.
                 // `processed` success is counted when the batch is submitted to
                 // the exporter (in the worker thread), not here at enqueue.
@@ -529,7 +554,11 @@ impl BatchLogProcessor {
                         // exporter, regardless of the export outcome.
                         record_processed_success(count_of_logs as u64);
 
-                        result = export_batch_sync(exporter, logs, last_export_time); // This method clears the logs vec after exporting
+                        // Continue draining after errors, but retain the first failure.
+                        let batch_result = export_batch_sync(exporter, logs, last_export_time);
+                        if result.is_ok() {
+                            result = batch_result;
+                        }
 
                         current_batch_size.fetch_sub(count_of_logs, Ordering::AcqRel);
                     }
@@ -1043,6 +1072,67 @@ mod tests {
     }
 
     #[test]
+    fn batchlogprocessor_drain_reports_first_batch_error() {
+        #[derive(Debug)]
+        struct FailingBatchExporter {
+            calls: Arc<AtomicUsize>,
+            failing_batches: &'static [usize],
+        }
+
+        impl LogExporter for FailingBatchExporter {
+            async fn export(&self, _batch: LogBatch<'_>) -> OTelSdkResult {
+                let call = self.calls.fetch_add(1, Ordering::Relaxed);
+                if self.failing_batches.contains(&call) {
+                    Err(OTelSdkError::InternalFailure(format!(
+                        "batch {call} export failed"
+                    )))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        for case in [&[0][..], &[1], &[2], &[0, 2], &[1, 2], &[0, 1, 2]] {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let exporter = FailingBatchExporter {
+                calls: calls.clone(),
+                failing_batches: case,
+            };
+            let config = BatchConfigBuilder::default()
+                .with_max_queue_size(3)
+                .with_max_export_batch_size(1)
+                .with_scheduled_delay(Duration::from_secs(60))
+                .build();
+            let processor = BatchLogProcessor::new(exporter, config);
+
+            // Queue records without triggering a size-based export so force_flush
+            // deterministically drains all three batches in a single operation.
+            processor.current_batch_size.store(3, Ordering::Release);
+            for _ in 0..3 {
+                processor
+                    .logs_sender
+                    .send(Box::new((
+                        SdkLogRecord::new(),
+                        InstrumentationScope::default(),
+                    )))
+                    .unwrap();
+            }
+
+            let result = processor.force_flush();
+
+            assert_eq!(calls.load(Ordering::Relaxed), 3);
+            assert_eq!(processor.current_batch_size.load(Ordering::Relaxed), 0);
+            processor.shutdown().unwrap();
+            let expected_message = format!("batch {} export failed", case[0]);
+            assert!(
+                matches!(&result, Err(OTelSdkError::InternalFailure(message))
+                    if message == &expected_message),
+                "first failing batch {case:?} must be reported: {result:?}"
+            );
+        }
+    }
+
+    #[test]
     fn test_batch_config_max_export_batch_size_validation() {
         let env_vars = vec![
             (OTEL_BLRP_MAX_QUEUE_SIZE, Some("256")),
@@ -1313,6 +1403,64 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
             Ok(())
         }
+    }
+
+    #[test]
+    fn test_force_flush_includes_successfully_enqueued_log() {
+        let (enqueued_tx, enqueued_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (start_tx, start_rx) = mpsc::channel();
+
+        let exporter = InMemoryLogExporterBuilder::default().build();
+        let config = BatchConfigBuilder::default()
+            .with_max_queue_size(4)
+            .with_max_export_batch_size(2)
+            .with_scheduled_delay(Duration::from_secs(60))
+            .build();
+        let processor = Arc::new(BatchLogProcessor::new(exporter.clone(), config));
+        let emit_processor = Arc::clone(&processor);
+
+        let emitter = std::thread::spawn(move || {
+            start_rx.recv().expect("test did not start emitter");
+
+            super::FLUSH_RACE_TEST_HOOK.with(|hook| {
+                *hook.borrow_mut() = Some(super::FlushRaceTestHook {
+                    enqueued_tx,
+                    release_rx,
+                });
+            });
+
+            let mut record = SdkLogRecord::new();
+            emit_processor.emit(&mut record, &InstrumentationScope::default());
+        });
+
+        start_tx.send(()).expect("emitter thread stopped early");
+        let reached_hook = enqueued_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        let flush_observation = if reached_hook {
+            let flush_result = processor.force_flush();
+            let exported_count = exporter.get_emitted_logs().map(|logs| logs.len());
+            Some((flush_result, exported_count))
+        } else {
+            None
+        };
+
+        // Unblock and join the emitter before asserting test results.
+        let _ = release_tx.send(());
+        let emit_result = emitter.join();
+        let shutdown_result = processor.shutdown();
+
+        assert!(reached_hook, "emitter did not reach the post-enqueue hook");
+        let (flush_result, exported_count) =
+            flush_observation.expect("flush observation missing after reaching hook");
+        flush_result.expect("force_flush returned an error");
+        let exported_count = exported_count.expect("could not inspect exported logs");
+        emit_result.expect("emitter thread panicked");
+        shutdown_result.expect("shutdown returned an error");
+
+        assert_eq!(
+            exported_count, 1,
+            "force_flush returned before the successfully-enqueued log was exported"
+        );
     }
 
     /// Stress test that verifies all logs are accounted for.

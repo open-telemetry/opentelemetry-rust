@@ -5,6 +5,9 @@
 - Added `sum_if_recorded` accessors to histogram data points so exporters can
   distinguish an unrecorded sum from a recorded zero.
   ([#3804](https://github.com/open-telemetry/opentelemetry-rust/issues/3804))
+- Improved metrics measurement performance by speeding up attribute set
+  lookups (faster `KeyValue` equality and boxed attribute keys).
+  ([#3787](https://github.com/open-telemetry/opentelemetry-rust/pull/3787))
 - **Breaking:** `IdGenerator` now requires an `is_random()` implementation;
   custom generators need to add this method to their existing implementation:
 
@@ -22,16 +25,34 @@
   parent, and local sampling decisions clear private propagator flags while retaining
   `RANDOM`. `TraceContextPropagator` now propagates the `random-trace-id` flag
   ([#3270](https://github.com/open-telemetry/opentelemetry-rust/issues/3270)).
+- Improved performance of non-recording spans: calling `Span::end()` no longer
+  reads the system clock when the span is not recording.
+  ([#3814](https://github.com/open-telemetry/opentelemetry-rust/pull/3814))
 - Fixed `BatchSpanProcessor` and `BatchLogProcessor` shutdown reporting success
   when exporting the final queued telemetry failed.
   ([#3793](https://github.com/open-telemetry/opentelemetry-rust/issues/3793))
 - Fixed `SdkTracer` to accept parent span contexts with valid trace id but invalid
   span id on span creation.
   ([#3790](https://github.com/open-telemetry/opentelemetry-rust/pull/3790))
+- Preserve the first batch export error when `BatchSpanProcessor` or
+  `BatchLogProcessor` drains multiple batches, so a later successful export cannot
+  make `force_flush()` report success. Remaining batches are still exported after
+  an error.
+  ([#3791](https://github.com/open-telemetry/opentelemetry-rust/pull/3791))
 - Added `MeterProviderBuilder::with_hasher` to configure the hasher used to look
   up attribute sets when aggregating measurements (default remains std's
   `RandomState`).
   ([#3788](https://github.com/open-telemetry/opentelemetry-rust/pull/3788))
+- Added `ProbabilitySampler` behind the `experimental_trace_probability_sampler`
+  feature, implementing the OpenTelemetry Consistent Probability Sampling
+  specification. It evaluates 56-bit
+  rejection thresholds against randomness derived from input `ot=rv:...` TraceState
+  (including root spans) or the least significant 56 bits of the
+  TraceId, updates outgoing TraceState with `ot=th:...`, and supports configuration as
+  a standalone sampler or as a delegate within `ParentBasedSampler`.
+  Malformed `ot` sub-fields are discarded when encoding sampled TraceState so
+  valid explicit randomness is preserved
+  (Part of [#3195](https://github.com/open-telemetry/opentelemetry-rust/issues/3195)).
 
 ## 0.33.1
 
@@ -121,6 +142,17 @@ Released 2026-Sep-18
 - Fixed asynchronous counters (`ObservableCounter`, `ObservableUpDownCounter`)
   using delta temporality reporting incorrect deltas when observed attributes
   were recorded in an unsorted key order.
+- **Breaking** `SpanProcessor::on_end` now takes `FinishedSpan<'_>` by value instead of `SpanData`.
+  - Completed spans are inspected via `FinishedSpan::span_data(&self) -> &SpanData`.
+  - Processors taking ownership call `FinishedSpan::into_owned(self) -> SpanData`. The last registered processor receives an owned wrapper and can move the data by calling `into_owned()`; earlier processors receive a borrowed wrapper and clone on `into_owned()`.
+  - Live `Span` instances provide clone-free inherent read methods (`parent_span_id`, `span_kind`, `name`, `start_time`, `attributes`, `dropped_attributes_count`, `events`, `dropped_events_count`, `links`, `dropped_links_count`, `status`, `instrumentation_scope`), while context is accessed via `Span::span_context()`.
+  - Custom span processors should update `on_end(&self, span: FinishedSpan<'_>)`, use `span.span_data()` for read-only access, and call `span.into_owned()` only when they need an owned `SpanData`.
+  Supersedes [#2962](https://github.com/open-telemetry/opentelemetry-rust/pull/2962).
+  Relates to [#2940](https://github.com/open-telemetry/opentelemetry-rust/issues/2940),
+  [#2726](https://github.com/open-telemetry/opentelemetry-rust/issues/2726),
+  [#2939](https://github.com/open-telemetry/opentelemetry-rust/issues/2939).
+- Fix `Span::end_with_timestamp` preserving explicit end times even when equal to start time,
+  instead of silently overwriting with the current time.
 
 ## 0.32.1
 

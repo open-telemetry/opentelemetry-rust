@@ -7,16 +7,16 @@
     RAM: 48.0 GB
     | Test                                                  | Average time|
     |-------------------------------------------------------|-------------|
-    | Counter_Add_Sorted                                    |  69 ns      |
-    | Counter_Add_Unsorted                                  |  70 ns      |
-    | Counter_Add_Sorted_Rapidhash                          |  48 ns      |
-    | Counter_Add_Unsorted_Rapidhash                        |  51 ns      |
-    | Counter_Add_Sorted_FxHash                             |  41 ns      |
-    | Counter_Add_Unsorted_FxHash                           |  42 ns      |
-    | Counter_Add_Sorted_ConstantHasher                     | 7.8 µs      |
-    | Counter_Add_Cardinality_1_ConstantHasher              |  29 ns      |
-    | Counter_Add_Sorted_With_Non_Static_Values             | 109 ns      |
-    | Counter_Overflow                                      | 222 ns      |
+    | Counter_Add_Sorted                                    |  60 ns      |
+    | Counter_Add_Unsorted                                  |  60 ns      |
+    | Counter_Add_Sorted_Rapidhash                          |  47 ns      |
+    | Counter_Add_Unsorted_Rapidhash                        |  48 ns      |
+    | Counter_Add_Sorted_FxHash                             |  28 ns      |
+    | Counter_Add_Unsorted_FxHash                           |  30 ns      |
+    | Counter_Add_Sorted_ConstantHasher                     | 5.7 µs      |
+    | Counter_Add_Cardinality_1_ConstantHasher              |  14 ns      |
+    | Counter_Add_Sorted_With_Non_Static_Values             | 108 ns      |
+    | Counter_Overflow                                      | 232 ns      |
     | ThreadLocal_Random_Generator_5                        |   7 ns      |
 */
 

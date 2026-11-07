@@ -20,7 +20,10 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use opentelemetry::{
-    trace::{mark_span_as_active, Span, SpanBuilder, TraceContextExt, Tracer, TracerProvider},
+    trace::{
+        mark_span_as_active, Span, SpanBuilder, SpanContext, SpanId, TraceContextExt, TraceFlags,
+        TraceId, TraceState, Tracer, TracerProvider,
+    },
     Context, KeyValue,
 };
 use opentelemetry_sdk::{
@@ -160,6 +163,20 @@ fn criterion_benchmark(c: &mut Criterion) {
             let mut span = tracer.start_with_context("span-name", &parent_cx);
             span.end();
         });
+    });
+
+    // Parent carries a non-empty TraceState (e.g. vendor sampling state),
+    // which is cloned into every child span context.
+    let tracestate_parent_cx = Context::new().with_remote_span_context(SpanContext::new(
+        TraceId::from(1),
+        SpanId::from(1),
+        TraceFlags::SAMPLED,
+        true,
+        TraceState::from_key_value([("vendor", "sampling-state")]).unwrap(),
+    ));
+    trace_benchmark_group(c, "span-creation-with-tracestate-parent", |tracer| {
+        let mut span = tracer.start_with_context("span-name", &tracestate_parent_cx);
+        span.end();
     });
 }
 
