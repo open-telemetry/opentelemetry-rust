@@ -29,11 +29,12 @@ use super::error::MetricResult;
 use super::pipeline::{AggregateFactory, AggregateParams};
 
 // TODO Replace it with LazyLock once it is stable
-pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Vec<KeyValue>> = OnceLock::new();
+pub(crate) static STREAM_OVERFLOW_ATTRIBUTES: OnceLock<Box<[KeyValue]>> = OnceLock::new();
 
 #[inline]
-fn stream_overflow_attributes() -> &'static Vec<KeyValue> {
-    STREAM_OVERFLOW_ATTRIBUTES.get_or_init(|| vec![KeyValue::new("otel.metric.overflow", true)])
+fn stream_overflow_attributes() -> &'static [KeyValue] {
+    STREAM_OVERFLOW_ATTRIBUTES
+        .get_or_init(|| Box::new([KeyValue::new("otel.metric.overflow", true)]))
 }
 
 pub(crate) trait Aggregator {
@@ -93,7 +94,7 @@ impl<S> AttributeBuildHasher for S where S: BuildHasher + Send + Sync + 'static 
 pub(crate) type SharedFactory<T> = Arc<dyn Fn() -> T + Send + Sync>;
 
 /// Map from attribute sets to their aggregator tracker entries.
-type TrackerMap<A, S> = HashMap<Vec<KeyValue>, Arc<TrackerEntry<A>>, S>;
+type TrackerMap<A, S> = HashMap<Box<[KeyValue]>, Arc<TrackerEntry<A>>, S>;
 
 /// The storage for sums.
 ///
@@ -195,11 +196,11 @@ where
             new_tracker.has_been_updated.store(true, Ordering::Release);
 
             // Insert tracker with the attributes in the provided and sorted orders
-            trackers.insert(attributes.to_vec(), new_tracker.clone());
-            trackers.insert(sorted_attrs, new_tracker);
+            trackers.insert(Box::from(attributes), new_tracker.clone());
+            trackers.insert(sorted_attrs.into_boxed_slice(), new_tracker);
 
             self.count.fetch_add(1, Ordering::SeqCst);
-        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes().as_slice()) {
+        } else if let Some(overflow_value) = trackers.get(stream_overflow_attributes()) {
             overflow_value.aggregator.update(value);
             overflow_value
                 .has_been_updated
@@ -208,7 +209,10 @@ where
             let new_tracker = TrackerEntry::<A>::new(&self.config);
             new_tracker.aggregator.update(value);
             new_tracker.has_been_updated.store(true, Ordering::Release);
-            trackers.insert(stream_overflow_attributes().clone(), Arc::new(new_tracker));
+            trackers.insert(
+                Box::from(stream_overflow_attributes()),
+                Arc::new(new_tracker),
+            );
         }
     }
 
@@ -272,9 +276,9 @@ where
             // unbound measure() calls hit the fast path regardless of attr order.
             // Mirrors `measure()`'s insert pattern.
             if original != sorted_attrs.as_slice() {
-                trackers.insert(original.to_vec(), new_tracker.clone());
+                trackers.insert(Box::from(original), new_tracker.clone());
             }
-            trackers.insert(sorted_attrs, new_tracker.clone());
+            trackers.insert(sorted_attrs.into_boxed_slice(), new_tracker.clone());
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(new_tracker)
         } else {
@@ -290,7 +294,7 @@ where
             // yet — mirrors the lazy creation in `measure()` (line above where
             // overflow is inserted on first overflowing measurement).
             let overflow_tracker = trackers
-                .entry(stream_overflow_attributes().clone())
+                .entry(Box::from(stream_overflow_attributes()))
                 .or_insert_with(|| Arc::new(TrackerEntry::<A>::new(&self.config)))
                 .clone();
             overflow_tracker.bound_count.fetch_add(1, Ordering::Relaxed);
@@ -325,7 +329,7 @@ where
         let mut seen = HashSet::new();
         for (attrs, tracker) in trackers.iter() {
             if seen.insert(Arc::as_ptr(tracker)) {
-                dest.push(map_fn(attrs.clone(), &tracker.aggregator));
+                dest.push(map_fn(attrs.to_vec(), &tracker.aggregator));
             }
         }
     }
@@ -362,8 +366,8 @@ where
             for (attrs, tracker) in trackers.iter() {
                 if seen.insert(Arc::as_ptr(tracker)) {
                     if tracker.has_been_updated.swap(false, Ordering::Acquire) {
-                        dest.push(map_fn(attrs.clone(), &tracker.aggregator));
-                    } else if attrs.as_slice() != overflow_attrs.as_slice()
+                        dest.push(map_fn(attrs.to_vec(), &tracker.aggregator));
+                    } else if &**attrs != overflow_attrs
                         && tracker.bound_count.load(Ordering::Relaxed) == 0
                     {
                         // Stale and not bound — candidate for eviction
@@ -430,7 +434,7 @@ where
         for (attrs, tracker) in old_trackers {
             if seen.insert(Arc::as_ptr(&tracker)) {
                 dest.push(map_fn(
-                    attrs,
+                    attrs.into_vec(),
                     tracker.aggregator.clone_and_reset(&self.config),
                 ));
             }
