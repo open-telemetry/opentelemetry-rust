@@ -4,11 +4,9 @@
 
 [splash]: https://raw.githubusercontent.com/open-telemetry/opentelemetry-rust/main/assets/logo-text.png
 
-This crate contains generated files from
-[opentelemetry-proto](https://github.com/open-telemetry/opentelemetry-proto)
-repository and transformations between types from generated files and types
-defined in
-[opentelemetry](https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry).
+This crate contains generated Rust types from the
+[OpenTelemetry Protocol](https://github.com/open-telemetry/opentelemetry-proto)
+repository. It has no dependency on the OpenTelemetry API or SDK crates.
 
 [![Crates.io: opentelemetry-proto](https://img.shields.io/crates/v/opentelemetry-proto.svg)](https://crates.io/crates/opentelemetry-proto)
 [![Documentation](https://docs.rs/opentelemetry-proto/badge.svg)](https://docs.rs/opentelemetry-proto)
@@ -40,13 +38,14 @@ of telemetry is intentionally left to other tools.
 ### What does this crate contain?
 
 This crate provides auto-generated Protobuf types from the [OpenTelemetry
-protocol specification](https://github.com/open-telemetry/opentelemetry-proto),
-along with conversion implementations between these generated types and the
-types defined in the
-[opentelemetry](https://crates.io/crates/opentelemetry) crate. It is used
-internally by exporters such as
-[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) to serialize
-and deserialize telemetry data.
+protocol specification](https://github.com/open-telemetry/opentelemetry-proto).
+It can be used independently by applications that need OTLP wire-format types.
+
+The experimental
+[opentelemetry-otlp-transform](https://crates.io/crates/opentelemetry-otlp-transform)
+crate provides conversions from OpenTelemetry SDK telemetry into OTLP export
+requests. Its public API may change before stabilisation. Exporters such as
+[opentelemetry-otlp](https://crates.io/crates/opentelemetry-otlp) use both crates.
 
 ## Getting started
 

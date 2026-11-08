@@ -1,0 +1,17 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+# This crate deliberately connects SDK telemetry types to OTLP protobuf request types.
+allowed_external_types = [
+    "opentelemetry::trace::Event",
+    "opentelemetry_proto::proto::tonic::collector::logs::v1::ExportLogsServiceRequest",
+    "opentelemetry_proto::proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest",
+    "opentelemetry_proto::proto::tonic::collector::trace::v1::ExportTraceServiceRequest",
+    "opentelemetry_proto::proto::tonic::tracez::v1::ErrorData",
+    "opentelemetry_proto::proto::tonic::tracez::v1::LatencyData",
+    "opentelemetry_proto::proto::tonic::tracez::v1::RunningData",
+    "opentelemetry_proto::proto::tonic::trace::v1::span::Event",
+    "opentelemetry_sdk::logs::export::LogBatch",
+    "opentelemetry_sdk::metrics::data::ResourceMetrics",
+    "opentelemetry_sdk::resource::Resource",
+    "opentelemetry_sdk::trace::export::SpanData",
+]

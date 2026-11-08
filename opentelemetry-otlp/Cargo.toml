@@ -30,6 +30,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 opentelemetry = { workspace= true, default-features = false }
 opentelemetry_sdk = { workspace= true, default-features = false }
 opentelemetry-http = { workspace = true, optional = true, default-features = false }
+opentelemetry-otlp-transform = { workspace = true, default-features = false }
 opentelemetry-proto = { workspace = true, default-features = false }
 
 prost = { workspace = true, optional = true }
@@ -59,10 +60,10 @@ async-trait = { workspace = true }
 
 [features]
 # telemetry pillars and functions
-trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-proto/trace"]
-metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-proto/metrics"]
-logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-proto/logs"]
-internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs"]
+trace = ["opentelemetry/trace", "opentelemetry_sdk/trace", "opentelemetry-otlp-transform/trace", "opentelemetry-proto/trace"]
+metrics = ["opentelemetry/metrics", "opentelemetry_sdk/metrics", "opentelemetry-otlp-transform/metrics", "opentelemetry-proto/metrics"]
+logs = ["opentelemetry/logs", "opentelemetry_sdk/logs", "opentelemetry-otlp-transform/logs", "opentelemetry-proto/logs"]
+internal-logs = ["opentelemetry_sdk/internal-logs", "opentelemetry/internal-logs", "opentelemetry-otlp-transform/internal-logs"]
 
 default = ["http-proto", "reqwest-blocking-client", "trace", "metrics", "logs", "internal-logs"]
 
