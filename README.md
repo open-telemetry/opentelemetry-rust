@@ -110,6 +110,7 @@ The following crates are maintained in this repo:
   or [vendor specific endpoints](https://opentelemetry.io/ecosystem/vendors/).
 * [`opentelemetry-stdout`] exporter for sending logs, metrics and traces to
   stdout, for learning/debugging purposes.  
+* [`opentelemetry-otlp-file`](./opentelemetry-otlp-file) exporter that writes logs, metrics and traces as OTLP JSON lines to stdout or a file, as described by the [OTLP File Exporter](https://opentelemetry.io/docs/specs/otel/protocol/file-exporter/) specification.
 * [`opentelemetry-http`] This crate contains utility functions to help with
   exporting telemetry, propagation, over [`http`].
 * [`opentelemetry-appender-log`] This crate provides logging appender to route
